@@ -147,3 +147,5 @@ CREATE TABLE IF NOT EXISTS audit (
   action TEXT NOT NULL,
   detail TEXT
 );
+
+CREATE TABLE IF NOT EXISTS photo_blobs (key TEXT PRIMARY KEY, type TEXT, data BLOB NOT NULL, created_at TEXT DEFAULT (datetime('now')));

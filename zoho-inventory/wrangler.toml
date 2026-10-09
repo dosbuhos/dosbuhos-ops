@@ -20,6 +20,7 @@ binding = "DB"
 database_name = "muestras"
 database_id = "a6d21c0e-2d03-4d03-9233-d295ccfed6d3"
 
-[[r2_buckets]]
-binding = "PHOTOS"
-bucket_name = "muestras-fotos"
+# Optional: photos go to D1 unless this R2 binding is enabled.
+# [[r2_buckets]]
+# binding = "PHOTOS"
+# bucket_name = "muestras-fotos"

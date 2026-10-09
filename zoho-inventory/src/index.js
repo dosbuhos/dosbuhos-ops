@@ -43,8 +43,20 @@ async function saveEvent(env, user, id, data, submit) {
   return json({ ok: true });
 }
 
+// Photo storage: R2 when the PHOTOS binding exists, otherwise D1 (photo_blobs table).
+async function putPhoto(env, key, file) {
+  if (env.PHOTOS) return env.PHOTOS.put(key, file.stream(), { httpMetadata: { contentType: file.type || 'image/jpeg' } });
+  const buf = await file.arrayBuffer();
+  if (buf.byteLength > 1900000) throw new Error('La foto es demasiado grande');
+  await env.DB.prepare('INSERT INTO photo_blobs (key, type, data) VALUES (?,?,?)').bind(key, file.type || 'image/jpeg', buf).run();
+}
+async function getPhoto(env, key) {
+  if (env.PHOTOS) { const o = await env.PHOTOS.get(key); if (o) return { body: o.body, type: o.httpMetadata?.contentType }; }
+  const r = await env.DB.prepare('SELECT type, data FROM photo_blobs WHERE key=?').bind(key).first();
+  return r ? { body: new Uint8Array(r.data), type: r.type } : null;
+}
+
 async function photoUpload(env, user, request) {
-  if (!env.PHOTOS) return json({ error: 'El almacenamiento de fotos (R2) no está configurado.' }, 500);
   const fd = await request.formData();
   const file = fd.get('file'); const kind = String(fd.get('kind') || 'otra'); const eventId = Number(fd.get('event_id'));
   if (!file || typeof file === 'string') return json({ error: 'Sin archivo' }, 400);
@@ -52,7 +64,7 @@ async function photoUpload(env, user, request) {
   const ev = await env.DB.prepare('SELECT rep_id, status FROM events WHERE id=?').bind(eventId).first();
   if (!ev || ev.rep_id !== user.rep?.id || !['abierto', 'devuelto'].includes(ev.status)) return json({ error: 'No puedes subir fotos a este evento' }, 403);
   const key = `eventos/${eventId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.jpg`;
-  await env.PHOTOS.put(key, file.stream(), { httpMetadata: { contentType: file.type || 'image/jpeg' } });
+  await putPhoto(env, key, file);
   const row = await env.DB.prepare('INSERT INTO photos (rep_id, event_id, kind, r2_key) VALUES (?,?,?,?) RETURNING id').bind(ev.rep_id, eventId, kind, key).first();
   return json({ id: row.id });
 }
@@ -62,7 +74,6 @@ async function countSubmit(env, user, request) {
   let lines; try { lines = JSON.parse(fd.get('lines')); } catch { return json({ error: 'Datos inválidos' }, 400); }
   const file = fd.get('file');
   if (!file || typeof file === 'string') return json({ error: 'Falta la foto del inventario' }, 400);
-  if (!env.PHOTOS) return json({ error: 'El almacenamiento de fotos (R2) no está configurado.' }, 500);
   const hold = Object.fromEntries((await holdings(env, user.rep.id)).map(h => [h.wine, h.qty]));
   const any = await env.DB.prepare('SELECT 1 FROM counts WHERE rep_id=?').bind(user.rep.id).first();
   const c = await env.DB.prepare('INSERT INTO counts (rep_id, kind, note) VALUES (?,?,?) RETURNING id').bind(user.rep.id, any ? 'mensual' : 'inicial', String(fd.get('note') || '').slice(0, 1000)).first();
@@ -73,7 +84,7 @@ async function countSubmit(env, user, request) {
   }
   for (const [w, q] of Object.entries(hold)) if (!seen.has(w)) stmts.push(env.DB.prepare('INSERT INTO count_lines (count_id, wine, expected, counted) VALUES (?,?,?,0)').bind(c.id, w, q));
   const key = `conteos/${c.id}-${crypto.randomUUID().slice(0, 8)}.jpg`;
-  await env.PHOTOS.put(key, file.stream(), { httpMetadata: { contentType: file.type || 'image/jpeg' } });
+  await putPhoto(env, key, file);
   stmts.push(env.DB.prepare(`INSERT INTO photos (rep_id, count_id, kind, r2_key) VALUES (?,?,'conteo',?)`).bind(user.rep.id, c.id, key));
   await env.DB.batch(stmts);
   await audit(env, user.email, 'enviar_conteo', { id: c.id });
@@ -102,9 +113,9 @@ export default {
     if (m === 'GET' && R(/^\/foto\/(\d+)$/)) {
       const ph = await env.DB.prepare('SELECT * FROM photos WHERE id=?').bind(R(/^\/foto\/(\d+)$/)[1]).first();
       if (!ph || (!user.isAdmin && ph.rep_id !== user.rep?.id)) return new Response('No encontrado', { status: 404 });
-      const obj = await env.PHOTOS.get(ph.r2_key);
+      const obj = await getPhoto(env, ph.r2_key);
       if (!obj) return new Response('No encontrado', { status: 404 });
-      return new Response(obj.body, { headers: { 'content-type': obj.httpMetadata?.contentType || 'image/jpeg', 'cache-control': 'private, max-age=86400' } });
+      return new Response(obj.body, { headers: { 'content-type': obj.type || 'image/jpeg', 'cache-control': 'private, max-age=86400' } });
     }
 
     // ---------- admin ----------
