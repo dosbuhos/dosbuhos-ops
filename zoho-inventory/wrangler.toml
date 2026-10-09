@@ -1,4 +1,4 @@
-name = "muestras-dosbuhos"
+name = "dosbuhos-ops"
 main = "src/index.js"
 compatibility_date = "2025-02-24"
 

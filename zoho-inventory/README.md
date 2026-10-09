@@ -17,10 +17,10 @@ Cloudflare dashboard → Workers & Pages → Create → **Import a repository** 
 - Build command: leave empty · Deploy command: `npx wrangler deploy`
 
 Every push to `main` that touches this folder redeploys it. The dashboard shows the app's address,
-like `https://muestras-dosbuhos.<your-subdomain>.workers.dev`. Everyone sees "Sin acceso" until step 3.
+like `https://dosbuhos-ops.<your-subdomain>.workers.dev`. Everyone sees "Sin acceso" until step 3.
 
 ### 3. Turn on logins (Cloudflare Access)
-Dashboard → Workers & Pages → **muestras-dosbuhos** → Settings → Domains & Routes → workers.dev → **Enable Cloudflare Access**.
+Dashboard → Workers & Pages → **dosbuhos-ops** → Settings → Domains & Routes → workers.dev → **Enable Cloudflare Access**.
 - Edit the access policy so it allows these emails: `emaycotte@gmail.com`, `carlostapia@dosbuhos.com` (login by one-time code to their email).
 - Copy the **team domain** (`xxxx.cloudflareaccess.com`) and the **AUD tag** shown there.
 - Put them in `wrangler.toml` (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`) and push. They aren't secret, so you can send them to Claude to do it.
