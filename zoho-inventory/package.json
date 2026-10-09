@@ -1,0 +1,14 @@
+{
+  "name": "muestras-dosbuhos",
+  "version": "1.0.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "zoho": "node scripts/zoho-setup.mjs",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "3.114.0"
+  },
+  "private": true,
+  "type": "module"
+}
