@@ -40,7 +40,7 @@ export default {
         const cantidad = Number(b.cantidad);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha || '') || !b.cama || !b.cultivo || !(cantidad >= 0)) return json({ error: 'Datos inválidos' }, 400);
         await env.DB.prepare('INSERT INTO cosechas (fecha, cama, cultivo, cantidad, u, nota) VALUES (?,?,?,?,?,?)')
-          .bind(b.fecha, String(b.cama).slice(0, 8), String(b.cultivo).slice(0, 40), cantidad, String(b.u || 'kg').slice(0, 10), String(b.nota || '').slice(0, 200)).run();
+          .bind(b.fecha, String(b.cama).slice(0, 60), String(b.cultivo).slice(0, 40), cantidad, String(b.u || 'kg').slice(0, 10), String(b.nota || '').slice(0, 200)).run();
         return json({ ok: true });
       }
       return json({ error: 'No encontrado' }, 404);

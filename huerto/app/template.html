@@ -129,6 +129,42 @@ form.reg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));g
 form.reg label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
 textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:10px}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
+/* móvil primero: barra inferior, objetivos táctiles grandes; en pantallas anchas vuelven las pestañas de arriba */
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
+nav.bottom button{font:inherit;font-size:11.5px;font-weight:600;color:var(--muted);background:none;border:0;border-radius:10px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+nav.bottom button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
+.sheet{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}
+.sheet[hidden]{display:none}
+.sheet .in{background:var(--surface);width:100%;border-radius:16px 16px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px}
+.sheet .in button{font:inherit;font-size:16px;font-weight:600;text-align:left;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer}
+.zones{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.zones button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:8px 12px;border-radius:999px;white-space:nowrap;cursor:pointer;min-height:38px}
+.zones button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.hoyhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.harv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+.harv:last-child{border-bottom:0}
+.harv .q{display:flex;gap:6px;align-items:center}
+.harv input{width:80px;font-size:16px;min-height:42px}
+.harv .btn{min-height:42px}
+@media (max-width:859px){
+  body{font-size:16px}
+  .wrap{padding-inline:16px;padding-block:12px calc(90px + env(safe-area-inset-bottom,0px))}
+  nav.tabs{display:none}
+  .facts{display:none}
+  header.top{padding-block:4px 10px}
+  .task{padding:12px 2px;gap:12px}
+  .task input{width:26px;height:26px;margin-top:0}
+  .task label{font-size:15.5px;line-height:1.45}
+  .btn{min-height:44px;font-size:15px}
+  .btn.icon{min-width:44px}
+  select,input{font-size:16px;min-height:44px}
+  .panel{padding:14px}
+  .monthpick{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .monthpick button{min-height:38px;white-space:nowrap}
+  .day h3{position:sticky;top:0;background:var(--surface);padding-top:6px;z-index:1}
+}
+@media (min-width:860px){ nav.bottom,.only-mobile{display:none} }
 </style>
 
 <div class="wrap">
@@ -140,6 +176,7 @@ textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;b
     <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
+    <button role="tab" data-v="hoy">Hoy</button>
     <button role="tab" data-v="semana">Semana</button>
     <button role="tab" data-v="mapa">Mapa del mes</button>
     <button role="tab" data-v="cosecha">Cosecha</button>
@@ -152,6 +189,21 @@ textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;b
   </nav>
   <main id="main"></main>
 </div>
+<nav class="bottom" aria-label="Vistas">
+  <button data-v="hoy"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Hoy</span></button>
+  <button data-v="semana"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2"/></svg><span>Semana</span></button>
+  <button data-v="mapa"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="4" height="8" rx="1"/><rect x="10" y="3" width="4" height="8" rx="1"/><rect x="16" y="3" width="4" height="8" rx="1"/><rect x="4" y="14" width="16" height="3" rx="1"/><rect x="4" y="19" width="16" height="2" rx="1"/></svg><span>Mapa</span></button>
+  <button data-v="cosecha"><svg viewBox="0 0 24 24"><path d="M4 10h16l-2 10H6z"/><path d="M8 10c0-3 1.8-6 4-6s4 3 4 6"/></svg><span>Cosecha</span></button>
+  <button data-v="mas"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span>Más</span></button>
+</nav>
+<div class="sheet" id="sheet" hidden><div class="in" role="menu" aria-label="Más vistas">
+  <button data-v="semillero">Semillero</button>
+  <button data-v="experiencias">Experiencias</button>
+  <button data-v="calendario">Calendario</button>
+  <button data-v="cultivos">Cultivos</button>
+  <button data-v="compras">Compras</button>
+  <button data-v="registro">Registro de cosecha</button>
+</div></div>
 <div class="tip" id="tip" hidden></div>
 
 <script>
@@ -179,10 +231,23 @@ function toast(msg){ const t = document.createElement("div"); t.className = "toa
 
 /* ---------- mapa ---------- */
 const Y0 = 93.5, X0 = 11.5;
+const ZONES = [["todo", "Todo"], ["A-NO", "A1–A6"], ["A-NE", "A7–A12"], ["A-SO", "A13–A18"], ["A-SE", "A19–A24"], ["B", "Sección B"]];
+function zoneBox(z){
+  if (!z || z === "todo") return [0, 0, 39, 91];
+  const ids = BEDS.filter(b => z === "B" ? b.sec === "B" : b.q === z).map(b => b.id);
+  const bs = GEO.beds.filter(b => ids.includes(b.id));
+  const x0 = Math.min(...bs.map(b => b.x)) - X0, x1 = Math.max(...bs.map(b => b.x + b.w)) - X0;
+  const y0 = Y0 - Math.max(...bs.map(b => b.y + b.h)), y1 = Y0 - Math.min(...bs.map(b => b.y));
+  const pad = z === "B" ? 1.6 : 1.2;
+  return [x0 - pad - (z === "B" ? .8 : 0), y0 - pad - .6, x1 - x0 + 2 * pad + (z === "B" ? .8 : 0), y1 - y0 + 2 * pad + .6];
+}
+function zonePicker(id){ return `<div class="zones" role="group" aria-label="Zona del mapa" data-zones="${id}">${ZONES.map(([k, l]) => `<button data-z="${k}" aria-pressed="${(state.zone || "todo") === k}">${l}</button>`).join("")}</div>`; }
+function bindZones(root, after){ root.querySelectorAll(".zones button").forEach(b => b.onclick = () => { state.zone = b.dataset.z; try { localStorage.setItem("huerto-zona", state.zone); } catch (e) {} after(); }); }
 function mapSVG(opts){
   // opts.fill(bedId) -> {fill, op, hatch, crop}
   const W = 39, H = 91;
-  let s = `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa de camas del huerto">
+  const vb = zoneBox(state.zone);
+  let s = `<svg class="map" viewBox="${vb.join(" ")}" role="img" aria-label="Mapa de camas del huerto">
   <defs><pattern id="hatch" width=".6" height=".6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width=".6" height=".6" fill="var(--soil-2)"/><line x1="0" y1="0" x2="0" y2=".6" stroke="var(--soil)" stroke-width=".22"/></pattern></defs>`;
   for (const l of GEO.lines) s += `<line class="wall" x1="${l[0]-X0}" y1="${Y0-l[1]}" x2="${l[2]-X0}" y2="${Y0-l[3]}"/>`;
   for (const t of GEO.trees) s += `<circle class="tree" cx="${t[0]-X0}" cy="${Y0-t[1]}" r="1.3"/>`;
@@ -251,6 +316,73 @@ function bedTimeline(bedId){
 /* ---------- vistas ---------- */
 const views = {};
 
+/* ---------- HOY (vista principal en el celular) ---------- */
+function todayRef(){
+  const n = new Date(); n.setHours(12, 0, 0, 0);
+  let wd = n.getDay(), w = todayW;
+  if (wd === 0 || wd === 6) { w += 1; wd = 1; }
+  if (w < 0) { w = 0; wd = typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1; }
+  if (w === 0 && typeof FIRST_DAY !== "undefined" && wd < FIRST_DAY) wd = FIRST_DAY;
+  return {w: Math.min(w, PLAN_WEEKS - 1), d: wd};
+}
+const isoDay = (w, d) => { const x = new Date(wkDate(w).getTime() + (d - 1) * DAY); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+views.hoy = () => {
+  if (!state.hd) state.hd = todayRef();
+  const {w, d} = state.hd;
+  if (state.w !== w) { state.w = w; subscribeDone(); }
+  const T = weekTasks(plan, w);
+  const list = T.filter(t => t.k !== "cosecha" && t.d === d);
+  const harvDay = [1, 3, 5].includes(d);
+  const harv = harvDay ? T.filter(t => t.k === "cosecha") : [];
+  const gm = {}; harv.forEach(t => { const g = gm[t.crop] = gm[t.crop] || {crop: t.crop, beds: [], qty: 0}; g.beds.push(t.bed); g.qty += t.qty; });
+  const harvG = Object.values(gm).sort((a, b) => (CROPS[a.crop].u === "kg" ? 0 : 1) - (CROPS[b.crop].u === "kg" ? 0 : 1) || b.qty - a.qty);
+  const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1;
+  const date = new Date(wkDate(w).getTime() + (d - 1) * DAY);
+  const isToday = (() => { const r = todayRef(); return r.w === w && r.d === d; })();
+  const done = list.filter(t => state.done[t.id]).length;
+  const mins = list.reduce((a, t) => a + t.min, 0);
+  const label = {semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"};
+  const logged = {};
+  state.harvests.filter(h => h.fecha === isoDay(w, d)).forEach(h => { logged[h.cama + "|" + h.cultivo] = (logged[h.cama + "|" + h.cultivo] || 0) + (+h.cantidad || 0); });
+  return `
+  <div class="hoyhead">
+    <button class="btn icon" id="dprev" aria-label="Día anterior" ${w === 0 && d <= first ? "disabled" : ""}>←</button>
+    <div style="text-align:center;flex:1;min-width:0"><div class="eyebrow">${isToday ? "Hoy" : "Semana " + (w + 1)}</div><h2>${DIAS[d]} ${fmt(date)}</h2></div>
+    <button class="btn icon" id="dnext" aria-label="Día siguiente" ${w === PLAN_WEEKS - 1 && d === 5 ? "disabled" : ""}>→</button>
+  </div>
+  <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small">${done} de ${list.length} tareas hechas</span><span class="small num">${nf(mins / 60, 1)} h de trabajo</span></div>
+    <div class="meter"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div></div>
+  ${state.db === null && state.dbTried ? `<div class="notice">Las marcas no se guardan en esta vista.</div>` : ""}
+  <section class="panel" aria-label="Tareas del día">
+    <h3 style="margin-bottom:4px">Tareas</h3>
+    ${list.length ? list.map(t => `<div class="task${state.done[t.id] ? " done" : ""}"><input type="checkbox" id="h-${t.id}" data-id="${t.id}" ${state.done[t.id] ? "checked" : ""}><label for="h-${t.id}"><span class="k ${t.k}">${label[t.k]}</span>${esc(t.t)}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</div>`).join("") : `<p class="muted" style="margin:6px 0 0">Sin tareas este día.</p>`}
+  </section>
+  ${harvDay ? `<section class="panel" aria-label="Cosecha del día">
+    <div class="bar" style="justify-content:space-between"><h3>Cosecha para cocina</h3><span class="small muted">antes de las 10:00</span></div>
+    ${harvG.length ? harvG.map(g => { const key = g.beds.join(", ") + "|" + g.crop; const exp = g.qty / 3; const c = CROPS[g.crop]; const got = logged[key];
+      return `<div class="harv"><div style="min-width:0"><div><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))}</div><div class="small muted">${c.u === "kg" && exp < 0.25 ? "Según pida cocina" : "Esperado ≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
+      <div class="q"><input type="number" inputmode="decimal" step="0.1" min="0" placeholder="${c.u === "kg" ? "kg" : "pzas"}" aria-label="Cantidad de ${esc(c.n)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"><button class="btn" data-save="1">Anotar</button></div></div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
+  </section>` : `<p class="small muted" style="margin:0">La cosecha para cocina se hace lunes, miércoles y viernes.</p>`}
+  <button class="btn" id="towa" style="align-self:flex-start">Copiar la semana para WhatsApp</button>`;
+};
+views.hoy.bind = root => {
+  const step = k => { let {w, d} = state.hd; d += k; if (d > 5) { w++; d = 1; } if (d < 1) { w--; d = 5; } const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1; if (w < 0 || (w === 0 && d < first) || w >= PLAN_WEEKS) return; state.hd = {w, d}; render(); };
+  root.querySelector("#dprev").onclick = () => step(-1);
+  root.querySelector("#dnext").onclick = () => step(1);
+  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  root.querySelector("#towa").onclick = () => copyText(whatsappText(state.hd.w));
+  root.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+    const inp = b.parentNode.querySelector("input"); const v = +inp.value;
+    if (!inp.value || !(v >= 0)) { inp.focus(); return; }
+    if (!state.db) { toast("No se puede guardar en esta vista."); return; }
+    const c = CROPS[inp.dataset.crop];
+    b.disabled = true;
+    try { await state.db.collection("cosechas").add({fecha: isoDay(state.hd.w, state.hd.d), cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); toast("Anotado"); inp.value = ""; }
+    catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar"); }
+    b.disabled = false;
+  });
+};
+
 views.semana = () => {
   const w = state.w;
   const T = weekTasks(plan, w);
@@ -298,7 +430,8 @@ views.semana = () => {
       </section>
       <section class="mapbox" aria-label="Mapa de la semana">
         <div class="legend" style="padding:4px 4px 8px"><span><span class="dot" style="background:var(--soil)"></span>Preparar</span><span><span class="dot" style="background:var(--leaf)"></span>Sembrar</span><span><span class="dot" style="background:var(--warn)"></span>Ralear o tutorar</span><span><span class="dot" style="background:var(--accent)"></span>Cosechar</span></div>
-        <div id="wkmap">${mapSVG({fill})}</div>
+        ${zonePicker("wk")}
+        <div id="wkmap" style="margin-top:8px">${mapSVG({fill})}</div>
       </section>
     </div>
   </div>`;
@@ -309,6 +442,7 @@ views.semana.bind = root => {
   root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
   root.querySelector("#wa").onclick = () => copyText(whatsappText(state.w));
   bindBeds(root.querySelector("#wkmap"), () => { state.view = "mapa"; render(); });
+  bindZones(root, render);
 };
 
 function whatsappText(w){
@@ -361,7 +495,7 @@ views.mapa = () => {
     <div class="bar small"><span class="chip">≈ ${nf(kg)} kg de cosecha</span>${fl ? `<span class="chip">≈ ${nf(fl)} flores</span>` : ""}</div></div>
   <div class="monthpick" role="group" aria-label="Mes">${MONTHS.map(k => `<button data-m="${k}" aria-pressed="${k === state.month}">${monthShort(k)}</button>`).join("")}</div>
   <div class="cols">
-    <div class="mapbox"><div id="mmap">${mapSVG({fill: id => monthFill(id, w)})}</div></div>
+    <div class="mapbox">${zonePicker("m")}<div id="mmap" style="margin-top:8px">${mapSVG({fill: id => monthFill(id, w)})}</div></div>
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
       <section class="panel">
         <h3 style="margin-bottom:8px">Cómo leer el mapa</h3>
@@ -369,13 +503,14 @@ views.mapa = () => {
         <h3 style="margin:14px 0 8px">Cultivos este mes</h3>
         <div class="legend">${Object.keys(present).map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)}</span>`).join("") || `<span class="muted">Camas en preparación</span>`}</div>
       </section>
-      <section class="panel">${state.bed ? bedTimeline(state.bed) : `<p class="muted" style="margin:0">Toca una cama para ver todo lo que lleva en el año.</p>`}</section>
+      <section class="panel" id="bedpanel">${state.bed ? bedTimeline(state.bed) : `<p class="muted" style="margin:0">Toca una cama para ver todo lo que lleva en el año.</p>`}</section>
     </div>
   </div>`;
 };
 views.mapa.bind = root => {
   root.querySelectorAll(".monthpick button").forEach(b => b.onclick = () => { state.month = b.dataset.m; render(); });
-  bindBeds(root.querySelector("#mmap"), render);
+  bindBeds(root.querySelector("#mmap"), () => { render(); const p = document.getElementById("bedpanel"); if (p && window.innerWidth < 860) p.scrollIntoView({behavior: "smooth", block: "start"}); });
+  bindZones(root, render);
 };
 
 views.cosecha = () => {
@@ -621,6 +756,7 @@ views.registro.bind = root => {
 };
 
 /* ---------- datos compartidos ---------- */
+const typing = () => { const a = document.activeElement; return !!a && a.matches("input[type=number], input[type=text], input[type=date], textarea, select"); };
 let unsubDone = null;
 function subscribeDone(){
   if (!state.db) return;
@@ -629,30 +765,40 @@ function subscribeDone(){
   unsubDone = state.db.collection("hechas").where("w", "==", w).onSnapshot(snap => {
     if (w !== state.w) return;
     const d = {}; snap.docs.forEach(x => { const v = x.data(); if (v && v.id) d[v.id] = true; });
-    state.done = d; if (state.view === "semana") render();
+    state.done = d; if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
   }, () => {});
 }
 async function toggleDone(id, on){
   state.done[id] = on;
-  if (state.view === "semana") render();
+  if (state.view === "semana" || state.view === "hoy") render();
   if (!state.db) return;
   const ref = state.db.doc(`hechas/w${state.w}-${id}`);
   try { on ? await ref.set({w: state.w, id, at: Date.now()}) : await ref.delete(); }
   catch (e) { toast("No se pudo guardar la marca."); }
 }
 /* ---------- render ---------- */
-const TITLES = {semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Compras", registro: "Registro"};
+const TITLES = {hoy: "Hoy", semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Compras", registro: "Registro"};
+const MAIN4 = ["hoy", "semana", "mapa", "cosecha"];
 function render(){
   const main = document.getElementById("main");
   const y = window.scrollY;
   main.innerHTML = `<div class="view">${views[state.view]()}</div>`;
   document.getElementById("vtitle").textContent = TITLES[state.view];
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view));
+  document.querySelectorAll("nav.bottom button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view || (b.dataset.v === "mas" && !MAIN4.includes(state.view))));
   if (views[state.view].bind) views[state.view].bind(main);
-  window.scrollTo(0, y);
+  if (render.keep) window.scrollTo(0, y); else window.scrollTo(0, 0);
+  render.keep = true;
 }
-document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => { state.view = b.dataset.v; try { localStorage.setItem("huerto-vista", state.view); } catch (e) {} render(); });
+const sheet = document.getElementById("sheet");
+function go(v){ sheet.hidden = true; if (v === "hoy") state.hd = null; state.view = v; try { localStorage.setItem("huerto-vista", v); } catch (e) {} render.keep = false; render(); }
+document.querySelectorAll("nav.tabs button, .sheet button").forEach(b => b.onclick = () => go(b.dataset.v));
+document.querySelectorAll("nav.bottom button").forEach(b => b.onclick = () => { if (b.dataset.v === "mas") { sheet.hidden = false; return; } go(b.dataset.v); });
+sheet.addEventListener("click", e => { if (e.target === sheet) sheet.hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") sheet.hidden = true; });
+state.view = window.matchMedia("(max-width: 859px)").matches ? "hoy" : "semana";
 try { const v = localStorage.getItem("huerto-vista"); if (v && views[v]) state.view = v; } catch (e) {}
+try { const z = localStorage.getItem("huerto-zona"); if (z) state.zone = z; } catch (e) {}
 const hv = location.hash.replace("#", ""); if (views[hv]) state.view = hv;
 render();
 (async () => {
@@ -664,7 +810,7 @@ render();
     subscribeDone();
     db.collection("cosechas").orderBy("fecha", "desc").limit(1000).onSnapshot(snap => {
       state.harvests = snap.docs.map(d => d.data());
-      if (state.view === "registro" || state.view === "cosecha") render();
+      if (["registro", "cosecha", "hoy"].includes(state.view) && !typing()) render();
     }, () => {});
     render();
   } catch (e) { state.dbTried = true; render(); }
