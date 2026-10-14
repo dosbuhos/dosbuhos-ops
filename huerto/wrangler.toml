@@ -1,0 +1,14 @@
+name = "huerto-dos-buhos"
+main = "src/index.js"
+compatibility_date = "2025-02-24"
+workers_dev = true
+
+# La página (public/index.html) es pública; guardar tareas y cosechas pide el PIN guardado en la tabla config.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "huerto"
+database_id = "aa4c39bb-6a6f-4fbc-98fc-09dca6bdaa02"

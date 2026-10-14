@@ -1,0 +1,57 @@
+// Adaptador para la versión web pública: reemplaza la base de datos de Claude por la API del Worker (/api/*).
+(function () {
+  const KEY = 'huerto-pin';
+  const getPin = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
+  const setPin = p => { try { p ? localStorage.setItem(KEY, p) : localStorage.removeItem(KEY); } catch (e) {} };
+  async function ensurePin() {
+    let p = getPin();
+    if (p) return p;
+    p = (prompt('PIN para guardar cambios (pídelo a Eric o Melanie):') || '').trim();
+    if (!p) throw { code: 'no_pin' };
+    const r = await fetch('/api/pin', { method: 'POST', headers: { 'x-pin': p } });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) { alert('PIN incorrecto'); throw { code: 'bad_pin' }; }
+    setPin(p);
+    return p;
+  }
+  const refresh = () => window.dispatchEvent(new Event('huerto-refresh'));
+  async function post(path, body) {
+    let pin;
+    try { pin = await ensurePin(); } catch (e) { refresh(); throw e; }
+    const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-pin': pin }, body: JSON.stringify(body) });
+    if (r.status === 401) { setPin(''); refresh(); throw { code: 'bad_pin' }; }
+    if (!r.ok) { refresh(); throw { code: 'unavailable' }; }
+  }
+  const snap = rows => ({ docs: rows.map(d => ({ data: () => d })), size: rows.length, empty: !rows.length });
+  function poll(load, cb) {
+    const run = async () => { try { cb(snap(await load())); } catch (e) {} };
+    run();
+    const t = setInterval(() => { if (document.visibilityState === 'visible') run(); }, 20000);
+    window.addEventListener('huerto-refresh', run);
+    return () => { clearInterval(t); window.removeEventListener('huerto-refresh', run); };
+  }
+  const db = {
+    collection(name) {
+      let w = null;
+      const q = {
+        where(f, op, v) { w = v; return q; },
+        orderBy() { return q; },
+        limit() { return q; },
+        onSnapshot(cb) {
+          if (name === 'hechas') return poll(async () => (await (await fetch('/api/hechas?w=' + w)).json()).ids.map(id => ({ w, id })), cb);
+          return poll(async () => (await (await fetch('/api/cosechas')).json()).rows, cb);
+        },
+        async add(doc) { await post('/api/cosechas', doc); refresh(); },
+      };
+      return q;
+    },
+    doc(path) {
+      const m = path.match(/^hechas\/w(\d+)-(.+)$/);
+      return {
+        async set() { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: true }); },
+        async delete() { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: false }); },
+      };
+    },
+  };
+  window.claude = { use: async n => (n === 'db' ? db : null) };
+})();

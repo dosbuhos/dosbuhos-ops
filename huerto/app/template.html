@@ -1,0 +1,674 @@
+<title>Huerto Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: cuaderno de campo — barra de vistas arriba, contenido en una columna; el mapa del huerto es la pieza central */
+:root{
+  --bg:#f2f3ec; --surface:#fbfbf7; --sunk:#e8eadf; --fg:#1d261c; --muted:#5d6656; --faint:#8b927f;
+  --line:#d3d7c6; --accent:#9e2a3f; --accent-ink:#ffffff; --soil:#8a6a4c; --soil-2:#c9b49a; --leaf:#3e6b35;
+  --ok:#2f7a3a; --warn:#b26a00; --water:#bcd3e0; --water-ink:#3c6176; --tree:#a9bb8d;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+  --display:"Young Serif", Georgia, "Times New Roman", serif;
+  --body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#7c8471;
+  --line:#343d31; --accent:#e06a80; --accent-ink:#1a0d10; --soil:#b8946f; --soil-2:#5c4a38; --leaf:#8cc27c;
+  --ok:#6fc07a; --warn:#e3a33c; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#7c8471;
+  --line:#343d31; --accent:#e06a80; --accent-ink:#1a0d10; --soil:#b8946f; --soil-2:#5c4a38; --leaf:#8cc27c;
+  --ok:#6fc07a; --warn:#e3a33c; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:18px 60px}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px;padding-block:6px 14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;gap:2px}
+.eyebrow{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,34px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0;text-wrap:balance}
+h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.facts{font-size:13px;color:var(--muted);font-family:var(--mono)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding-block:12px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;scrollbar-width:none}
+nav.tabs button{font:inherit;font-size:14px;font-weight:600;border:1px solid transparent;background:none;color:var(--muted);padding:7px 13px;border-radius:999px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+nav.tabs button:hover:not([aria-selected="true"]){border-color:var(--line);color:var(--fg)}
+button:focus-visible,select:focus-visible,input:focus-visible,.bed:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.view{display:flex;flex-direction:column;gap:18px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.stepper{display:flex;align-items:center;gap:6px}
+.btn{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.icon{padding:7px 11px;min-width:38px}
+select,input{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 10px;border-radius:8px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.muted{color:var(--muted)} .small{font-size:13px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* carga */
+.load{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
+.meter{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden;position:relative}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--leaf);border-radius:5px}
+.meter.over i{background:var(--warn)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--fg);white-space:nowrap}
+.chip.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+/* tareas */
+.days{display:flex;flex-direction:column;gap:14px}
+.day h3{display:flex;justify-content:space-between;gap:8px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.task{display:flex;gap:10px;align-items:flex-start;padding:7px 2px;border-bottom:1px dashed var(--line)}
+.task:last-child{border-bottom:0}
+.task input{margin-top:3px;width:18px;height:18px;accent-color:var(--leaf);flex:none;padding:0}
+.task label{flex:1;min-width:0;cursor:pointer}
+.task .k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
+.k.semillero{color:var(--s1)} .k.prep{color:var(--soil)} .k.siembra{color:var(--leaf)} .k.cuidado{color:var(--warn)} .k.base{color:var(--faint)}
+.task.done label{color:var(--faint);text-decoration:line-through}
+.task .t{font-family:var(--mono);font-size:12px;color:var(--faint);white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+/* mapa */
+.mapbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+svg.map{width:100%;height:auto;display:block}
+svg.map .wall{stroke:var(--soil);stroke-width:.12;fill:none}
+svg.map .tree{fill:var(--tree)}
+svg.map .bed{cursor:pointer}
+svg.map .bedbox{stroke:var(--fg);stroke-opacity:.55;stroke-width:.08}
+svg.map .bed:hover .bedbox,svg.map .bed.sel .bedbox{stroke:var(--accent);stroke-opacity:1;stroke-width:.22}
+svg.map text{font-family:var(--body);fill:var(--fg)}
+svg.map .lab{font-size:.62px;font-weight:700}
+svg.map .crop{font-size:.5px;font-weight:600}
+svg.map .seclab{font-family:var(--display);font-size:1.5px;fill:var(--muted)}
+svg.map .feat{font-size:.55px;fill:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.monthpick{display:flex;flex-wrap:wrap;gap:4px}
+.monthpick button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:5px 9px;border-radius:7px;cursor:pointer}
+.monthpick button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.bedinfo .row{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.timeline{display:flex;flex-direction:column;gap:8px}
+.tl{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;align-items:start}
+.tl .sw{width:12px;height:12px;border-radius:3px;margin-top:5px}
+/* calendario */
+.gantt{position:relative;font-size:12px}
+.grow{display:grid;grid-template-columns:44px 1fr;align-items:center;height:22px}
+.grow .b{font-family:var(--mono);font-weight:500;color:var(--muted)}
+.track{position:relative;height:18px;background:var(--sunk);border-radius:3px}
+.seg{position:absolute;top:0;bottom:0;border-radius:2px;overflow:hidden;white-space:nowrap;font-size:10px;font-weight:600;color:#fff;padding-left:3px;display:flex;align-items:center;box-shadow:0 0 0 1px var(--surface)}
+.seg .g{position:absolute;inset:0;background:var(--surface);opacity:.55}
+.seg span{position:relative;text-shadow:0 0 2px rgba(0,0,0,.45)}
+.gmonths{display:grid;grid-template-columns:44px 1fr;height:20px}
+.gmonths div{position:relative}
+.gmonths b{position:absolute;font-size:11px;color:var(--muted);font-weight:600;transform:translateX(2px)}
+.nowline{position:absolute;top:0;bottom:0;width:2px;background:var(--accent)}
+/* cosecha chart */
+.chart{position:relative}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart .axis{fill:var(--muted);font-size:11px;font-family:var(--body)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12.5px;padding:7px 9px;border-radius:7px;white-space:nowrap;z-index:3;transform:translate(-50%,-110%)}
+.tip[hidden]{display:none}
+/* cultivos */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h4{margin:0;font-family:var(--display);font-weight:400;font-size:18px;display:flex;align-items:center;gap:8px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.notice{font-size:13px;color:var(--muted);background:var(--sunk);border-radius:8px;padding:9px 12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:8px;font-size:14px;z-index:9}
+form.reg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
+form.reg label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:10px}
+@media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
+      <h1 id="vtitle">Semana</h1>
+    </div>
+    <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00</div>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Vistas">
+    <button role="tab" data-v="semana">Semana</button>
+    <button role="tab" data-v="mapa">Mapa del mes</button>
+    <button role="tab" data-v="cosecha">Cosecha</button>
+    <button role="tab" data-v="calendario">Calendario</button>
+    <button role="tab" data-v="semillero">Semillero</button>
+    <button role="tab" data-v="experiencias">Experiencias</button>
+    <button role="tab" data-v="cultivos">Cultivos</button>
+    <button role="tab" data-v="compras">Compras</button>
+    <button role="tab" data-v="registro">Registro</button>
+  </nav>
+  <main id="main"></main>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+/*DATA*/
+/*ENGINE*/
+const GEO = /*GEO*/;
+const CAT = {hojas:["Hojas","--s1"],raices:["Raíces","--s2"],legum:["Leguminosas","--s3"],frutos:["Frutos","--s4"],hierbas:["Hierbas","--s5"],quelites:["Quelites y milpa","--s6"]};
+const CROPCAT = {kale:"hojas",acelga:"hojas",mostaza:"hojas",col:"hojas",lechuga:"hojas",arugula:"hojas",poro:"raices",zanahoria:"raices",betabel:"raices",rabano:"raices",ajo:"raices",papa:"raices",haba:"legum",chicharo:"legum",ejote:"legum",calabacita:"frutos",jitomate:"frutos",pepino:"frutos",chile:"frutos",cilantro:"hierbas",eneldo:"hierbas",albahaca:"hierbas",perennes:"hierbas",perejil:"hierbas",mexicanas:"hierbas",quelites:"quelites",verdolaga:"quelites",huauzontle:"quelites",milpa:"quelites"};
+const DIAS = ["Cosecha","Lunes","Martes","Miércoles","Jueves","Viernes"];
+const CAP_H = 40;
+const plan = buildPlan();
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nf = (v, d = 0) => v.toLocaleString("es-MX", {maximumFractionDigits: d, minimumFractionDigits: d});
+const todayW = (() => { const t = new Date(); t.setHours(12); return Math.floor((t - D(PLAN_START)) / (7 * DAY)); })();
+const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, harvests: [], db: null, dbTried: false};
+(function initMonth(){ const d = wkDate(state.w); d.setDate(d.getDate() + 2); state.month = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); })();
+const MONTHS = (() => { const m = []; for (let i = 0; i < 13; i++) { const d = new Date(2026, 9 + i, 15); m.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); } return m; })();
+const monthLabel = k => { const [y, m] = k.split("-").map(Number); return MESL[m - 1] + " " + y; };
+const monthShort = k => { const [y, m] = k.split("-").map(Number); return MES[m - 1] + (m === 1 || k === MONTHS[0] ? " " + String(y).slice(2) : ""); };
+const weekRange = w => { const a = wkDate(w), b = wkDate(w); if (w === 0 && typeof FIRST_DAY !== "undefined") a.setDate(a.getDate() + FIRST_DAY - 1); b.setDate(b.getDate() + 4); return fmt(a) + " – " + fmt(b) + " " + b.getFullYear(); };
+const weekOfMonth = k => { const [y, m] = k.split("-").map(Number); const mid = new Date(y, m - 1, 15, 12); return Math.max(0, Math.min(PLAN_WEEKS - 1, Math.floor((mid - D(PLAN_START)) / (7 * DAY)))); };
+
+function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+
+/* ---------- mapa ---------- */
+const Y0 = 93.5, X0 = 11.5;
+function mapSVG(opts){
+  // opts.fill(bedId) -> {fill, op, hatch, crop}
+  const W = 39, H = 91;
+  let s = `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa de camas del huerto">
+  <defs><pattern id="hatch" width=".6" height=".6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width=".6" height=".6" fill="var(--soil-2)"/><line x1="0" y1="0" x2="0" y2=".6" stroke="var(--soil)" stroke-width=".22"/></pattern></defs>`;
+  for (const l of GEO.lines) s += `<line class="wall" x1="${l[0]-X0}" y1="${Y0-l[1]}" x2="${l[2]-X0}" y2="${Y0-l[3]}"/>`;
+  for (const t of GEO.trees) s += `<circle class="tree" cx="${t[0]-X0}" cy="${Y0-t[1]}" r="1.3"/>`;
+  const [fx, fy, fr] = GEO.fuente;
+  s += `<circle cx="${fx-X0}" cy="${Y0-fy}" r="${fr}" fill="var(--water)" stroke="var(--water-ink)" stroke-width=".1"/><text class="feat" x="${fx-X0}" y="${Y0-fy+.2}" text-anchor="middle" fill="var(--water-ink)">fuente</text>`;
+  // tinas de hierro
+  for (const [x, lab] of [[27.4, "Tina O · menta"], [34.7, "Tina E · flores"]]) s += `<circle cx="${x-X0}" cy="${Y0-31.6}" r=".85" fill="var(--sunk)" stroke="var(--fg)" stroke-width=".08"/><text class="feat" x="${x-X0}" y="${Y0-31.6+1.75}" text-anchor="middle">${lab}</text>`;
+  s += `<text class="seclab" x="${31.03-X0}" y="${Y0-91.4}" text-anchor="middle">Sección A · granados</text>`;
+  s += `<text class="seclab" x="${31.03-X0}" y="${Y0-4.4}" text-anchor="middle">Sección B · limones eureka</text>`;
+  s += `<text class="feat" x="1.4" y="1.8">↑ N</text>`;
+  for (const b of GEO.beds) {
+    let f = opts.fill(b.id);
+    const B = BED[b.id];
+    const segs = Array.isArray(f) ? f : [Object.assign({pos: 0, m: B.len}, f)];
+    const x = b.x - X0, y = Y0 - b.y - b.h, vert = b.h > b.w;
+    const cx = x + b.w / 2, cy = y + b.h / 2;
+    let inner = `<rect class="bedbox" x="${x}" y="${y}" width="${b.w}" height="${b.h}" rx=".12" fill="var(--surface)"/>`;
+    const labs = [];
+    segs.forEach(sg => {
+      if (!sg.fill && !sg.hatch) return;
+      const a = sg.pos / B.len, l = sg.m / B.len;
+      const rx = vert ? x : x + a * b.w, ry = vert ? y + a * b.h : y, rw = vert ? b.w : l * b.w, rh = vert ? l * b.h : b.h;
+      inner += `<rect x="${rx + .04}" y="${ry + .04}" width="${Math.max(0, rw - .08)}" height="${Math.max(0, rh - .08)}" fill="${sg.hatch ? "url(#hatch)" : sg.fill}" fill-opacity="${sg.op ?? 1}"/>`;
+      if (sg.crop && sg.m >= (vert ? .9 : 1.8)) {
+        const tc = sg.ink || "var(--fg)";
+        const txt = esc(sg.crop.length > (vert ? Math.floor(sg.m * 4.2) : 99) ? sg.crop.slice(0, Math.floor(sg.m * 4.2) - 1) + "…" : sg.crop);
+        if (vert) inner += `<text class="crop" transform="translate(${cx + .17},${ry + rh / 2 + (a === 0 ? .35 : 0)}) rotate(-90)" text-anchor="middle" style="fill:${tc}">${txt}</text>`;
+        else inner += `<text class="crop" x="${rx + (a === 0 ? 1.35 : .25)}" y="${cy + .18}" style="fill:${tc}">${txt}</text>`;
+      }
+      if (sg.crop) labs.push(sg.crop);
+    });
+    inner += `<rect x="${x}" y="${y}" width="${b.w}" height="${b.h}" rx=".12" fill="none" class="bedbox"/>`;
+    if (vert) inner += `<text class="lab" x="${cx}" y="${y - .25}" text-anchor="middle">${b.id}</text>`;
+    else inner += `<text class="lab" x="${x - .25}" y="${cy + .22}" text-anchor="end">${b.id}</text>`;
+    s += `<g class="bed${state.bed === b.id ? " sel" : ""}" data-bed="${b.id}" tabindex="0" role="button" aria-label="Cama ${b.id}${labs.length ? ": " + esc(labs.join(", ")) : ""}">${inner}</g>`;
+  }
+  return s + `</svg>`;
+}
+function shortName(n){ return n.replace(/ \(.*\)/, "").replace(" de corte", "").replace(" toscano", "").replace(" arcoíris","").replace(" baby"," baby").replace(" y flor","").replace(" jalapeño y serrano"," jalapeño").replace("Pensamiento y viola","Viola").replace("Epazote, pápalo y pipicha","Epazote y pápalo").replace(" (repollo)","").replace("Chícharo chino","Chícharo").replace("Ajo y chalote","Ajo y chalote"); }
+function textOn(hex){ const h = hex.replace("#",""); const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16); return (0.299*r + 0.587*g + 0.114*b) > 150 ? "#1d261c" : "#ffffff"; }
+function monthFill(bedId, w){
+  return bedSegs(plan, bedId, w).map(sg => {
+    if (sg.st === "prepara") return {pos: sg.pos, m: sg.m, hatch: true, crop: "preparar"};
+    const c = sg.p.c;
+    return sg.st === "cosecha" ? {pos: sg.pos, m: sg.m, fill: c.c, ink: textOn(c.c), crop: shortName(c.n)} : {pos: sg.pos, m: sg.m, fill: c.c, op: .38, crop: shortName(c.n)};
+  });
+}
+function bindBeds(root, after){
+  root.querySelectorAll(".bed").forEach(g => {
+    const go = () => { state.bed = g.dataset.bed; after(); };
+    g.addEventListener("click", go);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
+}
+function bedTimeline(bedId){
+  const list = plan.byBed[bedId] || [];
+  const b = BED[bedId];
+  return `<div class="bedinfo" style="display:flex;flex-direction:column;gap:12px">
+    <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
+    <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
+      <span class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}</span><br>
+      <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div></div>`).join("")}</div>
+  </div>`;
+}
+
+/* ---------- vistas ---------- */
+const views = {};
+
+views.semana = () => {
+  const w = state.w;
+  const T = weekTasks(plan, w);
+  const hrs = T.reduce((a, t) => a + t.min, 0) / 60;
+  const over = hrs > CAP_H;
+  const work = T.filter(t => t.k !== "cosecha");
+  const harv = T.filter(t => t.k === "cosecha");
+  const byCrop = {};
+  harv.forEach(t => { const o = byCrop[t.crop] = byCrop[t.crop] || {beds: [], qty: 0, u: t.u}; o.beds.push(t.bed); o.qty += t.qty; });
+  const doneCount = T.filter(t => state.done[t.id]).length;
+  const actBeds = {};
+  T.forEach(t => { if (!t.bed || t.k === "semillero") return; const pri = {prep: 3, siembra: 4, cuidado: 2, cosecha: 1, semillero: 0}[t.k]; if (!actBeds[t.bed] || actBeds[t.bed].pri < pri) actBeds[t.bed] = {k: t.k, pri}; });
+  const KC = {prep: ["url(#hatch)", "Preparar"], siembra: [cssv("--leaf"), "Sembrar o trasplantar"], cuidado: [cssv("--warn"), "Ralear o tutorar"], cosecha: [cssv("--accent"), "Cosechar"]};
+  const fill = id => { const a = actBeds[id]; if (!a) return {}; if (a.k === "prep") return {hatch: true, crop: "preparar"}; return {fill: KC[a.k][0], ink: "#ffffff", crop: KC[a.k][1].split(" ")[0].toLowerCase()}; };
+  let days = "";
+  for (let d = 1; d <= 5; d++) {
+    const list = work.filter(t => t.d === d);
+    if ((d === 1 || d === 3 || d === 5) && harv.length && !(w === 0 && typeof FIRST_DAY !== "undefined" && d < FIRST_DAY)) list.unshift({id: "hv" + d, d, k: "cosecha", t: "Cosecha para cocina antes de las 10:00 (ver lista de cosecha), pesar y anotar", min: 0});
+    if (!list.length) continue;
+    days += `<div class="day"><h3><span>${DIAS[d]} ${wkDate(w).getDate() + d - 1 > 0 ? fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY)) : ""}</span><span class="num">${nf(list.reduce((a, t) => a + t.min, 0) / 60, 1)} h</span></h3>
+    ${list.map(t => `<div class="task${state.done[t.id] ? " done" : ""}"><input type="checkbox" id="c-${t.id}" data-id="${t.id}" ${state.done[t.id] ? "checked" : ""}><label for="c-${t.id}"><span class="k ${t.k}">${{semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"}[t.k]}</span>${esc(t.t)}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</div>`).join("")}</div>`;
+  }
+  const harvRows = Object.entries(byCrop).sort((a, b) => CROPS[a[0]].u.localeCompare(CROPS[b[0]].u) || b[1].qty - a[1].qty)
+    .map(([c, o]) => `<tr><td><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}</td><td class="num small">${o.beds.join(", ")}</td><td class="r num">${o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores"}</td></tr>`).join("");
+  const kgTot = Object.entries(byCrop).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, o]) => a + o.qty, 0);
+  return `
+  <div class="bar">
+    <div class="stepper"><button class="btn icon" id="wprev" aria-label="Semana anterior">←</button>
+      <div><div class="eyebrow">Semana ${w + 1} de ${PLAN_WEEKS}</div><h2>${weekRange(w)}</h2></div>
+      <button class="btn icon" id="wnext" aria-label="Semana siguiente">→</button></div>
+    <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small"><b class="num">${nf(hrs, 1)} h</b> de ${CAP_H} h disponibles</span>${over ? `<span class="chip warn">⚠ Pedir apoyo: ${nf(hrs - CAP_H, 0)} h extra</span>` : `<span class="chip">✓ Cabe en la semana</span>`}</div>
+      <div class="meter${over ? " over" : ""}"><i style="width:${Math.min(100, hrs / CAP_H * 100)}%"></i></div></div>
+    <button class="btn primary" id="wa">Copiar para WhatsApp</button>
+  </div>
+  ${state.db === null && state.dbTried ? `<div class="notice">Las marcas de tareas no se guardan en esta vista. Ábrelo desde tu cuenta de Claude para que se compartan con Melanie.</div>` : ""}
+  <div class="cols">
+    <section class="panel days" aria-label="Tareas por día">
+      <div class="bar" style="justify-content:space-between"><h3>Lista de Adrián</h3><span class="chip">${doneCount} de ${T.length} hechas</span></div>
+      ${days}
+    </section>
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+      <section class="panel" aria-label="Cosecha de la semana">
+        <div class="bar" style="justify-content:space-between;margin-bottom:6px"><h3>Cosecha esperada</h3><span class="num small">${nf(kgTot, 1)} kg</span></div>
+        ${harvRows ? `<div class="scroll"><table><thead><tr><th>Cultivo</th><th>Camas</th><th class="r">Semana</th></tr></thead><tbody>${harvRows}</tbody></table></div><p class="small muted" style="margin:8px 0 0">Repartir en 3 entregas: lunes, miércoles y viernes.</p>` : `<p class="muted small" style="margin:0">Sin cosecha esta semana: las camas se están limpiando y sembrando.</p>`}
+      </section>
+      <section class="mapbox" aria-label="Mapa de la semana">
+        <div class="legend" style="padding:4px 4px 8px"><span><span class="dot" style="background:var(--soil)"></span>Preparar</span><span><span class="dot" style="background:var(--leaf)"></span>Sembrar</span><span><span class="dot" style="background:var(--warn)"></span>Ralear o tutorar</span><span><span class="dot" style="background:var(--accent)"></span>Cosechar</span></div>
+        <div id="wkmap">${mapSVG({fill})}</div>
+      </section>
+    </div>
+  </div>`;
+};
+views.semana.bind = root => {
+  root.querySelector("#wprev").onclick = () => { if (state.w > 0) { state.w--; subscribeDone(); render(); } };
+  root.querySelector("#wnext").onclick = () => { if (state.w < PLAN_WEEKS - 1) { state.w++; subscribeDone(); render(); } };
+  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  root.querySelector("#wa").onclick = () => copyText(whatsappText(state.w));
+  bindBeds(root.querySelector("#wkmap"), () => { state.view = "mapa"; render(); });
+};
+
+function whatsappText(w){
+  const T = weekTasks(plan, w);
+  const work = T.filter(t => t.k !== "cosecha");
+  const harv = T.filter(t => t.k === "cosecha");
+  let s = `*Huerto Dos Búhos · semana del ${weekRange(w)}*\n`;
+  for (let d = 1; d <= 5; d++) {
+    const list = work.filter(t => t.d === d);
+    if (w === 0 && typeof FIRST_DAY !== "undefined" && d < FIRST_DAY) continue;
+    const date = fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY));
+    s += `\n*${DIAS[d].toUpperCase()} ${date}*\n`;
+    if (d % 2 === 1 && harv.length) s += `▢ Cosecha para cocina antes de las 10:00, pesar y anotar\n`;
+    list.forEach(t => s += `▢ ${t.t}\n`);
+  }
+  if (harv.length) {
+    const byCrop = {};
+    harv.forEach(t => { const o = byCrop[t.crop] = byCrop[t.crop] || {beds: [], qty: 0, u: t.u}; o.beds.push(t.bed); o.qty += t.qty; });
+    s += `\n*COSECHA DE LA SEMANA* (aprox., repartir lun/mié/vie)\n`;
+    Object.entries(byCrop).forEach(([c, o]) => s += `• ${CROPS[c].n}: ${o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores"} (${o.beds.join(", ")})\n`);
+  }
+  s += `\nAl terminar cada cama, mandar foto. Viernes: foto de cada cuadrante.`;
+  return s;
+}
+function copyText(txt){
+  const done = () => toast("Copiado. Pégalo en el chat de Adrián.");
+  try {
+    navigator.clipboard.writeText(txt).then(done, () => showCopyBox(txt));
+  } catch (e) { showCopyBox(txt); }
+}
+function showCopyBox(txt){
+  const box = document.createElement("div");
+  box.className = "panel"; box.style.cssText = "position:fixed;inset:auto 16px 16px 16px;z-index:8;max-width:680px;margin:0 auto";
+  box.innerHTML = `<div class="bar" style="justify-content:space-between;margin-bottom:8px"><h3>Selecciona y copia</h3><button class="btn">Cerrar</button></div><textarea class="wa" readonly></textarea>`;
+  box.querySelector("textarea").value = txt;
+  box.querySelector("button").onclick = () => box.remove();
+  document.body.appendChild(box);
+  const ta = box.querySelector("textarea"); ta.focus(); ta.select();
+}
+
+views.mapa = () => {
+  const w = weekOfMonth(state.month);
+  const present = {};
+  BEDS.forEach(b => bedSegs(plan, b.id, w).forEach(st => { if (st.st !== "prepara") present[st.p.crop] = 1; }));
+  const totals = forecast(plan)[state.month] || {};
+  const kg = Object.entries(totals).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, v]) => a + v, 0);
+  const fl = Object.entries(totals).filter(([c]) => CROPS[c].u !== "kg").reduce((a, [, v]) => a + v, 0);
+  return `
+  <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Estado de las camas a mediados de mes</div><h2>${monthLabel(state.month)}</h2></div>
+    <div class="bar small"><span class="chip">≈ ${nf(kg)} kg de cosecha</span>${fl ? `<span class="chip">≈ ${nf(fl)} flores</span>` : ""}</div></div>
+  <div class="monthpick" role="group" aria-label="Mes">${MONTHS.map(k => `<button data-m="${k}" aria-pressed="${k === state.month}">${monthShort(k)}</button>`).join("")}</div>
+  <div class="cols">
+    <div class="mapbox"><div id="mmap">${mapSVG({fill: id => monthFill(id, w)})}</div></div>
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+      <section class="panel">
+        <h3 style="margin-bottom:8px">Cómo leer el mapa</h3>
+        <div class="legend"><span><span class="dot" style="background:var(--leaf)"></span>Color fuerte: en cosecha</span><span><span class="dot" style="background:var(--leaf);opacity:.38"></span>Color claro: creciendo</span><span><span class="dot" style="background:url(#)" ></span><span class="dot" style="background:repeating-linear-gradient(45deg,var(--soil) 0 2px,var(--soil-2) 2px 4px)"></span>Preparar cama</span><span><span class="dot" style="border:1px solid var(--line)"></span>Libre</span></div>
+        <h3 style="margin:14px 0 8px">Cultivos este mes</h3>
+        <div class="legend">${Object.keys(present).map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)}</span>`).join("") || `<span class="muted">Camas en preparación</span>`}</div>
+      </section>
+      <section class="panel">${state.bed ? bedTimeline(state.bed) : `<p class="muted" style="margin:0">Toca una cama para ver todo lo que lleva en el año.</p>`}</section>
+    </div>
+  </div>`;
+};
+views.mapa.bind = root => {
+  root.querySelectorAll(".monthpick button").forEach(b => b.onclick = () => { state.month = b.dataset.m; render(); });
+  bindBeds(root.querySelector("#mmap"), render);
+};
+
+views.cosecha = () => {
+  const F = forecast(plan);
+  const months = MONTHS.slice(0, 12);
+  const cats = Object.keys(CAT);
+  const data = months.map(m => { const o = {m}; cats.forEach(k => o[k] = 0); o.fl = 0; Object.entries(F[m] || {}).forEach(([c, v]) => { if (CROPS[c].u === "kg") o[CROPCAT[c]] += v; else o.fl += v; }); o.tot = cats.reduce((a, k) => a + o[k], 0); return o; });
+  const actual = {};
+  state.harvests.forEach(h => { if (h.u !== "kg") return; const k = (h.fecha || "").slice(0, 7); actual[k] = (actual[k] || 0) + (+h.cantidad || 0); });
+  const max = Math.ceil(Math.max(...data.map(d => d.tot), ...Object.values(actual), 1) / 50) * 50;
+  const W = 720, H = 300, L = 40, R = 8, Tp = 10, B = 26, bw = (W - L - R) / months.length;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cosecha estimada por mes en kilos">`;
+  for (let v = 0; v <= max; v += max / 4) { const y = Tp + (H - Tp - B) * (1 - v / max); svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/><text class="axis" x="${L - 6}" y="${y + 4}" text-anchor="end">${nf(v)}</text>`; }
+  data.forEach((d, i) => {
+    let y = H - B; const x = L + i * bw + bw * .18, w = bw * .64;
+    const segs = cats.filter(k => d[k] > 0);
+    segs.forEach((k, j) => {
+      const h = (H - Tp - B) * d[k] / max; y -= h;
+      const top = j === segs.length - 1;
+      const gap = j > 0 ? 2 : 0;
+      svg += `<path data-tip="${esc(monthLabel(d.m))}|${CAT[k][0]}|${nf(d[k])} kg" d="${top ? `M${x},${y + h - gap} V${y + 4} Q${x},${y} ${x + 4},${y} H${x + w - 4} Q${x + w},${y} ${x + w},${y + 4} V${y + h - gap} Z` : `M${x},${y + h - gap} V${y} H${x + w} V${y + h - gap} Z`}" fill="var(${CAT[k][1]})" style="cursor:default"/>`;
+    });
+    if (actual[d.m]) { const ay = Tp + (H - Tp - B) * (1 - actual[d.m] / max); svg += `<line x1="${x - 3}" x2="${x + w + 3}" y1="${ay}" y2="${ay}" stroke="var(--fg)" stroke-width="2.5"/><title>Registrado ${nf(actual[d.m])} kg</title>`; }
+    svg += `<rect x="${L + i * bw}" y="${Tp}" width="${bw}" height="${H - Tp - B}" fill="transparent" data-tip="${esc(monthLabel(d.m))}|Total estimado|${nf(d.tot)} kg${actual[d.m] ? " · registrado " + nf(actual[d.m]) + " kg" : ""}" class="hit"/>`;
+    svg += `<text class="axis" x="${L + i * bw + bw / 2}" y="${H - 8}" text-anchor="middle">${monthShort(d.m)}</text>`;
+  });
+  svg += `</svg>`;
+  const year = data.reduce((a, d) => a + d.tot, 0);
+  const crops = Object.keys(CROPS).filter(c => months.some(m => (F[m] || {})[c]));
+  const table = `<table><thead><tr><th>Cultivo</th>${months.map(m => `<th class="r">${monthShort(m)}</th>`).join("")}<th class="r">Año</th></tr></thead><tbody>${crops.map(c => { let t = 0; const cells = months.map(m => { const v = (F[m] || {})[c] || 0; t += v; return `<td class="r num">${v ? nf(v) : "<span class='muted'>·</span>"}</td>`; }).join(""); return `<tr><td style="white-space:nowrap"><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}${CROPS[c].u !== "kg" ? " <span class='muted small'>(flores)</span>" : ""}</td>${cells}<td class="r num"><b>${nf(t)}</b></td></tr>`; }).join("")}</tbody></table>`;
+  return `
+  <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Pronóstico para cocina · kilos por mes</div><h2>≈ ${nf(year)} kg en 12 meses</h2></div>
+  <div class="legend">${cats.map(k => `<span><span class="dot" style="background:var(${CAT[k][1]})"></span>${CAT[k][0]}</span>`).join("")}<span><span style="width:14px;height:0;border-top:2.5px solid var(--fg);display:inline-block"></span>Registrado</span></div></div>
+  <section class="panel chart" id="chart">${svg}</section>
+  <p class="small muted" style="margin:0">Noviembre sale casi vacío porque todas las camas se limpian en octubre; la producción arranca en diciembre. Los rendimientos son estimaciones de partida: el registro semanal de Adrián los corrige.</p>
+  <section class="panel"><h3 style="margin-bottom:8px">Detalle por cultivo</h3><div class="scroll">${table}</div></section>`;
+};
+views.cosecha.bind = root => {
+  const tip = document.getElementById("tip"), box = root.querySelector("#chart");
+  box.querySelectorAll("[data-tip]").forEach(el => {
+    el.addEventListener("mousemove", e => { const [a, b, c] = el.dataset.tip.split("|"); tip.innerHTML = `<b>${a}</b><br>${b}: ${c}`; tip.hidden = false; tip.style.left = e.pageX + "px"; tip.style.top = e.pageY - 8 + "px"; });
+    el.addEventListener("mouseleave", () => tip.hidden = true);
+  });
+  // los segmentos quedan arriba del área de toque
+  box.querySelectorAll("rect.hit").forEach(r => r.parentNode.insertBefore(r, r.parentNode.firstChild.nextSibling));
+};
+
+views.calendario = () => {
+  const N = PLAN_WEEKS, pct = w => (w / N * 100);
+  const months = MONTHS.map(k => ({k, w: Math.round((new Date(+k.slice(0, 4), +k.slice(5) - 1, 1, 12) - D(PLAN_START)) / (7 * DAY))})).filter(m => m.w >= 0 && m.w < N);
+  const rows = BEDS.map(b => `<div class="grow"><span class="b">${b.id}</span><div class="track">${(plan.byBed[b.id] || []).map(p => {
+      const g = Math.max(0, (p.h0 - p.s) / (p.end - p.s + 1) * 100);
+      return `<div class="seg" style="left:${pct(p.s)}%;width:${pct(p.end - p.s + 1)}%;top:${p.pos / BED[b.id].len * 100}%;bottom:auto;height:${p.m / BED[b.id].len * 100}%;background:${p.c.c}" title="${esc(p.c.n)}${p.frac < .999 ? " (" + nf(p.m, 1) + " m)" : ""}: ${p.ex ? "ya sembrado" : "siembra " + fmt(wkDate(p.s))}, cosecha ${fmt(wkDate(p.h0))} – ${fmt(wkDate(p.end))}"><i class="g" style="width:${g}%"></i><span>${esc(shortName(p.c.n))}</span></div>`;
+    }).join("")}${todayW >= 0 && todayW < N ? `<i class="nowline" style="left:${pct(todayW + .5)}%"></i>` : ""}</div></div>`).join("");
+  return `
+  <div><div class="eyebrow">Las 34 camas, semana por semana</div><h2>Calendario de siembra y cosecha</h2></div>
+  <div class="legend small"><span><span class="dot" style="background:var(--leaf);opacity:.45"></span>Tramo claro: creciendo</span><span><span class="dot" style="background:var(--leaf)"></span>Tramo fuerte: en cosecha</span><span><span class="dot" style="background:var(--accent)"></span>Línea: semana actual</span></div>
+  <section class="panel scroll"><div class="gantt" style="min-width:980px">
+    <div class="gmonths"><span></span><div>${months.map(m => `<b style="left:${pct(m.w)}%">${monthShort(m.k)}</b>`).join("")}</div></div>
+    ${rows}
+  </div></section>`;
+};
+
+views.cultivos = () => {
+  const cards = Object.entries(CROPS).map(([id, c]) => {
+    const ps = plan.P.filter(p => p.crop === id);
+    return `<article class="card"><h4><span class="dot" style="background:${c.c};width:14px;height:14px"></span>${esc(c.n)}</h4>
+    <dl class="kv"><dt>Inglés</dt><dd>${esc(c.en || "")}</dd>
+    <dt>Método</dt><dd>${c.met === "directa" ? "Siembra directa" : c.met === "plántula" ? `Semillero ${c.char} semanas, luego trasplante` : c.met === "división" ? "Perenne / división de plantas existentes" : c.met === "propia" ? "Plántula propia del huerto" : c.met === "existente" ? "Ya está en el huerto" : "Bulbo o tubérculo"}</dd>
+    <dt>Cómo</dt><dd>${esc(c.dist)}</dd>
+    ${c.met === "existente" ? "" : `<dt>A cosecha</dt><dd>${c.sem} semanas (más en invierno)</dd>`}
+    <dt>Cosecha</dt><dd>${c.dur >= 52 ? "Todo el año" : c.dur + " semanas"} · ${nf(c.kg, c.u === "kg" ? 1 : 0)} ${c.u}/sem por cama A</dd>
+    <dt>En menú</dt><dd>${esc(c.menu)}</dd>
+    <dt>Camas</dt><dd class="num small">${ps.map(p => `${p.bed}${p.frac < .999 ? " (" + nf(p.m, 1) + " m)" : ""} · ${p.ex ? "ya sembrado" : fmt(wkDate(p.s))}`).join("<br>")}</dd></dl>
+    ${c.nota ? `<p class="small muted" style="margin:0">${esc(c.nota)}</p>` : ""}</article>`;
+  }).join("");
+  return `<div><div class="eyebrow">Ficha de cada cultivo</div><h2>${Object.keys(CROPS).length} cultivos en el plan</h2></div>
+  <p class="small muted" style="margin:0;max-width:70ch">Prioridad: cultivos de corte y rebrote, siembra directa y perennes, para que una persona pueda llevar el huerto; lo que es complicado o barato se compra. "Cama A" = 5 m²; en camas B el rendimiento se multiplica por 2.7.</p>
+  <div class="cards">${cards}</div>
+  <section class="panel"><h3 style="margin-bottom:8px">Mejor comprar que cultivar</h3><div class="scroll"><table><tbody>${BUY.map(b => `<tr><td style="white-space:nowrap"><b>${esc(b.n)}</b></td><td class="small">${esc(b.why)}</td></tr>`).join("")}</tbody></table></div></section>`;
+};
+
+views.compras = () => {
+  const from = state.w, to = Math.min(PLAN_WEEKS - 1, state.w + 5);
+  const items = [];
+  plan.P.forEach(p => {
+    const c = p.c, len = p.m;
+    const when = p.tray ? p.ts : p.s;
+    if (p.ex || when < from || when > to || c.met === "división" || c.met === "propia") return;
+    let q;
+    if (p.tray) q = `semilla para ${nf(p.cells)} cavidades (${p.trays} charola${p.trays > 1 ? "s" : ""})`;
+    else if (c.met === "bulbo") q = `${nf(Math.ceil(c.rows * Math.floor(len / c.esp) * 1.1))} dientes / bulbos`;
+    else if (c.rows) q = `${nf(c.rows * len, 1)} m de hilera`;
+    else q = `${nf(p.area, 1)} m² al voleo`;
+    items.push({when, c, q, bed: p.bed + (p.frac < .999 ? ` (${nf(p.m, 1)} m)` : ""), uso: p.tray ? "semillero" : "cama"});
+  });
+  items.sort((a, b) => a.when - b.when);
+  // lista del año: semilla total por cultivo
+  const yr = {};
+  plan.P.forEach(p => {
+    const c = p.c, len = p.m;
+    if (p.ex || c.met === "división" || c.met === "propia") return;
+    const r = yr[p.crop] = yr[p.crop] || {first: p.tray ? p.ts : p.s, cells: 0, meters: 0, bulbs: 0, area: 0, n: 0};
+    r.first = Math.min(r.first, p.tray ? p.ts : p.s); r.n++;
+    if (p.tray) r.cells += p.cells;
+    else if (c.met === "bulbo") r.bulbs += Math.ceil(c.rows * Math.floor(len / c.esp) * 1.1);
+    else if (c.rows) r.meters += c.rows * len; else r.area += p.area;
+  });
+  const yrList = Object.entries(yr).sort((a, b) => (STOCK[a[0]] ? 1 : 0) - (STOCK[b[0]] ? 1 : 0) || a[1].first - b[1].first);
+  const yq = (k, r) => [r.cells && `${nf(r.cells)} cavidades`, r.meters && `${nf(r.meters)} m de hilera`, r.bulbs && `${nf(r.bulbs)} ${k === "ajo" ? "dientes y bulbos" : "piezas"}`, r.area && `${nf(r.area)} m² al voleo`].filter(Boolean).join(" + ");
+  let maxTrays = 0; for (let w = 0; w < PLAN_WEEKS; w++) maxTrays = Math.max(maxTrays, traysActive(plan, w).reduce((a, p) => a + p.trays, 0));
+  return `
+  <div class="bar" style="justify-content:space-between">
+    <div><div class="eyebrow">Semillas para las próximas 6 semanas</div><h2>${weekRange(from).split(" – ")[0]} – ${weekRange(to).split(" – ")[1]}</h2></div>
+    <div class="stepper"><button class="btn icon" id="cprev" aria-label="Antes">←</button><button class="btn icon" id="cnext" aria-label="Después">→</button></div>
+  </div>
+  <section class="panel scroll"><table><thead><tr><th>Se usa</th><th>Cultivo</th><th>Dónde</th><th class="r">Cantidad</th><th>Cama</th></tr></thead><tbody>
+  ${items.map(r => `<tr><td class="num">${fmt(wkDate(r.when))}</td><td><span class="dot" style="background:${r.c.c}"></span> ${esc(r.c.n)}</td><td class="small">${r.uso}${STOCK[Object.keys(CROPS).find(k => CROPS[k] === r.c)] ? ` <span class="chip">en bodega</span>` : ""}</td><td class="r num">${r.q}</td><td class="num small">${r.bed}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No hay siembras en estas semanas.</td></tr>`}
+  </tbody></table></section>
+  <section class="panel scroll"><div class="bar" style="justify-content:space-between;margin-bottom:8px"><h3>Lista de compra del año</h3><span class="chip warn">${yrList.filter(([k]) => !STOCK[k]).length} por comprar · ${yrList.filter(([k]) => STOCK[k]).length} en bodega</span></div>
+  <table><thead><tr><th>Estado</th><th>Cultivo</th><th>Primera siembra</th><th class="r">Semilla para el año</th></tr></thead><tbody>
+  ${yrList.map(([k, r]) => `<tr><td>${STOCK[k] ? `<span class="chip">✓ En bodega</span>` : `<span class="chip warn">Comprar</span>`}</td><td><span class="dot" style="background:${CROPS[k].c}"></span> ${esc(CROPS[k].n)}${STOCK[k] && STOCK[k] !== CROPS[k].n ? ` <span class="muted small">· ${esc(STOCK[k])}</span>` : ""}</td><td class="num small">${fmt(wkDate(r.first))}</td><td class="r num small">${yq(k, r)}</td></tr>`).join("")}
+  </tbody></table>
+  <p class="small muted" style="margin:8px 0 0">"En bodega": revisar que alcance para la cantidad indicada y que la semilla tenga menos de 2 años. Las hierbas perennes no se compran: se dividen las que ya existen.</p></section>
+  <section class="panel"><h3 style="margin-bottom:8px">En bodega, fuera del plan de camas</h3><div class="scroll"><table><tbody>${EXTRA_SEEDS.map(x => `<tr><td style="white-space:nowrap"><b>${esc(x.n)}</b></td><td class="small">${esc(x.uso)}</td></tr>`).join("")}</tbody></table></div></section>
+  <section class="panel"><h3 style="margin-bottom:8px">Material del semillero (una sola vez)</h3>
+  <ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+    <li><b>Charolas: 30 de 200 cavidades (ya compradas)</b>. Máximo ${maxTrays} en uso a la vez; sobran para la experiencia "Planta y llévatela"</li>
+    <li>Mesa de semillero (ya existe), con malla sombra 50% y cerca de una toma de agua</li>
+    <li>Sustrato: 2 partes de fibra de coco o peat moss + 1 parte de composta cernida + 1 de perlita</li>
+    <li>Manta térmica o plástico para tapar las charolas en noches de helada (dic–feb)</li>
+    <li>Regadera de flor fina y etiquetas con cultivo, cama y fecha</li>
+  </ul></section>
+  <p class="small muted" style="margin:0;max-width:70ch">Para semilla directa, la bolsa indica cuántos metros de hilera rinde; comprar con margen y guardar en lugar fresco y seco. No se compran plántulas: todo lo que va trasplantado sale del semillero.</p>`;
+};
+views.compras.bind = root => {
+  root.querySelector("#cprev").onclick = () => { state.w = Math.max(0, state.w - 6); render(); };
+  root.querySelector("#cnext").onclick = () => { state.w = Math.min(PLAN_WEEKS - 1, state.w + 6); render(); };
+};
+
+views.semillero = () => {
+  const w = state.w;
+  const act = traysActive(plan, w);
+  const sowNow = plan.P.filter(p => p.tray && p.ts === w);
+  const all = plan.P.filter(p => p.tray).sort((a, b) => a.ts - b.ts);
+  const used = act.reduce((a, p) => a + p.trays, 0);
+  const N = PLAN_WEEKS, pct = x => x / N * 100;
+  const rowStatus = p => w < p.ts ? ["Por sembrar", ""] : w < p.s - 1 ? ["En charola", "ok"] : w === p.s - 1 ? ["Endurecer", "warn"] : ["Trasplantado", ""];
+  return `
+  <div class="bar" style="justify-content:space-between">
+    <div class="stepper"><button class="btn icon" id="sprev" aria-label="Semana anterior">←</button>
+      <div><div class="eyebrow">Semillero · semana ${w + 1}</div><h2>${weekRange(w)}</h2></div>
+      <button class="btn icon" id="snext" aria-label="Semana siguiente">→</button></div>
+    <div class="bar small"><span class="chip">${used} charola${used === 1 ? "" : "s"} en la mesa</span>${sowNow.length ? `<span class="chip warn">Sembrar esta semana: ${[...new Set(sowNow.map(p => shortName(p.c.n)))].map(esc).join(", ")}</span>` : ""}</div>
+  </div>
+  <p class="small muted" style="margin:0;max-width:72ch">Las charolas están en la mesa de semillero, fuera de las camas: no ocupan espacio del huerto. La cama que aparece es solo el destino final; sigue produciendo su cultivo anterior hasta el día del trasplante. Todo lo que se trasplanta nace aquí, en charolas de 200, entre 5 y 9 semanas antes. La última semana se endurece: al sol y al viento, con menos agua. Kale y acelga de octubre se siembran directo en la cama porque ya no da tiempo de semillero.</p>
+  <div class="cols">
+    <section class="panel">
+      <h3 style="margin-bottom:8px">En la mesa esta semana</h3>
+      ${act.length || sowNow.length ? `<div class="scroll"><table><thead><tr><th>Cultivo</th><th class="r">Charolas</th><th>Sembrado</th><th>Trasplante a cama</th><th>Estado</th></tr></thead><tbody>
+      ${[...new Set([...sowNow, ...act])].map(p => { const st = rowStatus(p); return `<tr><td><span class="dot" style="background:${p.c.c}"></span> ${esc(p.c.n)} <span class="muted small">· destino ${p.bed}</span></td><td class="r num">${p.trays}</td><td class="num small">${fmt(wkDate(p.ts))}</td><td class="num small">${fmt(wkDate(p.s))}</td><td><span class="chip ${st[1]}">${p.ts === w ? "Sembrar hoy" : st[0]}</span></td></tr>`; }).join("")}
+      </tbody></table></div>` : `<p class="muted small" style="margin:0">La mesa está vacía esta semana.</p>`}
+    </section>
+    <section class="panel">
+      <h3 style="margin-bottom:8px">Cómo sembrar una charola</h3>
+      <ol class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+        <li>Llenar la charola con sustrato húmedo y apretar ligeramente.</li>
+        <li>2 semillas por cavidad, a una profundidad de 2 veces el tamaño de la semilla.</li>
+        <li>Etiqueta: cultivo, cama y fecha de trasplante.</li>
+        <li>Regar con regadera fina cada mañana; que no se seque ni se encharque.</li>
+        <li>Cuando salgan 2 hojas, dejar la planta más fuerte por cavidad (cortar la otra con tijera).</li>
+        <li>Una semana antes de trasplantar: endurecer al sol y regar menos.</li>
+      </ol>
+    </section>
+  </div>
+  <section class="panel scroll"><h3 style="margin-bottom:8px">Todo el año</h3>
+    <div class="gantt" style="min-width:860px">
+      ${all.map(p => `<div class="grow" style="grid-template-columns:150px 1fr"><span class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(shortName(p.c.n))} · destino ${p.bed}</span><div class="track"><div class="seg" style="left:${pct(p.ts)}%;width:${pct(p.s - p.ts)}%;background:${p.c.c}" title="${esc(p.c.n)}: charola ${fmt(wkDate(p.ts))}, trasplante ${fmt(wkDate(p.s))}"><span>${p.trays} ch.</span></div><i class="nowline" style="left:${pct(w + .5)}%"></i></div></div>`).join("")}
+    </div>
+  </section>`;
+};
+views.semillero.bind = root => {
+  root.querySelector("#sprev").onclick = () => { if (state.w > 0) { state.w--; subscribeDone(); render(); } };
+  root.querySelector("#snext").onclick = () => { if (state.w < PLAN_WEEKS - 1) { state.w++; subscribeDone(); render(); } };
+};
+
+views.experiencias = () => {
+  const w = weekOfMonth(state.month);
+  const inHarvest = [...new Set(BEDS.flatMap(b => bedSegs(plan, b.id, w)).filter(s => s.st === "cosecha").map(s => s.p.crop))];
+  const sowing = plan.P.some(p => !p.tray && p.c.met === "directa" && Math.abs(p.s - w) <= 2);
+  const ok = e => e.uses.some(u => u === "cosecha" ? inHarvest.length : u === "semillero" || u === "composta" || u === "perennes" ? true : u === "directa" ? sowing : inHarvest.includes(u));
+  const cards = EXPERIENCES.map(e => {
+    const on = ok(e);
+    const crops = e.uses.filter(u => CROPS[u] && inHarvest.includes(u));
+    return `<article class="card" style="${on ? "" : "opacity:.55"}">
+      <div class="bar" style="justify-content:space-between;gap:6px"><span class="chip ${on ? "" : "warn"}">${on ? "Disponible este mes" : "No este mes"}</span><span class="small num muted">${e.min} min · máx ${e.max}</span></div>
+      <h4>${esc(e.es)}</h4><div class="small muted" style="margin-top:-6px">${esc(e.en)} · ${esc(e.when)}</div>
+      <p class="small" style="margin:0">${esc(e.what)}</p>
+      ${crops.length ? `<p class="small" style="margin:0"><b>Este mes:</b> ${crops.map(c => esc(CROPS[c].n)).join(", ")}</p>` : ""}
+      <dl class="kv"><dt>Adrián prepara</dt><dd>${esc(e.prep)}</dd><dt>Material</dt><dd>${esc(e.mat)}</dd><dt>For the guide</dt><dd lang="en">${esc(e.guide)}</dd></dl>
+    </article>`;
+  }).join("");
+  return `
+  <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Huerto para visitantes · 1 o 2 veces por semana</div><h2>${monthLabel(state.month)}</h2></div></div>
+  <div class="monthpick" role="group" aria-label="Mes">${MONTHS.map(k => `<button data-m="${k}" aria-pressed="${k === state.month}">${monthShort(k)}</button>`).join("")}</div>
+  <section class="panel"><h3 style="margin-bottom:8px">In the garden this month · para el guía</h3>
+    <div class="legend">${inHarvest.map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)} <span class="muted" lang="en">· ${esc(CROPS[c].en || "")}</span></span>`).join("") || `<span class="muted">Beds are being prepared and sown this month: show the nursery trays and the compost pile.</span>`}</div>
+  </section>
+  <p class="small muted" style="margin:0;max-width:72ch">Los guías conducen en inglés; Adrián deja todo listo el viernes y puede acompañar en español. Ninguna requiere enseñar técnica: se aprende haciendo, con lo que el huerto ya está produciendo.</p>
+  <div class="cards">${cards}</div>`;
+};
+views.experiencias.bind = root => root.querySelectorAll(".monthpick button").forEach(b => b.onclick = () => { state.month = b.dataset.m; render(); });
+
+views.registro = () => {
+  const today = new Date(); const iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+  const rows = state.harvests.slice(0, 60).map(h => `<tr><td class="num">${esc(h.fecha)}</td><td class="num">${esc(h.cama)}</td><td>${esc(CROPS[h.cultivo]?.n || h.cultivo)}</td><td class="r num">${nf(+h.cantidad || 0, 1)} ${esc(h.u)}</td><td class="small muted">${esc(h.nota || "")}</td></tr>`).join("");
+  const canWrite = !!state.db;
+  return `
+  <div><div class="eyebrow">Lo que realmente salió del huerto</div><h2>Registro de cosecha</h2></div>
+  <p class="small muted" style="margin:0;max-width:70ch">Adrián manda por WhatsApp el peso de cada entrega; aquí se captura. Con 4–6 semanas de registro se ajustan los rendimientos del plan.</p>
+  ${canWrite ? `<form class="reg panel" id="regf">
+    <label>Fecha<input type="date" id="rf-fecha" value="${iso}" required></label>
+    <label>Cama<select id="rf-cama">${BEDS.map(b => `<option>${b.id}</option>`).join("")}</select></label>
+    <label>Cultivo<select id="rf-cultivo">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${esc(c.n)}</option>`).join("")}</select></label>
+    <label>Cantidad<input type="number" id="rf-cant" min="0" step="0.1" inputmode="decimal" required placeholder="kg o flores"></label>
+    <label>Nota<input type="text" id="rf-nota" placeholder="opcional"></label>
+    <button class="btn primary" type="submit">Guardar</button>
+  </form>` : `<div class="notice">El registro se guarda solo al abrir esta página desde tu cuenta de Claude.</div>`}
+  <section class="panel scroll"><table><thead><tr><th>Fecha</th><th>Cama</th><th>Cultivo</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></section>`;
+};
+views.registro.bind = root => {
+  const f = root.querySelector("#regf"); if (!f) return;
+  const cama = f.querySelector("#rf-cama"), cult = f.querySelector("#rf-cultivo");
+  const syncCrop = () => { const w = Math.max(0, Math.min(PLAN_WEEKS - 1, Math.floor((D(f.querySelector("#rf-fecha").value) - D(PLAN_START)) / (7 * DAY)))); const st = bedState(plan, cama.value, w); if (st.p) cult.value = st.p.crop; };
+  cama.onchange = syncCrop; syncCrop();
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const c = CROPS[cult.value];
+    const doc = {fecha: f.querySelector("#rf-fecha").value, cama: cama.value, cultivo: cult.value, cantidad: +f.querySelector("#rf-cant").value, u: c.u, nota: f.querySelector("#rf-nota").value.slice(0, 200), at: Date.now()};
+    try { await state.db.collection("cosechas").add(doc); toast("Guardado"); f.querySelector("#rf-cant").value = ""; f.querySelector("#rf-nota").value = ""; }
+    catch (err) { toast(err && err.code === "quota_exceeded" ? "El registro está lleno; hay que depurar entradas viejas." : "No se pudo guardar. Revisa la conexión e intenta de nuevo."); }
+  };
+};
+
+/* ---------- datos compartidos ---------- */
+let unsubDone = null;
+function subscribeDone(){
+  if (!state.db) return;
+  if (unsubDone) unsubDone();
+  const w = state.w;
+  unsubDone = state.db.collection("hechas").where("w", "==", w).onSnapshot(snap => {
+    if (w !== state.w) return;
+    const d = {}; snap.docs.forEach(x => { const v = x.data(); if (v && v.id) d[v.id] = true; });
+    state.done = d; if (state.view === "semana") render();
+  }, () => {});
+}
+async function toggleDone(id, on){
+  state.done[id] = on;
+  if (state.view === "semana") render();
+  if (!state.db) return;
+  const ref = state.db.doc(`hechas/w${state.w}-${id}`);
+  try { on ? await ref.set({w: state.w, id, at: Date.now()}) : await ref.delete(); }
+  catch (e) { toast("No se pudo guardar la marca."); }
+}
+/* ---------- render ---------- */
+const TITLES = {semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Compras", registro: "Registro"};
+function render(){
+  const main = document.getElementById("main");
+  const y = window.scrollY;
+  main.innerHTML = `<div class="view">${views[state.view]()}</div>`;
+  document.getElementById("vtitle").textContent = TITLES[state.view];
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view));
+  if (views[state.view].bind) views[state.view].bind(main);
+  window.scrollTo(0, y);
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => { state.view = b.dataset.v; try { localStorage.setItem("huerto-vista", state.view); } catch (e) {} render(); });
+try { const v = localStorage.getItem("huerto-vista"); if (v && views[v]) state.view = v; } catch (e) {}
+const hv = location.hash.replace("#", ""); if (views[hv]) state.view = hv;
+render();
+(async () => {
+  try {
+    const db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    state.dbTried = true;
+    if (!db) { render(); return; }
+    state.db = db;
+    subscribeDone();
+    db.collection("cosechas").orderBy("fecha", "desc").limit(1000).onSnapshot(snap => {
+      state.harvests = snap.docs.map(d => d.data());
+      if (state.view === "registro" || state.view === "cosecha") render();
+    }, () => {});
+    render();
+  } catch (e) { state.dbTried = true; render(); }
+})();
+setTimeout(() => { if (!state.dbTried) { state.dbTried = true; render(); } }, 10500);
+
+</script>
