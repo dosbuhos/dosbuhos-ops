@@ -10,7 +10,7 @@ crons = ["15 8 * * *"]
 ZOHO_ORG_ID = "843697568"
 ZOHO_ACCOUNTS_URL = "https://accounts.zoho.com"
 ZOHO_API_URL = "https://www.zohoapis.com/inventory/v1"
-ADMIN_EMAILS = "emaycotte@gmail.com,carlostapia@dosbuhos.com"
+ADMIN_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com,carlostapia@dosbuhos.com"
 # Set after creating the Access application (see SETUP.md):
 ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"
 ACCESS_AUD = "93cccbeb578bb85754f0f55d7edd994cd684075c0074954b7c511a6eea20b6d4"
