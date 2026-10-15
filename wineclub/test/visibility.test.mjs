@@ -51,6 +51,16 @@ test('member directory exposes enrollment and searchable contact context',async(
   assert.match(html,/Alta registrada/);assert.match(html,/6 ago 2026/i);assert.match(html,/5551234/);
 });
 
+test('calendar shows the linked Stripe payment date independently of delivery status',()=>{
+  const ctx=fixture();const o=subOccurrences(ctx,ctx.subs[0],'2026-12-31')[0];
+  const html=scheduleRow({...o,state:'overdue',status:null,f:{stripe_invoice_id:'in_paid',paid_on:'2026-08-06'}});
+  assert.match(html,/Pagado en Stripe · 6 ago 2026/);
+  assert.match(html,/Sin entrega registrada/);
+  assert.match(html,/15 ago 2026/);
+  assert.match(scheduleRow({...o,f:{}}),/Sin pago Stripe asociado/);
+  assert.doesNotMatch(scheduleRow({...o,f:{paid_on:'2026-08-06'}}),/Pagado en Stripe/);
+});
+
 test('benefit history does not infer the server from the recorder on old records',async()=>{
   const ctx=fixture();
   const html=await memberPage({env:{},user:{email:'recorder@example.com'},ctx,member:{id:7,name:'Valeria'},

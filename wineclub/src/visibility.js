@@ -33,6 +33,7 @@ export function scheduleRow(o) {
   return `<a class="schedule-row ${o.state}" href="/envio/${o.subId}/${o.k}">
     <div class="schedule-top"><b>Envío #${o.n}</b>${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : STATE[o.state].tone)}</div>
     <div class="expected"><span>Fecha prevista</span><strong>${esc(exactDate(o.due))}</strong></div>
+    <p class="small payment-status"><span class="chip ${f.stripe_invoice_id && f.paid_on ? 'green' : 'grey'}" style="white-space:normal;max-width:100%">${f.stripe_invoice_id && f.paid_on ? `Pagado en Stripe · ${esc(exactDate(f.paid_on))}` : 'Sin pago Stripe asociado'}</span></p>
     ${o.delayed ? `<p class="small rescheduled">Reprogramado: <b>${esc(exactDate(o.eff))}</b>${f.delay_reason ? ' · ' + esc(f.delay_reason) : ''}</p>` : ''}
     <p class="small actual ${o.state === 'done' ? 'complete' : ''}">${esc(result)}</p>
     ${timing ? `<p class="small muted">${esc(timing)}</p>` : ''}
