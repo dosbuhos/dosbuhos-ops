@@ -156,7 +156,7 @@ export function page({ title, body, user, env, tab = '' }) {
 <title>${esc(title)} · Club Dos Búhos</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236b2737'/%3E%3Ctext x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='Georgia'%3EDB%3C/text%3E%3C/svg%3E">
 <style>${CSS}</style></head><body>
-<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<span class="who">${esc(user.email)}</span>` : ''}</header>
+<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<a class="who" href="/auth/salir" style="color:#fff;text-decoration:none" title="Salir">${esc(user.email)}</a>` : ''}</header>
 <main>${body}</main>
 ${user ? `<nav class="navbar">${nav.map(([href, k, label]) => `<a href="${href}" class="${tab === k ? 'on' : ''}">${ICON[k]}<span>${label}</span></a>`).join('')}</nav>` : ''}
 <script>${SCRIPT}</script></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'same-origin' } });

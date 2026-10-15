@@ -13,6 +13,8 @@ crons = ["7 * * * *"]
 
 [vars]
 APP_ENV = "production"
+# Google sign-in (replaces Cloudflare Access once GOOGLE_CLIENT_ID is set; secret GOOGLE_CLIENT_SECRET in the dashboard).
+ALLOWED_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com"
 TIMEZONE = "America/Mexico_City"
 ADMIN_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com"
 ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"

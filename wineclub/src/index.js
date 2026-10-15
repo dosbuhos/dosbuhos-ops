@@ -5,6 +5,7 @@ import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFul
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
 import { ask } from './assistant.js';
+import { handleAuth, loginPage } from './google.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -80,9 +81,15 @@ async function handle(request, env) {
   if (p === '/stripe/webhook' && m === 'POST') return handleWebhook(request, env);
   if (p === '/health') return new Response('ok', { headers: { 'cache-control': 'no-store' } });
 
+  if (env.GOOGLE_CLIENT_ID && p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
   const user = await identify(request, env);
+  if (user?.login) {
+    if (m !== 'GET') return new Response('Sesión expirada', { status: 401 });
+    if (p !== '/') return Response.redirect(`${url.origin}/?next=${encodeURIComponent(p + url.search)}`, 302);
+    return loginPage(env, url);
+  }
   if (user?.locked) return P.simplePage({ env, user: null, title: 'Falta activar el acceso', status: 403,
-    html: '<h1>Falta activar Cloudflare Access</h1><p>Esta app no muestra datos de socios hasta que el inicio de sesión de Cloudflare Access esté configurado.</p>' });
+    html: '<h1>Falta configurar el inicio de sesión</h1><p>Esta app no muestra datos de socios hasta que el inicio de sesión esté configurado.</p>' });
   if (!user) return P.simplePage({ env, user: null, title: 'Sin acceso', status: 403, html: '<h1>Sin acceso</h1><p>Inicia sesión con tu correo de Dos Búhos.</p>' });
 
   if (m === 'POST') {

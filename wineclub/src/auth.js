@@ -1,3 +1,4 @@
+import { sessionEmail } from './google.js';
 // Identity comes from Cloudflare Access. Every request that reaches the Worker through Access carries a
 // signed JWT (Cf-Access-Jwt-Assertion); we verify it against the team's public keys and this app's AUD tag.
 // Without ACCESS_AUD configured the app stays locked — it never serves member data unauthenticated.
@@ -41,7 +42,11 @@ async function verifyAccessJwt(token, env) {
 // Returns { email, isManager } | { locked: true } | null
 export async function identify(request, env) {
   let email = null;
-  if (env.ACCESS_TEAM_DOMAIN) {
+  if (env.GOOGLE_CLIENT_ID) {
+    if (!env.GOOGLE_CLIENT_SECRET) return { locked: true };
+    email = await sessionEmail(request, env);
+    if (!email) return { login: true };
+  } else if (env.ACCESS_TEAM_DOMAIN) {
     if (!env.ACCESS_AUD) return { locked: true };
     const token = request.headers.get('Cf-Access-Jwt-Assertion');
     if (token) {
