@@ -112,6 +112,9 @@ textarea{min-height:96px}
 html{scroll-padding-top:100px}.grid2>*{min-width:0}.sticky-foot{z-index:15;background:var(--bg)}
 .tl .row{border-left:4px solid transparent}.tl .row.overdue,.tl .row.exception{border-left-color:var(--red)}.tl .row.today{border-left-color:var(--wine)}
 .tl .row.done{border-left-color:var(--green)}.tl .row .d{width:76px;flex:none;font-weight:800;font-size:14px}
+@media(max-width:520px){.rows.tl a.row{display:grid;grid-template-columns:60px minmax(0,1fr);gap:4px 10px;align-items:start}
+.rows.tl .row .d{width:auto;grid-column:1;grid-row:1 / span 2}.rows.tl .row .main{grid-column:2}
+.rows.tl .row .chip{grid-column:2;justify-self:start;max-width:100%}.rows.tl .row .t{white-space:normal}.rows.tl .row .s{overflow-wrap:anywhere}}
 dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:14px}dl.kv dd{margin:0;word-break:break-word}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
