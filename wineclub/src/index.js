@@ -8,6 +8,7 @@ import { fulfillPage, fulfillSubmit, reopen, reconcileData, reconcilePage, recon
 import { ask } from './assistant.js';
 import { handleAuth, loginPage } from './google.js';
 import { buildPlan, migrationPage, runImport } from './legacy.js';
+import {receiptPage,receiptSubmit} from './receipt.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -68,7 +69,7 @@ async function exportData(env) {
   const tables = ['clubs', 'club_cases', 'club_benefits', 'stripe_products', 'members', 'subscriptions', 'pauses', 'fulfillments', 'benefit_uses', 'audit_log', 'settings'];
   const out = { exported_at: new Date().toISOString(), app: 'wineclub', env: env.APP_ENV || null };
   for (const t of tables) out[t] = (await env.DB.prepare(`SELECT * FROM ${t}`).all()).results;
-  out.photos = (await env.DB.prepare('SELECT id, fulfillment_id, content_type, r2_key, uploaded_by, uploaded_at FROM photos').all()).results;
+  out.photos = (await env.DB.prepare('SELECT id, fulfillment_id, content_type, r2_key, uploaded_by, uploaded_at,kind,recipient,received_on,note FROM photos').all()).results;
   out.stripe_events = (await env.DB.prepare('SELECT id, type, api_version, received_at, processed_at, error FROM stripe_events').all()).results;
   return new Response(JSON.stringify(out, null, 2), { headers: {
     'content-type': 'application/json; charset=utf-8',
@@ -108,15 +109,19 @@ async function handle(request, env) {
   }
 
   // ---------- shipments ----------
-  if ((r = R(/^\/envio\/(\d+)\/(\d+)(?:\/(estado|detalles|posponer|botellas|foto|entregar|reabrir|ref))?$/))) {
+  if ((r = R(/^\/envio\/(\d+)\/(\d+)(?:\/(estado|detalles|posponer|botellas|foto|entregar|reabrir|ref|comprobante))?$/))) {
     const sh = await loadShipment(env, Number(r[1]), Number(r[2]));
     if (!sh) return notFound(env, user);
     if (!sh.club) return notFound(env, user, 'Esta suscripción no tiene club asignado, así que no tiene envíos calculados.');
     if (!sh.o) return notFound(env, user, 'Este envío no corresponde: la suscripción terminó antes de esa fecha.');
     const action = r[3];
+    if(action==='comprobante') {
+      if(m==='GET')return receiptPage({env,user,sh,kind:url.searchParams.get('tipo')});
+      if(m==='POST')return receiptSubmit(env,user,sh,request);
+    }
     if (m === 'GET' && !action) {
       const f = sh.o.f;
-      const photos = f ? (await env.DB.prepare('SELECT id FROM photos WHERE fulfillment_id=? ORDER BY id').bind(f.id).all()).results : [];
+      const photos = f ? (await env.DB.prepare('SELECT id,kind,recipient,received_on,note,uploaded_by,uploaded_at FROM photos WHERE fulfillment_id=? ORDER BY id').bind(f.id).all()).results : [];
       const history = (await env.DB.prepare(`SELECT * FROM audit_log WHERE entity='fulfillment' AND entity_id=? ORDER BY id DESC LIMIT 30`).bind(`${sh.sub.id}:${sh.o.k}`).all()).results;
       return P.shipmentPage({ env, user, ctx: sh.ctx, o: sh.o, photos, history });
     }
@@ -211,7 +216,7 @@ async function handle(request, env) {
     let body = ph.data ? new Uint8Array(ph.data) : null;
     if (!body && ph.r2_key && env.PHOTOS) body = (await env.PHOTOS.get(ph.r2_key))?.body;
     if (!body) return notFound(env, user);
-    return new Response(body, { headers: { 'content-type': ph.content_type || 'image/jpeg', 'cache-control': 'private, max-age=86400' } });
+    return new Response(body, { headers: { 'content-type': ph.content_type || 'image/jpeg', 'cache-control': 'private, max-age=86400', 'x-content-type-options':'nosniff' } });
   }
 
   if (m === 'POST' && (r = R(/^\/deshacer\/(\d+)$/))) {

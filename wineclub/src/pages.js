@@ -51,7 +51,7 @@ function okBanner(okAudit, today) {
   const [subId, k] = okAudit.entity_id.split(':');
   return `<div class="banner green"><span>✓ ${esc(okAudit.member_name || '')} · Envío #${esc(okAudit.n || k)}: ${esc(label)}</span>
   <form method="post" action="/deshacer/${okAudit.id}"><button class="btn ghost">Deshacer</button></form>
-  <a href="/envio/${esc(subId)}/${esc(k)}">Ver envío</a></div>`;
+  <a href="/envio/${esc(subId)}/${esc(k)}">Ver envío</a><a href="/envio/${esc(subId)}/${esc(k)}/comprobante">Guardar firma / comprobante</a></div>`;
 }
 
 const RANGES = [[14, '2 semanas'], [30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año']];
@@ -158,6 +158,8 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   const body = `<p><a href="/">← Agenda</a></p>
   <div class="when">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}</div>
   <h1>Envío #${o.n} · ${esc(s.member_name)}</h1>
+  <div class="acts"><a class="btn quiet sm" href="${back}/comprobante">Firmar recepción</a><a class="btn quiet sm" href="${back}/comprobante?tipo=receipt">Subir comprobante</a></div>
+  ${photos.some(p=>['signature','receipt'].includes(p.kind))?'<p class="small"><a href="#comprobantes">✓ Ver comprobantes guardados</a></p>':''}
   <div class="card"><div class="small muted">Alta de esta suscripción: <b>${esc(exactDate(s.start_date))}</b> · ${esc(cadenceLabel(o.club.cadence_months))}</div>${dateFacts(o)}
   <a class="small calendar-link" href="/socio/${s.member_id}#calendario">Ver el calendario completo →</a></div>
   ${o.delayed ? `<p class="small"><b>Pospuesto.</b> Fecha original: ${esc(fdate(o.due, today))}${f.delay_reason ? ' · ' + esc(f.delay_reason) : ''}</p>` : ''}
@@ -192,8 +194,13 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     <div><label for="dr">Motivo del aplazamiento</label><input id="dr" name="delay_reason" value="${esc(f.delay_reason || '')}" maxlength="200" required placeholder="El socio está de viaje"></div></div>
     <p class="small muted">Si se cruza con el siguiente envío, ambos siguen pendientes por separado.</p>
     <div class="acts"><button class="btn sm">Guardar aplazamiento</button>${f.delayed_until ? '<button class="btn sm quiet" name="clear" value="1" formnovalidate>Quitar aplazamiento</button>' : ''}</div></form></div>` : ''}
-  <h2>Fotos</h2><div class="card">
-    ${photos.length ? `<div class="photos">${photos.map(p => `<a href="/foto/${p.id}" target="_blank"><img src="/foto/${p.id}" alt="foto" loading="lazy"></a>`).join('')}</div>` : '<p class="muted small" style="margin:0">Sin fotos.</p>'}
+  <h2 id="comprobantes">Comprobantes de recepción y fotos</h2><div class="card">
+    <p class="small">Guarda la firma del cliente, una foto del recibo firmado o una captura de WhatsApp. Cada comprobante conserva quién lo registró y cuándo.</p>
+    <div class="acts"><a class="btn" href="${back}/comprobante">Firmar recepción</a><a class="btn ghost" href="${back}/comprobante?tipo=receipt">Subir comprobante</a></div>
+    ${photos.length ? photos.map(p=>`<div style="border-top:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere"><b>${p.kind==='signature'?'Firma de recepción':p.kind==='receipt'?'Comprobante de recepción':'Foto del envío'}</b>
+      ${p.recipient?`<p class="small">Recibió: <b>${esc(p.recipient)}</b> · ${esc(exactDate(p.received_on))}</p>`:''}
+      <a href="/foto/${p.id}" target="_blank" rel="noopener"><img src="/foto/${p.id}" alt="${p.kind==='signature'?'Firma de recepción':'Imagen adjunta al envío'}" loading="lazy" style="display:block;max-width:100%;max-height:240px;border:1px solid var(--line);border-radius:10px"></a>
+      <p class="small muted">Registrado por: ${esc(p.uploaded_by||'Sin registrar')} · ${esc(p.uploaded_at||'')} UTC</p>${p.note?`<p class="small">${esc(p.note)}</p>`:''}</div>`).join('') : '<p class="muted small">Sin comprobantes ni fotos.</p>'}
     <label for="photo" class="btn quiet sm" style="margin-top:10px">Agregar foto</label>
     <input id="photo" type="file" accept="image/*" capture="environment" data-url="${back}/foto" style="display:none"><p id="photo-st" class="small muted"></p></div>
   <h2>Pago</h2><div class="card small">${f.paid_on ? `Pagado en Stripe el ${esc(fdate(f.paid_on, today))}${f.paid_amount != null ? ' · ' + money(f.paid_amount, s.price_currency) : ''}` : '<span class="muted">Sin pago de Stripe asociado a este envío.</span>'}</div>

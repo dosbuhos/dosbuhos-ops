@@ -69,7 +69,8 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {} }
       <div><label for="trk">Guía</label><input id="trk" name="tracking" value="${v('tracking', f.tracking || '')}"></div></div></div>
     <label for="hb">Lo entregó / envió</label><input id="hb" name="handled_by" value="${v('handled_by', f.handled_by || user.email)}">
     <label for="nt">Nota</label><textarea id="nt" name="note" rows="2">${v('note', f.note || '')}</textarea>
-    <label for="ph">Foto (opcional)</label><input id="ph" type="file" name="photo" accept="image/*" capture="environment">
+    <label for="ph">Foto del envío (opcional)</label><input id="ph" type="file" name="photo" accept="image/*">
+    <p class="small muted">Después de confirmar puedes guardar la firma del cliente, un recibo firmado o una captura de WhatsApp en “Comprobantes de recepción”.</p>
   </div>
   <div class="sticky-foot" style="position:sticky;bottom:calc(var(--nav) + 6px);padding:10px 0"><button class="btn" id="ffb">Confirmar</button></div>
   </form>

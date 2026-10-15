@@ -1,0 +1,4 @@
+ALTER TABLE photos ADD COLUMN kind TEXT NOT NULL DEFAULT 'photo';
+ALTER TABLE photos ADD COLUMN recipient TEXT;
+ALTER TABLE photos ADD COLUMN received_on TEXT;
+ALTER TABLE photos ADD COLUMN note TEXT;

@@ -221,6 +221,39 @@ try {
     assert.equal(JSON.parse(audit.after_json).handled_by,'Ángel');
   });
 
+  await check('signature receipt saves with staff attribution without changing delivery history', async () => {
+    const before=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=1`)[0];
+    const path=`/envio/${subA}/1/comprobante`;
+    const html=await get(path);assert.match(html,/signature-pad/);assert.match(html,/Foto o captura de pantalla/);
+    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
+    const fd=new FormData();for(const [k,v] of Object.entries({version:String(before.version),kind:'signature',ink:'1',recipient:'Recibe Prueba',received_on:'2026-10-14',note:'Firma de prueba'}))fd.set(k,v);
+    fd.set('file',new Blob([png],{type:'image/png'}),'firma.png');
+    let r=await fetch(B+path,{method:'POST',headers:O,body:fd});assert.equal(r.status,200);assert.equal((await r.json()).ok,true);
+    const after=q(`SELECT * FROM fulfillments WHERE id=${before.id}`)[0];
+    for(const key of ['status','done_on','delivered_on','bottles_json','order_ref','handled_by'])assert.equal(after[key],before[key],key);
+    const photo=q(`SELECT id,kind,recipient,received_on,uploaded_by FROM photos WHERE fulfillment_id=${before.id} ORDER BY id DESC LIMIT 1`)[0];
+    assert.equal(photo.kind,'signature');assert.equal(photo.recipient,'Recibe Prueba');assert.equal(photo.uploaded_by,'staff@example.com');
+    const image=await fetch(B+`/foto/${photo.id}`);assert.equal(image.headers.get('content-type'),'image/png');assert.deepEqual(Buffer.from(await image.arrayBuffer()),png);
+    r=await fetch(B+path,{method:'POST',headers:O,body:fd});assert.equal(r.status,409);await r.text();
+    assert.match(await get(`/envio/${subA}/1`),/Firma de recepción/);
+    assert.ok(q(`SELECT id FROM audit_log WHERE entity_id='${subA}:1' AND action='firma de recepción'`).length);
+  });
+
+  await check('receipt upload validates files and creates a record without marking an unworked shipment delivered', async () => {
+    const path=`/envio/${subA}/8/comprobante`;
+    const fd=new FormData();for(const [k,v] of Object.entries({version:'0',kind:'receipt',recipient:'Otra persona',received_on:'2026-10-14'}))fd.set(k,v);
+    const sendReceipt=async()=>{const r=await fetch(B+path,{method:'POST',headers:O,body:fd});await r.text();return r.status};
+    assert.equal(await sendReceipt(),400);
+    fd.set('file',new Blob(['<svg>bad</svg>'],{type:'image/png'}),'fake.png');assert.equal(await sendReceipt(),400);
+    fd.set('file',new Blob([new Uint8Array(1900001)],{type:'image/png'}),'big.png');assert.equal(await sendReceipt(),413);
+    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
+    fd.set('file',new Blob([png],{type:'image/png'}),'whatsapp.png');
+    fd.set('received_on','2027-01-01');assert.equal(await sendReceipt(),400);
+    fd.set('received_on','2026-10-14');fd.set('kind','signature');assert.equal(await sendReceipt(),400);
+    fd.set('kind','receipt');assert.equal(await sendReceipt(),200);
+    const f=q(`SELECT status,done_on,version FROM fulfillments WHERE subscription_id=${subA} AND k=8`)[0];assert.equal(f.status,null);assert.equal(f.done_on,null);assert.equal(f.version,1);
+  });
+
   await check('bulk calculated deliveries are disabled', async () => {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);
