@@ -1,0 +1,49 @@
+# Club Dos Búhos — wine club shipment & benefits tracking (staff app).
+# Production deploys from `main` via Workers Builds (root: wineclub, command: npx wrangler deploy).
+# Staging deploys the same code with: npx wrangler deploy --env staging
+name = "wineclub"
+main = "src/index.js"
+compatibility_date = "2025-02-24"
+workers_dev = true
+preview_urls = false
+
+# Hourly Stripe sync (safety net; the shipment schedule never depends on it).
+[triggers]
+crons = ["7 * * * *"]
+
+[vars]
+APP_ENV = "production"
+TIMEZONE = "America/Mexico_City"
+ADMIN_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com"
+ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"
+# AUD tag of the Cloudflare Access application for wineclub.dos-buhos.workers.dev. Empty = app stays locked.
+ACCESS_AUD = ""
+# Secrets (set in the dashboard, never here): STRIPE_SECRET_KEY, optional STRIPE_WEBHOOK_SECRET
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wineclub-production"
+database_id = "4c77e154-a12c-47c2-992e-43977abffc78"
+migrations_dir = "migrations"
+
+# ---------- staging ----------
+[env.staging]
+name = "wineclub-staging"
+workers_dev = true
+preview_urls = false
+
+[env.staging.triggers]
+crons = ["7 */6 * * *"]
+
+[env.staging.vars]
+APP_ENV = "staging"
+TIMEZONE = "America/Mexico_City"
+ADMIN_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com"
+ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"
+ACCESS_AUD = ""
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "wineclub-staging"
+database_id = "0f458af4-efc3-4a24-b0db-cfbf70530304"
+migrations_dir = "migrations"

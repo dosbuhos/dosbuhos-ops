@@ -1,0 +1,167 @@
+import { daysBetween, parse } from './schedule.js';
+
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const DIA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+export function fdate(s, today, { weekday = true } = {}) {
+  if (!s) return '';
+  const { y, m, d } = parse(s);
+  const wd = DIA[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  const yr = !today || String(y) !== String(today).slice(0, 4) ? ` ${y}` : '';
+  const out = `${weekday ? wd + ' ' : ''}${d} ${MES[m - 1]}${yr}`;
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+export function rel(s, today) {
+  const n = daysBetween(today, s);
+  if (n === 0) return 'hoy';
+  if (n === 1) return 'mañana';
+  if (n === -1) return 'ayer';
+  return n > 0 ? `en ${n} días` : `hace ${-n} días`;
+}
+export const money = (cents, cur) => cents == null ? '' : '$' + (cents / 100).toLocaleString('es-MX', { maximumFractionDigits: 0 }) + (cur ? ' ' + cur.toUpperCase() : '');
+export const cadenceLabel = (m) => ({ 1: 'mensual', 2: 'bimestral', 3: 'trimestral', 4: 'cuatrimestral', 6: 'semestral', 12: 'anual' }[m] || `cada ${m} meses`);
+
+export const STATUS_LABEL = {
+  needs_prep: 'En preparación', ready: 'Listo', handed: 'Entregado en mano', shipped: 'Enviado',
+  delivered: 'Recibido', exception: 'Excepción', skipped: 'Omitido',
+};
+export const STATE = {
+  overdue: { label: 'Atrasado', tone: 'red' },
+  today: { label: 'Hoy', tone: 'wine' },
+  exception: { label: 'Excepción', tone: 'red' },
+  upcoming: { label: 'Programado', tone: 'grey' },
+  done: { label: 'Hecho', tone: 'green' },
+  skipped: { label: 'Omitido', tone: 'grey' },
+  paused: { label: 'En pausa', tone: 'grey' },
+  pretracking: { label: 'Antes del registro', tone: 'grey' },
+};
+export function stateLabel(o) {
+  if (o.state === 'done') return STATUS_LABEL[o.status];
+  if (o.state === 'upcoming' && o.status && STATUS_LABEL[o.status]) return STATUS_LABEL[o.status];
+  return STATE[o.state].label;
+}
+export const chip = (text, tone = 'grey') => `<span class="chip ${tone}">${esc(text)}</span>`;
+
+const CSS = `
+:root{--ink:#1f1d1b;--muted:#6b6560;--line:#e6e0d8;--bg:#f7f4ef;--card:#fff;--wine:#6b2737;--wine-d:#521c2a;--wine-soft:#f4e8ea;
+--red:#b42318;--red-soft:#fdecea;--amber:#8a5200;--amber-soft:#fdf3e1;--green:#1e6b3a;--green-soft:#e6f4ea;--grey-soft:#efebe6;--r:14px;
+--nav:64px}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom) + 12px)}
+a{color:var(--wine)}
+.top{background:var(--wine);color:#fff;padding:12px 16px calc(12px);padding-top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20}
+.top .brand{font-family:Georgia,"Times New Roman",serif;font-size:19px;letter-spacing:.2px;color:#fff;text-decoration:none}
+.top .env{font-size:11px;font-weight:700;background:#fff3;border-radius:999px;padding:2px 8px;text-transform:uppercase;letter-spacing:.5px}
+.top .who{margin-left:auto;font-size:12px;opacity:.85;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{max-width:720px;margin:0 auto;padding:14px 14px 0}
+h1{font-size:22px;margin:6px 0 10px;line-height:1.2}h2{font-size:16px;margin:22px 0 8px}h3{font-size:15px;margin:14px 0 6px}
+.muted{color:var(--muted)}.small{font-size:13px}.right{text-align:right}.center{text-align:center;margin:18px 0}
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);display:flex;
+padding-bottom:env(safe-area-inset-bottom)}
+.navbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:var(--nav);text-decoration:none;color:var(--muted);font-size:12px;font-weight:600}
+.navbar a svg{width:24px;height:24px}.navbar a.on{color:var(--wine)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
+.tile{display:block;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;text-decoration:none;color:var(--ink);min-height:64px}
+.tile .v{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}.tile .l{font-size:12px;color:var(--muted);margin-top:4px;font-weight:600}
+.tile.red{background:var(--red-soft);border-color:#f3c4bf}.tile.red .v,.tile.red .l{color:var(--red)}
+.tile.wine{background:var(--wine-soft);border-color:#e6cbd0}.tile.wine .v{color:var(--wine)}
+.sec{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:10;background:var(--bg);margin:18px -14px 4px;padding:8px 14px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.sec.red{color:var(--red)}.sec.wine{color:var(--wine)}.sec .n{font-weight:700;letter-spacing:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:10px 0}
+.ship{border-left:6px solid var(--line)}.ship.overdue,.ship.exception{border-left-color:var(--red)}.ship.today{border-left-color:var(--wine)}
+.ship.done{border-left-color:var(--green)}.ship.upcoming{border-left-color:#c9bfb3}
+.ship .when{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ship .date{font-size:18px;font-weight:800}.ship .rel{font-size:13px;color:var(--muted)}
+.ship .when .chip{margin-left:auto}
+.ship a.who{display:block;text-decoration:none;color:var(--ink);margin:6px 0 2px;padding:4px 0;min-height:44px}
+.ship .name{display:block;font-size:19px;font-weight:700;line-height:1.25}
+.ship .meta{display:block;color:var(--muted);font-size:14px;margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.chip{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;background:var(--grey-soft);color:#4a4540;white-space:nowrap}
+.chip.red{background:var(--red-soft);color:var(--red)}.chip.amber{background:var(--amber-soft);color:var(--amber)}
+.chip.green{background:var(--green-soft);color:var(--green)}.chip.wine{background:var(--wine-soft);color:var(--wine)}
+details.bottles{margin:10px 0 0;border:1px solid var(--line);border-radius:12px;background:#fcfbf9}
+details.bottles summary{list-style:none;cursor:pointer;min-height:48px;display:flex;align-items:center;gap:8px;padding:0 14px;font-weight:700;color:var(--wine)}
+details.bottles summary::-webkit-details-marker{display:none}
+details.bottles summary::after{content:"▾";margin-left:auto;transition:transform .15s}details.bottles[open] summary::after{transform:rotate(180deg)}
+ul.blist{list-style:none;margin:0;padding:2px 14px 12px}ul.blist li{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:16px}
+ul.blist li:first-child{border-top:0}ul.blist .q{min-width:2.4em;font-weight:800;font-variant-numeric:tabular-nums;color:var(--wine)}
+.warn{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-weight:700;margin:10px 0 0}
+.warn.amber{background:var(--amber-soft);color:var(--amber)}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.acts.one{grid-template-columns:1fr}
+.btn{display:flex;align-items:center;justify-content:center;text-align:center;background:var(--wine);color:#fff;border:0;border-radius:12px;
+min-height:52px;padding:10px 14px;font:inherit;font-size:16px;font-weight:700;text-decoration:none;cursor:pointer;width:100%}
+.btn:active{background:var(--wine-d)}.btn.ghost{background:#fff;color:var(--wine);border:2px solid var(--wine)}
+.btn.quiet{background:var(--grey-soft);color:var(--ink)}.btn.danger{background:#fff;color:var(--red);border:2px solid var(--red)}
+.btn.sm{min-height:44px;font-size:15px;padding:8px 12px}.btn[disabled]{opacity:.5}
+.banner{border-radius:var(--r);padding:12px 14px;margin:10px 0;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner.green{background:var(--green-soft);color:var(--green)}.banner.red{background:var(--red-soft);color:var(--red)}.banner.amber{background:var(--amber-soft);color:var(--amber)}
+.banner form{margin:0}.banner .btn{min-height:40px;width:auto;font-size:14px;padding:6px 12px}
+.banner a{font-weight:700}
+label{display:block;font-size:14px;font-weight:700;margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1px solid #cfc6bb;border-radius:12px;background:#fff;color:var(--ink);min-height:48px}
+textarea{min-height:96px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+.rows a.row{display:flex;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);text-decoration:none;color:var(--ink);min-height:60px}
+.rows a.row:first-child{border-top:0}.rows .row .main{flex:1;min-width:0}.rows .row .t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rows .row .s{font-size:13px;color:var(--muted)}
+.rows{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:10px 0}
+.tl .row{border-left:4px solid transparent}.tl .row.overdue,.tl .row.exception{border-left-color:var(--red)}.tl .row.today{border-left-color:var(--wine)}
+.tl .row.done{border-left-color:var(--green)}.tl .row .d{width:76px;flex:none;font-weight:800;font-size:14px}
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:14px}dl.kv dd{margin:0;word-break:break-word}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.scroll{overflow-x:auto}
+details.more{margin:12px 0}details.more>summary{cursor:pointer;font-weight:700;color:var(--wine);min-height:44px;display:flex;align-items:center}
+.meter{height:8px;background:var(--grey-soft);border-radius:999px;overflow:hidden;margin-top:6px}.meter i{display:block;height:100%;background:var(--wine)}
+.ben{display:flex;gap:10px;align-items:center;justify-content:space-between}.ben .num{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.empty{text-align:center;color:var(--muted);padding:28px 10px}
+.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.photos img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.search{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:10;background:var(--bg);padding:6px 0}
+pre.code{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12px;overflow:auto;white-space:pre-wrap}
+`;
+
+const ICON = {
+  agenda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>',
+  socios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.7 3 2.5 3.5 5.2"/></svg>',
+  clubes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2h8M9 2v5c0 2-3 3-3 7v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6c0-4-3-5-3-7V2"/><path d="M6 14h12"/></svg>',
+  ajustes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+};
+
+const SCRIPT = `
+document.addEventListener('submit',e=>{const f=e.target;if(f.dataset.busy){e.preventDefault();return}f.dataset.busy=1;
+const b=e.submitter;if(b){setTimeout(()=>{b.disabled=true;b.dataset.t=b.textContent;b.textContent='Guardando…'},0)}});
+window.addEventListener('pageshow',e=>{if(e.persisted){document.querySelectorAll('form[data-busy]').forEach(f=>delete f.dataset.busy);
+document.querySelectorAll('button[disabled][data-t]').forEach(b=>{b.disabled=false;b.textContent=b.dataset.t})}});
+const q=document.getElementById('q');if(q){q.addEventListener('input',()=>{const v=q.value.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+document.querySelectorAll('[data-s]').forEach(r=>{r.style.display=r.dataset.s.includes(v)?'':'none'})})}
+const ph=document.getElementById('photo');if(ph){ph.addEventListener('change',async()=>{const file=ph.files[0];if(!file)return;
+const st=document.getElementById('photo-st');st.textContent='Subiendo…';
+try{const img=await createImageBitmap(file);const s=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement('canvas');
+c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.82));const fd=new FormData();fd.append('file',blob,'foto.jpg');
+const r=await fetch(ph.dataset.url,{method:'POST',body:fd});if(!r.ok)throw new Error(await r.text());location.reload()}
+catch(err){st.textContent='No se pudo subir: '+err.message}})}
+`;
+
+export function page({ title, body, user, env, tab = '' }) {
+  const envTag = env.APP_ENV && env.APP_ENV !== 'production' ? `<span class="env">${esc(env.APP_ENV)}</span>` : '';
+  const nav = [['/', 'agenda', 'Agenda'], ['/socios', 'socios', 'Socios'], ['/clubes', 'clubes', 'Clubes']];
+  if (user?.isManager) nav.push(['/ajustes', 'ajustes', 'Ajustes']);
+  return new Response(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6b2737"><meta name="robots" content="noindex">
+<title>${esc(title)} · Club Dos Búhos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236b2737'/%3E%3Ctext x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='Georgia'%3EDB%3C/text%3E%3C/svg%3E">
+<style>${CSS}</style></head><body>
+<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<span class="who">${esc(user.email)}</span>` : ''}</header>
+<main>${body}</main>
+${user ? `<nav class="navbar">${nav.map(([href, k, label]) => `<a href="${href}" class="${tab === k ? 'on' : ''}">${ICON[k]}<span>${label}</span></a>`).join('')}</nav>` : ''}
+<script>${SCRIPT}</script></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'same-origin' } });
+}
+
+export function bottleList(list) {
+  return `<ul class="blist">${(list || []).map(b => `<li><span class="q">${esc(b.qty)}×</span><span>${esc(b.wine)}</span></li>`).join('')}</ul>`;
+}
