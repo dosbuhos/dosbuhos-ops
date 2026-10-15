@@ -34,7 +34,7 @@ async function loadShipment(env, subId, k) {
   return { ctx, sub, club, o };
 }
 
-async function setStatus(env, user, sh, status, version, reason = null) {
+async function setStatus(env, user, sh, status, version, reason = null, holdUntil = null) {
   const { sub, club, o } = sh;
   const today = todayLocal(env);
   const fields = {};
@@ -43,7 +43,7 @@ async function setStatus(env, user, sh, status, version, reason = null) {
     if (o.f && !o.f.bottles_custom) fields.bottles_json = null; // let it follow the club case again
   } else {
     fields.status = status;
-    if(status==='held')Object.assign(fields,{held_on:o.status==='held'&&o.f?.held_on?o.f.held_on:today,hold_reason:reason||'Resguardo solicitado por el socio'});
+    if(status==='held')Object.assign(fields,{held_on:o.status==='held'&&o.f?.held_on?o.f.held_on:today,hold_reason:reason||'Resguardo solicitado por el socio',hold_until:holdUntil});
     if (DONE.has(status) && !o.f?.done_on) fields.done_on = today;
     if (status === 'delivered' && !o.f?.delivered_on) fields.delivered_on = today;
     // Snapshot the case the moment work starts, so later edits to the club case never rewrite this shipment.
@@ -169,7 +169,8 @@ async function handle(request, env) {
       if (sh.o.state === 'done' && status !== 'delivered') return redirect(here);
       if (status === 'ready' && (!sh.o.bottles || sh.o.bottlesTotal !== sh.o.expectedBottles)) return P.simplePage({ env, user, title: 'Falta revisar la caja', status: 400,
         html: `<p>Define una caja con ${sh.o.expectedBottles} botellas antes de marcarla lista.</p><p><a href="${here}#botellas">Revisar botellas</a></p>` });
-      const { auditId } = await setStatus(env, user, sh, status, version, str(fm.hold_reason,300));
+      if(status==='held'&&fm.hold_until&&!dateOrNull(fm.hold_until))return P.simplePage({env,user,title:'Fecha de resguardo inválida',status:400,html:`<p>Indica una fecha válida o deja el campo vacío para un resguardo indefinido.</p><p><a href="${here}">Volver al envío</a></p>`});
+      const { auditId } = await setStatus(env, user, sh, status, version, str(fm.hold_reason,300),dateOrNull(fm.hold_until));
       const back = safeBack(fm.back, here);
       return redirect(back === here ? here : withParam(back, 'ok', auditId));
     }
@@ -289,6 +290,12 @@ async function handle(request, env) {
     if (m === 'POST' && r[2] === 'datos') {
       const fm = await form(request);
       const after = { delivery_pref: fm.delivery_pref === 'envio' ? 'envio' : 'recoge', delivery_address: str(fm.delivery_address, 400), staff_note: str(fm.staff_note, 2000) };
+      if('contact_email' in fm) {
+        const email=str(fm.contact_email,120);
+        if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return P.simplePage({env,user,title:'Correo inválido',status:400,html:`<p>Indica un correo válido.</p><a href="/socio/${id}">Volver al socio</a>`});
+        after.contact_email=email;
+      }
+      if('contact_phone' in fm)after.contact_phone=str(fm.contact_phone,40);
       if (!member.stripe_customer_id && 'phone' in fm) after.phone = str(fm.phone, 40);
       const cols = Object.keys(after);
       await env.DB.prepare(`UPDATE members SET ${cols.map(c => `${c}=?`).join(',')}, updated_at=datetime('now') WHERE id=?`).bind(...cols.map(c => after[c]), id).run();

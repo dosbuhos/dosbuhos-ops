@@ -24,7 +24,7 @@ export async function clubForSub(env, sub) {
   return id ? env.DB.prepare('SELECT * FROM clubs WHERE id=?').bind(id).first() : null;
 }
 
-const SUB_SQL = `SELECT s.*, m.name AS member_name, m.email AS member_email, m.phone AS member_phone, m.delivery_pref,
+const SUB_SQL = `SELECT s.*, m.name AS member_name, COALESCE(m.contact_email,m.email) AS member_email, COALESCE(m.contact_phone,m.phone) AS member_phone, m.delivery_pref,
   m.delivery_address, m.stripe_address, m.legacy_id AS member_legacy_id, p.club_id AS product_club_id, p.name AS product_name, p.relevance AS product_relevance, p.suggested_club_id AS product_suggested_club_id
   FROM subscriptions s JOIN members m ON m.id=s.member_id LEFT JOIN stripe_products p ON p.product_id=s.stripe_product_id`;
 
@@ -112,7 +112,7 @@ export function subFlags(ctx, sub) {
 }
 
 // ---------- fulfillment writes ----------
-export const STAFF_FIELDS = ['status', 'delayed_until', 'delay_reason', 'bottles_json', 'bottles_custom', 'order_ref', 'carrier', 'tracking', 'done_on', 'delivered_on', 'note', 'override_reason', 'early', 'method', 'handled_by', 'requested_on', 'held_on', 'hold_reason'];
+export const STAFF_FIELDS = ['status', 'delayed_until', 'delay_reason', 'bottles_json', 'bottles_custom', 'order_ref', 'carrier', 'tracking', 'done_on', 'delivered_on', 'note', 'override_reason', 'early', 'method', 'handled_by', 'requested_on', 'held_on', 'hold_reason', 'hold_until'];
 
 export async function getSub(env, subId) {
   return env.DB.prepare(SUB_SQL + ' WHERE s.id=?').bind(subId).first();

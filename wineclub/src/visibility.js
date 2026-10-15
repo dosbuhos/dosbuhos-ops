@@ -12,7 +12,8 @@ export function joinedDate(ctx, memberId) {
 }
 
 export const recordedPending = (o) => ['needs_prep', 'ready', 'exception'].includes(o.status) || !!o.f?.delayed_until;
-export const visibleStatus = (o) => o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
+export const visibleStatus = (o) => o.holdReleaseDue ? 'Resguardo · fecha cumplida' : o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
+export const holdTerm = o => o.f?.hold_until ? `Liberar a partir del ${exactDate(o.f.hold_until)}` : 'Resguardo indefinido · sin fecha de liberación';
 
 export function paymentBadge(f) {
   const paid=!!(f?.stripe_invoice_id&&f?.paid_on);
@@ -28,6 +29,7 @@ export function dateFacts(o) {
     <div><dt>Fecha real registrada</dt><dd>${f.done_on ? esc(exactDate(f.done_on)) : '<span class="muted">Sin entrega registrada</span>'}</dd></div>
     ${f.delivered_on ? `<div><dt>Recibido por el socio</dt><dd>${esc(exactDate(f.delivered_on))}</dd></div>` : ''}
     ${f.held_on ? `<div><dt>${o.state==='held'?'Resguardo registrado':'Resguardo anterior registrado'}</dt><dd>${esc(exactDate(f.held_on))}</dd></div>` : ''}
+    ${o.state==='held'?`<div><dt>Liberación del resguardo</dt><dd>${esc(f.hold_until?exactDate(f.hold_until):'Indefinido · sin fecha')}</dd></div>`:''}
     ${f.expected_date && f.expected_date !== o.due ? `<div><dt>Fecha prevista al crear el registro</dt><dd>${esc(exactDate(f.expected_date))}</dd></div>` : ''}
   </dl>`;
 }
@@ -44,7 +46,7 @@ export function scheduleRow(o) {
     ${o.delayed?`<div class="rescheduled"><dt>Entrega aplazada</dt><dd>${esc(exactDate(o.eff))}</dd></div>`:''}
     ${f.done_on?`<div class="complete"><dt>${esc(STATUS_LABEL[o.status]||'Entrega registrada')}</dt><dd>${esc(exactDate(f.done_on))}</dd></div>`:''}</dl>
     ${o.delayed && f.delay_reason?`<p class="small rescheduled">${esc(f.delay_reason)}</p>`:''}
-    ${o.state==='held'?`<p class="small">${esc(f.hold_reason||'Conservado en bodega hasta su retiro o envío')}${f.held_on?' · registrado '+esc(exactDate(f.held_on)):''}</p>`:''}
+    ${o.state==='held'?`<p class="small"><b>${esc(holdTerm(o))}</b></p><p class="small">${esc(f.hold_reason||'Conservado en bodega hasta su retiro o envío')}</p>`:''}
     ${!f.done_on && result?`<p class="small actual">${esc(result)}</p>`:''}
     ${timing ? `<p class="small muted">${esc(timing)}</p>` : ''}
     ${metadata.length?`<p class="small muted shipment-meta">${esc(metadata.join(' · '))}</p>`:''}

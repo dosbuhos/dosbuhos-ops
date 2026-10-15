@@ -291,6 +291,30 @@ try {
     assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0].status,'shipped');
   });
 
+  await check('dated and indefinite holds can be edited and due holds remain held until physical release',async()=>{
+    const path=`/envio/${subA}/7`,row=()=>q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=7`)[0];
+    assert.equal((await post(path+'/estado',{version:'0',status:'held',hold_until:'2026-02-30'})).status,400);
+    assert.equal((await post(path+'/estado',{version:'0',status:'held',hold_until:'2026-10-20'})).status,303);
+    let f=row();assert.equal(f.hold_until,'2026-10-20');assert.equal(f.done_on,null);
+    assert.match(await get(path),/Retener hasta \(opcional\)/);
+    assert.equal((await post(path+'/estado',{version:String(f.version),status:'held',hold_until:''})).status,303);
+    f=row();assert.equal(f.hold_until,null);assert.match(await get(path),/Resguardo indefinido/);
+    assert.equal((await post(path+'/estado',{version:String(f.version),status:'held',hold_until:'2026-10-13'})).status,303);
+    f=row();assert.equal(f.status,'held');assert.equal(f.done_on,null);assert.match(await get('/envios?f=resguardo'),/Resguardo · fecha cumplida/);
+    assert.match(await get('/'),/resguardo\(s\) con fecha cumplida/);
+  });
+
+  await check('staff delivery contact corrections survive Stripe sync and reach shipment screens',async()=>{
+    const member=q(`SELECT member_id FROM subscriptions WHERE id=${subA}`)[0].member_id;
+    assert.equal((await post(`/socio/${member}/datos`,{contact_email:'bad',delivery_pref:'envio'})).status,400);
+    assert.equal((await post(`/socio/${member}/datos`,{contact_email:'delivery@example.com',contact_phone:'+19492917105',delivery_pref:'envio',delivery_address:'Dirección de prueba',staff_note:'Entregar al transportista'})).status,303);
+    await post('/sync',{});
+    const m=q(`SELECT email,contact_email,contact_phone,delivery_address,delivery_pref FROM members WHERE id=${member}`)[0];
+    assert.equal(m.email,'valeria@example.com');assert.equal(m.contact_email,'delivery@example.com');assert.equal(m.contact_phone,'+19492917105');assert.equal(m.delivery_pref,'envio');
+    const html=await get(`/envio/${subA}/7`);assert.match(html,/Dirección de prueba/);assert.match(html,/tel:\+19492917105/);
+    assert.match(await get(`/socio/${member}`),/mailto:delivery@example.com/);
+  });
+
   await check('bulk calculated deliveries are disabled', async () => {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);

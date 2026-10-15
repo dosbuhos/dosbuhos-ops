@@ -1,7 +1,7 @@
 import { esc, fdate, rel, chip, page, bottleList, stateLabel, STATE, STATUS_LABEL, money, cadenceLabel, MESES } from './ui.js';
 import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles, daysBetween } from './schedule.js';
 import { allOccurrences, subOccurrences, subClub, subFlags, isIgnored } from './data.js';
-import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge } from './visibility.js';
+import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge, holdTerm } from './visibility.js';
 import {billingIssues,billingIssue,billingWarning} from './billing.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -40,6 +40,7 @@ export function shipCard(o, today, back) {
   <span class="meta">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')}</span></a>
   <p class="small muted date-context">Alta ${esc(exactDate(s.start_date))} · ${esc(cadenceLabel(o.club.cadence_months))}</p>
   <p class="small date-context">Previsto: <b>${esc(exactDate(o.due))}</b>${o.delayed ? ' · reprogramado' : ''}</p>
+  ${o.state==='held'?`<p class="small"><b>${esc(holdTerm(o))}</b></p>`:''}
   <a class="small calendar-link" href="/socio/${s.member_id}#calendario">Ver alta y calendario del socio →</a>
   <div class="chips">${chips.join('')}</div>${o.delayed && f.delay_reason ? `<p class="small">${esc(f.delay_reason)}</p>` : ''}${bottles}${acts}
   ${['overdue','today','upcoming','exception'].includes(o.state) ? `<p class="small"><a href="${shipHref(o)}#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>` : ''}</article>`;
@@ -112,7 +113,7 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
     ${user.isManager ? '<a class="btn" style="margin-top:10px" href="/conciliar">Conciliar Stripe</a>' : '<p class="small muted">Avisa a un administrador para que lo resuelva.</p>'}</div>` : ''}
   <div class="sec red" id="atrasados">Fechas vencidas sin entrega registrada <span class="n">${nA}</span>${gapNote}</div>
   ${nA ? cards(attention) : empty('Sin envíos atrasados')}
-  ${held.length?`<div class="sec wine" id="resguardo">En resguardo en bodega <span class="n">${held.length}</span></div><p class="small muted">Cajas conservadas para el socio; no se cuentan como atrasadas. Registra el retiro o envío cuando salgan.</p>${cards(held)}`:''}
+  ${held.length?`<div class="sec wine" id="resguardo">En resguardo en bodega <span class="n">${held.length}</span></div>${held.some(o=>o.holdReleaseDue)?`<div class="banner amber"><b>${held.filter(o=>o.holdReleaseDue).length} resguardo(s) con fecha cumplida: coordinar retiro o envío.</b></div>`:''}<p class="small muted">Cajas conservadas para el socio; no se cuentan como atrasadas. Registra el retiro o envío cuando salgan.</p>${cards(held)}`:''}
   <div class="sec wine" id="hoy">Hoy · ${esc(fdate(today, today))} <span class="n">${todays.length || ''}</span></div>
   ${todays.length ? cards(todays) : empty('Nada para hoy')}
   <div id="proximos"></div><div class="sec" id="semana">Esta semana <span class="n">${thisWeek.length || ''}</span></div>
@@ -145,7 +146,9 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     <form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}">
     <div class="acts">${o.status === 'needs_prep' ? act('scheduled', 'Quitar “en preparación”', 'quiet') : act('needs_prep', 'En preparación', 'quiet')}${o.status === 'ready' ? act('scheduled', 'Quitar “listo”', 'quiet') : act('ready', 'Listo', 'quiet')}</div>
     <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div></form>
-    ${o.state==='held'?`<div class="banner"><div><b>En resguardo en bodega</b><p class="small">${esc(f.hold_reason||'Resguardo solicitado por el socio')}${f.held_on?' · registrado '+esc(exactDate(f.held_on)):''}</p><p class="small">Al registrar la entrega en mano o el envío, deja de estar en resguardo.</p></div></div>`:`<details class="more"><summary>Guardar este vino en bodega para el socio</summary><form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="status" value="held"><label for="hold-reason">Motivo del resguardo</label><input id="hold-reason" name="hold_reason" maxlength="300" value="Resguardo solicitado por el socio" required><p class="small">No cambia el calendario ni el cobro. La caja queda en resguardo hasta que se registre su retiro o envío.</p><button class="btn quiet">Marcar en resguardo</button></form></details>`}`;
+    ${o.state==='held'?`<div class="banner ${o.holdReleaseDue?'amber':''}"><div><b>${esc(holdTerm(o))}</b><p class="small">${esc(f.hold_reason||'Resguardo solicitado por el socio')}</p><p class="small">${o.holdReleaseDue?'La fecha ya se cumplió: coordina el retiro o envío. ':''}Al registrar la entrega en mano o el envío, deja de estar en resguardo.</p></div></div>`:''}
+    <details class="more"><summary>${o.state==='held'?'Cambiar fecha o motivo del resguardo':'Guardar este vino en bodega para el socio'}</summary><form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="status" value="held"><label for="hold-reason">Motivo del resguardo</label><input id="hold-reason" name="hold_reason" maxlength="300" value="${esc(f.hold_reason||'Resguardo solicitado por el socio')}" required>
+    <label for="hold-until">Retener hasta (opcional)</label><input id="hold-until" name="hold_until" type="date" value="${esc(o.state==='held'?f.hold_until||'':'')}"><p class="small">Vacío = resguardo indefinido. Con fecha, la app avisa cuando se cumple para coordinar la salida. No registra una entrega automáticamente ni cambia el cobro.</p><button class="btn quiet">${o.state==='held'?'Guardar resguardo':'Marcar en resguardo'}</button></form></details>`;
   else if (o.status) actions = `${o.status === 'shipped' ? `<form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}"><div class="acts one">${act('delivered', 'Marcar recibido por el socio')}</div></form>` : ''}
     <details class="more"><summary>Reabrir para corregir</summary><form method="post" action="${back}/reabrir">
     <input type="hidden" name="version" value="${f.version || 0}"><label>Motivo (obligatorio)</label><input name="reason" required placeholder="Ej. se marcó por error">
@@ -231,6 +234,7 @@ export function membersPage({ env, user, ctx, members }) {
   for (const s of ctx.subs) { if (!subsBy.has(s.member_id)) subsBy.set(s.member_id, []); subsBy.get(s.member_id).push(s); }
   const isActive = (s) => !['canceled', 'incomplete_expired', 'manual_ended'].includes(s.status) && !(s.ended_on && s.ended_on <= today);
   const row = (m) => {
+    m={...m,email:m.contact_email||m.email,phone:m.contact_phone||m.phone};
     const subs = subsBy.get(m.id) || [];
     const clubs = [...new Set(subs.map(s => subClub(ctx, s)?.name || 'Sin club'))].join(', ') || 'Sin suscripción';
     const r = bySubMember.get(m.id) || {};
@@ -262,6 +266,7 @@ export function membersPage({ env, user, ctx, members }) {
 }
 
 export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
+  member={...member,email:member.contact_email||member.email,phone:member.contact_phone||member.phone};
   const today = ctx.today;
   const subs = ctx.subs;
   const all = url.searchParams.get('todo') === '1';
@@ -364,11 +369,13 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
     <dt>Dirección</dt><dd>${addr ? esc(addr) : '<span class="muted">—</span>'}</dd>
     ${member.staff_note ? `<dt>Nota</dt><dd>${esc(member.staff_note)}</dd>` : ''}
   </dl>
-  <details class="more"><summary>Editar entrega y nota</summary><form method="post" action="/socio/${member.id}/datos">
+  <details class="more"><summary>Editar contacto, entrega y nota</summary><form method="post" action="/socio/${member.id}/datos">
+    <label for="contact-email">Correo de contacto</label><input id="contact-email" type="email" name="contact_email" value="${esc(member.email||'')}" maxlength="120">
+    <label for="contact-phone">Teléfono / WhatsApp</label><input id="contact-phone" type="tel" name="contact_phone" value="${esc(member.phone||'')}" maxlength="40">
+    <p class="small muted">Estos datos de contacto se guardan para las entregas y se conservan al sincronizar Stripe.</p>
     <label>Entrega</label><select name="delivery_pref"><option value="recoge" ${member.delivery_pref === 'recoge' ? 'selected' : ''}>Recoge en bodega</option><option value="envio" ${member.delivery_pref === 'envio' ? 'selected' : ''}>Envío a domicilio</option></select>
     <label>Dirección de entrega</label><textarea name="delivery_address" rows="3" placeholder="${esc(member.stripe_address || '')}">${esc(member.delivery_address || '')}</textarea>
     <p class="small muted">Vacío = usar la dirección de Stripe.</p>
-    ${member.stripe_customer_id ? '' : `<label>Teléfono</label><input name="phone" value="${esc(member.phone || '')}">`}
     <label>Nota para el equipo</label><textarea name="staff_note" rows="3">${esc(member.staff_note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar</button></form></details></details>
   <details class="more card" id="beneficios" ${url?.searchParams.has('beneficio') ? 'open' : ''}><summary>Beneficios y usos registrados</summary>${benefitsHtml}</details>`;
@@ -535,7 +542,7 @@ export function shipmentsPage({ env, user, ctx, url }) {
       <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f)}${billingIssue(ctx,s)?chip('⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
       <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
       <div class="chips">${chip(prefLabel(s.delivery_pref),'wine')}</div>
-      ${o.state==='held'?`<p class="small"><b>En resguardo en bodega.</b> ${esc(f.hold_reason||'Resguardo solicitado por el socio')}${f.held_on?' · registrado '+esc(exactDate(f.held_on)):''}</p>`:''}
+      ${o.state==='held'?`<p class="small"><b>${esc(holdTerm(o))}.</b> ${esc(f.hold_reason||'Resguardo solicitado por el socio')}</p>`:''}
       ${o.delayed?`<p class="small">Fecha original: ${esc(exactDate(o.due))}${f.delay_reason?' · '+esc(f.delay_reason):''}</p>`:''}
       <div class="work-info"><section><h3>Botellas ${o.state === 'held' ? 'en resguardo' : open(o)?'a preparar':'del envío'} · ${o.bottlesTotal} de ${o.expectedBottles}</h3>
       ${o.bottles?bottleList(o.bottles):`<div class="warn">Falta definir las botellas. <a href="${shipHref(o)}#botellas">Definir caja</a></div>`}

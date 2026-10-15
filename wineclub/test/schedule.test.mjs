@@ -60,6 +60,17 @@ test('wine held at the winery is neither overdue nor completed and preserves the
   f.get(3).status='shipped';assert.equal(occurrences(sub(),quarterly,{to:'2027-01-31',today:'2026-10-15',fulfillments:f}).find(o=>o.k===3).state,'done');
 });
 
+test('dated holds flag release when due and indefinite holds never auto-release',()=>{
+  const f=new Map([[3,{status:'held',hold_until:'2026-10-20'}]]);
+  const run=today=>occurrences(sub(),quarterly,{to:'2027-01-31',today,fulfillments:f}).find(o=>o.k===3);
+  assert.equal(run('2026-10-19').holdReleaseDue,false);
+  assert.equal(run('2026-10-20').holdReleaseDue,true);
+  assert.equal(run('2026-11-01').state,'held');
+  f.get(3).hold_until=null;
+  assert.equal(run('2026-11-01').holdReleaseDue,false);
+  assert.equal(run('2026-11-01').state,'held');
+});
+
 test('cancelled subscription: nothing owed after it ended, earlier misses still overdue', () => {
   const occ = occurrences(sub({ status: 'canceled', ended_on: '2026-08-01' }), quarterly, { to: '2027-12-31', today: '2026-10-14' });
   assert.deepEqual(occ.map(o => o.due), ['2026-01-15', '2026-04-15', '2026-07-15']);

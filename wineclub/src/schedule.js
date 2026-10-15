@@ -120,6 +120,7 @@ export function occurrences(sub, club, opts) {
     out.push({
       subId: sub.id, k, n, slot, due, eff, state, status, f,
       delayed: !!(f?.delayed_until && f.delayed_until > due),
+      holdReleaseDue: state==='held'&&!!f?.hold_until&&f.hold_until<=today,
       bottles: bottles || null, bottlesSource: source,
       bottlesTotal: bottles ? totalBottles(bottles) : 0,
       expectedBottles: club.bottles,
