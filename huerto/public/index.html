@@ -658,7 +658,7 @@ function weekTasks(plan, w) {
   if (traysActive(plan, w).length || plan.P.some(p => p.tray && p.ts === w)) for (let d = d0; d <= 5; d++) T.push({id: "sem-riego" + d, d, t: "Semillero: revisar y regar las charolas (en la mañana; tapar si hay riesgo de helada)", min: 15, k: "base"});
   for (const p of plan.P) {
     const k = p.area / 5;
-    if (p.tray && w === p.ts) T.push({id: `ch${p.i}`, d: 1, t: `Semillero: sembrar ${p.trays} charola${p.trays > 1 ? "s" : ""} de ${typeof TRAY_CELLS !== "undefined" ? TRAY_CELLS : 72} de ${p.c.n.toLowerCase()} (${p.cells} cavidades, 2 semillas por cavidad) para ${where(p)}, trasplante ${fmt(wkDate(p.s))}`, min: 15 + 20 * p.trays, k: "semillero", bed: p.bed});
+    if (p.tray && w === p.ts) T.push({id: `ch${p.i}`, d: 1, t: `Semillero: ${p.c.n.toLowerCase()} para ${where(p)}: llenar ${p.cells} cavidades${p.cells < (typeof TRAY_CELLS !== "undefined" ? TRAY_CELLS : 72) ? ` de una charola (el resto de la charola sirve para otro cultivo)` : ` (${p.trays} charolas)`}, 2 semillas en cada cavidad (≈ ${p.cells * 2} semillas). Al nacer, dejar la más fuerte. Trasplante ${fmt(wkDate(p.s))}`, min: 15 + 20 * p.trays, k: "semillero", bed: p.bed});
     if (p.tray && w === p.s - 1) T.push({id: `en${p.i}`, d: 1, t: `Semillero: endurecer plántulas de ${p.c.n.toLowerCase()} para ${p.bed}: sacarlas al sol y viento toda la semana y regar menos`, min: 10, k: "semillero", bed: p.bed});
     if (p.prepW !== null && w === p.prepW) {
       const prev = p.prev;
