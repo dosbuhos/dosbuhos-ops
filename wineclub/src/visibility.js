@@ -12,7 +12,7 @@ export function joinedDate(ctx, memberId) {
 }
 
 export const recordedPending = (o) => ['needs_prep', 'ready', 'exception'].includes(o.status) || !!o.f?.delayed_until;
-export const visibleStatus = (o) => o.holdReleaseDue ? 'Resguardo · fecha cumplida' : o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
+export const visibleStatus = (o) => o.state==='suspended' ? 'Suspendido por falta de pago' : o.holdReleaseDue ? 'Resguardo · fecha cumplida' : o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
 export const holdTerm = o => o.f?.hold_until ? `Liberar a partir del ${exactDate(o.f.hold_until)}` : 'Resguardo indefinido · sin fecha de liberación';
 
 export function inboxReason(o,today) {
@@ -25,7 +25,7 @@ export function inboxReason(o,today) {
 
 export function paymentBadge(f,o) {
   const paid=!!(f?.stripe_invoice_id&&f?.paid_on);
-  const needsReview=['overdue','today','exception','held','done'].includes(o?.state);
+  const needsReview=['overdue','today','exception','held','done','suspended'].includes(o?.state);
   const label=paid?`Pagado · ${exactDate(f.paid_on)}`:'Sin pago de Stripe asociado';
   return `<span class="chip ${paid?'green':needsReview?'red':'grey'}" title="${esc(paid?'Pago registrado en Stripe':'Requiere comprobar la factura; no confirma un impago')}">${esc(label)}</span>`;
 }

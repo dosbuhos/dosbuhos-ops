@@ -329,6 +329,47 @@ try {
     assert.ok(!(await get('/envios')).includes(`id="envio-${subA}-1"`),'an old completed paid box is not a new Inbox task');
   });
 
+  await check('nonpayment suspension blocks stale delivery and benefits, survives sync, and reactivates without changing history',async()=>{
+    const member=q(`SELECT member_id FROM subscriptions WHERE id=${subA}`)[0].member_id;
+    const before=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} ORDER BY k`);
+    const m=q(`SELECT membership_version FROM members WHERE id=${member}`)[0];
+    const path=`/socio/${member}/membresia`,fm={action:'suspend',reason:'El cliente bloqueó reintentos de cobro',version:String(m.membership_version)};
+    assert.equal((await post(path,{...fm,reason:''})).status,400);
+    assert.equal((await post(path,fm)).status,303);
+    assert.equal((await post(path,fm)).status,409);
+    assert.match(await get(`/socio/${member}`),/Suspendido por falta de pago/);
+    assert.match(await get(`/envio/${subA}/7`),/Preparación y entrega bloqueadas/);
+    assert.equal((await post(`/envio/${subA}/7/entregar`,{version:'0',como:'handed'})).status,403);
+    assert.equal((await post(`/envio/${subA}/7/estado`,{version:'0',status:'needs_prep'})).status,403);
+    assert.equal((await post(`/socio/${member}/beneficio`,{})).status,403);
+    assert.ok(!(await get('/envios')).includes(`id="envio-${subA}-7"`));
+    assert.ok((await get('/envios?f=suspendidos')).includes(`id="envio-${subA}-7"`));
+    await post('/sync',{});
+    assert.ok(q(`SELECT suspended_on FROM members WHERE id=${member}`)[0].suspended_on);
+    assert.deepEqual(q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} ORDER BY k`),before);
+    assert.equal((await post(path,{action:'resume',reason:'Pago revisado por administración',version:String(m.membership_version+1)})).status,303);
+    assert.equal(q(`SELECT suspended_on FROM members WHERE id=${member}`)[0].suspended_on,null);
+    assert.deepEqual(q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} ORDER BY k`),before);
+    assert.equal(q(`SELECT COUNT(*) n FROM audit_log WHERE entity='member' AND entity_id='${member}' AND action IN ('suspender por falta de pago','reactivar membresía')`)[0].n,2);
+  });
+
+  await check('quick benefit controls use server date and staff, prevent duplicates and enforce the remaining allowance',async()=>{
+    const member=q(`SELECT member_id FROM subscriptions WHERE id=${subA}`)[0].member_id;
+    const b=q(`INSERT INTO club_benefits (club_id,name,quantity,unit,period,active) VALUES (5,'Beneficio de prueba móvil',2,'personas','year',1) RETURNING id`)[0].id;
+    const path=`/socio/${member}/beneficio`,key=crypto.randomUUID();
+    const fm={quick:'1',benefit_id:String(b),qty:'1',request_key:key,used_on:'2000-01-01',handled_by:'forged',created_by:'forged'};
+    assert.match(await get(`/socio/${member}?beneficio=1`),/benefit-plus/);
+    assert.equal((await post(path,{...fm,qty:'-1'})).status,400);
+    assert.equal((await post(path,fm)).status,303);
+    assert.equal((await post(path,fm)).status,303);
+    let rows=q(`SELECT * FROM benefit_uses WHERE benefit_id=${b}`);
+    assert.equal(rows.length,1);assert.equal(rows[0].used_on,'2026-10-14');assert.equal(rows[0].created_by,'staff@example.com');assert.equal(rows[0].handled_by,'staff@example.com');
+    const concurrent=await Promise.all([post(path,{...fm,request_key:crypto.randomUUID()}),post(path,{...fm,request_key:crypto.randomUUID()})]);
+    assert.deepEqual(concurrent.map(r=>r.status).sort(),[303,409]);
+    rows=q(`SELECT * FROM benefit_uses WHERE benefit_id=${b}`);assert.equal(rows.length,2);
+    assert.equal(q(`SELECT COUNT(*) n FROM audit_log WHERE action='beneficio: Beneficio de prueba móvil'`)[0].n,2);
+  });
+
   await check('bulk calculated deliveries are disabled', async () => {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);

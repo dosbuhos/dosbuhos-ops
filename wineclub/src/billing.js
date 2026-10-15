@@ -1,7 +1,9 @@
 import {isIgnored,subClub} from './data.js';
 import {esc,page,money} from './ui.js';
+import {suspensionWarning} from './membership.js';
 
 export function billingIssue(ctx,s) {
+  if(s.suspended_on)return {sub:s,title:'Suspendido por falta de pago',detail:s.suspension_reason||'Membresía suspendida por administración.'};
   if(!s.stripe_subscription_id||isIgnored(s))return null;
   const labels={past_due:['Cobro pendiente en Stripe','Stripe indica un cobro vencido o pendiente de completar. Revisa la factura y el intento de pago.'],
     unpaid:['Suscripción sin pagar','Stripe marca la suscripción como no pagada. Revisa las facturas y los intentos de cobro.'],
@@ -16,6 +18,7 @@ export function billingIssue(ctx,s) {
 export const billingIssues=ctx=>ctx.subs.map(s=>billingIssue(ctx,s)).filter(Boolean);
 export const stripeLink=s=>'https://dashboard.stripe.com/subscriptions/'+encodeURIComponent(s.stripe_subscription_id);
 export function billingWarning(ctx,s,{paid=false}={}) {
+  if(s.suspended_on)return suspensionWarning(s);
   const issue=billingIssue(ctx,s);if(!issue)return '';
   return `<div class="banner red" role="status"><div><b>⚠ ${esc(issue.title)}</b><br>${esc(issue.detail)}
     <p class="small">${paid?'Esta caja tiene un pago asociado; el problema puede corresponder a otro periodo.':'El estado de la suscripción no identifica por sí solo qué caja está pagada.'} No se cambia ni se elimina una entrega por esta alerta.</p>

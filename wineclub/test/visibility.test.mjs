@@ -73,3 +73,18 @@ test('benefit history does not infer the server from the recorder on old records
   assert.match(html,/2026-08-18 12:00:00 UTC/);
   assert.match(html,/id="beneficios" open/);
 });
+
+test('suspension preserves paid history and theoretical dates, blocks the work queue, and is reversible',async()=>{
+  const ctx=fixture(),s=ctx.subs[0];
+  const before=subOccurrences(ctx,s,'2026-12-31');
+  Object.assign(s,{suspended_on:'2026-10-14',suspension_reason:'Pago bloqueado',suspension_by:'admin@example.com'});
+  const after=subOccurrences(ctx,s,'2026-12-31');
+  assert.deepEqual(after.map(o=>o.due),before.map(o=>o.due));
+  assert.equal(after[0].state,'done');
+  assert.ok(after.slice(1).every(o=>o.state==='suspended'));
+  assert.match(scheduleRow(after[1]),/Suspendido por falta de pago/);
+  const html=await memberPage({env:{},user:{isManager:true},ctx,member:{id:7,name:'Valeria',...s},benefits:[],uses:[],url:new URL('http://localhost/socio/7')}).text();
+  assert.match(html,/Reactivar membresía/);assert.match(html,/No modifica los cobros/);
+  s.suspended_on=null;
+  assert.deepEqual(subOccurrences(ctx,s,'2026-12-31').map(o=>o.state),before.map(o=>o.state));
+});

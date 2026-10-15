@@ -1,6 +1,6 @@
 import { identify } from './auth.js';
 import { esc } from './ui.js';
-import { STATUSES, DONE, isDate, dueDate, parseBottles } from './schedule.js';
+import { STATUSES, DONE, isDate, dueDate, parseBottles, membershipYear } from './schedule.js';
 import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal } from './data.js';
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
@@ -118,6 +118,7 @@ async function handle(request, env) {
     if (!sh.club) return notFound(env, user, 'Esta suscripción no tiene club asignado, así que no tiene envíos calculados.');
     if (!sh.o) return notFound(env, user, 'Este envío no corresponde: la suscripción terminó antes de esa fecha.');
     const action = r[3];
+    if(sh.sub.suspended_on&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Membresía suspendida',status:403,html:`<h1>Suspendido por falta de pago</h1><p>Preparación y entregas bloqueadas. Un administrador debe revisar el pago y reactivar la membresía.</p><p><a href="/socio/${sh.sub.member_id}#membresia">Ver membresía</a></p>`});
     if(action==='comprobante') {
       if(m==='GET')return receiptPage({env,user,sh,kind:url.searchParams.get('tipo')});
       if(m==='POST')return receiptSubmit(env,user,sh,request);
@@ -277,7 +278,7 @@ async function handle(request, env) {
     await audit(env, user.email, 'socio manual', 'member', mem.id, null, { name, club_id: clubId, start_date: start, subscription_id: sub.id });
     return redirect(`/socio/${mem.id}`);
   }
-  if ((r = R(/^\/socio\/(\d+)(?:\/(datos|beneficio))?$/))) {
+  if ((r = R(/^\/socio\/(\d+)(?:\/(datos|beneficio|membresia))?$/))) {
     const id = Number(r[1]);
     const member = await env.DB.prepare('SELECT * FROM members WHERE id=?').bind(id).first();
     if (!member) return notFound(env, user);
@@ -286,6 +287,19 @@ async function handle(request, env) {
       const benefits = (await env.DB.prepare('SELECT * FROM club_benefits ORDER BY club_id, sort, id').all()).results;
       const uses = (await env.DB.prepare('SELECT * FROM benefit_uses WHERE member_id=? ORDER BY used_on DESC, id DESC').bind(id).all()).results;
       return P.memberPage({ env, user, ctx, member, benefits, uses, url });
+    }
+    if (m === 'POST' && r[2] === 'membresia') {
+      if(!user.isManager)return forbidden(env,user);
+      const fm=await form(request),reason=str(fm.reason,500),version=Number(fm.version);
+      if(!reason||!['suspend','resume'].includes(fm.action))return new Response('Indica el motivo de este cambio.',{status:400});
+      if(version!==member.membership_version||!!member.suspended_on!==(fm.action==='resume'))return new Response('La membresía cambió. Recarga la ficha antes de guardar.',{status:409});
+      const after={suspended_on:fm.action==='suspend'?todayLocal(env):null,suspension_reason:fm.action==='suspend'?reason:null,suspension_by:fm.action==='suspend'?user.email:null};
+      const results=await env.DB.batch([
+        env.DB.prepare(`UPDATE members SET suspended_on=?,suspension_reason=?,suspension_by=?,membership_version=membership_version+1,updated_at=datetime('now') WHERE id=? AND membership_version=? RETURNING id`).bind(after.suspended_on,after.suspension_reason,after.suspension_by,id,version),
+        env.DB.prepare(`INSERT INTO audit_log (who,action,entity,entity_id,before_json,after_json,note) SELECT ?,?,'member',?,?,?,? WHERE changes()=1`).bind(user.email,fm.action==='suspend'?'suspender por falta de pago':'reactivar membresía',String(id),JSON.stringify({suspended_on:member.suspended_on,suspension_reason:member.suspension_reason,suspension_by:member.suspension_by}),JSON.stringify(after),reason)
+      ]);
+      if(!results[0].results.length)return new Response('La membresía cambió. Recarga la ficha.',{status:409});
+      return redirect(`/socio/${id}#membresia`);
     }
     if (m === 'POST' && r[2] === 'datos') {
       const fm = await form(request);
@@ -303,8 +317,31 @@ async function handle(request, env) {
       return redirect(`/socio/${id}`);
     }
     if (m === 'POST' && r[2] === 'beneficio') {
+      if(member.suspended_on)return new Response('Membresía suspendida: reactiva al socio antes de registrar beneficios.',{status:403});
       const fm = await form(request);
       const b = await env.DB.prepare('SELECT * FROM club_benefits WHERE id=?').bind(Number(fm.benefit_id)).first();
+      if(fm.quick==='1') {
+        const qty=Number(fm.qty),key=str(fm.request_key,50),today=todayLocal(env);
+        if(!b?.active||!Number.isInteger(qty)||qty<1||qty>100||!key||!/^[a-f0-9-]{36}$/.test(key))return new Response('Cantidad o solicitud inválida.',{status:400});
+        const ctx=await loadContext(env,{memberId:id});
+        const sub=ctx.subs.find(s=>subClub(ctx,s)&&!['canceled','incomplete_expired','manual_ended'].includes(s.status));
+        if(!sub||subClub(ctx,sub).id!==b.club_id)return new Response('Este beneficio no pertenece al club activo del socio.',{status:400});
+        const year=membershipYear(sub.anchor_override||sub.start_date,today);
+        const from=b.period==='once'?'0000-01-01':year.start,to=b.period==='once'?'9999-12-31':year.end;
+        const after={benefit_id:b.id,qty,used_on:today,handled_by:user.email};
+        const result=await env.DB.batch([
+          env.DB.prepare(`INSERT INTO benefit_uses (member_id,benefit_id,qty,used_on,created_by,handled_by,request_key)
+            SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM members WHERE id=? AND suspended_on IS NOT NULL)
+            AND (? IS NULL OR COALESCE((SELECT SUM(qty) FROM benefit_uses WHERE member_id=? AND benefit_id=? AND used_on BETWEEN ? AND ?),0)+?<=?)
+            ON CONFLICT(request_key) DO NOTHING RETURNING id`).bind(id,b.id,qty,today,user.email,user.email,key,id,b.quantity,id,b.id,from,to,qty,b.quantity),
+          env.DB.prepare(`INSERT INTO audit_log (who,action,entity,entity_id,after_json) SELECT ?,?,'member',?,? WHERE changes()=1`).bind(user.email,`beneficio: ${b.name}`,String(id),JSON.stringify(after))
+        ]);
+        if(!result[0].results.length) {
+          const existing=await env.DB.prepare('SELECT id FROM benefit_uses WHERE request_key=? AND member_id=?').bind(key,id).first();
+          if(!existing)return P.simplePage({env,user,title:'Revisa el beneficio',status:409,html:`<p>El saldo o la membresía cambió. Recarga antes de registrar el uso.</p><p><a href="/socio/${id}?beneficio=1#beneficios">Volver a beneficios</a></p>`});
+        }
+        return redirect(`/socio/${id}?beneficio=1#beneficios`);
+      }
       const qty = Number(fm.qty), on = dateOrNull(fm.used_on);
       if (!b || !(qty > 0) || !on) return redirect(`/socio/${id}`);
       const u = await env.DB.prepare('INSERT INTO benefit_uses (member_id, benefit_id, qty, used_on, note, created_by, handled_by) VALUES (?,?,?,?,?,?,?) RETURNING *')
@@ -363,7 +400,7 @@ async function handle(request, env) {
     const counts = new Map();
     for (const s of ctx.subs) {
       const c = subClub(ctx, s);
-      if (c && !['canceled', 'incomplete_expired', 'manual_ended'].includes(s.status) && !(s.ended_on && s.ended_on <= ctx.today)) counts.set(c.id, (counts.get(c.id) || 0) + 1);
+      if (c && !s.suspended_on && !['canceled', 'incomplete_expired', 'manual_ended'].includes(s.status) && !(s.ended_on && s.ended_on <= ctx.today)) counts.set(c.id, (counts.get(c.id) || 0) + 1);
     }
     return P.clubsPage({ env, user, ctx, benefits, products, counts });
   }

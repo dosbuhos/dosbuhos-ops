@@ -28,6 +28,7 @@ export const STATUS_LABEL = {
   delivered: 'Recibido', exception: 'Excepción', skipped: 'Omitido',
 };
 export const STATE = {
+  suspended: { label: 'Suspendido por falta de pago', tone: 'red' },
   overdue: { label: 'Atrasado', tone: 'red' },
   today: { label: 'Hoy', tone: 'wine' },
   exception: { label: 'Excepción', tone: 'red' },
@@ -46,6 +47,13 @@ export function stateLabel(o) {
 export const chip = (text, tone = 'grey') => `<span class="chip ${tone}">${esc(text)}</span>`;
 
 const CSS = `
+.benefit-stepper{display:flex;align-items:center;gap:12px;margin-top:12px}
+.benefit-stepper button{width:48px;min-height:48px;padding:0;flex:none;font-size:26px}
+.benefit-pending{flex:1;text-align:center;font-size:14px;font-weight:600}
+.benefit-confirm{margin-top:10px;padding:12px;background:var(--wine-soft);border-radius:10px}
+.benefit-confirm[hidden]{display:none}
+.benefit-confirm p{margin:0 0 10px;overflow-wrap:anywhere}
+.benefit-confirm .btn{width:100%}
 :root{--ink:#1f1d1b;--muted:#6b6560;--line:#e6e0d8;--bg:#f7f4ef;--card:#fff;--wine:#6b2737;--wine-d:#521c2a;--wine-soft:#f4e8ea;
 --red:#b42318;--red-soft:#fdecea;--amber:#8a5200;--amber-soft:#fdf3e1;--green:#1e6b3a;--green-soft:#e6f4ea;--grey-soft:#efebe6;--r:14px;
 --nav:64px}
