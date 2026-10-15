@@ -32,13 +32,14 @@
   }
   const db = {
     collection(name) {
-      let w = null;
+      let w = null, ayuda = false;
       const q = {
-        where(f, op, v) { w = v; return q; },
+        where(f, op, v) { if (f === 'estado') ayuda = true; else w = v; return q; },
         orderBy() { return q; },
         limit() { return q; },
         onSnapshot(cb) {
-          if (name === 'hechas') return poll(async () => (await (await fetch('/api/hechas?w=' + w)).json()).ids.map(id => ({ w, id })), cb);
+          if (name === 'hechas' && ayuda) return poll(async () => (await (await fetch('/api/avisos')).json()).rows, cb);
+          if (name === 'hechas') return poll(async () => (await (await fetch('/api/hechas?w=' + w)).json()).rows, cb);
           return poll(async () => (await (await fetch('/api/cosechas')).json()).rows, cb);
         },
         async add(doc) { await post('/api/cosechas', doc); refresh(); },
@@ -48,8 +49,8 @@
     doc(path) {
       const m = path.match(/^hechas\/w(\d+)-(.+)$/);
       return {
-        async set() { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: true }); },
-        async delete() { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: false }); },
+        async set(d) { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: true, estado: d && d.estado, nota: d && d.nota, txt: d && d.txt }); refresh(); },
+        async delete() { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: false }); refresh(); },
       };
     },
   };

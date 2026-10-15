@@ -71,6 +71,15 @@ select,input{font:inherit;font-size:14px;border:1px solid var(--line);background
 .k.semillero{color:var(--s1)} .k.prep{color:var(--soil)} .k.siembra{color:var(--leaf)} .k.cuidado{color:var(--warn)} .k.base{color:var(--faint)}
 .task.done label{color:var(--faint);text-decoration:line-through}
 .task .t{font-family:var(--mono);font-size:12px;color:var(--faint);white-space:nowrap}
+.task .flag{flex:none;border:0;background:none;font-size:16px;line-height:1;padding:2px 4px;margin:-2px -4px 0 0;cursor:pointer;opacity:.35;min-height:auto}
+.task.help .flag{opacity:1}
+.task.help{background:color-mix(in srgb,var(--warn) 10%,transparent);border-radius:6px;padding-left:6px;padding-right:6px}
+.task .fnote{display:block;color:var(--warn);font-size:13px;font-weight:600;margin-top:3px}
+.flagform{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 10px;border-bottom:1px dashed var(--line)}
+.flagform input{flex:1 1 220px;font-size:16px;min-height:42px}
+.avisos{border-left:4px solid var(--warn)}
+.aviso{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.aviso:last-child{border-bottom:0}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -219,7 +228,7 @@ const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n)
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const nf = (v, d = 0) => v.toLocaleString("es-MX", {maximumFractionDigits: d, minimumFractionDigits: d});
 const todayW = (() => { const t = new Date(); t.setHours(12); return Math.floor((t - D(PLAN_START)) / (7 * DAY)); })();
-const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, harvests: [], db: null, dbTried: false};
+const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, flags: {}, avisos: [], flagEdit: null, harvests: [], db: null, dbTried: false};
 (function initMonth(){ const d = wkDate(state.w); d.setDate(d.getDate() + 2); state.month = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); })();
 const MONTHS = (() => { const m = []; for (let i = 0; i < 13; i++) { const d = new Date(2026, 9 + i, 15); m.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); } return m; })();
 const monthLabel = k => { const [y, m] = k.split("-").map(Number); return MESL[m - 1] + " " + y; };
@@ -353,9 +362,10 @@ views.hoy = () => {
   <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small">${done} de ${list.length} tareas hechas</span><span class="small num">${nf(mins / 60, 1)} h de trabajo</span></div>
     <div class="meter"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div></div>
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas no se guardan en esta vista.</div>` : ""}
+  ${avisosPanel()}
   <section class="panel" aria-label="Tareas del día">
     <h3 style="margin-bottom:4px">Tareas</h3>
-    ${list.length ? list.map(t => `<div class="task${state.done[t.id] ? " done" : ""}"><input type="checkbox" id="h-${t.id}" data-id="${t.id}" ${state.done[t.id] ? "checked" : ""}><label for="h-${t.id}"><span class="k ${t.k}">${label[t.k]}</span>${esc(t.t)}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</div>`).join("") : `<p class="muted" style="margin:6px 0 0">Sin tareas este día.</p>`}
+    ${list.length ? list.map(t => taskRow(t, "h")).join("") : `<p class="muted" style="margin:6px 0 0">Sin tareas este día.</p>`}
   </section>
   ${harvDay ? `<section class="panel" aria-label="Cosecha del día">
     <div class="bar" style="justify-content:space-between"><h3>Cosecha para cocina</h3><span class="small muted">antes de las 10:00</span></div>
@@ -369,7 +379,7 @@ views.hoy.bind = root => {
   const step = k => { let {w, d} = state.hd; d += k; if (d > 5) { w++; d = 1; } if (d < 1) { w--; d = 5; } const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1; if (w < 0 || (w === 0 && d < first) || w >= PLAN_WEEKS) return; state.hd = {w, d}; render(); };
   root.querySelector("#dprev").onclick = () => step(-1);
   root.querySelector("#dnext").onclick = () => step(1);
-  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  bindTasks(root);
   root.querySelector("#towa").onclick = () => copyText(whatsappText(state.hd.w));
   root.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
     const inp = b.parentNode.querySelector("input"); const v = +inp.value;
@@ -403,7 +413,7 @@ views.semana = () => {
     if ((d === 1 || d === 3 || d === 5) && harv.length && !(w === 0 && typeof FIRST_DAY !== "undefined" && d < FIRST_DAY)) list.unshift({id: "hv" + d, d, k: "cosecha", t: "Cosecha para cocina antes de las 10:00 (ver lista de cosecha), pesar y anotar", min: 0});
     if (!list.length) continue;
     days += `<div class="day"><h3><span>${DIAS[d]} ${wkDate(w).getDate() + d - 1 > 0 ? fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY)) : ""}</span><span class="num">${nf(list.reduce((a, t) => a + t.min, 0) / 60, 1)} h</span></h3>
-    ${list.map(t => `<div class="task${state.done[t.id] ? " done" : ""}"><input type="checkbox" id="c-${t.id}" data-id="${t.id}" ${state.done[t.id] ? "checked" : ""}><label for="c-${t.id}"><span class="k ${t.k}">${{semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"}[t.k]}</span>${esc(t.t)}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</div>`).join("")}</div>`;
+    ${list.map(t => taskRow(t, "c")).join("")}</div>`;
   }
   const harvRows = Object.entries(byCrop).sort((a, b) => CROPS[a[0]].u.localeCompare(CROPS[b[0]].u) || b[1].qty - a[1].qty)
     .map(([c, o]) => `<tr><td><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}</td><td class="num small">${o.beds.join(", ")}</td><td class="r num">${o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores"}</td></tr>`).join("");
@@ -418,6 +428,7 @@ views.semana = () => {
     <button class="btn primary" id="wa">Copiar para WhatsApp</button>
   </div>
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas de tareas no se guardan en esta vista. Ábrelo desde tu cuenta de Claude para que se compartan con Melanie.</div>` : ""}
+  ${avisosPanel()}
   <div class="cols">
     <section class="panel days" aria-label="Tareas por día">
       <div class="bar" style="justify-content:space-between"><h3>Lista de Adrián</h3><span class="chip">${doneCount} de ${T.length} hechas</span></div>
@@ -439,7 +450,7 @@ views.semana = () => {
 views.semana.bind = root => {
   root.querySelector("#wprev").onclick = () => { if (state.w > 0) { state.w--; subscribeDone(); render(); } };
   root.querySelector("#wnext").onclick = () => { if (state.w < PLAN_WEEKS - 1) { state.w++; subscribeDone(); render(); } };
-  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  bindTasks(root);
   root.querySelector("#wa").onclick = () => copyText(whatsappText(state.w));
   bindBeds(root.querySelector("#wkmap"), () => { state.view = "mapa"; render(); });
   bindZones(root, render);
@@ -755,6 +766,51 @@ views.registro.bind = root => {
   };
 };
 
+/* ---------- tareas: hecho / necesito ayuda ---------- */
+const KLAB = {semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"};
+const TXT = {};
+function taskRow(t, pre){
+  TXT[t.id] = t.t;
+  const done = state.done[t.id], fl = state.flags[t.id];
+  const help = fl !== undefined;
+  const ed = state.flagEdit === t.id;
+  return `<div class="task${done ? " done" : ""}${help ? " help" : ""}"><input type="checkbox" id="${pre}-${t.id}" data-id="${t.id}" ${done ? "checked" : ""}><label for="${pre}-${t.id}"><span class="k ${t.k}">${KLAB[t.k]}</span>${esc(t.t)}${help ? `<span class="fnote">⚠️ ${fl ? esc(fl) : "Necesita ayuda"}</span>` : ""}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}<button class="flag" data-flag="${t.id}" aria-label="Necesito ayuda con esta tarea" title="Necesito ayuda">⚠️</button></div>
+  ${ed ? `<div class="flagform"><input type="text" id="fnota" maxlength="200" placeholder="¿Qué pasa? (opcional)" value="${esc(fl || "")}"><button class="btn primary" data-fsend="${t.id}">Avisar</button>${help ? `<button class="btn" data-fclear="${t.id}">Quitar aviso</button>` : ""}<button class="btn" data-fcancel="1">Cancelar</button></div>` : ""}`;
+}
+function avisosPanel(){
+  const A = state.avisos;
+  if (!A.length) return "";
+  return `<section class="panel avisos" aria-label="Tareas que necesitan ayuda"><h3 style="margin-bottom:2px">⚠️ Necesita ayuda (${A.length})</h3>
+    ${A.map(a => `<div class="aviso"><div style="min-width:0"><div class="small muted">Semana ${a.w + 1}</div><div>${esc(a.txt || a.id)}</div>${a.nota ? `<div style="color:var(--warn);font-weight:600">“${esc(a.nota)}”</div>` : ""}</div><button class="btn" data-resolve="${a.w}|${esc(a.id)}">Resuelto</button></div>`).join("")}
+    <p class="small muted" style="margin:6px 0 0">“Resuelto” quita el aviso; la tarea vuelve a quedar pendiente.</p></section>`;
+}
+function bindTasks(root){
+  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  root.querySelectorAll("[data-flag]").forEach(b => b.onclick = () => { state.flagEdit = state.flagEdit === b.dataset.flag ? null : b.dataset.flag; render(); const i = document.getElementById("fnota"); if (i) i.focus(); });
+  root.querySelectorAll("[data-fcancel]").forEach(b => b.onclick = () => { state.flagEdit = null; render(); });
+  root.querySelectorAll("[data-fsend]").forEach(b => b.onclick = () => setFlag(b.dataset.fsend, (document.getElementById("fnota").value || "").trim()));
+  const fi = document.getElementById("fnota"); if (fi) fi.onkeydown = e => { if (e.key === "Enter") setFlag(state.flagEdit, fi.value.trim()); };
+  root.querySelectorAll("[data-fclear]").forEach(b => b.onclick = () => clearFlag(state.w, b.dataset.fclear));
+  root.querySelectorAll("[data-resolve]").forEach(b => b.onclick = () => { const [w, id] = b.dataset.resolve.split("|"); clearFlag(+w, id); });
+}
+async function setFlag(id, nota){
+  state.flagEdit = null; state.flags[id] = nota; delete state.done[id];
+  const w = state.w, txt = TXT[id] || "";
+  state.avisos = [{w, id, nota, txt}, ...state.avisos.filter(a => !(a.w === w && a.id === id))];
+  render();
+  if (!state.db) { toast("No se puede guardar en esta vista."); return; }
+  try { await state.db.doc(`hechas/w${w}-${id}`).set({w, id, estado: "ayuda", nota, txt, at: Date.now()}); toast("Aviso enviado"); }
+  catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar el aviso."); }
+}
+async function clearFlag(w, id){
+  state.flagEdit = null;
+  if (w === state.w) delete state.flags[id];
+  state.avisos = state.avisos.filter(a => !(a.w === w && a.id === id));
+  render();
+  if (!state.db) return;
+  try { await state.db.doc(`hechas/w${w}-${id}`).delete(); }
+  catch (e) { toast("No se pudo quitar el aviso."); }
+}
 /* ---------- datos compartidos ---------- */
 const typing = () => { const a = document.activeElement; return !!a && a.matches("input[type=number], input[type=text], input[type=date], textarea, select"); };
 let unsubDone = null;
@@ -764,16 +820,17 @@ function subscribeDone(){
   const w = state.w;
   unsubDone = state.db.collection("hechas").where("w", "==", w).onSnapshot(snap => {
     if (w !== state.w) return;
-    const d = {}; snap.docs.forEach(x => { const v = x.data(); if (v && v.id) d[v.id] = true; });
-    state.done = d; if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
+    const d = {}, f = {}; snap.docs.forEach(x => { const v = x.data(); if (!v || !v.id) return; if (v.estado === "ayuda") f[v.id] = v.nota || ""; else d[v.id] = true; });
+    state.done = d; state.flags = f; if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
   }, () => {});
 }
 async function toggleDone(id, on){
   state.done[id] = on;
+  if (on && state.flags[id] !== undefined) { delete state.flags[id]; state.avisos = state.avisos.filter(a => !(a.w === state.w && a.id === id)); }
   if (state.view === "semana" || state.view === "hoy") render();
   if (!state.db) return;
   const ref = state.db.doc(`hechas/w${state.w}-${id}`);
-  try { on ? await ref.set({w: state.w, id, at: Date.now()}) : await ref.delete(); }
+  try { on ? await ref.set({w: state.w, id, estado: "hecho", nota: "", txt: TXT[id] || "", at: Date.now()}) : await ref.delete(); }
   catch (e) { toast("No se pudo guardar la marca."); }
 }
 /* ---------- render ---------- */
@@ -808,6 +865,10 @@ render();
     if (!db) { render(); return; }
     state.db = db;
     subscribeDone();
+    db.collection("hechas").where("estado", "==", "ayuda").onSnapshot(snap => {
+      state.avisos = snap.docs.map(d => d.data()).filter(a => a && a.id).sort((a, b) => b.w - a.w);
+      if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
+    }, () => {});
     db.collection("cosechas").orderBy("fecha", "desc").limit(1000).onSnapshot(snap => {
       state.harvests = snap.docs.map(d => d.data());
       if (["registro", "cosecha", "hoy"].includes(state.view) && !typing()) render();

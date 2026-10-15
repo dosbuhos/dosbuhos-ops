@@ -18,15 +18,21 @@ export default {
 
       if (p === '/api/hechas' && request.method === 'GET') {
         const w = Number(url.searchParams.get('w'));
-        const { results } = await env.DB.prepare('SELECT task FROM hechas WHERE w=?').bind(w).all();
-        return json({ ids: results.map(r => r.task) });
+        const { results } = await env.DB.prepare('SELECT task, estado, nota FROM hechas WHERE w=?').bind(w).all();
+        return json({ rows: results.map(r => ({ w, id: r.task, estado: r.estado, nota: r.nota || '' })) });
+      }
+      if (p === '/api/avisos' && request.method === 'GET') {
+        const { results } = await env.DB.prepare("SELECT w, task, nota, txt, done_at FROM hechas WHERE estado='ayuda' ORDER BY done_at DESC LIMIT 200").all();
+        return json({ rows: results.map(r => ({ w: r.w, id: r.task, estado: 'ayuda', nota: r.nota || '', txt: r.txt || '', at: r.done_at })) });
       }
       if (p === '/api/hechas' && request.method === 'POST') {
         if (!(await pinOk(request, env))) return json({ error: 'PIN incorrecto' }, 401);
         const b = await request.json();
         const w = Number(b.w), task = String(b.id || '').slice(0, 80);
         if (!Number.isInteger(w) || !task) return json({ error: 'Datos inválidos' }, 400);
-        if (b.done) await env.DB.prepare('INSERT OR REPLACE INTO hechas (w, task) VALUES (?,?)').bind(w, task).run();
+        const estado = b.estado === 'ayuda' ? 'ayuda' : 'hecho';
+        if (b.done) await env.DB.prepare('INSERT OR REPLACE INTO hechas (w, task, estado, nota, txt) VALUES (?,?,?,?,?)')
+          .bind(w, task, estado, String(b.nota || '').slice(0, 200), String(b.txt || '').slice(0, 300)).run();
         else await env.DB.prepare('DELETE FROM hechas WHERE w=? AND task=?').bind(w, task).run();
         return json({ ok: true });
       }
