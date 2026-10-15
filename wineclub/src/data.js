@@ -1,5 +1,5 @@
 import { occurrences, localDate, dueDate } from './schedule.js';
-import {paymentBlocked} from './membership.js';
+import {paymentBlocked,contactBlocksShipment} from './membership.js';
 
 export const tzOf = (env) => env.TIMEZONE || 'America/Mexico_City';
 export const todayLocal = (env) => env.APP_ENV === 'test' && env.DEV_USER && env.TEST_TODAY
@@ -26,7 +26,7 @@ export async function clubForSub(env, sub) {
 }
 
 const SUB_SQL = `SELECT s.*, m.name AS member_name, COALESCE(m.contact_email,m.email) AS member_email, COALESCE(m.contact_phone,m.phone) AS member_phone, m.delivery_pref,
-  m.delivery_address, m.stripe_address, m.suspended_on, m.suspension_reason, m.suspension_by, m.legacy_id AS member_legacy_id, p.club_id AS product_club_id, p.name AS product_name, p.relevance AS product_relevance, p.suggested_club_id AS product_suggested_club_id
+  m.delivery_address, m.stripe_address, m.suspended_on, m.suspension_reason, m.suspension_by, m.payment_followup_on, m.payment_followup_reason, m.payment_followup_by, m.legacy_id AS member_legacy_id, p.club_id AS product_club_id, p.name AS product_name, p.relevance AS product_relevance, p.suggested_club_id AS product_suggested_club_id
   FROM subscriptions s JOIN members m ON m.id=s.member_id LEFT JOIN stripe_products p ON p.product_id=s.stripe_product_id`;
 
 // Everything needed to compute every member's schedule. ~6 small queries; fine for a club this size.
@@ -77,7 +77,7 @@ export function subOccurrences(ctx, sub, to) {
     fulfillments: ctx.fulByKey.get(sub.id) || new Map(),
     pauses: ctx.pausesBySub.get(sub.id) || [],
     caseFor: (c, slot) => ctx.cases.get(`${c.id}:${slot}`) || null,
-  }).map(o => ({ ...o, state:!['done','skipped','pretracking'].includes(o.state)?sub.suspended_on?'suspended':paymentBlocked(o.f)?'payment_blocked':o.state:o.state, sub, club }));
+  }).map(o => ({ ...o, state:!['done','skipped','pretracking'].includes(o.state)?sub.suspended_on?'suspended':contactBlocksShipment(sub,o.f)?'payment_contact':paymentBlocked(o.f)?'payment_blocked':o.state:o.state, sub, club }));
 }
 
 // A subscription is outside the club entirely when its Stripe product was marked "not a club product"

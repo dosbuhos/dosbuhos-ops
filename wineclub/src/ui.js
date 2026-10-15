@@ -28,6 +28,7 @@ export const STATUS_LABEL = {
   delivered: 'Recibido', exception: 'Excepción', skipped: 'Omitido',
 };
 export const STATE = {
+  payment_contact: { label: 'Contactar para nueva forma de pago', tone: 'amber' },
   payment_blocked: { label: 'Bloqueado por pago pendiente', tone: 'red' },
   suspended: { label: 'Suspendido por falta de pago', tone: 'red' },
   overdue: { label: 'Atrasado', tone: 'red' },
@@ -51,6 +52,7 @@ const CSS = `
 .benefit-stepper{display:flex;align-items:center;gap:12px;margin-top:12px}
 .work-member{font-size:18px;font-weight:700;overflow-wrap:anywhere;text-underline-offset:3px}
 .member-filters{margin-bottom:12px}
+.shipment-work.payment_contact,.schedule-row.payment_contact{border-left:4px solid var(--amber)}
 #membresia>summary{justify-content:space-between;gap:16px;list-style:none}
 #membresia>summary::-webkit-details-marker{display:none}
 #membresia>summary small{display:block;font-size:13px;font-weight:400;margin-top:4px}

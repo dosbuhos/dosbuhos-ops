@@ -119,6 +119,7 @@ async function handle(request, env) {
     if (!sh.club) return notFound(env, user, 'Esta suscripción no tiene club asignado, así que no tiene envíos calculados.');
     if (!sh.o) return notFound(env, user, 'Este envío no corresponde: la suscripción terminó antes de esa fecha.');
     const action = r[3];
+    if(sh.o.state==='payment_contact'&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Contactar para nueva forma de pago',status:403,html:`<h1>Contactar para nueva forma de pago</h1><p>Este socio está en seguimiento, no suspendido. Verifica el pago de esta caja antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver seguimiento del socio</a>`});
     if(sh.o.state==='payment_blocked'&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Envío bloqueado por pago',status:403,html:`<p>Este envío sigue bloqueado por pago pendiente. Verifica el pago en Stripe antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver socio</a>`});
     if(sh.sub.suspended_on&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Membresía suspendida',status:403,html:`<h1>Suspendido por falta de pago</h1><p>Preparación y entregas bloqueadas. Un administrador debe revisar el pago y reactivar la membresía.</p><p><a href="/socio/${sh.sub.member_id}#membresia">Ver membresía</a></p>`});
     if(action==='comprobante') {
@@ -299,6 +300,22 @@ async function handle(request, env) {
       if(!user.isManager)return forbidden(env,user);
       const fm=await form(request),reason=str(fm.reason,500),version=Number(fm.version);
       if(fm.action==='resume')return redirect(`/socio/${id}/reactivar`);
+      if(['contact','clear_contact'].includes(fm.action)) {
+        if(!reason)return new Response('Indica el motivo del seguimiento o su cierre.',{status:400});
+        if(version!==member.membership_version)return new Response('La membresía cambió. Recarga la ficha.',{status:409});
+        if(fm.action==='clear_contact') {
+          const ctx=await loadContext(env,{memberId:id});
+          if(member.suspended_on||ctx.subs.some(s=>s.stripe_subscription_id&&['past_due','unpaid','incomplete'].includes(s.status)))return P.simplePage({env,user,title:'Seguimiento pendiente',status:400,html:`<p>Stripe todavía indica un problema de pago, o el socio está suspendido. Revisa y sincroniza el cobro antes de cerrar el seguimiento.</p><a href="/socio/${id}#membresia">Volver al socio</a>`});
+        }
+        const after=fm.action==='contact'?{suspended_on:null,suspension_reason:null,suspension_by:null,payment_followup_on:todayLocal(env),payment_followup_reason:reason,payment_followup_by:user.email}:{payment_followup_on:null,payment_followup_reason:null,payment_followup_by:null};
+        const cols=Object.keys(after);
+        const results=await env.DB.batch([
+          env.DB.prepare(`UPDATE members SET ${cols.map(c=>c+'=?').join(',')},membership_version=membership_version+1,updated_at=datetime('now') WHERE id=? AND membership_version=? RETURNING id`).bind(...Object.values(after),id,version),
+          env.DB.prepare(`INSERT INTO audit_log(who,action,entity,entity_id,before_json,after_json,note) SELECT ?,?,'member',?,?,?,? WHERE changes()=1`).bind(user.email,fm.action==='contact'?'seguimiento de pago: pendiente de contacto':'cerrar seguimiento de pago',String(id),JSON.stringify(Object.fromEntries(cols.map(c=>[c,member[c]]))),JSON.stringify(after),reason)
+        ]);
+        if(!results[0].results.length)return new Response('La membresía cambió. Recarga la ficha.',{status:409});
+        return redirect(`/socio/${id}#membresia`);
+      }
       if(!reason||!['suspend','resume'].includes(fm.action))return new Response('Indica el motivo de este cambio.',{status:400});
       if(version!==member.membership_version||!!member.suspended_on!==(fm.action==='resume'))return new Response('La membresía cambió. Recarga la ficha antes de guardar.',{status:409});
       const after={suspended_on:fm.action==='suspend'?todayLocal(env):null,suspension_reason:fm.action==='suspend'?reason:null,suspension_by:fm.action==='suspend'?user.email:null};

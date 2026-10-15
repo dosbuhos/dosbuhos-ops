@@ -8,6 +8,14 @@ test('billing alerts distinguish payment states and clear when status recovers',
   assert.equal(billingIssue(ctx(),{...sub,status:'active'}),null);
   assert.equal(billingIssue(ctx(),{...sub,status:'canceled'}),null,'cancellation alone is not proof of failed payment');
 });
+
+test('payment follow-up is yellow and suspension requires a separate explicit decision',()=>{
+  const issue=billingIssue(ctx(),sub);assert.equal(issue.tone,'amber');assert.equal(issue.title,'Contactar para nueva forma de pago');
+  const canceled={...sub,status:'canceled',payment_followup_on:'2026-10-15',payment_followup_reason:'Aún no contactado'};
+  assert.equal(billingIssue(ctx(canceled),canceled).tone,'amber');
+  const suspended={...canceled,suspended_on:'2026-10-15',suspension_reason:'El cliente bloqueó el cobro'};
+  assert.equal(billingIssue(ctx(suspended),suspended).tone,'red');assert.match(billingWarning(ctx(suspended),suspended),/Suspendido por falta de pago/);
+});
 test('ignored and manual subscriptions do not create Stripe billing alerts',()=>{
   assert.equal(billingIssue(ctx(),{...sub,product_relevance:'ignore',product_club_id:null}),null);
   assert.equal(billingIssue(ctx(),{...sub,stripe_subscription_id:null}),null);

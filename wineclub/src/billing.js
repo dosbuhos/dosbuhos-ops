@@ -1,9 +1,11 @@
 import {isIgnored,subClub} from './data.js';
 import {esc,page,money} from './ui.js';
-import {suspensionWarning} from './membership.js';
+import {suspensionWarning,paymentContact} from './membership.js';
 
 export function billingIssue(ctx,s) {
-  if(s.suspended_on)return {sub:s,title:'Suspendido por falta de pago',detail:s.suspension_reason||'Membresía suspendida por administración.'};
+  if(s.suspended_on)return {sub:s,tone:'red',title:'Suspendido por falta de pago',detail:s.suspension_reason||'Membresía suspendida por administración.'};
+  if(isIgnored(s))return null;
+  if(paymentContact(s))return {sub:s,tone:'amber',title:'Contactar para nueva forma de pago',detail:s.payment_followup_reason||'El pago no se completó. Contactar al socio antes de considerar una suspensión; un fallo de tarjeta no confirma una negativa a pagar.'};
   if(!s.stripe_subscription_id||isIgnored(s))return null;
   const labels={past_due:['Cobro pendiente en Stripe','Stripe indica un cobro vencido o pendiente de completar. Revisa la factura y el intento de pago.'],
     unpaid:['Suscripción sin pagar','Stripe marca la suscripción como no pagada. Revisa las facturas y los intentos de cobro.'],
@@ -16,11 +18,19 @@ export function billingIssue(ctx,s) {
   return null;
 }
 export const billingIssues=ctx=>ctx.subs.map(s=>billingIssue(ctx,s)).filter(Boolean);
+export function billingSummary(ctx) {
+  const issues=billingIssues(ctx);
+  return ['amber','red'].map(tone=>{
+    const rows=issues.filter(i=>(i.tone||'amber')===tone),names=[...new Set(rows.map(i=>i.sub.member_name))];
+    return rows.length?`<div class="banner ${tone}"><span><b>${tone==='red'?'Socios suspendidos':'Seguimiento de cobro · contactar'} (${names.length})</b><br>${esc(names.join(', '))}</span><a href="${tone==='red'?'/socios?f=suspendidos':'/alertas'}">Revisar →</a></div>`:'';
+  }).join('');
+}
 export const stripeLink=s=>'https://dashboard.stripe.com/subscriptions/'+encodeURIComponent(s.stripe_subscription_id);
 export function billingWarning(ctx,s,{paid=false}={}) {
   if(s.suspended_on)return suspensionWarning(s);
   const issue=billingIssue(ctx,s);if(!issue)return '';
-  return `<div class="banner red" role="status"><div><b>⚠ ${esc(issue.title)}</b><br>${esc(issue.detail)}
+  return `<div class="banner ${issue.tone||'amber'}" role="status"><div><b>⚠ ${esc(issue.title)}</b><br>${esc(issue.detail)}
+    ${s.payment_followup_on?`<p class="small">Seguimiento pendiente desde ${esc(s.payment_followup_on)} · Registrado por ${esc(s.payment_followup_by)}. Esto no registra que ya se haya contactado al socio.</p>`:''}
     <p class="small">${paid?'Esta caja tiene un pago asociado; el problema puede corresponder a otro periodo.':'El estado de la suscripción no identifica por sí solo qué caja está pagada.'} No se cambia ni se elimina una entrega por esta alerta.</p>
     <a href="/alertas">Ver alertas de cobro</a> · <a href="${stripeLink(s)}" target="_blank" rel="noopener">Revisar en Stripe ↗</a></div></div>`;
 }
@@ -30,7 +40,7 @@ export function billingPage({ctx,env,user}) {
     <p>Revisa los cobros antes de entregar. Un problema de la suscripción puede corresponder a un periodo distinto de una caja que ya está pagada.</p>
     <p class="small muted">Última sincronización: ${sync?esc(sync.at?.replace('T',' ').slice(0,19))+' UTC':'Sin sincronización registrada'}. Se actualiza al sincronizar Stripe; no es una comprobación en tiempo real.</p>
     ${sync&&!sync.ok?'<div class="banner red">La última sincronización falló. La información puede estar desactualizada.</div>':''}
-    ${issues.map(({sub:s,title,detail})=>`<article class="card"><h2 style="margin-top:0"><a href="/socio/${s.member_id}">${esc(s.member_name)}</a></h2><b style="color:var(--red)">${esc(title)}</b><p>${esc(detail)}</p>
+    ${issues.map(({sub:s,title,detail,tone})=>`<article class="card"><h2 style="margin-top:0"><a href="/socio/${s.member_id}">${esc(s.member_name)}</a></h2><b style="color:var(--${tone==='red'?'red':'amber'})">${esc(title)}</b><p>${esc(detail)}</p>
       <p class="small">${esc(subClub(ctx,s)?.name||s.product_name||'Club por confirmar')}${s.price_amount!=null?' · '+money(s.price_amount,s.price_currency):''}</p>
       <div class="acts"><a class="btn quiet" href="/socio/${s.member_id}">Ver socio y entregas</a><a class="btn ghost" href="${stripeLink(s)}" target="_blank" rel="noopener">Revisar en Stripe ↗</a></div></article>`).join('')||'<div class="card">Sin alertas por estado de suscripción en los datos sincronizados.</div>'}
     <p class="small muted">Estas alertas muestran estados de suscripción, no el motivo exacto de rechazo de una tarjeta ni todas las facturas abiertas. Para decidir si una caja está pagada, revisa su factura del periodo en Stripe. “Sin pago asociado” en la app requiere comprobarlo; no demuestra un impago.</p>

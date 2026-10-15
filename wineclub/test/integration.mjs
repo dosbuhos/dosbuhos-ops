@@ -331,7 +331,7 @@ try {
     f=row();await post(path+'/estado',{version:String(f.version),status:'held',hold_until:'2026-10-13'});
     assert.ok((await get('/envios')).includes(card));
     q(`UPDATE subscriptions SET status='past_due' WHERE id=${subA}`);
-    html=await get('/envios?f=entregados');assert.match(html,/Alerta de cobro del socio/);
+    html=await get('/envios?f=entregados');assert.match(html,/Contactar para nueva forma de pago/);
     assert.ok(!(await get('/envios')).includes(`id="envio-${subA}-1"`),'an old completed paid box is not a new Inbox task');
   });
 
@@ -408,6 +408,28 @@ try {
     f=q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} AND k=4`)[0];assert.equal(f.payment_release_reason,'Cortesía autorizada por administración');assert.equal(f.paid_on,null);
     assert.match(await get(`/envio/${sub}/4`),/Entrega autorizada como excepción/);
     assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${sub} AND k=1`)[0].status,'handed');
+  });
+
+  await check('payment contact is a yellow stage distinct from suspension and preserves paid boxes and history',async()=>{
+    await post('/socios/nuevo',{name:'Seguimiento Prueba',club_id:'1',start_date:'2026-04-14'});
+    const m=q("SELECT * FROM members WHERE name='Seguimiento Prueba'")[0],sub=q(`SELECT id FROM subscriptions WHERE member_id=${m.id}`)[0].id,path=`/socio/${m.id}/membresia`;
+    q(`INSERT INTO fulfillments(subscription_id,k,status,done_on,stripe_invoice_id,paid_on) VALUES (${sub},1,'handed','2026-04-14','in_history_contact','2026-04-14'),(${sub},2,NULL,NULL,'in_paid_contact','2026-07-14')`);
+    const before=q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} ORDER BY k`);
+    assert.equal((await post(path,{action:'contact',reason:'Aún no contactado; solicitar otra forma de pago',version:'0'})).status,303);
+    let member=q(`SELECT * FROM members WHERE id=${m.id}`)[0];assert.equal(member.suspended_on,null);assert.ok(member.payment_followup_on);
+    assert.deepEqual(q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} ORDER BY k`),before);
+    assert.match(await get(`/socio/${m.id}`),/Contactar para nueva forma de pago/);
+    assert.ok((await get('/envios?f=contactar')).includes(`id="envio-${sub}-3"`));
+    assert.ok(!(await get('/envios?f=suspendidos')).includes(`id="envio-${sub}-3"`));
+    assert.equal((await post(`/envio/${sub}/3/entregar`,{})).status,403);
+    assert.equal((await post(`/envio/${sub}/2/estado`,{status:'needs_prep',version:String(q(`SELECT version FROM fulfillments WHERE subscription_id=${sub} AND k=2`)[0].version)})).status,303,'paid box remains available');
+    assert.equal((await post(path,{action:'suspend',reason:'El cliente bloqueó el pago',version:'1'})).status,303);
+    assert.equal((await post(`/envio/${sub}/2/estado`,{status:'ready',version:'1'})).status,403);
+    assert.equal((await post(path,{action:'contact',reason:'Corregir clasificación: todavía no se contactó al socio',version:'2'})).status,303);
+    member=q(`SELECT * FROM members WHERE id=${m.id}`)[0];assert.equal(member.suspended_on,null);assert.ok(member.payment_followup_on);
+    assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${sub} AND k=1`)[0].status,'handed');
+    assert.equal((await post(path,{action:'clear_contact',reason:'Seguimiento resuelto',version:'3'})).status,303);
+    assert.equal(q(`SELECT payment_followup_on FROM members WHERE id=${m.id}`)[0].payment_followup_on,null);
   });
 
   await check('bulk calculated deliveries are disabled', async () => {

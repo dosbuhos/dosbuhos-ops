@@ -62,7 +62,7 @@ export async function reactivate(env,user,member,fm) {
     AND (SELECT COUNT(*) FROM subscriptions WHERE member_id=?)=?
     AND NOT EXISTS(SELECT 1 FROM json_each(?) j LEFT JOIN subscriptions s ON s.id=json_extract(j.value,'$.id') WHERE s.id IS NULL OR s.synced_at IS NOT json_extract(j.value,'$.synced_at') OR s.anchor_override IS NOT json_extract(j.value,'$.anchor') OR s.start_date IS NOT json_extract(j.value,'$.start') OR s.status IS NOT json_extract(j.value,'$.status') OR s.ended_on IS NOT json_extract(j.value,'$.ended')))`)
     .bind(token,member.id,member.membership_version,member.id,fuls.length,JSON.stringify(fuls),member.id,subs.length,JSON.stringify(subs)),
-    env.DB.prepare(`UPDATE members SET suspended_on=NULL,suspension_reason=NULL,suspension_by=NULL,membership_version=membership_version+1,updated_at=datetime('now') WHERE id=?`).bind(member.id)];
+    env.DB.prepare(`UPDATE members SET suspended_on=NULL,suspension_reason=NULL,suspension_by=NULL,payment_followup_on=NULL,payment_followup_reason=NULL,payment_followup_by=NULL,membership_version=membership_version+1,updated_at=datetime('now') WHERE id=?`).bind(member.id)];
   for(const {o,choice,note} of decisions) {
     if(choice==='keep')continue;
     const f=o.f||{},fields=choice==='skip'?{status:'skipped',note:[f.note,note].filter(Boolean).join(' · '),payment_blocked:0,payment_release_reason:null}:
