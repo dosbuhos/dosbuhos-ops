@@ -32,7 +32,9 @@ try {
   for (let i = 0; i < 60; i++) { try { const h = await fetch(B + '/health'); await h.text(); if (h.ok) break; } catch { /* starting */ } await new Promise(r => setTimeout(r, 1000)); }
 
   await check('sync is idempotent', async () => {
-    await post('/sync', {});
+    const synced = await post('/sync', {});
+    assert.equal(synced.status, 303, synced.text);
+    assert.ok(q('SELECT COUNT(*) n FROM subscriptions')[0].n > 0, JSON.stringify(q("SELECT * FROM settings WHERE key='last_sync'")));
     const a = q('SELECT (SELECT COUNT(*) FROM members) m, (SELECT COUNT(*) FROM subscriptions) s, (SELECT COUNT(*) FROM fulfillments) f, (SELECT COUNT(*) FROM stripe_products) p')[0];
     await post('/sync', {});
     const b = q('SELECT (SELECT COUNT(*) FROM members) m, (SELECT COUNT(*) FROM subscriptions) s, (SELECT COUNT(*) FROM fulfillments) f, (SELECT COUNT(*) FROM stripe_products) p')[0];
@@ -180,6 +182,28 @@ try {
     assert.equal(f.status,'handed'); assert.equal(f.done_on,'2026-02-12');
     await post(`/envio/${subC}/1/estado`,{version:String(f.version),status:'needs_prep'});
     assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${subC} AND k=1`)[0].status,'handed','quick status cannot reopen completed work');
+  });
+
+  await check('delivery delay validates input, preserves the calendar, audits and can be removed', async () => {
+    const path = `/envio/${subA}/6`;
+    const version = () => String(q(`SELECT version FROM fulfillments WHERE subscription_id=${subA} AND k=6`)[0]?.version || 0);
+    const before = q(`SELECT start_date,anchor_override FROM subscriptions WHERE id=${subA}`)[0];
+    assert.match(await get(path), /Aplazar esta entrega/);
+    for (const fields of [{delayed_until:'bad',delay_reason:'Viaje'}, {delayed_until:'2027-02-30',delay_reason:'Viaje'}, {delayed_until:'2027-01-06',delay_reason:'Viaje'}, {delayed_until:'2027-02-15',delay_reason:''}]) {
+      assert.equal((await post(path+'/posponer',{version:version(),...fields})).status,400);
+    }
+    const prior = version();
+    assert.equal((await post(path+'/posponer',{version:prior,delayed_until:'2027-02-15',delay_reason:'Viaje solicitado por el socio'})).status,303);
+    assert.equal((await post(path+'/posponer',{version:prior,clear:'1'})).status,409);
+    const html = await get(path);
+    assert.match(html,/2027/); assert.match(html,/Viaje solicitado por el socio/); assert.match(html,/Aplazado por solicitud/);
+    assert.deepEqual(q(`SELECT start_date,anchor_override FROM subscriptions WHERE id=${subA}`)[0],before);
+    assert.match(await get(`/envio/${subA}/7`),/6 feb 2027/);
+    assert.ok(q(`SELECT id FROM audit_log WHERE entity_id='${subA}:6' AND action LIKE 'aplazar entrega%'`).length);
+    assert.equal((await post(path+'/posponer',{version:version(),clear:'1'})).status,303);
+    assert.equal(q(`SELECT delayed_until FROM fulfillments WHERE subscription_id=${subA} AND k=6`)[0].delayed_until,null);
+    const done = q(`SELECT k,version FROM fulfillments WHERE subscription_id=${subA} AND status='shipped'`)[0];
+    if (done) assert.equal((await post(`/envio/${subA}/${done.k}/posponer`,{version:String(done.version),delayed_until:'2027-03-01',delay_reason:'Viaje'})).status,400);
   });
 
   await check('bulk calculated deliveries are disabled', async () => {

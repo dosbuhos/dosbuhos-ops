@@ -178,10 +178,19 @@ async function handle(request, env) {
       return redirect(here);
     }
     if (action === 'posponer') {
-      const clear = fm.clear === '1' || !dateOrNull(fm.delayed_until);
+      const clear = fm.clear === '1';
+      const date = dateOrNull(fm.delayed_until);
+      const reason = str(fm.delay_reason, 200);
+      const error = !['overdue', 'today', 'upcoming', 'exception'].includes(sh.o.state)
+        ? 'Solo se puede aplazar un envío pendiente.'
+        : !clear && (!date || date <= sh.o.due || date < sh.ctx.today)
+          ? 'Elige una fecha válida, posterior a la fecha original y no anterior a hoy.'
+          : !clear && !reason ? 'Escribe el motivo del aplazamiento.' : null;
+      if (error) return P.simplePage({ env, user, title: 'No se pudo aplazar', status: 400,
+        html: `<p>${esc(error)}</p><p><a href="${here}#aplazar">Volver al envío</a></p>` });
       await save(
-        clear ? { delayed_until: null, delay_reason: null } : { delayed_until: dateOrNull(fm.delayed_until), delay_reason: str(fm.delay_reason, 200) },
-        clear ? 'quitar posposición' : `posponer → ${fm.delayed_until}`);
+        clear ? { delayed_until: null, delay_reason: null } : { delayed_until: date, delay_reason: reason },
+        clear ? 'quitar aplazamiento de entrega' : `aplazar entrega → ${date}: ${reason}`);
       return redirect(here);
     }
     if (action === 'botellas') {

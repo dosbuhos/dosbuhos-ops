@@ -40,7 +40,8 @@ export function shipCard(o, today, back) {
   <p class="small muted date-context">Alta ${esc(exactDate(s.start_date))} · ${esc(cadenceLabel(o.club.cadence_months))}</p>
   <p class="small date-context">Previsto: <b>${esc(exactDate(o.due))}</b>${o.delayed ? ' · reprogramado' : ''}</p>
   <a class="small calendar-link" href="/socio/${s.member_id}#calendario">Ver alta y calendario del socio →</a>
-  <div class="chips">${chips.join('')}</div>${bottles}${acts}</article>`;
+  <div class="chips">${chips.join('')}</div>${o.delayed && f.delay_reason ? `<p class="small">${esc(f.delay_reason)}</p>` : ''}${bottles}${acts}
+  ${['overdue','today','upcoming','exception'].includes(o.state) ? `<p class="small"><a href="${shipHref(o)}#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>` : ''}</article>`;
 }
 
 function okBanner(okAudit, today) {
@@ -135,7 +136,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   const early = o.eff > today;
   const link = (como, label, cls = '') => `<a class="btn ${cls}" href="${back}/entregar?como=${como}">${label}</a>`;
   let actions;
-  if (open) actions = `${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
+  if (open) actions = `<p><a href="#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
     <div class="acts">${s.delivery_pref === 'envio' ? link('shipped', early ? 'Enviar antes de tiempo' : 'Marcar enviado') + link('handed', 'Entregado en mano', 'ghost') : link('handed', early ? 'Entregar antes de tiempo' : 'Entregado en mano') + link('shipped', 'Marcar enviado', 'ghost')}</div>
     <form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}">
     <div class="acts">${o.status === 'needs_prep' ? act('scheduled', 'Quitar “en preparación”', 'quiet') : act('needs_prep', 'En preparación', 'quiet')}${o.status === 'ready' ? act('scheduled', 'Quitar “listo”', 'quiet') : act('ready', 'Listo', 'quiet')}</div>
@@ -183,12 +184,14 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     <div><label for="dl">Recibido el</label><input id="dl" type="date" name="delivered_on" value="${esc(f.delivered_on || '')}"></div></div>
     <label for="nt">Nota</label><textarea id="nt" name="note">${esc(f.note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar detalles</button></form></div>
-  <h2>Posponer</h2><div class="card"><form method="post" action="${back}/posponer">
+  ${open ? `<h2 id="aplazar">Aplazar esta entrega</h2><div class="card"><form method="post" action="${back}/posponer">
     <input type="hidden" name="version" value="${f.version || 0}">
-    <p class="small muted" style="margin-top:0">No cambia nada en Stripe. Antes de la nueva fecha no aparece como atrasado.</p>
-    <div class="grid2"><div><label for="du">Nueva fecha</label><input id="du" type="date" name="delayed_until" value="${esc(f.delayed_until || '')}" min="${esc(o.due)}"></div>
-    <div><label for="dr">Motivo</label><input id="dr" name="delay_reason" value="${esc(f.delay_reason || '')}" placeholder="Lo pidió el socio"></div></div>
-    <div class="acts"><button class="btn sm">Posponer</button>${f.delayed_until ? '<button class="btn sm quiet" name="clear" value="1">Quitar posposición</button>' : ''}</div></form></div>
+    <p class="small" style="margin-top:0">Solo cambia esta entrega. Conserva la fecha original, los siguientes envíos y la facturación de Stripe. Antes de la nueva fecha no cuenta como atrasada.</p>
+    <p class="small">Fecha original: <b>${esc(exactDate(o.due))}</b></p>
+    <div class="grid2"><div><label for="du">Entregar a partir del</label><input id="du" type="date" name="delayed_until" value="${esc(f.delayed_until || '')}" min="${esc(addDays(o.due,1) > today ? addDays(o.due,1) : today)}" required></div>
+    <div><label for="dr">Motivo del aplazamiento</label><input id="dr" name="delay_reason" value="${esc(f.delay_reason || '')}" maxlength="200" required placeholder="El socio está de viaje"></div></div>
+    <p class="small muted">Si se cruza con el siguiente envío, ambos siguen pendientes por separado.</p>
+    <div class="acts"><button class="btn sm">Guardar aplazamiento</button>${f.delayed_until ? '<button class="btn sm quiet" name="clear" value="1" formnovalidate>Quitar aplazamiento</button>' : ''}</div></form></div>` : ''}
   <h2>Fotos</h2><div class="card">
     ${photos.length ? `<div class="photos">${photos.map(p => `<a href="/foto/${p.id}" target="_blank"><img src="/foto/${p.id}" alt="foto" loading="lazy"></a>`).join('')}</div>` : '<p class="muted small" style="margin:0">Sin fotos.</p>'}
     <label for="photo" class="btn quiet sm" style="margin-top:10px">Agregar foto</label>

@@ -11,8 +11,8 @@ export function joinedDate(ctx, memberId) {
     .map(s => s.start_date).filter(Boolean).sort()[0] || null;
 }
 
-export const recordedPending = (o) => ['needs_prep', 'ready', 'exception'].includes(o.status);
-export const visibleStatus = (o) => o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
+export const recordedPending = (o) => ['needs_prep', 'ready', 'exception'].includes(o.status) || !!o.f?.delayed_until;
+export const visibleStatus = (o) => o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
 
 export function dateFacts(o) {
   const f = o.f || {};
