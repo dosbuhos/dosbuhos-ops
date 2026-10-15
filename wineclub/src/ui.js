@@ -52,6 +52,7 @@ const CSS = `
 .benefit-stepper{display:flex;align-items:center;gap:12px;margin-top:12px}
 .work-member{font-size:18px;font-weight:700;overflow-wrap:anywhere;text-underline-offset:3px}
 .member-filters{margin-bottom:12px}
+.member-filters a[aria-current="page"]{outline:2px solid currentColor;outline-offset:1px}
 .shipment-work.payment_contact,.schedule-row.payment_contact{border-left:4px solid var(--amber)}
 #membresia>summary{justify-content:space-between;gap:16px;list-style:none}
 #membresia>summary::-webkit-details-marker{display:none}

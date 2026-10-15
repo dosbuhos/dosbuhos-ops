@@ -246,22 +246,23 @@ export function membersPage({ env, user, ctx, members, url }) {
     return `<a class="row member-row" href="/socio/${m.id}" data-s="${esc(norm)}"><div class="main"><div class="t">${esc(m.name)}${m.suspended_on?chip('Suspendido por falta de pago','red'):''}</div><div class="s">${esc(clubs)}</div>
       <div class="small joined">Alta registrada: <b>${joined ? esc(exactDate(joined)) : 'Por confirmar'}</b></div>
       ${r.next ? `<div class="small muted">Próxima fecha: ${esc(exactDate(r.next))}</div>` : ''}</div>
-      ${ended.some(x=>x.id===m.id)?chip('Terminado','grey'):''}${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip((subsBy.get(m.id)||[]).some(s=>paymentContact(s))?'Contactar para nueva forma de pago':m.suspended_on?'Suspendido':'Revisar cobro',m.suspended_on?'red':'amber'):''}${r.held?chip(`${r.held} en resguardo`,'wine'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
+      ${ended.some(x=>x.id===m.id)?chip('Archivado · suscripción terminada','grey'):''}${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip((subsBy.get(m.id)||[]).some(s=>paymentContact(s))?'Contactar para nueva forma de pago':m.suspended_on?'Suspendido':'Revisar cobro',m.suspended_on?'red':'amber'):''}${r.held?chip(`${r.held} en resguardo`,'wine'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
   };
   const suspended=members.filter(m=>m.suspended_on);
   const contact=members.filter(m=>(subsBy.get(m.id)||[]).some(s=>!isIgnored(s)&&paymentContact(s)));
-  const active = members.filter(m => !m.suspended_on&&((subsBy.get(m.id)||[]).some(isActive)||contact.includes(m)));
-  const ended = members.filter(m => !active.includes(m)&&!m.suspended_on);
-  const groups={activos:active,contactar:contact,suspendidos:suspended,terminados:ended,todos:members};
-  const requested=url?.searchParams.get('f');
+  const active = members.filter(m => !m.suspended_on&&!contact.includes(m)&&(subsBy.get(m.id)||[]).some(isActive));
+  const ended = members.filter(m => !active.includes(m)&&!contact.includes(m)&&!m.suspended_on);
+  const groups={activos:active,contactar:contact,suspendidos:suspended,archivados:ended,todos:members};
+  const requested=url?.searchParams.get('f')==='terminados'?'archivados':url?.searchParams.get('f');
   const filter=Object.hasOwn(groups,requested)?requested:'activos';
   const query=url?.searchParams.get('q')||'';
   const list=groups[filter];
-  const filters=[['activos','Activos'],['contactar','Contactar · pago'],['suspendidos','Suspendidos'],['terminados','Terminados'],['todos','Todos']];
+  const filters=[['activos','Activos'],['contactar','Actualizar pago'],['suspendidos','Suspendidos'],['archivados','Archivados'],['todos','Todos']];
   const clubsOpts = [...ctx.clubs.values()].filter(c => c.active).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const body = `<h1>Socios <span class="muted small">${active.length} activos</span></h1>
   <p class="small"><a href="/alertas">Alertas de cobro (${billingIssues(ctx).length}) →</a></p>
-  <nav class="chips member-filters" aria-label="Filtrar socios por estado">${filters.map(([key,label])=>`<a class="chip ${filter===key?'wine':''}" ${filter===key?'aria-current="page"':''} href="/socios?f=${key}" style="text-decoration:none;padding:10px 14px">${label} (${groups[key].length})</a>`).join('')}</nav>
+  <nav class="chips member-filters" aria-label="Filtrar socios por estado">${filters.map(([key,label])=>`<a class="chip ${key==='contactar'?'amber':key==='suspendidos'?'red':filter===key?'wine':''}" ${filter===key?'aria-current="page"':''} href="/socios?f=${key}" style="text-decoration:none;padding:10px 14px">${label} (${groups[key].length})</a>`).join('')}</nav>
+  ${filter==='archivados'?'<p class="small muted">Suscripciones terminadas. Se conserva todo el historial; las cajas antiguas pendientes siguen disponibles en Envíos.</p>':''}
   <div class="search"><input id="q" type="search" placeholder="Buscar nombre, teléfono, correo o club" aria-label="Buscar socios" autocomplete="off" value="${esc(query)}"></div>
   <p id="search-results" class="small muted" aria-live="polite">${list.length} socios en este filtro</p>
   <div class="rows">${list.map(row).join('') || '<div class="empty">Sin socios en este filtro.</div>'}</div>
