@@ -32,7 +32,7 @@ export function scheduleRow(o) {
   const result = o.state === 'done' ? 'Entrega registrada sin fecha real' : ['overdue','today','exception'].includes(o.state) ? 'Sin entrega registrada' : '';
   const metadata=[f.handled_by?'Por '+f.handled_by:null,f.order_ref?'Pedido: '+f.order_ref:null].filter(Boolean);
   return `<a class="schedule-row ${o.state}" href="/envio/${o.subId}/${o.k}">
-    <div class="schedule-top"><b>Envío #${o.n}</b><div class="schedule-badges">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : STATE[o.state].tone)}${chip(f.stripe_invoice_id && f.paid_on ? `Pagado en Stripe · ${exactDate(f.paid_on)}` : 'Sin pago Stripe asociado',f.stripe_invoice_id && f.paid_on?'green':'grey')}</div></div>
+    <div class="schedule-top"><b>Envío #${o.n}</b><div class="schedule-badges">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : STATE[o.state].tone)}${chip(f.stripe_invoice_id && f.paid_on ? `Pagado · ${exactDate(f.paid_on)}` : 'Sin pago Stripe asociado',f.stripe_invoice_id && f.paid_on?'green':'grey')}</div></div>
     <dl class="shipment-dates"><div><dt>${o.delayed?'Fecha original':'Fecha prevista'}</dt><dd>${esc(exactDate(o.due))}</dd></div>
     ${o.delayed?`<div class="rescheduled"><dt>Entrega aplazada</dt><dd>${esc(exactDate(o.eff))}</dd></div>`:''}
     ${f.done_on?`<div class="complete"><dt>${esc(STATUS_LABEL[o.status]||'Entrega registrada')}</dt><dd>${esc(exactDate(f.done_on))}</dd></div>`:''}</dl>
