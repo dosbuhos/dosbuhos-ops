@@ -2,12 +2,12 @@
    - ../public/index.html  -> versión web pública (Cloudflare Worker), con el adaptador web-shim.js
    - ./artifact.html       -> versión para el Artifact de Claude
 Uso: python3 build.py"""
-import json, os
+import json, os, datetime
 here = os.path.dirname(os.path.abspath(__file__))
 rd = lambda f: open(os.path.join(here, f), encoding='utf-8').read()
 tpl, eng, data, shim = rd('template.html'), rd('engine.js'), rd('plan-data.js'), rd('web-shim.js')
 geo = json.dumps(json.load(open(os.path.join(here, 'geo.json'))), separators=(',', ':'))
-page = tpl.replace('/*DATA*/', data).replace('/*ENGINE*/', eng).replace('/*GEO*/', geo)
+page = tpl.replace('/*DATA*/', data).replace('/*ENGINE*/', eng).replace('/*GEO*/', geo).replace('/*BUILD*/', datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6))).strftime('%d/%m %H:%M'))
 open(os.path.join(here, 'artifact.html'), 'w', encoding='utf-8').write(page)
 head, rest = page.split('<style>', 1)
 web = ('<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n'
