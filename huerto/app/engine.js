@@ -128,6 +128,22 @@ function weekTasks(plan, w) {
       T.push({id: `h${p.i}`, d: 0, t: `Cosechar ${p.c.n.toLowerCase()} en ${where(p)}`, min: Math.max(10, p.c.cos * p.scale), k: "cosecha", bed: p.bed, crop: p.crop, qty: p.c.kg * p.scale, u: p.c.u});
     }
   }
+  // una sola tarea de preparación por cama y semana (camas completas o mitades que se preparan juntas)
+  const prepBy = {};
+  plan.P.filter(p => p.prepW !== null && w === p.prepW).forEach(p => (prepBy[p.bed] = prepBy[p.bed] || []).push(p));
+  for (const [bed, ps] of Object.entries(prepBy)) {
+    if (ps.length < 2) continue;
+    const ids = new Set(ps.map(p => `p${p.i}`));
+    const first = T.findIndex(t => ids.has(t.id));
+    const mins = T.filter(t => ids.has(t.id)).reduce((a, t) => a + t.min, 0);
+    const m = ps.reduce((a, p) => a + p.m, 0);
+    const lbl = m >= BED[bed].len - 1e-9 ? `${bed} (cama completa)` : `${bed} (${mtxt(m)})`;
+    const prevs = [...new Set(ps.filter(p => p.prev).map(p => p.prev.c.n.toLowerCase()))];
+    const t = prevs.length ? `Preparar ${lbl}: retirar ${prevs.join(" y ")}, 2 cm de composta, aflojar con bieldo` : `Limpiar ${lbl}: retirar lo que no se queda, 2 cm de composta, aflojar con bieldo sin voltear`;
+    const keep = {...T[first], t, min: mins};
+    for (let j = T.length - 1; j >= 0; j--) if (ids.has(T[j].id)) T.splice(j, 1);
+    T.splice(first, 0, keep);
+  }
   // repartir trabajo en los días: en orden (semillero → preparar → sembrar → cuidar), sin pasar de ~7.5 h por día
   const harvMin = T.filter(t => t.k === "cosecha").reduce((a, t) => a + t.min, 0);
   const load = [0, 0, 0, 0, 0, 0];

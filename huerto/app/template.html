@@ -219,7 +219,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
 /*DATA*/
 /*ENGINE*/
 const GEO = /*GEO*/;
-const CAT = {hojas:["Hojas","--s1"],raices:["Raíces","--s2"],legum:["Leguminosas","--s3"],frutos:["Frutos","--s4"],hierbas:["Hierbas","--s5"],quelites:["Quelites y milpa","--s6"]};
+const CAT = {hojas:["Hojas","--s1"],raices:["Raíces","--s2"],legum:["Leguminosas","--s3"],frutos:["Frutos","--s4"],hierbas:["Hierbas","--s5"],quelites:["Quelites","--s6"]};
 const CROPCAT = {kale:"hojas",acelga:"hojas",mostaza:"hojas",col:"hojas",lechuga:"hojas",arugula:"hojas",poro:"raices",zanahoria:"raices",betabel:"raices",rabano:"raices",ajo:"raices",papa:"raices",haba:"legum",chicharo:"legum",ejote:"legum",calabacita:"frutos",jitomate:"frutos",pepino:"frutos",chile:"frutos",cilantro:"hierbas",eneldo:"hierbas",albahaca:"hierbas",perennes:"hierbas",perejil:"hierbas",mexicanas:"hierbas",quelites:"quelites",verdolaga:"quelites",huauzontle:"quelites",milpa:"quelites"};
 const DIAS = ["Cosecha","Lunes","Martes","Miércoles","Jueves","Viernes"];
 const CAP_H = 40;
@@ -774,13 +774,13 @@ function taskRow(t, pre){
   const done = state.done[t.id], fl = state.flags[t.id];
   const help = fl !== undefined;
   const ed = state.flagEdit === t.id;
-  return `<div class="task${done ? " done" : ""}${help ? " help" : ""}"><input type="checkbox" id="${pre}-${t.id}" data-id="${t.id}" ${done ? "checked" : ""}><label for="${pre}-${t.id}"><span class="k ${t.k}">${KLAB[t.k]}</span>${esc(t.t)}${help ? `<span class="fnote">⚠️ ${fl ? esc(fl) : "Necesita ayuda"}</span>` : ""}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}<button class="flag" data-flag="${t.id}" aria-label="Necesito ayuda con esta tarea" title="Necesito ayuda">⚠️</button></div>
-  ${ed ? `<div class="flagform"><input type="text" id="fnota" maxlength="200" placeholder="¿Qué pasa? (opcional)" value="${esc(fl || "")}"><button class="btn primary" data-fsend="${t.id}">Avisar</button>${help ? `<button class="btn" data-fclear="${t.id}">Quitar aviso</button>` : ""}<button class="btn" data-fcancel="1">Cancelar</button></div>` : ""}`;
+  return `<div class="task${done ? " done" : ""}${help ? " help" : ""}"><input type="checkbox" id="${pre}-${t.id}" data-id="${t.id}" ${done ? "checked" : ""}><label for="${pre}-${t.id}"><span class="k ${t.k}">${KLAB[t.k]}</span>${esc(t.t)}${help ? `<span class="fnote">💬 ${fl ? esc(fl) : "Necesita ayuda"}</span>` : ""}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}<button class="flag" data-flag="${t.id}" aria-label="Nota o ayuda con esta tarea" title="Nota o ayuda">💬</button></div>
+  ${ed ? `<div class="flagform"><input type="text" id="fnota" maxlength="200" placeholder="Nota o qué ayuda necesitas" value="${esc(fl || "")}"><button class="btn primary" data-fsend="${t.id}">Enviar</button>${help ? `<button class="btn" data-fclear="${t.id}">Quitar aviso</button>` : ""}<button class="btn" data-fcancel="1">Cancelar</button></div>` : ""}`;
 }
 function avisosPanel(){
   const A = state.avisos;
   if (!A.length) return "";
-  return `<section class="panel avisos" aria-label="Tareas que necesitan ayuda"><h3 style="margin-bottom:2px">⚠️ Necesita ayuda (${A.length})</h3>
+  return `<section class="panel avisos" aria-label="Notas de Adrián"><h3 style="margin-bottom:2px">💬 Notas de Adrián (${A.length})</h3>
     ${A.map(a => `<div class="aviso"><div style="min-width:0"><div class="small muted">Semana ${a.w + 1}</div><div>${esc(a.txt || a.id)}</div>${a.nota ? `<div style="color:var(--warn);font-weight:600">“${esc(a.nota)}”</div>` : ""}</div><button class="btn" data-resolve="${a.w}|${esc(a.id)}">Resuelto</button></div>`).join("")}
     <p class="small muted" style="margin:6px 0 0">“Resuelto” quita el aviso; la tarea vuelve a quedar pendiente.</p></section>`;
 }
@@ -799,7 +799,7 @@ async function setFlag(id, nota){
   state.avisos = [{w, id, nota, txt}, ...state.avisos.filter(a => !(a.w === w && a.id === id))];
   render();
   if (!state.db) { toast("No se puede guardar en esta vista."); return; }
-  try { await state.db.doc(`hechas/w${w}-${id}`).set({w, id, estado: "ayuda", nota, txt, at: Date.now()}); toast("Aviso enviado"); }
+  try { await state.db.doc(`hechas/w${w}-${id}`).set({w, id, estado: "ayuda", nota, txt, at: Date.now()}); toast("Nota enviada"); }
   catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar el aviso."); }
 }
 async function clearFlag(w, id){
