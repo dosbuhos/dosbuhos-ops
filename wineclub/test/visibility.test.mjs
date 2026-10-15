@@ -50,3 +50,14 @@ test('member directory exposes enrollment and searchable contact context',async(
   const html=await membersPage({env:{},user:{},ctx,members:[{id:7,name:'Valeria',email:'v@example.com',phone:'5551234'}]}).text();
   assert.match(html,/Alta registrada/);assert.match(html,/6 ago 2026/i);assert.match(html,/5551234/);
 });
+
+test('benefit history does not infer the server from the recorder on old records',async()=>{
+  const ctx=fixture();
+  const html=await memberPage({env:{},user:{email:'recorder@example.com'},ctx,member:{id:7,name:'Valeria'},
+    benefits:[{id:1,club_id:5,active:1,name:'Kit',unit:'kit',period:'once',quantity:1}],
+    uses:[{id:1,benefit_id:1,qty:1,used_on:'2026-08-18',created_by:'old@example.com',created_at:'2026-08-18 12:00:00'}],url:new URL('http://localhost/socio/7?beneficio=1')}).text();
+  assert.match(html,/Sin registrar en el historial anterior/);
+  assert.match(html,/Registrado por: old@example.com/);
+  assert.match(html,/2026-08-18 12:00:00 UTC/);
+  assert.match(html,/id="beneficios" open/);
+});

@@ -206,6 +206,21 @@ try {
     if (done) assert.equal((await post(`/envio/${subA}/${done.k}/posponer`,{version:String(done.version),delayed_until:'2027-03-01',delay_reason:'Viaje'})).status,400);
   });
 
+  await check('benefit use distinguishes the staff who served from the authenticated recorder', async () => {
+    const member = q(`SELECT member_id FROM subscriptions WHERE id=${subA}`)[0].member_id;
+    const benefit = q('SELECT id FROM club_benefits WHERE active=1 LIMIT 1')[0].id;
+    const r = await post(`/socio/${member}/beneficio`,{benefit_id:String(benefit),qty:'1',used_on:'2026-10-14',handled_by:'Ángel',created_by:'forged@example.com',note:'Kit de prueba'});
+    assert.equal(r.status,303);
+    assert.match(r.headers.get('location'),/beneficio=1#beneficios/);
+    const u=q(`SELECT * FROM benefit_uses WHERE member_id=${member} ORDER BY id DESC LIMIT 1`)[0];
+    assert.equal(u.handled_by,'Ángel'); assert.equal(u.created_by,'staff@example.com'); assert.ok(u.created_at);
+    const html=await get(`/socio/${member}?beneficio=1`);
+    assert.match(html,/Atendido \/ entregado por: <b>Ángel/);
+    assert.match(html,/Registrado por: staff@example.com/);
+    const audit=q(`SELECT after_json FROM audit_log WHERE entity='member' AND entity_id='${member}' AND action LIKE 'beneficio:%' ORDER BY id DESC LIMIT 1`)[0];
+    assert.equal(JSON.parse(audit.after_json).handled_by,'Ángel');
+  });
+
   await check('bulk calculated deliveries are disabled', async () => {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);

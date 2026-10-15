@@ -322,9 +322,14 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
         <label>Beneficio</label><select name="benefit_id">${mine.map(b => `<option value="${b.id}">${esc(b.name)} (${esc(b.unit)})</option>`).join('')}</select>
         <div class="grid2"><div><label>Cantidad</label><input type="number" name="qty" value="1" min="0.01" step="any" required></div>
         <div><label>Fecha</label><input type="date" name="used_on" value="${today}" required></div></div>
+        <label for="benefit-handler">Atendido / entregado por</label><input id="benefit-handler" name="handled_by" value="${esc(user.email)}" maxlength="120" required>
+        <p class="small muted">Si otra persona entregó el kit o atendió la visita, escribe su nombre. Registrado por: ${esc(user.email)} (se guarda automáticamente).</p>
         <label>Nota</label><input name="note" placeholder="Visita con 3 invitados"><button class="btn sm" style="margin-top:10px">Registrar</button></form></details>` : ''}
-      ${uses.length ? `<details class="more"><summary>Usos registrados (${uses.length})</summary>${uses.map(u => `<div class="small" style="padding:6px 0;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center">
-        <span style="flex:1">${esc(u.used_on)} · ${esc(benefits.find(b => b.id === u.benefit_id)?.name || '')} · ${fmtQty(u.qty)}${u.note ? ' · ' + esc(u.note) : ''} <span class="muted">(${esc(u.created_by || '')})</span></span>
+      ${uses.length ? `<details class="more" open><summary>Usos registrados (${uses.length})</summary>${uses.map(u => `<div class="small" style="padding:10px 0;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center">
+        <div style="flex:1;min-width:0;overflow-wrap:anywhere"><b>${esc(exactDate(u.used_on))} · ${esc(benefits.find(b => b.id === u.benefit_id)?.name || '')} · ${fmtQty(u.qty)}</b>
+        <div>Atendido / entregado por: <b>${esc(u.handled_by || 'Sin registrar en el historial anterior')}</b></div>
+        <div class="muted">Registrado por: ${esc(u.created_by || 'Sin registrar')}${u.created_at ? ' · ' + esc(u.created_at) + ' UTC' : ''}</div>
+        ${u.note ? `<div>${esc(u.note)}</div>` : ''}</div>
         ${user.isManager ? `<form method="post" action="/beneficio-uso/${u.id}/borrar"><button class="btn sm quiet" style="min-height:36px">Quitar</button></form>` : ''}</div>`).join('')}</details>` : ''}`;
   }
 
@@ -350,7 +355,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
     ${member.stripe_customer_id ? '' : `<label>Teléfono</label><input name="phone" value="${esc(member.phone || '')}">`}
     <label>Nota para el equipo</label><textarea name="staff_note" rows="3">${esc(member.staff_note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar</button></form></details></details>
-  <details class="more card"><summary>Beneficios y usos registrados</summary>${benefitsHtml}</details>`;
+  <details class="more card" id="beneficios" ${url?.searchParams.has('beneficio') ? 'open' : ''}><summary>Beneficios y usos registrados</summary>${benefitsHtml}</details>`;
   return page({ title: member.name, body, user, env, tab: 'socios' });
 }
 const fmtQty = (n) => Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 });

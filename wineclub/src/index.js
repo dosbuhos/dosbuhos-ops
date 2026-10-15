@@ -292,10 +292,10 @@ async function handle(request, env) {
       const b = await env.DB.prepare('SELECT * FROM club_benefits WHERE id=?').bind(Number(fm.benefit_id)).first();
       const qty = Number(fm.qty), on = dateOrNull(fm.used_on);
       if (!b || !(qty > 0) || !on) return redirect(`/socio/${id}`);
-      const u = await env.DB.prepare('INSERT INTO benefit_uses (member_id, benefit_id, qty, used_on, note, created_by) VALUES (?,?,?,?,?,?) RETURNING *')
-        .bind(id, b.id, qty, on, str(fm.note, 300), user.email).first();
+      const u = await env.DB.prepare('INSERT INTO benefit_uses (member_id, benefit_id, qty, used_on, note, created_by, handled_by) VALUES (?,?,?,?,?,?,?) RETURNING *')
+        .bind(id, b.id, qty, on, str(fm.note, 300), user.email, str(fm.handled_by, 120) || user.email).first();
       await audit(env, user.email, `beneficio: ${b.name}`, 'member', id, null, u);
-      return redirect(`/socio/${id}`);
+      return redirect(`/socio/${id}?beneficio=1#beneficios`);
     }
   }
   if (m === 'POST' && (r = R(/^\/beneficio-uso\/(\d+)\/borrar$/))) {
