@@ -1,7 +1,7 @@
 import { esc, fdate, rel, chip, page, bottleList, stateLabel, STATE, STATUS_LABEL, money, cadenceLabel, MESES } from './ui.js';
 import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles, daysBetween } from './schedule.js';
 import { allOccurrences, subOccurrences, subClub, subFlags, isIgnored } from './data.js';
-import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge, holdTerm } from './visibility.js';
+import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge, holdTerm,inboxReason } from './visibility.js';
 import {billingIssues,billingIssue,billingWarning} from './billing.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -99,7 +99,7 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
   ${okBanner(okAudit, today)}
   ${billingIssues(ctx).length?`<div class="banner red"><span><b>⚠ ${new Set(billingIssues(ctx).map(x=>x.sub.member_id)).size} socios con alertas de cobro</b><br>${esc([...new Set(billingIssues(ctx).map(x=>x.sub.member_name))].join(', '))}</span><a href="/alertas">Revisar cobros →</a></div>`:''}
   <div class="tiles">
-    <a class="tile ${recordedOpen ? 'red' : ''}" href="/envios?f=registrados"><div class="v">${recordedOpen}</div><div class="l">Pendientes registrados</div></a>
+    <a class="tile ${occ.some(o=>inboxReason(o,today)) ? 'red' : ''}" href="/envios?f=inbox"><div class="v">${occ.filter(o=>inboxReason(o,today)).length}</div><div class="l">Inbox · por organizar</div></a>
     <a class="tile ${nA - registered || incomplete ? 'wine' : ''}" href="/revision#sin-registro"><div class="v">${nA - registered}${incomplete ? '+' : ''}</div><div class="l">Por comprobar${incomplete ? ' · incompleto' : ''}</div></a>
     <a class="tile" href="#proximos"><div class="v">${nextSeven}</div><div class="l">Próximos 7 días</div></a>
   </div>
@@ -506,9 +506,10 @@ const METHOD_ES = { signup: 'se lo llevó al inscribirse', pickup: 'recogió en 
 export const attribution = (f, today) => f && f.status ? [STATUS_LABEL[f.status], f.done_on ? fdate(f.done_on, today, { weekday: false }) : null,
   f.method ? METHOD_ES[f.method] : null, f.handled_by || f.updated_by ? 'por ' + (f.handled_by || f.updated_by) : null].filter(Boolean).join(' · ') : '';
 
-const FILTERS = [['todos', 'Todos'], ['atrasados', 'Fechas vencidas'], ['pendientes', 'Pendientes'], ['registrados', 'Pendientes registrados'], ['programados', 'Programados'], ['prep', 'En preparación'], ['listos', 'Listos'],
-  ['resguardo', 'En resguardo'], ['enviados', 'Enviados'], ['entregados', 'Entregados'], ['excepciones', 'Excepciones']];
+const FILTERS = [['inbox','Inbox'],['prep', 'En preparación'], ['listos', 'Listos'],['resguardo', 'En resguardo'], ['programados', 'Programados'],
+  ['enviados', 'Enviados'], ['entregados', 'Entregados'], ['excepciones', 'Excepciones'],['todos', 'Todos']];
 const FILTER_FN = {
+  inbox:(o,today)=>!!inboxReason(o,today),
   todos: () => true,
   atrasados: o => o.state === 'overdue' || o.state === 'exception',
   pendientes: o => ['today', 'upcoming', 'overdue', 'exception', 'held'].includes(o.state),
@@ -523,13 +524,16 @@ const FILTER_FN = {
 // ---------- searchable shipment list ----------
 export function shipmentsPage({ env, user, ctx, url }) {
   const today = ctx.today;
-  const filter = FILTER_FN[url.searchParams.get('f')] ? url.searchParams.get('f') : 'prep';
+  const requested=({pendientes:'inbox',registrados:'prep'})[url.searchParams.get('f')]||url.searchParams.get('f');
+  const filter = FILTER_FN[requested] ? requested : 'inbox';
   const { occ } = allOccurrences(ctx, addDays(today, 120));
-  const list = occ.filter(o => o.state !== 'pretracking' || o.status).filter(FILTER_FN[filter]);
+  const list = occ.filter(o => o.state !== 'pretracking' || o.status).filter(o=>FILTER_FN[filter](o,today));
   const open = (o) => ['overdue', 'exception', 'today', 'upcoming', 'held'].includes(o.state);
   list.sort((a, b) => open(a) !== open(b) ? (open(a) ? -1 : 1) : open(a) ? a.eff.localeCompare(b.eff) : (b.f?.done_on || b.due).localeCompare(a.f?.done_on || a.due));
   const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const body = `<h1>Envíos <span class="muted small">${list.length}</span></h1>
+  ${url.searchParams.has('clasificado')?'<div class="banner green">Envío organizado. Lo encontrarás en su nueva cola de trabajo.</div>':''}
+  ${filter==='inbox'?'<p class="small muted">Por organizar: cajas sin asignar con fecha vencida, de hoy o de los próximos 7 días. Al pasarlas a preparación o resguardo salen del Inbox. Las excepciones y resguardos con fecha cumplida vuelven para su atención.</p>':''}
   <div class="search"><input id="q" type="search" placeholder="Buscar socio, club, pedido o guía" aria-label="Buscar envíos" autocomplete="off"></div>
   <div class="chips" style="margin-bottom:8px">${FILTERS.map(([k, l]) => `<a class="chip ${k === filter ? 'wine' : ''}" ${k===filter?'aria-current="page"':''} style="text-decoration:none;padding:7px 12px" href="/envios?f=${k}">${l}</a>`).join('')}</div>
   <p id="search-results" class="small muted" aria-live="polite">${list.length} envíos en este filtro</p>
@@ -539,9 +543,11 @@ export function shipmentsPage({ env, user, ctx, url }) {
     const back=`/envios?f=${filter}&abrir=${encodeURIComponent(key)}#${id}`;
     return `<details class="card shipment-work ${o.state}" id="${id}" data-s="${esc(norm([s.member_name,o.club.name,f.order_ref,f.tracking,s.member_email,s.member_phone,address,o.due,exactDate(o.due)].join(' ')))}" ${url.searchParams.get('abrir')===key?'open':''}>
       <summary><span class="work-heading"><b>${esc(s.member_name)}</b><span class="small muted">${esc(o.club.name)} · Envío #${o.n}</span><span class="small">${o.state==='done'?'Entregado / enviado':'Previsto'}: <b>${esc(exactDate(o.state==='done'?f.done_on||o.due:o.eff))}</b></span>${f.order_ref?`<span class="small muted">OV: ${esc(f.order_ref)}</span>`:''}</span>
-      <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f)}${billingIssue(ctx,s)?chip('⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
+      <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f)}${billingIssue(ctx,s)?chip(f.paid_on?'⚠ Alerta de cobro del socio':'⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
       <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
       <div class="chips">${chip(prefLabel(s.delivery_pref),'wine')}</div>
+      ${open(o)?`<div class="work-triage"><h3>Organizar este envío</h3>${o.status!=='needs_prep'?`<form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="back" value="/envios?f=${filter}&amp;clasificado=1"><button class="btn quiet" name="status" value="needs_prep">Pasar a preparación</button></form>`:''}
+      <details class="more"><summary>${o.state==='held'?'Cambiar resguardo':'Guardar en bodega / resguardo'}</summary><form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="back" value="/envios?f=${filter}&amp;clasificado=1"><input type="hidden" name="status" value="held"><label for="reason-${id}">Motivo del resguardo</label><input id="reason-${id}" name="hold_reason" value="${esc(f.hold_reason||'Resguardo solicitado por el socio')}" maxlength="300" required><label for="until-${id}">Retener hasta (opcional)</label><input id="until-${id}" type="date" name="hold_until" value="${esc(f.hold_until||'')}"><p class="small muted">Vacío = indefinido. Una fecha cumplida vuelve al Inbox para coordinar la salida.</p><button class="btn quiet">Guardar en resguardo</button></form></details></div>`:''}
       ${o.state==='held'?`<p class="small"><b>${esc(holdTerm(o))}.</b> ${esc(f.hold_reason||'Resguardo solicitado por el socio')}</p>`:''}
       ${o.delayed?`<p class="small">Fecha original: ${esc(exactDate(o.due))}${f.delay_reason?' · '+esc(f.delay_reason):''}</p>`:''}
       <div class="work-info"><section><h3>Botellas ${o.state === 'held' ? 'en resguardo' : open(o)?'a preparar':'del envío'} · ${o.bottlesTotal} de ${o.expectedBottles}</h3>
@@ -559,7 +565,7 @@ export function shipmentsPage({ env, user, ctx, url }) {
       <div class="acts"><a class="btn" href="${shipHref(o)}/entregar?como=handed">Registrar entrega en mano</a><a class="btn ghost" href="${shipHref(o)}/entregar?como=shipped">Registrar envío</a></div>`:`<p class="small">${esc(attribution(f,today))}</p>`}
       <div class="acts"><a class="btn quiet sm" href="${shipHref(o)}/comprobante">Firma / comprobante</a><a class="btn quiet sm" href="${shipHref(o)}">Abrir envío completo</a></div>
       </div></details>`;
-    }).join('') || `<div class="card empty">${filter==='prep'?'No hay envíos en preparación. <a href="/envios?f=pendientes">Ver todos los pendientes</a>.':'Ningún envío con este filtro.'}</div>`}</div>`;
+    }).join('') || `<div class="card empty">${filter==='inbox'?'Inbox al día. No hay envíos por organizar.':filter==='prep'?'No hay envíos en preparación. <a href="/envios?f=inbox">Ver Inbox</a>.':'Ningún envío con este filtro.'}</div>`}</div>`;
   return page({ title: 'Envíos', body, user, env, tab: 'envios' });
 }
 

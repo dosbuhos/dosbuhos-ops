@@ -254,11 +254,11 @@ try {
     const f=q(`SELECT status,done_on,version FROM fulfillments WHERE subscription_id=${subA} AND k=8`)[0];assert.equal(f.status,null);assert.equal(f.done_on,null);assert.equal(f.version,1);
   });
 
-  await check('preparation is the default expandable shipment workspace and inline OV saves retain context', async () => {
+  await check('preparation has expandable shipment controls and inline OV saves retain context', async () => {
     const k=6,path=`/envio/${subA}/${k}`;
     let f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
     assert.equal((await post(path+'/estado',{version:String(f.version),status:'needs_prep'})).status,303);
-    const html=await get('/envios');
+    const html=await get('/envios?f=prep');
     assert.match(html,/aria-current="page"[^>]*href="\/envios\?f=prep"/);
     assert.match(html,/shipment-work/);assert.match(html,/Botellas a preparar/);assert.match(html,/Contacto y entrega/);
     assert.match(html,/valeria@example.com/);assert.match(html,/Guardar OV \/ guía/);assert.match(html,/Firma \/ comprobante/);
@@ -313,6 +313,20 @@ try {
     assert.equal(m.email,'valeria@example.com');assert.equal(m.contact_email,'delivery@example.com');assert.equal(m.contact_phone,'+19492917105');assert.equal(m.delivery_pref,'envio');
     const html=await get(`/envio/${subA}/7`);assert.match(html,/Dirección de prueba/);assert.match(html,/tel:\+19492917105/);
     assert.match(await get(`/socio/${member}`),/mailto:delivery@example.com/);
+  });
+
+  await check('Inbox is the default and clears classified work until a new action becomes due',async()=>{
+    const path=`/envio/${subA}/7`,card=`id="envio-${subA}-7"`,row=()=>q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=7`)[0];
+    let html=await get('/envios');assert.match(html,/aria-current="page"[^>]*href="\/envios\?f=inbox"/);assert.ok(html.includes(card));
+    let f=row();await post(path+'/estado',{version:String(f.version),status:'needs_prep',back:'/envios?f=inbox&clasificado=1'});
+    assert.ok(!(await get('/envios')).includes(card));assert.ok((await get('/envios?f=prep')).includes(card));
+    f=row();await post(path+'/estado',{version:String(f.version),status:'held',hold_until:''});
+    assert.ok(!(await get('/envios')).includes(card));assert.ok((await get('/envios?f=resguardo')).includes(card));
+    f=row();await post(path+'/estado',{version:String(f.version),status:'held',hold_until:'2026-10-13'});
+    assert.ok((await get('/envios')).includes(card));
+    q(`UPDATE subscriptions SET status='past_due' WHERE id=${subA}`);
+    html=await get('/envios?f=entregados');assert.match(html,/Alerta de cobro del socio/);
+    assert.ok(!(await get('/envios')).includes(`id="envio-${subA}-1"`),'an old completed paid box is not a new Inbox task');
   });
 
   await check('bulk calculated deliveries are disabled', async () => {

@@ -1,5 +1,5 @@
 import { esc, fdate, chip, stateLabel, STATE, STATUS_LABEL } from './ui.js';
-import { daysBetween } from './schedule.js';
+import { daysBetween,addDays } from './schedule.js';
 import { isIgnored, subClub } from './data.js';
 
 export const exactDate = (date) => date ? fdate(date, null, { weekday: false }) : 'Sin fecha';
@@ -14,6 +14,14 @@ export function joinedDate(ctx, memberId) {
 export const recordedPending = (o) => ['needs_prep', 'ready', 'exception'].includes(o.status) || !!o.f?.delayed_until;
 export const visibleStatus = (o) => o.holdReleaseDue ? 'Resguardo · fecha cumplida' : o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
 export const holdTerm = o => o.f?.hold_until ? `Liberar a partir del ${exactDate(o.f.hold_until)}` : 'Resguardo indefinido · sin fecha de liberación';
+
+export function inboxReason(o,today) {
+  if(o.state==='held')return o.holdReleaseDue?'Fecha de resguardo cumplida':null;
+  if(o.state==='exception')return 'Excepción por resolver';
+  if(!['overdue','today','upcoming'].includes(o.state)||o.status&&o.status!=='scheduled')return null;
+  if(o.delayed&&o.eff>today)return null;
+  return o.eff<=addDays(today,7)?'Sin clasificar':null;
+}
 
 export function paymentBadge(f) {
   const paid=!!(f?.stripe_invoice_id&&f?.paid_on);
