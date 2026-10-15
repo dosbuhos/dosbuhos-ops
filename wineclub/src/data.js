@@ -1,4 +1,5 @@
 import { occurrences, localDate, dueDate } from './schedule.js';
+import {paymentBlocked} from './membership.js';
 
 export const tzOf = (env) => env.TIMEZONE || 'America/Mexico_City';
 export const todayLocal = (env) => env.APP_ENV === 'test' && env.DEV_USER && env.TEST_TODAY
@@ -76,7 +77,7 @@ export function subOccurrences(ctx, sub, to) {
     fulfillments: ctx.fulByKey.get(sub.id) || new Map(),
     pauses: ctx.pausesBySub.get(sub.id) || [],
     caseFor: (c, slot) => ctx.cases.get(`${c.id}:${slot}`) || null,
-  }).map(o => ({ ...o, state:sub.suspended_on&&!['done','skipped','pretracking'].includes(o.state)?'suspended':o.state, sub, club }));
+  }).map(o => ({ ...o, state:!['done','skipped','pretracking'].includes(o.state)?sub.suspended_on?'suspended':paymentBlocked(o.f)?'payment_blocked':o.state:o.state, sub, club }));
 }
 
 // A subscription is outside the club entirely when its Stripe product was marked "not a club product"

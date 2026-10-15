@@ -21,8 +21,14 @@ const B = 'http://127.0.0.1:8790', O = { Origin: B, connection: 'close' };
 const send = async (path, body) => { const r = await fetch(B + path, { method: 'POST', headers: { ...O, 'content-type': 'application/x-www-form-urlencoded' }, body, redirect: 'manual' }); const text = await r.text(); return { status: r.status, headers: r.headers, text }; };
 const post = (path, body) => send(path, new URLSearchParams(body));
 const get = async (path) => (await fetch(B + path, { headers: { connection: 'close' } })).text();
+async function resumeForm(member) {
+  const html=await get('/socio/'+member+'/reactivar');
+  const fm={review:html.match(/name="review" value="([^"]+)"/)[1],version:html.match(/name="version" value="([^"]+)"/)[1],billing_reviewed:'1',reason:'Pago y cajas revisados por administración'};
+  for(const m of html.matchAll(/name="(choice_\d+_\d+)"[^>]*>\s*<option value="([^"]+)"/g))fm[m[1]]=m[2];
+  return fm;
+}
 let dev, stripe, passed = 0;
-const check = async (name, fn) => { await fn(); passed++; console.log('ok -', name); };
+const check = async (name, fn) => { if(process.env.WC_TEST_FOCUS&&passed>=4&&!name.includes(process.env.WC_TEST_FOCUS))return; await fn(); passed++; console.log('ok -', name); };
 
 try {
   stripe = spawn(process.execPath, [join(dir, 'test/mock-stripe.mjs')], { stdio: 'ignore', detached: process.platform !== 'win32', windowsHide: true });
@@ -347,9 +353,11 @@ try {
     await post('/sync',{});
     assert.ok(q(`SELECT suspended_on FROM members WHERE id=${member}`)[0].suspended_on);
     assert.deepEqual(q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} ORDER BY k`),before);
-    assert.equal((await post(path,{action:'resume',reason:'Pago revisado por administración',version:String(m.membership_version+1)})).status,303);
+    assert.equal((await post(path,{action:'resume',reason:'Pago revisado por administración',version:String(m.membership_version+1)})).headers.get('location'),`/socio/${member}/reactivar`);
+    assert.equal((await post(`/socio/${member}/reactivar`,await resumeForm(member))).status,303);
     assert.equal(q(`SELECT suspended_on FROM members WHERE id=${member}`)[0].suspended_on,null);
-    assert.deepEqual(q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} ORDER BY k`),before);
+    const after=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} ORDER BY k`);
+    for(const f of before){const a=after.find(x=>x.k===f.k);for(const key of ['status','done_on','delivered_on','stripe_invoice_id','paid_on','bottles_json'])assert.equal(a[key],f[key]);}
     assert.equal(q(`SELECT COUNT(*) n FROM audit_log WHERE entity='member' AND entity_id='${member}' AND action IN ('suspender por falta de pago','reactivar membresía')`)[0].n,2);
   });
 
@@ -368,6 +376,38 @@ try {
     assert.deepEqual(concurrent.map(r=>r.status).sort(),[303,409]);
     rows=q(`SELECT * FROM benefit_uses WHERE benefit_id=${b}`);assert.equal(rows.length,2);
     assert.equal(q(`SELECT COUNT(*) n FROM audit_log WHERE action='beneficio: Beneficio de prueba móvil'`)[0].n,2);
+  });
+
+  await check('reactivation reviews paid and unpaid boxes, refuses stale plans, and preserves the original quarterly calendar',async()=>{
+    await post('/socios/nuevo',{name:'Reactivación Prueba',club_id:'1',start_date:'2026-04-14'});
+    const m=q("SELECT * FROM members WHERE name='Reactivación Prueba'")[0],sub=q(`SELECT id FROM subscriptions WHERE member_id=${m.id}`)[0].id;
+    q(`INSERT INTO fulfillments(subscription_id,k,status,done_on,stripe_invoice_id,paid_on) VALUES (${sub},1,'handed','2026-04-14','in_history','2026-04-14'),(${sub},2,NULL,NULL,'in_paid_review','2026-07-14')`);
+    await post(`/socio/${m.id}/membresia`,{action:'suspend',reason:'Revisión de pago',version:'0'});
+    const path=`/socio/${m.id}/reactivar`;
+    let fm=await resumeForm(m.id);assert.equal(fm[`choice_${sub}_2`],'keep');assert.equal(fm[`choice_${sub}_3`],'block');assert.equal(fm[`choice_${sub}_1`],undefined);
+    q(`UPDATE fulfillments SET version=version+1 WHERE subscription_id=${sub} AND k=2`);
+    assert.equal((await post(path,fm)).status,409);assert.ok(q(`SELECT suspended_on FROM members WHERE id=${m.id}`)[0].suspended_on);
+    fm=await resumeForm(m.id);
+    assert.equal((await post(path,{...fm,[`choice_${sub}_3`]:'exception'})).status,400);
+    assert.equal((await post(path,{...fm,[`choice_${sub}_2`]:'prepare'})).status,303);
+    let f=q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} AND k=2`)[0];assert.equal(f.status,'needs_prep');assert.equal(f.done_on,null);assert.equal(f.stripe_invoice_id,'in_paid_review');
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} AND k=3`)[0];assert.equal(f.payment_blocked,1);
+    assert.equal((await post(`/envio/${sub}/3/entregar`,{})).status,403);
+    assert.ok((await get('/envios?f=cobro')).includes(`id="envio-${sub}-3"`));
+    assert.ok(!(await get('/envios')).includes(`id="envio-${sub}-3"`));
+    assert.match(await get(`/socio/${m.id}`),/14 ene 2027/);
+    q(`UPDATE fulfillments SET stripe_invoice_id='in_resolved',paid_on='2026-10-14' WHERE subscription_id=${sub} AND k=3`);
+    assert.ok(!(await get('/envios?f=cobro')).includes(`id="envio-${sub}-3"`));
+    assert.ok((await get('/envios')).includes(`id="envio-${sub}-3"`));
+    q(`INSERT INTO fulfillments(subscription_id,k,status) VALUES (${sub},4,'needs_prep')`);
+    await post(`/socio/${m.id}/membresia`,{action:'suspend',reason:'Nuevo acuerdo',version:'2'});
+    fm=await resumeForm(m.id);
+    const decisions={...fm,[`choice_${sub}_2`]:'skip',[`note_${sub}_2`]:'El socio no desea esta caja',[`choice_${sub}_4`]:'exception',[`note_${sub}_4`]:'Cortesía autorizada por administración'};
+    assert.equal((await post(path,decisions)).status,303);
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} AND k=2`)[0];assert.equal(f.status,'skipped');assert.equal(f.stripe_invoice_id,'in_paid_review');assert.equal(f.done_on,null);
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${sub} AND k=4`)[0];assert.equal(f.payment_release_reason,'Cortesía autorizada por administración');assert.equal(f.paid_on,null);
+    assert.match(await get(`/envio/${sub}/4`),/Entrega autorizada como excepción/);
+    assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${sub} AND k=1`)[0].status,'handed');
   });
 
   await check('bulk calculated deliveries are disabled', async () => {

@@ -28,6 +28,7 @@ export const STATUS_LABEL = {
   delivered: 'Recibido', exception: 'Excepción', skipped: 'Omitido',
 };
 export const STATE = {
+  payment_blocked: { label: 'Bloqueado por pago pendiente', tone: 'red' },
   suspended: { label: 'Suspendido por falta de pago', tone: 'red' },
   overdue: { label: 'Atrasado', tone: 'red' },
   today: { label: 'Hoy', tone: 'wine' },

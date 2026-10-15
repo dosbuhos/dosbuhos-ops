@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { joinedDate, dateFacts, scheduleRow } from '../src/visibility.js';
 import { memberPage, reviewPage, membersPage } from '../src/pages.js';
 import { subOccurrences } from '../src/data.js';
+import {reactivationPlan} from '../src/reactivation.js';
+import {inboxReason} from '../src/visibility.js';
 
 function fixture() {
   const club={id:5,name:'Círculo Diamante',bottles:12,cadence_months:1,allocation_mode:'month'};
@@ -87,4 +89,17 @@ test('suspension preserves paid history and theoretical dates, blocks the work q
   assert.match(html,/Reactivar membresía/);assert.match(html,/No modifica los cobros/);
   s.suspended_on=null;
   assert.deepEqual(subOccurrences(ctx,s,'2026-12-31').map(o=>o.state),before.map(o=>o.state));
+});
+
+test('reviewed unpaid boxes stay blocked until payment links or an administrator records an exception',()=>{
+  const ctx=fixture(),s=ctx.subs[0];
+  const f={k:2,status:'needs_prep',payment_blocked:1};ctx.fulByKey.get(s.id).set(2,f);
+  let o=subOccurrences(ctx,s,'2026-12-31').find(o=>o.k===2);
+  assert.equal(o.state,'payment_blocked');assert.equal(inboxReason(o,ctx.today),null);
+  assert.match(scheduleRow(o),/Bloqueado por pago pendiente/);
+  assert.ok(!reactivationPlan(ctx).some(o=>o.k===1),'completed boxes are not changed by reactivation');
+  f.stripe_invoice_id='in_resolved';f.paid_on=ctx.today;
+  o=subOccurrences(ctx,s,'2026-12-31').find(o=>o.k===2);assert.equal(o.state,'overdue');assert.equal(o.due,'2026-09-15');
+  f.stripe_invoice_id=null;f.paid_on=null;f.payment_release_reason='Cortesía aprobada';
+  assert.equal(subOccurrences(ctx,s,'2026-12-31').find(o=>o.k===2).state,'overdue');
 });

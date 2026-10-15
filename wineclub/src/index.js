@@ -10,6 +10,7 @@ import { handleAuth, loginPage } from './google.js';
 import { buildPlan, migrationPage, runImport } from './legacy.js';
 import {receiptPage,receiptSubmit} from './receipt.js';
 import {billingPage} from './billing.js';
+import {reactivationPage,reactivate} from './reactivation.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -118,6 +119,7 @@ async function handle(request, env) {
     if (!sh.club) return notFound(env, user, 'Esta suscripción no tiene club asignado, así que no tiene envíos calculados.');
     if (!sh.o) return notFound(env, user, 'Este envío no corresponde: la suscripción terminó antes de esa fecha.');
     const action = r[3];
+    if(sh.o.state==='payment_blocked'&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Envío bloqueado por pago',status:403,html:`<p>Este envío sigue bloqueado por pago pendiente. Verifica el pago en Stripe antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver socio</a>`});
     if(sh.sub.suspended_on&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Membresía suspendida',status:403,html:`<h1>Suspendido por falta de pago</h1><p>Preparación y entregas bloqueadas. Un administrador debe revisar el pago y reactivar la membresía.</p><p><a href="/socio/${sh.sub.member_id}#membresia">Ver membresía</a></p>`});
     if(action==='comprobante') {
       if(m==='GET')return receiptPage({env,user,sh,kind:url.searchParams.get('tipo')});
@@ -278,10 +280,15 @@ async function handle(request, env) {
     await audit(env, user.email, 'socio manual', 'member', mem.id, null, { name, club_id: clubId, start_date: start, subscription_id: sub.id });
     return redirect(`/socio/${mem.id}`);
   }
-  if ((r = R(/^\/socio\/(\d+)(?:\/(datos|beneficio|membresia))?$/))) {
+  if ((r = R(/^\/socio\/(\d+)(?:\/(datos|beneficio|membresia|reactivar))?$/))) {
     const id = Number(r[1]);
     const member = await env.DB.prepare('SELECT * FROM members WHERE id=?').bind(id).first();
     if (!member) return notFound(env, user);
+    if(r[2]==='reactivar') {
+      if(!user.isManager)return forbidden(env,user);
+      if(m==='POST')return reactivate(env,user,member,await form(request));
+      if(m==='GET')return member.suspended_on?reactivationPage({env,user,member,ctx:await loadContext(env,{memberId:id})}):redirect(`/socio/${id}`);
+    }
     if (m === 'GET' && !r[2]) {
       const ctx = await loadContext(env, { memberId: id });
       const benefits = (await env.DB.prepare('SELECT * FROM club_benefits ORDER BY club_id, sort, id').all()).results;
@@ -291,6 +298,7 @@ async function handle(request, env) {
     if (m === 'POST' && r[2] === 'membresia') {
       if(!user.isManager)return forbidden(env,user);
       const fm=await form(request),reason=str(fm.reason,500),version=Number(fm.version);
+      if(fm.action==='resume')return redirect(`/socio/${id}/reactivar`);
       if(!reason||!['suspend','resume'].includes(fm.action))return new Response('Indica el motivo de este cambio.',{status:400});
       if(version!==member.membership_version||!!member.suspended_on!==(fm.action==='resume'))return new Response('La membresía cambió. Recarga la ficha antes de guardar.',{status:409});
       const after={suspended_on:fm.action==='suspend'?todayLocal(env):null,suspension_reason:fm.action==='suspend'?reason:null,suspension_by:fm.action==='suspend'?user.email:null};

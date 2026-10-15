@@ -1,4 +1,10 @@
 import {esc,fdate} from './ui.js';
+export const paymentBlocked=f=>!!f?.payment_blocked&&!(f.stripe_invoice_id&&f.paid_on)&&!f.payment_release_reason;
+export function paymentReviewWarning(f) {
+  if(paymentBlocked(f))return '<div class="banner red">Envío bloqueado hasta verificar el pago. Un pago asociado de Stripe levanta este bloqueo. Un administrador puede revisar una excepción desde la reactivación.</div>';
+  if(f?.payment_release_reason)return `<div class="banner amber">Entrega autorizada como excepción administrativa: ${esc(f.payment_release_reason)}. Esta autorización no registra un pago.</div>`;
+  return '';
+}
 
 export function suspensionWarning(s) {
   if(!s?.suspended_on)return '';
@@ -11,7 +17,7 @@ export function membershipControls(member,user) {
   return `<details class="more card" id="membresia"><summary><span>Estado de membresía · ${suspended?'Suspendido':'Activo en el club'}<small>Administrar membresía</small></span><span class="membership-arrow" aria-hidden="true">▾</span></summary>
   <p>Suspender bloquea preparación, entregas y beneficios. Reactivar conserva las fechas originales; revisa las cajas pendientes antes de entregarlas.</p>
   <p class="small">Esta acción no cambia Stripe ni detiene sus reintentos de cobro. Revisa la suscripción y las facturas en Stripe por separado.</p>
-  <form method="post" action="/socio/${member.id}/membresia"><input type="hidden" name="version" value="${member.membership_version||0}"><input type="hidden" name="action" value="${suspended?'resume':'suspend'}">
+  ${suspended?`<a class="btn" href="/socio/${member.id}/reactivar">Reactivar membresía · revisar envíos →</a>`:`<form method="post" action="/socio/${member.id}/membresia"><input type="hidden" name="version" value="${member.membership_version||0}"><input type="hidden" name="action" value="suspend">
   <label for="membership-reason">${suspended?'Motivo de reactivación':'Motivo de suspensión por falta de pago'}</label><textarea id="membership-reason" name="reason" required maxlength="500"></textarea>
-  <button class="btn" style="margin-top:12px">${suspended?'Reactivar membresía':'Suspender por falta de pago'}</button></form></details>`;
+  <button class="btn" style="margin-top:12px">Suspender por falta de pago</button></form>`}</details>`;
 }
