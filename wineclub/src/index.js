@@ -240,6 +240,7 @@ async function handle(request, env) {
   }
 
   if (m === 'GET' && p === '/envios') return P.shipmentsPage({ env, user, ctx: await loadContext(env), url });
+  if (m === 'GET' && p === '/revision') return P.reviewPage({ env, user, ctx: await loadContext(env) });
 
   // ---------- members ----------
   if (m === 'GET' && p === '/socios') {

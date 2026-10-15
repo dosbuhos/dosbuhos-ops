@@ -25,19 +25,20 @@ export async function clubForSub(env, sub) {
 }
 
 const SUB_SQL = `SELECT s.*, m.name AS member_name, m.email AS member_email, m.phone AS member_phone, m.delivery_pref,
-  m.delivery_address, m.stripe_address, p.club_id AS product_club_id, p.name AS product_name, p.relevance AS product_relevance, p.suggested_club_id AS product_suggested_club_id
+  m.delivery_address, m.stripe_address, m.legacy_id AS member_legacy_id, p.club_id AS product_club_id, p.name AS product_name, p.relevance AS product_relevance, p.suggested_club_id AS product_suggested_club_id
   FROM subscriptions s JOIN members m ON m.id=s.member_id LEFT JOIN stripe_products p ON p.product_id=s.stripe_product_id`;
 
 // Everything needed to compute every member's schedule. ~6 small queries; fine for a club this size.
 export async function loadContext(env, { memberId = null } = {}) {
   const subQ = memberId ? env.DB.prepare(SUB_SQL + ' WHERE s.member_id=?').bind(memberId) : env.DB.prepare(SUB_SQL);
   const fulQ = memberId ? env.DB.prepare('SELECT f.* FROM fulfillments f JOIN subscriptions s ON s.id=f.subscription_id WHERE s.member_id=?').bind(memberId) : env.DB.prepare('SELECT * FROM fulfillments');
-  const [clubs, cases, subs, fuls, pauses, settings] = (await env.DB.batch([
+  const [clubs, cases, subs, fuls, pauses, settings, legacyMembers] = (await env.DB.batch([
     env.DB.prepare('SELECT * FROM clubs ORDER BY sort, id'),
     env.DB.prepare('SELECT * FROM club_cases'),
     subQ, fulQ,
     env.DB.prepare('SELECT * FROM pauses ORDER BY from_date'),
     env.DB.prepare('SELECT * FROM settings'),
+    env.DB.prepare('SELECT legacy_id, name, next_shipment_number, extracted_at FROM legacy_members'),
   ])).map(r => r.results);
   const ctx = {
     clubs: new Map(clubs.map(c => [c.id, c])),
@@ -47,6 +48,7 @@ export async function loadContext(env, { memberId = null } = {}) {
     pausesBySub: new Map(),
     settings: Object.fromEntries(settings.map(s => [s.key, s.value])),
     today: todayLocal(env),
+    legacyMembers: new Map(legacyMembers.map(m=>[m.legacy_id,m])),
   };
   for (const c of cases) { try { ctx.cases.set(`${c.club_id}:${c.slot}`, JSON.parse(c.bottles_json)); } catch { /* skip bad row */ } }
   for (const f of fuls) {

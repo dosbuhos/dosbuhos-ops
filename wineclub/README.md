@@ -4,7 +4,10 @@ Mobile staff app at https://wineclub.dos-buhos.workers.dev. Stripe identifies su
 
 ## Staff workflow
 
-- Agenda: overdue first, then today and future dates. Unresolved mappings explicitly make counts incomplete.
+- Agenda: recorded pending work and calculated dates needing verification are counted separately. A passed theoretical date without a delivery record is not proof of a missed physical delivery. Unresolved mappings explicitly make counts incomplete.
+- Socios: first known club-subscription start date is visible in the directory and profile. Adjusting a shipment anchor never changes that enrollment date. Billing frequency and shipment frequency have separate labels.
+- Member calendars compare theoretical dates, rescheduled dates, and actual fulfillment dates chronologically, with years shown. Contact and benefits panels are expandable so schedule information stays prominent.
+- `/revision`: compare each passed theoretical date with the last recorded fulfillment and the legacy member counter, with direct links back to source history.
 - Envíos: search by member, club, email, PO, or tracking; filter pending, prepared, ready, dispatched, delivered, or exceptions.
 - Open a shipment to define/substitute packing contents, then choose handover or dispatch. Review packing, record the actual date, and optionally include PO, tracking, notes, and a photo. Status, details, audit, and photo save together. Stale submissions are rejected.
 - Reopen a mistaken fulfillment with a reason. Its original packing snapshot remains available. Calculated dates are never bulk-converted into deliveries.
@@ -33,3 +36,5 @@ For a local preview use a separate configuration with no Google/Access settings,
 ## Known business decisions
 
 Missing wine recipes remain visibly unresolved; do not invent selections or copy a different club's box without approval. Keep Stripe prices and cancellation/payment states intact when they conflict with legacy records. Repeated or nonstandard PO references are preserved for staff review.
+
+Shipment dates remain anchored to the first expected shipment plus the club cadence. Actual late fulfillment does not automatically restart the cycle. If the business instead intends three months after the last actual delivery, confirm that policy before changing schedules. The comparison screen exposes that discrepancy without fabricating history.

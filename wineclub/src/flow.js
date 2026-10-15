@@ -5,6 +5,7 @@
 import { esc, fdate, rel, chip, page, money, cadenceLabel, STATUS_LABEL } from './ui.js';
 import { loadContext, subClub, audit, todayLocal, isIgnored, STAFF_FIELDS, writeFulfillment } from './data.js';
 import { totalBottles, isDate, addDays, dueDate, occurrences } from './schedule.js';
+import { dateFacts, exactDate } from './visibility.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -32,6 +33,8 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {} }
   <div class="card">
     <div style="font-size:19px;font-weight:700">${esc(s.member_name)}</div>
     <div class="muted">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')}</div>
+    <p class="small muted">Alta: ${esc(exactDate(s.start_date))}</p>
+    ${dateFacts(o)}
     <div class="small" style="margin-top:6px"><b>${esc(fdate(o.eff, today))}</b> · ${esc(rel(o.eff, today))}${o.delayed ? ` · pospuesto (original ${esc(fdate(o.due, today))})` : ''}</div>
     <div class="chips">${chip(s.delivery_pref === 'envio' ? 'Envío a domicilio' : 'Recoge en bodega', s.delivery_pref === 'envio' ? 'wine' : 'grey')}</div>
     ${addr ? `<p class="small" style="margin:6px 0 0">${esc(addr)}</p>` : ''}${s.member_phone ? `<p class="small" style="margin:4px 0 0"><a href="tel:${esc(s.member_phone)}">${esc(s.member_phone)}</a></p>` : ''}

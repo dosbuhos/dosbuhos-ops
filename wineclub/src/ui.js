@@ -125,6 +125,20 @@ details.more{margin:12px 0}details.more>summary{cursor:pointer;font-weight:700;c
 .empty{text-align:center;color:var(--muted);padding:28px 10px}
 .photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.photos img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .search{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:10;background:var(--bg);padding:6px 0}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.enrollment{border-top:4px solid var(--wine)}.enrollment-date{font:700 27px Georgia,serif;color:var(--wine);margin:6px 0}
+.top .brand{white-space:nowrap;flex-shrink:0}.top .who{min-width:0}.top .env{font-size:9px;flex-shrink:0}.ship.overdue.unverified{border-left-color:var(--amber)}
+.enrollment p{margin:6px 0 10px}.jump-links{display:flex;gap:8px;flex-wrap:wrap}.jump-links a{display:flex;align-items:center;min-height:44px;padding:8px 12px;background:var(--wine-soft);border-radius:10px;font-size:13px;font-weight:700;text-decoration:none}
+.date-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.date-facts>div{min-width:0}.date-facts dt{font-size:12px;color:var(--muted)}.date-facts dd{margin:3px 0 0;font-weight:750;font-size:16px}
+.schedule-list{border:1px solid var(--line);border-radius:12px;overflow:hidden}.schedule-row{display:block;color:var(--ink);text-decoration:none;padding:14px;border-left:4px solid var(--line);border-top:1px solid var(--line)}
+.schedule-row:first-child{border-top:0}.schedule-row.overdue,.schedule-row.exception{border-left-color:var(--amber)}.schedule-row.done{border-left-color:var(--green)}
+.schedule-top{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}.schedule-top .chip{white-space:normal}
+.expected{margin:10px 0 5px;display:flex;gap:6px 12px;justify-content:space-between;flex-wrap:wrap}.expected span{font-size:12px;color:var(--muted)}.expected strong{font-size:16px}.schedule-row p{margin:4px 0}.actual{font-weight:650}.actual.complete{color:var(--green)}.rescheduled,.allocation-gap{color:var(--amber)}
+.date-context{margin:4px 0}.calendar-link{display:inline-flex;align-items:center;min-height:36px;font-weight:650}.joined{margin-top:6px;color:var(--ink)}.member-row .t{white-space:normal!important}.member-row{align-items:flex-start!important}.member-row .chip{white-space:normal}
+.chips .chip{max-width:100%;white-space:normal}
+.como input[type=radio]{display:inline-block!important;width:20px;height:20px;min-height:0;margin-right:8px;flex:none}
+:focus-visible{outline:3px solid #b88235;outline-offset:3px}summary{touch-action:manipulation}
+@media(max-width:360px){.date-facts{grid-template-columns:1fr}.member-row{flex-wrap:wrap}.top .brand{font-size:17px}}
 pre.code{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12px;overflow:auto;white-space:pre-wrap}
 `;
 
@@ -142,7 +156,7 @@ const b=e.submitter;if(b){setTimeout(()=>{b.disabled=true;b.dataset.t=b.textCont
 window.addEventListener('pageshow',e=>{if(e.persisted){document.querySelectorAll('form[data-busy]').forEach(f=>delete f.dataset.busy);
 document.querySelectorAll('button[disabled][data-t]').forEach(b=>{b.disabled=false;b.textContent=b.dataset.t})}});
 const q=document.getElementById('q');if(q){q.addEventListener('input',()=>{const v=q.value.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
-document.querySelectorAll('[data-s]').forEach(r=>{r.style.display=r.dataset.s.includes(v)?'':'none'})})}
+document.querySelectorAll('[data-s]').forEach(r=>{r.style.display=r.dataset.s.includes(v)?'':'none'});document.querySelectorAll('details[data-search-group]').forEach(d=>{d.open=!!v});const count=document.getElementById('search-results');if(count){const n=[...document.querySelectorAll('[data-s]')].filter(r=>r.style.display!=='none').length;count.textContent=n?n+' resultados':'Sin resultados. Prueba otro nombre, pedido, guía o fecha.'}})}
 const ph=document.getElementById('photo');if(ph){ph.addEventListener('change',async()=>{const file=ph.files[0];if(!file)return;
 const st=document.getElementById('photo-st');st.textContent='Subiendo…';
 try{const img=await createImageBitmap(file);const s=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement('canvas');
