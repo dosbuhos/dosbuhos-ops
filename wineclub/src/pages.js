@@ -330,7 +330,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   const body = `<p><a href="/socios">← Socios</a></p><h1>${esc(member.name)}</h1>
   <div class="card enrollment"><div class="eyebrow">Primera alta del club registrada</div><div class="enrollment-date">${joined ? esc(exactDate(joined)) : 'Por confirmar'}</div>
   <p class="small muted">Según el inicio de las suscripciones del club${subs.some(s=>s.stripe_subscription_id) ? ' en Stripe' : ''}. Es independiente de los ajustes del primer envío.</p>
-  <div class="jump-links"><a href="#calendario">Ver calendario</a><a href="#contacto">Contacto y entrega</a></div></div>
+  <div class="jump-links"><a href="#calendario">Ver calendario</a><a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto y entrega</a></div></div>
   ${member.staff_note ? `<div class="banner amber">${esc(member.staff_note)}</div>` : ''}
   <h2 id="calendario">Alta y calendario de envíos</h2>${subCards || '<div class="card empty">Sin suscripciones.</div>'}
   <details class="more card" id="contacto"><summary>Contacto y forma de entrega</summary><dl class="kv">
