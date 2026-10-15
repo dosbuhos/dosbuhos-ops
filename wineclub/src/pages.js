@@ -511,7 +511,7 @@ const FILTER_FN = {
 // ---------- searchable shipment list ----------
 export function shipmentsPage({ env, user, ctx, url }) {
   const today = ctx.today;
-  const filter = FILTER_FN[url.searchParams.get('f')] ? url.searchParams.get('f') : 'pendientes';
+  const filter = FILTER_FN[url.searchParams.get('f')] ? url.searchParams.get('f') : 'prep';
   const { occ } = allOccurrences(ctx, addDays(today, 120));
   const list = occ.filter(o => o.state !== 'pretracking' || o.status).filter(FILTER_FN[filter]);
   const open = (o) => ['overdue', 'exception', 'today', 'upcoming'].includes(o.state);
@@ -519,14 +519,34 @@ export function shipmentsPage({ env, user, ctx, url }) {
   const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const body = `<h1>Envíos <span class="muted small">${list.length}</span></h1>
   <div class="search"><input id="q" type="search" placeholder="Buscar socio, club, pedido o guía" aria-label="Buscar envíos" autocomplete="off"></div>
-  <div class="chips" style="margin-bottom:8px">${FILTERS.map(([k, l]) => `<a class="chip ${k === filter ? 'wine' : ''}" style="text-decoration:none;padding:7px 12px" href="/envios?f=${k}">${l}</a>`).join('')}</div>
+  <div class="chips" style="margin-bottom:8px">${FILTERS.map(([k, l]) => `<a class="chip ${k === filter ? 'wine' : ''}" ${k===filter?'aria-current="page"':''} style="text-decoration:none;padding:7px 12px" href="/envios?f=${k}">${l}</a>`).join('')}</div>
   <p id="search-results" class="small muted" aria-live="polite">${list.length} envíos en este filtro</p>
-  <div class="rows tl">${list.map(o => `<a class="row ${o.state}" href="${shipHref(o)}" data-s="${esc(norm([o.sub.member_name, o.club.name, o.f?.order_ref, o.f?.tracking, o.sub.member_email, o.sub.member_phone, o.due, exactDate(o.due)].join(' ')))}">
-    <span class="d"><span class="small muted">${o.state === 'done' && o.f?.done_on ? 'Real' : 'Previsto'}</span><br>${esc(exactDate(o.state === 'done' ? o.f?.done_on || o.due : o.due))}</span>
-    <div class="main"><div class="t">${esc(o.sub.member_name)}</div><div class="s">${esc(o.club.name)} · #${o.n}</div>
-    <div class="s">Alta: ${esc(exactDate(o.sub.start_date))}</div>
-    ${o.state === 'done' ? `<div class="s">Previsto: ${esc(exactDate(o.due))}<br>${esc(attribution(o.f, today))}</div>` : o.delayed ? `<div class="s">Reprogramado: ${esc(exactDate(o.eff))}</div>` : ''}${o.f?.order_ref ? `<div class="s">Pedido: ${esc(o.f.order_ref)}</div>` : ''}</div>
-    ${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : STATE[o.state].tone)}</a>`).join('') || '<div class="empty">Ningún envío con este filtro.</div>'}</div>`;
+  <div class="shipment-work-list">${list.map(o => {
+    const s=o.sub,f=o.f||{},key=`${o.subId}:${o.k}`,id=`envio-${o.subId}-${o.k}`;
+    const address=s.delivery_address||s.stripe_address;
+    const back=`/envios?f=${filter}&abrir=${encodeURIComponent(key)}#${id}`;
+    return `<details class="card shipment-work ${o.state}" id="${id}" data-s="${esc(norm([s.member_name,o.club.name,f.order_ref,f.tracking,s.member_email,s.member_phone,address,o.due,exactDate(o.due)].join(' ')))}" ${url.searchParams.get('abrir')===key?'open':''}>
+      <summary><span class="work-heading"><b>${esc(s.member_name)}</b><span class="small muted">${esc(o.club.name)} · Envío #${o.n}</span><span class="small">${o.state==='done'?'Entregado / enviado':'Previsto'}: <b>${esc(exactDate(o.state==='done'?f.done_on||o.due:o.eff))}</b></span>${f.order_ref?`<span class="small muted">OV: ${esc(f.order_ref)}</span>`:''}</span>
+      <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
+      <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
+      <div class="chips">${chip(f.stripe_invoice_id&&f.paid_on?'Pagado · '+exactDate(f.paid_on):'Sin pago Stripe asociado',f.stripe_invoice_id&&f.paid_on?'green':'grey')}${chip(prefLabel(s.delivery_pref),'wine')}</div>
+      ${o.delayed?`<p class="small">Fecha original: ${esc(exactDate(o.due))}${f.delay_reason?' · '+esc(f.delay_reason):''}</p>`:''}
+      <div class="work-info"><section><h3>Botellas ${open(o)?'a preparar':'del envío'} · ${o.bottlesTotal} de ${o.expectedBottles}</h3>
+      ${o.bottles?bottleList(o.bottles):`<div class="warn">Falta definir las botellas. <a href="${shipHref(o)}#botellas">Definir caja</a></div>`}
+      ${o.bottles&&o.bottlesTotal!==o.expectedBottles?'<p class="small allocation-gap">La cantidad no coincide con el club. Revisa la caja antes de entregar.</p>':''}</section>
+      <section><h3>Contacto y entrega</h3><p class="small"><b>${esc(prefLabel(s.delivery_pref))}</b></p><p class="small">${address?esc(address):s.delivery_pref==='envio'?'<b>Falta la dirección de entrega.</b>':'Sin dirección registrada.'}</p>
+      <p class="small">${s.member_phone?`<a href="tel:${esc(s.member_phone)}">${esc(s.member_phone)}</a>`:'Sin teléfono registrado'}</p>
+      <p class="small" style="overflow-wrap:anywhere">${s.member_email?`<a href="mailto:${esc(s.member_email)}">${esc(s.member_email)}</a>`:'Sin correo registrado'}</p>
+      <a class="small" href="/socio/${s.member_id}#contacto">Ver socio / editar contacto</a></section></div>
+      ${f.note?`<p class="small"><b>Nota:</b> ${esc(f.note)}</p>`:''}
+      ${open(o)?`<form method="post" action="${shipHref(o)}/ref" class="work-order"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="back" value="${esc(back)}">
+      <h3>Orden de venta y guía</h3><div class="grid2"><div><label for="ov-${id}">OV / pedido Zoho</label><input id="ov-${id}" name="order_ref" value="${esc(f.order_ref||'')}" placeholder="OV-02072" maxlength="60"></div>
+      <div><label for="tracking-${id}">Guía (opcional)</label><input id="tracking-${id}" name="tracking" value="${esc(f.tracking||'')}" maxlength="80"></div></div><button class="btn quiet sm" style="margin-top:10px">Guardar OV / guía</button></form>
+      <p class="small muted">Guarda la OV antes de registrar la entrega. La siguiente pantalla permite revisar la caja y confirmar.</p>
+      <div class="acts"><a class="btn" href="${shipHref(o)}/entregar?como=handed">Registrar entrega en mano</a><a class="btn ghost" href="${shipHref(o)}/entregar?como=shipped">Registrar envío</a></div>`:`<p class="small">${esc(attribution(f,today))}</p>`}
+      <div class="acts"><a class="btn quiet sm" href="${shipHref(o)}/comprobante">Firma / comprobante</a><a class="btn quiet sm" href="${shipHref(o)}">Abrir envío completo</a></div>
+      </div></details>`;
+    }).join('') || `<div class="card empty">${filter==='prep'?'No hay envíos en preparación. <a href="/envios?f=pendientes">Ver todos los pendientes</a>.':'Ningún envío con este filtro.'}</div>`}</div>`;
   return page({ title: 'Envíos', body, user, env, tab: 'envios' });
 }
 

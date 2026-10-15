@@ -254,6 +254,23 @@ try {
     const f=q(`SELECT status,done_on,version FROM fulfillments WHERE subscription_id=${subA} AND k=8`)[0];assert.equal(f.status,null);assert.equal(f.done_on,null);assert.equal(f.version,1);
   });
 
+  await check('preparation is the default expandable shipment workspace and inline OV saves retain context', async () => {
+    const k=6,path=`/envio/${subA}/${k}`;
+    let f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
+    assert.equal((await post(path+'/estado',{version:String(f.version),status:'needs_prep'})).status,303);
+    const html=await get('/envios');
+    assert.match(html,/aria-current="page"[^>]*href="\/envios\?f=prep"/);
+    assert.match(html,/shipment-work/);assert.match(html,/Botellas a preparar/);assert.match(html,/Contacto y entrega/);
+    assert.match(html,/valeria@example.com/);assert.match(html,/Guardar OV \/ guía/);assert.match(html,/Firma \/ comprobante/);
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
+    const back=`/envios?f=prep&abrir=${subA}%3A${k}#envio-${subA}-${k}`;
+    const r=await post(path+'/ref',{version:String(f.version),order_ref:'OV-PACK',tracking:'PACK-1',back});
+    assert.equal(r.status,303);assert.equal(r.headers.get('location'),back);
+    const opened=await get(`/envios?f=prep&abrir=${subA}%3A${k}`);
+    assert.match(opened,/OV-PACK/);assert.match(opened,/ open>/);
+    assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0].status,'needs_prep');
+  });
+
   await check('bulk calculated deliveries are disabled', async () => {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);
