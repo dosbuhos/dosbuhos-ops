@@ -231,7 +231,7 @@ export function membersPage({ env, user, ctx, members, url }) {
     const r = bySubMember.get(m);
     if(o.state==='held')r.held=(r.held||0)+1;
     if (o.state === 'overdue' || o.state === 'exception') r.overdue++;
-    if (['today', 'upcoming'].includes(o.state) && (!r.next || o.eff < r.next)) r.next = o.eff;
+    if ((['today', 'upcoming'].includes(o.state)||o.state==='payment_contact'&&o.eff>=today) && (!r.next || o.eff < r.next)) r.next = o.eff;
   }
   const subsBy = new Map();
   for (const s of ctx.subs) { if (!subsBy.has(s.member_id)) subsBy.set(s.member_id, []); subsBy.get(s.member_id).push(s); }
