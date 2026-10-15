@@ -103,11 +103,11 @@ function weekTasks(plan, w) {
   const d0 = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1;
   BASE_TASKS.forEach((b, k) => T.push({id: "base" + k, d: Math.max(d0, b.d), t: b.t, min: b.min, k: "base"}));
   (typeof EXTRA_TASKS !== "undefined" ? EXTRA_TASKS : []).filter(x => wk(x.w) === w).forEach((x, k) => T.push({id: "x" + w + "-" + k, d: x.d || 1, t: x.t, min: x.min, k: x.k || "prep", bed: x.bed}));
-  if (traysActive(plan, w).length || plan.P.some(p => p.tray && p.ts === w)) for (let d = d0; d <= 5; d++) T.push({id: "sem-riego" + d, d, t: "Semillero: revisar y regar las charolas (en la mañana; tapar si hay riesgo de helada)", min: 15, k: "base"});
+  if (traysActive(plan, w).length || plan.P.some(p => p.tray && p.ts === w)) for (let d = d0; d <= 5; d++) T.push({id: "sem-riego" + d, d, t: "Revisar y regar las charolas del semillero (en la mañana; tapar si hay riesgo de helada)", min: 15, k: "base"});
   for (const p of plan.P) {
     const k = p.area / 5;
-    if (p.tray && w === p.ts) T.push({id: `ch${p.i}`, d: 1, t: `Semillero: ${p.c.n.toLowerCase()} para ${where(p)}: llenar ${p.cells} cavidades${p.cells < (typeof TRAY_CELLS !== "undefined" ? TRAY_CELLS : 72) ? ` de una charola (el resto de la charola sirve para otro cultivo)` : ` (${p.trays} charolas)`}, 2 semillas en cada cavidad (≈ ${p.cells * 2} semillas). Al nacer, dejar la más fuerte. Trasplante ${fmt(wkDate(p.s))}`, min: 15 + 20 * p.trays, k: "semillero", bed: p.bed});
-    if (p.tray && w === p.s - 1) T.push({id: `en${p.i}`, d: 1, t: `Semillero: endurecer plántulas de ${p.c.n.toLowerCase()} para ${p.bed}: sacarlas al sol y viento toda la semana y regar menos`, min: 10, k: "semillero", bed: p.bed});
+    if (p.tray && w === p.ts) T.push({id: `ch${p.i}`, d: 1, b: p.c.n, t: `Sembrar ${p.cells * 2} semillas en charola, 2 por cavidad · Destino: ${where(p)} · Trasplante ≈ ${fmt(wkDate(p.s))} · ${p.c.u === "flores" ? "Flores" : "Cosecha"} ≈ ${fmt(wkDate(p.h0))}`, min: 15 + 20 * p.trays, k: "semillero", bed: p.bed});
+    if (p.tray && w === p.s - 1) T.push({id: `en${p.i}`, d: 1, b: p.c.n, t: `Endurecer: sacar la charola al sol y al viento toda la semana y regar menos · Destino: ${where(p)} · Trasplante ≈ ${fmt(wkDate(p.s))} · ${p.c.u === "flores" ? "Flores" : "Cosecha"} ≈ ${fmt(wkDate(p.h0))}`, min: 10, k: "semillero", bed: p.bed});
     if (p.prepW !== null && w === p.prepW) {
       const prev = p.prev;
       const txt = prev
@@ -119,10 +119,10 @@ function weekTasks(plan, w) {
       const verbo = p.tray ? "Trasplantar del semillero" : p.c.met === "propia" ? "Trasplantar" : p.c.met === "bulbo" ? "Plantar" : p.c.met === "división" ? "Replantar (dividir matas)" : "Sembrar directo";
       const mm = p.tray || p.c.met === "división" || p.c.met === "propia" ? 45 : p.c.met === "bulbo" ? 45 : 25;
       const how = p.direct ? `semilla directa, ${p.c.rows} hileras sobre goteo; ralear a ${Math.round(p.c.esp * 100)} cm` : p.c.dist;
-      T.push({id: `s${p.i}`, d: 2, t: `${verbo} ${p.c.n.toLowerCase()} en ${where(p)}: ${how}`, min: mm * k, k: "siembra", bed: p.bed});
+      T.push({id: `s${p.i}`, d: 2, b: p.c.n, t: `${verbo} en ${where(p)}: ${how}${p.c.nokg ? "" : ` · ${p.c.u === "flores" ? "Flores" : "Cosecha"} ≈ ${fmt(wkDate(p.h0))}`}`, min: mm * k, k: "siembra", bed: p.bed});
     }
-    if (!p.ex && (p.c.ralear || p.direct) && w === p.s + 3) T.push({id: `r${p.i}`, d: 3, t: `Ralear ${p.c.n.toLowerCase()} en ${where(p)}`, min: 30 * k, k: "cuidado", bed: p.bed});
-    if (!p.ex && p.c.tutor && w === p.s + 3) T.push({id: `t${p.i}`, d: 3, t: `Poner tutor o malla a ${p.c.n.toLowerCase()} en ${where(p)}`, min: 60 * p.frac, k: "cuidado", bed: p.bed});
+    if (!p.ex && (p.c.ralear || p.direct) && w === p.s + 3) T.push({id: `r${p.i}`, d: 3, b: p.c.n, t: `Ralear en ${where(p)}`, min: 30 * k, k: "cuidado", bed: p.bed});
+    if (!p.ex && p.c.tutor && w === p.s + 3) T.push({id: `t${p.i}`, d: 3, b: p.c.n, t: `Poner tutor o malla en ${where(p)}`, min: 60 * p.frac, k: "cuidado", bed: p.bed});
     if (p.c.semilla && w === p.end) T.push({id: `sm${p.i}`, d: 3, t: `Cosechar la semilla en ${where(p)}, secarla a la sombra y guardarla en frasco con etiqueta`, min: 45, k: "cuidado", bed: p.bed});
     if (!p.c.nokg && w >= p.h0 && w <= p.end) {
       T.push({id: `h${p.i}`, d: 0, t: `Cosechar ${p.c.n.toLowerCase()} en ${where(p)}`, min: Math.max(10, p.c.cos * p.scale), k: "cosecha", bed: p.bed, crop: p.crop, qty: p.c.kg * p.scale, u: p.c.u});

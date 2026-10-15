@@ -182,7 +182,7 @@ const EXTRA_TASKS = [
   {w:"2026-10-12", d:3, t:"Reunión de arranque con Eric: revisar el plan, el mapa y cómo mandar fotos y kilos por WhatsApp", min:60, k:"prep"},
   {w:"2026-10-12", d:3, t:"Poner una estaca con su número en cada cama (A1 a A24 y B1 a B10)", min:90, k:"prep"},
   {w:"2026-10-12", d:3, t:"Sacar con cepellón la cebolla de A2, A3 y A5 (se trasplanta a A9 y A16 esta semana; lo que sobre va a A15 la próxima)", min:60, k:"prep"},
-  {w:"2026-10-12", d:3, t:"Semillero: llenar charolas de 200 con sustrato húmedo (2 de fibra de coco o peat moss + 1 de composta cernida + 1 de perlita)", min:45, k:"semillero"},
+  {w:"2026-10-12", d:3, t:"Llenar charolas con sustrato húmedo (2 de fibra de coco o peat moss + 1 de composta cernida + 1 de perlita)", min:45, k:"semillero"},
   {w:"2026-10-12", d:5, t:"Sacar el betabel de A15 y el ajenjo de A4; mandar el betabel a cocina", min:60, k:"prep"},
   {w:"2026-10-19", d:1, t:"Revisar que llegaron todas las semillas y guardarlas en lugar fresco y seco, con etiqueta", min:30, k:"semillero"},
   {w:"2026-10-19", d:1, t:"Antes de limpiar A1, A3, A7, A13, A17 y A18: cosechar para cocina todo lo que sirva (zanahoria, jitomate cherry, albahaca) y pesarlo. A1 se limpia completa esta semana aunque se siembra hasta el 16 nov: cubrirla con paja", min:150, k:"prep"},
