@@ -24,7 +24,7 @@ export async function clubForSub(env, sub) {
 }
 
 const SUB_SQL = `SELECT s.*, m.name AS member_name, m.email AS member_email, m.phone AS member_phone, m.delivery_pref,
-  m.delivery_address, m.stripe_address, p.club_id AS product_club_id, p.name AS product_name
+  m.delivery_address, m.stripe_address, p.club_id AS product_club_id, p.name AS product_name, p.relevance AS product_relevance, p.suggested_club_id AS product_suggested_club_id
   FROM subscriptions s JOIN members m ON m.id=s.member_id LEFT JOIN stripe_products p ON p.product_id=s.stripe_product_id`;
 
 // Everything needed to compute every member's schedule. ~6 small queries; fine for a club this size.
@@ -76,10 +76,14 @@ export function subOccurrences(ctx, sub, to) {
   }).map(o => ({ ...o, sub, club }));
 }
 
+// A subscription is outside the club entirely when its Stripe product was marked "not a club product"
+// (and no manager override puts it in a club), or its first payment never completed.
+export const isIgnored = (s) => s.status === 'incomplete_expired' || (s.product_relevance === 'ignore' && !s.club_id_override);
+
 export function allOccurrences(ctx, to) {
   const occ = [], unmapped = [];
   for (const s of ctx.subs) {
-    if (s.status === 'incomplete_expired') continue;
+    if (isIgnored(s)) continue;
     const list = subOccurrences(ctx, s, to);
     if (!list) { unmapped.push(s); continue; }
     occ.push(...list);
@@ -105,7 +109,7 @@ export function subFlags(ctx, sub) {
 }
 
 // ---------- fulfillment writes ----------
-export const STAFF_FIELDS = ['status', 'delayed_until', 'delay_reason', 'bottles_json', 'bottles_custom', 'order_ref', 'carrier', 'tracking', 'done_on', 'delivered_on', 'note'];
+export const STAFF_FIELDS = ['status', 'delayed_until', 'delay_reason', 'bottles_json', 'bottles_custom', 'order_ref', 'carrier', 'tracking', 'done_on', 'delivered_on', 'note', 'override_reason', 'early', 'method', 'handled_by', 'requested_on'];
 
 export async function getSub(env, subId) {
   return env.DB.prepare(SUB_SQL + ' WHERE s.id=?').bind(subId).first();
@@ -119,7 +123,7 @@ export async function writeFulfillment(env, who, sub, club, k, fields, action) {
   const cols = Object.keys(fields);
   let after;
   if (before) {
-    after = await env.DB.prepare(`UPDATE fulfillments SET ${cols.map(c => `${c}=?`).join(',')}, updated_by=?, updated_at=datetime('now') WHERE id=? RETURNING *`)
+    after = await env.DB.prepare(`UPDATE fulfillments SET ${cols.map(c => `${c}=?`).join(',')}, version=version+1, updated_by=?, updated_at=datetime('now') WHERE id=? RETURNING *`)
       .bind(...cols.map(c => fields[c]), who, before.id).first();
   } else {
     const expected = dueDate(sub.anchor_override || sub.start_date, club.cadence_months, k);
@@ -134,10 +138,10 @@ export async function writeFulfillment(env, who, sub, club, k, fields, action) {
 export async function undoFulfillment(env, who, auditRow) {
   const [subId, k] = String(auditRow.entity_id).split(':').map(Number);
   const before = auditRow.before_json ? JSON.parse(auditRow.before_json) : null;
-  const restore = Object.fromEntries(STAFF_FIELDS.map(c => [c, before ? before[c] : (c === 'bottles_custom' ? 0 : null)]));
+  const restore = Object.fromEntries(STAFF_FIELDS.map(c => [c, before ? (before[c] ?? (c === 'bottles_custom' || c === 'early' ? 0 : null)) : (c === 'bottles_custom' || c === 'early' ? 0 : null)]));
   const cur = await env.DB.prepare('SELECT * FROM fulfillments WHERE subscription_id=? AND k=?').bind(subId, k).first();
   if (!cur) return;
-  await env.DB.prepare(`UPDATE fulfillments SET ${STAFF_FIELDS.map(c => `${c}=?`).join(',')}, updated_by=?, updated_at=datetime('now') WHERE id=?`)
+  await env.DB.prepare(`UPDATE fulfillments SET ${STAFF_FIELDS.map(c => `${c}=?`).join(',')}, version=version+1, updated_by=?, updated_at=datetime('now') WHERE id=?`)
     .bind(...STAFF_FIELDS.map(c => restore[c]), who, cur.id).run();
   await audit(env, who, 'deshacer', 'fulfillment', auditRow.entity_id, Object.fromEntries(STAFF_FIELDS.map(c => [c, cur[c]])), restore, `Deshace el cambio #${auditRow.id}`);
 }

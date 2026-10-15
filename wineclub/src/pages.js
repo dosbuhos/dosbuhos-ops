@@ -1,5 +1,5 @@
 import { esc, fdate, rel, chip, page, bottleList, stateLabel, STATE, STATUS_LABEL, money, cadenceLabel, MESES } from './ui.js';
-import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles } from './schedule.js';
+import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles, daysBetween } from './schedule.js';
 import { allOccurrences, subOccurrences, subClub, subFlags } from './data.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -11,7 +11,7 @@ const isManagerNote = (user) => user.isManager ? '' : '<p class="small muted">So
 export function shipCard(o, today, back) {
   const s = o.sub;
   const st = STATE[o.state];
-  const open = ['overdue', 'today', 'upcoming', 'exception'].includes(o.state);
+  const actionable = ['overdue', 'today', 'exception'].includes(o.state); // future shipments: no fulfill button on the card
   const chips = [];
   if (o.state === 'upcoming' && ['needs_prep', 'ready'].includes(o.status)) chips.push(chip(STATUS_LABEL[o.status], 'amber'));
   if (o.delayed) chips.push(chip(`Pospuesto · original ${fdate(o.due, today, { weekday: false })}`, 'amber'));
@@ -20,16 +20,20 @@ export function shipCard(o, today, back) {
   if (o.bottles && o.bottlesTotal !== o.expectedBottles) chips.push(chip(`${o.bottlesTotal} de ${o.expectedBottles} botellas`, 'amber'));
   chips.push(chip(prefLabel(s.delivery_pref), s.delivery_pref === 'envio' ? 'wine' : 'grey'));
   const bottles = o.bottles
-    ? `<details class="bottles"><summary>Ver botellas (${o.bottlesTotal})</summary>${bottleList(o.bottles)}</details>`
-    : (o.missingAllocation ? `<div class="warn">Falta definir qué botellas lleva · <a href="${shipHref(o)}">resolver</a></div>` : '');
-  const primary = s.delivery_pref === 'envio' ? ['shipped', 'Marcar enviado'] : ['handed', 'Entregado en mano'];
-  const secondary = s.delivery_pref === 'envio' ? ['handed', 'Entregado en mano'] : ['shipped', 'Marcar enviado'];
-  const acts = open ? `<form method="post" action="${shipHref(o)}/estado" class="acts">
-    <input type="hidden" name="back" value="${esc(back)}">
-    <button class="btn" name="status" value="${primary[0]}">${primary[1]}</button>
-    <button class="btn ghost" name="status" value="${secondary[0]}">${secondary[1]}</button></form>` : '';
+    ? `<details class="bottles" ${actionable ? 'open' : ''}><summary>${actionable ? 'Empacar esta caja' : 'Ver botellas'} (${o.bottlesTotal})</summary>${bottleList(o.bottles)}</details>`
+    : (o.missingAllocation ? `<div class="warn">Falta definir qué botellas lleva · <a href="${shipHref(o)}#botellas">resolver</a></div>` : '');
+  const como = s.delivery_pref === 'envio' ? ['shipped', 'Marcar enviado'] : ['handed', 'Entregado en mano'];
+  const f = o.f || {};
+  const ref = actionable ? `<details class="more" style="margin:8px 0 0"><summary class="small">${f.order_ref || f.tracking ? `Pedido ${esc(f.order_ref || '')}${f.tracking ? ' · guía ' + esc(f.tracking) : ''}` : 'Agregar pedido Zoho / guía'}</summary>
+    <form method="post" action="${shipHref(o)}/ref" class="grid2"><input type="hidden" name="back" value="${esc(back)}"><input type="hidden" name="version" value="${f.version || 0}">
+    <input name="order_ref" value="${esc(f.order_ref || '')}" placeholder="Pedido Zoho (OV-…)"><input name="tracking" value="${esc(f.tracking || '')}" placeholder="Guía (opcional)">
+    <button class="btn sm quiet">Guardar</button></form></details>` : '';
+  const acts = actionable
+    ? `${ref}<div class="acts one"><a class="btn" href="${shipHref(o)}/entregar?como=${como[0]}">${como[1]}</a></div>`
+    : (o.state === 'upcoming' ? `<div class="acts one"><a class="btn quiet sm" href="${shipHref(o)}">Ver envío</a></div>` : '');
+  const late = o.state === 'overdue' ? plural(daysBetween(o.eff, today), 'día de atraso', 'días de atraso') : rel(o.eff, today);
   return `<article class="card ship ${o.state}" id="e${o.subId}-${o.k}">
-  <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(rel(o.eff, today))}</span>${chip(stateLabel(o), st.tone)}</div>
+  <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(late)}</span>${chip(stateLabel(o), st.tone)}</div>
   <a class="who" href="${shipHref(o)}"><span class="name">${esc(s.member_name)}</span>
   <span class="meta">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')}</span></a>
   <div class="chips">${chips.join('')}</div>${bottles}${acts}</article>`;
@@ -42,59 +46,71 @@ function okBanner(okAudit, today) {
   const [subId, k] = okAudit.entity_id.split(':');
   return `<div class="banner green"><span>✓ ${esc(okAudit.member_name || '')} · Envío #${esc(okAudit.n || k)}: ${esc(label)}</span>
   <form method="post" action="/deshacer/${okAudit.id}"><button class="btn ghost">Deshacer</button></form>
-  <a href="/envio/${esc(subId)}/${esc(k)}">Agregar pedido, guía o foto</a></div>`;
+  <a href="/envio/${esc(subId)}/${esc(k)}">Ver envío</a></div>`;
 }
+
+const RANGES = [[14, '2 semanas'], [30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año']];
 
 // ---------- agenda ----------
 export function agendaPage({ env, user, ctx, url, okAudit }) {
   const today = ctx.today;
-  const horizon = Math.min(400, Math.max(14, Number(url.searchParams.get('dias')) || 45));
-  const { occ, unmapped } = allOccurrences(ctx, addDays(today, horizon));
+  const horizon = Math.min(365, Math.max(7, Number(url.searchParams.get('dias')) || 30));
+  const { occ, unmapped } = allOccurrences(ctx, addDays(today, 400));
   const sortEff = (a, b) => a.eff.localeCompare(b.eff) || a.sub.member_name.localeCompare(b.sub.member_name);
   const endWeek = addDays(today, 6 - weekdayMon0(today));
   const endNext = addDays(endWeek, 7);
   const attention = occ.filter(o => o.state === 'overdue' || o.state === 'exception').sort(sortEff);
   const todays = occ.filter(o => o.state === 'today').sort(sortEff);
-  const upcoming = occ.filter(o => o.state === 'upcoming').sort(sortEff);
-  const thisWeek = upcoming.filter(o => o.eff <= endWeek);
-  const nextWeek = upcoming.filter(o => o.eff > endWeek && o.eff <= endNext);
-  const later = upcoming.filter(o => o.eff > endNext);
+  const upcomingAll = occ.filter(o => o.state === 'upcoming').sort(sortEff);
+  const thisWeek = upcomingAll.filter(o => o.eff <= endWeek);
+  const nextWeek = upcomingAll.filter(o => o.eff > endWeek && o.eff <= endNext);
+  // Beyond next week: everything inside the chosen range, and never fewer than the next 8 shipments.
+  const beyond = upcomingAll.filter(o => o.eff > endNext);
+  const later = beyond.filter((o, i) => o.eff <= addDays(today, horizon) || i < 8);
   const recent = occ.filter(o => o.state === 'done' && (o.f?.done_on || '') >= addDays(today, -7)).sort((a, b) => (b.f.done_on || '').localeCompare(a.f.done_on || ''));
   const back = url.pathname + (url.searchParams.get('dias') ? `?dias=${horizon}` : '');
   const cards = (list) => list.map(o => shipCard(o, today, back)).join('');
+  const blocked = unmapped; // includes ended subscriptions: they may still owe shipments from before they ended
+  const incomplete = blocked.length > 0;
 
   const banners = [];
-  if (unmapped.length) banners.push(`<div class="banner red"><span>${plural(unmapped.length, 'suscripción', 'suscripciones')} de Stripe sin club: no se pueden calcular sus envíos
-    (${unmapped.slice(0, 4).map(s => esc(s.member_name)).join(', ')}${unmapped.length > 4 ? '…' : ''}).</span>
-    ${user.isManager ? '<a href="/clubes#stripe">Asignar club</a>' : '<span class="small">Avisa a un administrador.</span>'}</div>`);
   const sync = ctx.settings.last_sync ? JSON.parse(ctx.settings.last_sync) : null;
   if (user.isManager && sync && !sync.ok) banners.push(`<div class="banner amber"><span>Stripe no se sincronizó: ${esc(sync.error)}</span><a href="/ajustes">Revisar</a></div>`);
-  if (!ctx.subs.length) banners.push(`<div class="card empty">Todavía no hay socios.<br>${user.isManager ? (env.STRIPE_SECRET_KEY ? '<a href="/ajustes">Sincroniza con Stripe</a> o agrega uno a mano en <a href="/socios">Socios</a>.' : 'Conecta Stripe en <a href="/ajustes">Ajustes</a> o agrega uno a mano en <a href="/socios">Socios</a>.') : 'Un administrador debe conectar Stripe.'}</div>`);
+  if (!ctx.subs.length) banners.push(`<div class="card empty">Todavía no hay socios.<br>${user.isManager ? 'Sincroniza Stripe en <a href="/ajustes">Ajustes</a>.' : 'Un administrador debe conectar Stripe.'}</div>`);
 
   const byMonth = new Map();
   for (const o of later) { const key = o.eff.slice(0, 7); if (!byMonth.has(key)) byMonth.set(key, []); byMonth.get(key).push(o); }
-  const nAttention = attention.length;
+  const nA = attention.length;
+  const gapNote = incomplete ? ` <span class="small" style="text-transform:none;letter-spacing:0">· incompleto: faltan ${plural(blocked.length, 'socio', 'socios')} sin calendario</span>` : '';
+  const empty = (what) => `<p class="muted small">${what}${incomplete ? ` entre los socios con calendario. <b style="color:var(--red)">${plural(blocked.length, 'socio está bloqueado', 'socios están bloqueados')}</b> y podrían tener envíos pendientes.` : '.'}</p>`;
   const body = `
   ${okBanner(okAudit, today)}
   <div class="tiles">
-    <a class="tile ${nAttention ? 'red' : ''}" href="#atrasados"><div class="v">${nAttention}</div><div class="l">${nAttention === 1 ? 'Atrasado' : 'Atrasados'}</div></a>
+    <a class="tile ${nA || incomplete ? 'red' : ''}" href="#atrasados"><div class="v">${nA}${incomplete ? '+' : ''}</div><div class="l">${nA === 1 ? 'Atrasado' : 'Atrasados'}${incomplete ? ' · incompleto' : ''}</div></a>
     <a class="tile ${todays.length ? 'wine' : ''}" href="#hoy"><div class="v">${todays.length}</div><div class="l">Hoy</div></a>
     <a class="tile" href="#semana"><div class="v">${thisWeek.length}</div><div class="l">Esta semana</div></a>
   </div>
   ${banners.join('')}
-  ${nAttention ? `<div class="sec red" id="atrasados">Requiere atención <span class="n">${nAttention}</span></div>${cards(attention)}` : ''}
+  ${incomplete ? `<div class="sec red" id="bloqueados">Calendarios bloqueados <span class="n">${blocked.length}</span></div>
+    <div class="card" style="border-left:6px solid var(--red)"><p style="margin:0 0 8px">Estas suscripciones de Stripe no tienen club confirmado, así que la app <b>no puede calcular sus envíos</b>. Sus atrasados no están incluidos arriba.</p>
+    <div class="rows" style="margin:0">${blocked.map(s => `<a class="row" href="${user.isManager ? `/conciliar#p-${esc(s.stripe_product_id || '')}` : `/socio/${s.member_id}`}"><div class="main"><div class="t">${esc(s.member_name)}</div>
+      <div class="s">${esc(s.product_name || 'sin producto')} · desde ${esc(fdate(s.anchor_override || s.start_date, today, { weekday: false }))} · ${esc(s.status)}</div></div>${chip('Resolver', 'red')}</a>`).join('')}</div>
+    ${user.isManager ? '<a class="btn" style="margin-top:10px" href="/conciliar">Conciliar Stripe</a>' : '<p class="small muted">Avisa a un administrador para que lo resuelva.</p>'}</div>` : ''}
+  <div class="sec red" id="atrasados">Atrasados <span class="n">${nA}</span>${gapNote}</div>
+  ${nA ? cards(attention) : empty('Sin envíos atrasados')}
   <div class="sec wine" id="hoy">Hoy · ${esc(fdate(today, today))} <span class="n">${todays.length || ''}</span></div>
-  ${todays.length ? cards(todays) : '<p class="muted small">Nada para hoy.</p>'}
+  ${todays.length ? cards(todays) : empty('Nada para hoy')}
   <div class="sec" id="semana">Esta semana <span class="n">${thisWeek.length || ''}</span></div>
-  ${thisWeek.length ? cards(thisWeek) : '<p class="muted small">Nada más esta semana.</p>'}
+  ${thisWeek.length ? cards(thisWeek) : empty('Nada más esta semana')}
   <div class="sec">Próxima semana <span class="n">${nextWeek.length || ''}</span></div>
-  ${nextWeek.length ? cards(nextWeek) : '<p class="muted small">Nada la próxima semana.</p>'}
+  ${nextWeek.length ? cards(nextWeek) : empty('Nada la próxima semana')}
   ${[...byMonth.entries()].map(([key, list]) => `<div class="sec">${MESES[Number(key.slice(5)) - 1]} ${key.slice(0, 4) !== today.slice(0, 4) ? key.slice(0, 4) : ''} <span class="n">${list.length}</span></div>${cards(list)}`).join('')}
-  <p class="center"><a class="btn quiet" href="/?dias=${horizon + 90}">Ver más adelante (${horizon + 90} días)</a></p>
+  <form method="get" action="/" class="card" style="display:flex;gap:10px;align-items:center"><label for="dias" style="margin:0;white-space:nowrap">Mostrar</label>
+    <select id="dias" name="dias" onchange="this.form.submit()">${RANGES.map(([d, l]) => `<option value="${d}" ${d === horizon ? 'selected' : ''}>${l}</option>`).join('')}</select></form>
   <p class="center small"><a href="/preguntar">Pregúntale al club (asistente)</a></p>
   ${recent.length ? `<details class="more"><summary>Hechos en los últimos 7 días (${recent.length})</summary><div class="rows">${recent.map(o => `
     <a class="row" href="${shipHref(o)}"><div class="main"><div class="t">${esc(o.sub.member_name)} · #${o.n}</div>
-    <div class="s">${esc(STATUS_LABEL[o.status])} ${esc(fdate(o.f.done_on, today))}${o.f.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div></a>`).join('')}</div></details>` : ''}`;
+    <div class="s">${esc(attribution(o.f, today))}${o.f.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div></a>`).join('')}</div></details>` : ''}`;
   return page({ title: 'Agenda', body, user, env, tab: 'agenda' });
 }
 
@@ -106,13 +122,19 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   const open = ['overdue', 'today', 'upcoming', 'exception'].includes(o.state);
   const act = (status, label, cls = '') => `<button class="btn ${cls}" name="status" value="${status}">${label}</button>`;
   const back = `/envio/${o.subId}/${o.k}`;
+  const early = o.eff > today;
+  const link = (como, label, cls = '') => `<a class="btn ${cls}" href="${back}/entregar?como=${como}">${label}</a>`;
   let actions;
-  if (open) actions = `<div class="acts">${s.delivery_pref === 'envio' ? act('shipped', 'Marcar enviado') + act('handed', 'Entregado en mano', 'ghost') : act('handed', 'Entregado en mano') + act('shipped', 'Marcar enviado', 'ghost')}</div>
+  if (open) actions = `${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
+    <div class="acts">${s.delivery_pref === 'envio' ? link('shipped', early ? 'Enviar antes de tiempo' : 'Marcar enviado') + link('handed', 'Entregado en mano', 'ghost') : link('handed', early ? 'Entregar antes de tiempo' : 'Entregado en mano') + link('shipped', 'Marcar enviado', 'ghost')}</div>
+    <form method="post" action="${back}/estado"><input type="hidden" name="back" value="${back}">
     <div class="acts">${o.status === 'needs_prep' ? act('scheduled', 'Quitar “en preparación”', 'quiet') : act('needs_prep', 'En preparación', 'quiet')}${o.status === 'ready' ? act('scheduled', 'Quitar “listo”', 'quiet') : act('ready', 'Listo', 'quiet')}</div>
-    <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div>`;
-  else if (o.status === 'shipped') actions = `<div class="acts">${act('delivered', 'Marcar recibido')}${act('scheduled', 'Volver a pendiente', 'quiet')}</div>`;
-  else if (o.status) actions = `<div class="acts one">${act('scheduled', 'Volver a pendiente', 'quiet')}</div>`;
-  else actions = `<p class="muted small">${o.state === 'paused' ? 'Este envío cae dentro de una pausa.' : 'Este envío es anterior al inicio del registro.'}</p><div class="acts one">${act('handed', 'Registrar como entregado', 'quiet')}</div>`;
+    <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div></form>`;
+  else if (o.status) actions = `${o.status === 'shipped' ? `<form method="post" action="${back}/estado"><input type="hidden" name="back" value="${back}"><div class="acts one">${act('delivered', 'Marcar recibido por el socio')}</div></form>` : ''}
+    <details class="more"><summary>Reabrir para corregir</summary><form method="post" action="${back}/reabrir">
+    <input type="hidden" name="version" value="${f.version || 0}"><label>Motivo (obligatorio)</label><input name="reason" required placeholder="Ej. se marcó por error">
+    <p class="small muted">Vuelve a quedar pendiente. Los datos de pedido y guía se conservan y el cambio queda en el historial.</p><button class="btn sm danger">Reabrir</button></form></details>`;
+  else actions = `<p class="muted small" style="margin-top:0">${o.state === 'paused' ? 'Este envío cae dentro de una pausa.' : 'Este envío es anterior al inicio del registro.'}</p><div class="acts one">${link('handed', 'Registrar entrega', 'quiet')}</div>`;
 
   const flags = subFlags(ctx, s).map(x => chip(x.text, x.tone)).join('');
   const addr = s.delivery_address || s.stripe_address;
@@ -132,13 +154,14 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     ${s.delivery_pref === 'envio' || addr ? `<p class="small" style="margin:8px 0 0">${addr ? esc(addr) : '<span class="muted">Sin dirección de entrega</span>'}</p>` : ''}
     ${s.member_phone ? `<p class="small" style="margin:4px 0 0"><a href="tel:${esc(s.member_phone)}">${esc(s.member_phone)}</a></p>` : ''}
   </div>
-  <h2>Botellas</h2><div class="card">${bottlesBlock}
+  <h2 id="botellas">Botellas</h2><div class="card">${bottlesBlock}
     <details class="more"><summary>Cambiar botellas de este envío</summary>
     <form method="post" action="${back}/botellas"><label for="b">Una línea por vino: cantidad y nombre</label>
     <textarea id="b" name="bottles" rows="8" placeholder="2 Tempranillo GR&#10;1 Pet Nat">${esc(bottlesToText(o.bottles))}</textarea>
-    <p class="small muted">Deja vacío para volver a la caja del club.</p><button class="btn sm">Guardar botellas</button></form></details></div>
-  <h2>Estado</h2><div class="card"><form method="post" action="${back}/estado"><input type="hidden" name="back" value="${back}">${actions}</form>
-    ${f.done_on ? `<p class="small muted">${esc(STATUS_LABEL[f.status] || 'Hecho')} el ${esc(fdate(f.done_on, today))}${f.delivered_on ? ` · recibido el ${esc(fdate(f.delivered_on, today))}` : ''}${f.updated_by ? ` · ${esc(f.updated_by)}` : ''}</p>` : ''}</div>
+    <label for="bm">Motivo del cambio (obligatorio si cambias botellas)</label><input id="bm" name="motivo" placeholder="Ej. sustitución pedida por el socio">
+    <p class="small muted">Deja la lista vacía para volver a la caja del club.</p><button class="btn sm">Guardar botellas</button></form></details></div>
+  <h2>Estado</h2><div class="card">${actions}
+    ${f.status ? `<p class="small muted">${esc(attribution(f, today))}${f.delivered_on ? ` · recibido el ${esc(fdate(f.delivered_on, today))}` : ''}${f.override_reason ? ` · excepción: ${esc(f.override_reason)}` : ''}${f.legacy_id ? ` · importado del sistema anterior (#${esc(f.legacy_id)})` : ''}</p>` : ''}</div>
   <h2>Detalles</h2><div class="card"><form method="post" action="${back}/detalles">
     <label for="ref">Pedido Zoho / OC</label><input id="ref" name="order_ref" value="${esc(f.order_ref || '')}" placeholder="OV-02072">
     <div class="grid2"><div><label for="car">Paquetería</label><input id="car" name="carrier" value="${esc(f.carrier || '')}"></div>
@@ -319,11 +342,7 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
       <span>${c.legacy ? chip('Cerrado', 'grey') : ''}${c.active ? '' : chip('Inactivo', 'grey')}</span></div>
       <div class="small muted">${plural(c.bottles, 'botella', 'botellas')} · ${cadenceLabel(c.cadence_months)} · ${plural(counts.get(c.id) || 0, 'socio activo', 'socios activos')}</div>
       <h3>Cajas</h3><p class="small muted" style="margin-top:0">${c.allocation_mode === 'month' ? 'La caja depende del mes del envío.' : `El envío #1 lleva la caja 1, el #${slots + 1} vuelve a la caja 1.`} Los envíos ya trabajados guardan su propia copia.</p>${cases}
-      <h3>Beneficios</h3>${bens.map(b => `<div style="padding:6px 0;border-top:1px solid var(--line)"><div class="ben"><span>${esc(b.name)}${b.active ? '' : ' <span class="muted">(inactivo)</span>'}</span>
-        <span class="num small">${b.quantity != null ? fmtQty(b.quantity) + ' ' : ''}${esc(b.unit)} ${b.period === 'once' ? 'una vez' : 'al año'}</span></div>
-        ${m ? `<details class="more" style="margin:2px 0"><summary class="small">Editar</summary><form method="post" action="/beneficio/${b.id}">${benefitFields(b)}<button class="btn sm" style="margin-top:8px">Guardar</button></form></details>` : ''}</div>`).join('') || '<p class="small muted">Ninguno.</p>'}
-      ${m ? `<details class="more"><summary class="small">Agregar beneficio</summary><form method="post" action="/club/${c.id}/beneficio">${benefitFields({})}<button class="btn sm" style="margin-top:8px">Agregar</button></form></details>
-      <details class="more"><summary class="small">Configuración del club</summary><form method="post" action="/club/${c.id}">
+      ${m ? `<details class="more"><summary class="small">Configuración del club</summary><form method="post" action="/club/${c.id}">
         <label>Nombre</label><input name="name" value="${esc(c.name)}" required>
         <div class="grid2"><div><label>Botellas por envío</label><input type="number" name="bottles" value="${c.bottles}" min="1" max="60" required></div>
         <div><label>Frecuencia</label><select name="cadence_months">${[1, 2, 3, 4, 6, 12].map(n => `<option value="${n}" ${c.cadence_months === n ? 'selected' : ''}>${cadenceLabel(n)}</option>`).join('')}</select></div></div>
@@ -335,13 +354,7 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
   };
   const clubOpts = (sel) => `<option value="">— Sin club —</option>${clubs.map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
   const body = `<h1>Clubes</h1>${clubs.map(clubCard).join('')}
-  <h2 id="stripe">Productos de Stripe</h2><div class="card">
-    <p class="small muted" style="margin-top:0">Cada producto de Stripe corresponde a un club. Las suscripciones a un producto sin club no generan envíos y aparecen como alerta.</p>
-    ${products.length ? products.map(p => `<form method="post" action="/producto/${esc(p.product_id)}" style="padding:8px 0;border-top:1px solid var(--line)">
-      <div class="ben"><b>${esc(p.name || p.product_id)}</b>${p.club_id ? chip('Asignado', 'green') : chip('Sin club', 'red')}</div>
-      <div class="small muted">${esc(p.product_id)}${p.mapped_by ? ' · ' + esc(p.mapped_by) : ''}</div>
-      ${m ? `<div class="grid2" style="margin-top:6px"><select name="club_id">${clubOpts(p.club_id)}</select><button class="btn sm">Guardar</button></div>` : ''}</form>`).join('') : '<p class="small muted">Aún no se ha sincronizado Stripe.</p>'}
-    ${isManagerNote(user)}</div>`;
+  ${m ? '<p class="small"><a href="/conciliar">Productos de Stripe → Conciliar</a> · <a href="/ajustes/beneficios">Beneficios de cada club</a></p>' : ''}`;
   return page({ title: 'Clubes', body, user, env, tab: 'clubes' });
 }
 function benefitFields(b) {
@@ -366,6 +379,9 @@ export function settingsPage({ env, user, ctx, auditRows, eventCount, url }) {
     <dt>Versión de API</dt><dd class="small">Solicitudes: 2025-03-31.basil</dd></dl>
     <form method="post" action="/sync" style="margin-top:12px"><button class="btn" ${env.STRIPE_SECRET_KEY ? '' : 'disabled'}>Sincronizar ahora</button></form>
     ${env.STRIPE_SECRET_KEY ? '' : '<p class="small muted">Agrega el secreto <code>STRIPE_SECRET_KEY</code> en Cloudflare (Workers → este Worker → Settings → Variables and Secrets). Usa una llave restringida de solo lectura.</p>'}</div>
+  <div class="rows"><a class="row" href="/conciliar"><div class="main"><div class="t">Conciliar Stripe</div><div class="s">Productos de Stripe → club</div></div></a>
+  <a class="row" href="/migracion"><div class="main"><div class="t">Migración del sistema anterior</div><div class="s">Historial de envíos de wineclubadmin</div></div></a>
+  <a class="row" href="/ajustes/beneficios"><div class="main"><div class="t">Beneficios por club</div><div class="s">Qué incluye cada club</div></div></a></div>
   <h2>Inicio del registro</h2><div class="card"><form method="post" action="/ajustes">
     <p class="small muted" style="margin-top:0">Los envíos programados antes de esta fecha sin registro no cuentan como atrasados.</p>
     <input type="date" name="tracking_start" value="${esc(ctx.trackingStart)}" required><button class="btn sm" style="margin-top:10px">Guardar</button></form></div>
@@ -407,4 +423,51 @@ export function askPage({ env, user }) {
     b.disabled=false;b.textContent='Preguntar';try{sessionStorage.setItem('askh',JSON.stringify(hist.slice(-20)))}catch{}draw()};
   </script>`;
   return page({ title: 'Pregúntale al club', body, user, env, tab: 'agenda' });
+}
+
+// ---------- benefits administration (managers; outside the daily logistics flow) ----------
+export function benefitsPage({ env, user, ctx, benefits }) {
+  const clubs = [...ctx.clubs.values()];
+  const body = `<p><a href="/ajustes">← Ajustes</a></p><h1>Beneficios por club</h1>
+  <p class="small muted" style="margin-top:0">Lo que cada club incluye y se cuenta por socio. El uso se registra en la ficha de cada socio.</p>
+  ${clubs.map(c => `<div class="card" id="club${c.id}"><div style="font-weight:800;font-size:17px">${esc(c.name)}</div>
+    ${benefits.filter(b => b.club_id === c.id).map(b => `<div style="padding:6px 0;border-top:1px solid var(--line)"><div class="ben"><span>${esc(b.name)}${b.active ? '' : ' <span class="muted">(inactivo)</span>'}</span>
+      <span class="num small">${b.quantity != null ? fmtQty(b.quantity) + ' ' : ''}${esc(b.unit)} ${b.period === 'once' ? 'una vez' : 'al año'}</span></div>
+      <details class="more" style="margin:2px 0"><summary class="small">Editar</summary><form method="post" action="/beneficio/${b.id}">${benefitFields(b)}<button class="btn sm" style="margin-top:8px">Guardar</button></form></details></div>`).join('') || '<p class="small muted">Ninguno.</p>'}
+    <details class="more"><summary class="small">Agregar beneficio</summary><form method="post" action="/club/${c.id}/beneficio">${benefitFields({})}<button class="btn sm" style="margin-top:8px">Agregar</button></form></details></div>`).join('')}`;
+  return page({ title: 'Beneficios', body, user, env, tab: 'ajustes' });
+}
+
+const METHOD_ES = { signup: 'se lo llevó al inscribirse', pickup: 'recogió en bodega', courier: 'paquetería' };
+export const attribution = (f, today) => f && f.status ? [STATUS_LABEL[f.status], f.done_on ? fdate(f.done_on, today, { weekday: false }) : null,
+  f.method ? METHOD_ES[f.method] : null, f.handled_by || f.updated_by ? 'por ' + (f.handled_by || f.updated_by) : null].filter(Boolean).join(' · ') : '';
+
+const FILTERS = [['todos', 'Todos'], ['atrasados', 'Atrasados'], ['pendientes', 'Pendientes'], ['prep', 'En preparación'], ['listos', 'Listos'],
+  ['enviados', 'Enviados'], ['entregados', 'Entregados'], ['excepciones', 'Excepciones']];
+const FILTER_FN = {
+  todos: () => true,
+  atrasados: o => o.state === 'overdue' || o.state === 'exception',
+  pendientes: o => ['today', 'upcoming', 'overdue', 'exception'].includes(o.state),
+  prep: o => o.status === 'needs_prep', listos: o => o.status === 'ready',
+  enviados: o => o.status === 'shipped', entregados: o => o.status === 'handed' || o.status === 'delivered',
+  excepciones: o => o.status === 'exception' || (o.f?.override_reason),
+};
+
+// ---------- searchable shipment list ----------
+export function shipmentsPage({ env, user, ctx, url }) {
+  const today = ctx.today;
+  const filter = FILTER_FN[url.searchParams.get('f')] ? url.searchParams.get('f') : 'pendientes';
+  const { occ } = allOccurrences(ctx, addDays(today, 120));
+  const list = occ.filter(o => o.state !== 'pretracking' || o.status).filter(FILTER_FN[filter]);
+  const open = (o) => ['overdue', 'exception', 'today', 'upcoming'].includes(o.state);
+  list.sort((a, b) => open(a) !== open(b) ? (open(a) ? -1 : 1) : open(a) ? a.eff.localeCompare(b.eff) : (b.f?.done_on || b.due).localeCompare(a.f?.done_on || a.due));
+  const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const body = `<h1>Envíos <span class="muted small">${list.length}</span></h1>
+  <div class="search"><input id="q" type="search" placeholder="Buscar socio, club, pedido o guía" autocomplete="off"></div>
+  <div class="chips" style="margin-bottom:8px">${FILTERS.map(([k, l]) => `<a class="chip ${k === filter ? 'wine' : ''}" style="text-decoration:none;padding:7px 12px" href="/envios?f=${k}">${l}</a>`).join('')}</div>
+  <div class="rows tl">${list.map(o => `<a class="row ${o.state}" href="${shipHref(o)}" data-s="${esc(norm([o.sub.member_name, o.club.name, o.f?.order_ref, o.f?.tracking, o.sub.member_email].join(' ')))}">
+    <span class="d">${esc(fdate(o.eff, today, { weekday: false }))}</span>
+    <div class="main"><div class="t">${esc(o.sub.member_name)}</div><div class="s">${esc(o.club.name)} · #${o.n}${o.state === 'done' ? ' · ' + esc(attribution(o.f, today)) : ''}${o.f?.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div>
+    ${chip(stateLabel(o), STATE[o.state].tone)}</a>`).join('') || '<div class="empty">Ningún envío con este filtro.</div>'}</div>`;
+  return page({ title: 'Envíos', body, user, env, tab: 'envios' });
 }

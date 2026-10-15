@@ -96,3 +96,35 @@ test('membership year and local dates', () => {
   assert.equal(localDate(Date.UTC(2026, 9, 15, 3) / 1000, 'America/Mexico_City'), '2026-10-14');
   assert.equal(weekdayMon0('2026-10-14'), 2);
 });
+
+test('leap-year and month-end anchors (monthly and quarterly)', () => {
+  const monthlyLeap = occurrences(sub({ start_date: '2028-02-29' }), monthly, { to: '2029-03-31', today: '2028-01-01' }).map(o => o.due);
+  assert.deepEqual(monthlyLeap.slice(0, 4), ['2028-02-29', '2028-03-29', '2028-04-29', '2028-05-29']);
+  assert.equal(monthlyLeap[12], '2029-02-28');
+  const q31 = occurrences(sub({ start_date: '2026-08-31' }), quarterly, { to: '2027-12-31', today: '2026-01-01' }).map(o => o.due);
+  assert.deepEqual(q31, ['2026-08-31', '2026-11-30', '2027-02-28', '2027-05-31', '2027-08-31', '2027-11-30']);
+});
+
+test('Mexico City date boundaries for Stripe timestamps', () => {
+  // 23:30 local on Aug 5 is 05:30 UTC Aug 6: the shipment date must be Aug 5.
+  assert.equal(localDate(Date.UTC(2026, 7, 6, 5, 30) / 1000, 'America/Mexico_City'), '2026-08-05');
+  assert.equal(localDate(Date.UTC(2026, 7, 6, 6, 0) / 1000, 'America/Mexico_City'), '2026-08-06');
+});
+
+test('status rules: trialing and past_due still owe shipments; canceled owes only up to its end', () => {
+  const opts = { to: '2026-12-31', today: '2026-10-14' };
+  assert.equal(occurrences(sub({ status: 'trialing' }), quarterly, opts).length, 4);
+  const pd = occurrences(sub({ status: 'past_due' }), quarterly, opts);
+  assert.equal(pd.filter(o => o.state === 'overdue').length, 3);
+  // Restart = a new Stripe subscription with its own start date; the old one keeps only what it owed.
+  const old = occurrences(sub({ status: 'canceled', ended_on: '2026-05-01' }), quarterly, opts);
+  const restarted = occurrences(sub({ id: 2, start_date: '2026-09-01' }), quarterly, opts);
+  assert.deepEqual(old.map(o => o.due), ['2026-01-15', '2026-04-15']);
+  assert.deepEqual(restarted.map(o => o.due), ['2026-09-01', '2026-12-01']);
+});
+
+test('fulfillment rows outside the window are never dropped (history is preserved)', () => {
+  const f = new Map([[9, { status: 'shipped', bottles_json: '[{"wine":"X","qty":6}]' }]]);
+  const occ = occurrences(sub({ status: 'canceled', ended_on: '2026-05-01' }), quarterly, { to: '2026-12-31', today: '2026-10-14', fulfillments: f });
+  assert.ok(occ.some(o => o.k === 9 && o.state === 'done'));
+});

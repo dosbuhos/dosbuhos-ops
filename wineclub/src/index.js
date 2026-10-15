@@ -4,8 +4,10 @@ import { STATUSES, DONE, isDate, dueDate, parseBottles } from './schedule.js';
 import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal } from './data.js';
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
+import { fulfillPage, fulfillSubmit, reopen, reconcileData, reconcilePage, reconcileSubmit } from './flow.js';
 import { ask } from './assistant.js';
 import { handleAuth, loginPage } from './google.js';
+import { buildPlan, migrationPage, runImport } from './legacy.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -106,7 +108,7 @@ async function handle(request, env) {
   }
 
   // ---------- shipments ----------
-  if ((r = R(/^\/envio\/(\d+)\/(\d+)(?:\/(estado|detalles|posponer|botellas|foto))?$/))) {
+  if ((r = R(/^\/envio\/(\d+)\/(\d+)(?:\/(estado|detalles|posponer|botellas|foto|entregar|reabrir|ref))?$/))) {
     const sh = await loadShipment(env, Number(r[1]), Number(r[2]));
     if (!sh) return notFound(env, user);
     if (!sh.club) return notFound(env, user, 'Esta suscripción no tiene club asignado, así que no tiene envíos calculados.');
@@ -118,8 +120,16 @@ async function handle(request, env) {
       const history = (await env.DB.prepare(`SELECT * FROM audit_log WHERE entity='fulfillment' AND entity_id=? ORDER BY id DESC LIMIT 30`).bind(`${sh.sub.id}:${sh.o.k}`).all()).results;
       return P.shipmentPage({ env, user, ctx: sh.ctx, o: sh.o, photos, history });
     }
+    if (action === 'entregar') {
+      if (m === 'GET') return fulfillPage({ env, user, ctx: sh.ctx, o: sh.o, como: url.searchParams.get('como') });
+      if (m === 'POST') return fulfillSubmit(env, user, sh, request);
+    }
     if (m !== 'POST') return notFound(env, user);
     const here = `/envio/${sh.sub.id}/${sh.o.k}`;
+    if (action === 'reabrir') {
+      const err = await reopen(env, user, sh, await form(request));
+      return err ? P.simplePage({ env, user, title: 'No se pudo reabrir', status: 400, html: `<p>${esc(err)}</p><p><a href="${here}">Volver al envío</a></p>` }) : redirect(here);
+    }
     if (action === 'foto') {
       const fd = await request.formData();
       const file = fd.get('file');
@@ -140,9 +150,18 @@ async function handle(request, env) {
     if (action === 'estado') {
       const status = String(fm.status || '');
       if (status !== 'scheduled' && !STATUSES.includes(status)) return new Response('Estado inválido', { status: 400 });
+      // Shipping / handing over goes through the reviewed flow; undoing a completed shipment goes through "reabrir".
+      if (status === 'shipped' || status === 'handed') return redirect(`${here}/entregar?como=${status}`);
+      if (status === 'scheduled' && sh.o.state === 'done') return redirect(here);
+      if (status === 'delivered' && sh.o.status !== 'shipped') return redirect(here);
       const { auditId } = await setStatus(env, user, sh, status);
       const back = safeBack(fm.back, here);
       return redirect(back === here ? here : withParam(back, 'ok', auditId));
+    }
+    if (action === 'ref') {
+      // Inline PO / tracking from the agenda card: touches only those two fields.
+      await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k, { order_ref: str(fm.order_ref, 60), tracking: str(fm.tracking, 80) }, 'pedido / guía');
+      return redirect(safeBack(fm.back, here));
     }
     if (action === 'detalles') {
       await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k, {
@@ -160,9 +179,12 @@ async function handle(request, env) {
     }
     if (action === 'botellas') {
       const list = parseBottles(fm.bottles);
+      const why = str(fm.motivo, 300);
+      if (list.length && !why) return P.simplePage({ env, user, title: 'Falta el motivo', status: 400, html: `<p>Escribe el motivo del cambio de botellas (por ejemplo, la sustitución que pidió el socio).</p><p><a href="${here}">Volver al envío</a></p>` });
+      if (sh.o.state === 'done') return P.simplePage({ env, user, title: 'Envío ya registrado', status: 409, html: `<p>Este envío ya se entregó; su lista de botellas es histórica. Reábrelo si hay que corregirla.</p><p><a href="${here}">Volver al envío</a></p>` });
       await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k,
         list.length ? { bottles_json: JSON.stringify(list), bottles_custom: 1 } : { bottles_json: null, bottles_custom: 0 },
-        list.length ? 'botellas de este envío' : 'botellas: volver a la caja del club');
+        list.length ? `botellas de este envío: ${why}` : 'botellas: volver a la caja del club');
       return redirect(here);
     }
   }
@@ -192,6 +214,25 @@ async function handle(request, env) {
     try { return Response.json(await ask(env, Array.isArray(body.history) ? body.history : [])); }
     catch (e) { return Response.json({ error: 'El asistente no está disponible: ' + (e.message || e) }, { status: 502 }); }
   }
+
+  // ---------- migration from the legacy app (managers) ----------
+  if (p === '/migracion' || p === '/migracion/importar') {
+    if (!user.isManager) return forbidden(env, user);
+    if (m === 'GET' && p === '/migracion') return migrationPage({ env, user, plan: await buildPlan(env), msg: url.searchParams.get('msg') });
+    if (m === 'POST' && p === '/migracion/importar') return redirect('/migracion?msg=' + encodeURIComponent(await runImport(env, user, await request.formData())));
+  }
+
+  // ---------- Stripe reconciliation ----------
+  if (p === '/conciliar' && m === 'GET') {
+    return reconcilePage({ env, user, data: await reconcileData(env), url, msg: url.searchParams.get('msg') });
+  }
+  if (m === 'POST' && (r = R(/^\/conciliar\/([A-Za-z0-9_]+)$/))) {
+    if (!user.isManager) return forbidden(env, user);
+    const err = await reconcileSubmit(env, user, r[1], await form(request));
+    return redirect('/conciliar?msg=' + encodeURIComponent(err || 'Guardado. El calendario ya se calcula con este club.') + '#p-' + r[1]);
+  }
+
+  if (m === 'GET' && p === '/envios') return P.shipmentsPage({ env, user, ctx: await loadContext(env), url });
 
   // ---------- members ----------
   if (m === 'GET' && p === '/socios') {
@@ -331,6 +372,7 @@ async function handle(request, env) {
           .bind(club.id, name, fm.quantity === '' || fm.quantity == null ? null : Number(fm.quantity), str(fm.unit, 30) || 'veces', fm.period === 'once' ? 'once' : 'year', fm.active === '0' ? 0 : 1, club.id).first();
         await audit(env, user.email, 'nuevo beneficio', 'club', club.id, null, b);
       }
+      return redirect(`/ajustes/beneficios#club${club.id}`);
     }
     return redirect(`/clubes#club${club.id}`);
   }
@@ -342,7 +384,7 @@ async function handle(request, env) {
     const after = { name: str(fm.name, 100) || b.name, quantity: fm.quantity === '' || fm.quantity == null ? null : Number(fm.quantity), unit: str(fm.unit, 30) || b.unit, period: fm.period === 'once' ? 'once' : 'year', active: fm.active === '0' ? 0 : 1 };
     await env.DB.prepare('UPDATE club_benefits SET name=?, quantity=?, unit=?, period=?, active=? WHERE id=?').bind(after.name, after.quantity, after.unit, after.period, after.active, b.id).run();
     await audit(env, user.email, 'beneficio', 'club', b.club_id, b, after);
-    return redirect(`/clubes#club${b.club_id}`);
+    return redirect(`/ajustes/beneficios#club${b.club_id}`);
   }
   if (m === 'POST' && (r = R(/^\/producto\/([A-Za-z0-9_]+)$/))) {
     if (!user.isManager) return forbidden(env, user);
@@ -355,8 +397,13 @@ async function handle(request, env) {
   }
 
   // ---------- settings (managers) ----------
-  if (p === '/ajustes' || p === '/sync' || p === '/exportar.json') {
+  if (p === '/ajustes' || p === '/sync' || p === '/exportar.json' || p === '/ajustes/beneficios') {
     if (!user.isManager) return forbidden(env, user);
+    if (m === 'GET' && p === '/ajustes/beneficios') {
+      const ctx = await loadContext(env);
+      const benefits = (await env.DB.prepare('SELECT * FROM club_benefits ORDER BY club_id, sort, id').all()).results;
+      return P.benefitsPage({ env, user, ctx, benefits });
+    }
     if (m === 'GET' && p === '/ajustes') {
       const ctx = await loadContext(env);
       const auditRows = (await env.DB.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 100').all()).results;

@@ -58,8 +58,9 @@ async function ensureProduct(env, productId, name, clubs) {
   if (!name && env.STRIPE_SECRET_KEY) { try { name = (await stripeGet(env, `/v1/products/${productId}`)).name; } catch { /* keep unnamed */ } }
   clubs = clubs || (await env.DB.prepare('SELECT id, keywords FROM clubs').all()).results;
   const club = autoClub(name, clubs);
-  await env.DB.prepare(`INSERT INTO stripe_products (product_id, name, club_id, mapped_by, mapped_at) VALUES (?,?,?,?,CASE WHEN ? IS NULL THEN NULL ELSE datetime('now') END)`)
-    .bind(productId, name || null, club, club ? 'auto (nombre)' : null, club).run();
+  // A name match is only a suggestion. A manager confirms the club on the Conciliar screen.
+  await env.DB.prepare('INSERT INTO stripe_products (product_id, name, suggested_club_id) VALUES (?,?,?)')
+    .bind(productId, name || null, club).run();
 }
 
 async function upsertMember(env, customer, customerId) {

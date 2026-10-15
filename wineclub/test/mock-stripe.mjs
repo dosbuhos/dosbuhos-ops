@@ -10,17 +10,18 @@ const sub = (id, customer, p, start, extra = {}) => ({ id, object: 'subscription
 const products = [
   { id: 'prod_bronce', name: 'Círculo Bronce' },
   { id: 'prod_plata', name: 'Círculo Plata' },
-  { id: 'prod_diamante', name: 'Círculo Diamante — La Mesa' },
+  { id: 'prod_mesa', name: 'Club De Vinos Dos Buhos (La Mesa)' }, // like production: no club word in the name
+  { id: 'prod_diamante', name: 'Club de Vinos Dos Buhos (Circulo Diamante)' },
   { id: 'prod_club', name: 'Club de Vinos Dos Búhos' }, // the original club: no keyword → must be mapped by hand
 ];
 const P = {
   bronce: price('price_bronce', 'prod_bronce', 360000, 3),
   plata: price('price_plata', 'prod_plata', 645000, 3),
-  diamante: price('price_diamante', 'prod_diamante', 560000, 1),
+  mesa: price('price_mesa', 'prod_mesa', 590000, 1),
   club: price('price_club', 'prod_club', 317000, 3),
 };
 const subscriptions = [
-  sub('sub_A', cust('cus_A', 'Valeria Prueba', 'valeria@example.com', { shipping: { name: 'Valeria Prueba', address: { line1: 'Privada Ejemplo 12', city: 'San Miguel de Allende', state: 'GTO', postal_code: '37700', country: 'MX' } } }), P.diamante, '2026-06-15'),
+  sub('sub_A', cust('cus_A', 'Valeria Prueba', 'valeria@example.com', { shipping: { name: 'Valeria Prueba', address: { line1: 'Privada Ejemplo 12', city: 'San Miguel de Allende', state: 'GTO', postal_code: '37700', country: 'MX' } } }), P.mesa, '2026-08-06'),
   sub('sub_B', cust('cus_B', 'Mario Ejemplo', 'mario@example.com'), P.bronce, '2026-07-14'),
   sub('sub_C', cust('cus_C', 'Lucía Demo', 'lucia@example.com'), P.club, '2026-02-12'),
   sub('sub_D', cust('cus_D', 'Pedro Cancelado', 'pedro@example.com'), P.bronce, '2026-03-01', { status: 'canceled', canceled_at: at('2026-07-20'), ended_at: at('2026-08-01') }),
@@ -35,8 +36,7 @@ const inv = (id, s, periodStart, newShape) => ({
   ...(newShape ? { parent: { type: 'subscription_details', subscription_details: { subscription: s.id } } } : { subscription: s.id }),
 });
 const invoices = [
-  inv('in_A1', subscriptions[0], '2026-06-15', true), inv('in_A2', subscriptions[0], '2026-07-15', true),
-  inv('in_A3', subscriptions[0], '2026-08-15', false), inv('in_A4', subscriptions[0], '2026-09-15', true),
+  inv('in_A1', subscriptions[0], '2026-08-06', true), inv('in_A2', subscriptions[0], '2026-09-06', false), inv('in_A3', subscriptions[0], '2026-10-06', true),
   inv('in_B1', subscriptions[1], '2026-07-14', true), inv('in_B2', subscriptions[1], '2026-10-14', true),
   inv('in_C1', subscriptions[2], '2026-02-12', false),
 ];
