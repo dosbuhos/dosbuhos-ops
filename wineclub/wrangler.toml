@@ -20,6 +20,10 @@ ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"
 ACCESS_AUD = ""
 # Secrets (set in the dashboard, never here): STRIPE_SECRET_KEY, optional STRIPE_WEBHOOK_SECRET
 
+# Optional assistant (/preguntar). Workers AI by default; set AI_API_URL/AI_MODEL (+ secret AI_API_KEY) for an external OpenAI-compatible model.
+[ai]
+binding = "AI"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "wineclub-production"
@@ -41,6 +45,9 @@ TIMEZONE = "America/Mexico_City"
 ADMIN_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com"
 ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"
 ACCESS_AUD = ""
+
+[env.staging.ai]
+binding = "AI"
 
 [[env.staging.d1_databases]]
 binding = "DB"

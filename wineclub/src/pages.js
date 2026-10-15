@@ -91,6 +91,7 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
   ${nextWeek.length ? cards(nextWeek) : '<p class="muted small">Nada la próxima semana.</p>'}
   ${[...byMonth.entries()].map(([key, list]) => `<div class="sec">${MESES[Number(key.slice(5)) - 1]} ${key.slice(0, 4) !== today.slice(0, 4) ? key.slice(0, 4) : ''} <span class="n">${list.length}</span></div>${cards(list)}`).join('')}
   <p class="center"><a class="btn quiet" href="/?dias=${horizon + 90}">Ver más adelante (${horizon + 90} días)</a></p>
+  <p class="center small"><a href="/preguntar">Pregúntale al club (asistente)</a></p>
   ${recent.length ? `<details class="more"><summary>Hechos en los últimos 7 días (${recent.length})</summary><div class="rows">${recent.map(o => `
     <a class="row" href="${shipHref(o)}"><div class="main"><div class="t">${esc(o.sub.member_name)} · #${o.n}</div>
     <div class="s">${esc(STATUS_LABEL[o.status])} ${esc(fdate(o.f.done_on, today))}${o.f.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div></a>`).join('')}</div></details>` : ''}`;
@@ -378,4 +379,32 @@ export function settingsPage({ env, user, ctx, auditRows, eventCount, url }) {
 export function simplePage({ env, user, title, html, status = 200 }) {
   const r = page({ title, body: `<div class="card" style="margin-top:20px">${html}</div>`, user, env });
   return new Response(r.body, { status, headers: r.headers });
+}
+
+// ---------- optional AI helper ----------
+export function askPage({ env, user }) {
+  const body = `<p><a href="/">← Agenda</a></p><h1>Pregúntale al club</h1>
+  <p class="small muted" style="margin-top:0">Responde con los datos de la app (solo lectura). Para marcar envíos usa la agenda.</p>
+  <div id="chat"></div>
+  <form id="askf" class="card" style="position:sticky;bottom:calc(var(--nav) + 8px)">
+    <textarea id="askq" rows="2" placeholder="¿Quién tiene envíos atrasados?" style="min-height:56px" required></textarea>
+    <div class="acts" style="margin-top:8px"><button class="btn" id="askb">Preguntar</button><button type="button" class="btn quiet" id="askc">Borrar</button></div>
+  </form>
+  <div class="chips" id="sugs">${['¿Qué envíos están atrasados?', '¿Qué sale esta semana?', '¿Qué botellas lleva el próximo envío de …?', '¿Cuál es el historial de …?'].map(t => `<button type="button" class="chip" style="border:0;min-height:36px;cursor:pointer">${esc(t)}</button>`).join('')}</div>
+  <script>
+  const chat=document.getElementById('chat'),f=document.getElementById('askf'),q=document.getElementById('askq'),b=document.getElementById('askb');let hist=[];
+  try{hist=JSON.parse(sessionStorage.getItem('askh')||'[]')}catch{}
+  const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  function draw(){chat.innerHTML=hist.map(m=>'<div class="card" style="'+(m.role==='user'?'background:var(--wine-soft);margin-left:15%':'margin-right:6%')+';white-space:pre-wrap">'+esc(m.content)+'</div>').join('');window.scrollTo(0,document.body.scrollHeight)}
+  draw();
+  document.getElementById('sugs').onclick=e=>{if(e.target.tagName==='BUTTON'){q.value=e.target.textContent.replace('…','');q.focus()}};
+  document.getElementById('askc').onclick=()=>{hist=[];try{sessionStorage.removeItem('askh')}catch{}draw()};
+  f.onsubmit=async e=>{e.preventDefault();e.stopImmediatePropagation();const v=q.value.trim();if(!v)return;hist.push({role:'user',content:v});q.value='';draw();
+    b.disabled=true;b.textContent='Pensando…';
+    try{const r=await fetch('/preguntar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({history:hist})});
+      const j=await r.json();hist.push({role:'assistant',content:j.answer||j.error||'Sin respuesta'})}
+    catch(err){hist.push({role:'assistant',content:'Error: '+err.message})}
+    b.disabled=false;b.textContent='Preguntar';try{sessionStorage.setItem('askh',JSON.stringify(hist.slice(-20)))}catch{}draw()};
+  </script>`;
+  return page({ title: 'Pregúntale al club', body, user, env, tab: 'agenda' });
 }

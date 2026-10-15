@@ -4,6 +4,7 @@ import { STATUSES, DONE, isDate, dueDate, parseBottles } from './schedule.js';
 import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal } from './data.js';
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
+import { ask } from './assistant.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -175,6 +176,14 @@ async function handle(request, env) {
     if (latest.id !== a.id) return P.simplePage({ env, user, title: 'No se puede deshacer', html: `<p>Ese envío ya tuvo otro cambio después. Ábrelo y corrígelo directamente.</p><p><a class="btn" href="/envio/${esc(a.entity_id.replace(':', '/'))}">Abrir envío</a></p>` });
     await undoFulfillment(env, user.email, a);
     return redirect('/');
+  }
+
+  // ---------- optional AI helper (read-only) ----------
+  if (p === '/preguntar') {
+    if (m === 'GET') return P.askPage({ env, user });
+    let body; try { body = await request.json(); } catch { return Response.json({ error: 'Pregunta inválida' }, { status: 400 }); }
+    try { return Response.json(await ask(env, Array.isArray(body.history) ? body.history : [])); }
+    catch (e) { return Response.json({ error: 'El asistente no está disponible: ' + (e.message || e) }, { status: 502 }); }
   }
 
   // ---------- members ----------
