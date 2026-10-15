@@ -138,6 +138,7 @@ details.more{margin:12px 0}details.more>summary{cursor:pointer;font-weight:700;c
 .expected{margin:10px 0 5px;display:flex;gap:6px 12px;justify-content:space-between;flex-wrap:wrap}.expected span{font-size:12px;color:var(--muted)}.expected strong{font-size:16px}.schedule-row p{margin:4px 0}.actual{font-weight:650}.actual.complete{color:var(--green)}.rescheduled,.allocation-gap{color:var(--amber)}
 .date-context{margin:4px 0}.calendar-link{display:inline-flex;align-items:center;min-height:36px;font-weight:650}.joined{margin-top:6px;color:var(--ink)}.member-row .t{white-space:normal!important}.member-row{align-items:flex-start!important}.member-row .chip{white-space:normal}
 .chips .chip{max-width:100%;white-space:normal}
+.status-pair{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.status-pair .chip{white-space:normal;max-width:100%}.ship .when .status-pair{margin-left:auto}.ship .when .status-pair .chip{margin-left:0}
 .como input[type=radio]{display:inline-block!important;width:20px;height:20px;min-height:0;margin-right:8px;flex:none}
 :focus-visible{outline:3px solid #b88235;outline-offset:3px}summary{touch-action:manipulation}
 @media(max-width:360px){.date-facts{grid-template-columns:1fr}.member-row{flex-wrap:wrap}.top .brand{font-size:17px}}

@@ -1,7 +1,7 @@
 import { esc, fdate, rel, chip, page, bottleList, stateLabel, STATE, STATUS_LABEL, money, cadenceLabel, MESES } from './ui.js';
 import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles, daysBetween } from './schedule.js';
 import { allOccurrences, subOccurrences, subClub, subFlags, isIgnored } from './data.js';
-import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus } from './visibility.js';
+import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge } from './visibility.js';
 import {billingIssues,billingIssue,billingWarning} from './billing.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -35,7 +35,7 @@ export function shipCard(o, today, back) {
     : (o.state === 'upcoming' ? `<div class="acts one"><a class="btn quiet sm" href="${shipHref(o)}">Ver envío</a></div>` : '');
   const late = o.state === 'overdue' ? plural(daysBetween(o.eff, today), 'día de atraso', 'días de atraso') : rel(o.eff, today);
   return `<article class="card ship ${o.state}${o.state === 'overdue' && !recordedPending(o) ? ' unverified' : ''}" id="e${o.subId}-${o.k}">
-  <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(late)}</span>${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}</div>
+  <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(late)}</span><span class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f)}</span></div>
   <a class="who" href="${shipHref(o)}"><span class="name">${esc(s.member_name)}</span>
   <span class="meta">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')}</span></a>
   <p class="small muted date-context">Alta ${esc(exactDate(s.start_date))} · ${esc(cadenceLabel(o.club.cadence_months))}</p>
@@ -158,7 +158,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
        <p class="small muted">Defínelo aquí abajo para este envío${user.isManager ? `, o la caja ${o.slot} en <a href="/clubes#club${o.club.id}">${esc(o.club.name)}</a>` : ''}.</p>`;
 
   const body = `<p><a href="/">← Agenda</a></p>
-  <div class="when">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}</div>
+  <div class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f)}</div>
   <h1>Envío #${o.n} · ${esc(s.member_name)}</h1>
   ${billingWarning(ctx,s,{paid:!!f.paid_on})}
   <div class="acts"><a class="btn quiet sm" href="${back}/comprobante">Firmar recepción</a><a class="btn quiet sm" href="${back}/comprobante?tipo=receipt">Subir comprobante</a></div>
@@ -527,9 +527,9 @@ export function shipmentsPage({ env, user, ctx, url }) {
     const back=`/envios?f=${filter}&abrir=${encodeURIComponent(key)}#${id}`;
     return `<details class="card shipment-work ${o.state}" id="${id}" data-s="${esc(norm([s.member_name,o.club.name,f.order_ref,f.tracking,s.member_email,s.member_phone,address,o.due,exactDate(o.due)].join(' ')))}" ${url.searchParams.get('abrir')===key?'open':''}>
       <summary><span class="work-heading"><b>${esc(s.member_name)}</b><span class="small muted">${esc(o.club.name)} · Envío #${o.n}</span><span class="small">${o.state==='done'?'Entregado / enviado':'Previsto'}: <b>${esc(exactDate(o.state==='done'?f.done_on||o.due:o.eff))}</b></span>${f.order_ref?`<span class="small muted">OV: ${esc(f.order_ref)}</span>`:''}</span>
-      <span class="work-tags">${billingIssue(ctx,s)?chip('⚠ Revisar cobro','red'):''}${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
+      <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f)}${billingIssue(ctx,s)?chip('⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
       <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
-      <div class="chips">${chip(f.stripe_invoice_id&&f.paid_on?'Pagado · '+exactDate(f.paid_on):'Sin pago Stripe asociado',f.stripe_invoice_id&&f.paid_on?'green':'grey')}${chip(prefLabel(s.delivery_pref),'wine')}</div>
+      <div class="chips">${chip(prefLabel(s.delivery_pref),'wine')}</div>
       ${o.delayed?`<p class="small">Fecha original: ${esc(exactDate(o.due))}${f.delay_reason?' · '+esc(f.delay_reason):''}</p>`:''}
       <div class="work-info"><section><h3>Botellas ${open(o)?'a preparar':'del envío'} · ${o.bottlesTotal} de ${o.expectedBottles}</h3>
       ${o.bottles?bottleList(o.bottles):`<div class="warn">Falta definir las botellas. <a href="${shipHref(o)}#botellas">Definir caja</a></div>`}
