@@ -243,11 +243,12 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
       const future = occ.filter(o => ['today', 'upcoming'].includes(o.state) && !pending.includes(o));
       const past = occ.filter(o => !pending.includes(o) && !future.includes(o) && o.due >= cut).reverse();
       const hidden = occ.filter(o => !pending.includes(o) && !future.includes(o) && o.due < cut).length;
-      const row = (o) => `<a class="row ${o.state}" href="/envio/${o.subId}/${o.k}"><span class="d">${esc(fdate(o.eff, today, { weekday: false }))}</span>
-        <div class="main"><div class="t">Envío #${o.n}</div><div class="s">${o.bottles ? plural(o.bottlesTotal, 'botella', 'botellas') : (o.missingAllocation ? 'Faltan botellas' : '')}${o.delayed ? ' · pospuesto' : ''}${o.f?.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div>${chip(stateLabel(o), STATE[o.state].tone)}</a>`;
+      const row = (o) => `<a class="row ${o.state}" href="/envio/${o.subId}/${o.k}"><span class="d">${esc(fdate(o.state === 'done' ? o.f?.done_on || o.eff : o.eff, today, { weekday: false }))}</span>
+        <div class="main"><div class="t">Envío #${o.n}</div><div class="s">${o.state === 'done' ? esc(attribution(o.f, today)) : o.bottles ? plural(o.bottlesTotal, 'botella', 'botellas') : (o.missingAllocation ? 'Faltan botellas' : '')}${o.delayed ? ' · pospuesto' : ''}${o.f?.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div>${chip(stateLabel(o), STATE[o.state].tone)}</a>`;
       timeline = `${pending.length ? `<h3 style="color:var(--red)">Pendientes</h3><div class="rows tl">${pending.map(row).join('')}</div>` : ''}
-        <h3>Próximos</h3><div class="rows tl">${future.map(row).join('') || '<div class="empty">Sin envíos próximos.</div>'}</div>
         <h3>Historial</h3><div class="rows tl">${past.map(row).join('') || '<div class="empty">Sin historial.</div>'}</div>
+        <h3>Próximos</h3><div class="rows tl">${future.slice(0, 4).map(row).join('') || '<div class="empty">Sin envíos próximos.</div>'}</div>
+        ${future.length > 4 ? `<details class="more"><summary>Ver ${future.length - 4} envíos más adelante</summary><div class="rows tl">${future.slice(4).map(row).join('')}</div></details>` : ''}
         ${hidden ? `<p><a href="?todo=1">Ver ${plural(hidden, 'envío anterior', 'envíos anteriores')}</a></p>` : ''}`;
     }
     const anchor = s.anchor_override || s.start_date;

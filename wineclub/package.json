@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test test/*.test.mjs",
+    "test:integration": "node test/integration.mjs",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
     "migrate:local": "wrangler d1 migrations apply DB --local"

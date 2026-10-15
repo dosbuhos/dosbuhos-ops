@@ -1,6 +1,6 @@
 // End-to-end check against a real local Worker + D1 (wrangler dev) and a fake Stripe.
-// Run: node test/integration.mjs   (needs .dev.vars with DEV_USER and STRIPE_API_BASE=http://127.0.0.1:8788)
-// Dates are relative to the real "today", which is fine for this data (all in Aug–Nov 2026).
+// Run: node test/integration.mjs. Creates its own private local config and temporary database.
+// Fixture clock is fixed to October 14, 2026; production always uses winery local time.
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,7 +12,7 @@ const dir = fileURLToPath(new URL('..', import.meta.url));
 const persist = mkdtempSync(join(tmpdir(), 'wc-'));
 const cfg = join(dir, 'wrangler.test.toml');
 // Same config minus Workers AI (needs a Cloudflare login) and Google sign-in (tests use DEV_USER).
-writeFileSync(cfg, readFileSync(join(dir, 'wrangler.toml'), 'utf8').replace(/\r/g, '').replace(/\n\[(env\.staging\.)?ai\]\nbinding = "AI"\n/g, '\n').replace(/^(GOOGLE_CLIENT_ID|ACCESS_TEAM_DOMAIN|ACCESS_AUD) = .*$/gm, '').replace('APP_ENV = "production"', 'APP_ENV = "test"\nDEV_USER = "staff@example.com"\nSTRIPE_SECRET_KEY = "sk_test_local_mock"\nSTRIPE_API_BASE = "http://127.0.0.1:8788"').replace(/^ADMIN_EMAILS = .*$/gm, 'ADMIN_EMAILS = "staff@example.com"'));
+writeFileSync(cfg, readFileSync(join(dir, 'wrangler.toml'), 'utf8').replace(/\r/g, '').replace(/\n\[(env\.staging\.)?ai\]\nbinding = "AI"\n/g, '\n').replace(/^(GOOGLE_CLIENT_ID|ACCESS_TEAM_DOMAIN|ACCESS_AUD) = .*$/gm, '').replace('APP_ENV = "production"', 'APP_ENV = "test"\nTEST_TODAY = "2026-10-14"\nDEV_USER = "staff@example.com"\nSTRIPE_SECRET_KEY = "sk_test_local_mock"\nSTRIPE_API_BASE = "http://127.0.0.1:8788"').replace(/^ADMIN_EMAILS = .*$/gm, 'ADMIN_EMAILS = "staff@example.com"'));
 const wrangler = join(dir, 'node_modules/wrangler/bin/wrangler.js');
 const wr = (...a) => execFileSync(process.execPath, [wrangler, ...a, '-c', cfg, '--persist-to', persist], { cwd: dir, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
 const q = (sql) => JSON.parse(wr('d1', 'execute', 'DB', '--local', '--json', '--command', sql))[0].results;
@@ -163,6 +163,29 @@ try {
     await send('/migracion/importar',new URLSearchParams());
     const f = q(`SELECT status,note,legacy_id FROM fulfillments WHERE subscription_id=${subA} AND k=5`)[0];
     assert.equal(f.status,null); assert.equal(f.note,'staff work'); assert.equal(f.legacy_id,null);
+  });
+
+  await check('normal packing confirmation preserves a historical snapshot on reopen', async () => {
+    const subC = q("SELECT id FROM subscriptions WHERE stripe_subscription_id='sub_C'")[0].id;
+    let f = q(`SELECT * FROM fulfillments WHERE subscription_id=${subC} AND k=1`)[0];
+    const bottles = f.bottles_json;
+    assert.equal((await post(`/envio/${subC}/1/reabrir`,{version:String(f.version),reason:'test correction'})).status,303);
+    f = q(`SELECT * FROM fulfillments WHERE subscription_id=${subC} AND k=1`)[0];
+    assert.equal(f.bottles_json,bottles);
+    const form = {version:String(f.version),como:'handed',done_on:'2026-02-12',packing:bottles};
+    assert.equal((await post(`/envio/${subC}/1/entregar`,form)).status,400,'packing acknowledgment required');
+    assert.equal((await post(`/envio/${subC}/1/entregar`,{...form,packed:'1',packing:'null'})).status,409,'changed packing cannot slip through');
+    assert.equal((await post(`/envio/${subC}/1/entregar`,{...form,packed:'1'})).status,303);
+    f = q(`SELECT * FROM fulfillments WHERE subscription_id=${subC} AND k=1`)[0];
+    assert.equal(f.status,'handed'); assert.equal(f.done_on,'2026-02-12');
+    await post(`/envio/${subC}/1/estado`,{version:String(f.version),status:'needs_prep'});
+    assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${subC} AND k=1`)[0].status,'handed','quick status cannot reopen completed work');
+  });
+
+  await check('bulk calculated deliveries are disabled', async () => {
+    const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
+    assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);
+    assert.equal(q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n,before);
   });
 
   console.log(`\n${passed} integration checks passed`);

@@ -1,7 +1,8 @@
 import { occurrences, localDate, dueDate } from './schedule.js';
 
 export const tzOf = (env) => env.TIMEZONE || 'America/Mexico_City';
-export const todayLocal = (env) => localDate(new Date(), tzOf(env));
+export const todayLocal = (env) => env.APP_ENV === 'test' && env.DEV_USER && env.TEST_TODAY
+  ? env.TEST_TODAY : localDate(new Date(), tzOf(env));
 
 export async function getSetting(env, key, fallback = null) {
   const r = await env.DB.prepare('SELECT value FROM settings WHERE key=?').bind(key).first();
