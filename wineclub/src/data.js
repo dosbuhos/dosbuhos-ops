@@ -117,22 +117,37 @@ export async function getSub(env, subId) {
 
 // Create or update the fulfillment record for (subscription, k). Every change is audited with before/after,
 // and the audit id is returned so the change can be undone.
-export async function writeFulfillment(env, who, sub, club, k, fields, action) {
+export async function writeFulfillment(env, who, sub, club, k, fields, action, options = {}) {
   for (const c of Object.keys(fields)) if (!STAFF_FIELDS.includes(c)) throw new Error('bad field ' + c);
   const before = await env.DB.prepare('SELECT * FROM fulfillments WHERE subscription_id=? AND k=?').bind(sub.id, k).first();
   const cols = Object.keys(fields);
-  let after;
+  const version = options.version ?? before?.version ?? 0;
+  const token = crypto.randomUUID();
+  let write;
   if (before) {
-    after = await env.DB.prepare(`UPDATE fulfillments SET ${cols.map(c => `${c}=?`).join(',')}, version=version+1, updated_by=?, updated_at=datetime('now') WHERE id=? RETURNING *`)
-      .bind(...cols.map(c => fields[c]), who, before.id).first();
+    write = env.DB.prepare(`UPDATE fulfillments SET ${cols.map(c => `${c}=?`).join(',')}, version=version+1, last_change=?, updated_by=?, updated_at=datetime('now') WHERE id=? AND version=? RETURNING *`)
+      .bind(...cols.map(c => fields[c]), token, who, before.id, version);
   } else {
     const expected = dueDate(sub.anchor_override || sub.start_date, club.cadence_months, k);
-    after = await env.DB.prepare(`INSERT INTO fulfillments (subscription_id, k, expected_date, ${cols.join(',')}, updated_by) VALUES (?,?,?,${cols.map(() => '?').join(',')},?) RETURNING *`)
-      .bind(sub.id, k, expected, ...cols.map(c => fields[c]), who).first();
+    if (version !== 0) throw new StaffConflict();
+    write = env.DB.prepare(`INSERT INTO fulfillments (subscription_id, k, expected_date, ${cols.join(',')}, version, last_change, updated_by) VALUES (?,?,?,${cols.map(() => '?').join(',')},1,?,?) ON CONFLICT(subscription_id,k) DO NOTHING RETURNING *`)
+      .bind(sub.id, k, expected, ...cols.map(c => fields[c]), token, who);
   }
-  const pick = (r) => r ? Object.fromEntries(STAFF_FIELDS.map(c => [c, r[c]])) : null;
-  const auditId = await audit(env, who, action, 'fulfillment', `${sub.id}:${k}`, pick(before), pick(after));
+  const pick = (r) => r ? Object.fromEntries(STAFF_FIELDS.map(c => [c, r[c] ?? null])) : null;
+  const queries = [write, env.DB.prepare(`INSERT INTO audit_log (who,action,entity,entity_id,before_json,after_json,note)
+    SELECT ?,?,'fulfillment',?,?,?,? WHERE EXISTS(SELECT 1 FROM fulfillments WHERE last_change=?) RETURNING id`)
+    .bind(who, action, `${sub.id}:${k}`, before ? JSON.stringify(pick(before)) : null, JSON.stringify(pick({ ...before, ...fields })), options.note || null, token)];
+  if (options.photo) queries.push(env.DB.prepare(`INSERT INTO photos (fulfillment_id,content_type,data,uploaded_by)
+    SELECT id,?,?,? FROM fulfillments WHERE last_change=?`).bind(options.photo.type, options.photo.data, who, token));
+  const results = await env.DB.batch(queries);
+  const after = results[0].results[0];
+  if (!after) throw new StaffConflict();
+  const auditId = results[1].results[0].id;
   return { before, after, auditId };
+}
+
+export class StaffConflict extends Error {
+  constructor() { super('Otra persona cambió este envío. Recarga la página antes de guardar.'); this.status = 409; }
 }
 
 export async function undoFulfillment(env, who, auditRow) {

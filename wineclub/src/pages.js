@@ -54,7 +54,8 @@ const RANGES = [[14, '2 semanas'], [30, '1 mes'], [90, '3 meses'], [180, '6 mese
 // ---------- agenda ----------
 export function agendaPage({ env, user, ctx, url, okAudit }) {
   const today = ctx.today;
-  const horizon = Math.min(365, Math.max(7, Number(url.searchParams.get('dias')) || 30));
+  const requestedRange = Number(url.searchParams.get('dias')) || 30;
+  const horizon = RANGES.find(([d]) => d >= requestedRange)?.[0] || 365;
   const { occ, unmapped } = allOccurrences(ctx, addDays(today, 400));
   const sortEff = (a, b) => a.eff.localeCompare(b.eff) || a.sub.member_name.localeCompare(b.sub.member_name);
   const endWeek = addDays(today, 6 - weekdayMon0(today));
@@ -127,10 +128,10 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   let actions;
   if (open) actions = `${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
     <div class="acts">${s.delivery_pref === 'envio' ? link('shipped', early ? 'Enviar antes de tiempo' : 'Marcar enviado') + link('handed', 'Entregado en mano', 'ghost') : link('handed', early ? 'Entregar antes de tiempo' : 'Entregado en mano') + link('shipped', 'Marcar enviado', 'ghost')}</div>
-    <form method="post" action="${back}/estado"><input type="hidden" name="back" value="${back}">
+    <form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}">
     <div class="acts">${o.status === 'needs_prep' ? act('scheduled', 'Quitar “en preparación”', 'quiet') : act('needs_prep', 'En preparación', 'quiet')}${o.status === 'ready' ? act('scheduled', 'Quitar “listo”', 'quiet') : act('ready', 'Listo', 'quiet')}</div>
     <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div></form>`;
-  else if (o.status) actions = `${o.status === 'shipped' ? `<form method="post" action="${back}/estado"><input type="hidden" name="back" value="${back}"><div class="acts one">${act('delivered', 'Marcar recibido por el socio')}</div></form>` : ''}
+  else if (o.status) actions = `${o.status === 'shipped' ? `<form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}"><div class="acts one">${act('delivered', 'Marcar recibido por el socio')}</div></form>` : ''}
     <details class="more"><summary>Reabrir para corregir</summary><form method="post" action="${back}/reabrir">
     <input type="hidden" name="version" value="${f.version || 0}"><label>Motivo (obligatorio)</label><input name="reason" required placeholder="Ej. se marcó por error">
     <p class="small muted">Vuelve a quedar pendiente. Los datos de pedido y guía se conservan y el cambio queda en el historial.</p><button class="btn sm danger">Reabrir</button></form></details>`;
@@ -156,13 +157,14 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   </div>
   <h2 id="botellas">Botellas</h2><div class="card">${bottlesBlock}
     <details class="more"><summary>Cambiar botellas de este envío</summary>
-    <form method="post" action="${back}/botellas"><label for="b">Una línea por vino: cantidad y nombre</label>
+    <form method="post" action="${back}/botellas"><input type="hidden" name="version" value="${f.version || 0}"><label for="b">Una línea por vino: cantidad y nombre</label>
     <textarea id="b" name="bottles" rows="8" placeholder="2 Tempranillo GR&#10;1 Pet Nat">${esc(bottlesToText(o.bottles))}</textarea>
     <label for="bm">Motivo del cambio (obligatorio si cambias botellas)</label><input id="bm" name="motivo" placeholder="Ej. sustitución pedida por el socio">
     <p class="small muted">Deja la lista vacía para volver a la caja del club.</p><button class="btn sm">Guardar botellas</button></form></details></div>
   <h2>Estado</h2><div class="card">${actions}
     ${f.status ? `<p class="small muted">${esc(attribution(f, today))}${f.delivered_on ? ` · recibido el ${esc(fdate(f.delivered_on, today))}` : ''}${f.override_reason ? ` · excepción: ${esc(f.override_reason)}` : ''}${f.legacy_id ? ` · importado del sistema anterior (#${esc(f.legacy_id)})` : ''}</p>` : ''}</div>
   <h2>Detalles</h2><div class="card"><form method="post" action="${back}/detalles">
+    <input type="hidden" name="version" value="${f.version || 0}">
     <label for="ref">Pedido Zoho / OC</label><input id="ref" name="order_ref" value="${esc(f.order_ref || '')}" placeholder="OV-02072">
     <div class="grid2"><div><label for="car">Paquetería</label><input id="car" name="carrier" value="${esc(f.carrier || '')}"></div>
     <div><label for="trk">Guía</label><input id="trk" name="tracking" value="${esc(f.tracking || '')}"></div></div>
@@ -171,6 +173,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     <label for="nt">Nota</label><textarea id="nt" name="note">${esc(f.note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar detalles</button></form></div>
   <h2>Posponer</h2><div class="card"><form method="post" action="${back}/posponer">
+    <input type="hidden" name="version" value="${f.version || 0}">
     <p class="small muted" style="margin-top:0">No cambia nada en Stripe. Antes de la nueva fecha no aparece como atrasado.</p>
     <div class="grid2"><div><label for="du">Nueva fecha</label><input id="du" type="date" name="delayed_until" value="${esc(f.delayed_until || '')}" min="${esc(o.due)}"></div>
     <div><label for="dr">Motivo</label><input id="dr" name="delay_reason" value="${esc(f.delay_reason || '')}" placeholder="Lo pidió el socio"></div></div>
@@ -258,9 +261,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
         <p class="small muted">Ej. +2 si el primer envío de esta suscripción en realidad es el #3.</p></div></div>
         <label>Club</label><select name="club_id_override"><option value="">Según producto de Stripe${s.product_club_id ? ` (${esc(ctx.clubs.get(s.product_club_id)?.name || '')})` : ''}</option>${clubOpts}</select>
         <button class="btn sm" style="margin-top:10px">Guardar correcciones</button></form>
-      <form method="post" action="/suscripcion/${s.id}/historico" class="card">
-        <b>Registrar historial</b><p class="small muted">Marca como entregados todos los envíos pendientes con fecha anterior a:</p>
-        <input type="date" name="before" value="${today}" required><button class="btn sm quiet" style="margin-top:10px">Marcar como entregados</button></form>
+      <p class="small muted">Para registrar historial, abre el envío y confirma su fecha real de entrega. <a href="/migracion">Revisar historial del sistema anterior</a>.</p>
       <form method="post" action="/suscripcion/${s.id}/pausa" class="card"><b>Pausas</b>
         ${pauses.map(p => `<div class="small" style="margin:6px 0">${esc(p.from_date)} → ${esc(p.until_date || 'sin fecha')} · ${p.source === 'stripe' ? 'Stripe' : 'manual'}${p.note ? ' · ' + esc(p.note) : ''}</div>`).join('') || '<p class="small muted">Sin pausas.</p>'}
         <div class="grid2"><div><label>Desde</label><input type="date" name="from_date" required></div><div><label>Hasta (sin incluir)</label><input type="date" name="until_date"></div></div>

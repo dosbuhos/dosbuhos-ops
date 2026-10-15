@@ -99,7 +99,8 @@ export async function buildPlan(env) {
     if (row.doneOn) row.offsetDays = daysBetween(row.due, row.doneOn);
     if (legacyIds.has(s.legacy_id)) { row.already = true; row.ok = true; plan.shipmentRows.push(row); continue; }
     const f = ctx.fulByKey.get(mr.sub.id)?.get(row.k);
-    if (f?.status) row.issues.push(`El envío #${s.shipment_number} ya está registrado en la app (${STATUS_LABEL[f.status]}); no se sobrescribe`);
+    if (f && ['status', 'bottles_json', 'order_ref', 'tracking', 'carrier', 'note', 'done_on', 'delivered_on', 'delayed_until', 'requested_on'].some(key => f[key])) row.issues.push(`El envío #${s.shipment_number} ya tiene trabajo del personal; no se sobrescribe`);
+    if (!(row.k >= 1 && row.k < 1000)) row.issues.push('Numeración fuera del calendario: revisar la corrección del socio');
     if (row.alloc && totalBottles(row.alloc) !== club.bottles) row.issues.push(`Caja de ${totalBottles(row.alloc)} botellas; el club lleva ${club.bottles}`);
     if (s.zoho_po && !/\d/.test(s.zoho_po)) row.warn = `El "pedido Zoho" parece un nombre: ${s.zoho_po}`;
     else if (s.zoho_po && poSeen.get(s.zoho_po).length > 1) row.warn = `Pedido ${s.zoho_po} repetido en otro socio`;
@@ -111,7 +112,7 @@ export async function buildPlan(env) {
   // Box recipes: legacy shipment #N of a club, identical across every member → that club's case N.
   const groups = new Map();
   for (const r of plan.shipmentRows) {
-    if (!r.club || !r.alloc) continue;
+    if (!r.club || !r.alloc || !r.ok || totalBottles(r.alloc) !== r.club.bottles) continue;
     const slot = slotFor(r.club, r.s.shipment_number, r.due || '2026-01-01');
     const key = `${r.club.id}:${slot}`;
     const g = groups.get(key) || { club: r.club, slot, allocs: new Set(), n: 0, sample: r.alloc };
@@ -213,7 +214,11 @@ export async function runImport(env, user, form) {
     const cols = Object.keys(v);
     const res = await env.DB.prepare(`INSERT INTO fulfillments (subscription_id, k, expected_date, ${cols.join(',')}, updated_by) VALUES (?,?,?,${cols.map(() => '?').join(',')},?)
       ON CONFLICT(subscription_id, k) DO UPDATE SET ${cols.map(c => `${c}=excluded.${c}`).join(',')}, version=version+1, updated_by=excluded.updated_by, updated_at=datetime('now')
-      WHERE fulfillments.status IS NULL AND fulfillments.legacy_id IS NULL RETURNING id`)
+      WHERE fulfillments.status IS NULL AND fulfillments.legacy_id IS NULL
+        AND fulfillments.bottles_json IS NULL AND fulfillments.order_ref IS NULL
+        AND fulfillments.tracking IS NULL AND fulfillments.carrier IS NULL AND fulfillments.note IS NULL
+        AND fulfillments.done_on IS NULL AND fulfillments.delivered_on IS NULL
+        AND fulfillments.delayed_until IS NULL AND fulfillments.requested_on IS NULL RETURNING id`)
       .bind(r.sub.id, r.k, r.due, ...cols.map(c => v[c]), `${user.email} (migración)`).first();
     const result = res ? `importado como envío #${r.k} (${r.due})` : 'omitido: ya había registro';
     await env.DB.prepare(`UPDATE legacy_shipments SET imported_at=datetime('now'), result=? WHERE legacy_id=?`).bind(result, s.legacy_id).run();

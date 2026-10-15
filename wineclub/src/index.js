@@ -32,7 +32,7 @@ async function loadShipment(env, subId, k) {
   return { ctx, sub, club, o };
 }
 
-async function setStatus(env, user, sh, status) {
+async function setStatus(env, user, sh, status, version) {
   const { sub, club, o } = sh;
   const today = todayLocal(env);
   const fields = {};
@@ -46,7 +46,7 @@ async function setStatus(env, user, sh, status) {
     // Snapshot the case the moment work starts, so later edits to the club case never rewrite this shipment.
     if (status !== 'skipped' && !o.f?.bottles_json && o.bottles) fields.bottles_json = JSON.stringify(o.bottles);
   }
-  return writeFulfillment(env, user.email, sub, club, o.k, fields, `estado: ${status === 'scheduled' ? 'pendiente' : status}`);
+  return writeFulfillment(env, user.email, sub, club, o.k, fields, `estado: ${status === 'scheduled' ? 'pendiente' : status}`, { version });
 }
 
 async function ensureFulfillmentId(env, user, sub, club, k) {
@@ -147,6 +147,10 @@ async function handle(request, env) {
       return Response.json({ ok: true });
     }
     const fm = await form(request);
+    const version = Number(fm.version) || 0;
+    if (version !== (sh.o.f?.version || 0)) return P.simplePage({ env, user, title: 'El envío cambió', status: 409,
+      html: `<p>Otra persona cambió este envío. Revisa la información actual antes de guardar.</p><p><a class="btn" href="${here}">Revisar envío</a></p>` });
+    const save = (fields, action) => writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k, fields, action, { version });
     if (action === 'estado') {
       const status = String(fm.status || '');
       if (status !== 'scheduled' && !STATUSES.includes(status)) return new Response('Estado inválido', { status: 400 });
@@ -154,17 +158,20 @@ async function handle(request, env) {
       if (status === 'shipped' || status === 'handed') return redirect(`${here}/entregar?como=${status}`);
       if (status === 'scheduled' && sh.o.state === 'done') return redirect(here);
       if (status === 'delivered' && sh.o.status !== 'shipped') return redirect(here);
-      const { auditId } = await setStatus(env, user, sh, status);
+      if (sh.o.state === 'done' && status !== 'delivered') return redirect(here);
+      if (status === 'ready' && (!sh.o.bottles || sh.o.bottlesTotal !== sh.o.expectedBottles)) return P.simplePage({ env, user, title: 'Falta revisar la caja', status: 400,
+        html: `<p>Define una caja con ${sh.o.expectedBottles} botellas antes de marcarla lista.</p><p><a href="${here}#botellas">Revisar botellas</a></p>` });
+      const { auditId } = await setStatus(env, user, sh, status, version);
       const back = safeBack(fm.back, here);
       return redirect(back === here ? here : withParam(back, 'ok', auditId));
     }
     if (action === 'ref') {
       // Inline PO / tracking from the agenda card: touches only those two fields.
-      await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k, { order_ref: str(fm.order_ref, 60), tracking: str(fm.tracking, 80) }, 'pedido / guía');
+      await save({ order_ref: str(fm.order_ref, 60), tracking: str(fm.tracking, 80) }, 'pedido / guía');
       return redirect(safeBack(fm.back, here));
     }
     if (action === 'detalles') {
-      await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k, {
+      await save({
         order_ref: str(fm.order_ref, 60), carrier: str(fm.carrier, 60), tracking: str(fm.tracking, 80),
         done_on: dateOrNull(fm.done_on), delivered_on: dateOrNull(fm.delivered_on), note: str(fm.note, 2000),
       }, 'detalles');
@@ -172,7 +179,7 @@ async function handle(request, env) {
     }
     if (action === 'posponer') {
       const clear = fm.clear === '1' || !dateOrNull(fm.delayed_until);
-      await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k,
+      await save(
         clear ? { delayed_until: null, delay_reason: null } : { delayed_until: dateOrNull(fm.delayed_until), delay_reason: str(fm.delay_reason, 200) },
         clear ? 'quitar posposición' : `posponer → ${fm.delayed_until}`);
       return redirect(here);
@@ -182,7 +189,7 @@ async function handle(request, env) {
       const why = str(fm.motivo, 300);
       if (list.length && !why) return P.simplePage({ env, user, title: 'Falta el motivo', status: 400, html: `<p>Escribe el motivo del cambio de botellas (por ejemplo, la sustitución que pidió el socio).</p><p><a href="${here}">Volver al envío</a></p>` });
       if (sh.o.state === 'done') return P.simplePage({ env, user, title: 'Envío ya registrado', status: 409, html: `<p>Este envío ya se entregó; su lista de botellas es histórica. Reábrelo si hay que corregirla.</p><p><a href="${here}">Volver al envío</a></p>` });
-      await writeFulfillment(env, user.email, sh.sub, sh.club, sh.o.k,
+      await save(
         list.length ? { bottles_json: JSON.stringify(list), bottles_custom: 1 } : { bottles_json: null, bottles_custom: 0 },
         list.length ? `botellas de este envío: ${why}` : 'botellas: volver a la caja del club');
       return redirect(here);
@@ -307,18 +314,8 @@ async function handle(request, env) {
       await env.DB.prepare('UPDATE subscriptions SET anchor_override=?, seq_offset=?, club_id_override=? WHERE id=?').bind(after.anchor_override, after.seq_offset, after.club_id_override, sub.id).run();
       await audit(env, user.email, 'corrección de suscripción', 'subscription', sub.id, before, after);
     } else if (r[2] === 'historico') {
-      const before = dateOrNull(fm.before);
-      const ctx = await loadContext(env, { memberId: sub.member_id });
-      const s = ctx.subs.find(x => x.id === sub.id); const club = subClub(ctx, s);
-      if (before && club) {
-        let n = 0;
-        for (const o of subOccurrences(ctx, s, before)) {
-          if (o.due >= before || o.status) continue;
-          await writeFulfillment(env, user.email, s, club, o.k, { status: 'handed', done_on: o.due, note: 'Registro histórico', ...(o.bottles ? { bottles_json: JSON.stringify(o.bottles) } : {}) }, 'registro histórico');
-          n++;
-        }
-        await audit(env, user.email, `registro histórico: ${n} envíos antes de ${before}`, 'subscription', sub.id);
-      }
+      return P.simplePage({ env, user, title: 'Registrar entregas reales', status: 400,
+        html: `<p>No se marcan entregas en bloque con fechas calculadas. Registra cada entrega con su fecha real o importa los registros del sistema anterior.</p><p><a href="${back}">Volver al socio</a> · <a href="/migracion">Migración</a></p>` });
     } else if (r[2] === 'pausa') {
       const from = dateOrNull(fm.from_date), until = dateOrNull(fm.until_date);
       if (from && (!until || until > from)) {
@@ -434,6 +431,8 @@ export default {
       return await handle(request, env);
     } catch (e) {
       console.error(e);
+      if (e.status === 409) return P.simplePage({ env, user: null, title: 'El envío cambió', status: 409,
+        html: `<p>${esc(e.message)}</p><p><a href="${esc(new URL(request.url).pathname.replace(/\/(estado|detalles|ref|botellas|posponer)$/, ''))}">Revisar envío</a></p>` });
       return new Response(`<!doctype html><meta name="viewport" content="width=device-width"><body style="font:16px system-ui;padding:20px">
         <h1>Algo falló</h1><p>${esc(e.message || e)}</p><p><a href="/">Volver a la agenda</a></p>`, { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } });
     }

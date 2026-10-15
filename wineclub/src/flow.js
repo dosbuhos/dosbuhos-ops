@@ -3,7 +3,7 @@
 // confirming it, and no subscription gets a club without a manager confirming it.
 
 import { esc, fdate, rel, chip, page, money, cadenceLabel, STATUS_LABEL } from './ui.js';
-import { loadContext, subClub, audit, todayLocal, isIgnored, STAFF_FIELDS } from './data.js';
+import { loadContext, subClub, audit, todayLocal, isIgnored, STAFF_FIELDS, writeFulfillment } from './data.js';
 import { totalBottles, isDate, addDays, dueDate, occurrences } from './schedule.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -38,9 +38,11 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {} }
   </div>
   <form method="post" action="/envio/${o.subId}/${o.k}/entregar" enctype="multipart/form-data" id="ff">
   <input type="hidden" name="version" value="${f.version || 0}">
+  <input type="hidden" name="packing" value="${esc(JSON.stringify(o.bottles))}">
   <h2>Qué lleva la caja ${o.bottles ? `<span class="muted small">(${o.bottlesTotal} de ${o.expectedBottles})</span>` : ''}</h2>
   <div class="card">
     ${o.bottles ? checklist(o.bottles) : ''}
+    ${!problem ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="packed" value="1" required style="width:24px;height:24px;min-height:0"> Revisé las botellas y cantidades de esta caja</label>` : ''}
     ${problem === 'missing' ? `<div class="warn">No está definido qué botellas lleva este envío.</div>` : ''}
     ${problem === 'count' ? `<div class="warn amber">La caja tiene ${o.bottlesTotal} botellas y el club lleva ${o.expectedBottles}.</div>` : ''}
     ${problem ? `<p class="small muted">Defínelo en <a href="/envio/${o.subId}/${o.k}#botellas">el envío</a>, o registra la entrega con un motivo:</p>
@@ -95,11 +97,14 @@ export async function fulfillSubmit(env, user, sh, request) {
   };
   if (!como) return fail('Elige si se envió o se entregó en mano.');
   if (!OPEN.includes(o.state)) return fail(`Este envío ya está registrado como "${STATUS_LABEL[o.status] || o.state}". Para cambiarlo, reábrelo desde el envío.`, 409);
-  const doneOn = isDate(form.done_on) ? form.done_on : today;
+  if (!isDate(form.done_on)) return fail('Indica una fecha de entrega válida.');
+  const doneOn = form.done_on;
   if (doneOn > today) return fail('La fecha de entrega no puede ser en el futuro.');
   const early = o.eff > today;
   if (early && form.early !== '1') return fail('Este envío todavía no toca. Marca "Sí, se entrega antes de tiempo" para registrarlo.');
   const problem = packingProblem(o);
+  if (form.packing !== JSON.stringify(o.bottles)) return fail('La lista de botellas cambió. Recarga y revisa la caja antes de confirmar.', 409);
+  if (!problem && form.packed !== '1') return fail('Confirma que revisaste las botellas y cantidades de la caja.');
   const reason = str(form.override_reason, 300);
   if (problem && !(form.override === '1' && reason)) return fail(problem === 'missing'
     ? 'Falta definir qué botellas lleva. Defínelo, o marca "Registrar de todos modos" y escribe el motivo.'
@@ -114,29 +119,20 @@ export async function fulfillSubmit(env, user, sh, request) {
     method: como === 'shipped' ? 'courier' : (form.method === 'signup' ? 'signup' : 'pickup'),
     handled_by: str(form.handled_by, 80) || user.email,
   };
-  const cols = Object.keys(fields);
   const version = Number(form.version) || 0;
-  let after;
-  if (o.f) {
-    // Guarded by version: if someone else saved this shipment since the page was opened, nothing is written.
-    after = await env.DB.prepare(`UPDATE fulfillments SET ${cols.map(c => `${c}=?`).join(',')}, version=version+1, updated_by=?, updated_at=datetime('now')
-      WHERE id=? AND version=? AND (status IS NULL OR status NOT IN ('handed','shipped','delivered','skipped')) RETURNING *`)
-      .bind(...cols.map(c => fields[c]), user.email, o.f.id, version).first();
-  } else {
-    after = await env.DB.prepare(`INSERT INTO fulfillments (subscription_id, k, expected_date, ${cols.join(',')}, updated_by) VALUES (?,?,?,${cols.map(() => '?').join(',')},?)
-      ON CONFLICT(subscription_id, k) DO NOTHING RETURNING *`)
-      .bind(sub.id, o.k, dueDate(sub.anchor_override || sub.start_date, club.cadence_months, o.k), ...cols.map(c => fields[c]), user.email).first();
-  }
-  if (!after) return fail('Otra persona guardó este envío mientras lo tenías abierto. Revisa el estado actual antes de volver a registrarlo.', 409);
-
   const photo = fd.get('photo');
+  let attachment;
   if (photo && typeof photo !== 'string' && photo.size > 0) {
-    if (photo.size <= 1_900_000) await env.DB.prepare('INSERT INTO photos (fulfillment_id, content_type, data, uploaded_by) VALUES (?,?,?,?)')
-      .bind(after.id, photo.type || 'image/jpeg', await photo.arrayBuffer(), user.email).run();
+    if (photo.size > 1_900_000) return fail('La foto pesa demasiado. Reduce su tamaño o registra sin foto.', 413);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type)) return fail('Usa una foto JPG, PNG o WebP.');
+    attachment = { type: photo.type, data: await photo.arrayBuffer() };
   }
-  const pick = (r) => r ? Object.fromEntries(STAFF_FIELDS.map(c => [c, r[c]])) : null;
-  const auditId = await audit(env, user.email, `${como === 'shipped' ? 'enviado' : 'entregado en mano'}${early ? ' (antes de tiempo)' : ''}${problem ? ' (con excepción de caja)' : ''}`,
-    'fulfillment', `${sub.id}:${o.k}`, pick(o.f), pick(after), reason);
+  let auditId;
+  try {
+    ({ auditId } = await writeFulfillment(env, user.email, sub, club, o.k, fields,
+      `${como === 'shipped' ? 'enviado' : 'entregado en mano'}${early ? ' (antes de tiempo)' : ''}${problem ? ' (con excepción de caja)' : ''}`,
+      { version, note: reason, photo: attachment }));
+  } catch (e) { if (e.status === 409) return fail(e.message, 409); throw e; }
   return new Response(null, { status: 303, headers: { location: `/?ok=${auditId}` } });
 }
 
@@ -146,12 +142,11 @@ export async function reopen(env, user, sh, form) {
   const reason = str(form.reason, 300);
   if (!reason) return 'Escribe por qué se reabre.';
   if (!o.f || !o.f.status) return 'Este envío no está registrado.';
-  const after = await env.DB.prepare(`UPDATE fulfillments SET status=NULL, done_on=NULL, delivered_on=NULL, override_reason=NULL, early=0,
-    bottles_json=CASE WHEN bottles_custom=1 THEN bottles_json ELSE NULL END, version=version+1, updated_by=?, updated_at=datetime('now')
-    WHERE id=? AND version=? RETURNING *`).bind(user.email, o.f.id, Number(form.version) || 0).first();
-  if (!after) return 'Otra persona cambió este envío. Recarga la página.';
-  await audit(env, user.email, 'reabrir', 'fulfillment', `${sub.id}:${o.k}`,
-    Object.fromEntries(STAFF_FIELDS.map(c => [c, o.f[c]])), Object.fromEntries(STAFF_FIELDS.map(c => [c, after[c]])), reason);
+  try {
+    await writeFulfillment(env, user.email, sub, sh.club, o.k,
+      { status: null, done_on: null, delivered_on: null, override_reason: null, early: 0 }, 'reabrir',
+      { version: Number(form.version) || 0, note: reason });
+  } catch (e) { if (e.status === 409) return e.message; throw e; }
   return null;
 }
 

@@ -1,10 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addMonths, occurrences, nearestK, slotFor, parseBottles, membershipYear, localDate, weekdayMon0 } from '../src/schedule.js';
+import { addMonths, occurrences, nearestK, slotFor, parseBottles, membershipYear, localDate, weekdayMon0, isDate } from '../src/schedule.js';
 
 const quarterly = { bottles: 6, cadence_months: 3, allocation_mode: 'sequence' };
 const monthly = { bottles: 12, cadence_months: 1, allocation_mode: 'sequence' };
 const sub = (o = {}) => ({ id: 1, start_date: '2026-01-15', anchor_override: null, seq_offset: 0, ended_on: null, cancel_at: null, status: 'active', ...o });
+
+test('date validation rejects normalized invalid dates', () => {
+  assert.equal(isDate('2026-02-30'), false);
+  assert.equal(isDate('2026-02-29'), false);
+  assert.equal(isDate('2024-02-29'), true);
+});
 
 test('calendar-month arithmetic clamps to month end without drifting', () => {
   assert.equal(addMonths('2026-01-31', 1), '2026-02-28');

@@ -108,6 +108,8 @@ textarea{min-height:96px}
 .rows a.row{display:flex;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);text-decoration:none;color:var(--ink);min-height:60px}
 .rows a.row:first-child{border-top:0}.rows .row .main{flex:1;min-width:0}.rows .row .t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rows .row .s{font-size:13px;color:var(--muted)}
 .rows{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:10px 0}
+.rows a.row[hidden]{display:none}.scroll{max-width:100%;overflow-x:auto}input[type=checkbox],input[type=radio]{accent-color:var(--wine)}
+html{scroll-padding-top:100px}.grid2>*{min-width:0}.sticky-foot{z-index:15;background:var(--bg)}
 .tl .row{border-left:4px solid transparent}.tl .row.overdue,.tl .row.exception{border-left-color:var(--red)}.tl .row.today{border-left-color:var(--wine)}
 .tl .row.done{border-left-color:var(--green)}.tl .row .d{width:76px;flex:none;font-weight:800;font-size:14px}
 dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:14px}dl.kv dd{margin:0;word-break:break-word}

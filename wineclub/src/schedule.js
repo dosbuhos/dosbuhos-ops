@@ -14,7 +14,8 @@ export const STATUSES = ['needs_prep', 'ready', 'handed', 'shipped', 'delivered'
 const pad = (n) => String(n).padStart(2, '0');
 export const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
 export function parse(s) { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return { y, m, d }; }
-export const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T00:00:00Z'));
+export const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+  && !Number.isNaN(Date.parse(s + 'T00:00:00Z')) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
 export const daysInMonth = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
 // Calendar-month arithmetic, always measured from the original date so that
