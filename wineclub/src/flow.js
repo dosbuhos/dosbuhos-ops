@@ -6,6 +6,7 @@ import { esc, fdate, rel, chip, page, money, cadenceLabel, STATUS_LABEL } from '
 import { loadContext, subClub, audit, todayLocal, isIgnored, STAFF_FIELDS, writeFulfillment } from './data.js';
 import { totalBottles, isDate, addDays, dueDate, occurrences } from './schedule.js';
 import { dateFacts, exactDate } from './visibility.js';
+import {billingWarning} from './billing.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -29,6 +30,8 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {} }
   const v = (k, d = '') => esc(form[k] ?? d);
   const body = `<p><a href="/envio/${o.subId}/${o.k}">← Envío</a></p>
   <h1>${COMO[como]}</h1>
+  ${billingWarning(ctx,s,{paid:!!f.paid_on})}
+  <div class="card small"><b>Pago de esta caja:</b> ${f.paid_on?`Pago asociado en Stripe el ${esc(exactDate(f.paid_on))}${f.paid_amount!=null?' · '+money(f.paid_amount,s.price_currency):''}`:'Sin pago asociado. Comprueba la factura del periodo en Stripe antes de entregar; esto no demuestra un impago.'}</div>
   ${error ? `<div class="banner red">${esc(error)}</div>` : ''}
   <div class="card">
     <div style="font-size:19px;font-weight:700">${esc(s.member_name)}</div>

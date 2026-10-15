@@ -9,6 +9,7 @@ import { ask } from './assistant.js';
 import { handleAuth, loginPage } from './google.js';
 import { buildPlan, migrationPage, runImport } from './legacy.js';
 import {receiptPage,receiptSubmit} from './receipt.js';
+import {billingPage} from './billing.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -103,6 +104,7 @@ async function handle(request, env) {
   let r;
 
   // ---------- agenda ----------
+  if(m==='GET'&&p==='/alertas')return billingPage({env,user,ctx:await loadContext(env)});
   if (m === 'GET' && p === '/') {
     const ctx = await loadContext(env);
     return P.agendaPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });

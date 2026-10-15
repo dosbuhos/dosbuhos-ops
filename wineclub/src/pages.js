@@ -2,6 +2,7 @@ import { esc, fdate, rel, chip, page, bottleList, stateLabel, STATE, STATUS_LABE
 import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles, daysBetween } from './schedule.js';
 import { allOccurrences, subOccurrences, subClub, subFlags, isIgnored } from './data.js';
 import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus } from './visibility.js';
+import {billingIssues,billingIssue,billingWarning} from './billing.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const shipHref = (o) => `/envio/${o.subId}/${o.k}`;
@@ -94,13 +95,14 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
   const empty = (what) => `<p class="muted small">${what}${incomplete ? ` entre los socios con calendario. <b style="color:var(--red)">${plural(blocked.length, 'socio está bloqueado', 'socios están bloqueados')}</b> y podrían tener envíos pendientes.` : '.'}</p>`;
   const body = `
   ${okBanner(okAudit, today)}
+  ${billingIssues(ctx).length?`<div class="banner red"><span><b>⚠ ${new Set(billingIssues(ctx).map(x=>x.sub.member_id)).size} socios con alertas de cobro</b><br>${esc([...new Set(billingIssues(ctx).map(x=>x.sub.member_name))].join(', '))}</span><a href="/alertas">Revisar cobros →</a></div>`:''}
   <div class="tiles">
     <a class="tile ${recordedOpen ? 'red' : ''}" href="/envios?f=registrados"><div class="v">${recordedOpen}</div><div class="l">Pendientes registrados</div></a>
     <a class="tile ${nA - registered || incomplete ? 'wine' : ''}" href="/revision#sin-registro"><div class="v">${nA - registered}${incomplete ? '+' : ''}</div><div class="l">Por comprobar${incomplete ? ' · incompleto' : ''}</div></a>
     <a class="tile" href="#proximos"><div class="v">${nextSeven}</div><div class="l">Próximos 7 días</div></a>
   </div>
   ${nA ? `<div class="banner amber"><span><b>${registered} con pendiente registrado · ${nA - registered} sin registro de entrega.</b><br>Son fechas calculadas; hay que comprobar el historial antes de confirmar que falta una entrega.</span><a href="/revision">Revisar diferencias →</a></div>` : ''}
-  <div class="jump-links agenda-jumps"><a href="#atrasados">Fechas vencidas</a><a href="#proximos">Próximos envíos</a><a href="/socios">Altas y calendarios</a></div>
+  <div class="jump-links agenda-jumps"><a href="#atrasados">Fechas vencidas</a><a href="#proximos">Próximos envíos</a><a href="/socios">Altas y calendarios</a><a href="/alertas">Alertas de cobro</a></div>
   ${banners.join('')}
   ${incomplete ? `<div class="sec red" id="bloqueados">Calendarios bloqueados <span class="n">${blocked.length}</span></div>
     <div class="card" style="border-left:6px solid var(--red)"><p style="margin:0 0 8px">Estas suscripciones de Stripe no tienen club confirmado, así que la app <b>no puede calcular sus envíos</b>. Sus atrasados no están incluidos arriba.</p>
@@ -158,6 +160,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   const body = `<p><a href="/">← Agenda</a></p>
   <div class="when">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}</div>
   <h1>Envío #${o.n} · ${esc(s.member_name)}</h1>
+  ${billingWarning(ctx,s,{paid:!!f.paid_on})}
   <div class="acts"><a class="btn quiet sm" href="${back}/comprobante">Firmar recepción</a><a class="btn quiet sm" href="${back}/comprobante?tipo=receipt">Subir comprobante</a></div>
   ${photos.some(p=>['signature','receipt'].includes(p.kind))?'<p class="small"><a href="#comprobantes">✓ Ver comprobantes guardados</a></p>':''}
   <div class="card"><div class="small muted">Alta de esta suscripción: <b>${esc(exactDate(s.start_date))}</b> · ${esc(cadenceLabel(o.club.cadence_months))}</div>${dateFacts(o)}
@@ -232,12 +235,13 @@ export function membersPage({ env, user, ctx, members }) {
     return `<a class="row member-row" href="/socio/${m.id}" data-s="${esc(norm)}"><div class="main"><div class="t">${esc(m.name)}</div><div class="s">${esc(clubs)}</div>
       <div class="small joined">Alta registrada: <b>${joined ? esc(exactDate(joined)) : 'Por confirmar'}</b></div>
       ${r.next ? `<div class="small muted">Próxima fecha: ${esc(exactDate(r.next))}</div>` : ''}</div>
-      ${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
+      ${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip('Revisar cobro','red'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
   };
   const active = members.filter(m => (subsBy.get(m.id) || []).some(isActive));
   const ended = members.filter(m => !active.includes(m));
   const clubsOpts = [...ctx.clubs.values()].filter(c => c.active).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const body = `<h1>Socios <span class="muted small">${active.length} activos</span></h1>
+  <p class="small"><a href="/alertas">Alertas de cobro (${billingIssues(ctx).length}) →</a></p>
   <div class="search"><input id="q" type="search" placeholder="Buscar nombre, teléfono, correo o club" aria-label="Buscar socios" autocomplete="off"></div>
   <p id="search-results" class="small muted" aria-live="polite">${active.length} activos · ${ended.length} terminados</p>
   <div class="rows">${active.map(row).join('') || '<div class="empty">Sin socios activos.</div>'}</div>
@@ -343,6 +347,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   const addr = member.delivery_address || member.stripe_address;
   const joined = joinedDate(ctx, member.id);
   const body = `<p><a href="/socios">← Socios</a></p><h1>${esc(member.name)}</h1>
+  ${subs.map(s=>billingWarning(ctx,s)).join('')}
   <div class="card enrollment"><div class="eyebrow">Primera alta del club registrada</div><div class="enrollment-date">${joined ? esc(exactDate(joined)) : 'Por confirmar'}</div>
   <p class="small muted">Según el inicio de las suscripciones del club${subs.some(s=>s.stripe_subscription_id) ? ' en Stripe' : ''}. Es independiente de los ajustes del primer envío.</p>
   <div class="jump-links"><a href="#calendario">Ver calendario</a><a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto y entrega</a></div></div>
