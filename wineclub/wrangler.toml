@@ -17,7 +17,7 @@ TIMEZONE = "America/Mexico_City"
 ADMIN_EMAILS = "emaycotte@gmail.com,cabosari@dosbuhos.com"
 ACCESS_TEAM_DOMAIN = "dosbuhos.cloudflareaccess.com"
 # AUD tag of the Cloudflare Access application for wineclub.dos-buhos.workers.dev. Empty = app stays locked.
-ACCESS_AUD = ""
+ACCESS_AUD = "fbaa7a778daf04aeaf22a398a0cbcfc4ee0dca44dddfde844494f8884e717b3c"
 # Secrets (set in the dashboard, never here): STRIPE_SECRET_KEY, optional STRIPE_WEBHOOK_SECRET
 
 # Optional assistant (/preguntar). Workers AI by default; set AI_API_URL/AI_MODEL (+ secret AI_API_KEY) for an external OpenAI-compatible model.
