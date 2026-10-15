@@ -8,7 +8,7 @@ import { loadContext, allOccurrences, subOccurrences, subClub } from './data.js'
 import { addDays } from './schedule.js';
 
 const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
-const STATE_EN = { done: 'COMPLETED', skipped: 'SKIPPED', paused: 'PAUSED', pretracking: 'BEFORE_TRACKING', exception: 'EXCEPTION', overdue: 'OVERDUE', today: 'DUE_TODAY', upcoming: 'FUTURE' };
+const STATE_EN = { held: 'HELD_AT_WINERY', done: 'COMPLETED', skipped: 'SKIPPED', paused: 'PAUSED', pretracking: 'BEFORE_TRACKING', exception: 'EXCEPTION', overdue: 'OVERDUE', today: 'DUE_TODAY', upcoming: 'FUTURE' };
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 function shipmentFacts(o, withBottles = false) {
@@ -46,7 +46,7 @@ async function runTool(env, name, args = {}) {
         if (c && !['canceled', 'incomplete_expired', 'manual_ended'].includes(s.status)) perClub[c.name] = (perClub[c.name] || 0) + 1;
       }
       return { today, overdue: occ.filter(o => ['overdue', 'exception'].includes(o.state)).length, due_today: occ.filter(o => o.state === 'today').length,
-        upcoming_next_7_days: occ.filter(o => o.state === 'upcoming' && o.eff <= addDays(today, 7)).length,
+        held_at_winery: occ.filter(o=>o.state==='held').length, upcoming_next_7_days: occ.filter(o => o.state === 'upcoming' && o.eff <= addDays(today, 7)).length,
         active_members_by_club: perClub, subscriptions_without_club: unmapped.map(s => s.member_name) };
     }
     case 'find_members': {

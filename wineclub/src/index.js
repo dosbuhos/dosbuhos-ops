@@ -34,7 +34,7 @@ async function loadShipment(env, subId, k) {
   return { ctx, sub, club, o };
 }
 
-async function setStatus(env, user, sh, status, version) {
+async function setStatus(env, user, sh, status, version, reason = null) {
   const { sub, club, o } = sh;
   const today = todayLocal(env);
   const fields = {};
@@ -43,6 +43,7 @@ async function setStatus(env, user, sh, status, version) {
     if (o.f && !o.f.bottles_custom) fields.bottles_json = null; // let it follow the club case again
   } else {
     fields.status = status;
+    if(status==='held')Object.assign(fields,{held_on:o.status==='held'&&o.f?.held_on?o.f.held_on:today,hold_reason:reason||'Resguardo solicitado por el socio'});
     if (DONE.has(status) && !o.f?.done_on) fields.done_on = today;
     if (status === 'delivered' && !o.f?.delivered_on) fields.delivered_on = today;
     // Snapshot the case the moment work starts, so later edits to the club case never rewrite this shipment.
@@ -168,7 +169,7 @@ async function handle(request, env) {
       if (sh.o.state === 'done' && status !== 'delivered') return redirect(here);
       if (status === 'ready' && (!sh.o.bottles || sh.o.bottlesTotal !== sh.o.expectedBottles)) return P.simplePage({ env, user, title: 'Falta revisar la caja', status: 400,
         html: `<p>Define una caja con ${sh.o.expectedBottles} botellas antes de marcarla lista.</p><p><a href="${here}#botellas">Revisar botellas</a></p>` });
-      const { auditId } = await setStatus(env, user, sh, status, version);
+      const { auditId } = await setStatus(env, user, sh, status, version, str(fm.hold_reason,300));
       const back = safeBack(fm.back, here);
       return redirect(back === here ? here : withParam(back, 'ok', auditId));
     }

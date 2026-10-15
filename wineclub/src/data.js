@@ -112,7 +112,7 @@ export function subFlags(ctx, sub) {
 }
 
 // ---------- fulfillment writes ----------
-export const STAFF_FIELDS = ['status', 'delayed_until', 'delay_reason', 'bottles_json', 'bottles_custom', 'order_ref', 'carrier', 'tracking', 'done_on', 'delivered_on', 'note', 'override_reason', 'early', 'method', 'handled_by', 'requested_on'];
+export const STAFF_FIELDS = ['status', 'delayed_until', 'delay_reason', 'bottles_json', 'bottles_custom', 'order_ref', 'carrier', 'tracking', 'done_on', 'delivered_on', 'note', 'override_reason', 'early', 'method', 'handled_by', 'requested_on', 'held_on', 'hold_reason'];
 
 export async function getSub(env, subId) {
   return env.DB.prepare(SUB_SQL + ' WHERE s.id=?').bind(subId).first();

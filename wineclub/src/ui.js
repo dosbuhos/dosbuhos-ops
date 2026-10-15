@@ -24,7 +24,7 @@ export const money = (cents, cur) => cents == null ? '' : '$' + (cents / 100).to
 export const cadenceLabel = (m) => ({ 1: 'mensual', 2: 'bimestral', 3: 'trimestral', 4: 'cuatrimestral', 6: 'semestral', 12: 'anual' }[m] || `cada ${m} meses`);
 
 export const STATUS_LABEL = {
-  needs_prep: 'En preparación', ready: 'Listo', handed: 'Entregado en mano', shipped: 'Enviado',
+  needs_prep: 'En preparación', ready: 'Listo', held: 'En resguardo en bodega', handed: 'Entregado en mano', shipped: 'Enviado',
   delivered: 'Recibido', exception: 'Excepción', skipped: 'Omitido',
 };
 export const STATE = {
@@ -33,6 +33,7 @@ export const STATE = {
   exception: { label: 'Excepción', tone: 'red' },
   upcoming: { label: 'Programado', tone: 'grey' },
   done: { label: 'Hecho', tone: 'green' },
+  held: { label: 'En resguardo en bodega', tone: 'wine' },
   skipped: { label: 'Omitido', tone: 'grey' },
   paused: { label: 'En pausa', tone: 'grey' },
   pretracking: { label: 'Antes del registro', tone: 'grey' },
@@ -139,6 +140,7 @@ details.more{margin:12px 0}details.more>summary{cursor:pointer;font-weight:700;c
 .date-context{margin:4px 0}.calendar-link{display:inline-flex;align-items:center;min-height:36px;font-weight:650}.joined{margin-top:6px;color:var(--ink)}.member-row .t{white-space:normal!important}.member-row{align-items:flex-start!important}.member-row .chip{white-space:normal}
 .chips .chip{max-width:100%;white-space:normal}
 .status-pair{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.status-pair .chip{white-space:normal;max-width:100%}.ship .when .status-pair{margin-left:auto}.ship .when .status-pair .chip{margin-left:0}
+.ship.held,.shipment-work.held,.schedule-row.held{border-left-color:var(--wine)}
 .como input[type=radio]{display:inline-block!important;width:20px;height:20px;min-height:0;margin-right:8px;flex:none}
 :focus-visible{outline:3px solid #b88235;outline-offset:3px}summary{touch-action:manipulation}
 @media(max-width:360px){.date-facts{grid-template-columns:1fr}.member-row{flex-wrap:wrap}.top .brand{font-size:17px}}

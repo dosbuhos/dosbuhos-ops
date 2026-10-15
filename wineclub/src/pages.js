@@ -13,7 +13,7 @@ const isManagerNote = (user) => user.isManager ? '' : '<p class="small muted">So
 export function shipCard(o, today, back) {
   const s = o.sub;
   const st = STATE[o.state];
-  const actionable = ['overdue', 'today', 'exception'].includes(o.state); // future shipments: no fulfill button on the card
+  const actionable = ['overdue', 'today', 'exception', 'held'].includes(o.state); // future shipments: no fulfill button on the card
   const chips = [];
   if (['needs_prep', 'ready'].includes(o.status)) chips.push(chip(STATUS_LABEL[o.status], 'amber'));
   if (o.delayed) chips.push(chip(`Pospuesto · original ${fdate(o.due, today, { weekday: false })}`, 'amber'));
@@ -33,7 +33,7 @@ export function shipCard(o, today, back) {
   const acts = actionable
     ? `${ref}<div class="acts one"><a class="btn" href="${shipHref(o)}/entregar?como=${como[0]}">${como[1]}</a></div>`
     : (o.state === 'upcoming' ? `<div class="acts one"><a class="btn quiet sm" href="${shipHref(o)}">Ver envío</a></div>` : '');
-  const late = o.state === 'overdue' ? plural(daysBetween(o.eff, today), 'día de atraso', 'días de atraso') : rel(o.eff, today);
+  const late = o.state === 'held' ? 'Conservado en la bodega' : o.state === 'overdue' ? plural(daysBetween(o.eff, today), 'día de atraso', 'días de atraso') : rel(o.eff, today);
   return `<article class="card ship ${o.state}${o.state === 'overdue' && !recordedPending(o) ? ' unverified' : ''}" id="e${o.subId}-${o.k}">
   <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(late)}</span><span class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f)}</span></div>
   <a class="who" href="${shipHref(o)}"><span class="name">${esc(s.member_name)}</span>
@@ -69,6 +69,7 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
   const attention = occ.filter(o => o.state === 'overdue' || o.state === 'exception').sort(sortEff);
   const todays = occ.filter(o => o.state === 'today').sort(sortEff);
   const upcomingAll = occ.filter(o => o.state === 'upcoming').sort(sortEff);
+  const held = occ.filter(o=>o.state==='held').sort(sortEff);
   const thisWeek = upcomingAll.filter(o => o.eff <= endWeek);
   const nextWeek = upcomingAll.filter(o => o.eff > endWeek && o.eff <= endNext);
   // Beyond next week: everything inside the chosen range, and never fewer than the next 8 shipments.
@@ -102,7 +103,7 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
     <a class="tile" href="#proximos"><div class="v">${nextSeven}</div><div class="l">Próximos 7 días</div></a>
   </div>
   ${nA ? `<div class="banner amber"><span><b>${registered} con pendiente registrado · ${nA - registered} sin registro de entrega.</b><br>Son fechas calculadas; hay que comprobar el historial antes de confirmar que falta una entrega.</span><a href="/revision">Revisar diferencias →</a></div>` : ''}
-  <div class="jump-links agenda-jumps"><a href="#atrasados">Fechas vencidas</a><a href="#proximos">Próximos envíos</a><a href="/socios">Altas y calendarios</a><a href="/alertas">Alertas de cobro</a></div>
+  <div class="jump-links agenda-jumps"><a href="#atrasados">Fechas vencidas</a><a href="#proximos">Próximos envíos</a><a href="/envios?f=resguardo">En resguardo (${held.length})</a><a href="/socios">Altas y calendarios</a><a href="/alertas">Alertas de cobro</a></div>
   ${banners.join('')}
   ${incomplete ? `<div class="sec red" id="bloqueados">Calendarios bloqueados <span class="n">${blocked.length}</span></div>
     <div class="card" style="border-left:6px solid var(--red)"><p style="margin:0 0 8px">Estas suscripciones de Stripe no tienen club confirmado, así que la app <b>no puede calcular sus envíos</b>. Sus atrasados no están incluidos arriba.</p>
@@ -111,6 +112,7 @@ export function agendaPage({ env, user, ctx, url, okAudit }) {
     ${user.isManager ? '<a class="btn" style="margin-top:10px" href="/conciliar">Conciliar Stripe</a>' : '<p class="small muted">Avisa a un administrador para que lo resuelva.</p>'}</div>` : ''}
   <div class="sec red" id="atrasados">Fechas vencidas sin entrega registrada <span class="n">${nA}</span>${gapNote}</div>
   ${nA ? cards(attention) : empty('Sin envíos atrasados')}
+  ${held.length?`<div class="sec wine" id="resguardo">En resguardo en bodega <span class="n">${held.length}</span></div><p class="small muted">Cajas conservadas para el socio; no se cuentan como atrasadas. Registra el retiro o envío cuando salgan.</p>${cards(held)}`:''}
   <div class="sec wine" id="hoy">Hoy · ${esc(fdate(today, today))} <span class="n">${todays.length || ''}</span></div>
   ${todays.length ? cards(todays) : empty('Nada para hoy')}
   <div id="proximos"></div><div class="sec" id="semana">Esta semana <span class="n">${thisWeek.length || ''}</span></div>
@@ -132,17 +134,18 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   const today = ctx.today;
   const s = o.sub, f = o.f || {};
   const st = STATE[o.state];
-  const open = ['overdue', 'today', 'upcoming', 'exception'].includes(o.state);
+  const open = ['overdue', 'today', 'upcoming', 'exception', 'held'].includes(o.state);
   const act = (status, label, cls = '') => `<button class="btn ${cls}" name="status" value="${status}">${label}</button>`;
   const back = `/envio/${o.subId}/${o.k}`;
   const early = o.eff > today;
   const link = (como, label, cls = '') => `<a class="btn ${cls}" href="${back}/entregar?como=${como}">${label}</a>`;
   let actions;
-  if (open) actions = `<p><a href="#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
+  if (open) actions = `<p ${o.state === 'held' ? 'hidden' : ''}><a href="#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
     <div class="acts">${s.delivery_pref === 'envio' ? link('shipped', early ? 'Enviar antes de tiempo' : 'Marcar enviado') + link('handed', 'Entregado en mano', 'ghost') : link('handed', early ? 'Entregar antes de tiempo' : 'Entregado en mano') + link('shipped', 'Marcar enviado', 'ghost')}</div>
     <form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}">
     <div class="acts">${o.status === 'needs_prep' ? act('scheduled', 'Quitar “en preparación”', 'quiet') : act('needs_prep', 'En preparación', 'quiet')}${o.status === 'ready' ? act('scheduled', 'Quitar “listo”', 'quiet') : act('ready', 'Listo', 'quiet')}</div>
-    <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div></form>`;
+    <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div></form>
+    ${o.state==='held'?`<div class="banner"><div><b>En resguardo en bodega</b><p class="small">${esc(f.hold_reason||'Resguardo solicitado por el socio')}${f.held_on?' · registrado '+esc(exactDate(f.held_on)):''}</p><p class="small">Al registrar la entrega en mano o el envío, deja de estar en resguardo.</p></div></div>`:`<details class="more"><summary>Guardar este vino en bodega para el socio</summary><form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="status" value="held"><label for="hold-reason">Motivo del resguardo</label><input id="hold-reason" name="hold_reason" maxlength="300" value="Resguardo solicitado por el socio" required><p class="small">No cambia el calendario ni el cobro. La caja queda en resguardo hasta que se registre su retiro o envío.</p><button class="btn quiet">Marcar en resguardo</button></form></details>`}`;
   else if (o.status) actions = `${o.status === 'shipped' ? `<form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}"><div class="acts one">${act('delivered', 'Marcar recibido por el socio')}</div></form>` : ''}
     <details class="more"><summary>Reabrir para corregir</summary><form method="post" action="${back}/reabrir">
     <input type="hidden" name="version" value="${f.version || 0}"><label>Motivo (obligatorio)</label><input name="reason" required placeholder="Ej. se marcó por error">
@@ -189,7 +192,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     <div><label for="dl">Recibido el</label><input id="dl" type="date" name="delivered_on" value="${esc(f.delivered_on || '')}"></div></div>
     <label for="nt">Nota</label><textarea id="nt" name="note">${esc(f.note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar detalles</button></form></div>
-  ${open ? `<h2 id="aplazar">Aplazar esta entrega</h2><div class="card"><form method="post" action="${back}/posponer">
+  ${open && o.state !== 'held' ? `<h2 id="aplazar">Aplazar esta entrega</h2><div class="card"><form method="post" action="${back}/posponer">
     <input type="hidden" name="version" value="${f.version || 0}">
     <p class="small" style="margin-top:0">Solo cambia esta entrega. Conserva la fecha original, los siguientes envíos y la facturación de Stripe. Antes de la nueva fecha no cuenta como atrasada.</p>
     <p class="small">Fecha original: <b>${esc(exactDate(o.due))}</b></p>
@@ -220,6 +223,7 @@ export function membersPage({ env, user, ctx, members }) {
     const m = o.sub.member_id;
     if (!bySubMember.has(m)) bySubMember.set(m, { overdue: 0, next: null });
     const r = bySubMember.get(m);
+    if(o.state==='held')r.held=(r.held||0)+1;
     if (o.state === 'overdue' || o.state === 'exception') r.overdue++;
     if (['today', 'upcoming'].includes(o.state) && (!r.next || o.eff < r.next)) r.next = o.eff;
   }
@@ -235,7 +239,7 @@ export function membersPage({ env, user, ctx, members }) {
     return `<a class="row member-row" href="/socio/${m.id}" data-s="${esc(norm)}"><div class="main"><div class="t">${esc(m.name)}</div><div class="s">${esc(clubs)}</div>
       <div class="small joined">Alta registrada: <b>${joined ? esc(exactDate(joined)) : 'Por confirmar'}</b></div>
       ${r.next ? `<div class="small muted">Próxima fecha: ${esc(exactDate(r.next))}</div>` : ''}</div>
-      ${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip('Revisar cobro','red'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
+      ${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip('Revisar cobro','red'):''}${r.held?chip(`${r.held} en resguardo`,'wine'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
   };
   const active = members.filter(m => (subsBy.get(m.id) || []).some(isActive));
   const ended = members.filter(m => !active.includes(m));
@@ -271,7 +275,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
       const pending = occ.filter(o => ['overdue', 'exception'].includes(o.state));
       const future = occ.filter(o => ['today', 'upcoming'].includes(o.state)).sort((a,b)=>a.eff.localeCompare(b.eff));
       const completed = occ.filter(o => o.state === 'done');
-      const visible = occ.filter(o => o.due >= cut && (o.due <= today || future.slice(0,4).includes(o) || o.state === 'done'));
+      const visible = occ.filter(o => o.state==='held'||o.due >= cut && (o.due <= today || future.slice(0,4).includes(o) || o.state === 'done'));
       const rest = occ.filter(o => !visible.includes(o));
       const last = [...completed].filter(o=>o.f?.done_on).sort((a,b)=>b.f.done_on.localeCompare(a.f.done_on))[0];
       const anchor = s.anchor_override || s.start_date;
@@ -284,7 +288,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
         ${future[0]?.delayed ? `<div><dt>Siguiente fecha reprogramada</dt><dd>${esc(exactDate(future[0].eff))}</dd></div>` : ''}
         <div><dt>Última entrega registrada</dt><dd>${last ? esc(exactDate(last.f.done_on)) : 'Sin entrega registrada'}</dd></div>
       </dl>
-      <div class="chips">${chip(plural(completed.length, 'hecho', 'hechos'), 'green')}${pending.length ? chip(`${pending.length} fechas vencidas sin entrega registrada`, 'amber') : chip('Sin fechas vencidas', 'green')}</div>
+      <div class="chips">${chip(plural(completed.length, 'hecho', 'hechos'), 'green')}${occ.some(o=>o.state==='held')?chip(`${occ.filter(o=>o.state==='held').length} en resguardo en bodega`,'wine'):''}${pending.length ? chip(`${pending.length} fechas vencidas sin entrega registrada`, 'amber') : chip('Sin fechas vencidas', 'green')}</div>
       <p class="small muted">Fechas calculadas desde el primer envío, cada ${club.cadence_months === 1 ? 'mes' : club.cadence_months + ' meses'}. Una entrega tardía no cambia automáticamente las fechas siguientes.${Number(anchor.slice(8)) > 28 ? ' Si el día no existe en un mes, se usa su último día.' : ''}</p>
       <h3>Calendario esperado y entregas reales</h3>
   <p class="small muted">Ordenado por fecha prevista. “Sin entrega registrada” requiere comprobar el historial; no confirma que la caja nunca se haya entregado. El pago se muestra por separado, con la fecha registrada en Stripe. “Sin pago Stripe asociado” requiere revisar la factura; no confirma un impago.</p>
@@ -496,11 +500,12 @@ export const attribution = (f, today) => f && f.status ? [STATUS_LABEL[f.status]
   f.method ? METHOD_ES[f.method] : null, f.handled_by || f.updated_by ? 'por ' + (f.handled_by || f.updated_by) : null].filter(Boolean).join(' · ') : '';
 
 const FILTERS = [['todos', 'Todos'], ['atrasados', 'Fechas vencidas'], ['pendientes', 'Pendientes'], ['registrados', 'Pendientes registrados'], ['programados', 'Programados'], ['prep', 'En preparación'], ['listos', 'Listos'],
-  ['enviados', 'Enviados'], ['entregados', 'Entregados'], ['excepciones', 'Excepciones']];
+  ['resguardo', 'En resguardo'], ['enviados', 'Enviados'], ['entregados', 'Entregados'], ['excepciones', 'Excepciones']];
 const FILTER_FN = {
   todos: () => true,
   atrasados: o => o.state === 'overdue' || o.state === 'exception',
-  pendientes: o => ['today', 'upcoming', 'overdue', 'exception'].includes(o.state),
+  pendientes: o => ['today', 'upcoming', 'overdue', 'exception', 'held'].includes(o.state),
+  resguardo: o=>o.state==='held',
   registrados: o => recordedPending(o) && ['today','upcoming','overdue','exception'].includes(o.state),
   programados: o => ['today', 'upcoming'].includes(o.state),
   prep: o => o.status === 'needs_prep', listos: o => o.status === 'ready',
@@ -514,7 +519,7 @@ export function shipmentsPage({ env, user, ctx, url }) {
   const filter = FILTER_FN[url.searchParams.get('f')] ? url.searchParams.get('f') : 'prep';
   const { occ } = allOccurrences(ctx, addDays(today, 120));
   const list = occ.filter(o => o.state !== 'pretracking' || o.status).filter(FILTER_FN[filter]);
-  const open = (o) => ['overdue', 'exception', 'today', 'upcoming'].includes(o.state);
+  const open = (o) => ['overdue', 'exception', 'today', 'upcoming', 'held'].includes(o.state);
   list.sort((a, b) => open(a) !== open(b) ? (open(a) ? -1 : 1) : open(a) ? a.eff.localeCompare(b.eff) : (b.f?.done_on || b.due).localeCompare(a.f?.done_on || a.due));
   const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const body = `<h1>Envíos <span class="muted small">${list.length}</span></h1>
@@ -530,8 +535,9 @@ export function shipmentsPage({ env, user, ctx, url }) {
       <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f)}${billingIssue(ctx,s)?chip('⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
       <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
       <div class="chips">${chip(prefLabel(s.delivery_pref),'wine')}</div>
+      ${o.state==='held'?`<p class="small"><b>En resguardo en bodega.</b> ${esc(f.hold_reason||'Resguardo solicitado por el socio')}${f.held_on?' · registrado '+esc(exactDate(f.held_on)):''}</p>`:''}
       ${o.delayed?`<p class="small">Fecha original: ${esc(exactDate(o.due))}${f.delay_reason?' · '+esc(f.delay_reason):''}</p>`:''}
-      <div class="work-info"><section><h3>Botellas ${open(o)?'a preparar':'del envío'} · ${o.bottlesTotal} de ${o.expectedBottles}</h3>
+      <div class="work-info"><section><h3>Botellas ${o.state === 'held' ? 'en resguardo' : open(o)?'a preparar':'del envío'} · ${o.bottlesTotal} de ${o.expectedBottles}</h3>
       ${o.bottles?bottleList(o.bottles):`<div class="warn">Falta definir las botellas. <a href="${shipHref(o)}#botellas">Definir caja</a></div>`}
       ${o.bottles&&o.bottlesTotal!==o.expectedBottles?'<p class="small allocation-gap">La cantidad no coincide con el club. Revisa la caja antes de entregar.</p>':''}</section>
       <section><h3>Contacto y entrega</h3><p class="small"><b>${esc(prefLabel(s.delivery_pref))}</b></p><p class="small">${address?esc(address):s.delivery_pref==='envio'?'<b>Falta la dirección de entrega.</b>':'Sin dirección registrada.'}</p>

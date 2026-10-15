@@ -271,6 +271,26 @@ try {
     assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0].status,'needs_prep');
   });
 
+  await check('winery holds preserve payments and can be released by pickup or shipment', async () => {
+    const k=6,path=`/envio/${subA}/${k}`;
+    let f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
+    const before={paid_on:f.paid_on,stripe_invoice_id:f.stripe_invoice_id,expected_date:f.expected_date};
+    assert.equal((await post(path+'/estado',{version:String(f.version),status:'held',hold_reason:'Cliente en Nueva York'})).status,303);
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
+    assert.equal(f.done_on,null);assert.equal(f.held_on,'2026-10-14');assert.equal(f.hold_reason,'Cliente en Nueva York');
+    assert.deepEqual({paid_on:f.paid_on,stripe_invoice_id:f.stripe_invoice_id,expected_date:f.expected_date},before);
+    const html=await get('/envios?f=resguardo');assert.match(html,/En resguardo en bodega/);assert.match(html,/Cliente en Nueva York/);
+    const form={version:String(f.version),como:'handed',done_on:'2026-10-14',packing:'null',override:'1',override_reason:'Caja de prueba',early:'1'};
+    assert.equal((await post(path+'/entregar',form)).status,303);
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];assert.equal(f.status,'handed');assert.equal(f.hold_reason,'Cliente en Nueva York');
+    await post(path+'/reabrir',{version:String(f.version),reason:'Prueba de envío por paquetería'});
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
+    await post(path+'/estado',{version:String(f.version),status:'held',hold_reason:'Cliente en Nueva York'});
+    f=q(`SELECT * FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0];
+    assert.equal((await post(path+'/entregar',{...form,version:String(f.version),como:'shipped'})).status,303);
+    assert.equal(q(`SELECT status FROM fulfillments WHERE subscription_id=${subA} AND k=${k}`)[0].status,'shipped');
+  });
+
   await check('bulk calculated deliveries are disabled', async () => {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);

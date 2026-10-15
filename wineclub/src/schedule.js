@@ -9,7 +9,7 @@
 // as plain strings, so no Date objects leak into the logic.
 
 export const DONE = new Set(['handed', 'shipped', 'delivered']);
-export const STATUSES = ['needs_prep', 'ready', 'handed', 'shipped', 'delivered', 'exception', 'skipped'];
+export const STATUSES = ['needs_prep', 'ready', 'held', 'handed', 'shipped', 'delivered', 'exception', 'skipped'];
 
 const pad = (n) => String(n).padStart(2, '0');
 export const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
@@ -104,6 +104,7 @@ export function occurrences(sub, club, opts) {
     const status = f?.status || null;
     let state;
     if (status && DONE.has(status)) state = 'done';
+    else if (status === 'held') state = 'held';
     else if (status === 'skipped') state = 'skipped';
     else if (paused) state = 'paused';
     else if (due < trackingStart) state = 'pretracking';

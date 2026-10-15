@@ -50,6 +50,16 @@ test('delay is an override: not overdue until the new date passes', () => {
   assert.equal(o.state, 'overdue');
 });
 
+test('wine held at the winery is neither overdue nor completed and preserves the original schedule',()=>{
+  const f=new Map([[3,{status:'held',held_on:'2026-10-15'}]]);
+  const list=occurrences(sub(),quarterly,{to:'2027-01-31',today:'2026-10-15',fulfillments:f});
+  assert.equal(list.find(o=>o.k===3).state,'held');
+  assert.equal(list.find(o=>o.k===3).due,'2026-07-15');
+  assert.equal(list.find(o=>o.k===4).due,'2026-10-15');
+  f.get(3).status='handed';assert.equal(occurrences(sub(),quarterly,{to:'2027-01-31',today:'2026-10-15',fulfillments:f}).find(o=>o.k===3).state,'done');
+  f.get(3).status='shipped';assert.equal(occurrences(sub(),quarterly,{to:'2027-01-31',today:'2026-10-15',fulfillments:f}).find(o=>o.k===3).state,'done');
+});
+
 test('cancelled subscription: nothing owed after it ended, earlier misses still overdue', () => {
   const occ = occurrences(sub({ status: 'canceled', ended_on: '2026-08-01' }), quarterly, { to: '2027-12-31', today: '2026-10-14' });
   assert.deepEqual(occ.map(o => o.due), ['2026-01-15', '2026-04-15', '2026-07-15']);

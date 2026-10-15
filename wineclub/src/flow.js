@@ -10,7 +10,7 @@ import {billingWarning} from './billing.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
-const OPEN = ['overdue', 'today', 'upcoming', 'exception'];
+const OPEN = ['overdue', 'today', 'upcoming', 'exception', 'held'];
 const COMO = { shipped: 'Marcar enviado', handed: 'Entregado en mano' };
 
 export const packingProblem = (o) => !o.bottles ? 'missing' : (o.bottlesTotal !== o.expectedBottles ? 'count' : null);
