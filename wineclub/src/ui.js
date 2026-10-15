@@ -48,6 +48,8 @@ export const chip = (text, tone = 'grey') => `<span class="chip ${tone}">${esc(t
 
 const CSS = `
 .benefit-stepper{display:flex;align-items:center;gap:12px;margin-top:12px}
+.work-member{font-size:18px;font-weight:700;overflow-wrap:anywhere;text-underline-offset:3px}
+.member-filters{margin-bottom:12px}
 .benefit-stepper button{width:48px;min-height:48px;padding:0;flex:none;font-size:26px}
 .benefit-pending{flex:1;text-align:center;font-size:14px;font-weight:600}
 .benefit-confirm{margin-top:10px;padding:12px;background:var(--wine-soft);border-radius:10px}

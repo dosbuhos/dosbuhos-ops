@@ -265,7 +265,7 @@ async function handle(request, env) {
   if (m === 'GET' && p === '/socios') {
     const ctx = await loadContext(env);
     const members = (await env.DB.prepare('SELECT * FROM members ORDER BY name COLLATE NOCASE').all()).results;
-    return P.membersPage({ env, user, ctx, members });
+    return P.membersPage({ env, user, ctx, members, url });
   }
   if (m === 'POST' && p === '/socios/nuevo') {
     if (!user.isManager) return forbidden(env, user);

@@ -221,7 +221,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
 }
 
 // ---------- members ----------
-export function membersPage({ env, user, ctx, members }) {
+export function membersPage({ env, user, ctx, members, url }) {
   const today = ctx.today;
   const { occ } = allOccurrences(ctx, addDays(today, 400));
   const bySubMember = new Map();
@@ -246,19 +246,25 @@ export function membersPage({ env, user, ctx, members }) {
     return `<a class="row member-row" href="/socio/${m.id}" data-s="${esc(norm)}"><div class="main"><div class="t">${esc(m.name)}${m.suspended_on?chip('Suspendido por falta de pago','red'):''}</div><div class="s">${esc(clubs)}</div>
       <div class="small joined">Alta registrada: <b>${joined ? esc(exactDate(joined)) : 'Por confirmar'}</b></div>
       ${r.next ? `<div class="small muted">Próxima fecha: ${esc(exactDate(r.next))}</div>` : ''}</div>
-      ${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip('Revisar cobro','red'):''}${r.held?chip(`${r.held} en resguardo`,'wine'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
+      ${ended.some(x=>x.id===m.id)?chip('Terminado','grey'):''}${(subsBy.get(m.id)||[]).some(s=>billingIssue(ctx,s))?chip('Revisar cobro','red'):''}${r.held?chip(`${r.held} en resguardo`,'wine'):''}${r.overdue ? chip(`${r.overdue} por revisar`, 'amber') : ''}</a>`;
   };
   const suspended=members.filter(m=>m.suspended_on);
   const active = members.filter(m => !m.suspended_on&&(subsBy.get(m.id) || []).some(isActive));
   const ended = members.filter(m => !active.includes(m)&&!m.suspended_on);
+  const groups={activos:active,suspendidos:suspended,terminados:ended,todos:members};
+  const requested=url?.searchParams.get('f');
+  const filter=Object.hasOwn(groups,requested)?requested:'activos';
+  const query=url?.searchParams.get('q')||'';
+  const list=groups[filter];
+  const filters=[['activos','Activos'],['suspendidos','Suspendidos'],['terminados','Terminados'],['todos','Todos']];
   const clubsOpts = [...ctx.clubs.values()].filter(c => c.active).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const body = `<h1>Socios <span class="muted small">${active.length} activos</span></h1>
   <p class="small"><a href="/alertas">Alertas de cobro (${billingIssues(ctx).length}) →</a></p>
-  <div class="search"><input id="q" type="search" placeholder="Buscar nombre, teléfono, correo o club" aria-label="Buscar socios" autocomplete="off"></div>
-  <p id="search-results" class="small muted" aria-live="polite">${active.length} activos · ${suspended.length} suspendidos · ${ended.length} terminados</p>
-  <div class="rows">${active.map(row).join('') || '<div class="empty">Sin socios activos.</div>'}</div>
-  ${suspended.length?`<details class="more" data-search-group open><summary>Suspendidos por falta de pago (${suspended.length})</summary><div class="rows">${suspended.map(row).join('')}</div></details>`:''}
-  ${ended.length ? `<details class="more" data-search-group><summary>Terminados (${ended.length})</summary><div class="rows">${ended.map(row).join('')}</div></details>` : ''}
+  <nav class="chips member-filters" aria-label="Filtrar socios por estado">${filters.map(([key,label])=>`<a class="chip ${filter===key?'wine':''}" ${filter===key?'aria-current="page"':''} href="/socios?f=${key}" style="text-decoration:none;padding:10px 14px">${label} (${groups[key].length})</a>`).join('')}</nav>
+  <div class="search"><input id="q" type="search" placeholder="Buscar nombre, teléfono, correo o club" aria-label="Buscar socios" autocomplete="off" value="${esc(query)}"></div>
+  <p id="search-results" class="small muted" aria-live="polite">${list.length} socios en este filtro</p>
+  <div class="rows">${list.map(row).join('') || '<div class="empty">Sin socios en este filtro.</div>'}</div>
+  <script>document.querySelectorAll('.member-filters a').forEach(a=>a.addEventListener('click',()=>{const u=new URL(a.href);const q=document.getElementById('q').value.trim();if(q)u.searchParams.set('q',q);a.href=u.pathname+u.search;}));document.addEventListener('DOMContentLoaded',()=>{const q=document.getElementById('q');if(q.value)q.dispatchEvent(new Event('input'));});</script>
   ${user.isManager ? `<details class="more"><summary>Agregar socio sin Stripe</summary><div class="card"><form method="post" action="/socios/nuevo">
     <p class="small muted" style="margin-top:0">Para socios que no pagan por Stripe (cortesías, pagos en efectivo). Los de Stripe llegan solos.</p>
     <label for="nn">Nombre</label><input id="nn" name="name" required>
@@ -550,9 +556,9 @@ export function shipmentsPage({ env, user, ctx, url }) {
     const address=s.delivery_address||s.stripe_address;
     const back=`/envios?f=${filter}&abrir=${encodeURIComponent(key)}#${id}`;
     return `<details class="card shipment-work ${o.state}" id="${id}" data-s="${esc(norm([s.member_name,o.club.name,f.order_ref,f.tracking,s.member_email,s.member_phone,address,o.due,exactDate(o.due)].join(' ')))}" ${url.searchParams.get('abrir')===key?'open':''}>
-      <summary><span class="work-heading"><b>${esc(s.member_name)}</b><span class="small muted">${esc(o.club.name)} · Envío #${o.n}</span><span class="small">${o.state==='done'?'Entregado / enviado':'Previsto'}: <b>${esc(exactDate(o.state==='done'?f.done_on||o.due:o.eff))}</b></span>${f.order_ref?`<span class="small muted">OV: ${esc(f.order_ref)}</span>`:''}</span>
+      <summary><span class="work-heading"><a class="work-member" href="/socio/${s.member_id}" aria-label="Ver socio: ${esc(s.member_name)}">${esc(s.member_name)}</a><span class="small muted">${esc(o.club.name)} · Envío #${o.n}</span><span class="small">${o.state==='done'?'Entregado / enviado':'Previsto'}: <b>${esc(exactDate(o.state==='done'?f.done_on||o.due:o.eff))}</b></span>${f.order_ref?`<span class="small muted">OV: ${esc(f.order_ref)}</span>`:''}</span>
       <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f,o)}${billingIssue(ctx,s)?chip(f.paid_on?'⚠ Alerta de cobro del socio':'⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
-      <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
+      <div class="work-body"><p style="margin-top:0"><a class="btn quiet sm" href="/socio/${s.member_id}">Ver socio →</a></p>${billingWarning(ctx,s,{paid:!!f.paid_on})}
       <div class="chips">${chip(prefLabel(s.delivery_pref),'wine')}</div>
       ${open(o)?`<div class="work-triage"><h3>Organizar este envío</h3>${o.status!=='needs_prep'?`<form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="back" value="/envios?f=${filter}&amp;clasificado=1"><button class="btn quiet" name="status" value="needs_prep">Pasar a preparación</button></form>`:''}
       <details class="more"><summary>${o.state==='held'?'Cambiar resguardo':'Guardar en bodega / resguardo'}</summary><form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="back" value="/envios?f=${filter}&amp;clasificado=1"><input type="hidden" name="status" value="held"><label for="reason-${id}">Motivo del resguardo</label><input id="reason-${id}" name="hold_reason" value="${esc(f.hold_reason||'Resguardo solicitado por el socio')}" maxlength="300" required><label for="until-${id}">Retener hasta (opcional)</label><input id="until-${id}" type="date" name="hold_until" value="${esc(f.hold_until||'')}"><p class="small muted">Vacío = indefinido. Una fecha cumplida vuelve al Inbox para coordinar la salida.</p><button class="btn quiet">Guardar en resguardo</button></form></details></div>`:''}
