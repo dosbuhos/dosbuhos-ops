@@ -35,7 +35,7 @@ export function shipCard(o, today, back) {
     : (o.state === 'upcoming' ? `<div class="acts one"><a class="btn quiet sm" href="${shipHref(o)}">Ver envío</a></div>` : '');
   const late = o.state === 'held' ? 'Conservado en la bodega' : o.state === 'overdue' ? plural(daysBetween(o.eff, today), 'día de atraso', 'días de atraso') : rel(o.eff, today);
   return `<article class="card ship ${o.state}${o.state === 'overdue' && !recordedPending(o) ? ' unverified' : ''}" id="e${o.subId}-${o.k}">
-  <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(late)}</span><span class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f)}</span></div>
+  <div class="when"><span class="date">${esc(fdate(o.eff, today))}</span><span class="rel">${esc(late)}</span><span class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f,o)}</span></div>
   <a class="who" href="${shipHref(o)}"><span class="name">${esc(s.member_name)}</span>
   <span class="meta">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')}</span></a>
   <p class="small muted date-context">Alta ${esc(exactDate(s.start_date))} · ${esc(cadenceLabel(o.club.cadence_months))}</p>
@@ -164,7 +164,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
        <p class="small muted">Defínelo aquí abajo para este envío${user.isManager ? `, o la caja ${o.slot} en <a href="/clubes#club${o.club.id}">${esc(o.club.name)}</a>` : ''}.</p>`;
 
   const body = `<p><a href="/">← Agenda</a></p>
-  <div class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f)}</div>
+  <div class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f,o)}</div>
   <h1>Envío #${o.n} · ${esc(s.member_name)}</h1>
   ${billingWarning(ctx,s,{paid:!!f.paid_on})}
   <div class="acts"><a class="btn quiet sm" href="${back}/comprobante">Firmar recepción</a><a class="btn quiet sm" href="${back}/comprobante?tipo=receipt">Subir comprobante</a></div>
@@ -296,7 +296,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
       <div class="chips">${chip(plural(completed.length, 'hecho', 'hechos'), 'green')}${occ.some(o=>o.state==='held')?chip(`${occ.filter(o=>o.state==='held').length} en resguardo en bodega`,'wine'):''}${pending.length ? chip(`${pending.length} fechas vencidas sin entrega registrada`, 'amber') : chip('Sin fechas vencidas', 'green')}</div>
       <p class="small muted">Fechas calculadas desde el primer envío, cada ${club.cadence_months === 1 ? 'mes' : club.cadence_months + ' meses'}. Una entrega tardía no cambia automáticamente las fechas siguientes.${Number(anchor.slice(8)) > 28 ? ' Si el día no existe en un mes, se usa su último día.' : ''}</p>
       <h3>Calendario esperado y entregas reales</h3>
-  <p class="small muted">Ordenado por fecha prevista. “Sin entrega registrada” requiere comprobar el historial; no confirma que la caja nunca se haya entregado. El pago se muestra por separado, con la fecha registrada en Stripe. “Sin pago Stripe asociado” requiere revisar la factura; no confirma un impago.</p>
+  <p class="small muted">Ordenado por fecha prevista. “Sin entrega registrada” requiere comprobar el historial; no confirma que la caja nunca se haya entregado. El pago se muestra por separado, con la fecha registrada en Stripe. “Sin pago de Stripe asociado” requiere revisar la factura; no confirma un impago.</p>
       <div class="schedule-list">${visible.map(scheduleRow).join('') || '<p class="empty">Sin envíos en este período.</p>'}</div>
       ${rest.length ? `<details class="more"><summary>Ver ${rest.length} fechas más (históricas y futuras)</summary><div class="schedule-list">${rest.map(scheduleRow).join('')}</div></details>` : ''}`;
     }
@@ -543,7 +543,7 @@ export function shipmentsPage({ env, user, ctx, url }) {
     const back=`/envios?f=${filter}&abrir=${encodeURIComponent(key)}#${id}`;
     return `<details class="card shipment-work ${o.state}" id="${id}" data-s="${esc(norm([s.member_name,o.club.name,f.order_ref,f.tracking,s.member_email,s.member_phone,address,o.due,exactDate(o.due)].join(' ')))}" ${url.searchParams.get('abrir')===key?'open':''}>
       <summary><span class="work-heading"><b>${esc(s.member_name)}</b><span class="small muted">${esc(o.club.name)} · Envío #${o.n}</span><span class="small">${o.state==='done'?'Entregado / enviado':'Previsto'}: <b>${esc(exactDate(o.state==='done'?f.done_on||o.due:o.eff))}</b></span>${f.order_ref?`<span class="small muted">OV: ${esc(f.order_ref)}</span>`:''}</span>
-      <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f)}${billingIssue(ctx,s)?chip(f.paid_on?'⚠ Alerta de cobro del socio':'⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
+      <span class="work-tags">${chip(visibleStatus(o),o.state==='overdue'&&!recordedPending(o)?'amber':STATE[o.state].tone)}${paymentBadge(f,o)}${billingIssue(ctx,s)?chip(f.paid_on?'⚠ Alerta de cobro del socio':'⚠ Revisar cobro','red'):''}${['needs_prep','ready'].includes(o.status)?chip(STATUS_LABEL[o.status],'grey'):''}<span class="work-toggle">Ver detalle <span aria-hidden="true">⌄</span></span></span></summary>
       <div class="work-body">${billingWarning(ctx,s,{paid:!!f.paid_on})}
       <div class="chips">${chip(prefLabel(s.delivery_pref),'wine')}</div>
       ${open(o)?`<div class="work-triage"><h3>Organizar este envío</h3>${o.status!=='needs_prep'?`<form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="back" value="/envios?f=${filter}&amp;clasificado=1"><button class="btn quiet" name="status" value="needs_prep">Pasar a preparación</button></form>`:''}

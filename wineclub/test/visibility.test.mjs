@@ -57,7 +57,9 @@ test('calendar shows the linked Stripe payment date independently of delivery st
   assert.match(html,/Pagado · 6 ago 2026/);
   assert.match(html,/Sin entrega registrada/);
   assert.match(html,/15 ago 2026/);
-  assert.match(scheduleRow({...o,f:{}}),/Sin pago Stripe asociado/);
+  assert.match(scheduleRow({...o,f:{}}),/Sin pago de Stripe asociado/);
+  assert.match(scheduleRow({...o,state:'overdue',f:{}}),/class="chip red"[^>]*>Sin pago de Stripe asociado/);
+  assert.match(scheduleRow({...o,state:'upcoming',f:{}}),/class="chip grey"[^>]*>Sin pago de Stripe asociado/);
   assert.doesNotMatch(scheduleRow({...o,f:{paid_on:'2026-08-06'}}),/Pagado ·/);
 });
 
