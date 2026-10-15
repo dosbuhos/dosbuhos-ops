@@ -50,6 +50,11 @@ const CSS = `
 .benefit-stepper{display:flex;align-items:center;gap:12px;margin-top:12px}
 .work-member{font-size:18px;font-weight:700;overflow-wrap:anywhere;text-underline-offset:3px}
 .member-filters{margin-bottom:12px}
+#membresia>summary{justify-content:space-between;gap:16px;list-style:none}
+#membresia>summary::-webkit-details-marker{display:none}
+#membresia>summary small{display:block;font-size:13px;font-weight:400;margin-top:4px}
+#membresia .membership-arrow{font-size:24px;flex:none;transition:transform .15s}
+#membresia[open] .membership-arrow{transform:rotate(180deg)}
 .benefit-stepper button{width:48px;min-height:48px;padding:0;flex:none;font-size:26px}
 .benefit-pending{flex:1;text-align:center;font-size:14px;font-weight:600}
 .benefit-confirm{margin-top:10px;padding:12px;background:var(--wine-soft);border-radius:10px}
