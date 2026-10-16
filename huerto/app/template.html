@@ -110,7 +110,8 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .upd .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .upd input[type=date]{box-sizing:border-box;max-width:100%;padding-left:6px;padding-right:4px}
 .upd .two label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
-.tl{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;align-items:start}
+.tl{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:start}
+.ed{border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:15px;line-height:1;padding:8px 10px;border-radius:8px;cursor:pointer;min-height:36px}
 .tl .sw{width:12px;height:12px;border-radius:3px;margin-top:5px}
 /* calendario */
 .gantt{position:relative;font-size:12px}
@@ -326,7 +327,7 @@ function bedTimeline(bedId){
     <h3 style="margin:2px 0 -4px">Plan del año</h3>
     <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
       <span class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}</span><br>
-      <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div></div>`).join("")}</div>
+      <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div><button class="ed" data-pedit="${p.i}" aria-label="Editar ${esc(p.c.n)}" title="Corregir fechas o metros">✎</button></div>`).join("")}</div>
   </div>`;
 }
 
@@ -363,7 +364,7 @@ function bedReal(bed){
     <div class="bar" style="justify-content:space-between"><h3>Estado real</h3>${f ? "" : `<button class="btn primary" id="updopen">Actualizar cama</button>`}</div>
     ${f ? updForm(bed, f) : R.length ? R.map(r => `<div class="rep"><span class="dot" style="margin-top:5px;background:${r.estado === "sembrada" ? (CROPS[r.cultivo]?.c || "var(--leaf)") : r.estado === "lista" ? "var(--soil)" : "var(--faint)"}"></span>
       <div><b>${r.estado === "sembrada" ? esc(CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado]}</b> · ${esc(repWhere(r))}<br><span class="small muted">${r.estado === "sembrada" ? `Sembrada ${fmtISO(r.fecha)}${r.cosecha ? ` · cosecha ≈ ${fmtISO(r.cosecha)}` : ""}` : `Reportado ${fmtISO(r.fecha)}`}</span></div>
-      <button data-repdel="${esc(r._id)}" aria-label="Borrar este reporte" title="Borrar">×</button></div>`).join("")
+      <span style="display:flex;gap:2px"><button data-repedit="${esc(r._id)}" aria-label="Editar este reporte" title="Editar">✎</button><button data-repdel="${esc(r._id)}" aria-label="Borrar este reporte" title="Borrar">×</button></span></div>`).join("")
       : `<p class="small muted" style="margin:0">Sin reportes. Toca “Actualizar cama” cuando se limpie, se prepare o se siembre.</p>`}
   </section>`;
 }
@@ -372,6 +373,7 @@ function updForm(bed, f){
   const opts = cropOptions();
   const sizes = [["toda", `Toda (${nf(B.len, 1)} m)`], ["a", sa], ["b", sb], ["otro", "Otro"]];
   return `<div class="upd">
+    ${f.title ? `<div class="small"><b>Editando:</b> ${esc(f.title)}</div>` : ""}
     <div><div class="lbl">¿Cómo está?</div><div class="opts">${Object.entries(EST).map(([k, n]) => `<button type="button" data-est="${k}" aria-pressed="${f.estado === k}">${n}</button>`).join("")}</div></div>
     <div><div class="lbl">¿Cuánto de la cama?</div><div class="opts">${sizes.map(([k, n]) => `<button type="button" data-size="${k}" aria-pressed="${f.size === k}">${n}</button>`).join("")}</div>
       ${f.size === "otro" ? `<input type="number" id="u-m" inputmode="decimal" min="0.5" max="${B.len}" step="0.5" placeholder="Metros" value="${f.m || ""}" style="margin-top:8px">` : ""}</div>
@@ -388,6 +390,21 @@ function bindReal(root, rerender){
   root.querySelectorAll("[data-repdel]").forEach(b => b.onclick = async () => {
     const id = b.dataset.repdel; state.reports = state.reports.filter(r => r._id !== id); rerender();
     if (state.db) try { await state.db.doc(`camas/${id}`).delete(); } catch (e) { toast("No se pudo borrar"); }
+  });
+  const sizeOf = (bed, m, pos) => { const L = BED[bed].len; if (m >= L - 1e-9) return {size: "toda"}; if (Math.abs(m - L / 2) < .01 && pos === 0) return {size: "a"}; if (Math.abs(m - L / 2) < .01 && pos != null && Math.abs(pos - L / 2) < .01) return {size: "b"}; return {size: "otro", m: String(m)}; };
+  const isoOf = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  root.querySelectorAll("[data-repedit]").forEach(b => b.onclick = () => {
+    const r = state.reports.find(x => x._id === b.dataset.repedit); if (!r) return;
+    const known = !r.cultivo || CROPS[r.cultivo] || state.reports.some(x => x.cultivo === r.cultivo);
+    state.upd = {bed: r.cama, estado: r.estado, ...sizeOf(r.cama, r.m, r.pos), fecha: r.fecha || todayISO(), crop: r.cultivo || "", cosecha: r.cosecha || "", editId: r._id, title: (r.estado === "sembrada" ? (CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado]) + " · " + repWhere(r)};
+    if (!known) { state.upd.crop = "__otro"; state.upd.nuevo = r.cultivo; }
+    rerender(); const sec = root.querySelector(".real"); if (sec) sec.scrollIntoView({behavior: "smooth", block: "start"});
+  });
+  root.querySelectorAll("[data-pedit]").forEach(b => b.onclick = () => {
+    const p = plan.P[+b.dataset.pedit]; if (!p) return;
+    const sow = p.ex ? todayISO() : isoOf(wkDate(p.s));
+    state.upd = {bed: p.bed, estado: "sembrada", ...sizeOf(p.bed, p.m, p.pos), fecha: sow, crop: p.crop, cosecha: isoOf(wkDate(Math.max(0, p.h0))), title: p.c.n + " (del plan)"};
+    rerender(); const sec = root.querySelector(".real"); if (sec) sec.scrollIntoView({behavior: "smooth", block: "start"});
   });
   const f = state.upd; if (!f) return;
   const keepInputs = () => { const m = root.querySelector("#u-m"); if (m) f.m = m.value; const n = root.querySelector("#u-new"); if (n) f.nuevo = n.value; const fe = root.querySelector("#u-fecha"); if (fe) f.fecha = fe.value; const c = root.querySelector("#u-cos"); if (c) f.cosecha = c.value; };
@@ -413,7 +430,10 @@ function bindReal(root, rerender){
     }
     const doc = {cama: f.bed, estado: f.estado, m, pos, cultivo, fecha: f.estado === "sembrada" ? f.fecha : todayISO(), cosecha: f.estado === "sembrada" ? (f.cosecha || "") : "", at: Date.now()};
     if (!state.db) { toast("No se puede guardar en esta vista."); return; }
-    try { const ref = await state.db.collection("camas").add(doc); state.reports = [{...doc, _id: ref && ref.id ? ref.id : "tmp" + doc.at}, ...state.reports]; state.upd = null; toast("Cama actualizada"); rerender(); }
+    try {
+      if (f.editId) { await state.db.doc(`camas/${f.editId}`).delete(); state.reports = state.reports.filter(r => r._id !== f.editId); }
+      const ref = await state.db.collection("camas").add(doc); state.reports = [{...doc, _id: ref && ref.id ? ref.id : "tmp" + doc.at}, ...state.reports]; state.upd = null; toast("Cama actualizada"); rerender();
+    }
     catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar"); }
   };
 }
