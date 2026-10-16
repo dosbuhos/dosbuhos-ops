@@ -4,3 +4,5 @@ CREATE TABLE IF NOT EXISTS hechas (w INTEGER NOT NULL, task TEXT NOT NULL, done_
 CREATE TABLE IF NOT EXISTS cosechas (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT NOT NULL, cama TEXT NOT NULL, cultivo TEXT NOT NULL, cantidad REAL NOT NULL, u TEXT NOT NULL, nota TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 -- El PIN para editar vive en config (k='pin'); no se guarda en el repositorio.
+CREATE TABLE IF NOT EXISTS camas (id INTEGER PRIMARY KEY AUTOINCREMENT, cama TEXT NOT NULL, estado TEXT NOT NULL, m REAL NOT NULL, pos REAL, cultivo TEXT, fecha TEXT NOT NULL, cosecha TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
+-- camas: reportes de estado real (limpia / lista / sembrada) que hace Adrián desde el mapa

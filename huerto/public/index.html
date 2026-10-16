@@ -105,6 +105,18 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .monthpick button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .bedinfo .row{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
 .timeline{display:flex;flex-direction:column;gap:8px}
+.real{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--sunk)}
+.real .rep{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:start;font-size:14px}
+.real .rep button{border:0;background:none;color:var(--faint);font-size:18px;line-height:1;padding:0 4px;cursor:pointer}
+.upd{display:flex;flex-direction:column;gap:12px}
+.upd .lbl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opts button{font:inherit;font-size:15px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 12px;border-radius:9px;cursor:pointer;min-height:44px}
+.opts button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.upd select,.upd input{font-size:16px;min-height:44px;width:100%}
+.upd .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.upd input[type=date]{box-sizing:border-box;max-width:100%;padding-left:6px;padding-right:4px}
+.upd .two label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
 .tl{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;align-items:start}
 .tl .sw{width:12px;height:12px;border-radius:3px;margin-top:5px}
 /* calendario */
@@ -198,8 +210,9 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
     const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-pin': pin }, body: JSON.stringify(body) });
     if (r.status === 401) { setPin(''); refresh(); throw { code: 'bad_pin' }; }
     if (!r.ok) { refresh(); throw { code: 'unavailable' }; }
+    return r.json().catch(() => ({}));
   }
-  const snap = rows => ({ docs: rows.map(d => ({ data: () => d })), size: rows.length, empty: !rows.length });
+  const snap = rows => ({ docs: rows.map(d => ({ id: d.id, data: () => d })), size: rows.length, empty: !rows.length });
   function poll(load, cb) {
     const run = async () => { try { cb(snap(await load())); } catch (e) {} };
     run();
@@ -216,14 +229,20 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
         limit() { return q; },
         onSnapshot(cb) {
           if (name === 'hechas' && ayuda) return poll(async () => (await (await fetch('/api/avisos')).json()).rows, cb);
+          if (name === 'camas') return poll(async () => (await (await fetch('/api/camas')).json()).rows, cb);
           if (name === 'hechas') return poll(async () => (await (await fetch('/api/hechas?w=' + w)).json()).rows, cb);
           return poll(async () => (await (await fetch('/api/cosechas')).json()).rows, cb);
         },
-        async add(doc) { await post('/api/cosechas', doc); refresh(); },
+        async add(doc) {
+          if (name === 'camas') { const j = await post('/api/camas', doc); refresh(); return { id: j.id }; }
+          await post('/api/cosechas', doc); refresh();
+        },
       };
       return q;
     },
     doc(path) {
+      const c = path.match(/^camas\/(.+)$/);
+      if (c) return { async delete() { await post('/api/camas', { del: c[1] }); refresh(); } };
       const m = path.match(/^hechas\/w(\d+)-(.+)$/);
       return {
         async set(d) { await post('/api/hechas', { w: Number(m[1]), id: m[2], done: true, estado: d && d.estado, nota: d && d.nota, txt: d && d.txt }); refresh(); },
@@ -244,7 +263,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 15/10 12:50</div>
+    <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 16/10 14:00</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
     <button role="tab" data-v="hoy">Hoy</button>
@@ -274,7 +293,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   <button data-v="cultivos">Cultivos</button>
   <button data-v="compras">Compras</button>
   <button data-v="registro">Registro de cosecha</button>
-  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 15/10 12:50</p>
+  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 16/10 14:00</p>
 </div></div>
 <div class="tip" id="tip" hidden></div>
 
@@ -736,7 +755,7 @@ const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n)
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const nf = (v, d = 0) => v.toLocaleString("es-MX", {maximumFractionDigits: d, minimumFractionDigits: d});
 const todayW = (() => { const t = new Date(); t.setHours(12); return Math.floor((t - D(PLAN_START)) / (7 * DAY)); })();
-const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, flags: {}, harvests: [], db: null, dbTried: false};
+const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, flags: {}, harvests: [], reports: [], upd: null, db: null, dbTried: false};
 (function initMonth(){ const d = wkDate(state.w); d.setDate(d.getDate() + 2); state.month = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); })();
 const MONTHS = (() => { const m = []; for (let i = 0; i < 13; i++) { const d = new Date(2026, 9 + i, 15); m.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); } return m; })();
 const monthLabel = k => { const [y, m] = k.split("-").map(Number); return MESL[m - 1] + " " + y; };
@@ -824,10 +843,100 @@ function bedTimeline(bedId){
   const b = BED[bedId];
   return `<div class="bedinfo" style="display:flex;flex-direction:column;gap:12px">
     <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
+    ${bedReal(bedId)}
+    <h3 style="margin:2px 0 -4px">Plan del año</h3>
     <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
       <span class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}</span><br>
       <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div></div>`).join("")}</div>
   </div>`;
+}
+
+
+/* ---------- estado real de la cama (lo reporta Adrián) ---------- */
+const EST = {limpia: "Limpia", lista: "Lista para sembrar", sembrada: "Sembrada"};
+const todayISO = () => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); };
+const fmtISO = iso => { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return d + " " + MES[m - 1]; };
+function cropOptions(){
+  const skip = {semilla: 1, vegetales: 1, floresmix: 1};
+  const keys = new Set([...PLANTINGS.map(x => x[1]), ...Object.keys(typeof STOCK !== "undefined" ? STOCK : {})].filter(k => CROPS[k] && !skip[k]));
+  const known = [...keys].map(k => ({v: k, n: CROPS[k].n}));
+  const extra = [...new Set(state.reports.filter(r => r.cultivo && !CROPS[r.cultivo]).map(r => r.cultivo))].map(n => ({v: n, n}));
+  return [...known, ...extra].sort((a, b) => a.n.localeCompare(b.n, "es"));
+}
+function estHarvest(crop, fecha){
+  const c = CROPS[crop]; if (!c || !fecha || !c.sem) return "";
+  const d = D(fecha); d.setDate(d.getDate() + Math.round(c.sem * factor(fecha, c) * 7));
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function sideNames(bed){ return BED[bed].sec === "A" ? ["Mitad norte", "Mitad sur"] : ["Mitad oeste", "Mitad este"]; }
+function repWhere(r){
+  const B = BED[r.cama]; if (!B) return "";
+  if (r.m >= B.len - 1e-9) return "toda la cama";
+  const [a, b] = sideNames(r.cama);
+  if (r.pos === 0 && Math.abs(r.m - B.len / 2) < .01) return a.toLowerCase();
+  if (r.pos != null && Math.abs(r.pos - B.len / 2) < .01 && Math.abs(r.m - B.len / 2) < .01) return b.toLowerCase();
+  return nf(r.m, 1) + " m";
+}
+function bedReal(bed){
+  const R = state.reports.filter(r => r.cama === bed).slice(0, 6);
+  const f = state.upd && state.upd.bed === bed ? state.upd : null;
+  return `<section class="real" aria-label="Estado real de la cama">
+    <div class="bar" style="justify-content:space-between"><h3>Estado real</h3>${f ? "" : `<button class="btn primary" id="updopen">Actualizar cama</button>`}</div>
+    ${f ? updForm(bed, f) : R.length ? R.map(r => `<div class="rep"><span class="dot" style="margin-top:5px;background:${r.estado === "sembrada" ? (CROPS[r.cultivo]?.c || "var(--leaf)") : r.estado === "lista" ? "var(--soil)" : "var(--faint)"}"></span>
+      <div><b>${r.estado === "sembrada" ? esc(CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado]}</b> · ${esc(repWhere(r))}<br><span class="small muted">${r.estado === "sembrada" ? `Sembrada ${fmtISO(r.fecha)}${r.cosecha ? ` · cosecha ≈ ${fmtISO(r.cosecha)}` : ""}` : `Reportado ${fmtISO(r.fecha)}`}</span></div>
+      <button data-repdel="${esc(r._id)}" aria-label="Borrar este reporte" title="Borrar">×</button></div>`).join("")
+      : `<p class="small muted" style="margin:0">Sin reportes. Toca “Actualizar cama” cuando se limpie, se prepare o se siembre.</p>`}
+  </section>`;
+}
+function updForm(bed, f){
+  const B = BED[bed], [sa, sb] = sideNames(bed);
+  const opts = cropOptions();
+  const sizes = [["toda", `Toda (${nf(B.len, 1)} m)`], ["a", sa], ["b", sb], ["otro", "Otro"]];
+  return `<div class="upd">
+    <div><div class="lbl">¿Cómo está?</div><div class="opts">${Object.entries(EST).map(([k, n]) => `<button type="button" data-est="${k}" aria-pressed="${f.estado === k}">${n}</button>`).join("")}</div></div>
+    <div><div class="lbl">¿Cuánto de la cama?</div><div class="opts">${sizes.map(([k, n]) => `<button type="button" data-size="${k}" aria-pressed="${f.size === k}">${n}</button>`).join("")}</div>
+      ${f.size === "otro" ? `<input type="number" id="u-m" inputmode="decimal" min="0.5" max="${B.len}" step="0.5" placeholder="Metros" value="${f.m || ""}" style="margin-top:8px">` : ""}</div>
+    ${f.estado === "sembrada" ? `<div><div class="lbl">Cultivo</div>
+      <select id="u-crop"><option value="">Elegir…</option>${opts.map(o => `<option value="${esc(o.v)}"${f.crop === o.v ? " selected" : ""}>${esc(o.n)}</option>`).join("")}<option value="__otro"${f.crop === "__otro" ? " selected" : ""}>Otro (escribir)…</option></select>
+      ${f.crop === "__otro" ? `<input type="text" id="u-new" maxlength="40" placeholder="Nombre del cultivo" value="${esc(f.nuevo || "")}" style="margin-top:8px">` : ""}</div>
+      <div class="two"><label>Fecha de siembra<input type="date" id="u-fecha" value="${f.fecha}"></label><label>Cosecha estimada<input type="date" id="u-cos" value="${f.cosecha || ""}"></label></div>` : ""}
+    <div class="bar"><button class="btn primary" id="usave" style="min-height:44px;flex:1">Guardar</button><button class="btn" id="ucancel" style="min-height:44px">Cancelar</button></div>
+  </div>`;
+}
+function bindReal(root, rerender){
+  const o = root.querySelector("#updopen");
+  if (o) o.onclick = () => { state.upd = {bed: state.bed, estado: "lista", size: "toda", fecha: todayISO(), crop: "", cosecha: ""}; rerender(); };
+  root.querySelectorAll("[data-repdel]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.repdel; state.reports = state.reports.filter(r => r._id !== id); rerender();
+    if (state.db) try { await state.db.doc(`camas/${id}`).delete(); } catch (e) { toast("No se pudo borrar"); }
+  });
+  const f = state.upd; if (!f) return;
+  const keepInputs = () => { const m = root.querySelector("#u-m"); if (m) f.m = m.value; const n = root.querySelector("#u-new"); if (n) f.nuevo = n.value; const fe = root.querySelector("#u-fecha"); if (fe) f.fecha = fe.value; const c = root.querySelector("#u-cos"); if (c) f.cosecha = c.value; };
+  root.querySelectorAll("[data-est]").forEach(b => b.onclick = () => { keepInputs(); f.estado = b.dataset.est; rerender(); });
+  root.querySelectorAll("[data-size]").forEach(b => b.onclick = () => { keepInputs(); f.size = b.dataset.size; rerender(); });
+  const sel = root.querySelector("#u-crop");
+  if (sel) sel.onchange = () => { keepInputs(); f.crop = sel.value; f.cosecha = estHarvest(f.crop, f.fecha); rerender(); };
+  const fe = root.querySelector("#u-fecha");
+  if (fe) fe.onchange = () => { keepInputs(); f.cosecha = estHarvest(f.crop, f.fecha) || f.cosecha; rerender(); };
+  root.querySelector("#ucancel").onclick = () => { state.upd = null; rerender(); };
+  root.querySelector("#usave").onclick = async () => {
+    keepInputs();
+    const B = BED[f.bed];
+    let m = B.len, pos = 0;
+    if (f.size === "a") m = B.len / 2;
+    else if (f.size === "b") { m = B.len / 2; pos = B.len / 2; }
+    else if (f.size === "otro") { m = +f.m; pos = null; if (!(m > 0 && m <= B.len)) { toast(`Escribe los metros (máximo ${nf(B.len, 1)})`); return; } }
+    let cultivo = "";
+    if (f.estado === "sembrada") {
+      cultivo = f.crop === "__otro" ? (f.nuevo || "").trim() : f.crop;
+      if (!cultivo) { toast("Elige el cultivo"); return; }
+      const hit = Object.entries(CROPS).find(([, c]) => c.n.toLowerCase() === cultivo.toLowerCase()); if (hit) cultivo = hit[0];
+    }
+    const doc = {cama: f.bed, estado: f.estado, m, pos, cultivo, fecha: f.estado === "sembrada" ? f.fecha : todayISO(), cosecha: f.estado === "sembrada" ? (f.cosecha || "") : "", at: Date.now()};
+    if (!state.db) { toast("No se puede guardar en esta vista."); return; }
+    try { const ref = await state.db.collection("camas").add(doc); state.reports = [{...doc, _id: ref && ref.id ? ref.id : "tmp" + doc.at}, ...state.reports]; state.upd = null; toast("Cama actualizada"); rerender(); }
+    catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar"); }
+  };
 }
 
 /* ---------- vistas ---------- */
@@ -1020,13 +1129,14 @@ views.mapa = () => {
         <h3 style="margin:14px 0 8px">Cultivos este mes</h3>
         <div class="legend">${Object.keys(present).map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)}</span>`).join("") || `<span class="muted">Camas en preparación</span>`}</div>
       </section>
-      <section class="panel" id="bedpanel">${state.bed ? bedTimeline(state.bed) : `<p class="muted" style="margin:0">Toca una cama para ver todo lo que lleva en el año.</p>`}</section>
+      <section class="panel" id="bedpanel">${state.bed ? bedTimeline(state.bed) : `<p class="muted" style="margin:0">Toca una cama para ver su plan del año o para <b>actualizar su estado</b> (limpia, lista para sembrar o sembrada).</p>`}</section>
     </div>
   </div>`;
 };
 views.mapa.bind = root => {
   root.querySelectorAll(".monthpick button").forEach(b => b.onclick = () => { state.month = b.dataset.m; render(); });
-  bindBeds(root.querySelector("#mmap"), () => { render(); const p = document.getElementById("bedpanel"); if (p && window.innerWidth < 860) p.scrollIntoView({behavior: "smooth", block: "start"}); });
+  bindReal(root, render);
+  bindBeds(root.querySelector("#mmap"), () => { state.upd = null; render(); const p = document.getElementById("bedpanel"); if (p && window.innerWidth < 860) p.scrollIntoView({behavior: "smooth", block: "start"}); });
   bindZones(root, render);
 };
 
@@ -1256,7 +1366,8 @@ views.registro = () => {
     <label>Nota<input type="text" id="rf-nota" placeholder="opcional"></label>
     <button class="btn primary" type="submit">Guardar</button>
   </form>` : `<div class="notice">El registro se guarda solo al abrir esta página desde tu cuenta de Claude.</div>`}
-  <section class="panel scroll"><table><thead><tr><th>Fecha</th><th>Cama</th><th>Cultivo</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></section>`;
+  <section class="panel scroll"><table><thead><tr><th>Fecha</th><th>Cama</th><th>Cultivo</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></section>
+  <section class="panel scroll"><h3 style="margin-bottom:8px">Reportes de camas</h3>${state.reports.length ? `<table><thead><tr><th>Fecha</th><th>Cama</th><th>Estado</th><th>Cuánto</th><th>Cosecha ≈</th></tr></thead><tbody>${state.reports.slice(0, 80).map(r => `<tr><td class="num">${esc(fmtISO(r.fecha))}</td><td class="num">${esc(r.cama)}</td><td>${r.estado === "sembrada" ? esc(CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado] || esc(r.estado)}</td><td class="small">${esc(repWhere(r))}</td><td class="num small">${esc(fmtISO(r.cosecha))}</td></tr>`).join("")}</tbody></table>` : `<p class="muted small" style="margin:0">Aún no hay reportes. Se hacen desde el Mapa: tocar la cama → “Actualizar cama”.</p>`}</section>`;
 };
 views.registro.bind = root => {
   const f = root.querySelector("#regf"); if (!f) return;
@@ -1334,6 +1445,10 @@ render();
     if (!db) { render(); return; }
     state.db = db;
     subscribeDone();
+    db.collection("camas").orderBy("at", "desc").limit(500).onSnapshot(snap => {
+      state.reports = snap.docs.map(d => ({...d.data(), _id: d.id}));
+      if (["mapa", "registro"].includes(state.view) && !typing() && !state.upd) render();
+    }, () => {});
     db.collection("cosechas").orderBy("fecha", "desc").limit(1000).onSnapshot(snap => {
       state.harvests = snap.docs.map(d => d.data());
       if (["registro", "cosecha", "hoy"].includes(state.view) && !typing()) render();

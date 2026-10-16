@@ -49,6 +49,21 @@ export default {
           .bind(b.fecha, String(b.cama).slice(0, 60), String(b.cultivo).slice(0, 40), cantidad, String(b.u || 'kg').slice(0, 10), String(b.nota || '').slice(0, 200)).run();
         return json({ ok: true });
       }
+      if (p === '/api/camas' && request.method === 'GET') {
+        const { results } = await env.DB.prepare('SELECT id, cama, estado, m, pos, cultivo, fecha, cosecha FROM camas ORDER BY id DESC LIMIT 500').all();
+        return json({ rows: results.map(r => ({ ...r, id: String(r.id), at: r.id })) });
+      }
+      if (p === '/api/camas' && request.method === 'POST') {
+        if (!(await pinOk(request, env))) return json({ error: 'PIN incorrecto' }, 401);
+        const b = await request.json();
+        if (b.del) { await env.DB.prepare('DELETE FROM camas WHERE id=?').bind(Number(b.del)).run(); return json({ ok: true }); }
+        const m = Number(b.m), pos = b.pos == null ? null : Number(b.pos);
+        const okDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
+        if (!/^[AB]\d{1,2}$/.test(b.cama || '') || !['limpia', 'lista', 'sembrada'].includes(b.estado) || !(m > 0 && m <= 10) || !okDate(b.fecha)) return json({ error: 'Datos inválidos' }, 400);
+        const r = await env.DB.prepare('INSERT INTO camas (cama, estado, m, pos, cultivo, fecha, cosecha) VALUES (?,?,?,?,?,?,?)')
+          .bind(b.cama, b.estado, m, pos, String(b.cultivo || '').slice(0, 40), b.fecha, okDate(b.cosecha) ? b.cosecha : '').run();
+        return json({ ok: true, id: String(r.meta.last_row_id) });
+      }
       return json({ error: 'No encontrado' }, 404);
     } catch (e) {
       return json({ error: 'Error del servidor' }, 500);
