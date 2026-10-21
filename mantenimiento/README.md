@@ -1,6 +1,6 @@
-# Mantenimiento Dos Búhos
+# Tecolote · Mantenimiento Dos Búhos
 
-Mobile maintenance tracker ("MaintainX light") for Adrián and the team. Cloudflare Worker + D1, no build step.
+Mobile maintenance tracker ("MaintainX light") for Adrián and the team. Internal name: **Tecolote**. Cloudflare Worker + D1, no build step.
 
 ## Deploy (GitHub → Cloudflare Workers Builds)
 
@@ -17,6 +17,9 @@ The D1 database `mantenimiento` already exists and has its schema applied (ID is
 
 ## First run
 Open the URL → it asks you to create the first admin (name + PIN). Then **Más → Agregar usuario** for each person (Adrián as Administrador), and **Responsables → + Nuevo** for Adrián, the carpenters and external providers.
+
+## Linking Adrián
+Más → Usuarios → Adrián → "Recibe tareas como" → his responsable card. That gives him the **Mías** tab and the **Tomar tarea** button.
 
 ## Roles
 - **Usuario**: create tasks, change status/assignee/date, notes, photos.

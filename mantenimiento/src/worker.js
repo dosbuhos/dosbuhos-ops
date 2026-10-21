@@ -88,7 +88,7 @@ async function currentUser(request, env) {
   const token = getCookie(request, COOKIE);
   if (!token) return null;
   return env.DB.prepare(
-    `SELECT u.id, u.name, u.role FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.name, u.role, u.provider_id FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token = ? AND u.active = 1`
   ).bind(token).first();
 }
@@ -188,7 +188,7 @@ async function api(request, env, url) {
 async function startSession(env, userId) {
   const token = randomHex(32);
   await env.DB.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').bind(token, userId).run();
-  const user = await env.DB.prepare('SELECT id, name, role FROM users WHERE id = ?').bind(userId).first();
+  const user = await env.DB.prepare('SELECT id, name, role, provider_id FROM users WHERE id = ?').bind(userId).first();
   return json({ user }, 200, { 'set-cookie': sessionCookie(token, 60 * 60 * 24 * 365) });
 }
 
@@ -197,7 +197,7 @@ async function bootstrap(env, user) {
     env.DB.prepare('SELECT id, name, sort, active FROM areas ORDER BY sort, name'),
     env.DB.prepare('SELECT id, name, kind, company, specialty, phone, notes, active FROM providers ORDER BY kind DESC, name'),
     env.DB.prepare('SELECT id, name, area_id, active FROM equipment ORDER BY name'),
-    env.DB.prepare('SELECT id, name, role, active FROM users ORDER BY name'),
+    env.DB.prepare('SELECT id, name, role, active, provider_id FROM users ORDER BY name'),
   ]);
   return json({
     user,
@@ -618,8 +618,8 @@ async function usersApi(request, env, user, seg, method) {
     if (!validPin(b.pin)) fail(400, 'El PIN debe ser de 4 a 8 dígitos');
     const salt = randomHex(16);
     try {
-      await env.DB.prepare('INSERT INTO users (name, pin_hash, pin_salt, role) VALUES (?, ?, ?, ?)')
-        .bind(name, await hashPin(b.pin, salt), salt, b.role === 'admin' ? 'admin' : 'staff').run();
+      await env.DB.prepare('INSERT INTO users (name, pin_hash, pin_salt, role, provider_id) VALUES (?, ?, ?, ?, ?)')
+        .bind(name, await hashPin(b.pin, salt), salt, b.role === 'admin' ? 'admin' : 'staff', int(b.provider_id)).run();
     } catch { fail(400, 'Ya existe un usuario con ese nombre'); }
     return json({ ok: true }, 201);
   }
@@ -635,6 +635,7 @@ async function usersApi(request, env, user, seg, method) {
         await env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, id).run();
       } catch { fail(400, 'Ya existe un usuario con ese nombre'); }
     }
+    if ('provider_id' in b) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ?').bind(int(b.provider_id), id).run();
     if ('role' in b) await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'admin' ? 'admin' : 'staff', id).run();
     if ('active' in b) {
       await env.DB.prepare('UPDATE users SET active = ? WHERE id = ?').bind(b.active ? 1 : 0, id).run();
