@@ -195,7 +195,7 @@ async function startSession(env, userId) {
 async function bootstrap(env, user) {
   const [areas, providers, equipment, users] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, sort, active FROM areas ORDER BY sort, name'),
-    env.DB.prepare('SELECT id, name, kind, specialty, phone, active FROM providers ORDER BY kind DESC, name'),
+    env.DB.prepare('SELECT id, name, kind, company, specialty, phone, notes, active FROM providers ORDER BY kind DESC, name'),
     env.DB.prepare('SELECT id, name, area_id, active FROM equipment ORDER BY name'),
     env.DB.prepare('SELECT id, name, role, active FROM users ORDER BY name'),
   ]);
@@ -211,7 +211,7 @@ async function bootstrap(env, user) {
 // ---------- tasks ----------
 const TASK_SELECT = `
   SELECT t.*, a.name AS area_name, e.name AS equipment_name,
-         p.name AS provider_name, p.kind AS provider_kind, p.phone AS provider_phone,
+         p.name AS provider_name, p.kind AS provider_kind, p.company AS provider_company, p.phone AS provider_phone,
          u.name AS created_by_name,
          (SELECT COUNT(*) FROM photos ph WHERE ph.task_id = t.id) AS photo_count,
          (SELECT COUNT(*) FROM task_notes n WHERE n.task_id = t.id AND n.kind = 'nota') AS note_count
@@ -550,6 +550,7 @@ async function providersApi(request, env, user, seg, method) {
   const fields = (b) => ({
     name: str(b.name, 120),
     kind: b.kind === 'interno' ? 'interno' : 'externo',
+    company: str(b.company, 120),
     specialty: str(b.specialty, 120),
     phone: str(b.phone, 40),
     notes: str(b.notes, 2000),
@@ -557,15 +558,15 @@ async function providersApi(request, env, user, seg, method) {
   if (!id && method === 'POST') {
     const f = fields(await body(request));
     if (!f.name) fail(400, 'Escribe el nombre');
-    const r = await env.DB.prepare('INSERT INTO providers (name, kind, specialty, phone, notes) VALUES (?, ?, ?, ?, ?)')
-      .bind(f.name, f.kind, f.specialty, f.phone, f.notes).run();
+    const r = await env.DB.prepare('INSERT INTO providers (name, kind, company, specialty, phone, notes) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(f.name, f.kind, f.company, f.specialty, f.phone, f.notes).run();
     return json({ id: r.meta.last_row_id }, 201);
   }
   if (id && method === 'PATCH') {
     const f = fields(await body(request));
     if (!f.name) fail(400, 'Escribe el nombre');
-    await env.DB.prepare('UPDATE providers SET name=?, kind=?, specialty=?, phone=?, notes=? WHERE id=?')
-      .bind(f.name, f.kind, f.specialty, f.phone, f.notes, id).run();
+    await env.DB.prepare('UPDATE providers SET name=?, kind=?, company=?, specialty=?, phone=?, notes=? WHERE id=?')
+      .bind(f.name, f.kind, f.company, f.specialty, f.phone, f.notes, id).run();
     return json({ ok: true });
   }
   if (id && method === 'DELETE') {

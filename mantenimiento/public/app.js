@@ -316,7 +316,7 @@ function taskCard(t) {
   const open = OPEN.includes(t.status);
   const late = open && t.due_date && t.due_date < todayStr();
   const assignee = t.provider_id
-    ? `<span class="tag ${t.provider_kind === 'externo' ? 'ext' : 'int'}">👤 ${esc(t.provider_name)}</span>`
+    ? `<span class="tag ${t.provider_kind === 'externo' ? 'ext' : 'int'}">👤 ${esc(t.provider_name)}${t.provider_company ? ' · ' + esc(t.provider_company) : ''}</span>`
     : (open ? '<span class="tag unassigned">Sin asignar</span>' : '');
   const due = t.due_date && open ? `<span class="tag ${late ? 'late' : ''}">📅 ${late ? 'Vencida ' : ''}${fmtDay(t.due_date)}</span>` : '';
   const done = !open && t.completed_at ? `<span class="tag">✓ ${fmtDay(localYmd(t.completed_at))}</span>` : '';
@@ -421,7 +421,7 @@ function providerOptions(selected, emptyLabel) {
   const avail = S.providers.filter((p) => p.active || p.id === Number(selected));
   const ints = avail.filter((p) => p.kind === 'interno');
   const exts = avail.filter((p) => p.kind === 'externo');
-  const opt = (p) => `<option value="${p.id}" ${Number(selected) === p.id ? 'selected' : ''}>${esc(p.name)}${p.specialty ? ' · ' + esc(p.specialty) : ''}</option>`;
+  const opt = (p) => `<option value="${p.id}" ${Number(selected) === p.id ? 'selected' : ''}>${esc(p.name)}${p.company ? ' (' + esc(p.company) + ')' : ''}${p.specialty ? ' · ' + esc(p.specialty) : ''}</option>`;
   return `<option value="">${esc(emptyLabel)}</option>
     ${ints.length ? `<optgroup label="Personal interno">${ints.map(opt).join('')}</optgroup>` : ''}
     ${exts.length ? `<optgroup label="Proveedores externos">${exts.map(opt).join('')}</optgroup>` : ''}`;
@@ -732,6 +732,7 @@ function drawEquipmentList(refocus = false) {
     : `<div class="empty">${list.length ? 'Sin resultados' : 'Aún no hay equipos. Agrega chillers, A/C, bombas, cámaras de frío…'}</div>`;
 
   render(header('Equipos', { right: '<a class="iconbtn" href="#/e/nuevo">+ Nuevo</a>' }) + `<div class="wrap">
+    <a class="btn" href="#/e/nuevo" style="margin-bottom:10px">+ Agregar equipo</a>
     <div class="searchbar"><input type="search" id="eq-q" placeholder="Buscar equipo…" value="${esc(store('mt_eq_q') || '')}"></div>
     ${body}</div>`, 'equipos', refocus);
   let tmr;
@@ -838,12 +839,13 @@ async function viewProviders() {
   }
   const item = (p) => `<a class="item" href="#/r/${p.id}">
       <div class="grow"><div class="t">${esc(p.name)}</div>
-        <div class="sub">${[p.specialty, p.phone].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
+        <div class="sub">${[p.company, p.specialty, p.phone].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
         ${p.late_count ? `<div class="sub" style="color:var(--late);font-weight:600">${p.late_count} vencida${p.late_count > 1 ? 's' : ''}</div>` : ''}</div>
       <span class="badge ${p.open_count ? (p.late_count ? 'red' : '') : 'zero'}">${p.open_count}</span></a>`;
   const ints = list.filter((p) => p.kind === 'interno');
   const exts = list.filter((p) => p.kind === 'externo');
   render(header('Responsables', { right: '<a class="iconbtn" href="#/r/nuevo">+ Nuevo</a>' }) + `<div class="wrap list">
+    <a class="btn" href="#/r/nuevo" style="margin-bottom:10px">+ Agregar responsable</a>
     <p class="small">Quién hace el trabajo. El número es cuántas tareas abiertas tiene.</p>
     <div class="group"><span>Personal interno</span><span>${ints.length}</span></div>
     ${ints.map(item).join('') || '<div class="small">Agrega a Adrián, carpinteros, etc.</div>'}
@@ -866,8 +868,10 @@ async function viewProvider(id) {
   render(header(p.name, { back: true, right: `<a class="iconbtn" href="#/r/${id}/editar">Editar</a>` }) + `<div class="wrap">
     <div class="panel">
       <div class="kv"><span>Tipo</span><span>${p.kind === 'interno' ? 'Personal interno' : 'Proveedor externo'}</span></div>
+      ${p.company ? `<div class="kv"><span>Empresa</span><span>${esc(p.company)}</span></div>` : ''}
       ${p.specialty ? `<div class="kv"><span>Especialidad</span><span>${esc(p.specialty)}</span></div>` : ''}
       ${p.phone ? `<div class="kv"><span>Teléfono</span><span>${esc(p.phone)}</span></div>` : ''}
+      ${p.notes ? `<div class="desc mt">${esc(p.notes)}</div>` : ''}
     </div>
     ${p.phone ? `<div class="row" style="margin-bottom:12px">
       <a class="btn sec" href="tel:${esc(p.phone.replace(/[^\d+]/g, ''))}">Llamar</a>
@@ -880,7 +884,7 @@ async function viewProvider(id) {
 }
 
 async function viewProviderForm(id) {
-  let p = { name: '', kind: 'externo', specialty: '', phone: '', notes: '' };
+  let p = { name: '', kind: 'externo', company: '', specialty: '', phone: '', notes: '' };
   if (id) {
     await loadBoot();
     p = S.providers.find((x) => x.id === Number(id)) || p;
@@ -889,7 +893,8 @@ async function viewProviderForm(id) {
     <div class="field"><label>Tipo</label><div class="seg">
       <button type="button" data-k="interno" class="${p.kind === 'interno' ? 'on' : ''}">Personal interno</button>
       <button type="button" data-k="externo" class="${p.kind === 'externo' ? 'on' : ''}">Proveedor externo</button></div></div>
-    <div class="field"><label>Nombre</label><input type="text" id="p-name" value="${esc(p.name)}" placeholder="Ej. Adrián / Plomería Hernández"></div>
+    <div class="field"><label>Nombre</label><input type="text" id="p-name" value="${esc(p.name)}" placeholder="Ej. Adrián / Juan Hernández"></div>
+    <div class="field" id="p-company-f" ${p.kind === 'interno' ? 'style="display:none"' : ''}><label>Empresa</label><input type="text" id="p-company" value="${esc(p.company || '')}" placeholder="Ej. Plomería Hernández"></div>
     <div class="field"><label>Especialidad</label><input type="text" id="p-spec" value="${esc(p.specialty || '')}" placeholder="Plomero, carpintero, A/C, electricista…"></div>
     <div class="field"><label>Teléfono (WhatsApp)</label><input type="tel" id="p-phone" value="${esc(p.phone || '')}" placeholder="10 dígitos"></div>
     <div class="field"><label>Notas</label><textarea id="p-notes">${esc(p.notes || '')}</textarea></div>
@@ -897,9 +902,9 @@ async function viewProviderForm(id) {
     ${id && isAdmin() ? '<button class="btn danger mt" id="p-del">Quitar de la lista</button>' : ''}
   </div>`, 'responsables');
   let kind = p.kind;
-  $$('[data-k]').forEach((b) => (b.onclick = () => { kind = b.dataset.k; $$('[data-k]').forEach((x) => x.classList.toggle('on', x === b)); }));
+  $$('[data-k]').forEach((b) => (b.onclick = () => { kind = b.dataset.k; $$('[data-k]').forEach((x) => x.classList.toggle('on', x === b)); $('#p-company-f').style.display = kind === 'interno' ? 'none' : ''; }));
   $('#p-save').onclick = async () => {
-    const data = { name: $('#p-name').value, kind, specialty: $('#p-spec').value, phone: $('#p-phone').value, notes: $('#p-notes').value };
+    const data = { name: $('#p-name').value, kind, company: kind === 'interno' ? '' : $('#p-company').value, specialty: $('#p-spec').value, phone: $('#p-phone').value, notes: $('#p-notes').value };
     if (!data.name.trim()) return toast('Escribe el nombre', true);
     $('#p-save').disabled = true;
     try {
