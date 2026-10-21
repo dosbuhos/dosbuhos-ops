@@ -1,7 +1,12 @@
 // Mantenimiento Dos Búhos — Cloudflare Worker (API + static assets)
-// Bindings: DB (D1), ASSETS (static files), optional PHOTOS (R2 bucket).
+// Bindings: DB (D1), ASSETS (static files), optional PHOTOS (R2 bucket), optional EMAIL (send_email).
+// Vars: MAIL_FROM (e.g. mantenimiento@dosbuhos.com) — needed only for email login.
 
 const COOKIE = 'mt_sid';
+const SESSION_DAYS = 365;
+const LINK_DAYS = 7;          // WhatsApp / copy links
+const EMAIL_LINK_MIN = 30;    // email links + codes
+const LINK_MAX_USES = 5;      // same link can open on phone browser + home-screen app
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const STATUSES = ['pendiente', 'en_proceso', 'en_espera', 'hecha', 'cancelada'];
 const STATUS_LABEL = {
@@ -72,6 +77,12 @@ async function hashPin(pin, saltHex) {
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, key, 256);
   return hex(bits);
 }
+async function sha256(text) {
+  return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+}
+const emailOn = (env) => !!(env.EMAIL && env.MAIL_FROM);
+const normEmail = (v) => { const e = str(v, 120); return e ? e.toLowerCase() : null; };
+const validEmail = (e) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 function validPin(pin) {
   return typeof pin === 'string' && /^\d{4,8}$/.test(pin);
 }
@@ -113,8 +124,8 @@ async function api(request, env, url) {
     const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first('n');
     const user = await currentUser(request, env);
     const names = user ? [] : (await env.DB.prepare(
-      'SELECT id, name FROM users WHERE active = 1 ORDER BY name').all()).results;
-    return json({ setup: count === 0, user, names });
+      "SELECT id, name FROM users WHERE active = 1 AND pin_hash != '' ORDER BY name").all()).results;
+    return json({ setup: count === 0, user, names, email: emailOn(env) });
   }
 
   if (path === '/api/setup' && method === 'POST') {
@@ -152,6 +163,57 @@ async function api(request, env, url) {
     return startSession(env, u.id);
   }
 
+  // --- link / email login ---
+  if (path === '/api/auth/link' && method === 'POST') {
+    const b = await body(request);
+    if (typeof b.token !== 'string' || b.token.length < 20) fail(400, 'Enlace inválido');
+    const row = await env.DB.prepare(
+      `SELECT l.*, u.active FROM login_links l JOIN users u ON u.id = l.user_id WHERE l.token_hash = ?`
+    ).bind(await sha256(b.token)).first();
+    if (!row || !row.active || row.expires_at < Date.now() || row.uses >= LINK_MAX_USES) {
+      fail(401, 'Este enlace ya no sirve. Pide uno nuevo.');
+    }
+    await env.DB.prepare('UPDATE login_links SET uses = uses + 1 WHERE id = ?').bind(row.id).run();
+    return startSession(env, row.user_id);
+  }
+
+  if (path === '/api/auth/email' && method === 'POST') {
+    if (!emailOn(env)) fail(400, 'El acceso por correo no está activado');
+    const b = await body(request);
+    const email = normEmail(b.email);
+    if (!email || !validEmail(email)) fail(400, 'Escribe un correo válido');
+    const u = await env.DB.prepare('SELECT id, name FROM users WHERE email = ? COLLATE NOCASE AND active = 1').bind(email).first();
+    // Same answer whether or not the address exists
+    if (u) {
+      const recent = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM login_links WHERE user_id = ? AND via = 'email' AND created_at > datetime('now','-15 minutes')"
+      ).bind(u.id).first('n');
+      if (recent < 3) await sendEmailAccess(env, request, u, email);
+    }
+    return json({ ok: true });
+  }
+
+  if (path === '/api/auth/code' && method === 'POST') {
+    const b = await body(request);
+    const email = normEmail(b.email);
+    const code = String(b.code || '').replace(/\D/g, '');
+    if (!email || code.length !== 6) fail(400, 'Escribe el código de 6 dígitos');
+    const row = await env.DB.prepare(
+      `SELECT l.* FROM login_links l JOIN users u ON u.id = l.user_id
+       WHERE u.email = ? COLLATE NOCASE AND u.active = 1 AND l.via = 'email' AND l.code_hash IS NOT NULL
+       ORDER BY l.id DESC LIMIT 1`
+    ).bind(email).first();
+    if (!row || row.expires_at < Date.now() || row.attempts >= 5 || row.uses >= LINK_MAX_USES) {
+      fail(401, 'El código venció. Pide uno nuevo.');
+    }
+    if ((await sha256(row.id + ':' + code)) !== row.code_hash) {
+      await env.DB.prepare('UPDATE login_links SET attempts = attempts + 1 WHERE id = ?').bind(row.id).run();
+      fail(401, 'Código incorrecto');
+    }
+    await env.DB.prepare('UPDATE login_links SET uses = uses + 1 WHERE id = ?').bind(row.id).run();
+    return startSession(env, row.user_id);
+  }
+
   if (path === '/api/logout' && method === 'POST') {
     const token = getCookie(request, COOKIE);
     if (token) await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
@@ -162,7 +224,13 @@ async function api(request, env, url) {
   const user = await currentUser(request, env);
   if (!user) fail(401, 'Inicia sesión');
 
-  if (path === '/api/bootstrap' && method === 'GET') return bootstrap(env, user);
+  if (path === '/api/bootstrap' && method === 'GET') {
+    await env.DB.prepare("UPDATE users SET last_seen = datetime('now') WHERE id = ?").bind(user.id).run();
+    const res = await bootstrap(env, user);
+    // sliding session: every app open extends it another year
+    res.headers.append('set-cookie', sessionCookie(getCookie(request, COOKIE), 60 * 60 * 24 * SESSION_DAYS));
+    return res;
+  }
 
   if (path === '/api/me/pin' && method === 'POST') {
     const b = await body(request);
@@ -189,7 +257,42 @@ async function startSession(env, userId) {
   const token = randomHex(32);
   await env.DB.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').bind(token, userId).run();
   const user = await env.DB.prepare('SELECT id, name, role, provider_id FROM users WHERE id = ?').bind(userId).first();
-  return json({ user }, 200, { 'set-cookie': sessionCookie(token, 60 * 60 * 24 * 365) });
+  return json({ user }, 200, { 'set-cookie': sessionCookie(token, 60 * 60 * 24 * SESSION_DAYS) });
+}
+
+// ---------- access links ----------
+async function createLink(env, userId, createdBy, via, ms, withCode) {
+  const token = randomHex(24);
+  const r = await env.DB.prepare(
+    'INSERT INTO login_links (user_id, token_hash, via, expires_at, created_by) VALUES (?, ?, ?, ?, ?)'
+  ).bind(userId, await sha256(token), via, Date.now() + ms, createdBy).run();
+  let code = null;
+  if (withCode) {
+    code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+    await env.DB.prepare('UPDATE login_links SET code_hash = ? WHERE id = ?').bind(await sha256(r.meta.last_row_id + ':' + code), r.meta.last_row_id).run();
+  }
+  return { token, code };
+}
+// The token rides in the #fragment so link-preview bots (WhatsApp, Mail) never see or spend it.
+const linkUrl = (request, token) => `${new URL(request.url).origin}/#/entrar/${token}`;
+
+async function sendEmailAccess(env, request, u, email) {
+  const { token, code } = await createLink(env, u.id, null, 'email', EMAIL_LINK_MIN * 60000, true);
+  const url = linkUrl(request, token);
+  const first = (u.name || '').split(' ')[0];
+  await env.EMAIL.send({
+    from: { email: env.MAIL_FROM, name: 'Mantenimiento Dos Búhos' },
+    to: email,
+    subject: `Tu acceso a Mantenimiento: ${code}`,
+    text: `Hola ${first}:\n\nEntra a Mantenimiento Dos Búhos con este enlace:\n${url}\n\nO escribe este código en la app: ${code}\n\nVence en ${EMAIL_LINK_MIN} minutos. Si no lo pediste, ignora este correo.`,
+    html: `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#111">
+      <p style="font-size:16px">Hola ${first.replace(/[<>&]/g, '')}:</p>
+      <p style="font-size:16px">Toca el botón para entrar a Mantenimiento Dos Búhos.</p>
+      <p><a href="${url}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:600;font-size:16px">Entrar</a></p>
+      <p style="font-size:15px;color:#555">O escribe este código en la app:</p>
+      <p style="font-size:30px;font-weight:700;letter-spacing:6px;margin:4px 0 20px">${code}</p>
+      <p style="font-size:13px;color:#888">Vence en ${EMAIL_LINK_MIN} minutos. Si no lo pediste, ignora este correo.</p></div>`,
+  });
 }
 
 async function bootstrap(env, user) {
@@ -197,10 +300,13 @@ async function bootstrap(env, user) {
     env.DB.prepare('SELECT id, name, sort, active FROM areas ORDER BY sort, name'),
     env.DB.prepare('SELECT id, name, kind, company, specialty, phone, notes, active FROM providers ORDER BY kind DESC, name'),
     env.DB.prepare('SELECT id, name, area_id, active FROM equipment ORDER BY name'),
-    env.DB.prepare('SELECT id, name, role, active, provider_id FROM users ORDER BY name'),
+    env.DB.prepare(user.role === 'admin'
+      ? "SELECT id, name, role, active, provider_id, email, phone, last_seen, (pin_hash != '') AS has_pin FROM users ORDER BY name"
+      : 'SELECT id, name, role, active, provider_id FROM users ORDER BY name'),
   ]);
   return json({
     user,
+    email_enabled: emailOn(env),
     areas: areas.results,
     providers: providers.results,
     equipment: equipment.results,
@@ -630,17 +736,33 @@ async function usersApi(request, env, user, seg, method) {
     const b = await body(request);
     const name = str(b.name, 60);
     if (!name) fail(400, 'Escribe el nombre');
-    if (!validPin(b.pin)) fail(400, 'El PIN debe ser de 4 a 8 dígitos');
+    const email = normEmail(b.email);
+    if (!validEmail(email)) fail(400, 'Correo inválido');
+    if (b.pin && !validPin(b.pin)) fail(400, 'El PIN debe ser de 4 a 8 dígitos');
     const salt = randomHex(16);
+    const pinHash = b.pin ? await hashPin(b.pin, salt) : '';
     let newId;
     try {
-      const r = await env.DB.prepare('INSERT INTO users (name, pin_hash, pin_salt, role) VALUES (?, ?, ?, ?)')
-        .bind(name, await hashPin(b.pin, salt), salt, b.role === 'admin' ? 'admin' : 'staff').run();
+      const r = await env.DB.prepare('INSERT INTO users (name, pin_hash, pin_salt, role, email, phone) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(name, pinHash, salt, b.role === 'admin' ? 'admin' : 'staff', email, str(b.phone, 40)).run();
       newId = r.meta.last_row_id;
-    } catch { fail(400, 'Ya existe un usuario con ese nombre'); }
+    } catch (e) { fail(400, /email/i.test(String(e)) ? 'Ese correo ya lo usa otra persona' : 'Ya existe un usuario con ese nombre'); }
     const pid = await resolveUserProvider(env, b, name);
     if (pid) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ?').bind(pid, newId).run();
     return json({ ok: true, id: newId, provider_id: pid }, 201);
+  }
+  if (id && seg[2] === 'access' && method === 'POST') {
+    const b = await body(request);
+    const u = await env.DB.prepare('SELECT id, name, email, active FROM users WHERE id = ?').bind(id).first();
+    if (!u || !u.active) fail(404, 'Usuario no encontrado o sin acceso');
+    if (b.via === 'email') {
+      if (!emailOn(env)) fail(400, 'El acceso por correo no está activado');
+      if (!u.email) fail(400, 'Este usuario no tiene correo');
+      await sendEmailAccess(env, request, u, u.email);
+      return json({ ok: true, sent: u.email });
+    }
+    const { token } = await createLink(env, u.id, user.id, 'link', LINK_DAYS * 86400000, false);
+    return json({ ok: true, url: linkUrl(request, token), days: LINK_DAYS });
   }
   if (id && method === 'PATCH') {
     const b = await body(request);
@@ -657,6 +779,13 @@ async function usersApi(request, env, user, seg, method) {
         await env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, id).run();
       } catch { fail(400, 'Ya existe un usuario con ese nombre'); }
     }
+    if ('email' in b) {
+      const email = normEmail(b.email);
+      if (!validEmail(email)) fail(400, 'Correo inválido');
+      try { await env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(email, id).run(); }
+      catch { fail(400, 'Ese correo ya lo usa otra persona'); }
+    }
+    if ('phone' in b) await env.DB.prepare('UPDATE users SET phone = ? WHERE id = ?').bind(str(b.phone, 40), id).run();
     let pid;
     if ('provider_id' in b) {
       pid = await resolveUserProvider(env, b, name);
@@ -665,9 +794,12 @@ async function usersApi(request, env, user, seg, method) {
     if ('role' in b) await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'admin' ? 'admin' : 'staff', id).run();
     if ('active' in b) {
       await env.DB.prepare('UPDATE users SET active = ? WHERE id = ?').bind(b.active ? 1 : 0, id).run();
-      if (!b.active) await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
+      if (!b.active) {
+        await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
+        await env.DB.prepare('DELETE FROM login_links WHERE user_id = ?').bind(id).run();
+      }
     }
-    if ('pin' in b) {
+    if ('pin' in b && b.pin) {
       if (!validPin(b.pin)) fail(400, 'El PIN debe ser de 4 a 8 dígitos');
       const salt = randomHex(16);
       await env.DB.prepare('UPDATE users SET pin_hash = ?, pin_salt = ?, failed_count = 0, locked_until = NULL WHERE id = ?')

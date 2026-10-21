@@ -29,7 +29,7 @@
   --tabbar-h: 60px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; background: var(--bg); color: var(--ink); }
+html, body { margin: 0; background: var(--bg); color: var(--ink); overflow-x: hidden; }
 body { font: 15px/1.4 var(--ui); -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 body.has-tabs { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 84px); }
 body.has-bar { padding-bottom: calc(76px + var(--safe-b)); }
@@ -252,13 +252,13 @@ button.cell:active, a.cell:active { background: var(--surface-2); }
 /* ---------- forms ---------- */
 .field { margin-bottom: 18px; }
 .flabel { display: block; font-size: 14px; font-weight: 600; color: var(--muted); margin: 0 4px 6px; }
-.input, .field input[type=text], .field input[type=tel], .field input[type=password], .field input[type=number], .field input[type=date], .field select, .field textarea {
+.input, .field input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), .field select, .field textarea {
   width: 100%; border: 0; background: var(--surface); border-radius: 12px; padding: 12px 14px; font-size: 16px;
   box-shadow: inset 0 0 0 1px var(--line); -webkit-appearance: none; appearance: none; min-height: 48px;
 }
 .field textarea { min-height: 88px; resize: vertical; line-height: 1.45; }
 .field .big { font-size: 18px; font-weight: 600; }
-.field input:focus, .field textarea:focus, .field select:focus { outline: 0; box-shadow: inset 0 0 0 2px var(--agave); }
+.field input:focus, .field textarea:focus, .field select:focus, .input:focus { outline: 0; box-shadow: inset 0 0 0 2px var(--agave); }
 .field .hint { font-size: 13px; color: var(--faint); margin: 6px 4px 0; }
 .field select { background-image: linear-gradient(45deg, transparent 50%, #8C9893 50%), linear-gradient(135deg, #8C9893 50%, transparent 50%); background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
 .prio { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }

@@ -15,11 +15,18 @@ Mobile maintenance tracker ("MaintainX light") for Adrián and the team. Cloudfl
 
 The D1 database `mantenimiento` already exists and has its schema applied (ID is in wrangler.jsonc). Every push to the repo redeploys.
 
-## First run
-Open the URL → it asks you to create the first admin (name + PIN). Then **Más → Agregar usuario** for each person (Adrián as Administrador), and **Responsables → + Nuevo** for Adrián, the carpenters and external providers.
+## Access (no passwords)
+- Más → Usuarios → Agregar usuario (name, WhatsApp, optional email) → **Crear y enviar acceso** → send the link by WhatsApp or copy it.
+- The link opens the app and keeps that phone logged in (sessions renew every time the app is opened; 1 year idle).
+- Links last 7 days and work up to 5 times (phone browser + home-screen app).
+- **Quitar acceso** logs the person out everywhere and kills their links.
+- PIN is only a backup (Más → PIN de respaldo, and "Entrar con PIN" on the login screen).
 
-## Linking Adrián
-Más → Usuarios → Adrián → "Recibe tareas como" → his responsable card. That gives him the **Mías** tab and the **Tomar tarea** button.
+## Email login (optional)
+1. Cloudflare → Workers Plans → Workers Paid ($5/mo; required to email arbitrary addresses).
+2. Compute → Email Service → Email Sending → Onboard Domain → dosbuhos.com. Check the DMARC record against the existing Google Workspace one before accepting.
+3. In `wrangler.jsonc`, uncomment `"send_email": [{ "name": "EMAIL" }]` and push.
+Then the login screen offers "Enviarme el acceso" (link + 6-digit code, valid 30 min) and admins get "Enviar por correo".
 
 ## Roles
 - **Usuario**: create tasks, change status/assignee/date, notes, photos.

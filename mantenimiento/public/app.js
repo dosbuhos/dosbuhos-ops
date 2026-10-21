@@ -91,7 +91,7 @@ async function api(method, path, data) {
   try { res = await fetch('/api' + path, opts); } catch { throw new Error('Sin conexión. Revisa tu internet.'); }
   let out = {};
   try { out = await res.json(); } catch { /* empty */ }
-  if (res.status === 401 && !path.startsWith('/login') && !path.startsWith('/setup')) {
+  if (res.status === 401 && !/^\/(login|setup|auth\/)/.test(path)) {
     S.user = null;
     showLogin();
     throw new Error('Inicia sesión');
@@ -275,55 +275,118 @@ function errorView(msg, root) {
 }
 
 // ---------- login / setup ----------
-async function showLogin() {
+async function showLogin(msg = '') {
   NAV.classList.add('hidden');
   FAB.classList.add('hidden');
   document.body.className = '';
+  // Access link: /#/entrar/<token>
+  const m = location.hash.match(/^#\/entrar\/([a-f0-9]{20,})/);
+  if (m) {
+    history.replaceState(null, '', '#/');
+    try {
+      const r = await api('POST', '/auth/link', { token: m[1] });
+      S.user = r.user;
+      return start();
+    } catch (e) { msg = e.message; }
+  }
   let st;
   try {
     st = await (await fetch('/api/status', { credentials: 'same-origin' })).json();
   } catch {
-    APP.innerHTML = `<div class="login"><h1>Sin conexión</h1><p class="tag">Revisa tu internet y vuelve a abrir la app.</p></div>`;
+    APP.innerHTML = `<div class="login"><img class="logo" src="/logo.png" alt="dos búhos"><h1>Sin conexión</h1><p class="tag">Revisa tu internet y vuelve a abrir la app.</p></div>`;
     return;
   }
   if (st.user) { S.user = st.user; return start(); }
   if (st.setup) return showSetup();
+  const lastEmail = store('mt_last_email') || '';
 
-  let selected = store('mt_last_user');
-  if (!st.names.some((n) => n.id === selected)) selected = st.names.length === 1 ? st.names[0].id : null;
-  let pin = '';
   APP.innerHTML = `<div class="login">
     <img class="logo" src="/logo.png" alt="dos búhos">
     <h1>Mantenimiento</h1>
-    <p class="tag">¿Quién eres?</p>
-    <div class="names">${st.names.map((n) => `<button data-id="${n.id}" class="${n.id === selected ? 'on' : ''}">${esc(n.name)}</button>`).join('')}</div>
+    ${st.email ? `
+      <div id="lg-email">
+        <p class="tag">Escribe tu correo y te mandamos un enlace para entrar.</p>
+        <div class="field"><input type="email" id="lg-mail" inputmode="email" autocomplete="email" placeholder="tu@correo.com" value="${esc(lastEmail)}"></div>
+        <button class="b block" id="lg-send">Enviarme el acceso</button>
+      </div>
+      <div id="lg-code" class="hidden">
+        <p class="tag">Te enviamos un correo. Toca el enlace, o escribe aquí el código de 6 dígitos.</p>
+        <div class="field"><input type="text" id="lg-c" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="text-align:center;letter-spacing:.4em;font-size:24px;font-weight:700"></div>
+        <button class="b block" id="lg-go">Entrar</button>
+        <button class="b ghost block mt" id="lg-back">Usar otro correo</button>
+      </div>
+      <p class="small mt">¿No tienes correo en la app? Pídele a un administrador tu enlace por WhatsApp.</p>`
+    : `<p class="tag">Para entrar, abre el enlace que te mandó un administrador por WhatsApp. Si se te perdió, pídele uno nuevo.</p>`}
+    <div class="err mt" id="err">${esc(msg)}</div>
+    ${st.names.length ? `<button class="b ghost" id="lg-pin" style="margin-top:auto;align-self:center">Entrar con PIN</button>` : ''}
+  </div>`;
+  const err = (t) => ($('#err').textContent = t || '');
+  if (st.email) {
+    const mail = $('#lg-mail');
+    const send = async () => {
+      err();
+      const email = mail.value.trim();
+      if (!email) return err('Escribe tu correo');
+      $('#lg-send').disabled = true;
+      try {
+        await api('POST', '/auth/email', { email });
+        store('mt_last_email', email);
+        $('#lg-email').classList.add('hidden');
+        $('#lg-code').classList.remove('hidden');
+        setTimeout(() => $('#lg-c').focus(), 50);
+      } catch (e) { err(e.message); }
+      $('#lg-send').disabled = false;
+    };
+    $('#lg-send').onclick = send;
+    mail.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+    const go = async () => {
+      err();
+      try {
+        const r = await api('POST', '/auth/code', { email: mail.value.trim(), code: $('#lg-c').value });
+        S.user = r.user;
+        start();
+      } catch (e) { err(e.message); }
+    };
+    $('#lg-go').onclick = go;
+    $('#lg-c').oninput = (e) => { if (e.target.value.replace(/\D/g, '').length === 6) go(); };
+    $('#lg-back').onclick = () => { $('#lg-code').classList.add('hidden'); $('#lg-email').classList.remove('hidden'); err(); };
+  }
+  const pinBtn = $('#lg-pin');
+  if (pinBtn) pinBtn.onclick = () => showPinLogin(st.names);
+}
+
+function showPinLogin(names) {
+  let selected = store('mt_last_user');
+  if (!names.some((n) => n.id === selected)) selected = names.length === 1 ? names[0].id : null;
+  let pin = '';
+  APP.innerHTML = `<div class="login">
+    <img class="logo" src="/logo.png" alt="dos búhos">
+    <h1>Entrar con PIN</h1>
+    <div class="names" style="margin-top:14px">${names.map((n) => `<button data-id="${n.id}" class="${n.id === selected ? 'on' : ''}">${esc(n.name)}</button>`).join('')}</div>
     <div class="dots" id="dots"></div>
     <div class="err" id="err"></div>
     <div class="keypad">
       ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-k="${n}">${n}</button>`).join('')}
-      <button class="fn" data-k="del" aria-label="Borrar">${ic('del')}</button>
+      <button class="fn" data-k="back" aria-label="Volver">${ic('back')}</button>
       <button data-k="0">0</button>
       <button class="go" data-k="go" aria-label="Entrar">${ic('check')}</button>
     </div>
   </div>`;
   const dots = $('#dots');
   const draw = () => {
-    const n = Math.max(4, pin.length);
-    dots.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < pin.length ? 'f' : ''}"></i>`).join('');
+    dots.innerHTML = Array.from({ length: Math.max(4, pin.length) }, (_, i) => `<i class="${i < pin.length ? 'f' : ''}"></i>`).join('');
     $('[data-k="go"]').disabled = pin.length < 4 || !selected;
+    $('[data-k="back"]').innerHTML = pin ? ic('del') : ic('back');
   };
   draw();
   $$('.names button').forEach((b) => (b.onclick = () => {
     selected = Number(b.dataset.id);
     $$('.names button').forEach((x) => x.classList.toggle('on', x === b));
-    $('#err').textContent = '';
     draw();
   }));
   let busy = false;
   const submit = async () => {
-    if (busy) return;
-    if (!selected) { $('#err').textContent = 'Toca tu nombre arriba'; return; }
-    if (pin.length < 4) return;
+    if (busy || pin.length < 4 || !selected) return;
     busy = true;
     try {
       const r = await api('POST', '/login', { user_id: selected, pin });
@@ -339,7 +402,7 @@ async function showLogin() {
     busy = false;
   };
   const press = (k) => {
-    if (k === 'del') pin = pin.slice(0, -1);
+    if (k === 'back') { if (!pin) { document.removeEventListener('keydown', onKey); return showLogin(); } pin = pin.slice(0, -1); }
     else if (k === 'go') return submit();
     else if (pin.length < 8) pin += k;
     $('#err').textContent = '';
@@ -348,11 +411,11 @@ async function showLogin() {
   $$('.keypad button').forEach((b) => (b.onclick = () => press(b.dataset.k)));
   const onKey = (e) => {
     if (/^\d$/.test(e.key)) press(e.key);
-    else if (e.key === 'Backspace') press('del');
+    else if (e.key === 'Backspace') press('back');
     else if (e.key === 'Enter') press('go');
   };
-  if (showLogin.onKey) document.removeEventListener('keydown', showLogin.onKey);
-  showLogin.onKey = onKey;
+  if (showPinLogin.onKey) document.removeEventListener('keydown', showPinLogin.onKey);
+  showPinLogin.onKey = onKey;
   document.addEventListener('keydown', onKey);
 }
 
@@ -1036,10 +1099,10 @@ async function viewMore() {
     <div class="group">
       <div class="cell"><span class="ic">${ic('user')}</span><span class="lbl"><div class="t">${esc(S.user.name)}</div>
         <div class="s">${isAdmin() ? 'Administrador' : 'Usuario'}${me ? `, recibe tareas como ${esc(me.name)}` : ''}</div></span></div>
-      <button class="cell" id="m-pin"><span class="ic">${ic('lock')}</span><span class="lbl"><span class="t">Cambiar mi PIN</span></span>${chev}</button>
+      <button class="cell" id="m-pin"><span class="ic">${ic('lock')}</span><span class="lbl"><span class="t">PIN de respaldo</span><div class="s">Por si pierdes tu enlace</div></span>${chev}</button>
     </div>
     ${isAdmin() ? `<div class="group">
-      <a class="cell" href="#/usuarios"><span class="ic">${ic('users')}</span><span class="lbl"><div class="t">Usuarios</div><div class="s">Quién puede entrar a la app</div></span>${chev}</a>
+      <a class="cell" href="#/usuarios"><span class="ic">${ic('users')}</span><span class="lbl"><div class="t">Usuarios</div><div class="s">Quién entra y enviar accesos</div></span>${chev}</a>
       <a class="cell" href="#/areas"><span class="ic">${ic('map')}</span><span class="lbl"><div class="t">Áreas</div><div class="s">Renombrar, ordenar, agregar</div></span>${chev}</a>
     </div>` : ''}
     <div class="group">
@@ -1054,7 +1117,7 @@ async function viewMore() {
     try { await api('POST', '/me/pin', { pin: v }); toast('PIN actualizado'); } catch (e) { toast(e.message, true); }
   };
   $('#m-out').onclick = async () => {
-    if (!(await confirmSheet('¿Cerrar sesión?', 'Necesitarás tu PIN para volver a entrar.', 'Cerrar sesión', true))) return;
+    if (!(await confirmSheet('¿Cerrar sesión?', 'Para volver a entrar necesitarás un enlace nuevo o tu correo.', 'Cerrar sesión', true))) return;
     await api('POST', '/logout').catch(() => {});
     S.user = null;
     history.replaceState(null, '', '#/');
@@ -1075,52 +1138,85 @@ async function viewUsers() {
   try { await loadBoot(); } catch (e) { return errorView(e.message); }
   const chev = ic('chev').replace('<svg', '<svg class="chev"');
   render(subHeader('Usuarios') + `<div class="wrap">
+    <p class="small" style="margin:0 4px 10px">Cada persona entra con un enlace${S.email_enabled ? ' o con su correo' : ' que le mandas por WhatsApp'}. Queda dentro en su teléfono; no hay contraseñas.</p>
     <div class="group">${S.users.map((u) => {
-      const p = S.providers.find((x) => x.id === u.provider_id);
+      const contact = [u.email, u.phone].filter(Boolean).join(', ');
+      const seen = !u.active ? 'Sin acceso' : u.last_seen ? `Entró ${rel(u.last_seen)}` : 'Aún no entra';
       return `<a class="cell" href="#/usuarios/${u.id}" style="${u.active ? '' : 'opacity:.55'}"><span class="ic">${ic('user')}</span>
-        <span class="lbl"><div class="t">${esc(u.name)}</div><div class="s">${u.role === 'admin' ? 'Administrador' : 'Usuario'}${p ? `, recibe tareas como ${esc(p.name)}` : ''}${u.active ? '' : ', sin acceso'}</div></span>${chev}</a>`;
+        <span class="lbl"><div class="t">${esc(u.name)}${u.role === 'admin' ? ' <span class="small">(admin)</span>' : ''}</div>
+        <div class="s">${esc(seen)}${contact ? ', ' + esc(contact) : ''}</div></span>${chev}</a>`;
     }).join('')}</div>
   </div>`, { bar: `<a class="b block" href="#/usuarios/nuevo">${ic('plus')}Agregar usuario</a>` });
+}
+
+async function sendAccess(u) {
+  let url;
+  try { url = (await api('POST', `/users/${u.id}/access`, { via: 'link' })).url; } catch (e) { return toast(e.message, true); }
+  const first = u.name.split(' ')[0];
+  const text = `Hola ${first}, este es tu acceso a Mantenimiento Dos Búhos. Ábrelo en tu teléfono y quedas dentro:\n${url}\n\n(Vence en 7 días.)`;
+  const wa = `https://wa.me/${u.phone ? waNumber(u.phone) : ''}?text=${encodeURIComponent(text)}`;
+  const canEmail = S.email_enabled && u.email;
+  await sheet({
+    title: `Enviar acceso a ${first}`,
+    sub: 'Al abrir el enlace queda dentro de la app en su teléfono.',
+    body: `<div class="opts">
+      <a class="opt" href="${wa}" target="_blank" rel="noopener" data-done>${ic('chat')}<span class="grow">Enviar por WhatsApp${u.phone ? `<div class="s">${esc(u.phone)}</div>` : '<div class="s">Eliges el contacto en WhatsApp</div>'}</span></a>
+      ${canEmail ? `<button class="opt" data-mail>${ic('send')}<span class="grow">Enviar por correo<div class="s">${esc(u.email)}</div></span></button>` : ''}
+      <button class="opt" data-copy>${ic('share')}<span class="grow">Copiar enlace</span></button>
+    </div>`,
+    onOpen: (w, close) => {
+      $('[data-done]', w).onclick = () => setTimeout(() => close(true), 300);
+      $('[data-copy]', w).onclick = async () => {
+        try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch { prompt('Copia el enlace:', url); }
+        close(true);
+      };
+      const m = $('[data-mail]', w);
+      if (m) m.onclick = async () => {
+        close(true);
+        try { await api('POST', `/users/${u.id}/access`, { via: 'email' }); toast('Correo enviado a ' + u.email); } catch (e) { toast(e.message, true); }
+      };
+    },
+  });
 }
 
 async function viewUserForm(id) {
   if (!isAdmin()) return (location.hash = '#/mas');
   await loadBoot();
-  const u = id ? S.users.find((x) => x.id === Number(id)) : { name: '', role: 'staff', active: 1, provider_id: null };
+  const u = id ? S.users.find((x) => x.id === Number(id)) : { name: '', role: 'staff', active: 1, provider_id: null, email: '', phone: '' };
   if (!u) return (location.hash = '#/usuarios');
   const avail = S.providers.filter((p) => p.active || p.id === u.provider_id);
   let receives = !!u.provider_id;
   render(subHeader(id ? 'Editar usuario' : 'Nuevo usuario', '', { close: !id }) + `<div class="wrap">
-    <div class="field"><label class="flabel" for="u-name">Nombre</label><input type="text" class="big" id="u-name" value="${esc(u.name)}"></div>
+    ${id && u.active ? `<div class="group"><button class="cell add" id="u-access"><span class="ic">${ic('send')}</span>
+      <span class="lbl"><span class="t">Enviar acceso</span><div class="s" style="font-weight:400">${u.last_seen ? 'Entró ' + rel(u.last_seen) : 'Aún no entra'}</div></span></button></div>` : ''}
+    <div class="field"><label class="flabel" for="u-name">Nombre</label><input type="text" class="big" id="u-name" value="${esc(u.name)}" autocomplete="off"></div>
+    <div class="row2">
+      <div class="field"><label class="flabel" for="u-phone">WhatsApp</label><input type="tel" id="u-phone" value="${esc(u.phone || '')}" placeholder="10 dígitos"></div>
+      <div class="field"><label class="flabel" for="u-email">Correo</label><input type="email" id="u-email" inputmode="email" value="${esc(u.email || '')}" placeholder="Opcional" autocomplete="off"></div>
+    </div>
     <div class="field"><span class="flabel">Permisos</span><div class="seg">
       <button type="button" data-r="staff" class="${u.role !== 'admin' ? 'on' : ''}">Usuario</button>
       <button type="button" data-r="admin" class="${u.role === 'admin' ? 'on' : ''}">Administrador</button></div>
-      <p class="hint">Un administrador puede borrar tareas y manejar usuarios y áreas.</p></div>
+      <p class="hint">Un administrador puede borrar tareas, dar acceso a otros y manejar áreas.</p></div>
     <div class="field"><span class="flabel">¿Se le asignan trabajos?</span><div class="seg">
       <button type="button" data-rx="0" class="${receives ? '' : 'on'}">No</button>
       <button type="button" data-rx="1" class="${receives ? 'on' : ''}">Sí</button></div>
-      <p class="hint">Sí: aparece en la lista de responsables, tiene su pestaña “Mías” y el botón “Tomar tarea”.</p></div>
+      <p class="hint">Sí: aparece en Responsables, tiene su pestaña “Mías” y el botón “Tomar tarea”.</p></div>
     <div id="u-rx" class="${receives ? '' : 'hidden'}">
       ${avail.length ? `<div class="field"><label class="flabel" for="u-prov">Ficha de responsable</label>
         <select id="u-prov"><option value="new">Crear su ficha</option>${avail.map((p) => `<option value="${p.id}" ${p.id === u.provider_id ? 'selected' : ''}>${esc(provLabel(p))}</option>`).join('')}</select>
-        <p class="hint">Si ya existe su ficha, elígela para no duplicarlo.</p></div>` : '<input type="hidden" id="u-prov" value="new">'}
+        <p class="hint">Si ya tiene ficha, elígela para no duplicarlo.</p></div>` : '<input type="hidden" id="u-prov" value="new">'}
       <div id="u-new" class="${u.provider_id ? 'hidden' : ''}">
-        <div class="row2">
-          <div class="field"><label class="flabel" for="u-spec">Especialidad</label><input type="text" id="u-spec" placeholder="Ej. Mantenimiento"></div>
-          <div class="field"><label class="flabel" for="u-phone">WhatsApp</label><input type="tel" id="u-phone" placeholder="10 dígitos"></div>
-        </div>
+        <div class="field"><label class="flabel" for="u-spec">Especialidad</label><input type="text" id="u-spec" placeholder="Ej. Mantenimiento"></div>
       </div>
     </div>
-    <div class="field"><label class="flabel" for="u-pin">${id ? 'Nuevo PIN (déjalo vacío para no cambiarlo)' : 'PIN de 4 a 8 dígitos'}</label>
-      <input id="u-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password"></div>
     ${id && u.id !== S.user.id ? `<div class="group"><button class="cell ${u.active ? 'danger' : ''}" id="u-toggle"><span class="ic">${ic(u.active ? 'lock' : 'check')}</span>
-      <span class="lbl"><span class="t">${u.active ? 'Quitar acceso' : 'Devolver acceso'}</span></span></button></div>` : ''}
-  </div>`, { bar: `<button class="b block" id="u-save">${ic('check')}${id ? 'Guardar cambios' : 'Crear usuario'}</button>` });
+      <span class="lbl"><span class="t">${u.active ? 'Quitar acceso' : 'Devolver acceso'}</span><div class="s">${u.active ? 'Cierra su sesión en todos sus dispositivos' : ''}</div></span></button></div>` : ''}
+  </div>`, { bar: `<button class="b block" id="u-save">${ic('check')}${id ? 'Guardar cambios' : 'Crear y enviar acceso'}</button>` });
   let role = u.role;
   $$('[data-r]').forEach((b) => (b.onclick = () => { role = b.dataset.r; $$('[data-r]').forEach((x) => x.classList.toggle('on', x === b)); }));
   const provSel = $('#u-prov');
   const syncNew = () => $('#u-new').classList.toggle('hidden', provSel.value !== 'new');
-  // preselect an existing card with the same name, to avoid duplicates
   const matchByName = () => {
     if (u.provider_id || provSel.tagName !== 'SELECT') return;
     const n = $('#u-name').value.trim().toLowerCase();
@@ -1136,27 +1232,34 @@ async function viewUserForm(id) {
   }));
   if (provSel.tagName === 'SELECT') provSel.onchange = syncNew;
   $('#u-name').onchange = () => { if (receives) matchByName(); };
+  const acc = $('#u-access');
+  if (acc) acc.onclick = () => sendAccess(Object.assign({}, u, { phone: $('#u-phone').value.trim(), email: $('#u-email').value.trim() }));
   $('#u-save').onclick = async () => {
-    const data = { name: $('#u-name').value, role };
+    const data = { name: $('#u-name').value, role, phone: $('#u-phone').value, email: $('#u-email').value };
     if (!data.name.trim()) { toast('Escribe el nombre', true); return $('#u-name').focus(); }
     if (!receives) data.provider_id = null;
-    else if (provSel.value === 'new') Object.assign(data, { provider_id: 'new', specialty: $('#u-spec').value, phone: $('#u-phone').value });
+    else if (provSel.value === 'new') Object.assign(data, { provider_id: 'new', specialty: $('#u-spec').value });
     else data.provider_id = Number(provSel.value);
-    const pin = $('#u-pin').value;
-    if (pin || !id) data.pin = pin;
     const btn = $('#u-save');
     btn.disabled = true;
     try {
       const r = id ? await api('PATCH', '/users/' + id, data) : await api('POST', '/users', data);
       await loadBoot();
-      if (Number(id) === S.user.id) S.user = Object.assign(S.user, { provider_id: r.provider_id ?? null, name: data.name.trim() });
-      toast(id ? 'Cambios guardados' : 'Usuario creado');
+      if (Number(id) === S.user.id) S.user = Object.assign(S.user, { provider_id: r.provider_id ?? S.user.provider_id, name: data.name.trim() });
+      if (!id) {
+        history.replaceState(null, '', '#/usuarios/' + r.id);
+        await viewUserForm(r.id);
+        const nu = S.users.find((x) => x.id === r.id);
+        if (nu) sendAccess(nu);
+        return;
+      }
+      toast('Cambios guardados');
       location.replace('#/usuarios');
     } catch (e) { toast(e.message, true); btn.disabled = false; }
   };
   const tg = $('#u-toggle');
   if (tg) tg.onclick = async () => {
-    if (u.active && !(await confirmSheet(`¿Quitar acceso a ${u.name}?`, 'Se cierra su sesión. Sus tareas se conservan.', 'Quitar acceso', true))) return;
+    if (u.active && !(await confirmSheet(`¿Quitar acceso a ${u.name}?`, 'Se cierra su sesión y sus enlaces dejan de servir. Sus tareas se conservan.', 'Quitar acceso', true))) return;
     try { await api('PATCH', '/users/' + id, { active: !u.active }); await loadBoot(); toast(u.active ? 'Acceso quitado' : 'Acceso devuelto'); location.replace('#/usuarios'); }
     catch (e) { toast(e.message, true); }
   };
@@ -1211,7 +1314,9 @@ async function viewAreas() {
 
 // ---------- router ----------
 async function route() {
-  if (!S.user) return showLogin();
+  if (!S.user || /^#\/entrar\//.test(location.hash)) {
+    if (S.user) { history.replaceState(null, '', '#/'); } else return showLogin();
+  }
   const raw = location.hash.replace(/^#/, '') || '/';
   const [path, qs] = raw.split('?');
   const query = Object.fromEntries(new URLSearchParams(qs || ''));

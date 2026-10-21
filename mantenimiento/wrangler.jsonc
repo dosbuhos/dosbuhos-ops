@@ -17,6 +17,9 @@
       "migrations_dir": "migrations"
     }
   ]
+  ,"vars": { "MAIL_FROM": "mantenimiento@dosbuhos.com" }
+  // Email login: after onboarding dosbuhos.com in Cloudflare Email Service (Workers Paid), uncomment:
+  // ,"send_email": [{ "name": "EMAIL" }]
   // Optional, once R2 is enabled in the Cloudflare dashboard (photos move there automatically):
   // ,"r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "mantenimiento-fotos" }]
 }
