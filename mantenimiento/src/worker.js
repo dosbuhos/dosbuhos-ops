@@ -601,6 +601,7 @@ async function areasApi(request, env, user, seg, method) {
       } catch { fail(400, 'Esa área ya existe'); }
     }
     if ('active' in b) await env.DB.prepare('UPDATE areas SET active = ? WHERE id = ?').bind(b.active ? 1 : 0, id).run();
+    if ('sort' in b && int(b.sort) !== null) await env.DB.prepare('UPDATE areas SET sort = ? WHERE id = ?').bind(int(b.sort), id).run();
     return json({ ok: true });
   }
   fail(404, 'No encontrado');

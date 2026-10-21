@@ -392,7 +392,7 @@ function drawTasks(keepScroll = false, refocus = false) {
     </div>
     ${unassigned && f.provider !== 'none' ? `<a class="banner" data-inbox><b>${unassigned}</b> sin asignar en la bandeja<span class="go">Ver ›</span></a>` : ''}
     ${f.provider === 'none' ? `<a class="banner" data-allprov>Viendo solo la bandeja (sin asignar)<span class="go">Ver todas ›</span></a>` : ''}
-    <div class="chips"><button class="chip ${!f.area ? 'on' : ''}" data-area="">Todas<span class="n">${byProv.length}</span></button>${areaChips}</div>
+    <div class="chips"><button class="chip ${!f.area ? 'on' : ''}" data-area="">Todas<span class="n">${byProv.length}</span></button>${areaChips}${isAdmin() ? '<a class="chip" href="#/areas">✎ Editar áreas</a>' : ''}</div>
     <div class="filterrow"><select id="prov" aria-label="Responsable">${provOpts}</select></div>
     <div class="searchbar"><input type="search" id="q" placeholder="Buscar…" value="${esc(f.q)}"></div>
     ${body}
@@ -941,13 +941,8 @@ async function viewMore() {
         <div class="sub">${u.role === 'admin' ? 'Administrador (puede borrar)' : 'Usuario'}${u.active ? '' : ' · desactivado'}</div></div><span>›</span></a>`).join('')}
       <a class="btn sec" href="#/usuarios/nuevo">+ Agregar usuario</a>
     </div>
-    <div class="panel list">
-      <span class="lbl">Áreas</span>
-      ${S.areas.map((a) => `<div class="item"><div class="grow"><div class="t" style="${a.active ? '' : 'opacity:.5'}">${esc(a.name)}</div></div>
-        <button class="iconbtn" data-rename="${a.id}">Renombrar</button>
-        <button class="iconbtn" data-toggle="${a.id}" data-active="${a.active}">${a.active ? 'Ocultar' : 'Mostrar'}</button></div>`).join('')}
-      <div class="row"><input type="text" id="m-area" placeholder="Nueva área"><button class="btn sm" id="m-areaadd" style="flex:0 0 auto">Agregar</button></div>
-    </div>` : ''}
+    <a class="btn sec" href="#/areas" style="margin-bottom:12px">Editar áreas</a>
+    ` : ''}
     <div class="stack">
       <button class="btn sec" id="m-share">Compartir enlace de la app</button>
       <button class="btn danger" id="m-out">Cerrar sesión</button>
@@ -967,20 +962,52 @@ async function viewMore() {
       else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
     } catch { /* cancelled */ }
   };
-  $$('[data-rename]').forEach((b) => (b.onclick = async () => {
-    const a = S.areas.find((x) => x.id === Number(b.dataset.rename));
-    const name = prompt('Nuevo nombre del área', a.name);
-    if (!name || name === a.name) return;
-    try { await api('PATCH', '/areas/' + a.id, { name }); toast('Área renombrada'); viewMore(); } catch (e) { toast(e.message, true); }
+}
+
+async function viewAreas() {
+  if (!isAdmin()) return (location.hash = '#/mas');
+  await loadBoot();
+  const list = S.areas;
+  render(header('Áreas', { back: true }) + `<div class="wrap">
+    <p class="small">Cambia el nombre y toca Guardar. Las flechas cambian el orden en las listas. “Ocultar” la quita de los formularios sin perder su historial.</p>
+    ${list.map((a, i) => `<div class="panel" style="${a.active ? '' : 'opacity:.6'}">
+      <div class="row"><input type="text" data-name="${a.id}" value="${esc(a.name)}" maxlength="60">
+        <button class="btn sm" data-save="${a.id}" style="flex:0 0 auto">Guardar</button></div>
+      <div class="row mt">
+        <button class="btn sec sm" data-up="${i}" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn sec sm" data-down="${i}" ${i === list.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn sec sm" data-toggle="${a.id}" data-active="${a.active}">${a.active ? 'Ocultar' : 'Mostrar'}</button>
+      </div></div>`).join('')}
+    <div class="panel"><span class="lbl">Nueva área</span>
+      <div class="row"><input type="text" id="a-new" maxlength="60" placeholder="Ej. Estacionamiento">
+      <button class="btn sm" id="a-add" style="flex:0 0 auto">Agregar</button></div></div>
+  </div>`, 'mas', true);
+  const reload = async (msg) => { if (msg) toast(msg); await viewAreas(); };
+  $$('[data-save]').forEach((b) => (b.onclick = async () => {
+    const id = b.dataset.save;
+    const name = $(`[data-name="${id}"]`).value.trim();
+    if (!name) return toast('Nombre vacío', true);
+    try { await api('PATCH', '/areas/' + id, { name }); reload('Área guardada'); } catch (e) { toast(e.message, true); }
   }));
+  const swap = async (i, j) => {
+    const a = list[i], b = list[j];
+    try {
+      await api('PATCH', '/areas/' + a.id, { sort: j + 1 });
+      await api('PATCH', '/areas/' + b.id, { sort: i + 1 });
+      // normalize the rest so order stays stable
+      await Promise.all(list.map((x, k) => (k !== i && k !== j && x.sort !== k + 1) ? api('PATCH', '/areas/' + x.id, { sort: k + 1 }) : null));
+      reload();
+    } catch (e) { toast(e.message, true); }
+  };
+  $$('[data-up]').forEach((b) => (b.onclick = () => { const i = Number(b.dataset.up); swap(i, i - 1); }));
+  $$('[data-down]').forEach((b) => (b.onclick = () => { const i = Number(b.dataset.down); swap(i, i + 1); }));
   $$('[data-toggle]').forEach((b) => (b.onclick = async () => {
-    try { await api('PATCH', '/areas/' + b.dataset.toggle, { active: b.dataset.active !== '1' }); viewMore(); } catch (e) { toast(e.message, true); }
+    try { await api('PATCH', '/areas/' + b.dataset.toggle, { active: b.dataset.active !== '1' }); reload(); } catch (e) { toast(e.message, true); }
   }));
-  const add = $('#m-areaadd');
-  if (add) add.onclick = async () => {
-    const name = $('#m-area').value.trim();
+  $('#a-add').onclick = async () => {
+    const name = $('#a-new').value.trim();
     if (!name) return;
-    try { await api('POST', '/areas', { name }); toast('Área agregada'); viewMore(); } catch (e) { toast(e.message, true); }
+    try { await api('POST', '/areas', { name }); reload('Área agregada'); } catch (e) { toast(e.message, true); }
   };
 }
 
@@ -1043,6 +1070,7 @@ async function route() {
     if (p[0] === 'r' && p[1] && p[2] === 'editar') return await viewProviderForm(p[1]);
     if (p[0] === 'r' && p[1]) return await viewProvider(p[1]);
     if (p[0] === 'mas') return await viewMore();
+    if (p[0] === 'areas') return await viewAreas();
     if (p[0] === 'usuarios' && p[1] === 'nuevo') return await viewUserForm(null);
     if (p[0] === 'usuarios' && p[1]) return await viewUserForm(p[1]);
     location.hash = '#/';
