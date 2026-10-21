@@ -1,10 +1,10 @@
 {
-  "name": "Tecolote · Mantenimiento Dos Búhos",
-  "short_name": "Tecolote",
+  "name": "Mantenimiento · Dos Búhos",
+  "short_name": "Mantenimiento",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#EDF0EE",
-  "theme_color": "#1F3A34",
+  "background_color": "#F7F7F7",
+  "theme_color": "#F7F7F7",
   "icons": [
     {
       "src": "/icon-192.png",

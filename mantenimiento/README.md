@@ -1,6 +1,6 @@
-# Tecolote · Mantenimiento Dos Búhos
+# Mantenimiento Dos Búhos
 
-Mobile maintenance tracker ("MaintainX light") for Adrián and the team. Internal name: **Tecolote**. Cloudflare Worker + D1, no build step.
+Mobile maintenance tracker ("MaintainX light") for Adrián and the team. Cloudflare Worker + D1, no build step.
 
 ## Deploy (GitHub → Cloudflare Workers Builds)
 

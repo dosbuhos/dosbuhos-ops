@@ -608,6 +608,21 @@ async function areasApi(request, env, user, seg, method) {
 }
 
 // ---------- users ----------
+// provider_id: number = link to existing card, 'new' = create an internal card with the user's name, null = none
+async function resolveUserProvider(env, b, name) {
+  if (b.provider_id === 'new') {
+    const r = await env.DB.prepare("INSERT INTO providers (name, kind, specialty, phone) VALUES (?, 'interno', ?, ?)")
+      .bind(name, str(b.specialty, 120), str(b.phone, 40)).run();
+    return r.meta.last_row_id;
+  }
+  const pid = int(b.provider_id);
+  if (pid) {
+    const ok = await env.DB.prepare('SELECT id FROM providers WHERE id = ?').bind(pid).first();
+    if (!ok) fail(400, 'Responsable no encontrado');
+  }
+  return pid;
+}
+
 async function usersApi(request, env, user, seg, method) {
   requireAdmin(user);
   const id = int(seg[1]);
@@ -617,25 +632,36 @@ async function usersApi(request, env, user, seg, method) {
     if (!name) fail(400, 'Escribe el nombre');
     if (!validPin(b.pin)) fail(400, 'El PIN debe ser de 4 a 8 dígitos');
     const salt = randomHex(16);
+    let newId;
     try {
-      await env.DB.prepare('INSERT INTO users (name, pin_hash, pin_salt, role, provider_id) VALUES (?, ?, ?, ?, ?)')
-        .bind(name, await hashPin(b.pin, salt), salt, b.role === 'admin' ? 'admin' : 'staff', int(b.provider_id)).run();
+      const r = await env.DB.prepare('INSERT INTO users (name, pin_hash, pin_salt, role) VALUES (?, ?, ?, ?)')
+        .bind(name, await hashPin(b.pin, salt), salt, b.role === 'admin' ? 'admin' : 'staff').run();
+      newId = r.meta.last_row_id;
     } catch { fail(400, 'Ya existe un usuario con ese nombre'); }
-    return json({ ok: true }, 201);
+    const pid = await resolveUserProvider(env, b, name);
+    if (pid) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ?').bind(pid, newId).run();
+    return json({ ok: true, id: newId, provider_id: pid }, 201);
   }
   if (id && method === 'PATCH') {
     const b = await body(request);
+    const existing = await env.DB.prepare('SELECT name FROM users WHERE id = ?').bind(id).first();
+    if (!existing) fail(404, 'Usuario no encontrado');
     if (id === user.id && (b.role === 'staff' || b.active === false)) {
       fail(400, 'No puedes quitarte el acceso de admin a ti mismo');
     }
+    let name = existing.name;
     if ('name' in b) {
-      const name = str(b.name, 60);
+      name = str(b.name, 60);
       if (!name) fail(400, 'Nombre vacío');
       try {
         await env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, id).run();
       } catch { fail(400, 'Ya existe un usuario con ese nombre'); }
     }
-    if ('provider_id' in b) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ?').bind(int(b.provider_id), id).run();
+    let pid;
+    if ('provider_id' in b) {
+      pid = await resolveUserProvider(env, b, name);
+      await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ?').bind(pid, id).run();
+    }
     if ('role' in b) await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'admin' ? 'admin' : 'staff', id).run();
     if ('active' in b) {
       await env.DB.prepare('UPDATE users SET active = ? WHERE id = ?').bind(b.active ? 1 : 0, id).run();
@@ -647,7 +673,7 @@ async function usersApi(request, env, user, seg, method) {
       await env.DB.prepare('UPDATE users SET pin_hash = ?, pin_salt = ?, failed_count = 0, locked_until = NULL WHERE id = ?')
         .bind(await hashPin(b.pin, salt), salt, id).run();
     }
-    return json({ ok: true });
+    return json({ ok: true, provider_id: pid });
   }
   fail(404, 'No encontrado');
 }

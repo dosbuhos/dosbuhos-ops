@@ -1,4 +1,4 @@
-/* Tecolote — mantenimiento Dos Búhos (vanilla JS, no build step) */
+/* Mantenimiento Dos Búhos (vanilla JS, no build step) */
 'use strict';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -241,7 +241,7 @@ function pickProvider(selected, emptyLabel = 'Bandeja (sin asignar)') {
 function rootHeader(title, right = '') {
   const brand = title === null;
   return `<header class="top">${brand
-    ? `<div class="brand"><span class="mark">${ic('owl')}</span><b>Tecolote</b></div>`
+    ? `<div class="brand"><img src="/logo-word.png" alt="dos búhos"></div>`
     : `<h1>${esc(title)}</h1>`}${right}</header>`;
 }
 function subHeader(title, right = '', { close = false } = {}) {
@@ -270,7 +270,7 @@ function render(html, { tab = '', root = false, bar = '', keepScroll = false } =
 }
 function loading(opts) { render('<div class="boot"></div>', opts); }
 function errorView(msg, root) {
-  render((root ? rootHeader('Tecolote') : subHeader('')) + `<div class="wrap"><div class="empty"><h3>No se pudo cargar</h3><p>${esc(msg)}</p>
+  render((root ? rootHeader(null) : subHeader('')) + `<div class="wrap"><div class="empty"><h3>No se pudo cargar</h3><p>${esc(msg)}</p>
     <button class="b tonal" onclick="location.reload()">${ic('refresh')}Reintentar</button></div></div>`, { root });
 }
 
@@ -293,9 +293,9 @@ async function showLogin() {
   if (!st.names.some((n) => n.id === selected)) selected = st.names.length === 1 ? st.names[0].id : null;
   let pin = '';
   APP.innerHTML = `<div class="login">
-    <div class="logo">${ic('owl')}</div>
-    <h1>Tecolote</h1>
-    <p class="tag">Mantenimiento Dos Búhos. ¿Quién eres?</p>
+    <img class="logo" src="/logo.png" alt="dos búhos">
+    <h1>Mantenimiento</h1>
+    <p class="tag">¿Quién eres?</p>
     <div class="names">${st.names.map((n) => `<button data-id="${n.id}" class="${n.id === selected ? 'on' : ''}">${esc(n.name)}</button>`).join('')}</div>
     <div class="dots" id="dots"></div>
     <div class="err" id="err"></div>
@@ -358,8 +358,8 @@ async function showLogin() {
 
 function showSetup() {
   APP.innerHTML = `<div class="login">
-    <div class="logo">${ic('owl')}</div>
-    <h1>Tecolote</h1>
+    <img class="logo" src="/logo.png" alt="dos búhos">
+    <h1>Mantenimiento</h1>
     <p class="tag">Primera vez. Crea tu usuario de administrador; después das de alta al equipo desde Más.</p>
     <div class="field"><label class="flabel" for="n">Tu nombre</label><input id="n" type="text" autocomplete="name"></div>
     <div class="field"><label class="flabel" for="p1">PIN de 4 a 8 dígitos</label><input id="p1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8"></div>
@@ -457,7 +457,7 @@ function drawTasks({ keepScroll = false, refocus = false } = {}) {
       done: ['Aún no hay tareas terminadas', ''],
     };
     const [h, p] = q || f.area || f.provider ? ['Sin resultados', 'Prueba con otro filtro.'] : msgs[f.view];
-    body = `<div class="empty"><div class="mark">${ic('owl')}</div><h3>${h}</h3><p>${p}</p>
+    body = `<div class="empty"><h3>${h}</h3><p>${p}</p>
       ${f.view === 'open' && !q ? `<a class="b accent" href="#/nueva">${ic('plus')}Reportar algo</a>` : ''}</div>`;
   } else if ((f.view === 'open' || f.view === 'mine') && !f.area) {
     const groups = {};
@@ -833,7 +833,7 @@ function drawEquipmentList(refocus = false) {
           <span class="lbl"><div class="t">${esc(e.name)}</div><div class="s">${last ? 'Último servicio ' + fmtDay(last) : 'Sin servicios registrados'}${e.open_count ? `, ${e.open_count} abierta${e.open_count > 1 ? 's' : ''}` : ''}</div></span>
           ${duePill(e)}${ic('chev').replace('<svg', '<svg class="chev"')}</a>`;
       }).join('')}</div>`).join('')
-    : `<div class="empty"><div class="mark">${ic('owl')}</div>${EQ.list.length ? '<h3>Sin resultados</h3><p>Prueba con otra palabra.</p>'
+    : `<div class="empty">${EQ.list.length ? '<h3>Sin resultados</h3><p>Prueba con otra palabra.</p>'
       : '<h3>Registra tus equipos</h3><p>Chillers, aires, bombas, cámaras de frío. Así queda el historial de cada servicio.</p>'}
       <a class="b" href="#/e/nuevo">${ic('plus')}Agregar equipo</a></div>`;
 
@@ -947,18 +947,20 @@ async function viewProviders() {
   loading({ tab: 'responsables', root: true });
   let list;
   try { list = (await api('GET', '/providers')).providers; } catch (e) { return errorView(e.message, true); }
+  const linked = new Set(S.users.filter((u) => u.active && u.provider_id).map((u) => u.provider_id));
   const cell = (p) => `<a class="cell" href="#/r/${p.id}"><span class="ic">${ic('user')}</span>
-    <span class="lbl"><div class="t">${esc(p.name)}</div><div class="s">${esc([p.company, p.specialty].filter(Boolean).join(', ') || (p.kind === 'interno' ? 'Personal interno' : 'Proveedor'))}${p.late_count ? `<b style="color:var(--red)">, ${p.late_count} vencida${p.late_count > 1 ? 's' : ''}</b>` : ''}</div></span>
+    <span class="lbl"><div class="t">${esc(p.name)}</div><div class="s">${esc([p.company, p.specialty].filter(Boolean).join(', ') || (p.kind === 'interno' ? 'Personal interno' : 'Proveedor'))}${linked.has(p.id) ? ', usa la app' : ''}${p.late_count ? `<b style="color:var(--red)">, ${p.late_count} vencida${p.late_count > 1 ? 's' : ''}</b>` : ''}</div></span>
     <span class="badge ${p.open_count ? (p.late_count ? 'red' : '') : 'zero'}" aria-label="${p.open_count} abiertas">${p.open_count}</span></a>`;
+  const add = (tipo, label) => `<a class="cell add" href="#/r/nuevo?tipo=${tipo}"><span class="ic">${ic('plus')}</span><span class="lbl"><span class="t">${label}</span></span></a>`;
   const ints = list.filter((p) => p.kind === 'interno');
   const exts = list.filter((p) => p.kind === 'externo');
-  const body = list.length ? `
-    <p class="small" style="margin:0 4px 4px">El número es cuántas tareas abiertas tiene cada quien.</p>
-    ${ints.length ? `<div class="sec"><h2>Personal interno</h2><span class="n">${ints.length}</span></div><div class="group">${ints.map(cell).join('')}</div>` : ''}
-    ${exts.length ? `<div class="sec"><h2>Proveedores externos</h2><span class="n">${exts.length}</span></div><div class="group">${exts.map(cell).join('')}</div>` : ''}`
-    : `<div class="empty"><div class="mark">${ic('owl')}</div><h3>¿Quién hace el trabajo?</h3><p>Agrega a Adrián, a los carpinteros y a los proveedores externos para poder asignarles tareas.</p>
-      <a class="b" href="#/r/nuevo">${ic('plus')}Agregar responsable</a></div>`;
-  render(rootHeader('Responsables', `<a class="b tonal sm" href="#/r/nuevo">${ic('plus')}Nuevo</a>`) + `<div class="wrap">${body}</div>`, { tab: 'responsables', root: true });
+  render(rootHeader('Responsables') + `<div class="wrap">
+    <p class="small" style="margin:0 4px 4px">Quién hace los trabajos. No necesitan entrar a la app para que se les asignen tareas. El número es cuántas tienen abiertas.</p>
+    <div class="sec"><h2>Personal interno</h2><span class="n">${ints.length}</span></div>
+    <div class="group">${ints.map(cell).join('')}${add('interno', 'Agregar personal interno')}</div>
+    <div class="sec"><h2>Proveedores externos</h2><span class="n">${exts.length}</span></div>
+    <div class="group">${exts.map(cell).join('')}${add('externo', 'Agregar proveedor externo')}</div>
+  </div>`, { tab: 'responsables', root: true });
 }
 
 async function viewProvider(id) {
@@ -985,16 +987,16 @@ async function viewProvider(id) {
   </div>`, {});
 }
 
-async function viewProviderForm(id) {
-  let p = { name: '', kind: 'externo', company: '', specialty: '', phone: '', notes: '' };
+async function viewProviderForm(id, query = {}) {
+  let p = { name: '', kind: query.tipo === 'interno' ? 'interno' : 'externo', company: '', specialty: '', phone: '', notes: '' };
   if (id) { await loadBoot(); p = S.providers.find((x) => x.id === Number(id)) || p; }
   render(subHeader(id ? 'Editar responsable' : 'Nuevo responsable', '', { close: !id }) + `<div class="wrap">
     <div class="field"><div class="seg">
       <button type="button" data-k="interno" class="${p.kind === 'interno' ? 'on' : ''}">Personal interno</button>
       <button type="button" data-k="externo" class="${p.kind === 'externo' ? 'on' : ''}">Proveedor externo</button></div></div>
-    <div class="field"><label class="flabel" for="p-name">Nombre</label><input type="text" class="big" id="p-name" value="${esc(p.name)}" placeholder="Ej. Juan Hernández"></div>
+    <div class="field"><label class="flabel" for="p-name">Nombre</label><input type="text" class="big" id="p-name" value="${esc(p.name)}" placeholder="${p.kind === 'interno' ? 'Ej. Jaime' : 'Ej. Juan Hernández'}"></div>
     <div class="field" id="p-company-f" ${p.kind === 'interno' ? 'style="display:none"' : ''}><label class="flabel" for="p-company">Empresa</label><input type="text" id="p-company" value="${esc(p.company || '')}" placeholder="Ej. Plomería Hernández"></div>
-    <div class="field"><label class="flabel" for="p-spec">Especialidad</label><input type="text" id="p-spec" value="${esc(p.specialty || '')}" placeholder="Plomería, carpintería, aires, electricidad"></div>
+    <div class="field"><label class="flabel" for="p-spec">Especialidad</label><input type="text" id="p-spec" value="${esc(p.specialty || '')}" placeholder="${p.kind === 'interno' ? 'Campo, jardín, mantenimiento' : 'Plomería, carpintería, aires'}"></div>
     <div class="field"><label class="flabel" for="p-phone">WhatsApp</label><input type="tel" id="p-phone" value="${esc(p.phone || '')}" placeholder="10 dígitos"></div>
     <div class="field"><label class="flabel" for="p-notes">Notas</label><textarea id="p-notes" placeholder="Horarios, cómo cobra, etc.">${esc(p.notes || '')}</textarea></div>
     ${id && isAdmin() ? `<div class="group"><button class="cell danger" id="p-del"><span class="ic">${ic('trash')}</span><span class="lbl"><span class="t">Quitar de la lista</span><div class="s">Sus tareas e historial se conservan</div></span></button></div>` : ''}
@@ -1044,7 +1046,7 @@ async function viewMore() {
       <button class="cell" id="m-share"><span class="ic">${ic('share')}</span><span class="lbl"><span class="t">Compartir la app</span></span>${chev}</button>
       <button class="cell danger" id="m-out"><span class="ic">${ic('logout')}</span><span class="lbl"><span class="t">Cerrar sesión</span></span></button>
     </div>
-    <p class="small center">En el teléfono, usa “Agregar a pantalla de inicio” para abrir Tecolote como app.</p>
+    <p class="small center">En el teléfono, usa “Agregar a pantalla de inicio” para abrirla como app.</p>
   </div>`, { tab: 'mas', root: true });
   $('#m-pin').onclick = async () => {
     const v = await inputSheet('Nuevo PIN', '', 'Guardar', { type: 'password', mode: 'numeric', sub: 'De 4 a 8 dígitos.' });
@@ -1061,7 +1063,7 @@ async function viewMore() {
   $('#m-share').onclick = async () => {
     const url = location.origin;
     try {
-      if (navigator.share) await navigator.share({ title: 'Tecolote · Mantenimiento Dos Búhos', url });
+      if (navigator.share) await navigator.share({ title: 'Mantenimiento Dos Búhos', url });
       else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
     } catch { /* cancelled */ }
   };
@@ -1086,16 +1088,29 @@ async function viewUserForm(id) {
   await loadBoot();
   const u = id ? S.users.find((x) => x.id === Number(id)) : { name: '', role: 'staff', active: 1, provider_id: null };
   if (!u) return (location.hash = '#/usuarios');
-  const ints = S.providers.filter((p) => p.active || p.id === u.provider_id);
+  const avail = S.providers.filter((p) => p.active || p.id === u.provider_id);
+  let receives = !!u.provider_id;
   render(subHeader(id ? 'Editar usuario' : 'Nuevo usuario', '', { close: !id }) + `<div class="wrap">
     <div class="field"><label class="flabel" for="u-name">Nombre</label><input type="text" class="big" id="u-name" value="${esc(u.name)}"></div>
     <div class="field"><span class="flabel">Permisos</span><div class="seg">
       <button type="button" data-r="staff" class="${u.role !== 'admin' ? 'on' : ''}">Usuario</button>
       <button type="button" data-r="admin" class="${u.role === 'admin' ? 'on' : ''}">Administrador</button></div>
-      <p class="hint">Un administrador puede borrar tareas y manejar usuarios y áreas. Dale este permiso a quien lleva mantenimiento.</p></div>
-    <div class="field"><label class="flabel" for="u-prov">Recibe tareas como</label>
-      <select id="u-prov"><option value="">No recibe tareas</option>${ints.map((p) => `<option value="${p.id}" ${p.id === u.provider_id ? 'selected' : ''}>${esc(provLabel(p))}</option>`).join('')}</select>
-      <p class="hint">Si esta persona también hace trabajos (por ejemplo Adrián), elige su ficha de responsable. Así le aparece la pestaña “Mías” y el botón “Tomar tarea”.</p></div>
+      <p class="hint">Un administrador puede borrar tareas y manejar usuarios y áreas.</p></div>
+    <div class="field"><span class="flabel">¿Se le asignan trabajos?</span><div class="seg">
+      <button type="button" data-rx="0" class="${receives ? '' : 'on'}">No</button>
+      <button type="button" data-rx="1" class="${receives ? 'on' : ''}">Sí</button></div>
+      <p class="hint">Sí: aparece en la lista de responsables, tiene su pestaña “Mías” y el botón “Tomar tarea”.</p></div>
+    <div id="u-rx" class="${receives ? '' : 'hidden'}">
+      ${avail.length ? `<div class="field"><label class="flabel" for="u-prov">Ficha de responsable</label>
+        <select id="u-prov"><option value="new">Crear su ficha</option>${avail.map((p) => `<option value="${p.id}" ${p.id === u.provider_id ? 'selected' : ''}>${esc(provLabel(p))}</option>`).join('')}</select>
+        <p class="hint">Si ya existe su ficha, elígela para no duplicarlo.</p></div>` : '<input type="hidden" id="u-prov" value="new">'}
+      <div id="u-new" class="${u.provider_id ? 'hidden' : ''}">
+        <div class="row2">
+          <div class="field"><label class="flabel" for="u-spec">Especialidad</label><input type="text" id="u-spec" placeholder="Ej. Mantenimiento"></div>
+          <div class="field"><label class="flabel" for="u-phone">WhatsApp</label><input type="tel" id="u-phone" placeholder="10 dígitos"></div>
+        </div>
+      </div>
+    </div>
     <div class="field"><label class="flabel" for="u-pin">${id ? 'Nuevo PIN (déjalo vacío para no cambiarlo)' : 'PIN de 4 a 8 dígitos'}</label>
       <input id="u-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password"></div>
     ${id && u.id !== S.user.id ? `<div class="group"><button class="cell ${u.active ? 'danger' : ''}" id="u-toggle"><span class="ic">${ic(u.active ? 'lock' : 'check')}</span>
@@ -1103,18 +1118,41 @@ async function viewUserForm(id) {
   </div>`, { bar: `<button class="b block" id="u-save">${ic('check')}${id ? 'Guardar cambios' : 'Crear usuario'}</button>` });
   let role = u.role;
   $$('[data-r]').forEach((b) => (b.onclick = () => { role = b.dataset.r; $$('[data-r]').forEach((x) => x.classList.toggle('on', x === b)); }));
+  const provSel = $('#u-prov');
+  const syncNew = () => $('#u-new').classList.toggle('hidden', provSel.value !== 'new');
+  // preselect an existing card with the same name, to avoid duplicates
+  const matchByName = () => {
+    if (u.provider_id || provSel.tagName !== 'SELECT') return;
+    const n = $('#u-name').value.trim().toLowerCase();
+    const m = n && avail.find((p) => p.name.trim().toLowerCase() === n);
+    provSel.value = m ? String(m.id) : 'new';
+    syncNew();
+  };
+  $$('[data-rx]').forEach((b) => (b.onclick = () => {
+    receives = b.dataset.rx === '1';
+    $$('[data-rx]').forEach((x) => x.classList.toggle('on', x === b));
+    $('#u-rx').classList.toggle('hidden', !receives);
+    if (receives) matchByName();
+  }));
+  if (provSel.tagName === 'SELECT') provSel.onchange = syncNew;
+  $('#u-name').onchange = () => { if (receives) matchByName(); };
   $('#u-save').onclick = async () => {
-    const data = { name: $('#u-name').value, role, provider_id: $('#u-prov').value || null };
+    const data = { name: $('#u-name').value, role };
+    if (!data.name.trim()) { toast('Escribe el nombre', true); return $('#u-name').focus(); }
+    if (!receives) data.provider_id = null;
+    else if (provSel.value === 'new') Object.assign(data, { provider_id: 'new', specialty: $('#u-spec').value, phone: $('#u-phone').value });
+    else data.provider_id = Number(provSel.value);
     const pin = $('#u-pin').value;
     if (pin || !id) data.pin = pin;
+    const btn = $('#u-save');
+    btn.disabled = true;
     try {
-      if (id) await api('PATCH', '/users/' + id, data);
-      else await api('POST', '/users', data);
+      const r = id ? await api('PATCH', '/users/' + id, data) : await api('POST', '/users', data);
       await loadBoot();
-      if (Number(id) === S.user.id) S.user = Object.assign(S.user, { provider_id: data.provider_id ? Number(data.provider_id) : null, name: data.name.trim() || S.user.name });
+      if (Number(id) === S.user.id) S.user = Object.assign(S.user, { provider_id: r.provider_id ?? null, name: data.name.trim() });
       toast(id ? 'Cambios guardados' : 'Usuario creado');
       location.replace('#/usuarios');
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(e.message, true); btn.disabled = false; }
   };
   const tg = $('#u-toggle');
   if (tg) tg.onclick = async () => {
@@ -1191,7 +1229,7 @@ async function route() {
     if (p[0] === 'e' && p[1] && p[2] === 'editar') return await viewEquipmentForm(p[1]);
     if (p[0] === 'e' && p[1]) return await viewEquipment(p[1]);
     if (p[0] === 'responsables') return await viewProviders();
-    if (p[0] === 'r' && p[1] === 'nuevo') return await viewProviderForm(null);
+    if (p[0] === 'r' && p[1] === 'nuevo') return await viewProviderForm(null, query);
     if (p[0] === 'r' && p[1] && p[2] === 'editar') return await viewProviderForm(p[1]);
     if (p[0] === 'r' && p[1]) return await viewProvider(p[1]);
     if (p[0] === 'mas') return await viewMore();
