@@ -1,0 +1,1 @@
+{ "name": "spark", "private": true, "scripts": { "dev": "wrangler dev", "deploy": "wrangler deploy", "db:init": "wrangler d1 execute spark --remote --file=schema.sql" }, "devDependencies": { "wrangler": "^4" } }

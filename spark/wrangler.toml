@@ -1,0 +1,32 @@
+name = "spark"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "spark"
+database_id = "cda5c0c8-833e-4200-b570-cb6f9dd2d818"
+
+[vars]
+AI_MODEL = "claude-sonnet-5-5"
+AI_MODEL_FAST = "claude-haiku-5-5"
+WA_TEMPLATE = "spark_seguimiento"
+WA_TEMPLATE_LANG = "es_MX"
+TZ = "America/Mexico_City"
+
+# Secrets (set with: npx wrangler secret put NAME)
+# ADMIN_PASSWORD      password for Eric / Diana login
+# SESSION_SECRET      any long random string
+# ANTHROPIC_API_KEY   Claude API key (menus, proposals, drafts, summaries)
+# WA_TOKEN            WhatsApp Cloud API permanent token
+# WA_PHONE_ID         WhatsApp phone number ID
+# WA_NUMBER           the business number, digits only, e.g. 524151234567 (for QR links)
+# WA_VERIFY_TOKEN     any string; paste the same one into Meta's webhook setup
+# WA_APP_SECRET       (optional) Meta app secret, verifies webhook signatures
+# RESEND_API_KEY      (optional) to email proposals; otherwise a mailto link is used
+# EMAIL_FROM          (optional) e.g. "Dos Búhos <ventas@dosbuhos.com>"

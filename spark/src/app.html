@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Spark · Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lustria&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F7F7F7;--fg:#161616;--mute:#6f6f6f;--line:#e3e3e3;--card:#fff;--acc:#7a2e2e;--ok:#2f6b3b;--warn:#a2681c;--in:#fff;--out:#efe9e2}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#121212;--fg:#ececec;--mute:#9a9a9a;--line:#2a2a2a;--card:#1b1b1b;--acc:#d08a7f;--in:#1f1f1f;--out:#2b2420}}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font:400 15px/1.45 Inter,system-ui,sans-serif;padding-bottom:72px}
+h1,h2,.serif{font-family:Lustria,Georgia,serif;font-weight:400}
+h1{font-size:24px;margin:0}h2{font-size:17px;margin:22px 0 8px}
+a{color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+header .back{background:none;border:0;font-size:22px;padding:0 6px 0 0;color:var(--fg);cursor:pointer}
+header .who{margin-left:auto;font-size:12px;color:var(--mute)}
+main{max-width:860px;margin:0 auto;padding:12px 16px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav a{flex:1;text-align:center;padding:10px 0 12px;font-size:12px;color:var(--mute);text-decoration:none}nav a.on{color:var(--fg);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);padding:12px 14px;margin:8px 0;cursor:pointer;display:block;text-decoration:none}
+.card .t{font-weight:600}.card .s{color:var(--mute);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.chip{border:1px solid var(--line);background:var(--card);padding:6px 10px;font-size:13px;white-space:nowrap;cursor:pointer;color:var(--fg)}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tag{display:inline-block;font-size:11px;padding:2px 6px;border:1px solid var(--line);color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.tag.spark{border-color:var(--acc);color:var(--acc)}
+.btn{background:var(--fg);color:var(--bg);border:0;padding:10px 14px;font:500 14px Inter,sans-serif;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--fg)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5}
+input,textarea,select{width:100%;font:inherit;color:var(--fg);padding:9px 10px;border:1px solid var(--line);background:var(--card);margin:3px 0 10px;border-radius:0}
+textarea{min-height:70px;resize:vertical}
+label{font-size:12px;color:var(--mute)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.thread{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.msg{max-width:85%;padding:8px 11px;border:1px solid var(--line);white-space:pre-wrap;word-wrap:break-word;font-size:14px}
+.msg.in{background:var(--in);align-self:flex-start}.msg.out{background:var(--out);align-self:flex-end}
+.msg.note{align-self:center;background:transparent;border-style:dashed;color:var(--mute);font-size:12px;max-width:95%}
+.msg small{display:block;color:var(--mute);font-size:11px;margin-top:3px}
+.compose{position:sticky;bottom:64px;background:var(--bg);padding:8px 0;border-top:1px solid var(--line)}
+.compose textarea{margin:0 0 6px}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi div{background:var(--card);border:1px solid var(--line);padding:10px}.kpi b{display:block;font-size:22px;font-family:Lustria,serif;font-weight:400}.kpi span{font-size:12px;color:var(--mute)}
+.muted{color:var(--mute);font-size:13px}
+.empty{color:var(--mute);font-size:13px;padding:8px 0}
+.panel{background:var(--card);border:1px solid var(--line);padding:12px 14px;margin:10px 0}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 14px;font-size:14px;z-index:20;max-width:90%}
+dialog{border:1px solid var(--line);background:var(--card);color:var(--fg);padding:16px;width:min(520px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+pre.menu{white-space:pre-wrap;font:13px/1.5 Inter,sans-serif;max-height:260px;overflow:auto;background:var(--bg);padding:10px;border:1px solid var(--line)}
+.warn{color:var(--warn)}
+</style>
+</head>
+<body>
+<header><button class="back" id="back" hidden>‹</button><h1 id="title">Spark</h1><span class="who" id="who"></span></header>
+<main id="view"></main>
+<nav>
+  <a href="#/" data-k="hoy">Hoy</a>
+  <a href="#/pipeline" data-k="pipeline">Pipeline</a>
+  <a href="#/equipo" data-k="equipo">Equipo</a>
+  <a href="#/vinos" data-k="vinos">Vinos</a>
+  <a href="#/ajustes" data-k="ajustes">Ajustes</a>
+</nav>
+<dialog id="dlg"></dialog>
+<script>
+const STAGE_LABEL = {spark:'Spark',conversacion:'Conversación',propuesta:'Propuesta',cita:'Cita',cliente:'Cliente',dormido:'Dormido'};
+const $ = (s, el=document) => el.querySelector(s);
+const view = $('#view');
+const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let ME = null, REPS = [], STATE = {stage:'', q:''};
+
+async function api(path, opts={}) {
+  const r = await fetch('/api' + path, {method: opts.method || (opts.body ? 'POST' : 'GET'), headers: {'content-type':'application/json'}, body: opts.body ? JSON.stringify(opts.body) : undefined});
+  if (r.status === 401) { location.href = '/login'; throw new Error('auth'); }
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || r.status);
+  return d;
+}
+function toast(t, ms=2600){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(), ms); }
+function toDate(s){ if(!s) return null; if(!/[zZ]|[+-]\d\d:?\d\d$/.test(s)) s = s.replace(' ','T') + 'Z'; return new Date(s); }
+function when(s){ const d=toDate(s); if(!d) return ''; return d.toLocaleString('es-MX',{timeZone:'America/Mexico_City',dateStyle:'medium',timeStyle:'short'}); }
+function ago(s){ const d=toDate(s); if(!d) return ''; const m=(Date.now()-d)/60000; if(m<60) return Math.max(1,Math.round(m))+' min'; if(m<1440) return Math.round(m/60)+' h'; return Math.round(m/1440)+' d'; }
+function setTitle(t, back){ $('#title').textContent=t; $('#back').hidden=!back; }
+$('#back').onclick = () => history.length > 1 ? history.back() : (location.hash = '#/pipeline');
+
+function leadCard(l, extra=''){
+  return `<a class="card" href="#/lead/${l.id}"><div class="row"><span class="t">${e(l.venue || l.contact_name || l.whatsapp || 'Sin nombre')}</span><span class="tag ${l.stage}">${STAGE_LABEL[l.stage]||l.stage}</span><span class="muted" style="margin-left:auto">${ago(l.updated_at)}</span></div>
+  <div class="s">${e([l.contact_name, l.city, l.rep_name && ('vía '+l.rep_name)].filter(Boolean).join(' · '))}</div>
+  ${l.summary ? `<div class="s">${e(l.summary)}</div>` : ''}${extra}</a>`;
+}
+
+// ---------- views ----------
+async function vHoy(){
+  setTitle('Hoy');
+  const d = await api('/today');
+  const c = Object.fromEntries(d.counts.map(x=>[x.stage,x.n]));
+  view.innerHTML = `
+  <div class="kpi"><div><b>${c.spark||0}</b><span>Sparks</span></div><div><b>${(c.conversacion||0)+(c.propuesta||0)}</b><span>En curso</span></div><div><b>${c.cliente||0}</b><span>Clientes</span></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="new">+ Nuevo spark</button></div>
+  <h2>Por responder</h2>${d.needsReply.map(l=>leadCard(l, `<div class="s">“${e((l.last_in||'').slice(0,120))}” · ${ago(l.last_inbound_at)}</div>`)).join('') || '<div class="empty">Nada pendiente.</div>'}
+  <h2>Sparks sin contactar</h2>${d.fresh.map(l=>leadCard(l)).join('') || '<div class="empty">Ninguno.</div>'}
+  <h2>Próximas citas</h2>${d.upcoming.map(a=>`<a class="card" href="#/lead/${a.lead_id}"><div class="t">${e(a.venue||'')}</div><div class="s">${a.kind==='pour'?'Cata en restaurante':'Visita a la bodega'} · ${when(a.starts_at)}${a.rep_name?' · '+e(a.rep_name):''}</div></a>`).join('') || '<div class="empty">Sin citas.</div>'}
+  <h2>Sin movimiento (7 días)</h2>${d.stale.map(l=>leadCard(l)).join('') || '<div class="empty">Todo al día.</div>'}`;
+  $('#new').onclick = newLead;
+}
+
+async function vPipeline(){
+  setTitle('Pipeline');
+  view.innerHTML = `<div class="chips" id="chips">${['',...ME.stages].map(s=>`<button class="chip ${STATE.stage===s?'on':''}" data-s="${s}">${s?STAGE_LABEL[s]:'Todos'}</button>`).join('')}</div>
+  <div class="row"><input id="q" placeholder="Buscar lugar, contacto, ciudad" value="${e(STATE.q)}" style="flex:1;margin:0"><button class="btn" id="new">+</button></div><div id="list"></div>`;
+  view.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{STATE.stage=b.dataset.s; vPipeline();});
+  let t; $('#q').oninput = ev => { clearTimeout(t); t=setTimeout(()=>{STATE.q=ev.target.value; load();},250); };
+  $('#new').onclick = newLead;
+  async function load(){
+    const qs = new URLSearchParams(); if(STATE.stage) qs.set('stage',STATE.stage); if(STATE.q) qs.set('q',STATE.q);
+    const rows = await api('/leads?'+qs);
+    $('#list').innerHTML = rows.map(l=>leadCard(l)).join('') || '<div class="empty">Sin resultados.</div>';
+  }
+  load();
+}
+
+function repOptions(sel){ return `<option value="">—</option>` + REPS.filter(r=>r.active).map(r=>`<option value="${r.id}" ${String(sel)===String(r.id)?'selected':''}>${e(r.name)}</option>`).join(''); }
+
+function newLead(){
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<h2 style="margin-top:0">Nuevo spark</h2><form method="dialog" id="f">
+  <label>Lugar</label><input name="venue" required>
+  <div class="grid2"><div><label>Contacto</label><input name="contact_name"></div><div><label>Puesto</label><input name="role" placeholder="Gerente, sommelier…"></div></div>
+  <div class="grid2"><div><label>WhatsApp</label><input name="whatsapp" inputmode="tel" placeholder="52…"></div><div><label>Email</label><input name="email" type="email"></div></div>
+  <div class="grid2"><div><label>Ciudad</label><input name="city"></div><div><label>Vendedor (si hubo)</label><select name="rep_id">${repOptions()}</select></div></div>
+  <div class="row"><button class="btn" value="ok">Guardar</button><button class="btn ghost" value="cancel" formnovalidate>Cancelar</button></div></form>`;
+  dlg.showModal();
+  $('#f').onsubmit = async ev => {
+    if (ev.submitter?.value !== 'ok') return;
+    const fd = Object.fromEntries(new FormData(ev.target));
+    const r = await api('/leads', {body: fd}); location.hash = '#/lead/' + r.id;
+  };
+}
+
+async function vLead(id){
+  setTitle('…', true);
+  const d = await api('/leads/' + id);
+  const l = d.lead;
+  setTitle(l.venue || l.contact_name || 'Lead', true);
+  view.innerHTML = `
+  <div class="row"><select id="stage" style="width:auto;margin:0">${ME.stages.map(s=>`<option value="${s}" ${l.stage===s?'selected':''}>${STAGE_LABEL[s]}</option>`).join('')}</select>
+    <span class="muted">${e([l.contact_name, l.role, l.city].filter(Boolean).join(' · '))}</span>
+    <button class="btn ghost sm" id="edit" style="margin-left:auto">Editar</button></div>
+  <div class="panel"><div>${e(l.summary || 'Sin resumen aún.')}</div>${l.next_step?`<div class="muted" style="margin-top:4px">Siguiente: ${e(l.next_step)}${l.next_date?' · '+when(l.next_date):''}</div>`:''}
+    <div class="muted" style="margin-top:6px">${l.whatsapp?`WhatsApp ${e(l.whatsapp)} · ${l.in_window?'<span style="color:var(--ok)">ventana abierta</span>':'<span class="warn">fuera de 24 h (se usa plantilla)</span>'}`:'<span class="warn">Sin WhatsApp</span>'}${l.email?' · '+e(l.email):''}${l.rep_name?' · vía '+e(l.rep_name):''}</div></div>
+  <div class="row"><button class="btn sm" id="bMenu">${l.menu_text?'Menú ✓':'Subir menú'}</button><button class="btn sm" id="bProp" ${l.menu_text?'':'disabled'}>Generar propuesta</button><button class="btn sm" id="bAppt">Agendar</button><button class="btn ghost sm" id="bNote">Nota</button></div>
+  ${d.proposals.length?`<h2>Propuestas</h2>${d.proposals.map(p=>`<div class="panel row"><a href="/p/${p.token}" target="_blank">Ver propuesta</a><span class="muted">${p.status==='sent'?'Enviada '+ago(p.sent_at):'Borrador'} · ${p.views} vistas</span><span style="margin-left:auto" class="row"><button class="btn sm" data-send="${p.id}" data-ch="whatsapp">WhatsApp</button><button class="btn ghost sm" data-send="${p.id}" data-ch="email">Email</button></span></div>`).join('')}`:''}
+  ${d.appointments.length?`<h2>Citas</h2>${d.appointments.map(a=>`<div class="panel"><div class="row"><b>${a.kind==='pour'?'Cata en restaurante':'Visita a la bodega'}</b><span class="tag">${a.status==='done'?'hecha':a.status==='cancelled'?'cancelada':'agendada'}</span></div><div class="muted">${when(a.starts_at)}${a.rep_name?' · '+e(a.rep_name):''}${a.wines?' · '+e(a.wines):''}</div>${a.result_note?`<div class="muted">${e(a.result_note)}</div>`:''}${a.status==='scheduled'?`<div class="row" style="margin-top:6px"><button class="btn ghost sm" data-ap="${a.id}" data-st="done">Hecha</button><button class="btn ghost sm" data-ap="${a.id}" data-st="cancelled">Cancelar</button></div>`:''}</div>`).join('')}`:''}
+  ${l.menu_text?`<details><summary class="muted" style="margin:14px 0 6px;cursor:pointer">Menú transcrito</summary><pre class="menu">${e(l.menu_text)}</pre></details>`:''}
+  <h2>Conversación</h2>
+  <div class="thread">${d.messages.map(m=>`<div class="msg ${m.direction}">${e(m.body)}<small>${m.direction==='in'?'':e(m.author||'')+' · '}${when(m.created_at)}${m.channel==='email'?' · email':''}${m.status&&m.direction==='out'?' · '+e(m.status):''}</small></div>`).join('') || '<div class="empty">Sin mensajes. Usa “Borrador IA” para el primer mensaje.</div>'}</div>
+  <div class="compose"><textarea id="txt" placeholder="Mensaje de WhatsApp…"></textarea>
+    <div class="row"><button class="btn ghost sm" id="bDraft">Borrador IA</button><button class="btn sm" id="bSend" style="margin-left:auto">Enviar</button></div></div>`;
+  window.scrollTo(0, document.body.scrollHeight);
+
+  $('#stage').onchange = async ev => { await api('/leads/'+id, {method:'PATCH', body:{stage:ev.target.value}}); toast('Etapa actualizada'); };
+  $('#edit').onclick = () => editLead(l);
+  $('#bNote').onclick = async () => { const t = prompt('Nota interna'); if (t) { await api(`/leads/${id}/note`, {body:{body:t}}); vLead(id); } };
+  $('#bDraft').onclick = async ev => { ev.target.disabled = true; ev.target.textContent='Pensando…'; try { const r = await api(`/leads/${id}/draft`, {body:{}}); $('#txt').value = r.draft; } catch(err){ toast(err.message); } ev.target.disabled=false; ev.target.textContent='Borrador IA'; };
+  $('#bSend').onclick = async ev => {
+    const body = $('#txt').value.trim(); if (!body) return;
+    if (!l.in_window && !confirm('Fuera de la ventana de 24 h: WhatsApp solo permite enviar la plantilla aprobada. Se enviará la plantilla (tu texto queda como referencia). ¿Continuar?')) return;
+    ev.target.disabled = true;
+    try { await api(`/leads/${id}/message`, {body:{body}}); toast('Enviado'); vLead(id); } catch(err){ toast(err.message, 5000); ev.target.disabled=false; }
+  };
+  $('#bMenu').onclick = () => menuDialog(id, l);
+  $('#bProp').onclick = async ev => { ev.target.disabled=true; ev.target.textContent='Armando propuesta…'; try { await api(`/leads/${id}/proposal`, {body:{}}); toast('Propuesta lista'); vLead(id); } catch(err){ toast(err.message,5000); ev.target.disabled=false; ev.target.textContent='Generar propuesta'; } };
+  $('#bAppt').onclick = () => apptDialog(id, l);
+  view.querySelectorAll('[data-send]').forEach(b => b.onclick = async () => {
+    try { const r = await api(`/proposals/${b.dataset.send}/send`, {body:{channel:b.dataset.ch}}); if (r.mailto) { location.href = r.mailto; } else { toast('Propuesta enviada'); vLead(id); } } catch(err){ toast(err.message,5000); }
+  });
+  view.querySelectorAll('[data-ap]').forEach(b => b.onclick = async () => {
+    let note = null; if (b.dataset.st==='done') note = prompt('¿Cómo fue? (opcional)') || null;
+    await api('/appointments/'+b.dataset.ap, {method:'PATCH', body:{status:b.dataset.st, result_note:note}}); vLead(id);
+  });
+}
+
+function editLead(l){
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<h2 style="margin-top:0">Editar</h2><form method="dialog" id="f">
+  <label>Lugar</label><input name="venue" value="${e(l.venue)}">
+  <div class="grid2"><div><label>Contacto</label><input name="contact_name" value="${e(l.contact_name)}"></div><div><label>Puesto</label><input name="role" value="${e(l.role)}"></div></div>
+  <div class="grid2"><div><label>WhatsApp</label><input name="whatsapp" value="${e(l.whatsapp)}"></div><div><label>Email</label><input name="email" value="${e(l.email)}"></div></div>
+  <div class="grid2"><div><label>Ciudad</label><input name="city" value="${e(l.city)}"></div><div><label>Vendedor</label><select name="rep_id">${repOptions(l.rep_id)}</select></div></div>
+  <label>Resumen</label><input name="summary" value="${e(l.summary)}">
+  <label>Siguiente paso</label><input name="next_step" value="${e(l.next_step)}">
+  <div class="row"><button class="btn" value="ok">Guardar</button><button class="btn ghost" value="cancel" formnovalidate>Cancelar</button><button class="btn ghost" value="del" formnovalidate style="margin-left:auto;color:var(--acc);border-color:var(--acc)">Borrar</button></div></form>`;
+  dlg.showModal();
+  $('#f').onsubmit = async ev => {
+    const v = ev.submitter?.value;
+    if (v === 'del') { if (confirm('¿Borrar este lead y su historial?')) { await api('/leads/'+l.id, {method:'DELETE'}); location.hash='#/pipeline'; } return; }
+    if (v !== 'ok') return;
+    await api('/leads/'+l.id, {method:'PATCH', body:Object.fromEntries(new FormData(ev.target))}); vLead(l.id);
+  };
+}
+
+async function fileToPayload(file){
+  if (file.type === 'application/pdf') {
+    const buf = new Uint8Array(await file.arrayBuffer()); let s=''; for (let i=0;i<buf.length;i+=0x8000) s+=String.fromCharCode(...buf.subarray(i,i+0x8000));
+    return {base64: btoa(s), mediaType: 'application/pdf'};
+  }
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return {base64: c.toDataURL('image/jpeg', .85).split(',')[1], mediaType: 'image/jpeg'};
+}
+
+function menuDialog(id, l){
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<h2 style="margin-top:0">Menú</h2><p class="muted">Foto o PDF del menú, o pega el texto. Si el restaurante lo manda por WhatsApp, se transcribe solo.</p>
+  <form method="dialog" id="f"><input type="file" name="file" accept="image/*,application/pdf" capture="environment">
+  <label>o texto</label><textarea name="text" placeholder="Pega el menú…"></textarea>
+  <div class="row"><button class="btn" value="ok" id="go">Transcribir</button><button class="btn ghost" value="cancel" formnovalidate>Cerrar</button></div></form>`;
+  dlg.showModal();
+  $('#f').onsubmit = async ev => {
+    if (ev.submitter?.value !== 'ok') return;
+    ev.preventDefault();
+    const f = ev.target.file.files[0]; const text = ev.target.text.value.trim();
+    if (!f && !text) return;
+    $('#go').disabled = true; $('#go').textContent = 'Leyendo menú…';
+    try { const payload = f ? await fileToPayload(f) : {}; await api(`/leads/${id}/menu`, {body:{...payload, text}}); dlg.close(); toast('Menú listo'); vLead(id); }
+    catch(err){ toast(err.message,5000); $('#go').disabled=false; $('#go').textContent='Transcribir'; }
+  };
+}
+
+function apptDialog(id, l){
+  const dlg = $('#dlg');
+  const t = new Date(Date.now()+86400000); t.setMinutes(0);
+  const local = new Date(t - t.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  dlg.innerHTML = `<h2 style="margin-top:0">Agendar</h2><form method="dialog" id="f">
+  <label>Tipo</label><select name="kind" id="kind"><option value="pour">Cata en su restaurante (vendedor sirve)</option><option value="visit">Visita a la bodega (nosotros)</option></select>
+  <label>Fecha y hora</label><input type="datetime-local" name="starts_at" value="${local}" required>
+  <div id="repWrap"><label>Vendedor que sirve</label><select name="rep_id">${repOptions(l.rep_id)}</select></div>
+  <label>Vinos a llevar</label><input name="wines" placeholder="Chenin, Grenache, Tempranillo GR">
+  <label>Notas para el vendedor</label><input name="notes" placeholder="Pregunta por Ana, entra por servicio…">
+  <div class="row"><button class="btn" value="ok">Agendar</button><button class="btn ghost" value="cancel" formnovalidate>Cancelar</button></div></form>`;
+  dlg.showModal();
+  $('#kind').onchange = ev => $('#repWrap').hidden = ev.target.value === 'visit';
+  $('#f').onsubmit = async ev => {
+    if (ev.submitter?.value !== 'ok') return;
+    const fd = Object.fromEntries(new FormData(ev.target));
+    fd.starts_at = new Date(fd.starts_at).toISOString();
+    const r = await api(`/leads/${id}/appointment`, {body: fd});
+    if (r.handoff) {
+      dlg.innerHTML = `<h2 style="margin-top:0">Pasar a ${e(r.handoff.rep)}</h2><pre class="menu">${e(r.handoff.brief)}</pre>
+      <div class="row">${r.handoff.link?`<a class="btn" href="${r.handoff.link}" target="_blank">Enviar por WhatsApp</a>`:'<span class="warn">El vendedor no tiene WhatsApp registrado.</span>'}<button class="btn ghost" id="cp">Copiar</button><button class="btn ghost" id="cl">Cerrar</button></div>`;
+      dlg.showModal();
+      $('#cp').onclick = () => { navigator.clipboard.writeText(r.handoff.brief); toast('Copiado'); };
+      $('#cl').onclick = () => { dlg.close(); vLead(id); };
+    } else vLead(id);
+  };
+}
+
+async function vEquipo(){
+  setTitle('Equipo');
+  REPS = await api('/reps');
+  view.innerHTML = `<p class="muted">Cada vendedor tiene un enlace personal: ve sus catas, marca “hecha” y captura sparks. Su QR abre WhatsApp con su código, así cada spark queda atribuido.</p>
+  ${REPS.map(r=>`<div class="panel"><div class="row"><b>${e(r.name)}</b>${r.active?'':'<span class="tag">inactivo</span>'}<span class="muted" style="margin-left:auto">${r.sparks} sparks · ${r.pours} catas</span></div>
+    <div class="muted">${e(r.whatsapp||'sin WhatsApp')} · código ${e(r.code)}</div>
+    <div class="row" style="margin-top:8px"><a class="btn sm" href="/r/${encodeURIComponent(r.code)}" target="_blank">Su página</a><button class="btn ghost sm" data-copy="https://${ME.host}/r/${encodeURIComponent(r.code)}">Copiar enlace</button><button class="btn ghost sm" data-act="${r.id}" data-v="${r.active?0:1}">${r.active?'Desactivar':'Activar'}</button></div></div>`).join('') || '<div class="empty">Sin vendedores.</div>'}
+  <h2>Agregar vendedor</h2><form id="f"><div class="grid2"><div><label>Nombre</label><input name="name" required></div><div><label>WhatsApp</label><input name="whatsapp" inputmode="tel"></div></div><button class="btn">Agregar</button></form>`;
+  view.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.copy); toast('Enlace copiado');});
+  view.querySelectorAll('[data-act]').forEach(b=>b.onclick=async()=>{await api('/reps/'+b.dataset.act,{method:'PATCH',body:{active:Number(b.dataset.v)}}); vEquipo();});
+  $('#f').onsubmit = async ev => { ev.preventDefault(); await api('/reps', {body:Object.fromEntries(new FormData(ev.target))}); vEquipo(); };
+}
+
+async function vVinos(){
+  setTitle('Vinos');
+  const ws = await api('/wines');
+  view.innerHTML = `<p class="muted">La IA solo propone vinos activos de esta lista. El precio Horeca aparece en las propuestas.</p>
+  ${ws.map(w=>`<form class="panel" data-id="${w.id}"><div class="grid2"><div><label>Nombre</label><input name="name" value="${e(w.name)}"></div><div><label>Estilo</label><input name="style" value="${e(w.style)}"></div></div>
+  <label>Notas (para maridaje)</label><input name="notes" value="${e(w.notes)}">
+  <div class="grid2"><div><label>Precio Horeca (MXN)</label><input name="price_horeca" inputmode="decimal" value="${w.price_horeca??''}"></div><div><label>Activo</label><select name="active"><option value="1" ${w.active?'selected':''}>Sí</option><option value="0" ${w.active?'':'selected'}>No</option></select></div></div>
+  <button class="btn sm">Guardar</button></form>`).join('')}
+  <h2>Agregar vino</h2><form id="nf" class="panel"><label>Nombre</label><input name="name" required><label>Estilo</label><input name="style"><label>Notas</label><input name="notes"><label>Precio Horeca</label><input name="price_horeca" inputmode="decimal"><button class="btn sm">Agregar</button></form>`;
+  view.querySelectorAll('form[data-id]').forEach(f=>f.onsubmit=async ev=>{ev.preventDefault(); const b=Object.fromEntries(new FormData(f)); b.active=Number(b.active); b.price_horeca=b.price_horeca?Number(b.price_horeca):''; await api('/wines/'+f.dataset.id,{method:'PATCH',body:b}); toast('Guardado');});
+  $('#nf').onsubmit = async ev => { ev.preventDefault(); const b=Object.fromEntries(new FormData(ev.target)); b.price_horeca=b.price_horeca?Number(b.price_horeca):null; await api('/wines',{body:b}); vVinos(); };
+}
+
+async function vAjustes(){
+  setTitle('Ajustes');
+  const s = await api('/settings');
+  const ok = v => v ? '<span style="color:var(--ok)">conectado</span>' : '<span class="warn">falta configurar</span>';
+  view.innerHTML = `<div class="panel"><div>WhatsApp: ${ok(ME.wa)}</div><div>IA (Claude): ${ok(ME.ai)}</div><div>Email: ${ME.email?ok(true):'<span class="muted">sin proveedor — se abre tu correo</span>'}</div>
+  <div class="muted" style="margin-top:8px">Webhook para Meta: <code>https://${ME.host}/webhook/whatsapp</code></div>
+  ${ME.wa_number?`<div class="muted">QR general: <code>https://${ME.host}/s/GENERAL</code></div>`:''}</div>
+  <form id="f">
+  <label>Respuesta automática por IA</label><select name="auto_reply"><option value="off" ${s.auto_reply!=='on'?'selected':''}>Apagada — la IA solo sugiere borradores</option><option value="on" ${s.auto_reply==='on'?'selected':''}>Encendida — la IA contesta sola dentro de 24 h</option></select>
+  <label>Condiciones comerciales (van en cada propuesta)</label><textarea name="offer_terms">${e(s.offer_terms)}</textarea>
+  <label>Voz de marca para la IA</label><textarea name="brand_voice">${e(s.brand_voice)}</textarea>
+  <label>Invitación a la bodega</label><textarea name="winery_visit">${e(s.winery_visit)}</textarea>
+  <button class="btn">Guardar</button></form>
+  <p style="margin-top:24px"><a href="/logout" class="muted">Salir</a></p>`;
+  $('#f').onsubmit = async ev => { ev.preventDefault(); await api('/settings',{body:Object.fromEntries(new FormData(ev.target))}); toast('Guardado'); };
+}
+
+// ---------- router ----------
+async function route(){
+  const h = location.hash.slice(1) || '/';
+  const k = h.startsWith('/lead') ? 'pipeline' : (h.split('/')[1] || 'hoy');
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on', a.dataset.k===k));
+  try {
+    if (h === '/' ) await vHoy();
+    else if (h === '/pipeline') await vPipeline();
+    else if (h.startsWith('/lead/')) await vLead(h.split('/')[2]);
+    else if (h === '/equipo') await vEquipo();
+    else if (h === '/vinos') await vVinos();
+    else if (h === '/ajustes') await vAjustes();
+    else await vHoy();
+  } catch (err) { if (err.message !== 'auth') view.innerHTML = `<div class="panel warn">${e(err.message)}</div>`; }
+}
+window.onhashchange = route;
+(async () => { ME = await api('/me'); $('#who').textContent = ME.name; REPS = await api('/reps'); route(); })();
+</script>
+</body>
+</html>
