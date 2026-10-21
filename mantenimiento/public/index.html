@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f4a2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mantenimiento">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Mantenimiento · Dos Búhos</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div id="app"><div class="boot">Cargando…</div></div>
+  <nav id="nav" class="nav hidden">
+    <a href="#/" data-tab="tareas"><span class="ico">☰</span><span>Tareas</span></a>
+    <a href="#/equipos" data-tab="equipos"><span class="ico">⚙</span><span>Equipos</span></a>
+    <a href="#/nueva" class="nav-new" aria-label="Nueva tarea"><span>+</span></a>
+    <a href="#/responsables" data-tab="responsables"><span class="ico">👷</span><span>Responsables</span></a>
+    <a href="#/mas" data-tab="mas"><span class="ico">•••</span><span>Más</span></a>
+  </nav>
+  <div id="toast" class="toast"></div>
+  <div id="viewer" class="viewer hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

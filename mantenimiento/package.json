@@ -1,0 +1,14 @@
+{
+  "name": "dosbuhos-mantenimiento",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply mantenimiento --local",
+    "db:remote": "wrangler d1 migrations apply mantenimiento --remote",
+    "deploy": "wrangler d1 migrations apply mantenimiento --remote && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}

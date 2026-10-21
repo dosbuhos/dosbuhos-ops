@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dosbuhos-mantenimiento",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mantenimiento",
+      "database_id": "56b0a16d-2344-4cf9-970a-db3e7c9d9558",
+      "migrations_dir": "migrations"
+    }
+  ]
+  // Optional, once R2 is enabled in the Cloudflare dashboard (photos move there automatically):
+  // ,"r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "mantenimiento-fotos" }]
+}
