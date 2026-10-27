@@ -111,7 +111,7 @@
       if (wine && p && p !== 'NORMAL') { const tag = document.createElement('span'); tag.className = 'm-pri ' + p.toLowerCase(); tag.textContent = p === 'URGENT' ? 'URGENTE' : 'ALTA'; wine.prepend(tag); }
       const done = row.classList.contains('is-done');
       const act = document.createElement('div'); act.className = 'm-act';
-      act.innerHTML = `<button type="button" class="m-done">${done ? '✓ Hecha' : '✓ Hecho'}</button><button type="button" class="m-more" aria-label="More options">⋯</button>`;
+      act.innerHTML = `<button type="button" class="m-done" aria-pressed="${done}">${done ? '<span class="m-ck on">✓</span>Hecha · reabrir' : '<span class="m-ck"></span>Marcar como hecha'}</button><button type="button" class="m-more" aria-expanded="false">Estado <span aria-hidden="true">▾</span></button>`;
       const ctl = document.createElement('div'); ctl.className = 'm-ctl';
       const wrap = (sel, label, cls) => { if (!sel) return; const l = document.createElement('label'); if (cls) l.className = cls; l.textContent = label; l.appendChild(sel); ctl.appendChild(l); };
       wrap(pri, 'Prioridad'); wrap(asig, 'Asignado a'); wrap(st, 'Estado', 'wide');
@@ -121,7 +121,7 @@
         if (done) { st.value = 'open'; } else { st.value = 'done'; }
         st.dispatchEvent(new Event('change', { bubbles: true }));
       });
-      act.querySelector('.m-more').addEventListener('click', () => row.classList.toggle('m-open'));
+      act.querySelector('.m-more').addEventListener('click', e => { const on = row.classList.toggle('m-open'); e.currentTarget.setAttribute('aria-expanded', String(on)); });
       // Notes: grow with content while typing.
       const ta = row.querySelector('.asg-txt');
       if (ta) ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });

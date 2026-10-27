@@ -159,12 +159,19 @@
   .asg-row .asg-txt { width: 100%; border: 0; background: transparent; padding: 0; resize: none; font-size: 15.5px; line-height: 1.42; color: var(--ink); min-height: 0; }
   .asg-row .asg-txt:focus { background: var(--bg); border-radius: 8px; padding: 6px 8px; outline: 2px solid var(--m-wine); }
   .asg-row .m-act { grid-area: act; display: flex; gap: 8px; margin-top: 8px; }
-  .asg-row .m-done { flex: 1; min-height: 44px; border: 0; border-radius: 12px; background: var(--m-wine); color: #fff; font: 600 15px var(--f-body); }
-  .asg-row.is-done .m-done { background: var(--m-green-bg); color: var(--m-green); }
+  /* "Mark as done" is an action, not a state: outline button with an empty circle; done rows turn green with the check filled. */
+  .asg-row .m-done { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1.5px solid var(--m-wine); border-radius: 12px; background: var(--paper); color: var(--m-wine); font: 600 15px var(--f-body); }
+  .asg-row .m-ck { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 2px solid var(--m-wine); border-radius: 50%; font-size: 13px; line-height: 1; color: transparent; }
+  .asg-row .m-done:active .m-ck { background: var(--m-wine-soft); }
+  .asg-row.is-done .m-done { border-color: var(--m-green-bg); background: var(--m-green-bg); color: var(--m-green); }
+  .asg-row.is-done .m-ck { border-color: var(--m-green); background: var(--m-green); color: #fff; }
   .asg-row .asg-wine b .m-pri, .asg-row .m-pri { display: inline-block; width: auto; font: 700 10.5px/1.6 var(--f-mono); letter-spacing: .05em; padding: 0 7px; border-radius: 6px; margin-right: 6px; vertical-align: 2px; }
   .asg-row .m-pri.urgent { background: var(--m-red); color: #fff; }
   .asg-row .m-pri.high { background: var(--m-amber-bg); color: var(--m-amber); }
-  .asg-row .m-more { flex: none; width: 44px; min-height: 44px; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper); font-size: 20px; letter-spacing: 1px; color: var(--ink); }
+  .asg-row .m-more { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper); font: 600 14px var(--f-body); color: var(--ink); }
+  .asg-row .m-more span { display: inline-block; margin-left: 4px; font-size: 11px; transition: transform .15s; }
+  .asg-row.m-open .m-more { background: var(--bg); }
+  .asg-row.m-open .m-more span { transform: rotate(180deg); }
   .asg-row .m-ctl { grid-area: ctl; display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--rule); }
   .asg-row.m-open .m-ctl { display: grid; }
   .asg-row .m-ctl label { display: flex; flex-direction: column; gap: 3px; font: 600 10.5px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
