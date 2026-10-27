@@ -2,6 +2,7 @@
 // Every message is saved in D1 (coll "chatlog"); standing rules live in coll "housenotes", doc "main".
 import { accessToken } from './sheets.js';
 import { sync } from './xl.js';
+import { pushPurchase } from './compras.js';
 
 const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets/';
 const q = (tab) => "'" + String(tab).replace(/'/g, "''") + "'";
@@ -158,20 +159,23 @@ async function runTool(env, ctx, name, a) {
   if (name === 'add_purchase') {
     const id = 'p' + Date.now().toString(36);
     const pri = ['high', 'medium', 'low'].includes(String(a.pri || '').toLowerCase()) ? String(a.pri).toLowerCase() : 'medium';
-    await dbPut(env, 'purchases', id, { item: String(a.item).slice(0, 200), qty: String(a.qty || '').slice(0, 60), pri, asig: String(a.asig || ctx.initials).toUpperCase(), where: String(a.where || '').slice(0, 60), notes: String(a.notes || '').slice(0, 1000), status: 'open', by: ctx.initials, at: new Date().toISOString() });
+    const doc = { item: String(a.item).slice(0, 200), qty: String(a.qty || '').slice(0, 60), pri, asig: String(a.asig || ctx.initials).toUpperCase(), where: String(a.where || '').slice(0, 60), notes: String(a.notes || '').slice(0, 1000), status: 'open', by: ctx.initials, at: new Date().toISOString() };
+    await dbPut(env, 'purchases', id, doc);
+    await pushPurchase(env, id, doc);
     ctx.actions.push({ kind: 'purchase', text: 'Compra: ' + a.item + ' (' + pri + ', ' + String(a.asig || ctx.initials).toUpperCase() + ')' });
     return { ok: true, id };
   }
   if (name === 'update_purchase') {
     const cur = (await dbList(env, 'purchases')).find(p => p.id === a.id);
     if (!cur) return { error: 'No purchase with id ' + a.id };
-    if (a.delete) { await env.DB.prepare("DELETE FROM docs WHERE coll = 'purchases' AND id = ?").bind(a.id).run(); return { ok: true, deleted: cur.item }; }
+    if (a.delete) { await env.DB.prepare("DELETE FROM docs WHERE coll = 'purchases' AND id = ?").bind(a.id).run(); await pushPurchase(env, a.id, null); return { ok: true, deleted: cur.item }; }
     const set = a.set || {}, next = Object.assign({}, cur);
     delete next.id;
     for (const k of ['item', 'qty', 'pri', 'asig', 'where', 'notes', 'status']) if (set[k] != null) next[k] = String(set[k]);
     if (next.status === 'ordered' && cur.status !== 'ordered') next.orderedAt = new Date().toISOString();
     if (next.status === 'received' && cur.status !== 'received') next.receivedAt = new Date().toISOString();
     await dbPut(env, 'purchases', a.id, next);
+    await pushPurchase(env, a.id, next);
     ctx.actions.push({ kind: 'purchase', text: 'Compra actualizada: ' + next.item + (set.status ? ' → ' + set.status : '') });
     return { ok: true, item: next.item, status: next.status };
   }

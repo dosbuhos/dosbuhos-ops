@@ -18,7 +18,7 @@ header{position:sticky;top:0;z-index:5;background:var(--wine);color:#fff;padding
 h1{margin:0;font:700 24px/1.1 var(--f-d);letter-spacing:.04em;text-transform:uppercase;flex:1}
 header a{color:#f6e9ee;font-size:13px}
 .tabs{display:flex;gap:4px;margin-top:8px}
-.tabs button{border:0;background:transparent;color:#f6e9ee;padding:8px 14px;font:600 15px var(--f-b);border-radius:10px 10px 0 0;cursor:pointer}
+.tabs button,.tabs a{border:0;background:transparent;color:#f6e9ee;padding:8px 14px;font:600 15px var(--f-b);border-radius:10px 10px 0 0;cursor:pointer}
 .tabs button[aria-selected=true]{background:var(--bg);color:var(--wine)}
 .banner{margin:12px 16px 0;padding:10px 12px;border-radius:10px;background:var(--amber-bg);color:#5a3d00;font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .banner b{font-family:var(--f-d);font-size:16px;letter-spacing:.06em}
@@ -111,6 +111,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   <nav class="tabs" role="tablist">
     <button role="tab" data-t="ordenes" aria-selected="true">Órdenes abiertas</button>
     <button role="tab" data-t="lotes" aria-selected="false">Lotes</button>
+    <a role="tab" href="/purchases" aria-selected="false" style="text-decoration:none">Compras ↗</a>
   </nav>
 </header>
 <div class="banner" id="banner"><b>MODO PRUEBA</b><span id="bannerTxt">Cargando…</span><button class="btn" id="importBtn">Sincronizar ahora</button></div>

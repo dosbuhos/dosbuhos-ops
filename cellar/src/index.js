@@ -4,6 +4,7 @@ import { handleAuth, loginPage, sessionEmail, isViewer, isAdmin, initialsFor } f
 import { sheetsTool } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
+import { pushPurchase, pullPurchases } from './compras.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -11,7 +12,7 @@ const ID = /^[\w.\-]{1,120}$/;
 
 export default {
   // Every 5 minutes: copy whatever changed in Excellovint into the app's records.
-  async scheduled(event, env, ctx) { if (env.GOOGLE_SA_JSON) ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); },
+  async scheduled(event, env, ctx) { if (env.GOOGLE_SA_JSON) { ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); ctx.waitUntil(pullPurchases(env).catch(e => console.log('compras pull failed', e && e.message))); } },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
     // App-managed users (Settings → Users), alongside the ALLOWED_EMAILS secret.
@@ -47,7 +48,12 @@ export default {
         return J(r.body, r.status);
       }
       if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, { initials }) });
-      if (p.startsWith('/api/xl/')) { const r = await xlRoute(request, env, p, url, { initials, canWrite }); return J(r.body, r.status); }
+      if (p.startsWith('/api/xl/')) {
+        const r = await xlRoute(request, env, p, url, { initials, canWrite });
+        if (p === '/api/xl/import' && r.status === 200) { try { r.body.compras = await pullPurchases(env); } catch (e) { r.body.compras = { error: String(e && e.message) }; } }
+        return J(r.body, r.status);
+      }
+      if (p === '/api/compras/sync' && request.method === 'POST') return J(await pullPurchases(env));
       if (p === '/api/chats') {
         const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' ORDER BY updated_at DESC LIMIT 600").all();
         return J({ messages: results.map(r => JSON.parse(r.data)) });
@@ -60,7 +66,7 @@ export default {
         await env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('housenotes', 'main', ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(JSON.stringify({ lines }), Date.now()).run();
         return J({ ok: true });
       }
-      if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite);
+      if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite, ctx);
       if (p === '/api/sheets' && request.method === 'POST') {
         const { tool, args } = await request.json();
         if (!canWrite && !/^get_/.test(tool)) return J({ code: 'tool_error', message: 'Read-only access.' }, 403);
@@ -84,7 +90,7 @@ export default {
 };
 
 // ---------- db: collections of JSON docs in D1 (same shape as the artifact's shared database) ----------
-async function dbRoute(request, env, p, canWrite) {
+async function dbRoute(request, env, p, canWrite, ctx) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '')) return J({ code: 'bad_request' }, 400);
   const m = request.method;
@@ -98,12 +104,13 @@ async function dbRoute(request, env, p, canWrite) {
   if (!ID.test(id || '')) return J({ code: 'bad_request' }, 400);
   if (!canWrite) return J({ code: 'not_granted', message: 'Read-only access.' }, 403);
   const now = Date.now();
-  if (m === 'DELETE') { await env.DB.prepare('DELETE FROM docs WHERE coll = ? AND id = ?').bind(coll, id).run(); return J({ ok: true }); }
+  if (m === 'DELETE') { await env.DB.prepare('DELETE FROM docs WHERE coll = ? AND id = ?').bind(coll, id).run(); if (coll === 'purchases') ctx.waitUntil(pushPurchase(env, id, null)); return J({ ok: true }); }
   const body = await request.json();
   if (!body || typeof body !== 'object' || Array.isArray(body)) return J({ code: 'bad_request' }, 400);
   if (m === 'PUT') {
     await env.DB.prepare('INSERT INTO docs (coll, id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at')
       .bind(coll, id, JSON.stringify(body), now).run();
+    if (coll === 'purchases') ctx.waitUntil(pushPurchase(env, id, body));
     return J({ ok: true, id });
   }
   if (m === 'PATCH') {
@@ -112,6 +119,7 @@ async function dbRoute(request, env, p, canWrite) {
     if (!cur) return J({ code: 'not_found' }, 404);
     const merged = Object.assign(JSON.parse(cur.data), body);
     await env.DB.prepare('UPDATE docs SET data = ?, updated_at = ? WHERE coll = ? AND id = ?').bind(JSON.stringify(merged), now, coll, id).run();
+    if (coll === 'purchases') ctx.waitUntil(pushPurchase(env, id, merged));
     return J({ ok: true, id });
   }
   return J({ code: 'bad_request' }, 405);
