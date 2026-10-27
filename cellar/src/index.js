@@ -83,6 +83,9 @@ export default {
     } catch (e) {
       return J({ code: 'unavailable', message: String(e && e.message || e) }, 500);
     }
+    // Short link printed on barrel tags: /b/101 → the barrel's card in the Cellar section.
+    const bm = p.match(/^\/b\/(\d{1,4})\/?$/);
+    if (bm) return Response.redirect(url.origin + '/?b=' + bm[1] + '#cellar', 302);
     const res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers); h.set('cache-control', 'no-store'); h.set('x-robots-tag', 'noindex');
     return new Response(res.body, { status: res.status, headers: h });

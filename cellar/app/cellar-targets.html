@@ -743,6 +743,13 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .spark { display: block; margin-top: 4px; max-width: 100%; height: auto; }
 .wk-h { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .tasklist { display: flex; flex-direction: column; gap: 4px; }
+/* Production | Cellar switch at the top of Wines */
+.wmode { display: inline-flex; gap: 0; margin: 0 0 10px; padding: 3px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); }
+.wmode button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--f-body); padding: 7px 18px; border-radius: 999px; cursor: pointer; }
+.wmode button small { font: 500 12px var(--f-mono); margin-left: 4px; opacity: .8; }
+.wmode button[aria-selected="true"] { background: var(--accent); color: #fff; }
+html.w-cellar .toolbar { display: none; }
+.d-head .x.ph { margin-right: 6px; background: var(--paper); color: var(--accent); border-color: var(--accent); }
 /* Excellovint log: one stacked block per entry — dark header (date · vessel · status), readings in one row, text below. Vertical scroll only. */
 .xlog { display: flex; flex-direction: column; gap: 10px; }
 .xe { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--paper); }
@@ -1100,6 +1107,11 @@ h4.pd-h { font-size: 16px; }
   <div class="diag-back" id="diagSheet" hidden><div class="diag" role="dialog" aria-modal="true" aria-labelledby="diagTitle"><h2 id="diagTitle">Access check</h2><div id="diagBody"></div><div class="diag-btns"><button type="button" class="btn" id="diagClose">Close</button></div></div></div>
 
   <section class="wines" id="winesView" role="tabpanel" aria-labelledby="tabWines">
+    <div class="wmode" id="wmode" role="tablist" aria-label="Production or cellar">
+      <button type="button" role="tab" data-wm="prod" aria-selected="true">Production <small id="wmProdN"></small></button>
+      <button type="button" role="tab" data-wm="cellar" aria-selected="false">Cellar <small id="wmCellarN"></small></button>
+    </div>
+    <div id="cellarView" hidden></div>
     <div class="stats" id="stats"></div>
     <div class="src" id="src"></div>
     <div class="tbl-wrap">
@@ -1584,8 +1596,11 @@ var SheetParse = (function () {
     group: "all", kinds: new Set(KINDS.map(k => k[0])), hideDone: false, off: 0,
     canWrite: true, canEdit: false, busy: new Set(), editing: null,
     urgentOnly: false, crew: null, view: "wines", sort: { key: "group", dir: 1 }, q: "", quick: "", open: null, lastFocus: null,
-    sheet: { mode: "none", at: 0, msg: "", gids: {}, live: null, missing: [], cache: {}, cacheAt: "", retried: false }
+    sheet: { mode: "none", at: 0, msg: "", gids: {}, live: null, missing: [], cache: {}, cacheAt: "", retried: false },
+    wmode: "prod"
   };
+  S.wmode = recall("wmode", "prod") === "cellar" ? "cellar" : "prod";
+  if (location.hash === "#cellar") S.wmode = "cellar";
 
   const $ = id => document.getElementById(id);
   const board = $("board");
@@ -1611,6 +1626,7 @@ var SheetParse = (function () {
   if (location.hash === "#wines") S.view = "wines";
   if (location.hash === "#labs") S.view = "labs";
   if (location.hash === "#blends") S.view = "blends";
+  if (location.hash === "#cellar") { S.view = "wines"; S.wmode = "cellar"; }
   // Phones open on Today (the assigned work orders) the first time.
   try { if (window.matchMedia("(max-width: 760px)").matches && recall("view", null) == null && !location.hash) { S.view = "weeks"; S.span = "asg"; } } catch (e) {}
   const savedSort = recall("sort", null);
@@ -1690,6 +1706,26 @@ var SheetParse = (function () {
     return sum;
   }
   function wineLots() { return S.lots.filter(l => l.group !== "routine"); }
+  // Production vs cellar. A lot's own `phase` wins; otherwise anything older than the current vintage is in the cellar.
+  const CUR_VINTAGE = 2026;
+  function vintageOf(l) {
+    if (l.vintage) return +l.vintage;
+    const s = (l.code || "") + " " + (l.name || "");
+    let m = s.match(/\b20(2\d)\b/); if (m) return 2000 + +m[1];
+    m = (l.code || "").match(/(?:^|[\s\-\/])[A-Z]{2,}(2\d)\b/); if (m) return 2000 + +m[1]; // "SB25", "MG26", "TEMA26" — not lot numbers like "L21"
+    return CUR_VINTAGE;
+  }
+  function phaseOf(l) { return l.phase === "cellar" || l.phase === "prod" ? l.phase : (vintageOf(l) < CUR_VINTAGE ? "cellar" : "prod"); }
+  function productionLots() { return wineLots().filter(l => phaseOf(l) !== "cellar"); }
+  function cellarLots() { return wineLots().filter(l => phaseOf(l) === "cellar"); }
+  async function setPhase(id, phase) {
+    const l = S.lots.find(x => x.id === id); if (!l || !S.db) return;
+    l.phase = phase; // optimistic; the snapshot confirms
+    try { await S.db.collection("lots").doc(id).update({ phase }); toast(phase === "cellar" ? l.name + " → Cellar" : l.name + " → Production"); } catch (e) { toast("Couldn’t save: " + (e.message || e)); }
+    render();
+  }
+  window.addEventListener("cellar:phase", e => { if (e.detail && e.detail.lot) setPhase(e.detail.lot, e.detail.phase); });
+  window.addEventListener("cellar:open", e => { if (e.detail && e.detail.lot) openDrawer(e.detail.lot); });
 
   // ---------- Controls ----------
   function renderControls() {
@@ -2261,6 +2297,7 @@ var SheetParse = (function () {
   }
   $("blends").addEventListener("click", e => { if (e.target.closest("button, a, textarea, summary")) return; const h = e.target.closest("[data-bltog]"); if (h) toggleTrial(h.dataset.bltog); });
   $("blends").addEventListener("keydown", e => { const h = e.target.closest && e.target.closest("[data-bltog]"); if (h && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleTrial(h.dataset.bltog); } });
+  $("wmode").addEventListener("click", e => { const b = e.target.closest("[data-wm]"); if (!b) return; S.wmode = b.dataset.wm; store("wmode", S.wmode); S.q = ""; render(); window.scrollTo(0, 0); });
   document.querySelector(".bl-filter").addEventListener("click", e => { const k = e.target.closest("[data-blk]"); if (k) { S.blKind = k.dataset.blk; renderBlends(); return; } const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = b.dataset.blg; renderBlends(); } });
   $("blSearch").addEventListener("input", e => { S.blQ = e.target.value; renderBlends(); });
   $("blStatus").addEventListener("change", e => { S.blStatus = e.target.value; renderBlends(); });
@@ -3629,7 +3666,20 @@ Return ONLY JSON with this shape:
     renderSrc();
     const body = $("wtBody");
     if (!S.gotLots || !S.gotTasks) return;
-    const all = wineLots();
+    // Production | Cellar switch. Cellar mode hands the view to cellar-room.js (barrels, map, tags).
+    const cellar = S.wmode === "cellar";
+    $("wmProdN").textContent = productionLots().length || "";
+    $("wmCellarN").textContent = cellarLots().length || "";
+    document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", (b.dataset.wm === "cellar") === cellar));
+    $("cellarView").hidden = !cellar;
+    $("stats").hidden = cellar; $("src").hidden = cellar; document.querySelector("#winesView .tbl-wrap").hidden = cellar;
+    $("groups").hidden = cellar; $("wineCtl").hidden = cellar || S.view !== "wines";
+    document.documentElement.classList.toggle("w-cellar", cellar && S.view === "wines");
+    if (cellar) {
+      window.dispatchEvent(new CustomEvent("cellar:render", { detail: { lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db), vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
+      return;
+    }
+    const all = productionLots();
     renderStats(all);
     if (!all.length) { body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines yet.</strong><br>Claude adds the cellar's lots here.</td></tr>`; return; }
     const g = S.group === "routine" ? "all" : S.group;
@@ -3894,6 +3944,7 @@ Return ONLY JSON with this shape:
     const nowLine = s && (s.vessel || s.vol) ? `Excellovint: last vessel ${esc(s.vessel || "—")}${s.vol ? " · " + esc(Math.round(s.vol).toLocaleString("en-US")) + " L" : ""}` : "";
     let h = `<div class="d-head"><div><div class="eyebrow">${esc(grp)}</div><h2 id="dTitle">${esc(l.name)}</h2>` +
       `<div class="d-meta">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}${tabs.length ? "<br>Tab: " + esc(tabs.join(" + ")) : ""}${nowLine ? "<br>" + nowLine : ""}</div></div>` +
+      (S.canWrite && S.db ? `<button type="button" class="x ph" data-phase="${phaseOf(l) === "cellar" ? "prod" : "cellar"}" data-phase-lot="${esc(l.id)}" title="${phaseOf(l) === "cellar" ? "Back to Production (still fermenting / in tank)" : "Barreled down or bottle-aging: move to the Cellar section"}">${phaseOf(l) === "cellar" ? "→ Production" : "→ Cellar"}</button>` : "") +
       `<button type="button" class="x" data-close="1">Close</button></div>`;
 
     // numbers
@@ -3975,6 +4026,7 @@ Return ONLY JSON with this shape:
   $("drawer").addEventListener("click", e => {
     if (e.target === $("drawer")) { closeDrawer(); return; }
     const n = e.target.closest("[data-xmore]"); if (n) n.classList.toggle("clamp"); // long log entries: tap to show all / less
+    const ph = e.target.closest("[data-phase]"); if (ph) { setPhase(ph.dataset.phaseLot, ph.dataset.phase); closeDrawer(); }
   });
 
   // ---------- Toasts and writes ----------

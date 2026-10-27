@@ -170,6 +170,19 @@ export async function xlRoute(request, env, p, url, user) {
     const { results } = await env.DB.prepare('SELECT * FROM xl_rows WHERE tab = ? ORDER BY row').bind(url.searchParams.get('tab') || '').all();
     return { status: 200, body: { rows: results } };
   }
+  if (p === '/api/xl/barrel') {
+    // Every Excellovint line that names this barrel ("BBL 101", "BBL 100, 101", "BARRICA 101", "½ BBL 122"), newest first.
+    const code = (url.searchParams.get('code') || '').replace(/\D/g, '').replace(/^0+/, '');
+    if (!code) return { status: 400, body: { message: 'code required' } };
+    const like = '%' + code + '%';
+    const { results } = await env.DB.prepare("SELECT tab, row, date, date_raw, ubi, volf, ph, at, am, sl, st, aa, note, asig, ini FROM xl_rows WHERE ubi LIKE ? OR note LIKE ? ORDER BY COALESCE(date, '') DESC, row DESC LIMIT 600").bind(like, like).all();
+    const nums = (s) => { const out = []; const re = /\b(?:BBLS?|BARRICAS?|BARRELS?|B)\s*#?\s*((?:\d+\s*(?:,|\+|Y|AND|·|&|-|–)\s*)*\d+)/gi; let m; while ((m = re.exec(s || ''))) for (const n of m[1].match(/\d+/g) || []) out.push(String(+n)); return out; };
+    const rows = results.filter(r => {
+      const u = String(r.ubi || ''); const inUbi = /B(?:BL|ARRICA|ARREL)/i.test(u) ? (u.match(/\d+/g) || []).map(n => String(+n)) : [];
+      return inUbi.includes(code) || nums(u).includes(code) || nums(r.note).includes(code);
+    }).slice(0, 150);
+    return { status: 200, body: { code, rows } };
+  }
   if (p === '/api/xl/open') {
     const { results } = await env.DB.prepare("SELECT * FROM xl_rows WHERE asig <> '' AND ini = '' ORDER BY COALESCE(date, '9999'), tab, row").all();
     return { status: 200, body: { rows: results } };

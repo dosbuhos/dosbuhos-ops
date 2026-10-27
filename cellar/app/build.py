@@ -17,9 +17,11 @@ head = ('<!doctype html>\n<html lang="es" data-theme="light">\n<head>\n<meta cha
         '<script src="/web-shim.js"></script>\n')
 i = body.find("<style")  # artifact puts <title>, metas and fonts first; keep them in <head>
 page = head + body[:i] + body[i:] if i >= 0 else head + body
-(out / "index.html").write_text(page + '\n<link rel="stylesheet" href="/mobile.css">\n<script src="/mobile.js" defer></script>\n<script src="/chat-ui.js" defer></script>\n</html>\n', encoding="utf-8")
+(out / "index.html").write_text(page + '\n<link rel="stylesheet" href="/cellar-room.css">\n<link rel="stylesheet" href="/mobile.css">\n<script src="/cellar-room.js" defer></script>\n<script src="/mobile.js" defer></script>\n<script src="/chat-ui.js" defer></script>\n</html>\n', encoding="utf-8")
 shutil.copyfile(here / "web-shim.js", out / "web-shim.js")
 shutil.copyfile(here / "chat-ui.js", out / "chat-ui.js")
 shutil.copyfile(here / "mobile.css", out / "mobile.css")
 shutil.copyfile(here / "mobile.js", out / "mobile.js")
+shutil.copyfile(here / "cellar-room.css", out / "cellar-room.css")
+shutil.copyfile(here / "cellar-room.js", out / "cellar-room.js")
 print("built", out / "index.html", len(page), "bytes")
