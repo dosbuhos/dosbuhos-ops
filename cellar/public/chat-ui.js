@@ -160,8 +160,19 @@
     if (rec) { rec.stop(); return; }
     rec = new SR(); rec.lang = lang === 'ES' ? 'es-MX' : 'en-US'; rec.continuous = true; rec.interimResults = true;
     const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
-    let finalTxt = '';
-    rec.onresult = ev => { let interim = ''; for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) finalTxt += t; else interim += t; } ta.value = base + finalTxt + interim; grow(); };
+    // Rebuild the whole transcript on every update. Android Chrome sends each new result with everything said
+    // before it ("hola", "hola cómo", "hola cómo estás"), so a result that starts with the text so far replaces it.
+    rec.onresult = ev => {
+      let acc = '';
+      for (let i = 0; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript.trim(); if (!t) continue;
+        const a = acc.toLowerCase(), tl = t.toLowerCase();
+        if (!acc || tl.startsWith(a)) acc = t;            // cumulative result: replace
+        else if (a.endsWith(tl) || a.includes(tl)) { }     // repeat of something already there: skip
+        else acc += ' ' + t;                               // genuinely new phrase: append
+      }
+      ta.value = base + acc; grow();
+    };
     rec.onend = () => { rec = null; micBtn.classList.remove('on'); form.classList.remove('recording'); grow(); if (ta.value.trim()) ta.focus(); };
     rec.onerror = ev => { if (ev.error === 'not-allowed') add('assistant', 'Permite el micrófono para este sitio en el navegador para dictar.'); };
     micBtn.classList.add('on'); form.classList.add('recording'); rec.start();
