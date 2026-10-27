@@ -146,8 +146,9 @@ td.sug-c small { display: block; color: var(--muted); font-size: 11px; white-spa
 .bl-top { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
 .bl-new { margin-bottom: 12px; display: grid; gap: 8px; }
 .bl-new label { display: grid; gap: 3px; font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.bl-new input, .bl-new textarea { font: 14px var(--f-body); padding: 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--ink); text-transform: none; letter-spacing: 0; }
-.bl-grid { display: grid; grid-template-columns: 160px 1fr 1fr; gap: 8px; }
+.bl-new input, .bl-new textarea, .bl-new select { font: 14px var(--f-body); padding: 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--ink); text-transform: none; letter-spacing: 0; }
+.bl-grid { display: grid; grid-template-columns: 160px 160px 1fr 1fr; gap: 8px; }
+.bl-kind { font: 600 10px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--rule); border-radius: 999px; padding: 1px 7px; }
 @media (max-width: 640px) { .bl-grid { grid-template-columns: 1fr; } }
 .bl-mic { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .bl-mic small { color: var(--muted); }
@@ -1042,9 +1043,8 @@ h4.pd-h { font-size: 16px; }
     <button type="button" role="tab" id="tabWines" data-view="wines" aria-selected="true" aria-controls="winesView">Wines</button>
     <button type="button" role="tab" id="tabWeeks" data-view="weeks" aria-selected="false" aria-controls="weeksView">Calendar</button>
     <button type="button" role="tab" id="tabLabs" data-view="labs" aria-selected="false" aria-controls="labsView">Labs</button>
-    <button type="button" role="tab" id="tabBlends" data-view="blends" aria-selected="false" aria-controls="blendsView">Blends</button>
+    <button type="button" role="tab" id="tabBlends" data-view="blends" aria-selected="false" aria-controls="blendsView">Trials</button>
     <button type="button" role="tab" id="tabProto" data-view="protocols" aria-selected="false" aria-controls="protoView">Protocols</button>
-    <button type="button" role="tab" id="tabLearn" onclick="location.href='/db'" aria-selected="false" title="Open work orders and lot records (Excellovint, side by side)">Work orders</button>
     <button type="button" role="tab" id="tabAudit" data-view="audit" aria-selected="false" aria-controls="auditView">Audit</button>
   </nav>
 
@@ -1076,7 +1076,7 @@ h4.pd-h { font-size: 16px; }
     <button type="button" data-view="wines"><span aria-hidden="true">🍷</span>Wines</button>
     <button type="button" data-view="labs"><span aria-hidden="true">⚗</span>Labs</button>
     <button type="button" data-view="protocols"><span aria-hidden="true">📋</span>Protocols</button>
-    <button type="button" onclick="location.href='/db'"><span aria-hidden="true">🗂</span>Órdenes</button>
+    <button type="button" data-view="blends"><span aria-hidden="true">🧪</span>Trials</button>
   </nav>
   <div class="status" id="status" hidden></div>
   <div class="diag-back" id="diagSheet" hidden><div class="diag" role="dialog" aria-modal="true" aria-labelledby="diagTitle"><h2 id="diagTitle">Access check</h2><div id="diagBody"></div><div class="diag-btns"><button type="button" class="btn" id="diagClose">Close</button></div></div></div>
@@ -1104,15 +1104,17 @@ h4.pd-h { font-size: 16px; }
   <section id="vyView" role="tabpanel" hidden><div id="vy"></div></section>
 
   <section id="blendsView" role="tabpanel" aria-labelledby="tabBlends" hidden>
-    <div class="bl-top"><button type="button" class="btn primary" id="blAdd">+ Log a blending trial</button><span>Quick trials count too. Write it however it comes out; Claude cleans it up into a proper trial card.</span></div>
+    <div class="bl-top"><button type="button" class="btn primary" id="blAdd">+ Log a trial</button><span>Blending, additions (bentonite, SO₂, acid, tannin…), anything you test in glasses. Quick trials count too. Write it however it comes out; Claude cleans it up into a proper trial card.</span></div>
     <div class="bl-filter">
+      <span class="seg" role="group" aria-label="Trial type"><button type="button" class="ghost" data-blk="" aria-pressed="true">All trials</button><button type="button" class="ghost" data-blk="blend">Blending</button><button type="button" class="ghost" data-blk="addition">Additions</button><button type="button" class="ghost" data-blk="other">Other</button></span>
       <span class="seg" role="group" aria-label="Wine type"><button type="button" class="ghost" data-blg="" aria-pressed="true">All</button><button type="button" class="ghost" data-blg="white">Whites</button><button type="button" class="ghost" data-blg="rose">Rosés</button><button type="button" class="ghost" data-blg="orange">Orange</button><button type="button" class="ghost" data-blg="red">Reds</button><button type="button" class="ghost" data-blg="sparkling">Sparkling</button></span>
-      <input type="search" id="blSearch" placeholder="Search blends: wine, lot, barrel, person, note…" aria-label="Search blends">
+      <input type="search" id="blSearch" placeholder="Search trials: wine, lot, barrel, product, person, note…" aria-label="Search trials">
       <select id="blStatus" aria-label="Status"><option value="">Any status</option><option value="open">Result not recorded</option><option value="split">Split</option><option value="locked">Locked</option><option value="proposed">Proposed</option></select>
       <span class="bl-count" id="blCount"></span>
     </div>
     <form class="labcard trial bl-new" id="blForm" hidden>
       <div class="bl-grid">
+        <label>Type<select id="blKind"><option value="blend">Blending</option><option value="addition">Addition (bentonite, SO₂, acid, tannin…)</option><option value="other">Other</option></select></label>
         <label>Date<input type="date" id="blDate"></label>
         <label>Wines / lots<input type="text" id="blLots" placeholder="e.g. SB tank, Semillon, Moscato"></label>
         <label>Who tasted<input type="text" id="blWho" placeholder="e.g. Eric, Diane, Eugenio"></label>
@@ -1679,7 +1681,7 @@ var SheetParse = (function () {
     $("tabProto").setAttribute("aria-selected", pv);
     $("protoView").hidden = !pv;
     const lv = S.view === "learn";
-    $("tabLearn").setAttribute("aria-selected", lv);
+    if ($("tabLearn")) $("tabLearn").setAttribute("aria-selected", lv);
     $("learnView").hidden = !lv;
     const av = S.view === "audit";
     $("tabAudit").setAttribute("aria-selected", av);
@@ -2183,6 +2185,7 @@ var SheetParse = (function () {
   }
   function trialShown(t) {
     if (S.blStatus && (t.status || "open") !== S.blStatus) return false;
+    if (S.blKind && (t.kind || "blend") !== S.blKind) return false;
     if (S.blGroup && !trialGroups(t).has(S.blGroup)) return false;
     const q = S.blQ.trim().toLowerCase();
     if (q && !q.split(/\s+/).every(w => trialText(t).toLowerCase().includes(w))) return false;
@@ -2191,10 +2194,11 @@ var SheetParse = (function () {
   function renderBlends() {
     const all = (S.trials || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
     document.querySelectorAll("[data-blg]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blg === S.blGroup));
-    if (!all.length) { $("blends").innerHTML = `<div class="empty"><strong>No trials yet.</strong>Blending trials appear here.</div>`; $("blCount").textContent = ""; return; }
+    document.querySelectorAll("[data-blk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blk === (S.blKind || "")));
+    if (!all.length) { $("blends").innerHTML = `<div class="empty"><strong>No trials yet.</strong>Blending and addition trials appear here.</div>`; $("blCount").textContent = ""; return; }
     const ts = all.filter(trialShown);
     $("blCount").textContent = ts.length === all.length ? `${all.length} trials` : `${ts.length} of ${all.length} trials`;
-    if (!ts.length) { $("blends").innerHTML = `<div class="empty"><strong>No blends match.</strong>Try another word or clear the filters.</div>`; return; }
+    if (!ts.length) { $("blends").innerHTML = `<div class="empty"><strong>No trials match.</strong>Try another word or clear the filters.</div>`; return; }
     const keep = {};
     document.querySelectorAll("#blends textarea[data-fb]").forEach(t => { if (t.value !== t.defaultValue) keep[t.dataset.fb] = t.value; });
     $("blends").innerHTML = ts.map(t => {
@@ -2203,7 +2207,7 @@ var SheetParse = (function () {
       const fb = keep[t.id] != null ? keep[t.id] : (t.feedback || "");
       const can = S.canWrite && S.db;
       return `<article class="labcard trial st-${esc(t.status || "open")}"><header><span class="lc-name">${esc(t.name)}</span>` +
-        `<span class="lc-code">${esc([t.date, (t.lots || []).join(" · ")].filter(Boolean).join(" · "))}</span><span class="bl-status">${esc(TRIAL_STATUS[t.status] || t.status || "")}</span></header>` +
+        `<span class="bl-kind">${t.kind === "addition" ? "Addition" : t.kind === "other" ? "Other" : "Blending"}</span><span class="lc-code">${esc([t.date, (t.lots || []).join(" · ")].filter(Boolean).join(" · "))}</span><span class="bl-status">${esc(TRIAL_STATUS[t.status] || t.status || "")}</span></header>` +
         (t.question ? `<p class="bl-q">${esc(t.question)}</p>` : "") +
         (t.pull ? `<p class="bl-q"><b>Pull:</b> ${esc(t.pull)}</p>` : "") +
         ((t.glasses || []).length ? `<div class="bl-fbrow"><button type="button" class="btn sm" data-blprint="${esc(t.id)}">Print blending sheet</button></div>` : "") +
@@ -2222,7 +2226,7 @@ var SheetParse = (function () {
   }
 
 
-  document.querySelector(".bl-filter").addEventListener("click", e => { const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = b.dataset.blg; renderBlends(); } });
+  document.querySelector(".bl-filter").addEventListener("click", e => { const k = e.target.closest("[data-blk]"); if (k) { S.blKind = k.dataset.blk; renderBlends(); return; } const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = b.dataset.blg; renderBlends(); } });
   $("blSearch").addEventListener("input", e => { S.blQ = e.target.value; renderBlends(); });
   $("blStatus").addEventListener("change", e => { S.blStatus = e.target.value; renderBlends(); });
 
@@ -2271,13 +2275,14 @@ var SheetParse = (function () {
   }
 
   // ---------- Standardize trial notes with Claude ----------
-  const TRIAL_PROMPT = `You turn a winery's rough blending-trial notes (often dictated, Spanish or English, messy) into one standard trial record.
+  const TRIAL_PROMPT = `You turn a winery's rough trial notes (blending trials, or addition trials such as bentonite, SO2, acid, tannin or fining dose series) (often dictated, Spanish or English, messy) into one standard trial record.
 Winery: Bodega Dos Búhos. Common names: SB = Sauvignon Blanc (tank L09 VC-03, puncheon L09), Semillon L08, Moscato Giallo L19, Mosaico Blanco (SB-led white blend), Panal (Semillon-led white), CF = Cab Franc. People: Eric, Diane (winemaker), Diana, Eugenio, Paris, Jimena.
 Rules: keep every fact in the notes, invent nothing, keep numbers exactly as given (percentages or mL). Write in clear, short English. If something is missing leave the field empty.
 Return ONLY JSON with this shape:
-{"name": short title like "Panal: Semillon share" or "Quick trial: SB tank + Moscato",
+{"name": short title like "Panal: Semillon share" or "Bentonite series: Moscato T-14",
+ "kind": "blend" for blending trials, "addition" for dose/addition trials, otherwise "other",
  "question": one sentence, what the trial was testing,
- "glasses": [{"code": "A"/"B"/"1"/"" , "name": short description, "recipe": components with % or mL, "notes": what it tasted like, "pick": true if it was the favorite}],
+ "glasses": [{"code": "A"/"B"/"1"/"" , "name": short description, "recipe": components with % or mL, or the product and dose (g/hL, mg/L), "notes": what it tasted like, "pick": true if it was the favorite}],
  "votes": [{"who": person, "said": what they preferred or thought}],
  "result": what was decided or learned, "next": the next step if any,
  "status": "locked" if a final decision was made, "split" if tasters disagreed, otherwise "open"}`;
@@ -2289,7 +2294,7 @@ Return ONLY JSON with this shape:
     if (!j || typeof j !== "object") return null;
     const str = x => (x == null ? "" : String(x)).slice(0, 2000);
     return {
-      name: str(j.name) || "Quick trial", question: str(j.question), result: str(j.result), next: str(j.next),
+      kind: ["blend", "addition", "other"].includes(j.kind) ? j.kind : undefined, name: str(j.name) || "Quick trial", question: str(j.question), result: str(j.result), next: str(j.next),
       status: ["locked", "split", "open"].includes(j.status) ? j.status : "open",
       glasses: Array.isArray(j.glasses) ? j.glasses.slice(0, 12).map(g => ({ code: str(g.code).slice(0, 6), name: str(g.name), recipe: str(g.recipe), notes: str(g.notes), pick: !!g.pick })) : [],
       votes: Array.isArray(j.votes) ? j.votes.slice(0, 12).map(v => ({ who: str(v.who).slice(0, 60), said: str(v.said) })) : []
@@ -2317,7 +2322,7 @@ Return ONLY JSON with this shape:
     if (!notes) { $("blErr").textContent = "Write the notes first."; return; }
     if (!S.db || !S.canWrite) { $("blErr").textContent = "You can view this page but not add to it."; return; }
     const d = $("blDate").value || todayISO;
-    const body = { name: ($("blLots").value.trim() || "Quick trial"), date: shortDate(d), dateISO: d, lots: $("blLots").value.trim() ? [$("blLots").value.trim()] : [],
+    const body = { kind: $("blKind").value || "blend", name: ($("blLots").value.trim() || "Quick trial"), date: shortDate(d), dateISO: d, lots: $("blLots").value.trim() ? [$("blLots").value.trim()] : [],
       tasters: $("blWho").value.trim(), raw: notes, status: "open", order: -Math.round(Date.now() / 1000), feedback: "", createdAt: new Date().toISOString(), consolidated: false };
     const btn = $("blSave"); btn.disabled = true; btn.textContent = "Saving…";
     let ref = null;
@@ -2328,7 +2333,7 @@ Return ONLY JSON with this shape:
     toast("Saved. Claude is standardizing it…");
     try {
       const out = await standardize(notes, { date: shortDate(d), lots: $("blLots").value.trim() || body.lots.join(", "), who: body.tasters });
-      if (out) { if (!$("blLots").value.trim() && out.name) out.lots = body.lots; await S.db.collection("trials").doc(id).update(Object.assign(out, { consolidated: true })); toast("Trial saved and standardized"); }
+      if (out) { out.kind = body.kind; if (!$("blLots").value.trim() && out.name) out.lots = body.lots; await S.db.collection("trials").doc(id).update(Object.assign(out, { consolidated: true })); toast("Trial saved and standardized"); }
       else toast("Trial saved. Ask Claude in chat to tidy it.");
     } catch (e) { toast(e && e.code === "not_granted" ? "Saved as written (Claude wasn't allowed). Use Tidy later." : "Saved as written. Tap Tidy with Claude to try again."); }
   }
