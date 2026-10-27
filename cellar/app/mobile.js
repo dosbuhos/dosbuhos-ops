@@ -104,8 +104,9 @@
         let d = new Date(now.getFullYear(), mi, day);
         if (d - now > 60 * 864e5) d = new Date(now.getFullYear() - 1, mi, day);
         const diff = Math.round((now - d) / 864e5);
-        const sub = diff > 0 && row.classList.contains('is-over') ? (diff === 1 ? 'AYER' : 'HACE ' + diff + ' D') : diff === 0 ? 'HOY' : DOW[d.getDay()];
-        dateEl.innerHTML = `<small>${mi >= 0 ? ES[mi] : dm[1].toUpperCase()}</small><b>${day}</b><i>${sub}</i>`;
+        const late = diff > 0 && row.classList.contains('is-over');
+        const st = late ? (diff === 1 ? 'Atrasada · ayer' : 'Atrasada ' + diff + ' días') : diff === 0 ? 'Hoy' : diff === -1 ? 'Mañana' : DOW[d.getDay()].charAt(0) + DOW[d.getDay()].slice(1).toLowerCase();
+        dateEl.innerHTML = `<span class="m-pri-slot"></span><span class="m-due${late ? ' late' : diff === 0 ? ' today' : ''}">${st}</span><span class="m-dd">${day} ${(mi >= 0 ? ES[mi] : dm[1]).toLowerCase()}</span>`;
       }
       // Controls always visible: Prioridad · Asignado · Estado in one row (the selects are the page's own, so changes save as before).
       const ctl = document.createElement('div'); ctl.className = 'm-ctl';
@@ -189,12 +190,12 @@
       sections: [['Tipo de vino', document.getElementById('groups')], ['Mostrar solo', document.getElementById('stats')], ['Ordenar', sortLbl]],
       chips: () => {
         const out = [];
-        const g = document.querySelector('#groups [aria-pressed="true"]'); if (g && g.dataset.group && g.dataset.group !== 'all') out.push({ label: txt(g), clear: () => press('#groups [data-group="all"]') });
-        const q = document.querySelector('#stats [aria-pressed="true"]'); if (q) out.push({ label: txt(q), clear: () => q.click() });
+        document.querySelectorAll('#groups [aria-pressed="true"]').forEach(g => { if (g.dataset.group && g.dataset.group !== 'all') out.push({ label: txt(g), clear: () => g.click() }); });
+        document.querySelectorAll('#stats [aria-pressed="true"]').forEach(q => out.push({ label: txt(q).replace(/^\d+\s*/, ''), clear: () => q.click() }));
         const so = document.getElementById('sortSel'); if (so && so.selectedIndex > 0) out.push({ label: 'Orden: ' + txt(so.options[so.selectedIndex]), clear: () => { so.selectedIndex = 0; so.dispatchEvent(new Event('change', { bubbles: true })); } });
         return out;
       },
-      reset() { press('#groups [data-group="all"]'); const q = document.querySelector('#stats [aria-pressed="true"]'); if (q) q.click(); const so = document.getElementById('sortSel'); if (so && so.selectedIndex > 0) { so.selectedIndex = 0; so.dispatchEvent(new Event('change', { bubbles: true })); } }
+      reset() { press('#groups [data-group="all"]'); document.querySelectorAll('#stats [aria-pressed="true"]').forEach(q => q.click()); const so = document.getElementById('sortSel'); if (so && so.selectedIndex > 0) { so.selectedIndex = 0; so.dispatchEvent(new Event('change', { bubbles: true })); } }
     });
     // Trials
     const blf = document.querySelector('.bl-filter');
@@ -207,8 +208,8 @@
         sections: [['Tipo de prueba', segs[0]], ['Vino', segs[1]], ['Estado', document.getElementById('blStatus')]],
         chips: () => {
           const out = [];
-          const k = blf.ownerDocument.querySelector('[data-blk][aria-pressed="true"]'); if (k && k.dataset.blk) out.push({ label: txt(k), clear: () => press('[data-blk=""]') });
-          const g = document.querySelector('[data-blg][aria-pressed="true"]'); if (g && g.dataset.blg) out.push({ label: txt(g), clear: () => press('[data-blg=""]') });
+          document.querySelectorAll('[data-blk][aria-pressed="true"]').forEach(k => { if (k.dataset.blk) out.push({ label: txt(k), clear: () => k.click() }); });
+          document.querySelectorAll('[data-blg][aria-pressed="true"]').forEach(g => { if (g.dataset.blg) out.push({ label: txt(g), clear: () => g.click() }); });
           const st = document.getElementById('blStatus'); if (st && st.value) out.push({ label: txt(st.options[st.selectedIndex]), clear: () => { st.value = ''; st.dispatchEvent(new Event('change', { bubbles: true })); } });
           return out;
         },

@@ -1650,6 +1650,10 @@ var SheetParse = (function () {
   function store(k, v) { try { localStorage.setItem("tc." + k, JSON.stringify(v)); } catch (e) {} }
   function recall(k, d) { try { const v = localStorage.getItem("tc." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
   S.group = recall("group", "all");
+  // Multi-select filters: values are comma lists ("red,rose"). Same category = OR; different categories = AND.
+  const listOf = v => String(v || "").split(",").filter(Boolean);
+  const inGroup = g => { const gs = listOf(S.group).filter(x => x !== "all" && x !== "routine"); return !gs.length || gs.includes(g); };
+  const toggleIn = (cur, k, allKey) => { if (k === allKey || !k) return allKey; const a = listOf(cur).filter(x => x !== allKey); const i = a.indexOf(k); if (i < 0) a.push(k); else a.splice(i, 1); return a.length ? a.join(",") : allKey; };
   S.hideDone = recall("hideDone", false);
   S.urgentOnly = recall("urgentOnly", false);
   S.span = ["day", "asg"].includes(recall("span", "week")) ? recall("span", "week") : "week";
@@ -1818,9 +1822,9 @@ var SheetParse = (function () {
       $("legend").innerHTML = `<span>Calendar = a lab task on the plan; tick it when the sample is pulled</span><span>Suggested = due by the numbers, not on the calendar yet</span><span>Sample sizes are guides; match what Uva y Vino asks for</span><span>VA goes to Uva y Vino (in-house only when it's a rush)</span>`;
     }
     const groups = wines ? WGROUPS : GROUPS;
-    const g = wines && S.group === "routine" ? "all" : S.group;
+    const gl = listOf(S.group).filter(x => !(wines && x === "routine"));
     $("groups").innerHTML = [["all", "All wines"]].concat(groups).map(([k, l]) =>
-      `<button type="button" data-group="${k}" aria-pressed="${g === k}">${esc(l)}</button>`).join("");
+      `<button type="button" data-group="${k}" aria-pressed="${k === "all" ? (!gl.length || gl.includes("all")) : gl.includes(k)}">${esc(l)}</button>`).join("");
     if (wines) {
       $("sortSel").innerHTML = SORTS.map(([k, l]) => `<option value="${k}"${S.sort.key === k ? " selected" : ""}>${esc(l)}${S.sort.key === k && S.sort.dir === -1 ? " (reversed)" : ""}</option>`).join("");
       $("legend").innerHTML = `<span><em>Italic</em>&nbsp;= in-house reading</span><span>Upright = outside lab</span><span>Faded = older than 3 weeks</span><span>VA = Uva y Vino</span><span>mol = molecular SO₂</span><span>≈ Total SO₂ = last measured total plus logged additions; bar = share of the 100 mg/L ceiling, tick at 50</span><span>* = an addition with no initials was skipped; test total SO₂</span>`;
@@ -1991,7 +1995,7 @@ var SheetParse = (function () {
     const lots = S.lots.slice().sort((a, b) => gi(a.group) - gi(b.group) || String(a.name || "").localeCompare(String(b.name || ""), "es", { sensitivity: "base" }));
     let lastGroup = null;
     for (const l of lots) {
-      if (S.group !== "all" && S.group !== l.group) continue;
+      if (!inGroup(l.group)) continue;
       const have = allTasks.filter(t => t.lot === l.id).sort(byTask);
       const s = l.group === "routine" ? null : summary(l);
       const sug = isNow && S.labSug && l.group !== "routine" ? labSuggest(l, s, have) : [];
@@ -2282,8 +2286,8 @@ var SheetParse = (function () {
   }
   function trialShown(t) {
     if (S.blStatus && (t.status || "open") !== S.blStatus) return false;
-    if (S.blKind && (t.kind || "blend") !== S.blKind) return false;
-    if (S.blGroup && !trialGroups(t).has(S.blGroup)) return false;
+    if (S.blKind && !listOf(S.blKind).includes(t.kind || "blend")) return false;
+    if (S.blGroup && !listOf(S.blGroup).some(g => trialGroups(t).has(g))) return false;
     const q = S.blQ.trim().toLowerCase();
     if (q && !q.split(/\s+/).every(w => trialText(t).toLowerCase().includes(w))) return false;
     return true;
@@ -2291,8 +2295,8 @@ var SheetParse = (function () {
   function renderBlends() {
     S.blOpen = S.blOpen || new Set();
     const all = (S.trials || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-    document.querySelectorAll("[data-blg]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blg === S.blGroup));
-    document.querySelectorAll("[data-blk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blk === (S.blKind || "")));
+    document.querySelectorAll("[data-blg]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blg ? listOf(S.blGroup).includes(b.dataset.blg) : !S.blGroup));
+    document.querySelectorAll("[data-blk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blk ? listOf(S.blKind).includes(b.dataset.blk) : !S.blKind));
     if (!all.length) { $("blends").innerHTML = `<div class="empty"><strong>No trials yet.</strong>Blending and addition trials appear here.</div>`; $("blCount").textContent = ""; return; }
     const ts = all.filter(trialShown);
     $("blCount").textContent = ts.length === all.length ? `${all.length} trials` : `${ts.length} of ${all.length} trials`;
@@ -2340,7 +2344,7 @@ var SheetParse = (function () {
   $("blends").addEventListener("click", e => { if (e.target.closest("button, a, textarea, summary")) return; const h = e.target.closest("[data-bltog]"); if (h) toggleTrial(h.dataset.bltog); });
   $("blends").addEventListener("keydown", e => { const h = e.target.closest && e.target.closest("[data-bltog]"); if (h && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleTrial(h.dataset.bltog); } });
   $("wmode").addEventListener("click", e => { const b = e.target.closest("[data-wm]"); if (!b) return; S.wmode = b.dataset.wm; store("wmode", S.wmode); S.q = ""; render(); window.scrollTo(0, 0); });
-  document.querySelector(".bl-filter").addEventListener("click", e => { const k = e.target.closest("[data-blk]"); if (k) { S.blKind = k.dataset.blk; renderBlends(); return; } const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = b.dataset.blg; renderBlends(); } });
+  document.querySelector(".bl-filter").addEventListener("click", e => { const k = e.target.closest("[data-blk]"); if (k) { S.blKind = toggleIn(S.blKind, k.dataset.blk, ""); renderBlends(); return; } const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = toggleIn(S.blGroup, b.dataset.blg, ""); renderBlends(); } });
   $("blSearch").addEventListener("input", e => { S.blQ = e.target.value; renderBlends(); });
   $("blStatus").addEventListener("change", e => { S.blStatus = e.target.value; renderBlends(); });
 
@@ -2663,7 +2667,7 @@ Return ONLY JSON with this shape:
         `<button type="button" class="copy" data-copy="${w}">Copy work orders</button></div></div>`;
     }
     for (const [g, label] of GROUPS) {
-      if (S.group !== "all" && S.group !== g) continue;
+      if (!inGroup(g)) continue;
       const lots = S.lots.filter(l => l.group === g).sort(byOrder);
       if (!lots.length) continue;
       h += `<div class="grp"><span>${esc(label)}</span></div>`;
@@ -2695,7 +2699,7 @@ Return ONLY JSON with this shape:
       }
     }
     const orphans = S.tasks.filter(t => !S.lots.some(l => l.id === t.lot));
-    if (orphans.length && S.group === "all") {
+    if (orphans.length && !listOf(S.group).some(x => x !== "all")) {
       h += `<div class="grp"><span>Unassigned</span></div><div class="lot"><div class="lot-name">No wine set</div></div>`;
       for (const w of ws) h += `<div class="cell">${orphans.filter(t => t.week === w).sort(byTask).map(t => chip(t, w)).join("")}</div>`;
     }
@@ -3226,7 +3230,7 @@ Return ONLY JSON with this shape:
     }
     let shown = 0;
     for (const [g, label] of GROUPS) {
-      if (S.group !== "all" && S.group !== g) continue;
+      if (!inGroup(g)) continue;
       const rows = [];
       for (const l of S.lots.filter(x => x.group === g).sort(byOrder)) {
         const per = ds.map(d => dayTasks(d, l.id).filter(keep).sort(byTask));
@@ -3619,7 +3623,10 @@ Return ONLY JSON with this shape:
   function quickTest(l) {
     const s = summary(l);
     const t = openTasks(l.id)[0];
-    switch (S.quick) {
+    return listOf(S.quick).every(k => quickOne(k, l, s, t));
+  }
+  function quickOne(k, l, s, t) {
+    switch (k) {
       case "overdue": return !!t && due(t) < todayISO;
       case "week": return !!t && due(t) <= weekEnd;
       case "stale": return hasSheet(l) && (!s || !s.lastLab || daysAgo(s.lastLab) > STALE_DAYS);
@@ -3659,7 +3666,7 @@ Return ONLY JSON with this shape:
     $("stats").innerHTML = `<div class="stat"><b>${all.length}</b><span>Wines in cellar</span></div>` +
       items.map(([k, label, cls, off]) => {
         const v = off ? "–" : counts[k];
-        return `<button type="button" class="stat ${cls}" data-quick="${k}" aria-pressed="${S.quick === k}"${off ? " disabled" : ""} title="${S.quick === k ? "Show all wines" : "Show only these wines"}"><b>${v}</b><span>${esc(label)}</span></button>`;
+        return `<button type="button" class="stat ${cls}" data-quick="${k}" aria-pressed="${listOf(S.quick).includes(k)}"${off ? " disabled" : ""} title="${listOf(S.quick).includes(k) ? "Remove this filter" : "Show only these wines"}"><b>${v}</b><span>${esc(label)}</span></button>`;
       }).join("");
   }
 
@@ -3775,8 +3782,7 @@ Return ONLY JSON with this shape:
     const all = productionLots();
     renderStats(all);
     if (!all.length) { body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines yet.</strong><br>Claude adds the cellar's lots here.</td></tr>`; return; }
-    const g = S.group === "routine" ? "all" : S.group;
-    let lots = all.filter(l => (g === "all" || l.group === g) && matchQ(l) && quickTest(l));
+    let lots = all.filter(l => inGroup(l.group) && matchQ(l) && quickTest(l));
     if (!lots.length) {
       body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines match.</strong><br>Clear the search or the filter above to see every wine.</td></tr>`;
       return;
@@ -4846,8 +4852,8 @@ Return ONLY JSON with this shape:
       try { history.replaceState(null, "", "#" + S.view); } catch (err) {}
       render(); return;
     }
-    if (b.dataset.group) { S.group = b.dataset.group; store("group", S.group); render(); return; }
-    if (b.dataset.quick) { S.quick = S.quick === b.dataset.quick ? "" : b.dataset.quick; render(); return; }
+    if (b.dataset.group) { S.group = toggleIn(S.group, b.dataset.group, "all"); store("group", S.group); render(); return; }
+    if (b.dataset.quick) { S.quick = toggleIn(S.quick, b.dataset.quick, ""); render(); return; }
     if (b.dataset.sort) {
       const k = b.dataset.sort;
       S.sort = S.sort.key === k ? { key: k, dir: -S.sort.dir } : { key: k, dir: 1 };
