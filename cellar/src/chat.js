@@ -63,6 +63,9 @@ const TOOLS = [
   { name: 'protocols', description: 'List protocol/lesson ids and titles, or get one protocol\'s full text by id.', input_schema: { type: 'object', properties: { id: { type: 'string' } } } },
   { name: 'add_house_note', description: 'Save a standing rule or decision the user wants remembered (always loaded into this chat). Only when the user asks to remember something or states a lasting rule.', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
   { name: 'search_chats', description: 'Search earlier chat messages (all users) for a word or phrase, to recall past decisions.', input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+  { name: 'list_purchases', description: 'The winery purchases list (Compras): things to buy, ranked high/medium/low, with who buys it, where, and status open/ordered/received.', input_schema: { type: 'object', properties: { status: { type: 'string', description: 'open (default), ordered, received, or all' } } } },
+  { name: 'add_purchase', description: 'Add an item to the purchases list.', input_schema: { type: 'object', properties: { item: { type: 'string', description: 'What to buy, short' }, qty: { type: 'string' }, pri: { type: 'string', description: 'high | medium | low' }, asig: { type: 'string', description: 'Who buys it: EM, D, P/J, P, J' }, where: { type: 'string', description: 'EE. UU., México, En línea, or a store/site' }, notes: { type: 'string', description: 'Brand, model, supplier, link, why' } }, required: ['item'] } },
+  { name: 'update_purchase', description: 'Change a purchase: status (open/ordered/received), priority, assignee, notes, or delete it.', input_schema: { type: 'object', properties: { id: { type: 'string' }, set: { type: 'object', description: 'Fields to change: item, qty, pri, asig, where, notes, status' }, delete: { type: 'boolean' } }, required: ['id'] } },
 ];
 
 async function runTool(env, ctx, name, a) {
@@ -146,6 +149,32 @@ async function runTool(env, ctx, name, a) {
     const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' AND data LIKE ? ORDER BY updated_at DESC LIMIT 20").bind(like).all();
     return results.map(r => { const d = JSON.parse(r.data); return { at: d.at, who: d.who, role: d.role, text: String(d.text).slice(0, 600) }; });
   }
+  if (name === 'list_purchases') {
+    const st = a.status || 'open', order = { high: 0, medium: 1, low: 2 };
+    return (await dbList(env, 'purchases')).filter(p => st === 'all' || (p.status || 'open') === st)
+      .sort((x, y) => (order[x.pri] ?? 1) - (order[y.pri] ?? 1))
+      .map(p => ({ id: p.id, item: p.item, qty: p.qty, pri: p.pri, asig: p.asig, where: p.where, status: p.status || 'open', notes: p.notes, by: p.by, at: p.at }));
+  }
+  if (name === 'add_purchase') {
+    const id = 'p' + Date.now().toString(36);
+    const pri = ['high', 'medium', 'low'].includes(String(a.pri || '').toLowerCase()) ? String(a.pri).toLowerCase() : 'medium';
+    await dbPut(env, 'purchases', id, { item: String(a.item).slice(0, 200), qty: String(a.qty || '').slice(0, 60), pri, asig: String(a.asig || ctx.initials).toUpperCase(), where: String(a.where || '').slice(0, 60), notes: String(a.notes || '').slice(0, 1000), status: 'open', by: ctx.initials, at: new Date().toISOString() });
+    ctx.actions.push({ kind: 'purchase', text: 'Compra: ' + a.item + ' (' + pri + ', ' + String(a.asig || ctx.initials).toUpperCase() + ')' });
+    return { ok: true, id };
+  }
+  if (name === 'update_purchase') {
+    const cur = (await dbList(env, 'purchases')).find(p => p.id === a.id);
+    if (!cur) return { error: 'No purchase with id ' + a.id };
+    if (a.delete) { await env.DB.prepare("DELETE FROM docs WHERE coll = 'purchases' AND id = ?").bind(a.id).run(); return { ok: true, deleted: cur.item }; }
+    const set = a.set || {}, next = Object.assign({}, cur);
+    delete next.id;
+    for (const k of ['item', 'qty', 'pri', 'asig', 'where', 'notes', 'status']) if (set[k] != null) next[k] = String(set[k]);
+    if (next.status === 'ordered' && cur.status !== 'ordered') next.orderedAt = new Date().toISOString();
+    if (next.status === 'received' && cur.status !== 'received') next.receivedAt = new Date().toISOString();
+    await dbPut(env, 'purchases', a.id, next);
+    ctx.actions.push({ kind: 'purchase', text: 'Compra actualizada: ' + next.item + (set.status ? ' → ' + set.status : '') });
+    return { ok: true, item: next.item, status: next.status };
+  }
   return { error: 'unknown tool' };
 }
 
@@ -165,6 +194,7 @@ How to work:
 - Use the tools for any fact about wines, numbers or orders; don't guess. Read a tab before editing a row.
 - Create or change Excellovint rows when asked, then say exactly what you wrote (tab, row). If a request is ambiguous (which tab, who, which day), ask one short question first.
 - Work order text: Spanish, capitals, concrete steps the crew can follow; keep numbers and units.
+- Things to BUY (reagents, supplies, parts, equipment) go on the purchases list (Compras) with add_purchase, not into Excellovint. Priority high/medium/low; assignee defaults to the person talking.
 - SO2 math: molecular = free ÷ (1 + 10^(pH − 1.81)); KMBS grams = mg/L × liters ÷ 576.
 
 House notes (standing rules and decisions; follow them):
@@ -173,14 +203,15 @@ ${notes.lines.map(l => '- ' + l.text).join('\n') || '- (none yet)'}`;
 
 export async function chat(request, env, user) {
   if (!env.ANTHROPIC_API_KEY) return { status: 503, body: { message: 'ANTHROPIC_API_KEY is not set.' } };
-  const { conv, text } = await request.json();
-  if (!conv || !/^[\w-]{4,60}$/.test(conv) || !String(text || '').trim()) return { status: 400, body: { message: 'bad request' } };
+  const { text } = await request.json();
+  if (!String(text || '').trim()) return { status: 400, body: { message: 'bad request' } };
+  const conv = 'u-' + String(user.initials || 'x').replace(/[^\w]/g, '_'); // one running thread per person
   const ctx = { initials: user.initials, name: user.name, changed: false, actions: [] };
   const now = Date.now();
   const save = (role, t) => dbPut(env, 'chatlog', conv + '-' + Date.now() + '-' + role, { conv, role, who: role === 'user' ? user.initials : 'claude', text: t, at: new Date().toISOString() });
 
   // Recent history of this conversation (last 20 messages).
-  const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' AND id LIKE ? ORDER BY updated_at DESC LIMIT 20").bind(conv + '-%').all();
+  const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' AND id LIKE ? ORDER BY updated_at DESC LIMIT 30").bind(conv + '-%').all();
   const hist = results.map(r => JSON.parse(r.data)).reverse().map(m => ({ role: m.role, content: m.text }));
   await save('user', String(text).slice(0, 8000));
   const messages = hist.concat([{ role: 'user', content: String(text).slice(0, 8000) }]);
@@ -212,8 +243,9 @@ export async function chat(request, env, user) {
   return { status: 200, body: { text: final, changed: ctx.changed, actions: ctx.actions, ms: Date.now() - now } };
 }
 
-export async function chatHistory(env, conv) {
-  const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' AND id LIKE ? ORDER BY updated_at ASC LIMIT 200").bind(conv + '-%').all();
-  return results.map(r => { const d = JSON.parse(r.data); return { role: d.role, text: d.text, who: d.who, at: d.at }; });
+export async function chatHistory(env, user) {
+  const conv = 'u-' + String(user.initials || 'x').replace(/[^\w]/g, '_');
+  const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' AND id LIKE ? ORDER BY updated_at DESC LIMIT 80").bind(conv + '-%').all();
+  return results.reverse().map(r => { const d = JSON.parse(r.data); return { role: d.role, text: d.text, who: d.who, at: d.at }; });
 }
 export { houseNotes };

@@ -7,14 +7,20 @@ const enc = new TextEncoder();
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 // Entries may carry initials: "eric@x.com=EM, diane@y.com=D".
 const list = (s) => (s || '').toLowerCase().split(',').map(x => x.split('=')[0].trim()).filter(Boolean);
+// Users managed in the app (Settings → Users), loaded per request into env.__users: [{email, initials, role}].
+export const appUsers = (env) => Array.isArray(env.__users) ? env.__users : [];
+const appUser = (env, email) => appUsers(env).find(u => String(u.email || '').toLowerCase() === email);
 export function initialsFor(env, email) {
   for (const part of String(env.ALLOWED_EMAILS || '').split(',')) {
     const [e, ini] = part.split('=').map(x => (x || '').trim());
     if (e.toLowerCase() === email && ini) return ini.toUpperCase();
   }
+  const u = appUser(env, email);
+  if (u && u.initials) return String(u.initials).toUpperCase();
   return (email || '?').slice(0, 2).toUpperCase();
 }
-export const allowedEmails = (env) => [...new Set([...list(env.ALLOWED_EMAILS), ...list(env.ADMIN_EMAILS), ...list(env.VIEWER_EMAILS)])];
+export const allowedEmails = (env) => [...new Set([...list(env.ALLOWED_EMAILS), ...list(env.ADMIN_EMAILS), ...list(env.VIEWER_EMAILS), ...appUsers(env).map(u => String(u.email || '').toLowerCase()).filter(Boolean)])];
+export const isAdmin = (env, email) => list(env.ADMIN_EMAILS).includes(email) || initialsFor(env, email) === 'EM';
 
 async function hmac(env, data) {
   const key = await crypto.subtle.importKey('raw', enc.encode(env.SESSION_SECRET || env.GOOGLE_CLIENT_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -76,4 +82,4 @@ export async function handleAuth(request, env, url) {
   if (url.pathname === '/auth/salir') return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': cookie(COOKIE, '', 0) } });
   return null;
 }
-export const isViewer = (env, email) => list(env.VIEWER_EMAILS).includes(email);
+export const isViewer = (env, email) => list(env.VIEWER_EMAILS).includes(email) || appUsers(env).some(u => String(u.email || '').toLowerCase() === email && u.role === 'viewer');

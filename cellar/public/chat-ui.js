@@ -26,7 +26,8 @@
   .cc-m p{margin:0 0 6px}.cc-m p:last-child{margin:0}
   .cc-user{align-self:flex-end;background:#5c1f33;color:#fff;border-bottom-right-radius:4px}
   .cc-assistant{align-self:flex-start;background:#f1ebe2;border-bottom-left-radius:4px}
-  .cc-act{align-self:flex-start;font-size:12.5px;color:#2f5d34;background:#e8f1e6;border-radius:8px;padding:4px 8px}
+  .cc-act{align-self:flex-start;font-size:12.5px;color:#2f5d34;background:#e8f1e6;border-radius:8px;padding:4px 8px;text-decoration:none}
+  a.cc-act{color:#5c1f33;background:#f2e5e8;font-weight:600}
   .cc-hint{color:#6b6560;font-size:13.5px;text-align:center;margin:auto 10px}
   .cc-in{display:flex;gap:8px;padding:10px;border-top:1px solid #e6ded3;background:#fff}
   .cc-in textarea{flex:1;resize:none;border:1px solid #cfc6bb;border-radius:10px;padding:8px 10px;font:inherit;max-height:140px}
@@ -47,15 +48,14 @@
     .split(/\n{2,}/).map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('');
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
-  const newConv = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  let conv = get('cc.conv') || newConv(); set('cc.conv', conv);
+  const conv = 'main'; // one running conversation per signed-in person (the server scopes it by user)
 
   const fab = document.createElement('button');
   fab.className = 'cc-fab'; fab.title = 'Chat with Claude'; fab.setAttribute('aria-label', 'Chat with Claude');
   fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
   const panel = document.createElement('div');
   panel.className = 'cc-panel'; panel.hidden = true;
-  panel.innerHTML = `<div class="cc-head"><span class="cc-grip"></span><b>Claude</b><button type="button" data-a="size">Expand</button><button type="button" data-a="new">New chat</button><button type="button" data-a="close">✕</button></div>
+  panel.innerHTML = `<div class="cc-head"><span class="cc-grip"></span><b>Claude</b><button type="button" data-a="size">Expand</button><button type="button" data-a="close">✕</button></div>
     <div class="cc-log" id="ccLog"></div>
     <div class="cc-notes" id="ccNotes" hidden><small>House notes: rules and decisions the chat always follows. One per line.</small><textarea id="ccNotesTa"></textarea><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-a="notesBack">Back</button><button type="button" class="btn primary" data-a="notesSave">Save</button></div></div>
     <form class="cc-in" id="ccForm"><button type="button" class="cc-mic" id="ccMic" title="Hablar / Speak" aria-label="Dictate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button type="button" class="cc-lang" id="ccLang" title="Dictation language">EN</button><textarea id="ccTa" rows="2" placeholder="Ask, or: “orden urgente para Paris mañana: …”"></textarea><button type="submit" id="ccSend">Send</button></form>`;
@@ -67,10 +67,11 @@
     log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
   }
   function hint() { if (!log.children.length) log.innerHTML = '<div class="cc-hint">Ask about any wine, or tell me a work order to create.<br>It goes straight into Excellovint.</div>'; }
+  const scrollEnd = () => { log.scrollTop = log.scrollHeight; };
   async function loadConv() {
     log.innerHTML = '';
     try { const j = await (await fetch('/api/chat?conv=' + encodeURIComponent(conv))).json(); (j.messages || []).forEach(m => add(m.role, m.text)); } catch (e) {}
-    hint();
+    hint(); scrollEnd();
   }
   let loaded = false;
   const setOpen = o => { panel.hidden = !o; document.body.classList.toggle('cc-open', o); };
@@ -80,7 +81,6 @@
     const act = a.dataset.a;
     if (act === 'close') setOpen(false);
     if (act === 'size') { const big = panel.classList.toggle('cc-big'); a.textContent = big ? 'Shrink' : 'Expand'; }
-    if (act === 'new') { conv = newConv(); set('cc.conv', conv); log.innerHTML = ''; hint(); ta.focus(); }
     if (act === 'notes') {
       const j = await (await fetch('/api/notes')).json();
       panel.querySelector('#ccNotesTa').value = (j.lines || []).map(l => l.text).join('\n');
@@ -129,8 +129,9 @@
       if (!r.ok) throw new Error(r.status === 401 ? 'Signed out. Reload the page and sign in.' : (j.message || 'Error ' + r.status));
       wait.innerHTML = md(j.text || '(no answer)');
       (j.actions || []).forEach(a => {
-        const d = document.createElement('div'); d.className = 'cc-act';
-        d.textContent = a.tool === 'create_work_order' ? '✓ Added to ' + a.result.tab + ', row ' + a.result.row
+        const d = document.createElement(a.kind === 'purchase' ? 'a' : 'div'); d.className = 'cc-act';
+        if (a.kind === 'purchase') { d.href = '/purchases'; d.textContent = '🛒 ' + a.text + ' → Compras'; }
+        else d.textContent = a.tool === 'create_work_order' ? '✓ Added to ' + a.result.tab + ', row ' + a.result.row
           : a.tool === 'update_row' ? '✓ Updated ' + a.input.tab + ', row ' + a.input.row : '✓ Saved to house notes';
         log.appendChild(d);
       });

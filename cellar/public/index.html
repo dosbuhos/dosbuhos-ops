@@ -138,6 +138,15 @@ h1 {
 .trial.st-proposed { border-left-color: var(--muted); }
 .trial p { margin: 4px 0; font-size: 14px; }
 .trial .bl-q { color: var(--muted); }
+/* Accordion: collapsed shows header + one-line gist; click the header to open. */
+.trial header { cursor: pointer; user-select: none; }
+.trial header:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.trial .bl-chev { display: inline-block; width: 14px; font: 700 20px/1 var(--f-display); color: var(--muted); transform: rotate(0deg); transition: transform .15s; align-self: center; }
+.trial.is-open .bl-chev { transform: rotate(90deg); }
+.trial .bl-sum { color: var(--muted); margin: 6px 0 0 22px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.trial.is-open .bl-sum { display: none; }
+.trial.is-col > :not(header):not(.bl-sum) { display: none; }
+.trial.is-col { padding-bottom: 10px; }
 .bl-h { font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 10px; }
 .bl-votes { margin: 4px 0; padding-left: 18px; font-size: 14px; }
 table.bl .bl-code { width: 44px; font: 700 18px var(--f-display); color: var(--accent); }
@@ -1034,7 +1043,7 @@ h4.pd-h { font-size: 16px; }
       <h1>Cellar Target Calendar</h1>
       <p class="sub" id="sub">Every wine on one page.</p>
     </div>
-    <div class="top-btns"><a class="btn sync" href="/settings" title="Settings: house notes, chat log, sign out" aria-label="Settings" style="flex:0 0 auto;text-decoration:none;color:inherit">&#9881;&#xFE0E;</a><button type="button" class="btn sync primary" id="newWoBtn" title="Write a new work order into Excellovint">+ Work order</button>
+    <div class="top-btns"><a class="btn sync" href="/settings" title="Settings: house notes, chat log, sign out" aria-label="Settings" style="flex:0 0 auto;text-decoration:none;color:inherit">&#9881;&#xFE0E;</a><a class="btn sync" href="/purchases" title="Compras: things to buy, ranked high / medium / low" style="flex:0 0 auto;text-decoration:none;color:inherit">&#128722;&#xFE0E; Compras</a><button type="button" class="btn sync primary" id="newWoBtn" title="Write a new work order into Excellovint">+ Work order</button>
 <button type="button" class="btn sync" id="syncBtn" data-sheet="refresh" title="Read Excellovint now">&#8635; Sync</button></div>
   </header>
 
@@ -2201,6 +2210,7 @@ var SheetParse = (function () {
     return true;
   }
   function renderBlends() {
+    S.blOpen = S.blOpen || new Set();
     const all = (S.trials || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
     document.querySelectorAll("[data-blg]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blg === S.blGroup));
     document.querySelectorAll("[data-blk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.blk === (S.blKind || "")));
@@ -2215,8 +2225,11 @@ var SheetParse = (function () {
       const who = (t.votes || []).map(v => `<li><b>${esc(v.who)}:</b> ${esc(v.said)}</li>`).join("");
       const fb = keep[t.id] != null ? keep[t.id] : (t.feedback || "");
       const can = S.canWrite && S.db;
-      return `<article class="labcard trial st-${esc(t.status || "open")}"><header><span class="lc-name">${esc(t.name)}</span>` +
+      const isOpen = S.blOpen.has(t.id);
+      const gist = t.question || t.result || t.pull || (t.raw ? String(t.raw).slice(0, 160) : "");
+      return `<article class="labcard trial st-${esc(t.status || "open")}${isOpen ? " is-open" : " is-col"}" data-trial="${esc(t.id)}"><header role="button" tabindex="0" aria-expanded="${isOpen}" data-bltog="${esc(t.id)}"><span class="bl-chev" aria-hidden="true">›</span><span class="lc-name">${esc(t.name)}</span>` +
         `<span class="bl-kind">${t.kind === "addition" ? "Addition" : t.kind === "other" ? "Other" : "Blending"}</span><span class="lc-code">${esc([t.date, (t.lots || []).join(" · ")].filter(Boolean).join(" · "))}</span><span class="bl-status">${esc(TRIAL_STATUS[t.status] || t.status || "")}</span></header>` +
+        (gist ? `<p class="bl-sum">${esc(gist)}</p>` : "") +
         (t.question ? `<p class="bl-q">${esc(t.question)}</p>` : "") +
         (t.pull ? `<p class="bl-q"><b>Pull:</b> ${esc(t.pull)}</p>` : "") +
         ((t.glasses || []).length ? `<div class="bl-fbrow"><button type="button" class="btn sm" data-blprint="${esc(t.id)}">Print blending sheet</button></div>` : "") +
@@ -2235,6 +2248,18 @@ var SheetParse = (function () {
   }
 
 
+  // Trials accordion: header toggles the card body; open state is kept for the session.
+  function toggleTrial(id) {
+    S.blOpen = S.blOpen || new Set();
+    if (S.blOpen.has(id)) S.blOpen.delete(id); else S.blOpen.add(id);
+    const card = document.querySelector(`#blends [data-trial="${CSS.escape(id)}"]`);
+    if (!card) return renderBlends();
+    const open = S.blOpen.has(id);
+    card.classList.toggle("is-open", open); card.classList.toggle("is-col", !open);
+    card.querySelector("header").setAttribute("aria-expanded", String(open));
+  }
+  $("blends").addEventListener("click", e => { if (e.target.closest("button, a, textarea, summary")) return; const h = e.target.closest("[data-bltog]"); if (h) toggleTrial(h.dataset.bltog); });
+  $("blends").addEventListener("keydown", e => { const h = e.target.closest && e.target.closest("[data-bltog]"); if (h && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleTrial(h.dataset.bltog); } });
   document.querySelector(".bl-filter").addEventListener("click", e => { const k = e.target.closest("[data-blk]"); if (k) { S.blKind = k.dataset.blk; renderBlends(); return; } const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = b.dataset.blg; renderBlends(); } });
   $("blSearch").addEventListener("input", e => { S.blQ = e.target.value; renderBlends(); });
   $("blStatus").addEventListener("change", e => { S.blStatus = e.target.value; renderBlends(); });
@@ -4803,5 +4828,7 @@ Return ONLY JSON with this shape:
 })();
 </script>
 
+<link rel="stylesheet" href="/mobile.css">
+<script src="/mobile.js" defer></script>
 <script src="/chat-ui.js" defer></script>
 </html>

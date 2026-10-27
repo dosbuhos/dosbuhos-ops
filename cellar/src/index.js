@@ -1,6 +1,6 @@
 // Cellar Target Calendar (Calendario de bodega) — Bodega Dos Búhos.
 // The page is the Claude artifact, plus app/web-shim.js which points its window.claude API at the routes below.
-import { handleAuth, loginPage, sessionEmail, isViewer, initialsFor } from './google.js';
+import { handleAuth, loginPage, sessionEmail, isViewer, isAdmin, initialsFor } from './google.js';
 import { sheetsTool } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
@@ -14,6 +14,8 @@ export default {
   async scheduled(event, env, ctx) { if (env.GOOGLE_SA_JSON) ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
+    // App-managed users (Settings → Users), alongside the ALLOWED_EMAILS secret.
+    try { const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = 'users'").all(); env.__users = results.map(r => Object.assign({ email: r.id }, JSON.parse(r.data))); } catch (e) { env.__users = []; }
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     // PUBLIC="1" (for now): no sign-in, everyone can view and edit. Set PUBLIC to "0" and add the Google secrets to require login.
     const open = env.PUBLIC === '1';
@@ -25,13 +27,26 @@ export default {
     const canWrite = open || !isViewer(env, email);
     try {
       const initials = open ? 'EM' : initialsFor(env, email);
-      if (p === '/api/me') return J({ email, canWrite, initials });
+      const admin = open || isAdmin(env, email);
+      if (p === '/api/me') return J({ email, canWrite, initials, admin });
+      if (p === '/api/users') {
+        if (!admin) return J({ message: 'Only an admin can manage users.' }, 403);
+        if (request.method === 'GET') return J({ users: env.__users, fromSecret: String(env.ALLOWED_EMAILS || '').split(',').map(x => x.split('=')[0].trim()).filter(Boolean) });
+        if (request.method === 'PUT') {
+          const b = await request.json();
+          const users = (Array.isArray(b.users) ? b.users : []).map(u => ({ email: String(u.email || '').trim().toLowerCase(), initials: String(u.initials || '').trim().toUpperCase().slice(0, 8), role: u.role === 'viewer' ? 'viewer' : 'editor' })).filter(u => /^[^@\s]+@[^@\s]+$/.test(u.email) && u.initials);
+          const stmts = [env.DB.prepare("DELETE FROM docs WHERE coll = 'users'")];
+          for (const u of users) stmts.push(env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('users', ?, ?, ?)").bind(u.email, JSON.stringify({ initials: u.initials, role: u.role }), Date.now()));
+          await env.DB.batch(stmts);
+          return J({ ok: true, users });
+        }
+      }
       if (p === '/api/chat' && request.method === 'POST') {
         if (!canWrite) return J({ message: 'Read-only access.' }, 403);
         const r = await chat(request, env, { email, initials, name: initials === 'EM' ? 'Eric' : initials === 'D' ? 'Diane' : email });
         return J(r.body, r.status);
       }
-      if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, url.searchParams.get('conv') || '') });
+      if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, { initials }) });
       if (p.startsWith('/api/xl/')) { const r = await xlRoute(request, env, p, url, { initials, canWrite }); return J(r.body, r.status); }
       if (p === '/api/chats') {
         const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' ORDER BY updated_at DESC LIMIT 600").all();
