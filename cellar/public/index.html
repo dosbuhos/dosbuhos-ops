@@ -752,14 +752,23 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .spark { display: block; margin-top: 4px; max-width: 100%; height: auto; }
 .wk-h { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .tasklist { display: flex; flex-direction: column; gap: 4px; }
-.logwrap { overflow-x: auto; }
-table.log { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 12.5px; }
-.log th { text-align: left; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--ink); }
-.log td { padding: 5px 6px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-.log td.d { font-family: var(--f-mono); font-size: 11.5px; white-space: nowrap; color: var(--muted); }
-.log .st-done { color: var(--cellar); white-space: nowrap; }
-.log .st-open { color: var(--decide); white-space: nowrap; }
-.log .st-note { color: var(--muted); }
+/* Excellovint log: one stacked block per entry — dark header (date · vessel · status), readings in one row, text below. Vertical scroll only. */
+.xlog { display: flex; flex-direction: column; gap: 10px; }
+.xe { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--paper); }
+.xe-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 7px 12px; background: #3a4043; color: #fff; font: 600 12px var(--f-mono); letter-spacing: .03em; }
+.xe-d { white-space: nowrap; }
+.xe-u { color: #d9dde0; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.xe-st { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, .14); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.xe-st.open { background: #ffb13d; color: #3a2500; }
+.xe-st.done { background: #9ad39f; color: #10351a; }
+.xe-b { padding: 9px 12px 10px; }
+.xe-r { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 6px; font: 600 14px var(--f-mono); color: var(--ink); }
+.xe-r span { white-space: nowrap; }
+.xe-r i { display: block; font: 500 9.5px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-style: normal; }
+.xe-n { margin: 0; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.xe-n.clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.xe-n[data-xmore]:not(.clamp) { cursor: pointer; }
+.xe.is-done .xe-b { opacity: .8; }
 .d-note { font-size: 12px; color: var(--muted); }
 
 /* Editor sheet */
@@ -1367,13 +1376,14 @@ var SheetParse = (function () {
         if ((m = r.n.match(/\bRS\s*[=:]\s*(\d+(?:[.,]\d+)?)/i))) { hist.rs.push({ d: r.d, v: num(m[1]), raw: m[1].replace(",", "."), lab }); measured = true; }
         if ((m = r.n.match(/L[AÁ]CTIC[OA]?(?:\s+ACID)?\s*[=:]?\s*(\d+(?:[.,]\d+)?)/i))) { hist.lac.push({ d: r.d, v: num(m[1]), raw: m[1].replace(",", "."), lab }); measured = true; }
         if ((m = r.n.match(/PROT[IÍ]DOS\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*NTU/i) || r.n.match(/HEAT[^0-9]{0,24}(\d+(?:[.,]\d+)?)\s*NTU/i))) { hist.heat.push({ d: r.d, v: num(m[1]), raw: m[1].replace(",", "."), lab }); measured = true; }
-        log.push(r);
         if (isRack(r)) racks.push({ d: r.d, u: r.u || "", n: r.n });
         const sg = sugarRead(r, lab);
         if (sg) { sugar.push(sg); measured = true; }
         const a = so2Add(r, vol);
         if (a) adds.push(a);
       }
+      // Every row with a note or a reading is a log entry (readings-only rows included).
+      if (r.n || ["volf", "ph", "bx", "tp", "at", "am", "sl", "st", "aa"].some(k => r[k] != null)) log.push(r);
       if (!afEnd && r.d && ((r.bx != null && num(r.bx) != null && num(r.bx) <= 0) || /CLINI\s*-?\s*TEST\s*=?\s*\(?\s*(-|NEG)/i.test(r.n || ""))) afEnd = r.d;
       if (r.d && /\bNO\s+(MLF|ML|FML)\b|SIN\s+(FML|MALO)|ML\s+BLOCKED|BLOCK(ED)?\s+ML/i.test(r.n || "")) noMlf = r.d;
       if (r.bx != null) { const b = num(r.bx); if (b != null && b < 15) sugar.push({ d: r.d, src: "brix", brix: b, raw: cellStr(r.bx) }); }
@@ -3940,12 +3950,17 @@ Return ONLY JSON with this shape:
       h += `<section class="d-sec"><h3>Excellovint log <span class="d-note">${rows.length < s.log.length ? "Latest " + rows.length + " entries" : ""}</span></h3>`;
       if (!rows.length) h += `<p class="d-note">No entries yet.</p>`;
       else {
-        h += `<div class="logwrap"><table class="log"><thead><tr><th>Date</th><th>Vessel</th><th>Entry</th><th>Status</th></tr></thead><tbody>`;
+        // One block per entry: dark header (date · vessel · status), readings in one row, then the text. No sideways scrolling.
+        const RK = [["volf", "Vol L"], ["ph", "pH"], ["bx", "Bx"], ["tp", "°C"], ["at", "AT"], ["am", "Málico"], ["sl", "SO₂ L"], ["st", "SO₂ T"], ["aa", "AV"]];
+        h += `<div class="xlog">`;
         for (const r of rows) {
-          const st = r.i ? `<span class="st-done">Done · ${esc(r.i)}</span>` : r.a ? `<span class="st-open">Open · ${esc(r.a)}</span>` : `<span class="st-note">Note</span>`;
-          h += `<tr><td class="d">${esc(shortDate(r.d))}</td><td class="d">${esc(r.u || "")}</td><td>${esc(r.n)}</td><td>${st}</td></tr>`;
+          const st = r.i ? `<span class="xe-st done">Done · ${esc(r.i)}</span>` : r.a ? `<span class="xe-st open">Open · ${esc(r.a)}</span>` : `<span class="xe-st">Note</span>`;
+          const reads = RK.filter(([k]) => r[k] != null && cellStr(r[k]) !== "").map(([k, lb]) => `<span><i>${lb}</i>${esc(cellStr(r[k]))}</span>`).join("");
+          const long = (r.n || "").length > 220;
+          h += `<article class="xe${r.i ? " is-done" : r.a ? " is-open" : ""}"><div class="xe-h"><span class="xe-d">${esc(shortDate(r.d))}</span>${r.u ? `<span class="xe-u">${esc(r.u)}</span>` : ""}${st}</div>` +
+            `<div class="xe-b">${reads ? `<div class="xe-r">${reads}</div>` : ""}${r.n ? `<p class="xe-n${long ? " clamp" : ""}" ${long ? 'data-xmore="1" title="Tap to show all"' : ""}>${esc(r.n)}</p>` : ""}</div></article>`;
         }
-        h += `</tbody></table></div>`;
+        h += `</div>`;
       }
       h += `</section>`;
     }
@@ -3966,7 +3981,10 @@ Return ONLY JSON with this shape:
     const f = S.lastFocus; S.lastFocus = null;
     if (f && document.contains(f)) { try { f.focus(); } catch (e) {} }
   }
-  $("drawer").addEventListener("click", e => { if (e.target === $("drawer")) closeDrawer(); });
+  $("drawer").addEventListener("click", e => {
+    if (e.target === $("drawer")) { closeDrawer(); return; }
+    const n = e.target.closest("[data-xmore]"); if (n) n.classList.toggle("clamp"); // long log entries: tap to show all / less
+  });
 
   // ---------- Toasts and writes ----------
   let toastTimer = 0;
