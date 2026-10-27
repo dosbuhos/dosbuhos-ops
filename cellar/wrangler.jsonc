@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cellar",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // Every request goes through the Worker first so the page itself sits behind Google sign-in.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42", "migrations_dir": "migrations" }
+  ],
+  "vars": {
+    "SHEET_ID": "1DFvcD1i73vaVQqjw05vBnqmX_sYd9xTZze5H7ImGqsU",
+    "GOOGLE_CLIENT_ID": "154137330328-vc6jl0453dodhfscu5mm81mhp9ne6rc1.apps.googleusercontent.com",
+    "AI_MODEL": "claude-sonnet-5-5"
+  }
+  // Secrets (Cloudflare dashboard → cellar → Settings → Variables and Secrets, or `npx wrangler secret put NAME`):
+  // GOOGLE_CLIENT_SECRET  same OAuth client as wineclub; add https://cellar.<subdomain>.workers.dev/auth/callback as a redirect URI
+  // SESSION_SECRET        any long random string
+  // ALLOWED_EMAILS        comma-separated Google accounts that can edit (Eric, Diane, Paris, Jimena…)
+  // VIEWER_EMAILS         optional, read-only accounts
+  // GOOGLE_SA_JSON        service-account key JSON; share the Excellovint sheet with its client_email as Editor
+  // ANTHROPIC_API_KEY     Claude API key for the Learn tutor and blend-trial tidy-up
+}
