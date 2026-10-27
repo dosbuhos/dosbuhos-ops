@@ -10,6 +10,7 @@
     { "binding": "DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42", "migrations_dir": "migrations" }
   ],
   "vars": {
+    "PUBLIC": "1",
     "SHEET_ID": "1DFvcD1i73vaVQqjw05vBnqmX_sYd9xTZze5H7ImGqsU",
     "GOOGLE_CLIENT_ID": "154137330328-vc6jl0453dodhfscu5mm81mhp9ne6rc1.apps.googleusercontent.com",
     "AI_MODEL": "claude-sonnet-5-5"

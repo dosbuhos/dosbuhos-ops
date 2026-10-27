@@ -11,12 +11,14 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url), p = url.pathname;
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
-    const email = await sessionEmail(request, env);
+    // PUBLIC="1" (for now): no sign-in, everyone can view and edit. Set PUBLIC to "0" and add the Google secrets to require login.
+    const open = env.PUBLIC === '1';
+    const email = open ? 'public' : await sessionEmail(request, env);
     if (!email) {
       if (p.startsWith('/api/')) return J({ code: 'revoked', message: 'Sign in again.' }, 401);
       return loginPage(env, url);
     }
-    const canWrite = !isViewer(env, email);
+    const canWrite = open || !isViewer(env, email);
     try {
       if (p === '/api/me') return J({ email, canWrite });
       if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite);

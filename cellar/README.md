@@ -17,6 +17,10 @@ The Claude artifact, running on Cloudflare Workers. `app/cellar-targets.html` is
 python3 cellar/app/build.py path/to/cellar-targets.html   # writes public/index.html + public/web-shim.js
 ```
 
+## Access
+
+Right now `PUBLIC` = "1": no sign-in, anyone with the link can view and edit (including Excellovint). To lock it: set `PUBLIC` to "0", add `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `ALLOWED_EMAILS`, and the redirect URI below.
+
 ## One-time setup
 
 1. Cloudflare → Workers → Create → Import a repository → `dosbuhos-ops`, root directory `cellar`, deploy command `npm run deploy`.
