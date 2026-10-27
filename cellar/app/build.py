@@ -17,6 +17,7 @@ head = ('<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n'
         '<script src="/web-shim.js"></script>\n')
 i = body.find("<style")  # artifact puts <title>, metas and fonts first; keep them in <head>
 page = head + body[:i] + body[i:] if i >= 0 else head + body
-(out / "index.html").write_text(page.replace("</style>", "</style>", 1) + "\n</html>\n", encoding="utf-8")
+(out / "index.html").write_text(page + '\n<script src="/chat-ui.js" defer></script>\n</html>\n', encoding="utf-8")
 shutil.copyfile(here / "web-shim.js", out / "web-shim.js")
+shutil.copyfile(here / "chat-ui.js", out / "chat-ui.js")
 print("built", out / "index.html", len(page), "bytes")

@@ -1,7 +1,8 @@
 // Cellar Target Calendar (Calendario de bodega) — Bodega Dos Búhos.
 // The page is the Claude artifact, plus app/web-shim.js which points its window.claude API at the routes below.
-import { handleAuth, loginPage, sessionEmail, isViewer } from './google.js';
+import { handleAuth, loginPage, sessionEmail, isViewer, initialsFor } from './google.js';
 import { sheetsTool } from './sheets.js';
+import { chat, chatHistory, houseNotes } from './chat.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -20,7 +21,22 @@ export default {
     }
     const canWrite = open || !isViewer(env, email);
     try {
-      if (p === '/api/me') return J({ email, canWrite });
+      const initials = open ? 'EM' : initialsFor(env, email);
+      if (p === '/api/me') return J({ email, canWrite, initials });
+      if (p === '/api/chat' && request.method === 'POST') {
+        if (!canWrite) return J({ message: 'Read-only access.' }, 403);
+        const r = await chat(request, env, { email, initials, name: initials === 'EM' ? 'Eric' : initials === 'D' ? 'Diane' : email });
+        return J(r.body, r.status);
+      }
+      if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, url.searchParams.get('conv') || '') });
+      if (p === '/api/notes' && request.method === 'GET') return J(await houseNotes(env));
+      if (p === '/api/notes' && request.method === 'PUT') {
+        if (!canWrite) return J({ message: 'Read-only access.' }, 403);
+        const b = await request.json();
+        const lines = (Array.isArray(b.lines) ? b.lines : []).map(l => ({ text: String(l.text || '').slice(0, 500), by: l.by || initials, at: l.at || new Date().toISOString() })).filter(l => l.text.trim());
+        await env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('housenotes', 'main', ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(JSON.stringify({ lines }), Date.now()).run();
+        return J({ ok: true });
+      }
       if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite);
       if (p === '/api/sheets' && request.method === 'POST') {
         const { tool, args } = await request.json();

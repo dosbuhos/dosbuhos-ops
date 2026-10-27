@@ -110,6 +110,7 @@ h1 {
 .wknav #wkNow:disabled { opacity: .55; cursor: default; }
 .btn.sync { align-self: center; white-space: nowrap; }
 .btn.sync:disabled { opacity: .6; cursor: default; }
+.top-btns { display: flex; gap: 8px; align-self: center; flex-wrap: wrap; justify-content: flex-end; }
 .toast-undo { margin-left: 12px; background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 2px 10px; font: inherit; font-weight: 600; cursor: pointer; }
 .k-temp { --k: #3b6fb6; }
 .chip.is-left { opacity: .5; }
@@ -1011,7 +1012,8 @@ h4.pd-h { font-size: 16px; }
       <h1>Cellar Target Calendar</h1>
       <p class="sub" id="sub">Every wine on one page.</p>
     </div>
-    <button type="button" class="btn sync" id="syncBtn" data-sheet="refresh" title="Read Excellovint now">&#8635; Sync</button>
+    <div class="top-btns"><button type="button" class="btn sync primary" id="newWoBtn" title="Write a new work order into Excellovint">+ Work order</button>
+<button type="button" class="btn sync" id="syncBtn" data-sheet="refresh" title="Read Excellovint now">&#8635; Sync</button></div>
   </header>
 
   <nav class="vynav" role="tablist" aria-label="Vineyard">
@@ -3997,7 +3999,7 @@ Return ONLY JSON with this shape:
     $("edText").value = task ? task.text : "";
     $("edLot").innerHTML = GROUPS.map(([g, gl]) => {
       const ls = S.lots.filter(l => l.group === g).sort(byOrder);
-      return ls.length ? `<optgroup label="${esc(gl)}">${ls.map(l => `<option value="${esc(l.id)}"${l.id === lotId ? " selected" : ""}>${esc(l.name)}</option>`).join("")}</optgroup>` : "";
+      return ls.length ? `<optgroup label="${esc(gl)}">${ls.map(l => `<option value="${esc(l.id)}"${l.id === lotId ? " selected" : ""}>${esc(l.id === "all" ? "Winery-wide (L00)" : l.name)}</option>`).join("")}</optgroup>` : "";
     }).join("");
     $("edKind").innerHTML = KINDS.map(([k, l]) => `<option value="${k}"${(task ? task.kind : "cellar") === k ? " selected" : ""}>${esc(l)}</option>`).join("");
     $("edWeek").innerHTML = ws.map(w => `<option value="${w}"${w === week ? " selected" : ""}>${esc(weekRange(w))}</option>`).join("");
@@ -4019,6 +4021,15 @@ Return ONLY JSON with this shape:
     setTimeout(() => $("edText").focus(), 0);
   }
   function closeEditor() { $("editor").hidden = true; S.editing = null; }
+  // "+ Work order": a blank work order (any wine, or winery-wide in L00), straight into Excellovint.
+  $("newWoBtn").addEventListener("click", () => {
+    if (!S.db || S.canWrite === false) { toast("You can't add work orders in this view."); return; }
+    openEditor(null, { lot: "all", week: curWeek });
+    $("edTitle").textContent = "New work order";
+    fillDays(curWeek, todayISO);
+    const sel = $("edAsig"); if (!sel.value && sel.options.length > 1) sel.selectedIndex = 1;
+    $("edAsigLbl").textContent = "Assign to (writes the work order into Excellovint)";
+  });
 
   $("edWeek").addEventListener("change", () => fillDays($("edWeek").value, ""));
   $("edCancel").addEventListener("click", closeEditor);
@@ -4766,4 +4777,5 @@ Return ONLY JSON with this shape:
 })();
 </script>
 
+<script src="/chat-ui.js" defer></script>
 </html>

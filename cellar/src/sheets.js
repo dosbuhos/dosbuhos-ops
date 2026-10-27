@@ -5,7 +5,7 @@ let tok = null; // { access, exp }
 const b64u = (s) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const b64uBuf = (buf) => b64u(String.fromCharCode(...new Uint8Array(buf)));
 
-async function accessToken(env) {
+export async function accessToken(env) {
   if (tok && tok.exp > Date.now() + 60000) return tok.access;
   const sa = JSON.parse(env.GOOGLE_SA_JSON);
   const now = Math.floor(Date.now() / 1000);

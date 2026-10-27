@@ -10,15 +10,15 @@
     { "binding": "DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42", "migrations_dir": "migrations" }
   ],
   "vars": {
-    "PUBLIC": "1",
+    "PUBLIC": "0",
     "SHEET_ID": "1DFvcD1i73vaVQqjw05vBnqmX_sYd9xTZze5H7ImGqsU",
-    "GOOGLE_CLIENT_ID": "154137330328-vc6jl0453dodhfscu5mm81mhp9ne6rc1.apps.googleusercontent.com",
+    "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
     "AI_MODEL": "claude-sonnet-5-5"
   }
   // Secrets (Cloudflare dashboard → cellar → Settings → Variables and Secrets, or `npx wrangler secret put NAME`):
-  // GOOGLE_CLIENT_SECRET  same OAuth client as wineclub; add https://cellar.<subdomain>.workers.dev/auth/callback as a redirect URI
+  // GOOGLE_CLIENT_SECRET  OAuth client "Cellar calendar" in Google Cloud project dos-buhos (redirect https://cellar.dos-buhos.workers.dev/auth/callback)
   // SESSION_SECRET        any long random string
-  // ALLOWED_EMAILS        comma-separated Google accounts that can edit (Eric, Diane, Paris, Jimena…)
+  // ALLOWED_EMAILS        comma-separated Google accounts that can sign in, each with initials: a@x.com=EM,b@y.com=D
   // VIEWER_EMAILS         optional, read-only accounts
   // GOOGLE_SA_JSON        service-account key JSON; share the Excellovint sheet with its client_email as Editor
   // ANTHROPIC_API_KEY     Claude API key for the Learn tutor and blend-trial tidy-up

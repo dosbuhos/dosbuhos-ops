@@ -5,7 +5,15 @@
 const COOKIE = 'cel_session', STATE = 'cel_state', DAYS = 30;
 const enc = new TextEncoder();
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const list = (s) => (s || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
+// Entries may carry initials: "eric@x.com=EM, diane@y.com=D".
+const list = (s) => (s || '').toLowerCase().split(',').map(x => x.split('=')[0].trim()).filter(Boolean);
+export function initialsFor(env, email) {
+  for (const part of String(env.ALLOWED_EMAILS || '').split(',')) {
+    const [e, ini] = part.split('=').map(x => (x || '').trim());
+    if (e.toLowerCase() === email && ini) return ini.toUpperCase();
+  }
+  return (email || '?').slice(0, 2).toUpperCase();
+}
 export const allowedEmails = (env) => [...new Set([...list(env.ALLOWED_EMAILS), ...list(env.ADMIN_EMAILS), ...list(env.VIEWER_EMAILS)])];
 
 async function hmac(env, data) {
@@ -68,4 +76,4 @@ export async function handleAuth(request, env, url) {
   if (url.pathname === '/auth/salir') return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': cookie(COOKIE, '', 0) } });
   return null;
 }
-export const isViewer = (env, email) => (env.VIEWER_EMAILS || '').toLowerCase().split(',').map(x => x.trim()).includes(email);
+export const isViewer = (env, email) => list(env.VIEWER_EMAILS).includes(email);
