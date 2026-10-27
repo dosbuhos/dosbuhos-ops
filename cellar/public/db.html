@@ -81,6 +81,21 @@ table.g td.rn{color:var(--muted);font:11px var(--f-m)}
 .lc.open{border-left:4px solid var(--amber)}
 .lc.xx{opacity:.55}
 .empty{color:var(--muted);text-align:center;padding:40px 10px}
+dialog{border:0;border-radius:14px;padding:0;width:min(520px,calc(100vw - 24px));box-shadow:0 12px 40px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(20,22,24,.45)}
+dialog form{padding:16px;display:flex;flex-direction:column;gap:10px}
+dialog h3{margin:0;font:700 20px var(--f-d);text-transform:uppercase;color:var(--wine);letter-spacing:.03em}
+dialog .ctx{font-size:13px;color:var(--muted);background:var(--bg);border-radius:8px;padding:8px}
+dialog label{display:flex;flex-direction:column;gap:3px;font:600 11px var(--f-m);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+dialog input,dialog select,dialog textarea{width:100%;min-width:0;font:16px var(--f-b);text-transform:none;letter-spacing:0;color:var(--ink);border:1px solid var(--rule);border-radius:8px;padding:8px;background:#fff}
+dialog .g2{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+dialog .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+dialog .row{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+dialog .chk{flex-direction:row;align-items:center;gap:8px;font:500 14px var(--f-b);text-transform:none;letter-spacing:0;color:var(--ink)}
+dialog .err{color:var(--red);font-size:13px;min-height:1em}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;max-width:90vw}
+.newbtn{margin:0 0 10px}
+@media (max-width:760px){dialog .g2{grid-template-columns:repeat(2,1fr)}dialog .g3{grid-template-columns:1fr}}
 @media (max-width:760px){
   header{padding:8px 12px 0}h1{font-size:20px}
   main{padding:10px 12px 40px}.banner{margin:10px 12px 0}
@@ -98,32 +113,43 @@ table.g td.rn{color:var(--muted);font:11px var(--f-m)}
     <button role="tab" data-t="lotes" aria-selected="false">Lotes</button>
   </nav>
 </header>
-<div class="banner" id="banner"><b>VISTA PREVIA</b><span id="bannerTxt">Cargando…</span><button class="btn" id="importBtn" hidden>Importar de Excellovint otra vez</button></div>
+<div class="banner" id="banner"><b>MODO PRUEBA</b><span id="bannerTxt">Cargando…</span><button class="btn" id="importBtn">Sincronizar ahora</button></div>
 <main id="main"><div class="empty">Cargando…</div></main>
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div class="toast" id="toast" hidden></div>
 
 <script>
 (() => {
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
-  const S = { view: 'ordenes', who: 'Todos', tabs: [], open: [], names: {}, lot: null, rows: [], q: '' };
+  const S = { view: 'ordenes', who: 'Todos', tabs: [], open: [], names: {}, lot: null, rows: [], q: '', me: {}, at: 0 };
   const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
   const fmtD = iso => { if (!iso) return 'sin fecha'; const d = new Date(iso + 'T12:00:00'); return DOW[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1); };
   const lotName = tab => S.names[tab] || tab;
   const priCls = p => /URG/i.test(p) ? 'urgent' : /HIGH|ALTA/i.test(p) ? 'high' : '';
   const priLbl = p => /URG/i.test(p) ? 'URGENTE' : /HIGH|ALTA/i.test(p) ? 'ALTA' : '';
   const people = a => String(a || '').toUpperCase().split(/[\/,&\s]+/).filter(Boolean);
+  const CREW = () => [...new Set(['P/J', 'P', 'J', 'D', 'EM', 'EM/D', ...S.open.map(r => String(r.asig || '').toUpperCase()).filter(Boolean)])];
+  const toast = t => { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 3500); };
+  const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'hace menos de 1 min' : 'hace ' + m + ' min'; };
+  async function post(path, body) {
+    const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || 'Error ' + r.status); return j;
+  }
 
   async function load() {
     const [t, o, lots, me] = await Promise.all([
       fetch('/api/xl/tabs').then(r => r.json()), fetch('/api/xl/open').then(r => r.json()),
       fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({}))]);
-    S.tabs = t.tabs || []; S.open = o.rows || [];
+    S.tabs = t.tabs || []; S.open = o.rows || []; S.me = me;
     for (const l of (lots.rows || [])) for (const s of (l.data.sheet || [])) if (s.tab && !S.names[s.tab]) S.names[s.tab] = l.data.name === 'Every lot' ? 'Bodega (general)' : l.data.name;
-    const at = S.tabs.reduce((m, x) => Math.max(m, x.imported_at || 0), 0);
-    $('#bannerTxt').textContent = at ? 'Copia de Excellovint del ' + new Date(at).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) + '. Nada de aquí se guarda todavía; Excellovint sigue siendo el original.' : 'Todavía no hay datos importados.';
-    $('#importBtn').hidden = me.initials !== 'EM';
-    render();
+    S.at = S.tabs.reduce((m, x) => Math.max(m, x.imported_at || 0), 0);
+    if (S.lot) S.rows = (await (await fetch('/api/xl/rows?tab=' + encodeURIComponent(S.lot))).json()).rows || [];
+    banner(); render();
+  }
+  function banner() {
+    $('#bannerTxt').textContent = S.at ? 'Conectado a Excellovint: cada cambio se escribe primero en Excellovint y luego aquí. Los cambios hechos en Excellovint llegan cada 5 min. Última sincronización ' + ago(S.at) + '.' : 'Todavía no hay datos. Pulsa «Sincronizar ahora».';
   }
 
   function renderOrdenes() {
@@ -131,7 +157,7 @@ table.g td.rn{color:var(--muted);font:11px var(--f-m)}
     const whoList = ['Todos', ...Object.keys(counts).sort((a, b) => counts[b] - counts[a])];
     const rows = S.open.filter(r => S.who === 'Todos' || people(r.asig).includes(S.who));
     const groups = [['over', 'Atrasadas', r => r.date && r.date < today], ['today', 'Hoy', r => r.date === today], ['next', 'Próximas', r => !r.date || r.date > today]];
-    let h = `<div class="chips">${whoList.map(w => `<button data-who="${esc(w)}" aria-pressed="${S.who === w}">${esc(w)}<small>${w === 'Todos' ? S.open.length : counts[w]}</small></button>`).join('')}</div>`;
+    let h = `<button class="btn primary newbtn" data-new>+ Nueva orden</button><div class="chips">${whoList.map(w => `<button data-who="${esc(w)}" aria-pressed="${S.who === w}">${esc(w)}<small>${w === 'Todos' ? S.open.length : counts[w]}</small></button>`).join('')}</div>`;
     for (const [k, label, fn] of groups) {
       const g = rows.filter(fn); if (!g.length) continue;
       h += `<h2 class="${k === 'over' ? 'over' : ''}">${label} <small>${g.length}</small></h2><div class="cards">` + g.map(r => `
@@ -139,7 +165,7 @@ table.g td.rn{color:var(--muted);font:11px var(--f-m)}
           <div class="top"><span class="lot">${esc(lotName(r.tab))}</span><span>${esc(r.ubi)}</span><span class="when ${k === 'over' ? 'over' : ''}">${fmtD(r.date)}</span></div>
           <div class="txt">${esc(r.note)}</div>
           <div class="meta">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="tag who">${esc(r.asig)}</span><span class="tag">${esc(r.tab)} · fila ${r.row}</span></div>
-          <div class="act"><button class="btn primary" disabled title="Vista previa">✓ Hecho</button><button class="btn" disabled title="Vista previa">Anotar resultado</button></div>
+          <div class="act"><button class="btn primary" data-done="${esc(r.tab)}|${r.row}">✓ Hecho</button><button class="btn" data-res="${esc(r.tab)}|${r.row}">Anotar resultado</button></div>
         </article>`).join('') + `</div>`;
     }
     return h + (rows.length ? '' : '<div class="empty">No hay órdenes abiertas.</div>');
@@ -153,17 +179,18 @@ table.g td.rn{color:var(--muted);font:11px var(--f-m)}
   }
 
   const COLS = [['date_raw', 'Fecha', 'd'], ['ubi', 'Ubi'], ['voli', 'Vol I', 'n'], ['volf', 'Vol F', 'n'], ['ph', 'pH', 'n'], ['bx', 'Bx', 'n'], ['tp', 'T°', 'n'], ['at', 'AT', 'n'], ['am', 'Málico', 'n'], ['sl', 'SO₂ L', 'n'], ['st', 'SO₂ T', 'n'], ['aa', 'AV', 'n'], ['note', 'Acción', 'note'], ['pri', 'Pri'], ['by_', 'Por'], ['asig', 'Asig'], ['ini', 'Ini']];
-  const LAB = [['voli', 'Vol I'], ['volf', 'Vol F'], ['ph', 'pH'], ['bx', 'Bx'], ['tp', 'T°'], ['at', 'AT'], ['am', 'Mál'], ['sl', 'SO₂L'], ['st', 'SO₂T'], ['aa', 'AV']];
+  const LAB = [['volf', 'Vol F (L)'], ['ph', 'pH'], ['tp', 'T° (°C)'], ['at', 'AT (g/L)'], ['am', 'Málico (g/L)'], ['sl', 'SO₂ libre'], ['st', 'SO₂ total'], ['aa', 'AV (g/L)'], ['bx', 'Brix']];
   function renderLot() {
     const t = S.tabs.find(x => x.tab === S.lot) || { tab: S.lot };
     const q = S.q.toLowerCase();
     const rows = S.rows.filter(r => !q || COLS.some(([k]) => String(r[k] || '').toLowerCase().includes(q))).slice().reverse();
     const st = r => r.ini === 'XX' ? 'xx' : (r.asig && !r.ini ? 'open' : '');
-    return `<div class="lothead"><button class="btn" data-back>← Lotes</button><h3>${esc(lotName(t.tab))}</h3><span class="tabn">${esc(t.tab)} · ${S.rows.length} registros</span><input type="search" id="q" placeholder="Buscar en este lote" value="${esc(S.q)}"></div>
-      <div class="grid-wrap"><table class="g"><thead><tr><th>#</th>${COLS.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead><tbody>` +
-      rows.map(r => `<tr class="${st(r)}"><td class="rn">${r.row}</td>${COLS.map(([k, , c]) => `<td class="${c || ''}">${esc(r[k])}</td>`).join('')}</tr>`).join('') + `</tbody></table></div>
-      <div class="logcards">` + rows.map(r => `<div class="lc ${st(r)}"><div class="h"><span>${fmtD(r.date)}</span><span>${esc(r.ubi)}</span><span class="st">${r.ini ? (r.ini === 'XX' ? 'cancelada' : '✓ ' + esc(r.ini)) : r.asig ? 'abierta · ' + esc(r.asig) : ''}</span></div>
-        ${r.note ? `<div class="t">${esc(r.note)}</div>` : ''}<div class="v">${LAB.filter(([k]) => r[k]).map(([k, l]) => `<span>${l} ${esc(r[k])}</span>`).join('')}</div></div>`).join('') + `</div>`;
+    const act = r => r.asig && !r.ini ? `<button class="btn" data-done="${esc(r.tab)}|${r.row}">✓</button> ` : '';
+    return `<div class="lothead"><button class="btn" data-back>← Lotes</button><h3>${esc(lotName(t.tab))}</h3><span class="tabn">${esc(t.tab)} · ${S.rows.length} registros</span><button class="btn" data-new="${esc(t.tab)}">+ Orden</button><button class="btn" data-entry="${esc(t.tab)}">+ Registro</button><input type="search" id="q" placeholder="Buscar en este lote" value="${esc(S.q)}"></div>
+      <div class="grid-wrap"><table class="g"><thead><tr><th>#</th>${COLS.map(([, l]) => `<th>${l}</th>`).join('')}<th></th></tr></thead><tbody>` +
+      rows.map(r => `<tr class="${st(r)}"><td class="rn">${r.row}</td>${COLS.map(([k, , c]) => `<td class="${c || ''}">${esc(r[k])}</td>`).join('')}<td style="white-space:nowrap">${act(r)}<button class="btn" data-res="${esc(r.tab)}|${r.row}">Editar</button></td></tr>`).join('') + `</tbody></table></div>
+      <div class="logcards">` + rows.map(r => `<div class="lc ${st(r)}" data-res="${esc(r.tab)}|${r.row}"><div class="h"><span>${fmtD(r.date)}</span><span>${esc(r.ubi)}</span><span class="st">${r.ini ? (r.ini === 'XX' ? 'cancelada' : '✓ ' + esc(r.ini)) : r.asig ? 'abierta · ' + esc(r.asig) : ''}</span></div>
+        ${r.note ? `<div class="t">${esc(r.note)}</div>` : ''}<div class="v">${COLS.slice(2, 12).filter(([k]) => r[k]).map(([k, l]) => `<span>${l} ${esc(r[k])}</span>`).join('')}</div></div>`).join('') + `</div>`;
   }
 
   function render() {
@@ -171,18 +198,76 @@ table.g td.rn{color:var(--muted);font:11px var(--f-m)}
     $('#main').innerHTML = S.view === 'ordenes' ? renderOrdenes() : renderLotes();
     const q = $('#q'); if (q) q.addEventListener('input', () => { S.q = q.value; const pos = q.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); });
   }
+
+  // ---------- dialogs ----------
+  const findRow = key => { const [tab, row] = key.split('|'); return [...S.open, ...S.rows].find(r => r.tab === tab && r.row === +row); };
+  const opts = (list, sel) => list.map(v => `<option value="${esc(v)}"${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
+  function openDlg(html, onSubmit) {
+    const d = $('#dlg'), f = $('#dlgForm');
+    f.innerHTML = html + `<div class="err" id="dErr"></div><div class="row"><button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn primary" id="dOk">Guardar</button></div>`;
+    f.onsubmit = async e => {
+      e.preventDefault(); const ok = $('#dOk'); ok.disabled = true; ok.textContent = 'Guardando en Excellovint…';
+      try { const msg = await onSubmit(new FormData(f)); d.close(); toast(msg); await load(); }
+      catch (err) { $('#dErr').textContent = err.message; ok.disabled = false; ok.textContent = 'Guardar'; if (/cambió|changed/i.test(err.message)) load(); }
+    };
+    f.querySelector('[data-cancel]').onclick = () => d.close();
+    d.showModal();
+  }
+  function dlgDone(r) {
+    openDlg(`<h3>Marcar como hecha</h3><div class="ctx"><b>${esc(lotName(r.tab))}</b> · ${esc(r.ubi)} · ${fmtD(r.date)}<br>${esc(r.note)}</div>
+      <label>¿Quién la hizo? (iniciales en INI)<select name="ini">${opts([...CREW(), 'XX'], String(r.asig || '').toUpperCase())}</select></label>
+      <small style="color:var(--muted)">XX = cancelada.</small>`,
+      async fd => { await post('/api/xl/update', { tab: r.tab, row: r.row, expect: r.note, set: { ini: fd.get('ini') } }); return '✓ Guardado en ' + r.tab + ', fila ' + r.row; });
+  }
+  function dlgRes(r) {
+    openDlg(`<h3>Anotar resultado</h3><div class="ctx"><b>${esc(lotName(r.tab))}</b> · ${esc(r.tab)} fila ${r.row} · ${fmtD(r.date)}<br>${esc(r.note)}</div>
+      <div class="g2">${LAB.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(r[k] || '')}" inputmode="decimal"></label>`).join('')}</div>
+      <label>Acción / notas<textarea name="note" rows="3">${esc(r.note || '')}</textarea></label>
+      ${r.asig && !r.ini ? `<label class="chk"><input type="checkbox" name="done" value="1"> Marcar como hecha por <select name="ini">${opts(CREW(), String(r.asig).toUpperCase())}</select></label>` : ''}`,
+      async fd => {
+        const set = {};
+        for (const [k] of LAB) { const v = String(fd.get(k) || '').trim(); if (v !== String(r[k] || '')) set[k] = v; }
+        const note = String(fd.get('note') || '').trim(); if (note.toUpperCase() !== String(r.note || '').toUpperCase()) set.note = note;
+        if (fd.get('done')) set.ini = fd.get('ini');
+        if (!Object.keys(set).length) return 'Sin cambios';
+        await post('/api/xl/update', { tab: r.tab, row: r.row, expect: r.note, set }); return '✓ Guardado en ' + r.tab + ', fila ' + r.row;
+      });
+  }
+  function dlgNew(tab, entry) {
+    const tabs = S.tabs.slice().sort((a, b) => a.tab.localeCompare(b.tab, 'es', { numeric: true }));
+    openDlg(`<h3>${entry ? 'Nuevo registro' : 'Nueva orden de trabajo'}</h3>
+      <label>Lote<select name="tab">${tabs.map(t => `<option value="${esc(t.tab)}"${t.tab === (tab || 'L00 - Winery') ? ' selected' : ''}>${esc(lotName(t.tab))} · ${esc(t.tab)}</option>`).join('')}</select></label>
+      <div class="g3"><label>Fecha<input type="date" name="date" value="${today}"></label><label>Ubicación (UBI)<input name="ubi" placeholder="VC-02, BBL 101…"></label><label>Volumen (L)<input name="vol" inputmode="decimal"></label></div>
+      <label>${entry ? 'Qué se hizo' : 'Qué hay que hacer'} (en español)<textarea name="text" rows="4" required></textarea></label>
+      <div class="g3"><label>Asignar a<select name="asig">${opts(CREW(), entry ? (S.me.initials || 'EM') : 'P/J')}</select></label><label>Prioridad<select name="pri"><option value="">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
+      ${entry ? `<label>Hecha por<select name="ini">${opts(CREW(), S.me.initials || 'EM')}</select></label>` : ''}</div>`,
+      async fd => {
+        const b = Object.fromEntries(fd.entries());
+        const r = await post('/api/xl/create', b);
+        if (entry) await post('/api/xl/update', { tab: r.tab, row: r.row, set: { ini: b.ini } });
+        return '✓ Agregada a ' + r.tab + ', fila ' + r.row;
+      });
+  }
+
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-t]'); if (t) { S.view = t.dataset.t; S.lot = null; render(); return; }
     const w = e.target.closest('[data-who]'); if (w) { S.who = w.dataset.who; render(); return; }
+    const dn = e.target.closest('[data-done]'); if (dn) { const r = findRow(dn.dataset.done); if (r) dlgDone(r); return; }
+    const rs = e.target.closest('[data-res]'); if (rs) { const r = findRow(rs.dataset.res); if (r) dlgRes(r); return; }
+    const nw = e.target.closest('[data-new]'); if (nw) { dlgNew(nw.dataset.new || S.lot); return; }
+    const en = e.target.closest('[data-entry]'); if (en) { dlgNew(en.dataset.entry, true); return; }
     const l = e.target.closest('[data-lot]'); if (l) { S.lot = l.dataset.lot; S.q = ''; S.rows = (await (await fetch('/api/xl/rows?tab=' + encodeURIComponent(S.lot))).json()).rows || []; render(); window.scrollTo(0, 0); return; }
     if (e.target.closest('[data-back]')) { S.lot = null; render(); }
   });
   $('#importBtn').addEventListener('click', async () => {
-    const b = $('#importBtn'); b.disabled = true; b.textContent = 'Importando…';
-    try { const r = await fetch('/api/xl/import', { method: 'POST' }); const j = await r.json(); if (!r.ok) throw new Error(j.message); b.textContent = '✓ ' + j.rows + ' registros de ' + j.tabs + ' lotes'; await load(); }
-    catch (err) { b.textContent = 'Error: ' + err.message; }
-    setTimeout(() => { b.disabled = false; b.textContent = 'Importar de Excellovint otra vez'; }, 4000);
+    const b = $('#importBtn'); b.disabled = true; b.textContent = 'Sincronizando…';
+    try { const j = await post('/api/xl/import', {}); toast('✓ ' + j.rows + ' registros de ' + j.tabs + ' lotes · ' + j.changed + ' cambios'); await load(); }
+    catch (err) { toast('Error: ' + err.message); }
+    b.disabled = false; b.textContent = 'Sincronizar ahora';
   });
+  // Keep it fresh while open (the server pulls from Excellovint every 5 min).
+  setInterval(() => { if (document.visibilityState === 'visible' && !$('#dlg').open) load().catch(() => {}); }, 60000);
+  setInterval(banner, 30000);
   load().catch(err => { $('#main').innerHTML = `<div class="empty">No se pudo cargar: ${esc(err.message)}</div>`; });
 })();
 </script>

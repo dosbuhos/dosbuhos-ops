@@ -995,6 +995,26 @@ h4.pd-h { font-size: 16px; }
   .asg-row select { font-size: 15px !important; padding: 9px 8px !important; }
   .asg-row.is-over { border-left: 4px solid #b3261e; }
 }
+
+/* Phone readability pass (Oct 27): full-width text in lab lists, one-line header, scrolling stat strip, readable selected rows in dark mode. */
+.pl-item.on { color: var(--paper); }
+@media (max-width: 760px) {
+  .top .titles { display: none; }
+  .top { justify-content: flex-end; }
+  .top-btns { width: 100%; flex-wrap: nowrap; }
+  .top-btns .btn { flex: 1; padding: 9px 10px; font-size: 14px; }
+  .stats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 2px; }
+  .stats::-webkit-scrollbar { display: none; }
+  .stat { flex: 0 0 auto; min-width: 0; }
+  table.lb td, table.lb .lb-test, table.lb .lb-where, table.lb .lb-size { width: auto !important; }
+  table.lb tr { grid-template-columns: 28px minmax(0, 1fr) !important; }
+  table.lb td { padding: 4px 6px; }
+  table.lb .lb-where, table.lb .lb-size { display: inline-block; padding-top: 0; }
+  table.lb .lb-test { font-size: 15px; line-height: 1.35; }
+  .labcard { padding: 10px 10px 10px 12px; }
+  body { font-size: 15px; }
+  .clamp { font-size: 13.5px; }
+}
 </style>
 
 <div class="page">
@@ -1004,7 +1024,7 @@ h4.pd-h { font-size: 16px; }
       <h1>Cellar Target Calendar</h1>
       <p class="sub" id="sub">Every wine on one page.</p>
     </div>
-    <div class="top-btns"><button type="button" class="btn sync primary" id="newWoBtn" title="Write a new work order into Excellovint">+ Work order</button>
+    <div class="top-btns"><a class="btn sync" href="/settings" title="Settings: house notes, chat log, sign out" aria-label="Settings" style="flex:0 0 auto;text-decoration:none;color:inherit">&#9881;&#xFE0E;</a><button type="button" class="btn sync primary" id="newWoBtn" title="Write a new work order into Excellovint">+ Work order</button>
 <button type="button" class="btn sync" id="syncBtn" data-sheet="refresh" title="Read Excellovint now">&#8635; Sync</button></div>
   </header>
 

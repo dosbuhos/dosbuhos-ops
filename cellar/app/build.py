@@ -11,9 +11,9 @@ out.mkdir(exist_ok=True)
 body = src.read_text(encoding="utf-8")
 if src != here / "cellar-targets.html":
     shutil.copyfile(src, here / "cellar-targets.html")
-head = ('<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n'
+head = ('<!doctype html>\n<html lang="es" data-theme="light">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
-        '<meta name="robots" content="noindex">\n<meta name="theme-color" content="#f6f3ee">\n'
+        '<meta name="robots" content="noindex">\n<meta name="theme-color" content="#5c1f33">\n<meta name="color-scheme" content="light">\n'
         '<script src="/web-shim.js"></script>\n')
 i = body.find("<style")  # artifact puts <title>, metas and fonts first; keep them in <head>
 page = head + body[:i] + body[i:] if i >= 0 else head + body

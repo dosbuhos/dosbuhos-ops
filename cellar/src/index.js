@@ -3,14 +3,16 @@
 import { handleAuth, loginPage, sessionEmail, isViewer, initialsFor } from './google.js';
 import { sheetsTool } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
-import { xlRoute } from './xl.js';
+import { xlRoute, sync } from './xl.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
 const ID = /^[\w.\-]{1,120}$/;
 
 export default {
-  async fetch(request, env) {
+  // Every 5 minutes: copy whatever changed in Excellovint into the app's records.
+  async scheduled(event, env, ctx) { if (env.GOOGLE_SA_JSON) ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); },
+  async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     // PUBLIC="1" (for now): no sign-in, everyone can view and edit. Set PUBLIC to "0" and add the Google secrets to require login.
@@ -30,7 +32,11 @@ export default {
         return J(r.body, r.status);
       }
       if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, url.searchParams.get('conv') || '') });
-      if (p.startsWith('/api/xl/')) { const r = await xlRoute(request, env, p, url, initials === 'EM' && !open); return J(r.body, r.status); }
+      if (p.startsWith('/api/xl/')) { const r = await xlRoute(request, env, p, url, { initials, canWrite }); return J(r.body, r.status); }
+      if (p === '/api/chats') {
+        const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' ORDER BY updated_at DESC LIMIT 600").all();
+        return J({ messages: results.map(r => JSON.parse(r.data)) });
+      }
       if (p === '/api/notes' && request.method === 'GET') return J(await houseNotes(env));
       if (p === '/api/notes' && request.method === 'PUT') {
         if (!canWrite) return J({ message: 'Read-only access.' }, 403);
@@ -44,6 +50,11 @@ export default {
         const { tool, args } = await request.json();
         if (!canWrite && !/^get_/.test(tool)) return J({ code: 'tool_error', message: 'Read-only access.' }, 403);
         const r = await sheetsTool(env, tool, args || {});
+        // A write from the calendar page: mirror that tab into the app's records right away.
+        if (r.status === 200 && tool === 'update_values' && args && args.range) {
+          const m = String(args.range).match(/^'((?:[^']|'')+)'!/);
+          if (m && /^L\d/i.test(m[1])) ctx.waitUntil(sync(env, [m[1].replace(/''/g, "'")]).catch(() => {}));
+        }
         return J(r.body, r.status);
       }
       if (p === '/api/ai' && request.method === 'POST') return await ai(request, env);

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<title>Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f3ef;--paper:#fffefb;--ink:#1f2426;--muted:#5d6568;--rule:#dcd9d1;--wine:#5c1f33;--wine-soft:#f2e5e8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--wine);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px}
+header h1{margin:0;flex:1;font:700 24px "Barlow Condensed",sans-serif;letter-spacing:.04em;text-transform:uppercase}
+header a{color:#fff;font-size:14px}
+main{max-width:760px;margin:0 auto;padding:16px 16px 60px}
+section{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;margin:0 0 16px}
+h2{margin:0 0 4px;font:700 20px "Barlow Condensed",sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--wine)}
+.sub{margin:0 0 12px;color:var(--muted);font-size:14px}
+.note{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--rule)}
+.note:first-of-type{border-top:0}
+.note textarea{flex:1;border:1px solid transparent;background:transparent;border-radius:8px;padding:6px 8px;font:inherit;resize:vertical;min-height:44px;color:inherit}
+.note textarea:focus{border-color:var(--rule);background:#fff;outline:none}
+.note small{display:block;color:var(--muted);font:12px "IBM Plex Mono",monospace;margin:2px 8px 0}
+.x{border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px}
+.btn{border:1px solid var(--rule);background:#fff;border-radius:9px;padding:8px 14px;font:600 15px inherit;font-family:inherit;cursor:pointer;color:var(--ink)}
+.btn.primary{background:var(--wine);border-color:var(--wine);color:#fff}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;align-items:center}
+.row span{color:var(--muted);font-size:14px;margin-right:auto}
+.add{display:flex;gap:8px;margin-top:10px}
+.add textarea{flex:1;border:1px solid var(--rule);border-radius:8px;padding:8px;font:inherit;min-height:44px;background:#fff}
+details{border-top:1px solid var(--rule);padding:10px 0}
+details:first-of-type{border-top:0}
+summary{cursor:pointer;display:flex;gap:10px;align-items:baseline;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space:nowrap}
+.m{margin:8px 0;padding:8px 10px;border-radius:10px;font-size:15px;white-space:pre-wrap;word-wrap:break-word}
+.m.user{background:var(--wine-soft)}
+.m.assistant{background:var(--bg)}
+.m em{display:block;font:normal 11.5px "IBM Plex Mono",monospace;color:var(--muted);margin-bottom:2px}
+.search{width:100%;border:1px solid var(--rule);border-radius:999px;padding:8px 14px;font:inherit;background:#fff;margin-bottom:8px}
+.empty{color:var(--muted);text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header><h1>Settings</h1><a href="/">← Calendar</a></header>
+<main>
+  <section>
+    <h2>House notes</h2>
+    <p class="sub">Rules and decisions the chat always follows. The chat adds to this when you say “remember that…”.</p>
+    <div id="notes"><div class="empty">Loading…</div></div>
+    <div class="add"><textarea id="newNote" placeholder="Add a rule or decision…"></textarea></div>
+    <div class="row"><span id="saved"></span><button class="btn primary" id="saveNotes">Save notes</button></div>
+  </section>
+  <section>
+    <h2>Chat log</h2>
+    <p class="sub">Every conversation with Claude in this app, newest first.</p>
+    <input class="search" id="q" type="search" placeholder="Search chats">
+    <div id="chats"><div class="empty">Loading…</div></div>
+  </section>
+  <section>
+    <h2>Account</h2>
+    <p class="sub" id="me">…</p>
+    <a class="btn" href="/auth/salir">Sign out</a>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const when = iso => iso ? new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  let notes = [], convs = [];
+  function drawNotes() {
+    $('#notes').innerHTML = notes.length ? notes.map((n, i) => `<div class="note"><div style="flex:1"><textarea data-i="${i}" rows="2">${esc(n.text)}</textarea><small>${esc(n.by || '')} · ${when(n.at)}</small></div><button class="x" data-del="${i}" aria-label="Delete">×</button></div>`).join('') : '<div class="empty">No notes yet.</div>';
+    $('#notes').querySelectorAll('textarea').forEach(t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; t.oninput = () => { notes[+t.dataset.i].text = t.value; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; $('#saved').textContent = 'Unsaved changes'; }; });
+  }
+  function drawChats() {
+    const q = $('#q').value.trim().toLowerCase();
+    const list = convs.filter(c => !q || c.msgs.some(m => String(m.text).toLowerCase().includes(q)));
+    $('#chats').innerHTML = list.length ? list.map(c => `<details><summary><b>${esc(c.msgs[0].text)}</b><small>${esc(c.msgs[0].who)} · ${when(c.last)}</small></summary>${c.msgs.map(m => `<div class="m ${m.role}"><em>${m.role === 'user' ? esc(m.who) : 'Claude'} · ${when(m.at)}</em>${esc(m.text)}</div>`).join('')}</details>`).join('') : '<div class="empty">No chats yet.</div>';
+  }
+  document.addEventListener('click', e => {
+    const d = e.target.closest('[data-del]'); if (d) { notes.splice(+d.dataset.del, 1); drawNotes(); $('#saved').textContent = 'Unsaved changes'; }
+  });
+  $('#saveNotes').onclick = async () => {
+    const extra = $('#newNote').value.trim(); if (extra) notes.push({ text: extra });
+    const r = await fetch('/api/notes', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: notes.filter(n => String(n.text).trim()) }) });
+    $('#saved').textContent = r.ok ? 'Saved ✓' : 'Couldn’t save'; $('#newNote').value = '';
+    notes = (await (await fetch('/api/notes')).json()).lines || []; drawNotes();
+  };
+  $('#q').oninput = drawChats;
+  (async () => {
+    const [n, c, me] = await Promise.all([fetch('/api/notes').then(r => r.json()), fetch('/api/chats').then(r => r.json()), fetch('/api/me').then(r => r.json())]);
+    notes = n.lines || []; drawNotes();
+    const by = {};
+    for (const m of (c.messages || [])) (by[m.conv] = by[m.conv] || []).push(m);
+    convs = Object.values(by).map(msgs => { msgs.sort((a, b) => String(a.at).localeCompare(String(b.at))); return { msgs, last: msgs[msgs.length - 1].at }; }).sort((a, b) => String(b.last).localeCompare(String(a.last)));
+    drawChats();
+    $('#me').textContent = 'Signed in as ' + (me.email || '?') + (me.initials ? ' (' + me.initials + ')' : '');
+  })();
+})();
+</script>
+</body>
+</html>

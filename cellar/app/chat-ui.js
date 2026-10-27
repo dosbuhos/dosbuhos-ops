@@ -3,7 +3,7 @@
   const css = `
   .cc-fab{position:fixed;right:18px;bottom:18px;z-index:9000;width:56px;height:56px;border-radius:50%;border:0;background:#5c1f33;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;display:flex;align-items:center;justify-content:center}
   .cc-fab svg{width:26px;height:26px}
-  @media (max-width:760px){.cc-fab{bottom:84px;right:14px}}
+  @media (max-width:760px){.cc-fab{bottom:80px;right:12px;width:48px;height:48px}.cc-fab svg{width:22px;height:22px}}
   .cc-panel{position:fixed;right:18px;bottom:86px;z-index:9001;width:min(440px,calc(100vw - 24px));height:min(640px,calc(100vh - 110px));background:#fffdf9;color:#1f1d1b;border:1px solid #d9d0c4;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;font:15px/1.45 "IBM Plex Sans",-apple-system,Segoe UI,Roboto,sans-serif}
   /* Phones: a bottom sheet over the lower part of the screen so the calendar stays visible above it; Expand for full screen. */
   @media (max-width:760px){
@@ -20,7 +20,7 @@
   .cc-panel[hidden]{display:none}
   .cc-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#5c1f33;color:#fff}
   .cc-head b{flex:1;font-family:"Barlow Condensed",sans-serif;letter-spacing:.04em;font-size:18px;text-transform:uppercase}
-  .cc-head button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:4px 9px;cursor:pointer;font:inherit;font-size:13px}
+  .cc-head button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;font:inherit;font-size:13px;white-space:nowrap;flex:0 0 auto}
   .cc-log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
   .cc-m{max-width:88%;padding:8px 11px;border-radius:12px;white-space:normal;word-wrap:break-word}
   .cc-m p{margin:0 0 6px}.cc-m p:last-child{margin:0}
@@ -50,7 +50,7 @@
   fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
   const panel = document.createElement('div');
   panel.className = 'cc-panel'; panel.hidden = true;
-  panel.innerHTML = `<div class="cc-head"><span class="cc-grip"></span><b>Claude</b><button type="button" data-a="size">Expand</button><button type="button" data-a="notes">Notes</button><button type="button" data-a="new">New chat</button><button type="button" data-a="close">✕</button></div>
+  panel.innerHTML = `<div class="cc-head"><span class="cc-grip"></span><b>Claude</b><button type="button" data-a="size">Expand</button><button type="button" data-a="new">New chat</button><button type="button" data-a="close">✕</button></div>
     <div class="cc-log" id="ccLog"></div>
     <div class="cc-notes" id="ccNotes" hidden><small>House notes: rules and decisions the chat always follows. One per line.</small><textarea id="ccNotesTa"></textarea><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-a="notesBack">Back</button><button type="button" class="btn primary" data-a="notesSave">Save</button></div></div>
     <form class="cc-in" id="ccForm"><textarea id="ccTa" rows="2" placeholder="Ask, or: “orden urgente para Paris mañana: …”"></textarea><button type="submit" id="ccSend">Send</button></form>`;

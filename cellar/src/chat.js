@@ -1,6 +1,7 @@
 // In-app chat: Claude with tools over Excellovint (Google Sheets) and the app database (D1).
 // Every message is saved in D1 (coll "chatlog"); standing rules live in coll "housenotes", doc "main".
 import { accessToken } from './sheets.js';
+import { sync } from './xl.js';
 
 const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets/';
 const q = (tab) => "'" + String(tab).replace(/'/g, "''") + "'";
@@ -104,6 +105,7 @@ async function runTool(env, ctx, name, a) {
     if (m.asig != null) row[m.asig] = String(a.asig).toUpperCase();
     await gs(env, '/values/' + encodeURIComponent(q(a.tab) + '!A' + rowNum + ':' + colLetter(width - 1) + rowNum) + '?valueInputOption=USER_ENTERED', { method: 'PUT', body: JSON.stringify({ values: [row] }) });
     ctx.changed = true;
+    try { await sync(env, [a.tab]); } catch (e) {}
     return { ok: true, tab: a.tab, row: rowNum };
   }
   if (name === 'update_row') {
@@ -118,6 +120,7 @@ async function runTool(env, ctx, name, a) {
     }
     await gs(env, '/values:batchUpdate', { method: 'POST', body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }) });
     ctx.changed = true;
+    try { await sync(env, [a.tab]); } catch (e) {}
     return { ok: true, before: rowObj(hm, v[a.row - 1] || [], a.row) };
   }
   if (name === 'calendar_tasks') {

@@ -4,6 +4,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Pull changes from Excellovint into the app's records every 5 minutes.
+  "triggers": { "crons": ["*/5 * * * *"] },
   // Every request goes through the Worker first so the page itself sits behind Google sign-in.
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   "d1_databases": [
