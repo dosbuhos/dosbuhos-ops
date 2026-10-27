@@ -27,7 +27,7 @@
   bar.className = 'mbar';
   bar.innerHTML = `<h1 id="mbarTitle">Today</h1>
     <button type="button" class="ib q" data-m="search" aria-label="Search" aria-pressed="false">${I.search}</button>
-    <button type="button" class="ib add" data-m="add" aria-label="New work order">${I.plus}</button>
+    <button type="button" class="ib m-new" data-m="add" aria-label="New work order">${I.plus}</button>
     <button type="button" class="ib" data-m="sync" aria-label="Sync with Excellovint">${I.sync}</button>
     <a class="ib cart" href="/purchases" aria-label="Compras (purchases list)">${I.cart}<b class="m-badge" hidden></b></a>
     <a class="ib" href="/settings" aria-label="Settings">${I.gear}</a>`;
