@@ -4086,6 +4086,7 @@ Return ONLY JSON with this shape:
       if (!rows.length) h += `<p class="d-note">No entries yet.</p>`;
       else {
         // One block per entry: dark header (date · vessel · status), readings in one row, then the text. No sideways scrolling.
+        const cellStr = v => String(v == null ? "" : v).trim();
         const RK = [["volf", "Vol L"], ["ph", "pH"], ["bx", "Bx"], ["tp", "°C"], ["at", "AT"], ["am", "Málico"], ["sl", "SO₂ L"], ["st", "SO₂ T"], ["aa", "AV"]];
         h += `<div class="xlog">`;
         for (const r of rows) {
