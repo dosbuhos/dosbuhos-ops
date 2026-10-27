@@ -19,7 +19,7 @@
   const $ = s => document.querySelector(s);
   const mq = window.matchMedia('(max-width: 760px)');
   const TITLES = { weeks: 'Today', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
-  const SEARCH = { wines: '#q', protocols: '.pl-q', blends: '#blSearch' };
+  const SEARCH = { protocols: '.pl-q' }; // Wines and Trials have their own search + Filtros bar (below)
   const html = document.documentElement;
 
   // ---- App bar ----
@@ -141,6 +141,85 @@
   }
 
   // ---- Hide the nav while a sheet or the wine card is open ----
+
+  // ---- Filter bar (phones): search + "Filtros" button with a count + removable chips; every option lives in one bottom sheet. ----
+  if (mq.matches) (function () {
+    const FI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>';
+    const sheet = document.createElement('div'); sheet.className = 'mf-ov'; sheet.hidden = true;
+    sheet.innerHTML = '<div class="mf-sheet" role="dialog" aria-label="Filtros"><div class="mf-head"><b>Filtros</b><button type="button" class="mf-reset">Quitar todos</button></div><div class="mf-body"></div><div class="mf-foot"><button type="button" class="mf-done">Listo</button></div></div>';
+    document.body.appendChild(sheet);
+    const body = sheet.querySelector('.mf-body');
+    let cur = null;
+    const close = () => { sheet.hidden = true; html.classList.remove('m-modal'); };
+    sheet.addEventListener('click', e => { if (e.target === sheet || e.target.closest('.mf-done')) close(); if (e.target.closest('.mf-reset') && cur) { cur.reset(); refreshAll(); } });
+    const views = [];
+    function make(cfg) {
+      // cfg: { anchor (insert bar before), search (input), sections: [[title, el]], chips() -> [{label, clear}], reset() }
+      if (!cfg.anchor || !cfg.search) return;
+      const bar = document.createElement('div'); bar.className = 'mf-bar';
+      bar.innerHTML = `<div class="mf-search">${I.search}</div><button type="button" class="mf-btn">${FI}<span>Filtros</span><b class="mf-n" hidden></b></button>`;
+      bar.querySelector('.mf-search').appendChild(cfg.search);
+      const chips = document.createElement('div'); chips.className = 'mf-chips';
+      cfg.anchor.parentNode.insertBefore(bar, cfg.anchor); bar.after(chips);
+      const panel = document.createElement('div'); panel.className = 'mf-panel'; panel.hidden = true;
+      for (const [t, el] of cfg.sections) { if (!el) continue; const sec = document.createElement('section'); sec.innerHTML = `<h4>${t}</h4>`; sec.appendChild(el); panel.appendChild(sec); }
+      body.appendChild(panel);
+      const v = Object.assign({ bar, chips, panel }, cfg);
+      v.refresh = () => {
+        const list = cfg.chips();
+        chips.innerHTML = list.map((c, i) => `<button type="button" class="mf-chip" data-i="${i}">${c.label}<span aria-hidden="true">×</span></button>`).join('');
+        chips.hidden = !list.length;
+        const n = bar.querySelector('.mf-n'); n.textContent = list.length; n.hidden = !list.length;
+        chips._list = list;
+      };
+      chips.addEventListener('click', e => { const b = e.target.closest('.mf-chip'); if (b) { chips._list[+b.dataset.i].clear(); setTimeout(refreshAll, 30); } });
+      bar.querySelector('.mf-btn').addEventListener('click', () => { cur = v; body.querySelectorAll('.mf-panel').forEach(p => p.hidden = p !== panel); sheet.hidden = false; html.classList.add('m-modal'); });
+      new MutationObserver(() => setTimeout(v.refresh, 0)).observe(panel, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed'] });
+      panel.addEventListener('change', () => setTimeout(v.refresh, 0));
+      views.push(v); v.refresh();
+    }
+    function refreshAll() { views.forEach(v => v.refresh()); }
+    const txt = el => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+    const press = sel => { const b = document.querySelector(sel); if (b) b.click(); };
+
+    // Wines
+    const sortLbl = document.querySelector('#wineCtl .sortsel');
+    make({
+      anchor: document.getElementById('stats'), search: document.getElementById('q'),
+      sections: [['Tipo de vino', document.getElementById('groups')], ['Mostrar solo', document.getElementById('stats')], ['Ordenar', sortLbl]],
+      chips: () => {
+        const out = [];
+        const g = document.querySelector('#groups [aria-pressed="true"]'); if (g && g.dataset.group && g.dataset.group !== 'all') out.push({ label: txt(g), clear: () => press('#groups [data-group="all"]') });
+        const q = document.querySelector('#stats [aria-pressed="true"]'); if (q) out.push({ label: txt(q), clear: () => q.click() });
+        const so = document.getElementById('sortSel'); if (so && so.selectedIndex > 0) out.push({ label: 'Orden: ' + txt(so.options[so.selectedIndex]), clear: () => { so.selectedIndex = 0; so.dispatchEvent(new Event('change', { bubbles: true })); } });
+        return out;
+      },
+      reset() { press('#groups [data-group="all"]'); const q = document.querySelector('#stats [aria-pressed="true"]'); if (q) q.click(); const so = document.getElementById('sortSel'); if (so && so.selectedIndex > 0) { so.selectedIndex = 0; so.dispatchEvent(new Event('change', { bubbles: true })); } }
+    });
+    // Trials
+    const blf = document.querySelector('.bl-filter');
+    if (blf) {
+      const segs = blf.querySelectorAll('.seg');
+      const holder = document.createElement('div'); holder.className = 'bl-filter mf-blf'; // keeps the page's own click handler (it listens on .bl-filter)
+      blf.parentNode.insertBefore(holder, blf);
+      make({
+        anchor: blf, search: document.getElementById('blSearch'),
+        sections: [['Tipo de prueba', segs[0]], ['Vino', segs[1]], ['Estado', document.getElementById('blStatus')]],
+        chips: () => {
+          const out = [];
+          const k = blf.ownerDocument.querySelector('[data-blk][aria-pressed="true"]'); if (k && k.dataset.blk) out.push({ label: txt(k), clear: () => press('[data-blk=""]') });
+          const g = document.querySelector('[data-blg][aria-pressed="true"]'); if (g && g.dataset.blg) out.push({ label: txt(g), clear: () => press('[data-blg=""]') });
+          const st = document.getElementById('blStatus'); if (st && st.value) out.push({ label: txt(st.options[st.selectedIndex]), clear: () => { st.value = ''; st.dispatchEvent(new Event('change', { bubbles: true })); } });
+          return out;
+        },
+        reset() { press('[data-blk=""]'); press('[data-blg=""]'); const st = document.getElementById('blStatus'); if (st && st.value) { st.value = ''; st.dispatchEvent(new Event('change', { bubbles: true })); } }
+      });
+      // The moved chip rows must still reach the page's .bl-filter click handler: forward clicks.
+      const v = views[views.length - 1];
+      v.panel.addEventListener('click', e => { const b = e.target.closest('[data-blk],[data-blg]'); if (b) { e.stopPropagation(); const ev = new MouseEvent('click', { bubbles: true }); blf.dispatchEvent(Object.defineProperty(ev, 'target', { value: b })); } });
+      blf.classList.add('mf-left'); holder.remove();
+    }
+  })();
   const modals = ['editor', 'xoSheet', 'woSheet', 'copySheet', 'tempSheet', 'crewSheet', 'drawer', 'diagSheet'].map(id => document.getElementById(id)).filter(Boolean);
   const checkModal = () => html.classList.toggle('m-modal', modals.some(m => !m.hidden));
   modals.forEach(m => new MutationObserver(checkModal).observe(m, { attributes: true, attributeFilter: ['hidden'] }));
