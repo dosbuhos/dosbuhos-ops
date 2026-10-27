@@ -32,6 +32,11 @@
   .cc-in textarea{flex:1;resize:none;border:1px solid #cfc6bb;border-radius:10px;padding:8px 10px;font:inherit;max-height:140px}
   .cc-in button{border:0;background:#5c1f33;color:#fff;border-radius:10px;padding:0 14px;font:inherit;font-weight:600;cursor:pointer}
   .cc-in button:disabled{opacity:.5}
+  .cc-in .cc-mic{background:#fff;color:#5c1f33;border:1.5px solid #5c1f33;padding:0;width:46px;display:flex;align-items:center;justify-content:center}
+  .cc-in .cc-mic svg{width:22px;height:22px}
+  .cc-in .cc-mic.on{background:#b3261e;border-color:#b3261e;color:#fff;animation:ccpulse 1.2s infinite}
+  @keyframes ccpulse{50%{box-shadow:0 0 0 6px rgba(179,38,30,.2)}}
+  .cc-in .cc-lang{background:transparent;color:#5c1f33;border:1px solid #d9d0c4;padding:0 8px;font-size:12px;font-weight:700}
   .cc-notes{flex:1;display:flex;flex-direction:column;padding:12px;gap:8px}
   .cc-notes textarea{flex:1;border:1px solid #cfc6bb;border-radius:10px;padding:10px;font:14px/1.5 inherit}
   .cc-notes small{color:#6b6560}
@@ -53,7 +58,7 @@
   panel.innerHTML = `<div class="cc-head"><span class="cc-grip"></span><b>Claude</b><button type="button" data-a="size">Expand</button><button type="button" data-a="new">New chat</button><button type="button" data-a="close">✕</button></div>
     <div class="cc-log" id="ccLog"></div>
     <div class="cc-notes" id="ccNotes" hidden><small>House notes: rules and decisions the chat always follows. One per line.</small><textarea id="ccNotesTa"></textarea><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-a="notesBack">Back</button><button type="button" class="btn primary" data-a="notesSave">Save</button></div></div>
-    <form class="cc-in" id="ccForm"><textarea id="ccTa" rows="2" placeholder="Ask, or: “orden urgente para Paris mañana: …”"></textarea><button type="submit" id="ccSend">Send</button></form>`;
+    <form class="cc-in" id="ccForm"><button type="button" class="cc-mic" id="ccMic" title="Hablar / Speak" aria-label="Dictate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button type="button" class="cc-lang" id="ccLang" title="Dictation language">EN</button><textarea id="ccTa" rows="2" placeholder="Ask, or: “orden urgente para Paris mañana: …”"></textarea><button type="submit" id="ccSend">Send</button></form>`;
   document.body.appendChild(fab); document.body.appendChild(panel);
   const log = panel.querySelector('#ccLog'), ta = panel.querySelector('#ccTa'), send = panel.querySelector('#ccSend');
 
@@ -89,6 +94,28 @@
       log.hidden = false; panel.querySelector('#ccForm').hidden = false; panel.querySelector('#ccNotes').hidden = true;
     }
   });
+  // Dictation: browser speech recognition (Chrome on Android/desktop, Safari). Tap the mic to start/stop; EN/ES toggles the language.
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = panel.querySelector('#ccMic'), langBtn = panel.querySelector('#ccLang');
+  let lang = get('cc.lang') || 'EN'; langBtn.textContent = lang;
+  langBtn.addEventListener('click', () => { lang = lang === 'EN' ? 'ES' : 'EN'; set('cc.lang', lang); langBtn.textContent = lang; if (rec) { rec.stop(); } });
+  let rec = null;
+  if (!SR) { micBtn.hidden = true; langBtn.hidden = true; }
+  micBtn.addEventListener('click', () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = lang === 'ES' ? 'es-MX' : 'en-US'; rec.continuous = true; rec.interimResults = true;
+    const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+    let finalTxt = '';
+    rec.onresult = ev => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) finalTxt += t; else interim += t; }
+      ta.value = base + finalTxt + interim;
+    };
+    rec.onend = () => { rec = null; micBtn.classList.remove('on'); ta.focus(); };
+    rec.onerror = ev => { if (ev.error === 'not-allowed') add('assistant', 'Allow the microphone for this site in your browser to use dictation.'); };
+    micBtn.classList.add('on'); rec.start();
+  });
+  panel.querySelector('#ccForm').addEventListener('submit', () => { if (rec) rec.stop(); }, true);
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); panel.querySelector('#ccForm').requestSubmit(); } });
   panel.querySelector('#ccForm').addEventListener('submit', async e => {
     e.preventDefault();

@@ -1053,7 +1053,7 @@ h4.pd-h { font-size: 16px; }
     <button type="button" role="tab" id="tabLabs" data-view="labs" aria-selected="false" aria-controls="labsView">Labs</button>
     <button type="button" role="tab" id="tabBlends" data-view="blends" aria-selected="false" aria-controls="blendsView">Blends</button>
     <button type="button" role="tab" id="tabProto" data-view="protocols" aria-selected="false" aria-controls="protoView">Protocols</button>
-    <button type="button" role="tab" id="tabLearn" data-view="learn" aria-selected="false" aria-controls="learnView">Learn</button>
+    <button type="button" role="tab" id="tabLearn" onclick="location.href='/db'" aria-selected="false" title="Open work orders and lot records (Excellovint, side by side)">Work orders</button>
     <button type="button" role="tab" id="tabAudit" data-view="audit" aria-selected="false" aria-controls="auditView">Audit</button>
   </nav>
 
@@ -1085,7 +1085,7 @@ h4.pd-h { font-size: 16px; }
     <button type="button" data-view="wines"><span aria-hidden="true">🍷</span>Wines</button>
     <button type="button" data-view="labs"><span aria-hidden="true">⚗</span>Labs</button>
     <button type="button" data-view="protocols"><span aria-hidden="true">📋</span>Protocols</button>
-    <button type="button" data-view="learn"><span aria-hidden="true">📖</span>Learn</button>
+    <button type="button" onclick="location.href='/db'"><span aria-hidden="true">🗂</span>Órdenes</button>
   </nav>
   <div class="status" id="status" hidden></div>
   <div class="diag-back" id="diagSheet" hidden><div class="diag" role="dialog" aria-modal="true" aria-labelledby="diagTitle"><h2 id="diagTitle">Access check</h2><div id="diagBody"></div><div class="diag-btns"><button type="button" class="btn" id="diagClose">Close</button></div></div></div>
