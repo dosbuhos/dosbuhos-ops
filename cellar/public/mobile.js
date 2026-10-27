@@ -89,7 +89,7 @@
   function decorateAsg() {
     document.querySelectorAll('#asgView .asg-row:not(.asg-head):not(.m-dec)').forEach(row => {
       row.classList.add('m-dec');
-      const pri = row.querySelector('select.asg-pri'), asig = row.querySelector('select[data-asgasig]'), st = row.querySelector('select.asg-st');
+      const pri = row.querySelector('select.asg-pri'), asig = row.querySelector('.asg-who'), st = row.querySelector('select.asg-st');
       const p = pri ? pri.value : '';
       if (p === 'URGENT') row.classList.add('m-urgent'); else if (p === 'HIGH') row.classList.add('m-high');
       // Date → calendar tile (month band, big day, weekday or days overdue).
@@ -141,7 +141,7 @@
   }
 
   // ---- Hide the nav while a sheet or the wine card is open ----
-  const modals = ['editor', 'woSheet', 'copySheet', 'tempSheet', 'crewSheet', 'drawer', 'diagSheet'].map(id => document.getElementById(id)).filter(Boolean);
+  const modals = ['editor', 'xoSheet', 'woSheet', 'copySheet', 'tempSheet', 'crewSheet', 'drawer', 'diagSheet'].map(id => document.getElementById(id)).filter(Boolean);
   const checkModal = () => html.classList.toggle('m-modal', modals.some(m => !m.hidden));
   modals.forEach(m => new MutationObserver(checkModal).observe(m, { attributes: true, attributeFilter: ['hidden'] }));
   checkModal();

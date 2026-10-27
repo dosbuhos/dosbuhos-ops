@@ -743,6 +743,21 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .spark { display: block; margin-top: 4px; max-width: 100%; height: auto; }
 .wk-h { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .tasklist { display: flex; flex-direction: column; gap: 4px; }
+/* Crew picker: tap one or two people */
+.crewpick { display: flex; flex-wrap: wrap; gap: 6px; }
+.crewpick .cp { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 500 14px var(--f-body); cursor: pointer; }
+.crewpick .cp[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.crewpick .cp.legacy { border-style: dashed; }
+.asg-row .asg-edit { width: 30px; height: 30px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.asg-row .asg-edit svg { width: 16px; height: 16px; }
+.asg-row .asg-who { width: 100%; text-align: left; font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--rule); background: var(--paper); color: inherit; cursor: pointer; }
+.asg-row.asg-head span:nth-child(5)::after { content: ""; }
+.xo-where { font: 13px var(--f-mono); color: var(--muted); margin: -6px 0 4px; }
+.xo-pri { display: flex; gap: 4px; }
+.xo-pri button { flex: 1; min-height: 40px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font: 600 14px var(--f-body); color: var(--muted); cursor: pointer; }
+.xo-pri button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.xo-pri button[data-p="HIGH"][aria-pressed="true"] { background: #8f6200; border-color: #8f6200; }
+.xo-pri button[data-p="URGENT"][aria-pressed="true"] { background: #b3261e; border-color: #b3261e; }
 /* Production | Cellar switch at the top of Wines */
 .wmode { display: inline-flex; gap: 0; margin: 0 0 10px; padding: 3px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); }
 .wmode button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--f-body); padding: 7px 18px; border-radius: 999px; cursor: pointer; }
@@ -1017,7 +1032,8 @@ h4.pd-h { font-size: 16px; }
   .asg-row .asg-txt { font-size: 15px; line-height: 1.4; border: 0; background: transparent; padding: 0; resize: none; width: 100%; }
   .asg-row .asg-pri { order: 3; }
   .asg-row .asg-st { order: 4; }
-  .asg-row select[data-asgasig] { display: none; }
+  .asg-row .asg-who { display: none; }
+  .asg-row .asg-edit { order: 1; justify-self: end; }
   .asg-row select { font-size: 15px !important; padding: 9px 8px !important; }
   .asg-row.is-over { border-left: 4px solid #b3261e; }
 }
@@ -1214,7 +1230,7 @@ h4.pd-h { font-size: 16px; }
     </div>
     <div class="field" id="edAsigWrap">
       <label for="edAsig" id="edAsigLbl">Assign to (adds a work order in Excellovint)</label>
-      <select id="edAsig"></select>
+      <div id="edAsig"></div>
     </div>
     <div class="err" id="edErr" role="alert"></div>
     <div class="actions">
@@ -1225,6 +1241,23 @@ h4.pd-h { font-size: 16px; }
         <button type="submit" class="btn primary" id="edSave">Save</button>
       </div>
     </div>
+  </form>
+</div>
+
+<div class="overlay" id="xoSheet" hidden>
+  <form class="sheet" id="xoForm" novalidate>
+    <h2 id="xoTitle">Work order</h2>
+    <div class="xo-where" id="xoWhere"></div>
+    <div class="field"><label for="xoText">Acción (what to do)</label><textarea id="xoText" maxlength="1200" required rows="5"></textarea></div>
+    <div class="row2">
+      <div class="field"><label for="xoDate">Fecha</label><input id="xoDate" type="date"></div>
+      <div class="field"><label for="xoUbi">UBI (vessel)</label><input id="xoUbi" type="text" placeholder="BBL 101, TK-01…"></div>
+    </div>
+    <div class="field"><label>Prioridad</label><div class="seg xo-pri" id="xoPri" role="group"><button type="button" data-p="NORMAL">Normal</button><button type="button" data-p="HIGH">High</button><button type="button" data-p="URGENT">Urgent</button></div></div>
+    <div class="field"><label>Asignar a <span class="ed-hint">tap one or two people</span></label><div id="xoAsig"></div></div>
+    <div class="field"><label for="xoSt">Estado</label><select id="xoSt"><option value="open">Open</option><option value="done">Done</option><option value="roll">Roll over → tomorrow</option><option value="xx">Cancel (XX)</option></select></div>
+    <div class="err" id="xoErr" role="alert"></div>
+    <div class="actions"><span></span><div class="right"><button type="button" class="btn" id="xoCancel">Cancel</button><button type="submit" class="btn primary" id="xoSave">Save to Excellovint</button></div></div>
   </form>
 </div>
 
@@ -2904,9 +2937,10 @@ Return ONLY JSON with this shape:
     if (fromCache && !(S.woCache && Array.isArray(S.woCache.rows))) { el.innerHTML = `<div class="empty"><strong>${S.mcp && S.sheet.mode === "loading" ? "Reading Excellovint…" : "Google Sheets isn't connected for you yet"}</strong>The assigned work orders come straight from Excellovint, using your own Google account.<br><button type="button" class="btn primary" data-sheet="diag" style="margin-top:10px">Fix access</button></div>`; return; }
     const all = asgRows();
     const closed = r => !!r.ini;
-    const people = [...new Set(all.map(r => r.asig || "—"))].sort((a, b) => a === "—" ? 1 : b === "—" ? -1 : a.localeCompare(b));
+    const toks = r => { const t = asigTokens(r.asig).map(canonTag); return t.length ? t : ["—"]; };
+    const people = [...new Set(all.flatMap(toks))].sort((a, b) => a === "—" ? 1 : b === "—" ? -1 : crewName(a).localeCompare(crewName(b)));
     if (S.asgWho && !people.includes(S.asgWho)) S.asgWho = "";
-    const mine = r => !S.asgWho || (r.asig || "—") === S.asgWho;
+    const mine = r => !S.asgWho || toks(r).includes(S.asgWho);
     const rows = all.filter(r => mine(r) && !closed(r));
     const closedToday = all.filter(r => mine(r) && closed(r) && r.date === todayISO);
     const priRank = p => p === "URGENT" ? 0 : p === "HIGH" ? 1 : 2;
@@ -2914,7 +2948,7 @@ Return ONLY JSON with this shape:
     const queued = (S.woQueue || []).filter(q => q.status === "pending").length;
     const open = all.filter(r => !closed(r)).length;
     let h = `<div class="asg-top"><span class="seg who" role="group" aria-label="Who">` +
-      [["", "Everyone"]].concat(people.map(p => [p, p === "—" ? "Unassigned" : p])).map(([k, l]) => `<button type="button" class="ghost" data-asgwho="${esc(k)}" aria-pressed="${S.asgWho === k}">${esc(l)}</button>`).join("") +
+      [["", "Everyone"]].concat(people.map(p => [p, p === "—" ? "Unassigned" : crewName(p)])).map(([k, l]) => `<button type="button" class="ghost" data-asgwho="${esc(k)}" aria-pressed="${S.asgWho === k}">${esc(l)}</button>`).join("") +
       `</span>` +
       `<button type="button" class="ghost" id="asgRefresh">Refresh from Excellovint</button></div>` +
       `<p class="asg-note">${open} open · same rows as Today's Work Orders (today + open backlog, never future). ${fromCache
@@ -2931,20 +2965,22 @@ Return ONLY JSON with this shape:
         h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}">` +
           `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
           `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
+          (dis ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Edit work order" title="Edit this work order">${EDIT_ICON}</button>`) +
           `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${dis}>${esc(r.note)}</textarea></span>` +
           `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${dis}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
-          `<select data-asgasig="1" aria-label="Assigned to"${dis}><option value=""${r.asig ? "" : " selected"}>${r.asig ? "Unassign" : "—"}</option>${asigOpts.map(i => `<option${i === r.asig ? " selected" : ""}>${esc(i)}</option>`).join("")}</select>` +
+          `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${dis ? " disabled" : ""}>${esc(asigLabel(r.asig) || "—")}</button>` +
           `<select class="asg-st st-${st}" data-asgst="1" aria-label="Status"${dis}>${statusOpts.map(([k, l]) => `<option value="${k}"${k === st ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>` +
           `</div>`;
             return h;
     };
     const groups = {};
     for (const r of rows) (groups[r.asig || "—"] = groups[r.asig || "—"] || []).push(r);
-    const name = i => { const t = tm.find(x => x[0] === i); return t && t[1] ? t[1] : ""; };
-    for (const p of people) {
+    // Groups: one per assignment as written (a two-person order is one group, "Paris + Jimena"), people first, unassigned last.
+    const gkeys = Object.keys(groups).sort((a, b) => a === "—" ? 1 : b === "—" ? -1 : asigTokens(a).length - asigTokens(b).length || asigLabel(a).localeCompare(asigLabel(b)));
+    for (const p of gkeys) {
       const g = groups[p]; if (!g) continue;
       g.sort((a, b) => (closed(a) - closed(b)) || priRank(a.pri) - priRank(b.pri) || a.tab.localeCompare(b.tab, undefined, { numeric: true }) || a.row - b.row);
-      h += `<div class="asg-group"><h3>${esc(p === "—" ? "Not assigned" : p)} <small>${esc(name(p))} · ${g.filter(r => !closed(r)).length} open</small></h3>` +
+      h += `<div class="asg-group"><h3>${esc(p === "—" ? "Not assigned" : asigLabel(p))} <small>${g.filter(r => !closed(r)).length} open</small></h3>` +
         `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span></div>`;
       for (const r of g) h += rowHtml(r);
       h += `</div>`;
@@ -3080,9 +3116,57 @@ Return ONLY JSON with this shape:
       render();
     }
   }
+  // ---- Work-order editor: every field of an Excellovint row, saved as cell changes on that row. ----
+  const EDIT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+  S.xo = null;
+  function openXo(key, focus) {
+    const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
+    S.xo = { key, r };
+    $("xoTitle").textContent = "Work order";
+    $("xoWhere").innerHTML = `<b>${esc(r.wine || r.tab)}</b> · ${esc(r.tab)} · row ${r.row}`;
+    $("xoText").value = r.note || "";
+    $("xoDate").value = r.date || todayISO;
+    $("xoUbi").value = r.ubi || "";
+    $("xoPri").querySelectorAll("[data-p]").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === (r.pri || "NORMAL")));
+    $("xoAsig").innerHTML = crewPickerHTML(r.asig);
+    const st = !r.ini ? "open" : /^XX$/i.test(r.ini) ? "xx" : "done";
+    $("xoSt").innerHTML = `<option value="open">Open</option><option value="done">${st === "done" ? "Done (" + esc(r.ini) + ")" : "Done"}</option><option value="roll">Roll over → tomorrow</option><option value="xx">Cancel (XX)</option>`;
+    $("xoSt").value = st;
+    $("xoErr").textContent = "";
+    $("xoSheet").hidden = false;
+    setTimeout(() => { const f = focus === "asig" ? $("xoAsig").querySelector(".cp") : $("xoText"); if (f) f.focus(); }, 0);
+  }
+  function closeXo() { $("xoSheet").hidden = true; S.xo = null; }
+  $("xoCancel").addEventListener("click", closeXo);
+  $("xoSheet").addEventListener("click", e => { if (e.target === $("xoSheet")) closeXo(); });
+  $("xoPri").addEventListener("click", e => { const b = e.target.closest("[data-p]"); if (!b) return; $("xoPri").querySelectorAll("[data-p]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+  $("xoForm").addEventListener("submit", async e => {
+    e.preventDefault(); if (!S.xo) return;
+    const { key, r } = S.xo, ch = {};
+    const text = $("xoText").value.trim().toUpperCase();
+    if (!text) { $("xoErr").textContent = "Write what needs to happen."; return; }
+    if (text !== r.note) ch.note = text;
+    const d = $("xoDate").value; if (d && d !== r.date) ch.date = sheetDate(d);
+    const ubi = $("xoUbi").value.trim().toUpperCase(); if (ubi !== (r.ubi || "")) ch.ubi = ubi;
+    const pb = $("xoPri").querySelector('[aria-pressed="true"]'), pri = pb ? pb.dataset.p : "NORMAL"; if (pri !== (r.pri || "NORMAL")) ch.pri = pri === "NORMAL" ? "" : pri;
+    const asig = crewPickerValue($("xoAsig")); if (asig !== (r.asig || "")) ch.asig = asig;
+    const st = $("xoSt").value, cur = !r.ini ? "open" : /^XX$/i.test(r.ini) ? "xx" : "done";
+    if (st !== cur) {
+      if (st === "open") ch.ini = "";
+      else if (st === "done") ch.ini = (asigTokens(asig || r.asig)[0] || recall("woBy", "EM") || "OK").toUpperCase();
+      else if (st === "xx") ch.ini = "XX";
+      else if (st === "roll") { ch.date = sheetDate(iso(addDays(parse(todayISO), 1))); ch.ini = ""; }
+    }
+    if (!Object.keys(ch).length) { closeXo(); return; }
+    const btn = $("xoSave"); btn.disabled = true; $("xoErr").textContent = "Saving to " + r.tab + "…";
+    const row = await asgWrite(key, ch);
+    btn.disabled = false; closeXo();
+    if (row) toast("Saved in " + r.tab + ", row " + row);
+  });
   $("asgView").addEventListener("click", async e => {
     const w = e.target.closest("[data-asgwho]");
     if (w) { S.asgWho = w.dataset.asgwho; render(); return; }
+    const ed = e.target.closest("[data-asgedit]"); if (ed) { openXo(ed.dataset.asgedit, ed.dataset.focus); return; }
     if (e.target.id === "asgRefresh") { loadLive(true); toast("Reading Excellovint…"); return; }
   });
   $("asgView").addEventListener("change", async e => {
@@ -4122,8 +4206,7 @@ Return ONLY JSON with this shape:
     const canWo = (!!S.mcp || !!S.db) && !(task && task.done) && !(wo && wo.ini);
     $("edAsigWrap").hidden = !canWo;
     $("edAsigLbl").textContent = woOpen ? "Assigned to (changes ASIG on the work order in Excellovint)" : woLost ? "Assign to (the old work-order row wasn't found; this adds a new one)" : "Assign to (adds a work order in Excellovint)";
-    const tm = team(); if (woOpen && wo.asig && !tm.some(([i]) => i === wo.asig)) tm.push([wo.asig, ""]);
-    $("edAsig").innerHTML = (woOpen ? "" : `<option value="">Not yet</option>`) + tm.map(([i, n]) => `<option value="${esc(i)}"${woOpen && i === wo.asig ? " selected" : ""}>${esc(i)}${n ? " · " + esc(n) : ""}</option>`).join("");
+    $("edAsig").innerHTML = crewPickerHTML(woOpen ? wo.asig : "");
     $("edHrs").value = task && typeof task.hrs === "number" ? task.hrs : "";
     $("edHrs").placeholder = "About " + est(task || { text: "", kind: "cellar" });
     $("edErr").textContent = "";
@@ -4139,8 +4222,7 @@ Return ONLY JSON with this shape:
     openEditor(null, { lot: "all", week: curWeek });
     $("edTitle").textContent = "New work order";
     fillDays(curWeek, todayISO);
-    const sel = $("edAsig"); if (!sel.value && sel.options.length > 1) sel.selectedIndex = 1;
-    $("edAsigLbl").textContent = "Assign to (writes the work order into Excellovint)";
+    $("edAsigLbl").textContent = "Assign to (writes the work order into Excellovint) · tap one or two people";
   });
 
   $("edWeek").addEventListener("change", () => fillDays($("edWeek").value, ""));
@@ -4149,6 +4231,7 @@ Return ONLY JSON with this shape:
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     if (!$("editor").hidden) { closeEditor(); return; }
+    if (!$("xoSheet").hidden) { closeXo(); return; }
     if (!$("woSheet").hidden) { closeWo(); return; }
     if (!$("crewSheet").hidden) { $("crewSheet").hidden = true; return; }
     if (!$("tempSheet").hidden) { $("tempSheet").hidden = true; return; }
@@ -4164,7 +4247,7 @@ Return ONLY JSON with this shape:
     if (hv !== "" && !(+hv >= 0)) { $("edErr").textContent = "Hours must be a number."; return; }
     if (hv !== "") body.hrs = +hv; else if (S.editing) body.hrs = null;
     const btn = $("edSave"); btn.disabled = true;
-    const asig = $("edAsigWrap").hidden ? "" : $("edAsig").value;
+    const asig = $("edAsigWrap").hidden ? "" : crewPickerValue($("edAsig"));
     const prev = S.editing ? S.tasks.find(x => x.id === S.editing) : null;
     const woOpen = prev && prev.wo && !prev.wo.ini && !prev.wo.missing;
     let id = S.editing;
@@ -4243,6 +4326,27 @@ Return ONLY JSON with this shape:
   // ---------- Work orders in Excellovint ----------
   const FALLBACK_TEAM = [["EM", "Eric Maycotte"], ["D", "Diane"], ["MQ", "Maureen"], ["P", "Paris"], ["J", "Jimena"], ["P/J", "Paris y Jimena"]];
   function team() { return S.sheet.team && S.sheet.team.length ? S.sheet.team : FALLBACK_TEAM; }
+  // ---- Crew (Settings → Crew, app database "staff"): who receives work orders, by first name. ----
+  // ASIG holds the person's tag (PARIS, JIMENA…); two people = "PARIS/JIMENA". Old initials (P, J, P/J) still resolve through aliases.
+  S.staff = S.staff || [];
+  function crewList() { return (S.staff || []).filter(c => c.active !== false); }
+  function receivers() {
+    const r = crewList().filter(c => c.role !== "assigner").sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
+    if (r.length) return r;
+    return team().filter(([i]) => !/[\/]/.test(i) && !/^(ALL|UYV LAB)$/i.test(i)).map(([i, n]) => ({ id: i, tag: i, name: n || i, aliases: [] }));
+  }
+  function crewFind(tag) { const t = String(tag || "").toUpperCase().trim(); return crewList().find(c => String(c.tag).toUpperCase() === t || (c.aliases || []).map(a => String(a).toUpperCase()).includes(t)) || null; }
+  function asigTokens(s) { return String(s || "").toUpperCase().split(/\s*[\/+,&]\s*/).map(x => x.trim()).filter(Boolean); }
+  function canonTag(t) { const c = crewFind(t); return c ? String(c.tag).toUpperCase() : String(t || "").toUpperCase(); }
+  function crewName(tag) { const c = crewFind(tag); if (c) return c.name; const tm = team().find(x => x[0] === String(tag || "").toUpperCase()); return tm && tm[1] ? tm[1] : String(tag || ""); }
+  function asigLabel(s) { return asigTokens(s).map(crewName).join(" + "); }
+  function crewPickerHTML(selected) {
+    const sel = asigTokens(selected).map(canonTag), rs = receivers();
+    const extra = sel.filter(t => !rs.some(c => String(c.tag).toUpperCase() === t));
+    return `<div class="crewpick" role="group" aria-label="Assign to">${rs.map(c => `<button type="button" class="cp" data-tag="${esc(String(c.tag).toUpperCase())}" aria-pressed="${sel.includes(String(c.tag).toUpperCase())}">${esc(c.name)}</button>`).join("")}${extra.map(t => `<button type="button" class="cp legacy" data-tag="${esc(t)}" aria-pressed="true" title="Not a receiver in Settings → Crew">${esc(crewName(t))}</button>`).join("")}</div>`;
+  }
+  function crewPickerValue(el) { return el ? [...el.querySelectorAll('.cp[aria-pressed="true"]')].map(b => b.dataset.tag).join("/") : ""; }
+  document.addEventListener("click", e => { const b = e.target.closest(".crewpick .cp"); if (b) { b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); b.closest(".crewpick").dispatchEvent(new Event("change", { bubbles: true })); } });
   function colLetter(i) { let s = ""; i += 1; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
   function sheetDate(isoD) { const d = parse(isoD); return (d.getMonth() + 1) + "/" + d.getDate() + "/" + d.getFullYear(); }
   const normTxt = s => String(s || "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -4391,7 +4495,7 @@ Return ONLY JSON with this shape:
         </div>
         <div class="row2">
           <div class="field"><label for="woDate">Date (FECHA)</label><input id="woDate" type="date" value="${esc(day)}"></div>
-          <div class="field"><label for="woAsig">Assign to (ASIG)</label><select id="woAsig">${team().map(([i, n]) => `<option value="${esc(i)}">${esc(i)}${n ? " · " + esc(n) : ""}</option>`).join("")}<option value="__other">Someone else…</option></select></div>
+          <div class="field"><label>Assign to (ASIG) · tap one or two people</label><div id="woAsig">${crewPickerHTML("")}</div></div>
         </div>
         <div class="row2">
           <div class="field" id="woOtherWrap" hidden><label for="woOther">Initials</label><input id="woOther" maxlength="12"></div>
@@ -4444,7 +4548,7 @@ Return ONLY JSON with this shape:
     if (w.mode === "new") {
       const text = $("woText").value.trim(), tab = $("woTab").value, ubi = $("woUbi").value.trim().toUpperCase();
       const date = $("woDate").value, by = $("woBy").value.trim().toUpperCase();
-      let asig = $("woAsig").value; if (asig === "__other") asig = $("woOther").value.trim().toUpperCase();
+      let asig = crewPickerValue($("woAsig"));
       if (!text) return err("Write the action.");
       if (!tab) return err("Pick the lot tab.");
       if (!date) return err("Pick a date.");
@@ -4867,6 +4971,7 @@ Return ONLY JSON with this shape:
       })();
     };
     db.collection("lots").onSnapshot(s => { S.lots = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotLots = true; render(); maybeLoad(); }, onErr);
+    db.collection("staff").onSnapshot(s => { S.staff = s.docs.map(d => Object.assign({ id: d.id }, d.data())); render(); }, () => {});
     db.collection("vineyard").onSnapshot(s => { S.vy = {}; s.docs.forEach(d => { S.vy[d.id] = d.data(); }); render(); }, onErr);
     db.collection("protocols").onSnapshot(s => { S.protos = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotProtos = true; if (S.view === "protocols" || S.view === "learn") renderProto(); }, onErr);
     db.collection("wocache").onSnapshot(s => { const d = s.docs.find(x => x.id === "current"); S.woCache = d ? d.data() : null; if (S.view === "weeks" && S.span === "asg") render(); }, () => {});
