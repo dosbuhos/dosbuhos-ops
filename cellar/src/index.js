@@ -3,6 +3,7 @@
 import { handleAuth, loginPage, sessionEmail, isViewer, initialsFor } from './google.js';
 import { sheetsTool } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
+import { xlRoute } from './xl.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -29,6 +30,7 @@ export default {
         return J(r.body, r.status);
       }
       if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, url.searchParams.get('conv') || '') });
+      if (p.startsWith('/api/xl/')) { const r = await xlRoute(request, env, p, url, initials === 'EM' && !open); return J(r.body, r.status); }
       if (p === '/api/notes' && request.method === 'GET') return J(await houseNotes(env));
       if (p === '/api/notes' && request.method === 'PUT') {
         if (!canWrite) return J({ message: 'Read-only access.' }, 403);
