@@ -155,6 +155,18 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
 .viewtog{display:flex;justify-content:flex-end;margin:0 0 8px;gap:4px}
 .viewtog button{border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:5px 10px;font:600 12.5px var(--f-b);cursor:pointer;color:var(--muted)}
 .viewtog button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* Order controls, same as the main app: Prioridad · Asignado · Estado always visible */
+.ctl{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--rule)}
+.ctl label{display:flex;flex-direction:column;gap:3px;min-width:0;font:600 10px var(--f-m);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ctl select,.ctl .who{width:100%;min-width:0;min-height:42px;font:600 13.5px var(--f-b);padding:6px 8px;border-radius:10px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.ctl select.pri-URGENT{background:#f6c8c8;color:#8a1c1c;border-color:#e7a3a3}.ctl select.pri-HIGH{background:#fbe3b0;color:#7a4d00;border-color:#efcd84}
+.ctl select.st{background:#e3eefc;color:#12417a;border-color:#b7cff0}
+.ctl.busy{opacity:.5;pointer-events:none}
+.pen{width:36px;height:36px;flex:none;border:1px solid var(--rule);border-radius:10px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;padding:0}
+.pen svg{width:17px;height:17px}
+.crewpick{display:flex;flex-wrap:wrap;gap:6px}
+.crewpick .cp{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--rule);background:var(--paper);font:500 14px var(--f-b);cursor:pointer;color:var(--ink)}
+.crewpick .cp[aria-pressed=true]{background:var(--wine);border-color:var(--wine);color:#fff;font-weight:600}
 /* lot picker */
 .pick-q{width:100%;min-height:44px;border:1px solid var(--rule);border-radius:12px;padding:0 12px;font:16px var(--f-b);background:#fff}
 .pick-list{display:flex;flex-direction:column;gap:2px;max-height:60dvh;overflow:auto;margin:4px -4px 0}
@@ -199,6 +211,17 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   const priCls = p => /URG/i.test(p) ? 'urgent' : /HIGH|ALTA/i.test(p) ? 'high' : '';
   const priLbl = p => /URG/i.test(p) ? 'URGENTE' : /HIGH|ALTA/i.test(p) ? 'ALTA' : '';
   const people = a => String(a || '').toUpperCase().split(/[\/,&\s]+/).filter(Boolean);
+  const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+  S.staff = [];
+  const staffFind = t => { t = String(t || '').toUpperCase(); return S.staff.find(c => String(c.tag).toUpperCase() === t || (c.aliases || []).map(a => String(a).toUpperCase()).includes(t)); };
+  const nameOf = t => { const c = staffFind(t); return c ? c.name : t; };
+  const asigLabel = a => people(a).map(nameOf).join(' + ') || '—';
+  function ctlHTML(r) {
+    const key = esc(r.tab) + '|' + r.row, pri = /URG/i.test(r.pri) ? 'URGENT' : /HIGH|ALTA/i.test(r.pri) ? 'HIGH' : 'NORMAL';
+    return `<div class="ctl" data-key="${key}"><label>Prioridad<select class="pri-${pri}" data-cpri>${['NORMAL', 'HIGH', 'URGENT'].map(p => `<option${p === pri ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
+      <label>Asignado<button type="button" class="who" data-cwho>${esc(asigLabel(r.asig))}</button></label>
+      <label>Estado<select class="st" data-cst><option value="open" selected>Open</option><option value="done">Done</option><option value="roll">Roll over → mañana</option><option value="xx">Cancel (XX)</option></select></label></div>`;
+  }
   const CREW = () => [...new Set(['P/J', 'P', 'J', 'D', 'EM', 'EM/D', ...S.open.map(r => String(r.asig || '').toUpperCase()).filter(Boolean)])];
   const toast = t => { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 3500); };
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'hace menos de 1 min' : 'hace ' + m + ' min'; };
@@ -208,10 +231,10 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   }
 
   async function load() {
-    const [t, o, lots, me] = await Promise.all([
+    const [t, o, lots, me, staff] = await Promise.all([
       fetch('/api/xl/tabs').then(r => r.json()), fetch('/api/xl/open').then(r => r.json()),
-      fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({}))]);
-    S.tabs = t.tabs || []; S.open = o.rows || []; S.me = me;
+      fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({})), fetch('/api/db/staff').then(r => r.json()).catch(() => ({ rows: [] }))]);
+    S.tabs = t.tabs || []; S.open = o.rows || []; S.me = me; S.staff = (staff.rows || []).map(x => Object.assign({ id: x.id }, x.data)).filter(c => c.active !== false);
     for (const l of (lots.rows || [])) for (const s of (l.data.sheet || [])) if (s.tab && !S.names[s.tab]) { S.names[s.tab] = l.data.name === 'Every lot' ? 'Bodega (general)' : l.data.name; S.groups[s.tab] = l.data.group; }
     S.at = S.tabs.reduce((m, x) => Math.max(m, x.imported_at || 0), 0);
     if (!S.lot || !S.tabs.some(t => t.tab === S.lot)) { let want = decodeURIComponent(location.hash.slice(1)); try { want = want || localStorage.getItem('db.lot'); } catch (e) {} S.lot = (S.tabs.find(t => t.tab === want) || order()[0] || {}).tab || null; }
@@ -227,15 +250,14 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     const whoList = ['Todos', ...Object.keys(counts).sort((a, b) => counts[b] - counts[a])];
     const rows = S.open.filter(r => S.who === 'Todos' || people(r.asig).includes(S.who));
     const groups = [['over', 'Atrasadas', r => r.date && r.date < today], ['today', 'Hoy', r => r.date === today], ['next', 'Próximas', r => !r.date || r.date > today]];
-    let h = `<button class="btn primary newbtn" data-new>+ Nueva orden</button><div class="chips">${whoList.map(w => `<button data-who="${esc(w)}" aria-pressed="${S.who === w}">${esc(w)}<small>${w === 'Todos' ? S.open.length : counts[w]}</small></button>`).join('')}</div>`;
+    let h = `<button class="btn primary newbtn" data-new>+ Nueva orden</button><div class="chips">${whoList.map(w => `<button data-who="${esc(w)}" aria-pressed="${S.who === w}">${esc(w === 'Todos' ? w : nameOf(w))}<small>${w === 'Todos' ? S.open.length : counts[w]}</small></button>`).join('')}</div>`;
     for (const [k, label, fn] of groups) {
       const g = rows.filter(fn); if (!g.length) continue;
       h += `<h2 class="${k === 'over' ? 'over' : ''}">${label} <small>${g.length}</small></h2><div class="cards">` + g.map(r => `
         <article class="wo p-${priCls(r.pri)}">
-          <div class="top"><span class="lot" data-lot="${esc(r.tab)}" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule)">${esc(lotName(r.tab))}</span><span>${esc(r.ubi)}</span><span class="when ${k === 'over' ? 'over' : ''}">${fmtD(r.date)}</span></div>
+          <div class="top"><button class="pen" data-res="${esc(r.tab)}|${r.row}" aria-label="Editar">${PEN}</button><span class="lot" data-lot="${esc(r.tab)}" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule)">${esc(lotName(r.tab))}</span><span>${esc(r.ubi)}</span><span class="when ${k === 'over' ? 'over' : ''}">${fmtD(r.date)}</span></div>
           <div class="txt">${esc(r.note)}</div>
-          <div class="meta">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="tag who">${esc(r.asig)}</span><span class="tag">${esc(r.tab)} · fila ${r.row}</span></div>
-          <div class="act"><button class="btn primary" data-done="${esc(r.tab)}|${r.row}">✓ Hecho</button><button class="btn" data-res="${esc(r.tab)}|${r.row}">Anotar resultado</button></div>
+          ${ctlHTML(r)}
         </article>`).join('') + `</div>`;
     }
     return h + (rows.length ? '' : '<div class="empty">No hay órdenes abiertas.</div>');
@@ -270,8 +292,8 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     // 2. Open orders for this lot
     const open = rows.filter(r => r.asig && !r.ini).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
     h += `<section class="sec"><h4>Órdenes abiertas <small>${open.length || 'ninguna'}</small></h4>` + open.map(r => { const late = r.date && r.date < today;
-      return `<article class="ocard p-${priCls(r.pri)}"><div class="oh">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="${late ? 'late' : ''}">${late ? 'Atrasada ' + daysAgo(r.date) + ' d' : r.date === today ? 'Hoy' : fmtD(r.date)}</span><span>· ${esc(r.asig)}</span><span class="r">${esc(r.ubi || '')}</span></div>
-        <div class="ot">${esc(r.note)}</div><div class="oa"><button class="btn" style="border-color:var(--wine);color:var(--wine)" data-done="${esc(r.tab)}|${r.row}">Marcar hecha</button><button class="btn" data-res="${esc(r.tab)}|${r.row}">Anotar resultado</button></div></article>`; }).join('') + `</section>`;
+      return `<article class="ocard p-${priCls(r.pri)}"><div class="oh">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="${late ? 'late' : ''}">${late ? 'Atrasada ' + daysAgo(r.date) + ' d' : r.date === today ? 'Hoy' : fmtD(r.date)}</span><span class="r">${esc(r.ubi || '')}</span><button class="pen" data-res="${esc(r.tab)}|${r.row}" aria-label="Editar">${PEN}</button></div>
+        <div class="ot">${esc(r.note)}</div>${ctlHTML(r)}</article>`; }).join('') + `</section>`;
     // 3. Log, newest first, grouped by month
     const q = S.q.toLowerCase();
     const log = rows.filter(r => !(r.asig && !r.ini)).filter(r => !q || COLS.some(([k]) => String(r[k] || '').toLowerCase().includes(q))).reverse();
@@ -378,7 +400,33 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
       });
   }
 
+  async function ctlWrite(key, set, msg) {
+    const r = findRow(key); if (!r) return; const el = document.querySelector(`.ctl[data-key="${CSS.escape(key)}"]`); if (el) el.classList.add('busy');
+    try { await post('/api/xl/update', { tab: r.tab, row: r.row, expect: r.note, set }); toast(msg + ' · ' + r.tab + ', fila ' + r.row); }
+    catch (err) { toast('No se guardó: ' + err.message); }
+    await load();
+  }
+  document.addEventListener('change', e => {
+    const c = e.target.closest('.ctl'); if (!c) return; const key = c.dataset.key, r = findRow(key); if (!r) return;
+    if (e.target.matches('[data-cpri]')) { const v = e.target.value; ctlWrite(key, { pri: v === 'NORMAL' ? '' : v }, 'Prioridad ' + v); }
+    if (e.target.matches('[data-cst]')) {
+      const v = e.target.value, d = new Date(Date.now() - 6 * 3600e3 + 864e5);
+      if (v === 'done') ctlWrite(key, { ini: (people(r.asig)[0] || S.me.initials || 'OK') }, '✓ Hecha');
+      else if (v === 'xx') ctlWrite(key, { ini: 'XX' }, 'Cancelada');
+      else if (v === 'roll') ctlWrite(key, { date_raw: d.toISOString().slice(0, 10) }, 'Pasada a mañana');
+    }
+  });
+  function dlgWho(r) {
+    const sel = people(r.asig).map(t => (staffFind(t) || { tag: t }).tag.toUpperCase());
+    const rec = S.staff.filter(c => c.role !== 'assigner');
+    const extra = sel.filter(t => !rec.some(c => String(c.tag).toUpperCase() === t));
+    openDlg(`<h3>Asignar a</h3><div class="ctx"><b>${esc(lotName(r.tab))}</b> · ${esc(r.note)}</div><small style="color:var(--muted)">Toca una o dos personas.</small>
+      <div class="crewpick" id="cpk">${rec.map(c => `<button type="button" class="cp" data-tag="${esc(String(c.tag).toUpperCase())}" aria-pressed="${sel.includes(String(c.tag).toUpperCase())}">${esc(c.name)}</button>`).join('')}${extra.map(t => `<button type="button" class="cp" data-tag="${esc(t)}" aria-pressed="true">${esc(nameOf(t))}</button>`).join('')}</div>`,
+      async () => { const v = [...document.querySelectorAll('#cpk .cp[aria-pressed="true"]')].map(b => b.dataset.tag).join('/'); if (v === String(r.asig || '').toUpperCase()) return 'Sin cambios'; await post('/api/xl/update', { tab: r.tab, row: r.row, expect: r.note, set: { asig: v } }); return 'Asignada a ' + asigLabel(v); });
+    $('#cpk').addEventListener('click', e => { const b = e.target.closest('.cp'); if (b) b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); });
+  }
   document.addEventListener('click', async e => {
+    const cw = e.target.closest('[data-cwho]'); if (cw) { const r = findRow(cw.closest('.ctl').dataset.key); if (r) dlgWho(r); return; }
     const t = e.target.closest('[data-t]'); if (t) { S.view = t.dataset.t; render(); window.scrollTo(0, 0); return; }
     const go = e.target.closest('[data-go]'); if (go) { step(+go.dataset.go); return; }
     if (e.target.closest('[data-pick]')) { openPicker(); return; }
