@@ -752,6 +752,12 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .spark { display: block; margin-top: 4px; max-width: 100%; height: auto; }
 .wk-h { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .tasklist { display: flex; flex-direction: column; gap: 4px; }
+/* Progress: Estado shades darker as the job advances; thin band along the card bottom */
+.asg-row { position: relative; }
+.asg-row .asg-prog { position: absolute; left: 0; bottom: 0; height: 4px; width: var(--pg); background: #2d5c8a; border-radius: 0 2px 2px 0; pointer-events: none; }
+.asg-row select.asg-st.st-p25 { background: #c9dcf3; color: #0f3a6e; border-color: #a5c3e8; }
+.asg-row select.asg-st.st-p50 { background: #8fb5e3; color: #0b2c55; border-color: #7aa5da; }
+.asg-row select.asg-st.st-p75 { background: #3f78bf; color: #fff; border-color: #3f78bf; }
 /* Day navigator on Today: ‹ Hoy › */
 .asg-day { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
 .asg-day .ad-btn { width: 36px; height: 36px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font: 600 20px/1 var(--f-body); color: var(--ink); cursor: pointer; padding: 0 0 2px; }
@@ -2987,6 +2993,16 @@ Return ONLY JSON with this shape:
       (rows.length ? sec("Hechas", done, "done", r => "✓ " + r.ini) + sec("Sin cerrar ese día", open, "open", r => r.asig) + sec("Canceladas", xx, "xx", () => "XX") + sec("Notas", notes, "note", () => "")
         : `<div class="empty"><strong>Nada registrado ese día.</strong>${P.err ? esc(P.err) : ""}</div>`);
   }
+  // ---- Progress on open work orders (25/50/75 %), kept in the app database "progress" (Excellovint has no column). ----
+  S.prog = S.prog || {};
+  const progId = (tab, row) => String(tab).replace(/[^\w]/g, "_") + "." + row;
+  const progOf = r => { const p = S.prog[progId(r.tab, r.row)]; return p && !r.ini && normTxt(p.note) === normTxt(r.note) ? +p.pct || 0 : 0; };
+  async function setProg(r, pct) {
+    if (!S.db) return;
+    const id = progId(r.tab, r.row);
+    try { if (pct) await S.db.collection("progress").doc(id).set({ pct, tab: r.tab, row: r.row, note: r.note, by: recall("woBy", "EM"), at: new Date().toISOString() }); else await S.db.collection("progress").doc(id).delete(); }
+    catch (e) { writeFailed(e); }
+  }
   function renderAsg() {
     const el = $("asgView");
     if (S.asgOff < 0) { renderPastDay(el); return; }
@@ -3017,9 +3033,10 @@ Return ONLY JSON with this shape:
         const key = r.tab + "|" + r.row;
         const pc = r.pri === "URGENT" ? "urgent" : r.pri === "HIGH" ? "high" : "";
         const asigOpts = tm.map(([i]) => i); if (r.asig && !asigOpts.includes(r.asig)) asigOpts.unshift(r.asig);
-        const st = !r.ini ? "open" : /^XX$/i.test(r.ini) ? "xx" : "done";
-        const statusOpts = [["open", "Open"], ["done", st === "done" ? "Done (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")], ["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]];
-        h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}">` +
+        const pg = progOf(r);
+        const st = !r.ini ? (pg ? "p" + pg : "open") : /^XX$/i.test(r.ini) ? "xx" : "done";
+        const statusOpts = [["open", "Open"], ["p25", "25%"], ["p50", "50%"], ["p75", "75%"], ["done", st === "done" ? "Done (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")], ["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]];
+        h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
           `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
           `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
           (dis ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Edit work order" title="Edit this work order">${EDIT_ICON}</button>`) +
@@ -3245,8 +3262,9 @@ Return ONLY JSON with this shape:
     }
     if (e.target.matches("[data-asgst]")) {
       const v = e.target.value;
-      if (v === "open") { await asgWrite(key, { ini: "" }); toast("Reopened in " + r.tab); }
-      else if (v === "done") { const ini = (r.asig || recall("woBy", "EM") || "OK").toUpperCase(); await asgWrite(key, { ini }); toast("Done · initialed " + ini + " in " + r.tab); }
+      if (/^p\d+$/.test(v)) { if (r.ini) await asgWrite(key, { ini: "" }); await setProg(r, +v.slice(1)); toast(v.slice(1) + "% · " + r.tab); return; }
+      if (v === "open") { if (r.ini) { await asgWrite(key, { ini: "" }); toast("Reopened in " + r.tab); } await setProg(r, 0); return; }
+      else if (v === "done") { setProg(r, 0); const ini = (r.asig || recall("woBy", "EM") || "OK").toUpperCase(); await asgWrite(key, { ini }); toast("Done · initialed " + ini + " in " + r.tab); }
       else if (v === "xx") { await asgWrite(key, { ini: "XX" }); toast("Canceled (XX) in " + r.tab); }
       else if (v === "roll") { const d = sheetDate(iso(addDays(parse(todayISO), 1))); await asgWrite(key, { date: d, ini: "" }); toast("Moved to tomorrow in " + r.tab); }
     }
@@ -5032,6 +5050,7 @@ Return ONLY JSON with this shape:
       })();
     };
     db.collection("lots").onSnapshot(s => { S.lots = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotLots = true; render(); maybeLoad(); }, onErr);
+    db.collection("progress").onSnapshot(s => { S.prog = {}; s.docs.forEach(d => { S.prog[d.id] = d.data(); }); render(); }, () => {});
     db.collection("staff").onSnapshot(s => { S.staff = s.docs.map(d => Object.assign({ id: d.id }, d.data())); render(); }, () => {});
     db.collection("vineyard").onSnapshot(s => { S.vy = {}; s.docs.forEach(d => { S.vy[d.id] = d.data(); }); render(); }, onErr);
     db.collection("protocols").onSnapshot(s => { S.protos = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotProtos = true; if (S.view === "protocols" || S.view === "learn") renderProto(); }, onErr);

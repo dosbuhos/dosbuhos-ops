@@ -137,6 +137,7 @@
   .asg-group h3 small { font-size: 12px; text-transform: none; letter-spacing: 0; }
   .asg-row.asg-head { display: none !important; }
   .asg-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "date date edit" "wine wine edit" "txt txt txt" "ctl ctl ctl"; grid-template-columns: auto minmax(0, 1fr) auto !important; gap: 4px 12px; align-items: start; padding: 12px 14px 12px; margin: 8px 0 0; border: 1px solid var(--rule); border-left: 4px solid #8fa3b8; border-radius: var(--m-radius); background: var(--paper); box-shadow: var(--m-shadow); font-size: 15px; }
+  .asg-row { overflow: hidden; }
   .asg-row.m-urgent { border-left-color: var(--m-red); }
   .asg-row.m-high { border-left-color: var(--m-amber); }
   .asg-row.is-done { opacity: .6; border-left-color: var(--rule); }

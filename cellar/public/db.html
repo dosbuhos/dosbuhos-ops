@@ -167,6 +167,9 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
 .crewpick{display:flex;flex-wrap:wrap;gap:6px}
 .crewpick .cp{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--rule);background:var(--paper);font:500 14px var(--f-b);cursor:pointer;color:var(--ink)}
 .crewpick .cp[aria-pressed=true]{background:var(--wine);border-color:var(--wine);color:#fff;font-weight:600}
+/* progress */
+.pgb{position:absolute;left:0;bottom:0;height:4px;background:#2d5c8a;border-radius:0 2px 2px 0}
+.ctl select.st.st-p25{background:#c9dcf3;color:#0f3a6e;border-color:#a5c3e8}.ctl select.st.st-p50{background:#8fb5e3;color:#0b2c55;border-color:#7aa5da}.ctl select.st.st-p75{background:#3f78bf;color:#fff;border-color:#3f78bf}
 /* lot picker */
 .pick-q{width:100%;min-height:44px;border:1px solid var(--rule);border-radius:12px;padding:0 12px;font:16px var(--f-b);background:#fff}
 .pick-list{display:flex;flex-direction:column;gap:2px;max-height:60dvh;overflow:auto;margin:4px -4px 0}
@@ -216,11 +219,19 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   const staffFind = t => { t = String(t || '').toUpperCase(); return S.staff.find(c => String(c.tag).toUpperCase() === t || (c.aliases || []).map(a => String(a).toUpperCase()).includes(t)); };
   const nameOf = t => { const c = staffFind(t); return c ? c.name : t; };
   const asigLabel = a => people(a).map(nameOf).join(' + ') || '—';
+  const progId = (tab, row) => String(tab).replace(/[^\w]/g, '_') + '.' + row;
+  const nT = x => String(x || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  const progOf = r => { const p = (S.prog || {})[progId(r.tab, r.row)]; return p && !r.ini && nT(p.note) === nT(r.note) ? +p.pct || 0 : 0; };
+  async function setProg(r, pct) {
+    const id = encodeURIComponent(progId(r.tab, r.row));
+    if (pct) await fetch('/api/db/progress/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pct, tab: r.tab, row: r.row, note: r.note, by: S.me.initials || '', at: new Date().toISOString() }) });
+    else await fetch('/api/db/progress/' + id, { method: 'DELETE' });
+  }
   function ctlHTML(r) {
     const key = esc(r.tab) + '|' + r.row, pri = /URG/i.test(r.pri) ? 'URGENT' : /HIGH|ALTA/i.test(r.pri) ? 'HIGH' : 'NORMAL';
     return `<div class="ctl" data-key="${key}"><label>Prioridad<select class="pri-${pri}" data-cpri>${['NORMAL', 'HIGH', 'URGENT'].map(p => `<option${p === pri ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
       <label>Asignado<button type="button" class="who" data-cwho>${esc(asigLabel(r.asig))}</button></label>
-      <label>Estado<select class="st" data-cst><option value="open"${r.ini ? '' : ' selected'}>Open</option><option value="done"${r.ini && !/^XX$/i.test(r.ini) ? ' selected' : ''}>${r.ini && !/^XX$/i.test(r.ini) ? 'Done (' + esc(r.ini) + ')' : 'Done'}</option><option value="roll">Roll over → mañana</option><option value="xx"${/^XX$/i.test(r.ini || '') ? ' selected' : ''}>Cancel (XX)</option></select></label></div>`;
+      <label>Estado<select class="st st-p${progOf(r)}" data-cst><option value="open"${r.ini || progOf(r) ? '' : ' selected'}>Open</option>${[25, 50, 75].map(n => `<option value="p${n}"${!r.ini && progOf(r) === n ? ' selected' : ''}>${n}%</option>`).join('')}<option value="done"${r.ini && !/^XX$/i.test(r.ini) ? ' selected' : ''}>${r.ini && !/^XX$/i.test(r.ini) ? 'Done (' + esc(r.ini) + ')' : 'Done'}</option><option value="roll">Roll over → mañana</option><option value="xx"${/^XX$/i.test(r.ini || '') ? ' selected' : ''}>Cancel (XX)</option></select></label></div>`;
   }
   const CREW = () => [...new Set(['P/J', 'P', 'J', 'D', 'EM', 'EM/D', ...S.open.map(r => String(r.asig || '').toUpperCase()).filter(Boolean)])];
   const toast = t => { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 3500); };
@@ -231,9 +242,10 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   }
 
   async function load() {
-    const [t, o, lots, me, staff] = await Promise.all([
+    const [t, o, lots, me, staff, prog] = await Promise.all([
       fetch('/api/xl/tabs').then(r => r.json()), fetch('/api/xl/today').then(r => r.json()),
-      fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({})), fetch('/api/db/staff').then(r => r.json()).catch(() => ({ rows: [] }))]);
+      fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({})), fetch('/api/db/staff').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/db/progress').then(r => r.json()).catch(() => ({ rows: [] }))]);
+    S.prog = {}; for (const x of (prog.rows || [])) S.prog[x.id] = x.data;
     S.tabs = t.tabs || []; S.open = o.rows || []; S.me = me; S.staff = (staff.rows || []).map(x => Object.assign({ id: x.id }, x.data)).filter(c => c.active !== false);
     for (const l of (lots.rows || [])) for (const s of (l.data.sheet || [])) if (s.tab && !S.names[s.tab]) { S.names[s.tab] = l.data.name === 'Every lot' ? 'Bodega (general)' : l.data.name; S.groups[s.tab] = l.data.group; }
     S.at = S.tabs.reduce((m, x) => Math.max(m, x.imported_at || 0), 0);
@@ -255,7 +267,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     for (const [k, label, fn] of groups) {
       const g = rows.filter(fn); if (!g.length) continue;
       h += `<h2 class="${k === 'over' ? 'over' : ''}">${label} <small>${g.length}</small></h2><div class="cards">` + g.map(r => `
-        <article class="wo p-${priCls(r.pri)}">
+        <article class="wo p-${priCls(r.pri)}" style="position:relative;overflow:hidden">${progOf(r) ? `<span class="pgb" style="width:${progOf(r)}%"></span>` : ''}
           <div class="top"><button class="pen" data-res="${esc(r.tab)}|${r.row}" aria-label="Editar">${PEN}</button><span class="lot" data-lot="${esc(r.tab)}" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule)">${esc(lotName(r.tab))}</span><span>${esc(r.ubi)}</span><span class="when ${k === 'over' ? 'over' : ''}">${fmtD(r.date)}</span></div>
           <div class="txt">${esc(r.note)}</div>
           ${ctlHTML(r)}
@@ -293,7 +305,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     // 2. Open orders for this lot
     const open = rows.filter(r => r.asig && !r.ini).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
     h += `<section class="sec"><h4>Órdenes abiertas <small>${open.length || 'ninguna'}</small></h4>` + open.map(r => { const late = r.date && r.date < today;
-      return `<article class="ocard p-${priCls(r.pri)}"><div class="oh">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="${late ? 'late' : ''}">${late ? 'Atrasada ' + daysAgo(r.date) + ' d' : r.date === today ? 'Hoy' : fmtD(r.date)}</span><span class="r">${esc(r.ubi || '')}</span><button class="pen" data-res="${esc(r.tab)}|${r.row}" aria-label="Editar">${PEN}</button></div>
+      return `<article class="ocard p-${priCls(r.pri)}" style="position:relative;overflow:hidden">${progOf(r) ? `<span class="pgb" style="width:${progOf(r)}%"></span>` : ''}<div class="oh">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="${late ? 'late' : ''}">${late ? 'Atrasada ' + daysAgo(r.date) + ' d' : r.date === today ? 'Hoy' : fmtD(r.date)}</span><span class="r">${esc(r.ubi || '')}</span><button class="pen" data-res="${esc(r.tab)}|${r.row}" aria-label="Editar">${PEN}</button></div>
         <div class="ot">${esc(r.note)}</div>${ctlHTML(r)}</article>`; }).join('') + `</section>`;
     // 3. Log, newest first, grouped by month
     const q = S.q.toLowerCase();
@@ -412,8 +424,9 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     if (e.target.matches('[data-cpri]')) { const v = e.target.value; ctlWrite(key, { pri: v === 'NORMAL' ? '' : v }, 'Prioridad ' + v); }
     if (e.target.matches('[data-cst]')) {
       const v = e.target.value, d = new Date(Date.now() - 6 * 3600e3 + 864e5);
-      if (v === 'open') ctlWrite(key, { ini: '' }, 'Reabierta');
-      else if (v === 'done') ctlWrite(key, { ini: (people(r.asig)[0] || S.me.initials || 'OK') }, '✓ Hecha');
+      if (/^p\d+$/.test(v)) { (async () => { if (r.ini) await post('/api/xl/update', { tab: r.tab, row: r.row, expect: r.note, set: { ini: '' } }); await setProg(r, +v.slice(1)); toast(v.slice(1) + '% · ' + r.tab); await load(); })(); return; }
+      if (v === 'open') { setProg(r, 0); if (r.ini) ctlWrite(key, { ini: '' }, 'Reabierta'); else load(); }
+      else if (v === 'done') setProg(r, 0), ctlWrite(key, { ini: (people(r.asig)[0] || S.me.initials || 'OK') }, '✓ Hecha');
       else if (v === 'xx') ctlWrite(key, { ini: 'XX' }, 'Cancelada');
       else if (v === 'roll') ctlWrite(key, { date_raw: d.toISOString().slice(0, 10) }, 'Pasada a mañana');
     }
