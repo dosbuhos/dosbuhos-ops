@@ -183,6 +183,15 @@ export async function xlRoute(request, env, p, url, user) {
     }).slice(0, 150);
     return { status: 200, body: { code, rows } };
   }
+  if (p === '/api/xl/today') {
+    // Same rows as Excellovint's "Today's Work Orders": everything dated today, plus open (assigned, not initialed)
+    // rows from the last 14 days. Never future rows.
+    const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
+    const from = new Date(Date.parse(today) - 14 * 864e5).toISOString().slice(0, 10);
+    const { results } = await env.DB.prepare(`SELECT * FROM xl_rows WHERE note <> '' AND date IS NOT NULL AND date <= ?1
+      AND (date = ?1 OR (date >= ?2 AND asig <> '' AND (ini = '' OR UPPER(ini) = 'UNDO'))) ORDER BY date, tab, row`).bind(today, from).all();
+    return { status: 200, body: { today, rows: results.map(r => (/^UNDO$/i.test(r.ini || '') ? Object.assign(r, { ini: '' }) : r)) } };
+  }
   if (p === '/api/xl/open') {
     const { results } = await env.DB.prepare("SELECT * FROM xl_rows WHERE asig <> '' AND ini = '' ORDER BY COALESCE(date, '9999'), tab, row").all();
     return { status: 200, body: { rows: results } };

@@ -190,7 +190,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   <div class="hrow"><h1>Registros de bodega</h1><a href="/">← Calendario</a></div>
   <nav class="tabs" role="tablist">
     <button role="tab" data-t="lotes" aria-selected="true">Lotes</button>
-    <button role="tab" data-t="ordenes" aria-selected="false">Órdenes abiertas</button>
+    <button role="tab" data-t="ordenes" aria-selected="false">Órdenes de hoy</button>
     <a role="tab" href="/purchases" aria-selected="false" style="text-decoration:none">Compras ↗</a>
   </nav>
 </header>
@@ -220,7 +220,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     const key = esc(r.tab) + '|' + r.row, pri = /URG/i.test(r.pri) ? 'URGENT' : /HIGH|ALTA/i.test(r.pri) ? 'HIGH' : 'NORMAL';
     return `<div class="ctl" data-key="${key}"><label>Prioridad<select class="pri-${pri}" data-cpri>${['NORMAL', 'HIGH', 'URGENT'].map(p => `<option${p === pri ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
       <label>Asignado<button type="button" class="who" data-cwho>${esc(asigLabel(r.asig))}</button></label>
-      <label>Estado<select class="st" data-cst><option value="open" selected>Open</option><option value="done">Done</option><option value="roll">Roll over → mañana</option><option value="xx">Cancel (XX)</option></select></label></div>`;
+      <label>Estado<select class="st" data-cst><option value="open"${r.ini ? '' : ' selected'}>Open</option><option value="done"${r.ini && !/^XX$/i.test(r.ini) ? ' selected' : ''}>${r.ini && !/^XX$/i.test(r.ini) ? 'Done (' + esc(r.ini) + ')' : 'Done'}</option><option value="roll">Roll over → mañana</option><option value="xx"${/^XX$/i.test(r.ini || '') ? ' selected' : ''}>Cancel (XX)</option></select></label></div>`;
   }
   const CREW = () => [...new Set(['P/J', 'P', 'J', 'D', 'EM', 'EM/D', ...S.open.map(r => String(r.asig || '').toUpperCase()).filter(Boolean)])];
   const toast = t => { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 3500); };
@@ -232,7 +232,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
 
   async function load() {
     const [t, o, lots, me, staff] = await Promise.all([
-      fetch('/api/xl/tabs').then(r => r.json()), fetch('/api/xl/open').then(r => r.json()),
+      fetch('/api/xl/tabs').then(r => r.json()), fetch('/api/xl/today').then(r => r.json()),
       fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({})), fetch('/api/db/staff').then(r => r.json()).catch(() => ({ rows: [] }))]);
     S.tabs = t.tabs || []; S.open = o.rows || []; S.me = me; S.staff = (staff.rows || []).map(x => Object.assign({ id: x.id }, x.data)).filter(c => c.active !== false);
     for (const l of (lots.rows || [])) for (const s of (l.data.sheet || [])) if (s.tab && !S.names[s.tab]) { S.names[s.tab] = l.data.name === 'Every lot' ? 'Bodega (general)' : l.data.name; S.groups[s.tab] = l.data.group; }
@@ -246,11 +246,12 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   }
 
   function renderOrdenes() {
-    const counts = {}; for (const r of S.open) for (const p of people(r.asig)) counts[p] = (counts[p] || 0) + 1;
+    const counts = {}; for (const r of S.open) if (!r.ini) for (const p of people(r.asig)) counts[p] = (counts[p] || 0) + 1;
     const whoList = ['Todos', ...Object.keys(counts).sort((a, b) => counts[b] - counts[a])];
     const rows = S.open.filter(r => S.who === 'Todos' || people(r.asig).includes(S.who));
-    const groups = [['over', 'Atrasadas', r => r.date && r.date < today], ['today', 'Hoy', r => r.date === today], ['next', 'Próximas', r => !r.date || r.date > today]];
-    let h = `<button class="btn primary newbtn" data-new>+ Nueva orden</button><div class="chips">${whoList.map(w => `<button data-who="${esc(w)}" aria-pressed="${S.who === w}">${esc(w === 'Todos' ? w : nameOf(w))}<small>${w === 'Todos' ? S.open.length : counts[w]}</small></button>`).join('')}</div>`;
+    // Same as Today's Work Orders: open backlog (14 days) + everything dated today; closed-today at the end.
+    const groups = [['over', 'Atrasadas', r => !r.ini && r.date < today], ['today', 'Hoy', r => !r.ini && r.date === today], ['closed', 'Cerradas hoy', r => !!r.ini && r.date === today]];
+    let h = `<button class="btn primary newbtn" data-new>+ Nueva orden</button><div class="chips">${whoList.map(w => `<button data-who="${esc(w)}" aria-pressed="${S.who === w}">${esc(w === 'Todos' ? w : nameOf(w))}<small>${w === 'Todos' ? S.open.filter(r => !r.ini).length : counts[w]}</small></button>`).join('')}</div>`;
     for (const [k, label, fn] of groups) {
       const g = rows.filter(fn); if (!g.length) continue;
       h += `<h2 class="${k === 'over' ? 'over' : ''}">${label} <small>${g.length}</small></h2><div class="cards">` + g.map(r => `
@@ -260,7 +261,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
           ${ctlHTML(r)}
         </article>`).join('') + `</div>`;
     }
-    return h + (rows.length ? '' : '<div class="empty">No hay órdenes abiertas.</div>');
+    return h + (rows.length ? '' : '<div class="empty">No hay órdenes para hoy.</div>');
   }
 
   const GCOL = { red: '#7a1f2b', rose: '#e0849a', white: '#d8b43c', orange: '#d9822b', sparkling: '#7fa7b8', routine: '#9aa5b1' };
@@ -411,7 +412,8 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     if (e.target.matches('[data-cpri]')) { const v = e.target.value; ctlWrite(key, { pri: v === 'NORMAL' ? '' : v }, 'Prioridad ' + v); }
     if (e.target.matches('[data-cst]')) {
       const v = e.target.value, d = new Date(Date.now() - 6 * 3600e3 + 864e5);
-      if (v === 'done') ctlWrite(key, { ini: (people(r.asig)[0] || S.me.initials || 'OK') }, '✓ Hecha');
+      if (v === 'open') ctlWrite(key, { ini: '' }, 'Reabierta');
+      else if (v === 'done') ctlWrite(key, { ini: (people(r.asig)[0] || S.me.initials || 'OK') }, '✓ Hecha');
       else if (v === 'xx') ctlWrite(key, { ini: 'XX' }, 'Cancelada');
       else if (v === 'roll') ctlWrite(key, { date_raw: d.toISOString().slice(0, 10) }, 'Pasada a mañana');
     }
