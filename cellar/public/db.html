@@ -98,19 +98,87 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
 @media (max-width:760px){dialog .g2{grid-template-columns:repeat(2,1fr)}dialog .g3{grid-template-columns:1fr}}
 @media (max-width:760px){
   header{padding:8px 12px 0}h1{font-size:20px}
+  .banner{font-size:12px;padding:6px 10px}.banner span{display:none}
   main{padding:10px 12px 40px}.banner{margin:10px 12px 0}
   .cards{grid-template-columns:1fr}
   .grid-wrap{display:none}.logcards{display:flex}
   .lothead input{width:100%;margin-left:0}
 }
+
+/* ===== Lot pager: one lot per screen ===== */
+.lp-head{position:sticky;top:var(--hh,96px);z-index:4;background:var(--bg);margin:0 -16px;padding:8px 8px 8px;display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:4px;border-bottom:1px solid var(--rule)}
+.lp-arrow{width:44px;height:44px;border:1px solid var(--rule);border-radius:12px;background:var(--paper);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+.lp-arrow:disabled{opacity:.3}
+.lp-arrow svg{width:22px;height:22px}
+.lp-title{border:0;background:none;text-align:center;cursor:pointer;padding:2px 4px;min-width:0;color:var(--ink)}
+.lp-title b{display:flex;align-items:center;justify-content:center;gap:6px;font:700 22px/1.1 var(--f-d);text-transform:uppercase;letter-spacing:.03em;color:var(--wine);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-title b::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-3px);flex:none}
+.lp-title small{display:block;font:12px var(--f-m);color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:2px;vertical-align:1px}
+.lp-body{max-width:860px;margin:0 auto;padding:12px 0 110px;transition:transform .18s ease,opacity .18s ease}
+.lp-body.out-l{transform:translateX(-24px);opacity:0}.lp-body.out-r{transform:translateX(24px);opacity:0}
+.sec{margin:0 0 18px}
+.sec h4{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;font:700 13px var(--f-d);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sec h4 small{font:500 12px var(--f-b);letter-spacing:0;text-transform:none}
+.sec h4 .r{margin-left:auto}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.tile{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:8px 10px;min-width:0}
+.tile i{display:block;font:600 10px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-style:normal}
+.tile b{display:block;font:700 22px/1.15 var(--f-d);color:var(--ink);margin-top:2px}
+.tile small{display:block;font:11px var(--f-m);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.none b{color:var(--rule)}
+.tile.old small{color:var(--amber)}
+.ocard{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--blue);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.ocard.p-urgent{border-left-color:var(--red)}.ocard.p-high{border-left-color:var(--amber)}
+.ocard .oh{display:flex;gap:8px;align-items:center;font:600 12.5px var(--f-b);color:var(--muted)}
+.ocard .oh .late{color:var(--red)}
+.ocard .oh .r{margin-left:auto;font:12px var(--f-m)}
+.ocard .ot{margin:6px 0 8px;font-size:14.5px;line-height:1.42}
+.ocard .oa{display:flex;gap:8px}
+.ocard .oa .btn{flex:1;min-height:42px}
+.xlog{display:flex;flex-direction:column;gap:10px}
+.xe{border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--paper);cursor:pointer}
+.xe-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:7px 12px;background:#3a4043;color:#fff;font:600 12.5px var(--f-m)}
+.xe-u{color:#d9dde0;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.xe-st{margin-left:auto;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.14);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.xe-st.open{background:#ffb13d;color:#3a2500}.xe-st.done{background:#9ad39f;color:#10351a}.xe-st.xx{background:#c9ced3;color:#333}
+.xe-b{padding:9px 12px 10px}
+.xe-r{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 6px;font:600 15px var(--f-m)}
+.xe-r span{white-space:nowrap}
+.xe-r i{display:block;font:500 9.5px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-style:normal}
+.xe-n{margin:0;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.xe.xx{opacity:.55}
+.mon{font:700 12px var(--f-d);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
+.lp-bar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(244,243,239,.96);backdrop-filter:blur(6px);border-top:1px solid var(--rule)}
+.lp-bar .btn{flex:1;min-height:48px;font-size:15px;border-radius:12px}
+.lp-hint{text-align:center;font:12px var(--f-b);color:var(--muted);margin:6px 0 0}
+.viewtog{display:flex;justify-content:flex-end;margin:0 0 8px;gap:4px}
+.viewtog button{border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:5px 10px;font:600 12.5px var(--f-b);cursor:pointer;color:var(--muted)}
+.viewtog button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* lot picker */
+.pick-q{width:100%;min-height:44px;border:1px solid var(--rule);border-radius:12px;padding:0 12px;font:16px var(--f-b);background:#fff}
+.pick-list{display:flex;flex-direction:column;gap:2px;max-height:60dvh;overflow:auto;margin:4px -4px 0}
+.pick-list button{display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:10px 8px;border-radius:10px;font:inherit;color:var(--ink);cursor:pointer}
+.pick-list button:hover,.pick-list button[aria-current=true]{background:var(--wine-soft)}
+.pick-list b{font-size:15px;flex:1;min-width:0}
+.pick-list small{font:12px var(--f-m);color:var(--muted)}
+.pick-list .oc{font:700 11px var(--f-m);background:var(--wine);color:#fff;border-radius:999px;padding:1px 7px}
+@media (max-width:760px){
+  .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lp-head{margin:0 -12px}
+  dialog{width:100%;max-width:none;margin:auto 0 0;border-radius:20px 20px 0 0}
+  dialog form{max-height:88dvh;overflow:auto}
+  .viewtog{display:none}
+}
+@media (min-width:761px){.lp-bar{left:50%;transform:translateX(-50%);max-width:860px;border:1px solid var(--rule);border-radius:16px 16px 0 0}}
 </style>
 </head>
 <body>
 <header>
   <div class="hrow"><h1>Registros de bodega</h1><a href="/">← Calendario</a></div>
   <nav class="tabs" role="tablist">
-    <button role="tab" data-t="ordenes" aria-selected="true">Órdenes abiertas</button>
-    <button role="tab" data-t="lotes" aria-selected="false">Lotes</button>
+    <button role="tab" data-t="lotes" aria-selected="true">Lotes</button>
+    <button role="tab" data-t="ordenes" aria-selected="false">Órdenes abiertas</button>
     <a role="tab" href="/purchases" aria-selected="false" style="text-decoration:none">Compras ↗</a>
   </nav>
 </header>
@@ -124,7 +192,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
-  const S = { view: 'ordenes', who: 'Todos', tabs: [], open: [], names: {}, lot: null, rows: [], q: '', me: {}, at: 0 };
+  const S = { view: 'lotes', mode: (() => { try { return localStorage.getItem('db.mode') || 'cards'; } catch (e) { return 'cards'; } })(), groups: {}, who: 'Todos', tabs: [], open: [], names: {}, lot: null, rows: [], q: '', me: {}, at: 0 };
   const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
   const fmtD = iso => { if (!iso) return 'sin fecha'; const d = new Date(iso + 'T12:00:00'); return DOW[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1); };
   const lotName = tab => S.names[tab] || tab;
@@ -144,8 +212,9 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
       fetch('/api/xl/tabs').then(r => r.json()), fetch('/api/xl/open').then(r => r.json()),
       fetch('/api/db/lots').then(r => r.json()).catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({}))]);
     S.tabs = t.tabs || []; S.open = o.rows || []; S.me = me;
-    for (const l of (lots.rows || [])) for (const s of (l.data.sheet || [])) if (s.tab && !S.names[s.tab]) S.names[s.tab] = l.data.name === 'Every lot' ? 'Bodega (general)' : l.data.name;
+    for (const l of (lots.rows || [])) for (const s of (l.data.sheet || [])) if (s.tab && !S.names[s.tab]) { S.names[s.tab] = l.data.name === 'Every lot' ? 'Bodega (general)' : l.data.name; S.groups[s.tab] = l.data.group; }
     S.at = S.tabs.reduce((m, x) => Math.max(m, x.imported_at || 0), 0);
+    if (!S.lot || !S.tabs.some(t => t.tab === S.lot)) { let want = decodeURIComponent(location.hash.slice(1)); try { want = want || localStorage.getItem('db.lot'); } catch (e) {} S.lot = (S.tabs.find(t => t.tab === want) || order()[0] || {}).tab || null; }
     if (S.lot) S.rows = (await (await fetch('/api/xl/rows?tab=' + encodeURIComponent(S.lot))).json()).rows || [];
     banner(); render();
   }
@@ -163,7 +232,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
       const g = rows.filter(fn); if (!g.length) continue;
       h += `<h2 class="${k === 'over' ? 'over' : ''}">${label} <small>${g.length}</small></h2><div class="cards">` + g.map(r => `
         <article class="wo p-${priCls(r.pri)}">
-          <div class="top"><span class="lot">${esc(lotName(r.tab))}</span><span>${esc(r.ubi)}</span><span class="when ${k === 'over' ? 'over' : ''}">${fmtD(r.date)}</span></div>
+          <div class="top"><span class="lot" data-lot="${esc(r.tab)}" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule)">${esc(lotName(r.tab))}</span><span>${esc(r.ubi)}</span><span class="when ${k === 'over' ? 'over' : ''}">${fmtD(r.date)}</span></div>
           <div class="txt">${esc(r.note)}</div>
           <div class="meta">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="tag who">${esc(r.asig)}</span><span class="tag">${esc(r.tab)} · fila ${r.row}</span></div>
           <div class="act"><button class="btn primary" data-done="${esc(r.tab)}|${r.row}">✓ Hecho</button><button class="btn" data-res="${esc(r.tab)}|${r.row}">Anotar resultado</button></div>
@@ -172,30 +241,89 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
     return h + (rows.length ? '' : '<div class="empty">No hay órdenes abiertas.</div>');
   }
 
+  const GCOL = { red: '#7a1f2b', rose: '#e0849a', white: '#d8b43c', orange: '#d9822b', sparkling: '#7fa7b8', routine: '#9aa5b1' };
+  const order = () => S.tabs.slice().sort((a, b) => a.tab.localeCompare(b.tab, 'es', { numeric: true }));
+  const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const ICL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+  const ICR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
   function renderLotes() {
-    if (S.lot) return renderLot();
-    const named = S.tabs.slice().sort((a, b) => a.tab.localeCompare(b.tab, 'es', { numeric: true }));
-    return `<div class="lots">` + named.map(t => `<button class="lotc" data-lot="${esc(t.tab)}"><b>${esc(lotName(t.tab))}</b><span class="tabn">${esc(t.tab)}${t.vino ? ' · ' + esc(t.vino) : ''}</span>
-      <div class="nums"><span>${t.n} registros</span><span>último ${fmtD(t.last)}</span>${t.open ? `<span class="open">${t.open} abiertas</span>` : ''}</div></button>`).join('') + `</div>`;
+    if (!S.lot) return '<div class="empty">Todavía no hay lotes. Pulsa «Sincronizar ahora».</div>';
+    const list = order(), i = list.findIndex(t => t.tab === S.lot), t = list[i] || { tab: S.lot };
+    const g = S.groups[t.tab];
+    const head = `<div class="lp-head"><button class="lp-arrow" data-go="-1" ${i <= 0 ? 'disabled' : ''} aria-label="Lote anterior">${ICL}</button>
+      <button class="lp-title" data-pick aria-label="Elegir lote"><b>${esc(lotName(t.tab))}</b><small>${g ? `<span class="lp-dot" style="background:${GCOL[g] || '#999'}"></span>` : ''}${esc(t.tab)} · ${i + 1} de ${list.length}</small></button>
+      <button class="lp-arrow" data-go="1" ${i >= list.length - 1 ? 'disabled' : ''} aria-label="Lote siguiente">${ICR}</button></div>`;
+    const tog = `<div class="viewtog"><button data-mode="cards" aria-pressed="${S.mode === 'cards'}">Tarjetas</button><button data-mode="table" aria-pressed="${S.mode === 'table'}">Tabla</button></div>`;
+    const bar = `<div class="lp-bar"><button class="btn" data-entry="${esc(t.tab)}">+ Registro</button><button class="btn primary" data-new="${esc(t.tab)}">+ Orden</button></div>`;
+    if (S.mode === 'table' && window.matchMedia('(min-width:761px)').matches) return head + `<div style="padding-top:12px">${tog}</div>` + renderTable() + bar;
+    return head + `<div class="lp-body" id="lpBody">${tog}${renderLotCards()}</div>` + bar;
   }
-
-  const COLS = [['date_raw', 'Fecha', 'd'], ['ubi', 'Ubi'], ['voli', 'Vol I', 'n'], ['volf', 'Vol F', 'n'], ['ph', 'pH', 'n'], ['bx', 'Bx', 'n'], ['tp', 'T°', 'n'], ['at', 'AT', 'n'], ['am', 'Málico', 'n'], ['sl', 'SO₂ L', 'n'], ['st', 'SO₂ T', 'n'], ['aa', 'AV', 'n'], ['note', 'Acción', 'note'], ['pri', 'Pri'], ['by_', 'Por'], ['asig', 'Asig'], ['ini', 'Ini']];
-  const LAB = [['volf', 'Vol F (L)'], ['ph', 'pH'], ['tp', 'T° (°C)'], ['at', 'AT (g/L)'], ['am', 'Málico (g/L)'], ['sl', 'SO₂ libre'], ['st', 'SO₂ total'], ['aa', 'AV (g/L)'], ['bx', 'Brix']];
-  function renderLot() {
-    const t = S.tabs.find(x => x.tab === S.lot) || { tab: S.lot };
+  const READ = [['volf', 'Litros', ''], ['ph', 'pH', ''], ['at', 'AT', ''], ['am', 'Málico', ''], ['sl', 'SO₂ L', ''], ['st', 'SO₂ T', ''], ['aa', 'AV', ''], ['bx', 'Brix', ''], ['tp', 'T °C', '']];
+  const daysAgo = iso => iso ? Math.round((new Date(today) - new Date(iso)) / 864e5) : null;
+  function renderLotCards() {
+    const rows = S.rows.slice().sort((a, b) => a.row - b.row);
+    // 1. Latest numbers
+    const last = {}; for (const r of rows) for (const [k] of READ) if (r[k] != null && String(r[k]).trim() !== '' && String(r[k]).trim() !== '?') last[k] = { v: String(r[k]).trim(), d: r.date };
+    const shown = READ.filter(([k]) => last[k] || ['ph', 'am', 'sl', 'aa', 'volf', 'at'].includes(k));
+    let h = `<section class="sec"><h4>Últimos números</h4><div class="tiles">${shown.map(([k, l, u]) => { const x = last[k]; const ago = x ? daysAgo(x.d) : null;
+      return `<div class="tile${x ? '' : ' none'}${ago != null && ago > 21 ? ' old' : ''}"><i>${l}${u ? ' · ' + u : ''}</i><b>${x ? esc(x.v) : '—'}</b><small>${x ? (x.d ? (ago === 0 ? 'hoy' : ago === 1 ? 'ayer' : 'hace ' + ago + ' días') : 'sin fecha') : 'sin dato'}</small></div>`; }).join('')}</div></section>`;
+    // 2. Open orders for this lot
+    const open = rows.filter(r => r.asig && !r.ini).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    h += `<section class="sec"><h4>Órdenes abiertas <small>${open.length || 'ninguna'}</small></h4>` + open.map(r => { const late = r.date && r.date < today;
+      return `<article class="ocard p-${priCls(r.pri)}"><div class="oh">${priLbl(r.pri) ? `<span class="tag ${priCls(r.pri)}">${priLbl(r.pri)}</span>` : ''}<span class="${late ? 'late' : ''}">${late ? 'Atrasada ' + daysAgo(r.date) + ' d' : r.date === today ? 'Hoy' : fmtD(r.date)}</span><span>· ${esc(r.asig)}</span><span class="r">${esc(r.ubi || '')}</span></div>
+        <div class="ot">${esc(r.note)}</div><div class="oa"><button class="btn" style="border-color:var(--wine);color:var(--wine)" data-done="${esc(r.tab)}|${r.row}">Marcar hecha</button><button class="btn" data-res="${esc(r.tab)}|${r.row}">Anotar resultado</button></div></article>`; }).join('') + `</section>`;
+    // 3. Log, newest first, grouped by month
+    const q = S.q.toLowerCase();
+    const log = rows.filter(r => !(r.asig && !r.ini)).filter(r => !q || COLS.some(([k]) => String(r[k] || '').toLowerCase().includes(q))).reverse();
+    h += `<section class="sec"><h4>Bitácora <small>${log.length} registros</small></h4><input type="search" id="q" class="pick-q" placeholder="Buscar en este lote" value="${esc(S.q)}" style="margin-bottom:8px">`;
+    let lastM = '';
+    h += `<div class="xlog">` + log.map(r => {
+      const m = r.date ? r.date.slice(0, 7) : ''; let sep = '';
+      if (m && m !== lastM) { lastM = m; sep = `<div class="mon">${MES[+m.slice(5) - 1]} ${m.slice(0, 4)}</div>`; }
+      const st = r.ini === 'XX' ? '<span class="xe-st xx">Cancelada</span>' : r.ini ? `<span class="xe-st done">Hecha · ${esc(r.ini)}</span>` : '';
+      const reads = READ.filter(([k]) => r[k] != null && String(r[k]).trim() !== '').map(([k, l]) => `<span><i>${l}</i>${esc(r[k])}</span>`).join('');
+      return sep + `<article class="xe${r.ini === 'XX' ? ' xx' : ''}" data-res="${esc(r.tab)}|${r.row}"><div class="xe-h"><span>${esc(fmtD(r.date))}</span>${r.ubi ? `<span class="xe-u">${esc(r.ubi)}</span>` : ''}${st}</div><div class="xe-b">${reads ? `<div class="xe-r">${reads}</div>` : ''}${r.note ? `<p class="xe-n">${esc(r.note)}</p>` : ''}</div></article>`;
+    }).join('') + `</div></section><p class="lp-hint">Desliza ← → para cambiar de lote</p>`;
+    return h;
+  }
+  function renderTable() {
     const q = S.q.toLowerCase();
     const rows = S.rows.filter(r => !q || COLS.some(([k]) => String(r[k] || '').toLowerCase().includes(q))).slice().reverse();
     const st = r => r.ini === 'XX' ? 'xx' : (r.asig && !r.ini ? 'open' : '');
     const act = r => r.asig && !r.ini ? `<button class="btn" data-done="${esc(r.tab)}|${r.row}">✓</button> ` : '';
-    return `<div class="lothead"><button class="btn" data-back>← Lotes</button><h3>${esc(lotName(t.tab))}</h3><span class="tabn">${esc(t.tab)} · ${S.rows.length} registros</span><button class="btn" data-new="${esc(t.tab)}">+ Orden</button><button class="btn" data-entry="${esc(t.tab)}">+ Registro</button><input type="search" id="q" placeholder="Buscar en este lote" value="${esc(S.q)}"></div>
-      <div class="grid-wrap"><table class="g"><thead><tr><th>#</th>${COLS.map(([, l]) => `<th>${l}</th>`).join('')}<th></th></tr></thead><tbody>` +
-      rows.map(r => `<tr class="${st(r)}"><td class="rn">${r.row}</td>${COLS.map(([k, , c]) => `<td class="${c || ''}">${esc(r[k])}</td>`).join('')}<td style="white-space:nowrap">${act(r)}<button class="btn" data-res="${esc(r.tab)}|${r.row}">Editar</button></td></tr>`).join('') + `</tbody></table></div>
-      <div class="logcards">` + rows.map(r => `<div class="lc ${st(r)}" data-res="${esc(r.tab)}|${r.row}"><div class="h"><span>${fmtD(r.date)}</span><span>${esc(r.ubi)}</span><span class="st">${r.ini ? (r.ini === 'XX' ? 'cancelada' : '✓ ' + esc(r.ini)) : r.asig ? 'abierta · ' + esc(r.asig) : ''}</span></div>
-        ${r.note ? `<div class="t">${esc(r.note)}</div>` : ''}<div class="v">${COLS.slice(2, 12).filter(([k]) => r[k]).map(([k, l]) => `<span>${l} ${esc(r[k])}</span>`).join('')}</div></div>`).join('') + `</div>`;
+    return `<input type="search" id="q" class="pick-q" placeholder="Buscar en este lote" value="${esc(S.q)}" style="margin-bottom:8px;max-width:320px"><div class="grid-wrap" style="display:block"><table class="g"><thead><tr><th>#</th>${COLS.map(([, l]) => `<th>${l}</th>`).join('')}<th></th></tr></thead><tbody>` +
+      rows.map(r => `<tr class="${st(r)}"><td class="rn">${r.row}</td>${COLS.map(([k, , c]) => `<td class="${c || ''}">${esc(r[k])}</td>`).join('')}<td style="white-space:nowrap">${act(r)}<button class="btn" data-res="${esc(r.tab)}|${r.row}">Editar</button></td></tr>`).join('') + `</tbody></table></div><div style="height:90px"></div>`;
   }
+  const COLS = [['date_raw', 'Fecha', 'd'], ['ubi', 'Ubi'], ['voli', 'Vol I', 'n'], ['volf', 'Vol F', 'n'], ['ph', 'pH', 'n'], ['bx', 'Bx', 'n'], ['tp', 'T°', 'n'], ['at', 'AT', 'n'], ['am', 'Málico', 'n'], ['sl', 'SO₂ L', 'n'], ['st', 'SO₂ T', 'n'], ['aa', 'AV', 'n'], ['note', 'Acción', 'note'], ['pri', 'Pri'], ['by_', 'Por'], ['asig', 'Asig'], ['ini', 'Ini']];
+  const LAB = [['volf', 'Vol F (L)'], ['ph', 'pH'], ['tp', 'T° (°C)'], ['at', 'AT (g/L)'], ['am', 'Málico (g/L)'], ['sl', 'SO₂ libre'], ['st', 'SO₂ total'], ['aa', 'AV (g/L)'], ['bx', 'Brix']];
+  async function goLot(tab, dir) {
+    if (!tab || tab === S.lot) return;
+    const b = $('#lpBody'); if (b && dir) { b.classList.add(dir > 0 ? 'out-l' : 'out-r'); }
+    S.lot = tab; S.q = ''; try { localStorage.setItem('db.lot', tab); } catch (e) {} history.replaceState(null, '', '#' + encodeURIComponent(tab));
+    S.rows = (await (await fetch('/api/xl/rows?tab=' + encodeURIComponent(tab))).json()).rows || [];
+    render(); window.scrollTo(0, 0);
+  }
+  function step(d) { const list = order(), i = list.findIndex(t => t.tab === S.lot), n = list[i + d]; if (n) goLot(n.tab, d); }
+  function openPicker() {
+    const list = order();
+    const d = $('#dlg'), f = $('#dlgForm');
+    const draw = q => list.filter(t => !q || (lotName(t.tab) + ' ' + t.tab).toLowerCase().includes(q.toLowerCase())).map(t => `<button type="button" data-pickgo="${esc(t.tab)}" aria-current="${t.tab === S.lot}"><span class="lp-dot" style="background:${GCOL[S.groups[t.tab]] || '#ccc'}"></span><b>${esc(lotName(t.tab))}<br><small>${esc(t.tab)}</small></b>${t.open ? `<span class="oc">${t.open}</span>` : ''}</button>`).join('');
+    f.innerHTML = `<h3>Lotes</h3><input class="pick-q" placeholder="Buscar lote" id="pq"><div class="pick-list" id="pl">${draw('')}</div><div class="row"><button type="button" class="btn" data-cancel>Cerrar</button></div>`;
+    f.onsubmit = e => e.preventDefault();
+    f.querySelector('[data-cancel]').onclick = () => d.close();
+    f.querySelector('#pq').oninput = e => { f.querySelector('#pl').innerHTML = draw(e.target.value); };
+    f.querySelector('#pl').onclick = e => { const b = e.target.closest('[data-pickgo]'); if (b) { d.close(); goLot(b.dataset.pickgo); } };
+    d.showModal(); setTimeout(() => { const c = f.querySelector('[aria-current="true"]'); if (c) c.scrollIntoView({ block: 'center' }); }, 30);
+  }
+  // Swipe between lots (horizontal swipe on the lot body; vertical scrolling is untouched).
+  let sx = null, sy = null;
+  document.addEventListener('touchstart', e => { if (S.view !== 'lotes' || e.target.closest('dialog,input,textarea,.grid-wrap')) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchend', e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) step(dx < 0 ? 1 : -1); }, { passive: true });
+  document.addEventListener('keydown', e => { if (S.view === 'lotes' && !$('#dlg').open && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); } });
 
   function render() {
     document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === S.view));
+    document.documentElement.style.setProperty('--hh', document.querySelector('header').offsetHeight + 'px');
     $('#main').innerHTML = S.view === 'ordenes' ? renderOrdenes() : renderLotes();
     const q = $('#q'); if (q) q.addEventListener('input', () => { S.q = q.value; const pos = q.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); });
   }
@@ -251,14 +379,16 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   }
 
   document.addEventListener('click', async e => {
-    const t = e.target.closest('[data-t]'); if (t) { S.view = t.dataset.t; S.lot = null; render(); return; }
+    const t = e.target.closest('[data-t]'); if (t) { S.view = t.dataset.t; render(); window.scrollTo(0, 0); return; }
+    const go = e.target.closest('[data-go]'); if (go) { step(+go.dataset.go); return; }
+    if (e.target.closest('[data-pick]')) { openPicker(); return; }
+    const md = e.target.closest('[data-mode]'); if (md) { S.mode = md.dataset.mode; try { localStorage.setItem('db.mode', S.mode); } catch (e2) {} render(); return; }
     const w = e.target.closest('[data-who]'); if (w) { S.who = w.dataset.who; render(); return; }
     const dn = e.target.closest('[data-done]'); if (dn) { const r = findRow(dn.dataset.done); if (r) dlgDone(r); return; }
     const rs = e.target.closest('[data-res]'); if (rs) { const r = findRow(rs.dataset.res); if (r) dlgRes(r); return; }
     const nw = e.target.closest('[data-new]'); if (nw) { dlgNew(nw.dataset.new || S.lot); return; }
     const en = e.target.closest('[data-entry]'); if (en) { dlgNew(en.dataset.entry, true); return; }
-    const l = e.target.closest('[data-lot]'); if (l) { S.lot = l.dataset.lot; S.q = ''; S.rows = (await (await fetch('/api/xl/rows?tab=' + encodeURIComponent(S.lot))).json()).rows || []; render(); window.scrollTo(0, 0); return; }
-    if (e.target.closest('[data-back]')) { S.lot = null; render(); }
+    const l = e.target.closest('[data-lot]'); if (l) { S.view = 'lotes'; goLot(l.dataset.lot); return; }
   });
   $('#importBtn').addEventListener('click', async () => {
     const b = $('#importBtn'); b.disabled = true; b.textContent = 'Sincronizando…';
