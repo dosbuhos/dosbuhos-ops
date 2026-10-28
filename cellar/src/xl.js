@@ -183,6 +183,13 @@ export async function xlRoute(request, env, p, url, user) {
     }).slice(0, 150);
     return { status: 200, body: { code, rows } };
   }
+  if (p === '/api/xl/day') {
+    // Everything Excellovint logged for one day (work orders and notes), for looking back day by day.
+    const d = String(url.searchParams.get('d') || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return { status: 400, body: { message: 'd=YYYY-MM-DD' } };
+    const { results } = await env.DB.prepare("SELECT * FROM xl_rows WHERE date = ? AND note <> '' ORDER BY tab, row").bind(d).all();
+    return { status: 200, body: { d, rows: results } };
+  }
   if (p === '/api/xl/today') {
     // Same rows as Excellovint's "Today's Work Orders": everything dated today, plus open (assigned, not initialed)
     // rows from the last 14 days. Never future rows.

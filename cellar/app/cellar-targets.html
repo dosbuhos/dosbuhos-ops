@@ -743,6 +743,23 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .spark { display: block; margin-top: 4px; max-width: 100%; height: auto; }
 .wk-h { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .tasklist { display: flex; flex-direction: column; gap: 4px; }
+/* Day navigator on Today: ‹ Hoy › */
+.asg-day { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+.asg-day .ad-btn { width: 36px; height: 36px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font: 600 20px/1 var(--f-body); color: var(--ink); cursor: pointer; padding: 0 0 2px; }
+.asg-day .ad-btn:disabled { opacity: .3; cursor: default; }
+.asg-day .ad-lbl { min-width: 92px; text-align: center; font: 700 17px var(--f-display); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.asg-day .ad-lbl small { display: none; }
+.asg-day .ad-today { margin-left: auto; border: 0; background: none; color: var(--accent); font: 600 13px var(--f-body); cursor: pointer; text-decoration: underline; }
+.pd-sum { margin: 0 0 6px; color: var(--muted); font-size: 14px; }
+.pd-g { margin: 14px 0 6px; font: 700 13px var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.pd-g small { font: 500 12px var(--f-body); letter-spacing: 0; }
+.pd-row { background: var(--paper); border: 1px solid var(--rule); border-left: 4px solid var(--rule); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.pd-row.done { border-left-color: #2f6b34; } .pd-row.open { border-left-color: #b3261e; } .pd-row.xx { opacity: .6; }
+.pd-row .pd-h { display: flex; gap: 8px; align-items: baseline; margin: 0; } .pd-h b { flex: 1; font-size: 15px; }
+.pd-h span { font: 600 12px var(--f-mono); color: var(--muted); white-space: nowrap; }
+.pd-row.done .pd-h span { color: #2f6b34; } .pd-row.open .pd-h span { color: #b3261e; }
+.pd-s { font: 12px var(--f-mono); color: var(--muted); margin-top: 2px; }
+.pd-t { margin-top: 6px; font-size: 14px; line-height: 1.42; }
 /* Crew picker: tap one or two people */
 .crewpick { display: flex; flex-wrap: wrap; gap: 6px; }
 .crewpick .cp { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 500 14px var(--f-body); cursor: pointer; }
@@ -2935,8 +2952,35 @@ Return ONLY JSON with this shape:
     }
     return out;
   }
+  // ---- Look back day by day: ‹ › next to the date; past days are read-only, from the app's copy of Excellovint. ----
+  S.asgOff = 0; S.asgPast = {};
+  function dayNav() {
+    const d = iso(addDays(parse(todayISO), S.asgOff)), dd = parse(d);
+    const label = S.asgOff === 0 ? "Hoy" : S.asgOff === -1 ? "Ayer" : DAYS[(dd.getDay() + 6) % 7] + " " + dd.getDate() + " " + MONTHS[dd.getMonth()];
+    return `<div class="asg-day"><button type="button" class="ad-btn" data-asgday="-1" aria-label="Día anterior">‹</button><span class="ad-lbl">${esc(label)}${S.asgOff ? `<small>${esc(dd.getDate() + " " + MONTHS[dd.getMonth()])}</small>` : ""}</span><button type="button" class="ad-btn" data-asgday="1" aria-label="Día siguiente"${S.asgOff >= 0 ? " disabled" : ""}>›</button>${S.asgOff ? `<button type="button" class="ad-today" data-asgday="0">Volver a hoy</button>` : ""}</div>`;
+  }
+  async function loadPast(d) {
+    if (S.asgPast[d]) return;
+    S.asgPast[d] = { loading: true, rows: [] }; render();
+    try { const r = await fetch("/api/xl/day?d=" + d); const j = await r.json(); S.asgPast[d] = { rows: j.rows || [] }; }
+    catch (e) { S.asgPast[d] = { rows: [], err: String(e.message || e) }; }
+    render();
+  }
+  function renderPastDay(el) {
+    const d = iso(addDays(parse(todayISO), S.asgOff)), P = S.asgPast[d];
+    if (!P) { loadPast(d); el.innerHTML = dayNav() + `<div class="empty">Cargando…</div>`; return; }
+    if (P.loading) { el.innerHTML = dayNav() + `<div class="empty">Cargando…</div>`; return; }
+    const wineOf = tab => { const l = S.lots.find(x => (x.sheet || []).some(s2 => s2.tab === tab)); return l ? (l.id === "all" ? "Bodega (todos)" : l.name) : tab; };
+    const rows = P.rows, done = rows.filter(r => r.ini && !/^XX$/i.test(r.ini)), open = rows.filter(r => r.asig && !r.ini), xx = rows.filter(r => /^XX$/i.test(r.ini || "")), notes = rows.filter(r => !r.asig && !r.ini);
+    const card = (r, cls, st) => `<div class="pd-row ${cls}"><div class="pd-h"><b>${esc(wineOf(r.tab))}</b><span>${esc(st)}</span></div><div class="pd-s">${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</div><div class="pd-t">${esc(r.note)}</div></div>`;
+    const sec = (title, list, cls, st) => list.length ? `<h3 class="pd-g">${title} <small>${list.length}</small></h3>` + list.map(r => card(r, cls, st(r))).join("") : "";
+    el.innerHTML = dayNav() + `<p class="pd-sum">${done.length} hechas · ${open.length} sin cerrar${xx.length ? " · " + xx.length + " canceladas" : ""}${notes.length ? " · " + notes.length + " notas" : ""}</p>` +
+      (rows.length ? sec("Hechas", done, "done", r => "✓ " + r.ini) + sec("Sin cerrar ese día", open, "open", r => r.asig) + sec("Canceladas", xx, "xx", () => "XX") + sec("Notas", notes, "note", () => "")
+        : `<div class="empty"><strong>Nada registrado ese día.</strong>${P.err ? esc(P.err) : ""}</div>`);
+  }
   function renderAsg() {
     const el = $("asgView");
+    if (S.asgOff < 0) { renderPastDay(el); return; }
     const fromCache = !S.sheet.values;
     if (fromCache && !(S.woCache && Array.isArray(S.woCache.rows))) { el.innerHTML = `<div class="empty"><strong>${S.mcp && S.sheet.mode === "loading" ? "Reading Excellovint…" : "Google Sheets isn't connected for you yet"}</strong>The assigned work orders come straight from Excellovint, using your own Google account.<br><button type="button" class="btn primary" data-sheet="diag" style="margin-top:10px">Fix access</button></div>`; return; }
     const all = asgRows();
@@ -2951,7 +2995,7 @@ Return ONLY JSON with this shape:
     const tm = team(), dis = (S.mcp || S.db) && S.canWrite !== false ? "" : " disabled";
     const queued = (S.woQueue || []).filter(q => q.status === "pending").length;
     const open = all.filter(r => !closed(r)).length;
-    let h = `<div class="asg-top"><span class="seg who" role="group" aria-label="Who">` +
+    let h = dayNav() + `<div class="asg-top"><span class="seg who" role="group" aria-label="Who">` +
       [["", "Everyone"]].concat(people.map(p => [p, p === "—" ? "Unassigned" : crewName(p)])).map(([k, l]) => `<button type="button" class="ghost" data-asgwho="${esc(k)}" aria-pressed="${S.asgWho === k}">${esc(l)}</button>`).join("") +
       `</span>` +
       `<button type="button" class="ghost" id="asgRefresh">Refresh from Excellovint</button></div>` +
@@ -3171,6 +3215,7 @@ Return ONLY JSON with this shape:
     const w = e.target.closest("[data-asgwho]");
     if (w) { S.asgWho = w.dataset.asgwho; render(); return; }
     const ed = e.target.closest("[data-asgedit]"); if (ed) { openXo(ed.dataset.asgedit, ed.dataset.focus); return; }
+    const dy = e.target.closest("[data-asgday]"); if (dy) { const v = +dy.dataset.asgday; S.asgOff = v === 0 ? 0 : Math.min(0, S.asgOff + v); render(); window.scrollTo(0, 0); return; }
     if (e.target.id === "asgRefresh") { loadLive(true); toast("Reading Excellovint…"); return; }
   });
   $("asgView").addEventListener("change", async e => {
