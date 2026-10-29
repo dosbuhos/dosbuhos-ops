@@ -95,7 +95,7 @@
   window.addEventListener('cellar:planrendered', () => { if (currentView() === 'weeks' && !html.classList.contains('v-asg')) weekTitle(); });
   // Date menu: Día · Semana · Ir a hoy
   const vm = document.createElement('div'); vm.className = 'm-vmenu'; vm.hidden = true;
-  vm.innerHTML = '<button type="button" data-vm="day">Día</button><button type="button" data-vm="plan">Semana</button><button type="button" data-vm="today">Ir a hoy</button>';
+  vm.innerHTML = '<button type="button" data-vm="day">Órdenes asignadas<small>por día · ‹ › para días anteriores</small></button><button type="button" data-vm="plan">Plan semanal<small>por vino · ‹ › para otras semanas</small></button><button type="button" data-vm="today">Ir a hoy</button>';
   document.body.appendChild(vm);
   function openViewMenu() { vm.hidden = false; const plan = !html.classList.contains('v-asg'), wk = !!document.querySelector('#asgView .wk-day'); vm.querySelectorAll('[data-vm]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vm === (plan ? 'plan' : 'day')))); }
   vm.addEventListener('click', e => { const b = e.target.closest('[data-vm]'); vm.hidden = true; if (!b) return; if (b.dataset.vm === 'plan') window.dispatchEvent(new CustomEvent('cellar:plan')); else window.dispatchEvent(new CustomEvent('cellar:asgmode', { detail: { mode: b.dataset.vm } })); setTimeout(syncBar, 0); });
