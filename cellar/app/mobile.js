@@ -17,7 +17,10 @@
     trials: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7l-4 8a2 2 0 0 0 1.8 3h5.4A2 2 0 0 0 12 18l-4-8V3"/><path d="M5 3h5"/><path d="M16 3v6l3 6a2 2 0 0 1-1.8 3h-2.4" opacity=".7"/><path d="M14 3h4" opacity=".7"/></svg>',
   };
   const $ = s => document.querySelector(s);
-  const mq = window.matchMedia('(max-width: 760px)');
+  const mq = window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 540px)');
+  // Phone ↔ desktop switch (rotating a phone or tablet): the phone layer rearranges the page, so reload to rebuild cleanly.
+  mq.addEventListener('change', () => { setTimeout(() => location.reload(), 150); });
+  if (!mq.matches) return; // desktop / tablet: leave the page as it is
   const TITLES = { weeks: 'Today', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
   const SEARCH = { protocols: '.pl-q' }; // Wines and Trials have their own search + Filtros bar (below)
   const html = document.documentElement;

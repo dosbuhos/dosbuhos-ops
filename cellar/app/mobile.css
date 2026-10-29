@@ -2,7 +2,7 @@
    Loaded after the page's own CSS; the desktop layout is untouched.
    Principles: one app bar, one bottom nav, cards with a clear hierarchy, 44px touch targets,
    16px body text (no iOS zoom on inputs), nothing hidden behind the nav. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   :root {
     --m-bar: 56px; --m-nav: 60px;
     --m-radius: 14px;
@@ -136,7 +136,7 @@
   .asg-group h3 { position: static; display: flex; align-items: baseline; gap: 8px; margin: 14px 0 4px; padding: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: none; }
   .asg-group h3 small { font-size: 12px; text-transform: none; letter-spacing: 0; }
   .asg-row.asg-head { display: none !important; }
-  .asg-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "date date edit" "wine wine edit" "txt txt txt" "ctl ctl ctl"; grid-template-columns: auto minmax(0, 1fr) auto !important; gap: 4px 12px; align-items: start; padding: 12px 14px 12px; margin: 8px 0 0; border: 1px solid var(--rule); border-left: 4px solid #8fa3b8; border-radius: var(--m-radius); background: var(--paper); box-shadow: var(--m-shadow); font-size: 15px; }
+  .asg-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "date date" "wine wine" "txt txt" "ctl ctl"; gap: 4px 12px; align-items: start; padding: 12px 14px 12px; margin: 8px 0 0; border: 1px solid var(--rule); border-left: 4px solid #8fa3b8; border-radius: var(--m-radius); background: var(--paper); box-shadow: var(--m-shadow); font-size: 15px; }
   .asg-row { overflow: hidden; }
   .asg-row.m-urgent { border-left-color: var(--m-red); }
   .asg-row.m-high { border-left-color: var(--m-amber); }
@@ -160,7 +160,8 @@
   .asg-row .m-ctl { grid-area: ctl; display: grid; grid-template-columns: 1fr .95fr 1fr; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
   .asg-row .m-ctl label { display: flex; flex-direction: column; gap: 3px; min-width: 0; font: 600 10px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .asg-row .m-ctl .asg-who { display: block !important; width: 100%; min-height: 44px; font: 600 13.5px var(--f-body); padding: 6px 9px; border-radius: 10px; border: 1px solid var(--rule); background: var(--paper); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .asg-row .asg-edit { grid-area: edit; display: inline-flex !important; width: 40px; height: 40px; border-radius: 12px; align-self: start; }
+  .asg-row .asg-edit { position: absolute; top: 10px; right: 10px; display: inline-flex !important; width: 40px; height: 40px; border-radius: 12px; margin: 0; z-index: 1; }
+  .asg-row .asg-date { padding-right: 48px; }
   .asg-row .asg-edit svg { width: 19px; height: 19px; }
   .asg-row .m-ctl select { display: block; width: 100%; min-width: 0; min-height: 44px; font-size: 13.5px !important; font-weight: 600; padding: 6px 22px 6px 9px !important; border-radius: 10px; text-overflow: ellipsis; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235d6568' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right 6px center !important; background-size: 14px !important; }
   .asg-row select.asg-pri { font-family: var(--f-body); letter-spacing: 0; }
@@ -333,4 +334,4 @@
   .bl-top { margin-bottom: 0 !important; }
   .toolbar:has(> #groups:only-child), .toolbar:empty { display: none; }
 }
-@media (min-width: 761px) { .mbar { display: none !important; } }
+@media (min-width: 761px) and (min-height: 541px), (min-width: 761px) and (pointer: fine) { .mbar { display: none !important; } }

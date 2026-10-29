@@ -114,7 +114,7 @@
   html.cr-printing #crPrint { display: grid; grid-template-columns: repeat(3, 62mm); gap: 4mm; padding: 6mm; }
   @page { margin: 8mm; }
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   .cr-tabs button { flex: 1; padding: 10px 6px 12px; font-size: 14px; }
   .cr-bar .cr-q { flex-basis: 100%; display: block !important; min-height: 44px; border-radius: 12px; font-size: 16px; }
   .cr-acts { margin-left: 0; width: 100%; }

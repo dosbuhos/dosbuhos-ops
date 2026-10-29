@@ -60,7 +60,7 @@
   .cc-in.recording .cc-listen{display:block}
   .cc-inwrap{position:relative;flex:none}
   /* phones: a sheet from the bottom, nearly full height, draggable between half and full */
-  @media (max-width:760px){
+  @media (max-width:760px), (pointer: coarse) and (max-height: 540px){
     .cc-fab{bottom:80px;right:12px;width:50px;height:50px}.cc-fab svg{width:23px;height:23px}
     .cc-panel{left:0;right:0;bottom:0;width:auto;height:88dvh;border-radius:20px 20px 0 0;border:0;box-shadow:0 -8px 30px rgba(0,0,0,.25);transition:height .18s ease}
     .cc-panel.cc-half{height:52dvh}

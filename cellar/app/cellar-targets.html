@@ -189,7 +189,7 @@ table.vy-h td small, table.lb td small { display: block; color: var(--muted); fo
 .vy-track i.pl { background: var(--muted); transform: translate(-50%, -50%) rotate(45deg); width: 8px; height: 8px; }
 .vy-track i.ac { background: var(--accent); border-radius: 50%; }
 .vy-k.hi { color: #b3261e; font-weight: 600; } .vy-k.lo { color: var(--cellar); }
-@media (max-width: 760px) { .vy-axis-h, .vy-track { display: none; } }
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) { .vy-axis-h, .vy-track { display: none; } }
 /* compact header + ribbons */
 .page { gap: 8px; padding-block: 10px 24px; }
 .top { align-items: center; gap: 6px 16px; }
@@ -385,7 +385,7 @@ table.lb .pri { margin-right: 6px; }
 .asg-row select { width: 100%; font: inherit; font-size: 13px; padding: 4px; border-radius: 6px; border: 1px solid var(--rule); background: var(--paper); color: inherit; }
 .asg-row.busy { opacity: .5; pointer-events: none; }
 .asg-head { font-family: var(--f-mono, monospace); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   .asg-row { grid-template-columns: 1fr 1fr; }
   .asg-row .asg-txt-cell { grid-column: 1 / -1; order: -1; }
   .asg-head { display: none; }
@@ -771,7 +771,7 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .crewpick .cp { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 500 14px var(--f-body); cursor: pointer; }
 .crewpick .cp[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .crewpick .cp.legacy { border-style: dashed; }
-.asg-row .asg-edit { width: 30px; height: 30px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.asg-row .asg-edit { margin-top: 4px; width: 30px; height: 30px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .asg-row .asg-edit svg { width: 16px; height: 16px; }
 .asg-row .asg-who { width: 100%; text-align: left; font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--rule); background: var(--paper); color: inherit; cursor: pointer; }
 .asg-row.asg-head span:nth-child(5)::after { content: ""; }
@@ -854,7 +854,7 @@ html.w-cellar .toolbar { display: none; }
   box-shadow: var(--shadow);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   .tbl-wrap { max-height: none; overflow: visible; border: 0; background: transparent; }
   table.wt, .wt tbody, .wt tr, .wt td { display: block; }
   table.wt { min-width: 0; }
@@ -1030,7 +1030,7 @@ h4.pd-h { font-size: 16px; }
 
 /* Phone layout: bottom tabs, simple work-order cards */
 .mnav { display: none; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   html { -webkit-text-size-adjust: 100%; }
   body { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
   .vynav, .zoomctl { display: none !important; }
@@ -1063,7 +1063,7 @@ h4.pd-h { font-size: 16px; }
 
 /* Phone readability pass (Oct 27): full-width text in lab lists, one-line header, scrolling stat strip, readable selected rows in dark mode. */
 .pl-item.on { color: var(--paper); }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   .top .titles { display: none; }
   .top { justify-content: flex-end; }
   .top-btns { width: 100%; flex-wrap: nowrap; }
@@ -1688,7 +1688,7 @@ var SheetParse = (function () {
   if (location.hash === "#blends") S.view = "blends";
   if (location.hash === "#cellar") { S.view = "wines"; S.wmode = "cellar"; }
   // Phones open on Today (the assigned work orders) the first time.
-  try { if (window.matchMedia("(max-width: 760px)").matches && recall("view", null) == null && !location.hash) { S.view = "weeks"; S.span = "asg"; } } catch (e) {}
+  try { if (window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)").matches && recall("view", null) == null && !location.hash) { S.view = "weeks"; S.span = "asg"; } } catch (e) {}
   const savedSort = recall("sort", null);
   if (savedSort && SORTS.some(s => s[0] === savedSort.key)) S.sort = { key: savedSort.key, dir: savedSort.dir === -1 ? -1 : 1 };
   S.showTemps = recall("showTemps", true) !== false;
@@ -3029,8 +3029,7 @@ Return ONLY JSON with this shape:
         const statusOpts = [["open", "Open"], ["p25", "25%"], ["p50", "50%"], ["p75", "75%"], ["done", st === "done" ? "Done (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")], ["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]];
         h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
           `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
-          `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
-          (dis ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Edit work order" title="Edit this work order">${EDIT_ICON}</button>`) +
+          `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}${dis ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Edit work order" title="Edit this work order">${EDIT_ICON}</button>`}</span>` +
           `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${dis}>${esc(r.note)}</textarea></span>` +
           `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${dis}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
           `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${dis ? " disabled" : ""}>${esc(asigLabel(r.asig) || "—")}</button>` +
@@ -3057,8 +3056,11 @@ Return ONLY JSON with this shape:
         closedToday.map(rowHtml).join("") + `</div>`;
     }
     el.innerHTML = h;
-    el.querySelectorAll(".asg-txt").forEach(t => { t.style.height = "auto"; t.style.height = Math.max(30, t.scrollHeight + 2) + "px"; });
+    fitAsgText();
   }
+  // Task text boxes size to their text; re-measure when the screen size changes (rotation, window resize).
+  function fitAsgText() { document.querySelectorAll("#asgView .asg-txt").forEach(t => { t.style.height = "auto"; t.style.height = Math.max(30, t.scrollHeight + 2) + "px"; }); }
+  let fitT = 0; window.addEventListener("resize", () => { clearTimeout(fitT); fitT = setTimeout(fitAsgText, 120); });
   const WO_OUT = "Today's Work Orders";
   async function asgMirror(tab, row, ch) {
     const r = await S.mcp.callTool(GS, "get_values", { spreadsheetId: SHEET_ID, range: "'" + WO_OUT.replace(/'/g, "''") + "'!A1:AD400" }, { cache: false });
