@@ -2971,7 +2971,7 @@ Return ONLY JSON with this shape:
   S.asgOff = 0; S.asgPast = {};
   function dayNav() {
     const d = iso(addDays(parse(todayISO), S.asgOff)), dd = parse(d);
-    const label = S.asgOff === 0 ? "Hoy" : S.asgOff === -1 ? "Ayer" : DAYS[(dd.getDay() + 6) % 7] + " " + dd.getDate() + " " + MONTHS[dd.getMonth()];
+    const label = dd.getDate() + "/" + (dd.getMonth() + 1);   // day/month, e.g. 29/10
     return `<div class="asg-day"><button type="button" class="ad-btn" data-asgday="-1" aria-label="Día anterior">‹</button><span class="ad-lbl">${esc(label)}${S.asgOff ? `<small>${esc(dd.getDate() + " " + MONTHS[dd.getMonth()])}</small>` : ""}</span><button type="button" class="ad-btn" data-asgday="1" aria-label="Día siguiente"${S.asgOff >= 0 ? " disabled" : ""}>›</button>${S.asgOff ? `<button type="button" class="ad-today" data-asgday="0">Volver a hoy</button>` : ""}</div>`;
   }
   async function loadPast(d) {

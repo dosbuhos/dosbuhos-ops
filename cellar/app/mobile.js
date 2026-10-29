@@ -68,7 +68,7 @@
   bar.addEventListener('click', e => {
     const d = e.target.closest('[data-mday]');
     if (d) { const b = document.querySelector(`#asgView [data-asgday="${d.dataset.mday}"]`); if (b && !b.disabled) b.click(); return; }
-    if (e.target.closest('.m-dlbl') && $('#mbarTitle .m-dlbl').textContent.trim() !== 'Hoy') { const b = document.querySelector('#asgView [data-asgday="0"]'); if (b) b.click(); return; }
+    if (e.target.closest('.m-dlbl')) { const b = document.querySelector('#asgView [data-asgday="0"]'); if (b) b.click(); return; }
     const b = e.target.closest('[data-m]'); if (!b) return;
     const a = b.dataset.m;
     if (a === 'add') { const n = $('#newWoBtn'); if (n) n.click(); }
