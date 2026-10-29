@@ -44,7 +44,7 @@
     <button type="button" class="ib more" data-m="more" aria-label="Menú" aria-haspopup="menu">${I.menu}<b class="m-badge" hidden></b></button>`;
   // Secondary actions live in the ☰ menu; + (new work order) sits in the middle of the bottom nav.
   const mm = document.createElement('div'); mm.className = 'm-vmenu m-more-menu'; mm.hidden = true;
-  mm.innerHTML = `<button type="button" data-mm="sync">${I.sync}<span>Sincronizar con Excellovint</span></button><a href="/purchases">${I.cart}<span>Compras</span><b class="m-badge in" hidden></b></a><a href="/settings">${I.gear}<span>Ajustes</span></a>`;
+  mm.innerHTML = `<button type="button" data-mm="sync">${I.sync}<span>Sincronizar con Excellovint</span></button><a href="/purchases">${I.cart}<span>Compras e inventario</span><b class="m-badge in" hidden></b></a><a href="/settings">${I.gear}<span>Ajustes</span></a>`;
   document.body.appendChild(mm);
   mm.addEventListener('click', e => { const b = e.target.closest('[data-mm]'); if (!b) return; mm.hidden = true; const sb = $('#syncBtn'); if (sb) sb.click(); });
   document.addEventListener('click', e => { if (!mm.hidden && !e.target.closest('.m-more-menu, [data-m="more"]')) mm.hidden = true; }, true);

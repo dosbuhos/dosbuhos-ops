@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#5c1f33">
-<title>Compras</title>
+<title>Compras e inventario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -88,33 +88,68 @@ nav.mnav a .mi{display:flex;align-items:center;justify-content:center;width:56px
 nav.mnav a svg{width:24px;height:24px}
 nav.mnav a[aria-current=page]{color:#fff;font-weight:600}nav.mnav a[aria-current=page] .mi{background:rgba(255,255,255,.2)}
 @media (min-width:761px){nav.mnav{display:none}body{padding-bottom:40px}.fab{bottom:24px}}
+.modes{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:4;display:flex;gap:6px;background:var(--wine);padding:2px 12px 8px}
+.modes button{flex:1;min-height:38px;border:0;border-radius:999px;background:rgba(255,255,255,.14);color:#f1dce4;font:600 15px var(--f-b)}
+.modes button[aria-pressed=true]{background:#fff;color:var(--wine)}
+.modes button small{margin-left:5px;font:700 11px var(--f-m);padding:1px 6px;border-radius:999px;background:var(--red);color:#fff}
+.tabs{top:calc(104px + env(safe-area-inset-top,0px))}
+body.inv .tabs{display:none}
+.isearch{display:flex;gap:8px;margin-bottom:10px}
+.isearch input{flex:1}
+.alert{display:flex;gap:8px;align-items:center;background:var(--amber-bg);color:var(--amber);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-weight:600;font-size:14px}
+.ic{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--green);border-radius:14px;padding:12px 14px;box-shadow:0 1px 2px rgba(31,36,38,.05)}
+.ic.bajo{border-left-color:var(--amber)}.ic.agotado{border-left-color:var(--red)}.ic.sin{border-left-color:#9aa5b1}
+.ic .t{display:flex;gap:10px;align-items:flex-start}
+.ic .t b{flex:1;font-size:16px;line-height:1.3}
+.ic .stk{text-align:right;white-space:nowrap}
+.ic .stk strong{font:700 26px/1 var(--f-d)}
+.ic .stk span{font:500 13px var(--f-m);color:var(--muted);margin-left:3px}
+.ic .sub{font-size:13px;color:var(--muted);margin-top:4px}
+.ic .tag.bajo{background:var(--amber-bg);color:var(--amber)}.ic .tag.agotado{background:var(--red-bg);color:var(--red)}.ic .tag.ok{background:var(--green-bg);color:var(--green)}
+.ic .act{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px}
+.ic .act .btn{min-height:42px;font-size:14px;padding:0 6px}
+.ic .act .btn.buy{grid-column:1/-1;background:var(--amber-bg);border-color:#efcd84;color:#7a4d00}
+.ic .act .btn.buy[disabled]{opacity:.7}
+.hist{margin:10px 0 0;padding:8px 0 0;border-top:1px solid var(--rule);font-size:13.5px}
+.hist div{display:grid;grid-template-columns:52px 1fr auto;gap:8px;padding:4px 0;border-bottom:1px dashed var(--rule)}
+.hist .q{font:600 13px var(--f-m);text-align:right}
+.hist .q.in{color:var(--green)}.hist .q.out{color:var(--red)}.hist .q.cnt{color:var(--blue)}
+.hist small{color:var(--muted)}
+.spark{display:block;width:100%;height:36px;margin-top:8px}
 </style>
 </head>
 <body>
 <header>
-  <h1>Compras</h1>
+  <h1 id="ttl">Compras</h1>
   <a href="/" aria-label="Calendario" title="Calendario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
   <a href="/settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
 </header>
+<div class="modes" role="group"><button data-mode="compras" aria-pressed="true">Compras</button><button data-mode="inv" aria-pressed="false">Inventario<small id="nLow" hidden></small></button></div>
 <nav class="tabs" role="tablist">
   <button role="tab" data-st="open" aria-selected="true">Pendientes<small id="nOpen"></small></button>
   <button role="tab" data-st="ordered" aria-selected="false">Pedidas<small id="nOrd"></small></button>
   <button role="tab" data-st="received" aria-selected="false">Recibidas<small id="nRec"></small></button>
 </nav>
-<main>
+<main id="comprasView">
   <div class="chips" id="who"></div>
   <div id="list"><div class="empty">Cargando…</div></div>
   <p class="foot">Esta lista también está en Excellovint → pestaña <b>Compras</b>. Lo que se escribe allí aparece aquí (y al revés).</p>
 </main>
-<button class="fab" id="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Compra</button>
+<main id="invView" hidden>
+  <div class="isearch"><input id="iq" type="search" placeholder="Buscar producto…" autocomplete="off"></div>
+  <div class="chips" id="icat"></div>
+  <div id="ilist"><div class="empty">Cargando…</div></div>
+  <p class="foot">Vive en Excellovint → pestañas <b>Inventarios</b> (productos y stock) e <b>Inventarios - Movimientos</b> (cada entrada, salida y conteo). Stock = último conteo + entradas − salidas.</p>
+</main>
+<button class="fab" id="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="addLbl">Compra</span></button>
 <dialog id="dlg"><form id="f" method="dialog"></form></dialog>
 <div class="toast" id="toast" hidden></div>
 <nav class="mnav" aria-label="Secciones">
-  <a href="/#weeks"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg></span>Today</a>
+  <a href="/#weeks"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg></span>Calendar</a>
   <a href="/#wines"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l1 6a5 5 0 0 1-10 0z"/><path d="M12 14v6M8 21h8"/></svg></span>Wines</a>
-  <a href="/#labs"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5.5 9A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/></svg></span>Labs</a>
+  <a href="/#labs"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7l-4 8a2 2 0 0 0 1.8 3h5.4A2 2 0 0 0 12 18l-4-8V3"/><path d="M5 3h5"/><path d="M16 3v6l3 6a2 2 0 0 1-1.8 3h-2.4" opacity=".7"/><path d="M14 3h4" opacity=".7"/></svg></span>L + T</a>
   <a href="/#protocols"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg></span>Protocols</a>
-  <a href="/#blends"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7l-4 8a2 2 0 0 0 1.8 3h5.4A2 2 0 0 0 12 18l-4-8V3"/><path d="M5 3h5"/><path d="M16 3v6l3 6a2 2 0 0 1-1.8 3h-2.4" opacity=".7"/><path d="M14 3h4" opacity=".7"/></svg></span>Trials</a>
+  <a href="/purchases" aria-current="page"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg></span>Compras</a>
 </nav>
 <script>
 (() => {
@@ -194,7 +229,129 @@ nav.mnav a[aria-current=page]{color:#fff;font-weight:600}nav.mnav a[aria-current
     }
     if (e.target.closest('[data-edit]') && it) { openForm(it); return; }
   });
-  $('#add').onclick = () => openForm(null);
+  // ---------- Inventario ----------
+  const I = { items: [], movements: [], cat: '', q: '', open: null, loaded: false };
+  const iapi = async (path, body) => { const r = await fetch('/api/inv' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || 'Error ' + r.status); return j; };
+  const fmtN = n => n == null ? '—' : (Math.round(n * 100) / 100).toLocaleString('es-MX');
+  const stCls = e => /AGOT/.test(e) ? 'agotado' : /BAJO/.test(e) ? 'bajo' : /SIN/.test(e) ? 'sin' : 'ok';
+  const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const dm = iso => iso ? +iso.slice(8, 10) + '/' + +iso.slice(5, 7) : '';
+  async function loadInv() {
+    try { const j = await iapi(''); I.items = j.items || []; I.movements = j.movements || []; I.loaded = true; I.missing = j.missing; }
+    catch (err) { I.err = err.message; }
+    lowBadge(); if (S.mode === 'inv') renderInv();
+  }
+  function lowBadge() { const n = I.items.filter(i => /BAJO|AGOT/.test(i.estado)).length; const b = $('#nLow'); b.textContent = n; b.hidden = !n; }
+  // Running stock per movement, for the little chart (same rule as the sheet: a CONTEO resets the level).
+  function series(p) {
+    const ms = I.movements.filter(m => m.producto === p).sort((a, b) => a.fecha.localeCompare(b.fecha) || a.row - b.row);
+    let lvl = 0; return ms.map(m => { lvl = m.tipo === 'CONTEO' ? m.cantidad : m.tipo === 'ENTRADA' ? lvl + m.cantidad : lvl - m.cantidad; return { d: m.fecha, v: lvl, m }; });
+  }
+  function spark(pts) {
+    if (pts.length < 2) return '';
+    const W = 300, H = 36, max = Math.max(...pts.map(p => p.v), 1), xs = i => (i / (pts.length - 1)) * W, ys = v => H - 3 - (Math.max(v, 0) / max) * (H - 6);
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + xs(i).toFixed(1) + ' ' + ys(p.v).toFixed(1)).join(' ');
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d} L${W} ${H} L0 ${H}Z" fill="#f2e5e8"/><path d="${d}" fill="none" stroke="#5c1f33" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  }
+  function renderInv() {
+    if (!I.loaded) { $('#ilist').innerHTML = `<div class="empty">${I.err ? 'No se pudo leer el inventario: ' + esc(I.err) : 'Cargando…'}</div>`; return; }
+    const cats = [...new Set(I.items.map(i => i.categoria).filter(Boolean))];
+    $('#icat').innerHTML = ['', ...cats].map(c => `<button data-icat="${esc(c)}" aria-pressed="${I.cat === c}">${c ? esc(c.charAt(0) + c.slice(1).toLowerCase()) : 'Todo'}</button>`).join('');
+    const q = I.q.toUpperCase();
+    const rows = I.items.filter(i => (!I.cat || i.categoria === I.cat) && (!q || i.producto.includes(q) || (i.notas || '').includes(q)));
+    const low = I.items.filter(i => /BAJO|AGOT/.test(i.estado));
+    const openBuys = S.items.filter(x => (x.status || 'open') !== 'received').map(x => String(x.item || '').toUpperCase());
+    let h = low.length && !I.cat && !q ? `<div class="alert">⚠ ${low.length} por debajo del mínimo: ${low.map(i => esc(i.producto)).slice(0, 4).join(', ')}${low.length > 4 ? '…' : ''}</div>` : '';
+    const groups = I.cat ? [I.cat] : cats.concat(rows.some(r => !r.categoria) ? [''] : []);
+    for (const g of groups) {
+      const gr = rows.filter(r => r.categoria === g); if (!gr.length) continue;
+      h += `<h2>${esc(g || 'Sin categoría')} <small>${gr.length}</small></h2><div class="cards">` + gr.map(i => {
+        const c = stCls(i.estado), buying = openBuys.some(b => b.includes(i.producto.slice(0, 14)));
+        const open = I.open === i.producto;
+        const hist = open ? I.movements.filter(m => m.producto === i.producto).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.row - a.row).slice(0, 15) : [];
+        return `<article class="ic ${c}" data-p="${esc(i.producto)}">
+          <div class="t"><b>${esc(i.producto)}</b><div class="stk"><strong>${fmtN(i.stock)}</strong><span>${esc(i.unidad)}</span></div></div>
+          <div class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="tag ${c}">${esc(i.estado || '—')}</span>${i.minimo != null ? `<span class="tag">mín ${fmtN(i.minimo)} ${esc(i.unidad)}</span>` : ''}${i.uso30 ? `<span class="tag">usó ${fmtN(i.uso30)} en 30 días</span>` : ''}${i.ubicacion ? `<span class="tag where">${esc(i.ubicacion)}</span>` : ''}</div>
+          <div class="sub">${i.ultimoConteo ? 'Último conteo ' + esc(dm(i.ultimoConteo)) : 'Sin conteo todavía: toca Contar'}${i.presentacion ? ' · ' + esc(i.presentacion) : ''}${i.proveedor ? ' · ' + esc(i.proveedor) : ''}</div>
+          ${spark(series(i.producto))}
+          <div class="act"><button class="btn" data-mv="SALIDA">− Usé</button><button class="btn" data-mv="ENTRADA">+ Llegó</button><button class="btn" data-mv="CONTEO">Contar</button>${/BAJO|AGOT/.test(i.estado) ? `<button class="btn buy" data-buy${buying ? ' disabled' : ''}>${buying ? '✓ Ya está en Compras' : '🛒 Agregar a Compras'}</button>` : ''}</div>
+          ${open ? `<div class="hist">${hist.length ? hist.map(m => `<div><small>${esc(dm(m.fecha))}</small><span>${m.tipo === 'CONTEO' ? 'Conteo' : esc(m.uso || (m.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'))}${m.notas ? ' <small>' + esc(m.notas) + '</small>' : ''} <small>${esc(m.quien)}</small></span><span class="q ${m.tipo === 'CONTEO' ? 'cnt' : m.tipo === 'ENTRADA' ? 'in' : 'out'}">${m.tipo === 'CONTEO' ? '= ' : m.tipo === 'ENTRADA' ? '+' : '−'}${fmtN(m.cantidad)}</span></div>`).join('') : '<small>Sin movimientos.</small>'}<button class="btn ghost" data-iedit style="margin-top:8px;width:100%">Editar producto</button></div>` : `<button class="btn ghost" data-hist style="width:100%;min-height:36px;margin-top:6px;font-size:13px">Historial ▾</button>`}
+        </article>`;
+      }).join('') + '</div>';
+    }
+    if (I.missing) h = '<div class="empty">No encuentro la pestaña Inventarios en Excellovint.</div>';
+    $('#ilist').innerHTML = h || '<div class="empty">Nada con ese filtro.</div>';
+  }
+  function openMove(it, tipo) {
+    const f = $('#f');
+    const T = { SALIDA: ['Registrar uso', '¿Cuánto se usó?'], ENTRADA: ['Registrar entrada', '¿Cuánto llegó?'], CONTEO: ['Conteo físico', '¿Cuánto hay ahora mismo?'] }[tipo];
+    f.innerHTML = `<h3>${T[0]}</h3><p style="margin:0;font-weight:600">${esc(it.producto)} <span style="color:var(--muted);font-weight:500">· stock ${fmtN(it.stock)} ${esc(it.unidad)}</span></p>
+      <div class="g2"><label>${T[1]}<input name="cantidad" inputmode="decimal" required placeholder="0"></label><label>Unidad<input value="${esc(it.unidad)}" disabled></label></div>
+      <label>Fecha<input name="fecha" type="date" value="${todayISO()}"></label>
+      ${tipo !== 'CONTEO' ? `<label>${tipo === 'SALIDA' ? 'Para qué / lote' : 'Proveedor / factura'}<input name="uso" placeholder="${tipo === 'SALIDA' ? 'L17 MALBEC BBL 124, LIMPIEZA…' : 'Proveedor, # de factura'}"></label>` : ''}
+      <label>Notas<input name="notas"></label>
+      <div class="err" id="err"></div>
+      <div class="row"><button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn primary" id="ok">Guardar</button></div>`;
+    const d = $('#dlg');
+    f.onsubmit = async e => {
+      e.preventDefault(); const fd = new FormData(f), ok = $('#ok');
+      const cantidad = String(fd.get('cantidad') || '').replace(',', '.').trim();
+      if (cantidad === '' || isNaN(+cantidad)) { $('#err').textContent = 'Escribe la cantidad.'; return; }
+      ok.disabled = true;
+      try { await iapi('/mov', { producto: it.producto, tipo, cantidad: +cantidad, fecha: fd.get('fecha'), uso: fd.get('uso') || '', notas: fd.get('notas') || '' }); d.close(); toast('Guardado en Excellovint'); await loadInv(); }
+      catch (err) { $('#err').textContent = err.message; ok.disabled = false; }
+    };
+    f.querySelector('[data-cancel]').onclick = () => d.close();
+    d.showModal(); setTimeout(() => f.querySelector('[name=cantidad]').focus(), 50);
+  }
+  function openItem(it) {
+    const f = $('#f'), cats = [...new Set(I.items.map(i => i.categoria).filter(Boolean))];
+    f.innerHTML = `<h3>${it ? 'Editar producto' : 'Nuevo producto'}</h3>
+      <label>Producto<input name="producto" required value="${esc(it ? it.producto : '')}" placeholder="METABISULFITO DE POTASIO"></label>
+      <div class="g2"><label>Categoría<input name="categoria" list="cats" value="${esc(it ? it.categoria : '')}"></label><label>Unidad<select name="unidad">${['g', 'kg', 'mL', 'L', 'pza'].map(u => `<option${(it ? it.unidad : 'g') === u ? ' selected' : ''}>${u}</option>`).join('')}</select></label></div>
+      <datalist id="cats">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+      <div class="g2"><label>Mínimo (avisa abajo de esto)<input name="minimo" inputmode="decimal" value="${it && it.minimo != null ? it.minimo : ''}"></label><label>Presentación<input name="presentacion" value="${esc(it ? it.presentacion : '')}" placeholder="bolsa 1 kg"></label></div>
+      <div class="g2"><label>Proveedor<input name="proveedor" value="${esc(it ? it.proveedor : '')}"></label><label>Ubicación<input name="ubicacion" value="${esc(it ? it.ubicacion : '')}" placeholder="LAB, BODEGA…"></label></div>
+      <label>Notas<input name="notas" value="${esc(it ? it.notas : '')}"></label>
+      ${it ? '' : '<p style="margin:0;font-size:13px;color:var(--muted)">Después toca <b>Contar</b> en el producto para poner cuánto hay.</p>'}
+      <div class="err" id="err"></div>
+      <div class="row"><button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn primary" id="ok">Guardar</button></div>`;
+    const d = $('#dlg');
+    f.onsubmit = async e => {
+      e.preventDefault(); const fd = new FormData(f), ok = $('#ok'); ok.disabled = true;
+      const b = Object.fromEntries(fd.entries()); if (it) b.row = it.row;
+      try { await iapi('/item', b); d.close(); toast('Guardado en Excellovint'); await loadInv(); } catch (err) { $('#err').textContent = err.message; ok.disabled = false; }
+    };
+    f.querySelector('[data-cancel]').onclick = () => d.close();
+    d.showModal(); setTimeout(() => f.querySelector('[name=producto]').focus(), 50);
+  }
+  function setMode(m) {
+    S.mode = m; document.body.classList.toggle('inv', m === 'inv');
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+    $('#comprasView').hidden = m === 'inv'; $('#invView').hidden = m !== 'inv';
+    $('#ttl').textContent = m === 'inv' ? 'Inventario' : 'Compras'; $('#addLbl').textContent = m === 'inv' ? 'Producto' : 'Compra';
+    try { history.replaceState(null, '', m === 'inv' ? '#inventario' : '#compras'); } catch (e) {}
+    if (m === 'inv') renderInv();
+  }
+  document.addEventListener('click', async e => {
+    const md = e.target.closest('[data-mode]'); if (md) { setMode(md.dataset.mode); window.scrollTo(0, 0); return; }
+    const c = e.target.closest('[data-icat]'); if (c) { I.cat = c.dataset.icat; renderInv(); return; }
+    const card = e.target.closest('.ic'); if (!card) return;
+    const it = I.items.find(x => x.producto === card.dataset.p); if (!it) return;
+    const mv = e.target.closest('[data-mv]'); if (mv) { openMove(it, mv.dataset.mv); return; }
+    if (e.target.closest('[data-hist]')) { I.open = it.producto; renderInv(); return; }
+    if (e.target.closest('[data-iedit]')) { openItem(it); return; }
+    const by = e.target.closest('[data-buy]');
+    if (by && !by.disabled) {
+      by.disabled = true;
+      try { await api('/' + encodeURIComponent('p' + Date.now().toString(36)), 'PUT', { item: it.producto, qty: it.presentacion || '', where: it.proveedor || '', pri: /AGOT/.test(it.estado) ? 'high' : 'medium', asig: S.me.initials || '', notes: 'Inventario: quedan ' + fmtN(it.stock) + ' ' + it.unidad + (it.minimo != null ? ' (mínimo ' + fmtN(it.minimo) + ')' : ''), status: 'open', by: S.me.initials || '', at: new Date().toISOString() }); toast('Agregado a Compras'); await load(); renderInv(); }
+      catch (err) { toast(err.message); by.disabled = false; }
+    }
+  });
+  $('#iq').addEventListener('input', e => { I.q = e.target.value; renderInv(); });
+  $('#add').onclick = () => S.mode === 'inv' ? openItem(null) : openForm(null);
+  setMode(/inventario/.test(location.hash) ? 'inv' : 'compras');
+  loadInv();
   load(true).catch(err => { $('#list').innerHTML = `<div class="empty">No se pudo cargar: ${esc(err.message)}</div>`; });
 })();
 </script>

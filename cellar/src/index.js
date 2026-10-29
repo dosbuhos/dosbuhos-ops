@@ -5,6 +5,7 @@ import { sheetsTool } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
 import { pushPurchase, pullPurchases } from './compras.js';
+import { readInventory, addMovement, saveItem } from './inventario.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -56,6 +57,13 @@ export default {
         return J(r.body, r.status);
       }
       if (p === '/api/compras/sync' && request.method === 'POST') return J(await pullPurchases(env));
+      // Inventario: reads/writes the Excellovint "Inventarios" tabs directly (crew included).
+      if (p === '/api/inv' && request.method === 'GET') return J(await readInventory(env));
+      if ((p === '/api/inv/mov' || p === '/api/inv/item') && request.method === 'POST') {
+        if (!canWrite) return J({ message: 'Read-only access.' }, 403);
+        try { const b = await request.json(); return J(p === '/api/inv/mov' ? await addMovement(env, b, initials) : await saveItem(env, b)); }
+        catch (e) { return J({ message: String(e && e.message || e) }, 400); }
+      }
       if (p === '/api/chats') {
         const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' ORDER BY updated_at DESC LIMIT 600").all();
         return J({ messages: results.map(r => JSON.parse(r.data)) });
