@@ -51,13 +51,24 @@
   }
   function syncBar() {
     view = currentView();
-    $('#mbarTitle').textContent = TITLES[view] || 'Cellar';
+    const asgOn = view === 'weeks' && html.classList.contains('v-asg');
+    if (asgOn) dayTitle(); else $('#mbarTitle').textContent = TITLES[view] || 'Cellar';
+    bar.classList.toggle('m-daybar', asgOn);
     const q = bar.querySelector('[data-m="search"]');
     q.hidden = !SEARCH[view];
     if (!SEARCH[view]) { html.classList.remove('m-q'); q.setAttribute('aria-pressed', 'false'); }
     if (view !== 'protocols') html.classList.remove('m-doc');
   }
+  // Today: the date lives in the app bar title as ‹ Hoy ›, driven by the page's own day buttons (.asg-day, hidden on phones).
+  function dayTitle() {
+    const lbl = document.querySelector('#asgView .ad-lbl'), next = document.querySelector('#asgView [data-asgday="1"]');
+    const txt = lbl ? (lbl.firstChild ? lbl.firstChild.textContent : lbl.textContent).trim() : 'Hoy';
+    $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mday="-1" aria-label="Día anterior">${I.back}</button><span class="m-dlbl">${txt}</span><button type="button" class="m-day nx" data-mday="1" aria-label="Día siguiente"${next && next.disabled ? ' disabled' : ''}>${I.back}</button>`;
+  }
   bar.addEventListener('click', e => {
+    const d = e.target.closest('[data-mday]');
+    if (d) { const b = document.querySelector(`#asgView [data-asgday="${d.dataset.mday}"]`); if (b && !b.disabled) b.click(); return; }
+    if (e.target.closest('.m-dlbl') && $('#mbarTitle .m-dlbl').textContent.trim() !== 'Hoy') { const b = document.querySelector('#asgView [data-asgday="0"]'); if (b) b.click(); return; }
     const b = e.target.closest('[data-m]'); if (!b) return;
     const a = b.dataset.m;
     if (a === 'add') { const n = $('#newWoBtn'); if (n) n.click(); }
@@ -120,7 +131,13 @@
     });
   }
   const asg = $('#asgView');
-  if (asg) { new MutationObserver(decorateAsg).observe(asg, { childList: true }); decorateAsg(); }
+  if (asg) {
+    new MutationObserver(() => { decorateAsg(); if (bar.classList.contains('m-daybar')) dayTitle(); }).observe(asg, { childList: true }); decorateAsg();
+    // Swipe right = previous day, swipe left = next day (vertical scrolling unaffected).
+    let sx = null, sy = null;
+    asg.addEventListener('touchstart', e => { if (e.target.closest('select, textarea, input, button')) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    asg.addEventListener('touchend', e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) { const b = asg.querySelector(`[data-asgday="${dx > 0 ? -1 : 1}"]`); if (b && !b.disabled) b.click(); } }, { passive: true });
+  }
 
   // ---- Protocols: list → document, with a back button ----
   function decorateProto() {
