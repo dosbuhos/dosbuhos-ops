@@ -8,6 +8,7 @@
     sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><path d="M21 4v5h-5M3 20v-5h5"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+    more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
     cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/></svg>',
     // bottom nav
     today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>',
@@ -21,7 +22,7 @@
   // Phone ↔ desktop switch (rotating a phone or tablet): the phone layer rearranges the page, so reload to rebuild cleanly.
   mq.addEventListener('change', () => { setTimeout(() => location.reload(), 150); });
   if (!mq.matches) return; // desktop / tablet: leave the page as it is
-  const TITLES = { weeks: 'Today', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
+  const TITLES = { weeks: 'Calendar', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
   const SEARCH = { protocols: '.pl-q' }; // Wines and Trials have their own search + Filtros bar (below)
   const html = document.documentElement;
 
@@ -31,9 +32,13 @@
   bar.innerHTML = `<h1 id="mbarTitle">Today</h1>
     <button type="button" class="ib q" data-m="search" aria-label="Search" aria-pressed="false">${I.search}</button>
     <button type="button" class="ib m-new" data-m="add" aria-label="New work order">${I.plus}</button>
-    <button type="button" class="ib" data-m="sync" aria-label="Sync with Excellovint">${I.sync}</button>
-    <a class="ib cart" href="/purchases" aria-label="Compras (purchases list)">${I.cart}<b class="m-badge" hidden></b></a>
-    <a class="ib" href="/settings" aria-label="Settings">${I.gear}</a>`;
+    <button type="button" class="ib more" data-m="more" aria-label="Más opciones" aria-haspopup="menu">${I.more}<b class="m-badge" hidden></b></button>`;
+  // Secondary actions live in one "more" menu; + stays in the bar.
+  const mm = document.createElement('div'); mm.className = 'm-vmenu m-more-menu'; mm.hidden = true;
+  mm.innerHTML = `<button type="button" data-mm="sync">${I.sync}<span>Sincronizar con Excellovint</span></button><a href="/purchases">${I.cart}<span>Compras</span><b class="m-badge in" hidden></b></a><a href="/settings">${I.gear}<span>Ajustes</span></a>`;
+  document.body.appendChild(mm);
+  mm.addEventListener('click', e => { const b = e.target.closest('[data-mm]'); if (!b) return; mm.hidden = true; const sb = $('#syncBtn'); if (sb) sb.click(); });
+  document.addEventListener('click', e => { if (!mm.hidden && !e.target.closest('.m-more-menu, [data-m="more"]')) mm.hidden = true; }, true);
   const page = document.querySelector('.page') || document.body;
   page.insertBefore(bar, page.firstChild);
   if (!mq.matches) bar.style.display = 'none';
@@ -41,7 +46,7 @@
   // Badge on the cart: number of high-priority purchases still open.
   fetch('/api/db/purchases').then(r => r.ok ? r.json() : { rows: [] }).then(j => {
     const n = (j.rows || []).filter(r => (r.data.status || 'open') === 'open' && r.data.pri === 'high').length;
-    const b = bar.querySelector('.m-badge'); if (b && n) { b.textContent = n > 9 ? '9+' : n; b.hidden = false; }
+    if (n) document.querySelectorAll('.mbar .m-badge, .m-more-menu .m-badge').forEach(b => { b.textContent = n > 9 ? '9+' : n; b.hidden = false; });
   }).catch(() => {});
 
   let view = 'weeks';
@@ -66,15 +71,23 @@
   function dayTitle() {
     const lbl = document.querySelector('#asgView .ad-lbl'), next = document.querySelector('#asgView [data-asgday="1"]');
     const txt = lbl ? (lbl.firstChild ? lbl.firstChild.textContent : lbl.textContent).trim() : 'Hoy';
-    $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mday="-1" aria-label="Día anterior">${I.back}</button><span class="m-dlbl">${txt}</span><button type="button" class="m-day nx" data-mday="1" aria-label="Día siguiente"${next && next.disabled ? ' disabled' : ''}>${I.back}</button>`;
+    $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mday="-1" aria-label="Anterior">${I.back}</button><button type="button" class="m-dlbl" aria-haspopup="menu">${txt}<i aria-hidden="true">▾</i></button><button type="button" class="m-day nx" data-mday="1" aria-label="Día siguiente"${next && next.disabled ? ' disabled' : ''}>${I.back}</button>`;
   }
+  // Date menu: Día · Semana · Ir a hoy
+  const vm = document.createElement('div'); vm.className = 'm-vmenu'; vm.hidden = true;
+  vm.innerHTML = '<button type="button" data-vm="day">Día</button><button type="button" data-vm="week">Semana</button><button type="button" data-vm="today">Ir a hoy</button>';
+  document.body.appendChild(vm);
+  function openViewMenu() { vm.hidden = false; const wk = !!document.querySelector('#asgView .wk-day'); vm.querySelectorAll('[data-vm]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vm === (wk ? 'week' : 'day')))); }
+  vm.addEventListener('click', e => { const b = e.target.closest('[data-vm]'); vm.hidden = true; if (b) window.dispatchEvent(new CustomEvent('cellar:asgmode', { detail: { mode: b.dataset.vm } })); });
+  document.addEventListener('click', e => { if (!vm.hidden && !e.target.closest('.m-vmenu, .m-dlbl')) vm.hidden = true; }, true);
   bar.addEventListener('click', e => {
     const d = e.target.closest('[data-mday]');
     if (d) { const b = document.querySelector(`#asgView [data-asgday="${d.dataset.mday}"]`); if (b && !b.disabled) b.click(); return; }
-    if (e.target.closest('.m-dlbl')) { const b = document.querySelector('#asgView [data-asgday="0"]'); if (b) b.click(); return; }
+    if (e.target.closest('.m-dlbl')) { openViewMenu(); return; }
     const b = e.target.closest('[data-m]'); if (!b) return;
     const a = b.dataset.m;
     if (a === 'add') { const n = $('#newWoBtn'); if (n) n.click(); }
+    if (a === 'more') { mm.hidden = !mm.hidden; return; }
     if (a === 'sync') { const s = $('#syncBtn'); if (s) s.click(); b.classList.add('spin'); setTimeout(() => b.classList.remove('spin'), 2500); }
     if (a === 'search') {
       const on = html.classList.toggle('m-q'); b.setAttribute('aria-pressed', String(on));

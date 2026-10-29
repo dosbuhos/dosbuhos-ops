@@ -290,13 +290,26 @@
 
     /* Today: date in the app bar (‹ Hoy ›); the separate day row is hidden */
   #asgView .asg-day { display: none !important; }
-  .mbar.m-daybar h1 { display: flex; align-items: center; gap: 2px; margin-left: -10px; }
+  .mbar h1 { font-size: clamp(18px, 5.6vw, 24px); }
+  .mbar.m-daybar h1 { display: flex; align-items: center; gap: 0; margin-left: -10px; flex: 1; min-width: 0; font-size: clamp(17px, 5.2vw, 23px); }
+  .mbar .m-day { width: clamp(28px, 8vw, 36px); }
+  .mbar .ib.more { position: relative; }
+  .m-more-menu { left: auto; right: 10px; min-width: 240px; }
+  .m-more-menu button, .m-more-menu a { display: flex; align-items: center; gap: 12px; text-align: left; border: 0; background: none; padding: 12px 14px; border-radius: 10px; font: 600 16px var(--f-body); color: var(--ink); text-decoration: none; }
+  .m-more-menu svg { width: 22px; height: 22px; color: var(--m-wine); flex: none; }
+  .m-more-menu span { flex: 1; }
+  .m-more-menu .m-badge.in { position: static; box-shadow: none; }
   .mbar .m-day { width: 34px; height: 40px; border: 0; background: transparent; color: #fff; display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 10px; }
   .mbar .m-day svg { width: 22px; height: 22px; }
   .mbar .m-day.nx svg { transform: rotate(180deg); }
   .mbar .m-day:disabled { opacity: .3; }
   .mbar .m-day:active { background: rgba(255, 255, 255, .14); }
-  .mbar .m-dlbl { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .mbar .m-dlbl { min-width: 0; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #fff; font: inherit; letter-spacing: inherit; text-transform: inherit; padding: 0 2px; white-space: nowrap; cursor: pointer; }
+  .mbar .m-dlbl i { font-style: normal; font-size: 12px; opacity: .8; }
+  .m-vmenu { position: fixed; top: calc(var(--m-bar) + env(safe-area-inset-top, 0px) - 4px); left: 40px; z-index: 60; display: flex; flex-direction: column; min-width: 170px; padding: 6px; background: var(--paper); border: 1px solid var(--rule); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .2); }
+  .m-vmenu[hidden] { display: none; }
+  .m-vmenu button { text-align: left; border: 0; background: none; padding: 12px 14px; border-radius: 10px; font: 600 16px var(--f-body); color: var(--ink); }
+  .m-vmenu button[aria-pressed="true"] { background: var(--m-wine-soft); color: var(--m-wine); }
   /* ---------- Filter bar + sheet (Wines, Trials) ---------- */
   .mf-bar { display: flex; gap: 8px; align-items: center; margin: 2px 0 8px; }
   .mf-search { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }

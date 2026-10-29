@@ -749,6 +749,15 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .asg-row select.asg-st.st-p25 { background: #c9dcf3; color: #0f3a6e; border-color: #a5c3e8; }
 .asg-row select.asg-st.st-p50 { background: #8fb5e3; color: #0b2c55; border-color: #7aa5da; }
 .asg-row select.asg-st.st-p75 { background: #3f78bf; color: #fff; border-color: #3f78bf; }
+/* Phone week list */
+.wk-day { margin: 0 0 14px; }
+.wk-day h3 { margin: 0 0 6px; font: 700 14px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.wk-day h3 small { font: 500 12px var(--f-body); letter-spacing: 0; text-transform: none; }
+.wk-day.is-today h3 { color: var(--accent); }
+.wk-item { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; padding: 6px 8px 4px; margin-bottom: 6px; }
+.wk-lot { display: block; font: 600 11px var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px 2px; }
+.wk-item .chip { border: 0; background: transparent; box-shadow: none; padding: 2px 0; margin: 0; }
+.wk-none { margin: 0; color: var(--rule); }
 /* Day navigator on Today: ‹ Hoy › */
 .asg-day { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
 .asg-day .ad-btn { width: 36px; height: 36px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font: 600 20px/1 var(--f-body); color: var(--ink); cursor: pointer; padding: 0 0 2px; }
@@ -1136,7 +1145,7 @@ h4.pd-h { font-size: 16px; }
   </div>
 
   <nav class="mnav" id="mnav" aria-label="Sections">
-    <button type="button" data-mtoday="1"><span aria-hidden="true">✓</span>Today</button>
+    <button type="button" data-mtoday="1"><span aria-hidden="true">✓</span>Calendar</button>
     <button type="button" data-view="wines"><span aria-hidden="true">🍷</span>Wines</button>
     <button type="button" data-view="labs"><span aria-hidden="true">⚗</span>Labs</button>
     <button type="button" data-view="protocols"><span aria-hidden="true">📋</span>Protocols</button>
@@ -2959,8 +2968,14 @@ Return ONLY JSON with this shape:
     return out;
   }
   // ---- Look back day by day: ‹ › next to the date; past days are read-only, from the app's copy of Excellovint. ----
-  S.asgOff = 0; S.asgPast = {};
+  S.asgOff = 0; S.asgPast = {}; S.asgMode = "day"; S.asgWeekOff = 0;
+  const dm = d => { const x = parse(d); return x.getDate() + "/" + (x.getMonth() + 1); };
+  window.addEventListener("cellar:asgmode", e => { const m = e.detail && e.detail.mode; if (m === "today") { S.asgMode = "day"; S.asgOff = 0; S.asgWeekOff = 0; } else if (m) { S.asgMode = m; S.asgWeekOff = 0; } render(); window.scrollTo(0, 0); });
   function dayNav() {
+    if (S.asgMode === "week") {
+      const mon = iso(addDays(mondayOf(parse(todayISO)), 7 * S.asgWeekOff)), sun = iso(addDays(parse(mon), 6));
+      return `<div class="asg-day"><button type="button" class="ad-btn" data-asgday="-1" aria-label="Semana anterior">‹</button><span class="ad-lbl">${dm(mon)}–${dm(sun)}</span><button type="button" class="ad-btn" data-asgday="1" aria-label="Semana siguiente">›</button>${S.asgWeekOff ? `<button type="button" class="ad-today" data-asgday="0">Esta semana</button>` : ""}</div>`;
+    }
     const d = iso(addDays(parse(todayISO), S.asgOff)), dd = parse(d);
     const label = dd.getDate() + "/" + (dd.getMonth() + 1);   // day/month, e.g. 29/10
     return `<div class="asg-day"><button type="button" class="ad-btn" data-asgday="-1" aria-label="Día anterior">‹</button><span class="ad-lbl">${esc(label)}${S.asgOff ? `<small>${esc(dd.getDate() + " " + MONTHS[dd.getMonth()])}</small>` : ""}</span><button type="button" class="ad-btn" data-asgday="1" aria-label="Día siguiente"${S.asgOff >= 0 ? " disabled" : ""}>›</button>${S.asgOff ? `<button type="button" class="ad-today" data-asgday="0">Volver a hoy</button>` : ""}</div>`;
@@ -2994,8 +3009,25 @@ Return ONLY JSON with this shape:
     try { if (pct) await S.db.collection("progress").doc(id).set({ pct, tab: r.tab, row: r.row, note: r.note, by: recall("woBy", "EM"), at: new Date().toISOString() }); else await S.db.collection("progress").doc(id).delete(); }
     catch (e) { writeFailed(e); }
   }
+  // Phone week view: Mon → Sun, each day's calendar tasks (tick / edit as everywhere), then the week's tasks with no fixed day.
+  function renderAsgWeek(el) {
+    const mon = iso(addDays(mondayOf(parse(todayISO)), 7 * S.asgWeekOff));
+    const lotName = id => { const l = S.lots.find(x => x.id === id); return l ? (l.id === "all" ? "Bodega (todos)" : l.name) : ""; };
+    const card = t => `<div class="wk-item"><span class="wk-lot">${esc(lotName(t.lot))}</span>${chip(t, t.week)}</div>`;
+    const DN = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    let h = dayNav(), total = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = iso(addDays(parse(mon), i)), ts = S.tasks.filter(t => t.day === d).sort(byTask); total += ts.length;
+      h += `<section class="wk-day${d === todayISO ? " is-today" : ""}"><h3>${DN[i]} ${dm(d)}${d === todayISO ? " · hoy" : ""} <small>${ts.length ? ts.filter(t => !t.done).length + " abiertas" : ""}</small></h3>${ts.length ? ts.map(card).join("") : `<p class="wk-none">—</p>`}</section>`;
+    }
+    const loose = S.tasks.filter(t => t.week === mon && !t.day).sort(byTask); total += loose.length;
+    if (loose.length) h += `<section class="wk-day"><h3>Sin día fijo <small>${loose.filter(t => !t.done).length} abiertas</small></h3>${loose.map(card).join("")}</section>`;
+    if (!total) h += `<div class="empty"><strong>Nada planeado esta semana.</strong></div>`;
+    el.innerHTML = h;
+  }
   function renderAsg() {
     const el = $("asgView");
+    if (S.asgMode === "week") { renderAsgWeek(el); return; }
     if (S.asgOff < 0) { renderPastDay(el); return; }
     const fromCache = !S.sheet.values;
     if (fromCache && !(S.woCache && Array.isArray(S.woCache.rows))) { el.innerHTML = `<div class="empty"><strong>${S.mcp && S.sheet.mode === "loading" ? "Reading Excellovint…" : "Google Sheets isn't connected for you yet"}</strong>The assigned work orders come straight from Excellovint, using your own Google account.<br><button type="button" class="btn primary" data-sheet="diag" style="margin-top:10px">Fix access</button></div>`; return; }
@@ -3234,7 +3266,7 @@ Return ONLY JSON with this shape:
     const w = e.target.closest("[data-asgwho]");
     if (w) { S.asgWho = w.dataset.asgwho; render(); return; }
     const ed = e.target.closest("[data-asgedit]"); if (ed) { openXo(ed.dataset.asgedit, ed.dataset.focus); return; }
-    const dy = e.target.closest("[data-asgday]"); if (dy) { const v = +dy.dataset.asgday; S.asgOff = v === 0 ? 0 : Math.min(0, S.asgOff + v); render(); window.scrollTo(0, 0); return; }
+    const dy = e.target.closest("[data-asgday]"); if (dy) { const v = +dy.dataset.asgday; if (S.asgMode === "week") S.asgWeekOff = v === 0 ? 0 : S.asgWeekOff + v; else S.asgOff = v === 0 ? 0 : Math.min(0, S.asgOff + v); render(); window.scrollTo(0, 0); return; }
     if (e.target.id === "asgRefresh") { loadLive(true); toast("Reading Excellovint…"); return; }
   });
   $("asgView").addEventListener("change", async e => {
