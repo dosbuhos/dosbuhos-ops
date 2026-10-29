@@ -8,6 +8,8 @@
     sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><path d="M21 4v5h-5M3 20v-5h5"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+    menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+    plusBig: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
     cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/></svg>',
     // bottom nav
@@ -39,9 +41,8 @@
   bar.className = 'mbar';
   bar.innerHTML = `<h1 id="mbarTitle">Today</h1>
     <button type="button" class="ib q" data-m="search" aria-label="Search" aria-pressed="false">${I.search}</button>
-    <button type="button" class="ib m-new" data-m="add" aria-label="New work order">${I.plus}</button>
-    <button type="button" class="ib more" data-m="more" aria-label="Más opciones" aria-haspopup="menu">${I.more}<b class="m-badge" hidden></b></button>`;
-  // Secondary actions live in one "more" menu; + stays in the bar.
+    <button type="button" class="ib more" data-m="more" aria-label="Menú" aria-haspopup="menu">${I.menu}<b class="m-badge" hidden></b></button>`;
+  // Secondary actions live in the ☰ menu; + (new work order) sits in the middle of the bottom nav.
   const mm = document.createElement('div'); mm.className = 'm-vmenu m-more-menu'; mm.hidden = true;
   mm.innerHTML = `<button type="button" data-mm="sync">${I.sync}<span>Sincronizar con Excellovint</span></button><a href="/purchases">${I.cart}<span>Compras</span><b class="m-badge in" hidden></b></a><a href="/settings">${I.gear}<span>Ajustes</span></a>`;
   document.body.appendChild(mm);
@@ -61,6 +62,8 @@
   function currentView() {
     const cur = document.querySelector('.mnav button[aria-current="page"]');
     if (cur && cur.dataset.mtoday) return 'weeks';
+    const vt = document.querySelector('.vynav [data-view][aria-selected="true"]');
+    if (vt && (vt.dataset.view === 'labs' || vt.dataset.view === 'blends')) return vt.dataset.view;
     if (cur && cur.dataset.view) return cur.dataset.view;
     const t = document.querySelector('.vynav [role="tab"][aria-selected="true"]');
     return t && t.dataset.view ? t.dataset.view : view;
@@ -68,7 +71,10 @@
   function syncBar() {
     view = currentView();
     const asgOn = view === 'weeks' && html.classList.contains('v-asg');
-    if (asgOn) dayTitle(); else $('#mbarTitle').textContent = TITLES[view] || 'Cellar';
+    if (asgOn) dayTitle();
+    else if (view === 'weeks') $('#mbarTitle').innerHTML = `<button type="button" class="m-dlbl" aria-haspopup="menu">Plan semanal<i aria-hidden="true">▾</i></button>`;
+    else if (view === 'labs' || view === 'blends') $('#mbarTitle').innerHTML = `<span class="m-seg" role="group"><button type="button" data-mseg="labs" aria-pressed="${view === 'labs'}">Labs</button><button type="button" data-mseg="blends" aria-pressed="${view === 'blends'}">Trials</button></span>`;
+    else $('#mbarTitle').textContent = TITLES[view] || 'Cellar';
     bar.classList.toggle('m-daybar', asgOn);
     const q = bar.querySelector('[data-m="search"]');
     q.hidden = !SEARCH[view];
@@ -83,15 +89,17 @@
   }
   // Date menu: Día · Semana · Ir a hoy
   const vm = document.createElement('div'); vm.className = 'm-vmenu'; vm.hidden = true;
-  vm.innerHTML = '<button type="button" data-vm="day">Día</button><button type="button" data-vm="week">Semana</button><button type="button" data-vm="today">Ir a hoy</button>';
+  vm.innerHTML = '<button type="button" data-vm="day">Órdenes · día</button><button type="button" data-vm="week">Órdenes · semana</button><button type="button" data-vm="plan">Plan semanal (sin asignar)</button><button type="button" data-vm="today">Ir a hoy</button>';
   document.body.appendChild(vm);
-  function openViewMenu() { vm.hidden = false; const wk = !!document.querySelector('#asgView .wk-day'); vm.querySelectorAll('[data-vm]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vm === (wk ? 'week' : 'day')))); }
-  vm.addEventListener('click', e => { const b = e.target.closest('[data-vm]'); vm.hidden = true; if (b) window.dispatchEvent(new CustomEvent('cellar:asgmode', { detail: { mode: b.dataset.vm } })); });
+  function openViewMenu() { vm.hidden = false; const plan = !html.classList.contains('v-asg'), wk = !!document.querySelector('#asgView .wk-day'); vm.querySelectorAll('[data-vm]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vm === (plan ? 'plan' : wk ? 'week' : 'day')))); }
+  vm.addEventListener('click', e => { const b = e.target.closest('[data-vm]'); vm.hidden = true; if (!b) return; if (b.dataset.vm === 'plan') window.dispatchEvent(new CustomEvent('cellar:plan')); else window.dispatchEvent(new CustomEvent('cellar:asgmode', { detail: { mode: b.dataset.vm } })); setTimeout(syncBar, 0); });
   document.addEventListener('click', e => { if (!vm.hidden && !e.target.closest('.m-vmenu, .m-dlbl')) vm.hidden = true; }, true);
   bar.addEventListener('click', e => {
     const d = e.target.closest('[data-mday]');
     if (d) { const b = document.querySelector(`#asgView [data-asgday="${d.dataset.mday}"]`); if (b && !b.disabled) b.click(); return; }
     if (e.target.closest('.m-dlbl')) { openViewMenu(); return; }
+    const sg = e.target.closest('[data-mseg]');
+    if (sg) { const t = document.querySelector(`.mnav [data-view="${sg.dataset.mseg}"]`); if (t) t.click(); setTimeout(syncBar, 0); return; }
     const b = e.target.closest('[data-m]'); if (!b) return;
     const a = b.dataset.m;
     if (a === 'add') { const n = $('#newWoBtn'); if (n) n.click(); }
@@ -116,6 +124,15 @@
   }
   navIcons();
   const nav = $('#mnav');
+  if (nav) {
+    const tr = nav.querySelector('[data-view="blends"]'); if (tr) tr.classList.add('m-hide');
+    const lb = nav.querySelector('[data-view="labs"]');
+    if (lb) { const mi = lb.querySelector('.mi'); if (mi) mi.innerHTML = I.trials; lb.lastChild.textContent = 'L + T'; lb.setAttribute('aria-label', 'Labs y trials'); }
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'm-add'; add.setAttribute('aria-label', 'Nueva orden de trabajo');
+    add.innerHTML = `<span class="m-add-c">${I.plusBig}</span>`;
+    add.addEventListener('click', () => { const n = $('#newWoBtn'); if (n) n.click(); });
+    if (lb) nav.insertBefore(add, lb); else nav.appendChild(add);
+  }
   if (nav) new MutationObserver(syncBar).observe(nav, { attributes: true, subtree: true, attributeFilter: ['aria-current'] });
   document.querySelectorAll('.vynav [role="tab"]').forEach(t => t.addEventListener('click', () => setTimeout(syncBar, 0)));
   syncBar();

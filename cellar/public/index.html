@@ -1720,6 +1720,7 @@ var SheetParse = (function () {
   function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
   const todayISO = iso(new Date());
   const curWeek = iso(mondayOf(new Date()));
+  const PHONE_MQ = window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)");
   const weekEnd = iso(addDays(parse(curWeek), 6));
 
   function weekRange(w) {
@@ -1825,7 +1826,8 @@ var SheetParse = (function () {
     document.querySelectorAll(".vynav [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === S.view));
     const isAsg = S.view === "weeks" && S.span === "asg";
     document.documentElement.classList.toggle("v-asg", isAsg);
-    document.querySelectorAll(".mnav button").forEach(b => b.setAttribute("aria-current", (b.dataset.mtoday ? isAsg : b.dataset.view === S.view) ? "page" : "false"));
+    document.documentElement.classList.toggle("v-plan", S.view === "weeks" && S.span !== "asg");
+    document.querySelectorAll(".mnav button").forEach(b => b.setAttribute("aria-current", (b.dataset.mtoday ? S.view === "weeks" : b.dataset.view === S.view || (b.dataset.view === "labs" && S.view === "blends")) ? "page" : "false"));
     if (vyv) {
       $("sub").textContent = "The vineyard year: milestones, what we picked vs. the plan, pruning order and the blocks. Cellar sections are in the ribbon below.";
       $("legend").innerHTML = `<span>Proposed = a target date to confirm with Diane and the crew</span><span>Harvest days off = first pick vs. the planned pick week</span>`;
@@ -2673,6 +2675,8 @@ Return ONLY JSON with this shape:
     $("wrap").hidden = S.span === "asg"; $("asgView").hidden = S.span !== "asg";
     if (S.span === "asg") return renderAsg();
     if (S.span === "day") return renderDay();
+    board.classList.toggle("is-pp", PHONE_MQ.matches);
+    if (PHONE_MQ.matches) return renderPlanPhone();
     const ws = weeks();
     board.style.setProperty("--weeks", ws.length);
     const cw = recall("colw", null);
@@ -2737,6 +2741,43 @@ Return ONLY JSON with this shape:
     }
     board.innerHTML = h;
   }
+
+  // ---------- Phone: weekly plan, one week at a time, wine by wine (the desktop board is a wide grid) ----------
+  function renderPlanPhone() {
+    const w = iso(addDays(parse(curWeek), 7 * (S.ppOff || 0)));
+    const all = weekTasks(w).filter(t => S.kinds.has(t.kind || "cellar"));
+    const unassigned = t => !t.done && !t.wo;
+    const shown = all.filter(t => S.ppAll ? true : unassigned(t));
+    const nUn = all.filter(unassigned).length, nWo = all.filter(t => !t.done && t.wo).length, nDone = all.filter(t => t.done).length;
+    const hrs = all.filter(unassigned).reduce((a, t) => a + est(t), 0);
+    let h = `<div class="pp-head"><button type="button" class="pp-nav" data-pp="-1" aria-label="Semana anterior">‹</button>` +
+      `<div class="pp-wk"><small>${w === curWeek ? "Esta semana" : w < curWeek ? "Semana pasada" : "Semana del"}</small><b>${esc(weekRange(w))}</b></div>` +
+      `<button type="button" class="pp-nav" data-pp="1" aria-label="Semana siguiente">›</button></div>` +
+      `<div class="pp-stats"><span><b>${nUn}</b> sin asignar${hrs ? " · ≈ " + esc(fmtH(hrs)) : ""}</span><span><b>${nWo}</b> con orden</span><span><b>${nDone}</b> hechas</span></div>` +
+      `<div class="pp-seg" role="group"><button type="button" data-ppall="0" aria-pressed="${!S.ppAll}">Sin asignar</button><button type="button" data-ppall="1" aria-pressed="${!!S.ppAll}">Todo</button>` +
+      (w !== curWeek ? `<button type="button" class="pp-now" data-pp="0">Esta semana</button>` : "") + `</div>`;
+    let any = false;
+    for (const [g, label] of GROUPS) {
+      const lots = S.lots.filter(l => l.group === g).sort(byOrder);
+      let gh = "";
+      for (const l of lots) {
+        const ts = shown.filter(t => t.lot === l.id).sort(byTask);
+        if (!ts.length) continue;
+        const name = l.group === "routine" ? `<b>${esc(l.name)}</b>` : `<button type="button" class="pp-lot" data-open="${esc(l.id)}">${esc(l.name)}</button>`;
+        gh += `<div class="pp-card"><div class="pp-name">${name}<small>${esc([l.code, l.ubi].filter(Boolean).join(" · "))}</small></div>${ts.map(t => chip(t, w)).join("")}</div>`;
+      }
+      if (gh) { any = true; h += `<h3 class="pp-grp">${esc(label)}</h3>` + gh; }
+    }
+    const orphans = shown.filter(t => !S.lots.some(l => l.id === t.lot));
+    if (orphans.length) { any = true; h += `<h3 class="pp-grp">Sin vino</h3><div class="pp-card">${orphans.map(t => chip(t, w)).join("")}</div>`; }
+    if (!any) h += `<div class="empty"><strong>${S.ppAll ? "Nada planeado esta semana" : "Todo asignado"}</strong>${S.ppAll ? "" : "Cada tarea de esta semana ya tiene orden de trabajo o está hecha."}</div>`;
+    board.innerHTML = h;
+  }
+  board.addEventListener("click", e => {
+    const n = e.target.closest("[data-pp]"); if (n) { const d = +n.dataset.pp; S.ppOff = d === 0 ? 0 : (S.ppOff || 0) + d; renderBoard(); window.scrollTo(0, 0); return; }
+    const a = e.target.closest("[data-ppall]"); if (a) { S.ppAll = a.dataset.ppall === "1"; renderBoard(); }
+  });
+  window.addEventListener("cellar:plan", () => { S.view = "weeks"; S.span = "week"; S.ppOff = 0; render(); window.scrollTo(0, 0); });
 
   // ---------- Access check: walks a viewer through everything Excellovint needs ----------
   async function openDiag() {
@@ -2979,7 +3020,7 @@ Return ONLY JSON with this shape:
   // ---- Look back day by day: ‹ › next to the date; past days are read-only, from the app's copy of Excellovint. ----
   S.asgOff = 0; S.asgPast = {}; S.asgMode = "day"; S.asgWeekOff = 0;
   const dm = d => { const x = parse(d); return x.getDate() + "/" + (x.getMonth() + 1); };
-  window.addEventListener("cellar:asgmode", e => { const m = e.detail && e.detail.mode; if (m === "today") { S.asgMode = "day"; S.asgOff = 0; S.asgWeekOff = 0; } else if (m) { S.asgMode = m; S.asgWeekOff = 0; } render(); window.scrollTo(0, 0); });
+  window.addEventListener("cellar:asgmode", e => { const m = e.detail && e.detail.mode; S.view = "weeks"; S.span = "asg"; if (m === "today") { S.asgMode = "day"; S.asgOff = 0; S.asgWeekOff = 0; } else if (m) { S.asgMode = m; S.asgWeekOff = 0; } render(); window.scrollTo(0, 0); });
   function dayNav() {
     if (S.asgMode === "week") {
       const mon = iso(addDays(mondayOf(parse(todayISO)), 7 * S.asgWeekOff)), sun = iso(addDays(parse(mon), 6));
