@@ -136,7 +136,7 @@
   .asg-group h3 { position: static; display: flex; align-items: baseline; gap: 8px; margin: 14px 0 4px; padding: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: none; }
   .asg-group h3 small { font-size: 12px; text-transform: none; letter-spacing: 0; }
   .asg-row.asg-head { display: none !important; }
-  .asg-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "date date" "wine wine" "txt txt" "ctl ctl"; gap: 4px 12px; align-items: start; padding: 12px 14px 12px; margin: 8px 0 0; border: 1px solid var(--rule); border-left: 4px solid #8fa3b8; border-radius: var(--m-radius); background: var(--paper); box-shadow: var(--m-shadow); font-size: 15px; }
+  .asg-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "date date" "wine wine" "txt txt" "ctl ctl" "res res"; gap: 4px 12px; align-items: start; padding: 12px 14px 12px; margin: 8px 0 0; border: 1px solid var(--rule); border-left: 4px solid #8fa3b8; border-radius: var(--m-radius); background: var(--paper); box-shadow: var(--m-shadow); font-size: 15px; }
   .asg-row { overflow: hidden; }
   .asg-row.m-urgent { border-left-color: var(--m-red); }
   .asg-row.m-high { border-left-color: var(--m-amber); }
@@ -157,6 +157,12 @@
   .asg-row .asg-txt { width: 100%; border: 0; background: transparent; padding: 0; resize: none; font-size: 15.5px; line-height: 1.42; color: var(--ink); min-height: 0; }
   .asg-row .asg-txt:focus { background: var(--bg); border-radius: 8px; padding: 6px 8px; outline: 2px solid var(--m-wine); }
   /* Controls always visible: Prioridad · Asignado · Estado in one row; the status select is the way to mark a job done. */
+  .asg-row > .asg-res { grid-area: res; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; min-height: 48px; margin-top: 8px; border: 1.5px solid #2d5c8a; border-radius: 12px; background: #eef4fb; color: #1d4a78; font: 700 15px var(--f-body); padding: 8px 10px; }
+  .asg-row > .asg-res span { display: inline-flex; align-items: center; gap: 8px; }
+  .asg-row > .asg-res svg { width: 18px; height: 18px; }
+  .asg-row > .asg-res .asg-res-got { font-size: 12px; font-weight: 500; text-align: center; }
+  #rsSheet .sheet { max-height: 92dvh; overflow: auto; }
+  .rs-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .asg-row .m-ctl { grid-area: ctl; display: grid; grid-template-columns: 1fr .95fr 1fr; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
   .asg-row .m-ctl label { display: flex; flex-direction: column; gap: 3px; min-width: 0; font: 600 10px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .asg-row .m-ctl .asg-who { display: block !important; width: 100%; min-height: 44px; font: 600 13.5px var(--f-body); padding: 6px 9px; border-radius: 10px; border: 1px solid var(--rule); background: var(--paper); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

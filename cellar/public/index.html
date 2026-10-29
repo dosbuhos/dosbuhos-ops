@@ -793,6 +793,21 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .asg-row .asg-edit svg { width: 16px; height: 16px; }
 .asg-row .asg-who { width: 100%; text-align: left; font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--rule); background: var(--paper); color: inherit; cursor: pointer; }
 .asg-row.asg-head span:nth-child(5)::after { content: ""; }
+.asg-row .asg-res { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; padding: 3px 8px; border: 1px dashed var(--rule); border-radius: 6px; background: transparent; color: #2d5c8a; font: 600 12px var(--f-body); cursor: pointer; text-align: left; }
+.asg-row .asg-res span { display: inline-flex; align-items: center; gap: 6px; }
+.asg-row .asg-res svg { width: 14px; height: 14px; flex: none; }
+.asg-row .asg-res-got { font: 500 11.5px var(--f-mono); color: var(--ink, #1d2326); }
+.rs-task { flex-shrink: 0; display: block; font-size: 12.5px; color: var(--muted); max-height: 6.5em; min-height: 1.3em; height: auto; overflow: auto; margin: 6px 0 12px; line-height: 1.35; padding: 8px 10px; background: rgba(0,0,0,.035); border-radius: 8px; }
+.rs-lbl { font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 4px 0 6px; }
+.rs-grid { flex-shrink: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.rs-grid label { display: flex; flex-direction: column; gap: 3px; font: 600 11px var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.rs-grid label small { text-transform: none; font-weight: 500; display: inline; }
+.rs-grid input { font: 600 16px var(--f-body); padding: 9px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: inherit; width: 100%; min-width: 0; }
+.tile .heat-v { font-weight: 600; }
+.tile .heat-v.ok { color: #1f5e2a; }
+.tile .heat-v.no { color: #8a1c1c; }
+.rs-done { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 4px 0 6px; }
+.rs-done input { width: 20px; height: 20px; }
 .xo-where { font: 13px var(--f-mono); color: var(--muted); margin: -6px 0 4px; }
 .xo-pri { display: flex; gap: 4px; }
 .xo-pri button { flex: 1; min-height: 40px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font: 600 14px var(--f-body); color: var(--muted); cursor: pointer; }
@@ -1302,6 +1317,31 @@ h4.pd-h { font-size: 16px; }
   </form>
 </div>
 
+<div class="overlay" id="rsSheet" hidden>
+  <form class="sheet" id="rsForm" novalidate>
+    <h2>Resultados y notas</h2>
+    <div class="xo-where" id="rsWhere"></div>
+    <div class="rs-task" id="rsTask"></div>
+    <div class="field"><label for="rsNote">Notas / cata <span class="ed-hint">olor, sabor, lo que se vio, decisiones</span></label><textarea id="rsNote" rows="4" maxlength="1000" placeholder="Ej.: TAMBO 01 LIMPIO, CÍTRICO. TAMBO 02 LIGERA CEBOLLA → NO TRASEGAR"></textarea></div>
+    <div class="rs-lbl">Mediciones <span class="ed-hint">solo lo que se midió</span></div>
+    <div class="rs-grid">
+      <label><span>Vol inicial <small>L</small></span><input id="rs_voli" inputmode="decimal"></label>
+      <label><span>Vol final <small>L</small></span><input id="rs_volf" inputmode="decimal"></label>
+      <label><span>pH</span><input id="rs_ph" inputmode="decimal"></label>
+      <label><span>Brix <small>°Bx</small></span><input id="rs_bx" inputmode="decimal"></label>
+      <label><span>Temp <small>°C</small></span><input id="rs_tp" inputmode="decimal"></label>
+      <label><span>AT <small>g/L</small></span><input id="rs_at" inputmode="decimal"></label>
+      <label><span>Málico <small>g/L</small></span><input id="rs_am" inputmode="decimal"></label>
+      <label><span>SO₂ libre <small>mg/L</small></span><input id="rs_sl" inputmode="decimal"></label>
+      <label><span>SO₂ total <small>mg/L</small></span><input id="rs_st" inputmode="decimal"></label>
+      <label><span>AV <small>g/L</small></span><input id="rs_aa" inputmode="decimal"></label>
+    </div>
+    <label class="rs-done"><input type="checkbox" id="rsDone" checked> Marcar la orden como hecha</label>
+    <div class="err" id="rsErr" role="alert"></div>
+    <div class="actions"><span></span><div class="right"><button type="button" class="btn" id="rsCancel">Cancelar</button><button type="submit" class="btn primary" id="rsSave">Guardar en Excellovint</button></div></div>
+  </form>
+</div>
+
 <div class="overlay" id="copySheet" hidden>
   <div class="sheet">
     <h2>Work orders</h2>
@@ -1653,7 +1693,7 @@ var SheetParse = (function () {
     { key: "sl", label: "Free SO₂", unit: "mg/L", cls: "num" },
     { key: "st", label: "Total SO₂", unit: "mg/L", cls: "num" },
     { key: "aa", label: "VA", unit: "g/L", cls: "num" },
-    { key: "heat", label: "Heat test", unit: "NTU", cls: "num" },
+    { key: "heat", label: "Heat test Δ", unit: "NTU", cls: "num" },
     { key: "racks", label: "Rackings", cls: "num" },
     { key: "lab", label: "Last lab", cls: "" },
     { key: "next", label: "Next action", cls: "" },
@@ -1663,7 +1703,7 @@ var SheetParse = (function () {
     ["group", "Group"], ["wine", "Wine A–Z"], ["next", "Next action date"], ["lab", "Oldest lab first"],
     ["ph", "pH"], ["at", "TA"], ["am", "Malic"], ["ml", "ML progress"], ["sl", "Free SO₂"], ["st", "Total SO₂"], ["aa", "VA"], ["alc", "Alcohol"], ["heat", "Heat test"], ["racks", "Rackings"]
   ];
-  const LABEL = { ph: "pH", at: "TA", am: "Malic", sl: "Free SO₂", st: "Total SO₂", aa: "VA", alc: "Alcohol", rs: "RS", heat: "Heat test" };
+  const LABEL = { ph: "pH", at: "TA", am: "Malic", sl: "Free SO₂", st: "Total SO₂", aa: "VA", alc: "Alcohol", rs: "RS", heat: "Heat test Δ" };
 
   const S = {
     db: null, mcp: null, lots: [], tasks: [], gotLots: false, gotTasks: false,
@@ -3138,7 +3178,7 @@ Return ONLY JSON with this shape:
         h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
           `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
           `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}${dis ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Edit work order" title="Edit this work order">${EDIT_ICON}</button>`}</span>` +
-          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${dis}>${esc(r.note)}</textarea></span>` +
+          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${dis}>${esc(r.note)}</textarea>${dis ? "" : `<button type="button" class="asg-res" data-asgres="${esc(key)}"><span>${RES_ICON}Resultados y notas</span>${resSummary(r)}</button>`}</span>` +
           `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${dis}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
           `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${dis ? " disabled" : ""}>${esc(asigLabel(r.asig) || "—")}</button>` +
           `<select class="asg-st st-${st}" data-asgst="1" aria-label="Status"${dis}>${statusOpts.map(([k, l]) => `<option value="${k}"${k === st ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>` +
@@ -3291,6 +3331,45 @@ Return ONLY JSON with this shape:
       render();
     }
   }
+  // ---- Results & notes: the reading columns of the work-order row (VOL I … AA) + a dated note appended to ACCIÓN ----
+  const RES_KEYS = ["voli", "volf", "ph", "bx", "tp", "at", "am", "sl", "st", "aa"];
+  const RES_LBL = { voli: "Vol I", volf: "Vol F", ph: "pH", bx: "Bx", tp: "°C", at: "AT", am: "Mál", sl: "SO₂L", st: "SO₂T", aa: "AV" };
+  const RES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6v4l4 11a2 2 0 0 1-2 3H7a2 2 0 0 1-2-3l4-11z"/><path d="M8 13h8"/></svg>';
+  function resSummary(r) {
+    const got = RES_KEYS.filter(k => r[k] != null && String(r[k]).trim() !== "" && String(r[k]).trim() !== "?").map(k => RES_LBL[k] + " " + String(r[k]).trim());
+    return got.length ? `<small class="asg-res-got">${esc(got.join(" · "))}</small>` : "";
+  }
+  S.rs = null;
+  function openRs(key) {
+    const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
+    S.rs = { key, r };
+    $("rsWhere").innerHTML = `<b>${esc(r.wine || r.tab)}</b> · ${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}`;
+    $("rsTask").textContent = r.note || "";
+    for (const k of RES_KEYS) { const v = r[k] == null ? "" : String(r[k]).trim(); $("rs_" + k).value = v === "?" ? "" : v; }
+    $("rsNote").value = ""; $("rsDone").checked = !r.ini; $("rsDone").parentElement.hidden = !!r.ini; $("rsErr").textContent = "";
+    $("rsSheet").hidden = false;
+  }
+  function closeRs() { $("rsSheet").hidden = true; S.rs = null; }
+  $("rsCancel").addEventListener("click", closeRs);
+  $("rsSheet").addEventListener("click", e => { if (e.target === $("rsSheet")) closeRs(); });
+  $("rsForm").addEventListener("submit", async e => {
+    e.preventDefault(); if (!S.rs) return;
+    const { key, r } = S.rs, ch = {};
+    for (const k of RES_KEYS) { const v = $("rs_" + k).value.trim().replace(",", "."); const cur = r[k] == null ? "" : String(r[k]).trim(); if (v !== cur && !(v === "" && cur === "?")) ch[k] = v; }
+    const note = $("rsNote").value.trim().toUpperCase();
+    if (note) { const d = parse(todayISO); ch.note = (r.note || "").replace(/\s+$/, "") + " → RESULTADO " + d.getDate() + "/" + (d.getMonth() + 1) + (S.myIni ? " (" + S.myIni + ")" : "") + ": " + note; }
+    const done = !r.ini && $("rsDone").checked;
+    if (done) ch.ini = (asigTokens(r.asig)[0] || S.myIni || "OK").toUpperCase();
+    if (!Object.keys(ch).length) { $("rsErr").textContent = "Escribe un número o una nota."; return; }
+    $("rsSave").disabled = true;
+    try {
+      if (done) setProg(r, 0);
+      const ok = await asgWrite(key, ch);
+      if (ok !== undefined || !S.mcp) { Object.assign(r, ch); closeRs(); toast("Guardado en " + r.tab + (done ? " · hecha" : "")); render(); }
+    } finally { $("rsSave").disabled = false; }
+  });
+  fetch("/api/me").then(x => x.ok ? x.json() : {}).then(j => { if (j && j.initials) S.myIni = j.initials; }).catch(() => {});
+
   // ---- Work-order editor: every field of an Excellovint row, saved as cell changes on that row. ----
   const EDIT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
   S.xo = null;
@@ -3341,6 +3420,7 @@ Return ONLY JSON with this shape:
   $("asgView").addEventListener("click", async e => {
     const w = e.target.closest("[data-asgwho]");
     if (w) { S.asgWho = w.dataset.asgwho; render(); return; }
+    const rs = e.target.closest("[data-asgres]"); if (rs) { openRs(rs.dataset.asgres); return; }
     const ed = e.target.closest("[data-asgedit]"); if (ed) { openXo(ed.dataset.asgedit, ed.dataset.focus); return; }
     const dy = e.target.closest("[data-asgday]"); if (dy) { const v = +dy.dataset.asgday; if (S.asgMode === "week") S.asgWeekOff = v === 0 ? 0 : S.asgWeekOff + v; else S.asgOff = v === 0 ? 0 : Math.min(0, S.asgOff + v); render(); window.scrollTo(0, 0); return; }
     if (e.target.id === "asgRefresh") { loadLive(true); toast("Reading Excellovint…"); return; }
@@ -4000,6 +4080,7 @@ Return ONLY JSON with this shape:
     const trend = prev ? ` · was ${esc(prev.raw)} on ${esc(shortDate(prev.d))}` : "";
     return `<div class="tile ${cls}"><span class="tl">${esc(LABEL[key])}</span>` +
       `<span class="${vc.join(" ")}">${esc(p.raw)}${unit ? `<span class="u">${esc(unit)}</span>` : ""}</span>` +
+      (key === "heat" ? `<small class="heat-v ${p.v > 2 ? "no" : "ok"}">${p.v > 2 ? "Fails: heated sample got hazier than control (Δ > 2)" : "Passes: Δ = heated − control turbidity, ≤ 2 is stable"}</small>` : "") +
       `<small>${esc(shortDate(p.d))} · ${p.lab ? "outside lab" : "in-house"}${trend}</small>` +
       (extra || "") + spark(h) + `</div>`;
   }

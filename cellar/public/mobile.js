@@ -174,6 +174,7 @@
       const wrap = (sel, label) => { if (!sel) return; const l = document.createElement('label'); l.textContent = label; l.appendChild(sel); ctl.appendChild(l); };
       wrap(pri, 'Prioridad'); wrap(asig, 'Asignado'); wrap(st, 'Estado');
       row.appendChild(ctl);
+      const res = row.querySelector('.asg-res'); if (res) row.appendChild(res); // big 'Resultados y notas' button under the three controls
       if (pri) pri.addEventListener('change', () => { row.classList.toggle('m-urgent', pri.value === 'URGENT'); row.classList.toggle('m-high', pri.value === 'HIGH'); });
       // Notes: grow with content while typing.
       const ta = row.querySelector('.asg-txt');
@@ -288,7 +289,7 @@
       blf.classList.add('mf-left'); holder.remove();
     }
   })();
-  const modals = ['editor', 'xoSheet', 'woSheet', 'copySheet', 'tempSheet', 'crewSheet', 'drawer', 'diagSheet'].map(id => document.getElementById(id)).filter(Boolean);
+  const modals = ['editor', 'xoSheet', 'rsSheet', 'woSheet', 'copySheet', 'tempSheet', 'crewSheet', 'drawer', 'diagSheet'].map(id => document.getElementById(id)).filter(Boolean);
   const checkModal = () => html.classList.toggle('m-modal', modals.some(m => !m.hidden));
   modals.forEach(m => new MutationObserver(checkModal).observe(m, { attributes: true, attributeFilter: ['hidden'] }));
   checkModal();
