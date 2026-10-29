@@ -72,10 +72,10 @@
     view = currentView();
     const asgOn = view === 'weeks' && html.classList.contains('v-asg');
     if (asgOn) dayTitle();
-    else if (view === 'weeks') $('#mbarTitle').innerHTML = `<button type="button" class="m-dlbl" aria-haspopup="menu">Plan semanal<i aria-hidden="true">▾</i></button>`;
+    else if (view === 'weeks') weekTitle();
     else if (view === 'labs' || view === 'blends') $('#mbarTitle').innerHTML = `<span class="m-seg" role="group"><button type="button" data-mseg="labs" aria-pressed="${view === 'labs'}">Labs</button><button type="button" data-mseg="blends" aria-pressed="${view === 'blends'}">Trials</button></span>`;
     else $('#mbarTitle').textContent = TITLES[view] || 'Cellar';
-    bar.classList.toggle('m-daybar', asgOn);
+    bar.classList.toggle('m-daybar', view === 'weeks');
     const q = bar.querySelector('[data-m="search"]');
     q.hidden = !SEARCH[view];
     if (!SEARCH[view]) { html.classList.remove('m-q'); q.setAttribute('aria-pressed', 'false'); }
@@ -87,16 +87,24 @@
     const txt = lbl ? (lbl.firstChild ? lbl.firstChild.textContent : lbl.textContent).trim() : 'Hoy';
     $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mday="-1" aria-label="Anterior">${I.back}</button><button type="button" class="m-dlbl" aria-haspopup="menu">${txt}<i aria-hidden="true">▾</i></button><button type="button" class="m-day nx" data-mday="1" aria-label="Día siguiente"${next && next.disabled ? ' disabled' : ''}>${I.back}</button>`;
   }
+  // Week (plan) view: ‹ 26 Oct – 1 Nov ▾ › in the bar, driving the page's own week arrows.
+  function weekTitle() {
+    const bd = $('#board'), lbl = (bd && bd.dataset.ppLabel) || 'Semana';
+    $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mwk="-1" aria-label="Semana anterior">${I.back}</button><button type="button" class="m-dlbl m-wlbl" aria-haspopup="menu">${lbl}<i aria-hidden="true">▾</i></button><button type="button" class="m-day nx" data-mwk="1" aria-label="Semana siguiente">${I.back}</button>`;
+  }
+  window.addEventListener('cellar:planrendered', () => { if (currentView() === 'weeks' && !html.classList.contains('v-asg')) weekTitle(); });
   // Date menu: Día · Semana · Ir a hoy
   const vm = document.createElement('div'); vm.className = 'm-vmenu'; vm.hidden = true;
-  vm.innerHTML = '<button type="button" data-vm="day">Órdenes · día</button><button type="button" data-vm="week">Órdenes · semana</button><button type="button" data-vm="plan">Plan semanal (sin asignar)</button><button type="button" data-vm="today">Ir a hoy</button>';
+  vm.innerHTML = '<button type="button" data-vm="day">Día</button><button type="button" data-vm="plan">Semana</button><button type="button" data-vm="today">Ir a hoy</button>';
   document.body.appendChild(vm);
-  function openViewMenu() { vm.hidden = false; const plan = !html.classList.contains('v-asg'), wk = !!document.querySelector('#asgView .wk-day'); vm.querySelectorAll('[data-vm]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vm === (plan ? 'plan' : wk ? 'week' : 'day')))); }
+  function openViewMenu() { vm.hidden = false; const plan = !html.classList.contains('v-asg'), wk = !!document.querySelector('#asgView .wk-day'); vm.querySelectorAll('[data-vm]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vm === (plan ? 'plan' : 'day')))); }
   vm.addEventListener('click', e => { const b = e.target.closest('[data-vm]'); vm.hidden = true; if (!b) return; if (b.dataset.vm === 'plan') window.dispatchEvent(new CustomEvent('cellar:plan')); else window.dispatchEvent(new CustomEvent('cellar:asgmode', { detail: { mode: b.dataset.vm } })); setTimeout(syncBar, 0); });
   document.addEventListener('click', e => { if (!vm.hidden && !e.target.closest('.m-vmenu, .m-dlbl')) vm.hidden = true; }, true);
   bar.addEventListener('click', e => {
     const d = e.target.closest('[data-mday]');
     if (d) { const b = document.querySelector(`#asgView [data-asgday="${d.dataset.mday}"]`); if (b && !b.disabled) b.click(); return; }
+    const wk = e.target.closest('[data-mwk]');
+    if (wk) { const b = document.querySelector(`#board [data-pp="${wk.dataset.mwk}"]`); if (b) b.click(); return; }
     if (e.target.closest('.m-dlbl')) { openViewMenu(); return; }
     const sg = e.target.closest('[data-mseg]');
     if (sg) { const t = document.querySelector(`.mnav [data-view="${sg.dataset.mseg}"]`); if (t) t.click(); setTimeout(syncBar, 0); return; }
@@ -174,7 +182,7 @@
   }
   const asg = $('#asgView');
   if (asg) {
-    new MutationObserver(() => { decorateAsg(); if (bar.classList.contains('m-daybar')) dayTitle(); }).observe(asg, { childList: true }); decorateAsg();
+    new MutationObserver(() => { decorateAsg(); if (bar.classList.contains('m-daybar') && html.classList.contains('v-asg')) dayTitle(); }).observe(asg, { childList: true }); decorateAsg();
     // Swipe right = previous day, swipe left = next day (vertical scrolling unaffected).
     let sx = null, sy = null;
     asg.addEventListener('touchstart', e => { if (e.target.closest('select, textarea, input, button')) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });

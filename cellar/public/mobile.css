@@ -368,15 +368,32 @@
   .pp-wk { text-align: center; }
   .pp-wk small { display: block; font: 600 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .pp-wk b { font-size: 21px; }
-  .pp-stats { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
-  .pp-stats b { color: var(--ink, #1d2326); font-size: 15px; }
+  .pp-stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
+  .pp-stats b { color: var(--ink, #1d2326); font-size: 14px; }
   .pp-seg { display: flex; gap: 6px; margin-bottom: 8px; }
   .pp-seg button { border: 1px solid var(--rule); background: var(--paper); border-radius: 999px; padding: 8px 14px; font: 600 14px var(--f-body); color: inherit; }
   .pp-seg button[aria-pressed="true"] { background: #1d2326; color: #fff; border-color: #1d2326; }
   .pp-seg .pp-now { margin-left: auto; }
   .pp-grp { font: 700 13px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: #5c1f33; margin: 16px 0 6px; }
-  .pp-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
-  .pp-name { display: flex; flex-direction: column; margin-bottom: 6px; }
+  .board.is-pp .pp-head { display: none; }
+  .pp-seg .pp-exp { margin-left: auto; border-style: dashed; }
+  .pp-seg .pp-now { margin-left: 0; }
+  .pp-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+  .pp-card.all-done { opacity: .6; }
+  .pp-sum { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name chev" "badges badges" "roll roll"; gap: 4px 8px; width: 100%; text-align: left; border: 0; background: transparent; padding: 11px 12px; color: inherit; font: inherit; }
+  .pp-sum .pp-name { grid-area: name; margin: 0; min-width: 0; }
+  .pp-sum .pp-name b { font-size: 16px; }
+  .pp-badges { grid-area: badges; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-start; }
+  .pp-badges i { font: 600 11px var(--f-mono); font-style: normal; padding: 3px 7px; border-radius: 999px; background: #eceae4; color: #444; white-space: nowrap; }
+  .pp-badges i.u { background: #f6c8c8; color: #8a1c1c; }
+  .pp-badges i.n { background: #e3eefc; color: #12417a; }
+  .pp-roll { grid-area: roll; font-size: 13.5px; line-height: 1.35; color: var(--muted); }
+  .pp-chev { grid-area: chev; align-self: start; padding-top: 4px; font-size: 14px; color: var(--muted); transition: transform .15s; }
+  .pp-card.open .pp-chev { transform: rotate(180deg); }
+  .pp-tasks { padding: 0 10px 10px; border-top: 1px solid var(--rule); }
+  .pp-open { display: block; margin: 10px 0 0 auto; border: 0; background: none; color: #5c1f33; font: 600 14px var(--f-body); padding: 6px 2px; }
+  .mbar .m-wlbl { font-size: clamp(16px, 4.8vw, 21px); white-space: nowrap; }
+  .pp-name { display: flex; flex-direction: column; }
   .pp-name b, .pp-lot { font: 700 16px var(--f-body); text-align: left; border: 0; background: none; padding: 0; color: inherit; }
   .pp-name small { font: 12px var(--f-mono); color: var(--muted); }
   .pp-card .chip { margin: 6px 0 0; font-size: 14.5px; }
