@@ -1,6 +1,6 @@
 // Cellar Target Calendar (Calendario de bodega) — Bodega Dos Búhos.
 // The page is the Claude artifact, plus app/web-shim.js which points its window.claude API at the routes below.
-import { handleAuth, loginPage, sessionEmail, isViewer, isAdmin, initialsFor } from './google.js';
+import { handleAuth, loginPage, sessionEmail, isViewer, isAdmin, isCrew, initialsFor } from './google.js';
 import { sheetsTool } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
@@ -29,13 +29,15 @@ export default {
     try {
       const initials = open ? 'EM' : initialsFor(env, email);
       const admin = open || isAdmin(env, email);
-      if (p === '/api/me') return J({ email, canWrite, initials, admin });
+      const crew = !open && !admin && isCrew(env, email);
+      if (crew && /^\/settings(\.html)?\/?$/.test(p)) return Response.redirect(url.origin + '/', 302);
+      if (p === '/api/me') return J({ email, canWrite, initials, admin, role: crew ? 'crew' : admin ? 'admin' : canWrite ? 'editor' : 'viewer' });
       if (p === '/api/users') {
         if (!admin) return J({ message: 'Only an admin can manage users.' }, 403);
         if (request.method === 'GET') return J({ users: env.__users, fromSecret: String(env.ALLOWED_EMAILS || '').split(',').map(x => x.split('=')[0].trim()).filter(Boolean) });
         if (request.method === 'PUT') {
           const b = await request.json();
-          const users = (Array.isArray(b.users) ? b.users : []).map(u => ({ email: String(u.email || '').trim().toLowerCase(), initials: String(u.initials || '').trim().toUpperCase().slice(0, 8), role: u.role === 'viewer' ? 'viewer' : 'editor' })).filter(u => /^[^@\s]+@[^@\s]+$/.test(u.email) && u.initials);
+          const users = (Array.isArray(b.users) ? b.users : []).map(u => ({ email: String(u.email || '').trim().toLowerCase(), initials: String(u.initials || '').trim().toUpperCase().slice(0, 8), role: ['viewer', 'crew'].includes(u.role) ? u.role : 'editor' })).filter(u => /^[^@\s]+@[^@\s]+$/.test(u.email) && u.initials);
           const stmts = [env.DB.prepare("DELETE FROM docs WHERE coll = 'users'")];
           for (const u of users) stmts.push(env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('users', ?, ?, ?)").bind(u.email, JSON.stringify({ initials: u.initials, role: u.role }), Date.now()));
           await env.DB.batch(stmts);
@@ -44,7 +46,7 @@ export default {
       }
       if (p === '/api/chat' && request.method === 'POST') {
         if (!canWrite) return J({ message: 'Read-only access.' }, 403);
-        const r = await chat(request, env, { email, initials, name: initials === 'EM' ? 'Eric' : initials === 'D' ? 'Diane' : email });
+        const r = await chat(request, env, { email, initials, name: initials === 'EM' ? 'Eric' : initials === 'D' ? 'Diane' : initials === 'P/J' ? 'Paris y Jimena' : email });
         return J(r.body, r.status);
       }
       if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, { initials }) });
@@ -60,13 +62,13 @@ export default {
       }
       if (p === '/api/notes' && request.method === 'GET') return J(await houseNotes(env));
       if (p === '/api/notes' && request.method === 'PUT') {
-        if (!canWrite) return J({ message: 'Read-only access.' }, 403);
+        if (!canWrite || crew) return J({ message: 'Read-only access.' }, 403);
         const b = await request.json();
         const lines = (Array.isArray(b.lines) ? b.lines : []).map(l => ({ text: String(l.text || '').slice(0, 500), by: l.by || initials, at: l.at || new Date().toISOString() })).filter(l => l.text.trim());
         await env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('housenotes', 'main', ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(JSON.stringify({ lines }), Date.now()).run();
         return J({ ok: true });
       }
-      if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite, ctx);
+      if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite, ctx, crew);
       if (p === '/api/sheets' && request.method === 'POST') {
         const { tool, args } = await request.json();
         if (!canWrite && !/^get_/.test(tool)) return J({ code: 'tool_error', message: 'Read-only access.' }, 403);
@@ -93,7 +95,10 @@ export default {
 };
 
 // ---------- db: collections of JSON docs in D1 (same shape as the artifact's shared database) ----------
-async function dbRoute(request, env, p, canWrite, ctx) {
+// What the crew role may write. Tasks: only the fields that follow a work order (done, the order itself, its assignee/priority/date).
+const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purchases', 'barrel_log', 'trials']);
+const CREW_TASK_KEYS = new Set(['done', 'wo', 'asig', 'pri', 'day', 'week']);
+async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '')) return J({ code: 'bad_request' }, 400);
   const m = request.method;
@@ -107,6 +112,9 @@ async function dbRoute(request, env, p, canWrite, ctx) {
   if (!ID.test(id || '')) return J({ code: 'bad_request' }, 400);
   if (!canWrite) return J({ code: 'not_granted', message: 'Read-only access.' }, 403);
   const now = Date.now();
+  const planOnly = () => J({ code: 'not_granted', message: 'Solo Eric o Diane pueden cambiar el plan, los vinos, los protocolos o los ajustes.' }, 403);
+  if (crew && !CREW_COLLS.has(coll) && coll !== 'tasks') return planOnly();
+  if (crew && coll === 'tasks' && m !== 'PATCH') return planOnly();
   if (m === 'DELETE') { await env.DB.prepare('DELETE FROM docs WHERE coll = ? AND id = ?').bind(coll, id).run(); if (coll === 'purchases') ctx.waitUntil(pushPurchase(env, id, null)); return J({ ok: true }); }
   const body = await request.json();
   if (!body || typeof body !== 'object' || Array.isArray(body)) return J({ code: 'bad_request' }, 400);
@@ -117,6 +125,7 @@ async function dbRoute(request, env, p, canWrite, ctx) {
     return J({ ok: true, id });
   }
   if (m === 'PATCH') {
+    if (crew && coll === 'tasks' && !Object.keys(body).every(k => CREW_TASK_KEYS.has(k))) return planOnly();
     // Shallow merge, like the artifact database's update(). json_patch merges objects; nulls delete keys, so do it in JS.
     const cur = await env.DB.prepare('SELECT data FROM docs WHERE coll = ? AND id = ?').bind(coll, id).first();
     if (!cur) return J({ code: 'not_found' }, 404);

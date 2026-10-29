@@ -82,4 +82,6 @@ export async function handleAuth(request, env, url) {
   if (url.pathname === '/auth/salir') return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': cookie(COOKIE, '', 0) } });
   return null;
 }
+// Crew (cellar team): update work orders, progress, purchases, trials; can't change the plan, wines, protocols or settings.
+export const isCrew = (env, email) => appUsers(env).some(u => String(u.email || '').toLowerCase() === email && u.role === 'crew');
 export const isViewer = (env, email) => list(env.VIEWER_EMAILS).includes(email) || appUsers(env).some(u => String(u.email || '').toLowerCase() === email && u.role === 'viewer');

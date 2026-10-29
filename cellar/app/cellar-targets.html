@@ -1711,6 +1711,9 @@ var SheetParse = (function () {
   function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
   const todayISO = iso(new Date());
   const curWeek = iso(mondayOf(new Date()));
+  const CREW_CSS = document.createElement("style");
+  CREW_CSS.textContent = `.role-crew .cell .add, .role-crew .tmp.add-t, .role-crew [data-grip], .role-crew a[href="/settings"], .role-crew [data-phase] { display: none !important; }`;
+  document.head.appendChild(CREW_CSS);
   const PHONE_MQ = window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)");
   const weekEnd = iso(addDays(parse(curWeek), 6));
 
@@ -2789,6 +2792,8 @@ Return ONLY JSON with this shape:
     const x = e.target.closest("[data-ppexp]"); if (x) { S.ppAllOpen = !S.ppAllOpen; if (!S.ppAllOpen) S.ppOpen = new Set(); renderBoard(); return; }
     const tg = e.target.closest("[data-pptog]"); if (tg) { const k = tg.dataset.pptog; if (S.ppAllOpen) { S.ppAllOpen = false; S.ppOpen = new Set(S.lots.map(l => l.id).concat("_none")); } S.ppOpen.has(k) ? S.ppOpen.delete(k) : S.ppOpen.add(k); renderBoard(); }
   });
+  // Crew login (Paris & Jimena): work orders and progress yes; plan, wines, protocols and settings no (the server enforces it too).
+  fetch("/api/me").then(r => r.ok ? r.json() : {}).then(j => { if (j && j.role === "crew") { S.crew = true; document.documentElement.classList.add("role-crew"); render(); } }).catch(() => {});
   window.addEventListener("cellar:plan", () => { S.view = "weeks"; S.span = "week"; S.ppOff = 0; render(); window.scrollTo(0, 0); });
 
   // ---------- Access check: walks a viewer through everything Excellovint needs ----------
@@ -5028,6 +5033,7 @@ Return ONLY JSON with this shape:
       if (S.kinds.has(k) && S.kinds.size > 1) S.kinds.delete(k); else S.kinds.add(k);
       store("kinds", [...S.kinds]); render(); return;
     }
+    if (S.crew && (b.dataset.temp || b.dataset.add || b.dataset.edit || b.dataset.phase)) { toast("Solo Eric o Diane cambian el plan. Usa la orden de trabajo para anotar."); return; }
     if (b.dataset.wo) { openWo(b.dataset.wo); return; }
     if (b.dataset.temp) { if (S.canWrite && S.db) { const [lt, wk] = b.dataset.temp.split("|"); openTemp(lt, wk); } return; }
     if (b.dataset.tick) {

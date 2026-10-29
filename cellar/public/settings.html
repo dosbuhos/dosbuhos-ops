@@ -70,7 +70,7 @@ summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space
     <h2>Users</h2>
     <p class="sub">Who can sign in with Google. Initials go on the work orders they create (ASSGN BY) and on their chats. Viewers can read but not change anything.</p>
     <div id="users"></div>
-    <div class="add" style="flex-wrap:wrap"><input id="uEmail" type="email" placeholder="email@…" style="flex:2 1 180px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit"><input id="uIni" placeholder="Initials (P/J)" style="flex:1 1 90px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit;text-transform:uppercase"><select id="uRole" style="flex:1 1 110px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit;background:#fff"><option value="editor">Can edit</option><option value="viewer">View only</option></select><button class="btn primary" id="uAdd">Add</button></div>
+    <div class="add" style="flex-wrap:wrap"><input id="uEmail" type="email" placeholder="email@…" style="flex:2 1 180px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit"><input id="uIni" placeholder="Initials (P/J)" style="flex:1 1 90px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit;text-transform:uppercase"><select id="uRole" style="flex:1 1 110px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit;background:#fff"><option value="editor">Can edit</option><option value="crew">Crew (work orders, no plan)</option><option value="viewer">View only</option></select><button class="btn primary" id="uAdd">Add</button></div>
     <p class="sub" id="uNote" style="margin-top:10px"></p>
   </section>
   <section>
@@ -133,7 +133,7 @@ summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space
   async function loadUsers() {
     const j = await (await fetch('/api/users')).json(); users = j.users || [];
     const secret = (j.fromSecret || []).filter(e => !users.some(u => u.email === e));
-    $('#users').innerHTML = (users.map(u => `<div class="note"><div style="flex:1"><b>${esc(u.email)}</b> <span style="color:var(--muted)">· ${esc(u.initials)} · ${u.role === 'viewer' ? 'view only' : 'can edit'}</span></div><button class="x" data-udel="${esc(u.email)}" aria-label="Remove">×</button></div>`).join('') || '<div class="empty">No users yet.</div>');
+    $('#users').innerHTML = (users.map(u => `<div class="note"><div style="flex:1"><b>${esc(u.email)}</b> <span style="color:var(--muted)">· ${esc(u.initials)} · ${u.role === 'viewer' ? 'view only' : u.role === 'crew' ? 'crew' : 'can edit'}</span></div><button class="x" data-udel="${esc(u.email)}" aria-label="Remove">×</button></div>`).join('') || '<div class="empty">No users yet.</div>');
     $('#uNote').textContent = secret.length ? 'Also allowed from the Cloudflare setting: ' + secret.join(', ') : '';
   }
   async function saveUsers() { await fetch('/api/users', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ users }) }); await loadUsers(); }
