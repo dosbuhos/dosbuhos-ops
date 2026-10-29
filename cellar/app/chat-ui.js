@@ -1,6 +1,6 @@
 // Chat button + panel: talk to Claude about the cellar; it can read and write Excellovint (see src/chat.js).
-// Pattern: a messaging sheet. One running thread per signed-in person. Composer = one full-width pill with the
-// mic inside; the mic becomes a send arrow once there is text. Dictation language is a small toggle in the header.
+// Pattern: a messaging sheet. One running thread per signed-in person. Composer = one full-width pill with a send
+// arrow inside. Typing only (voice dictation was removed: browser speech recognition was too inaccurate).
 (function () {
   const css = `
   .cc-fab{position:fixed;right:18px;bottom:18px;z-index:9000;width:56px;height:56px;border-radius:50%;border:0;background:#5c1f33;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -53,9 +53,6 @@
   @keyframes ccpulse{50%{box-shadow:0 0 0 6px rgba(179,38,30,.18)}}
   .cc-send{background:#5c1f33;color:#fff}
   .cc-send:disabled{opacity:.45}
-  .cc-in.has-text .cc-mic{display:none}
-  .cc-in:not(.has-text) .cc-send{display:none}
-  .cc-in.recording .cc-mic{display:flex}
   .cc-listen{position:absolute;left:0;right:0;bottom:100%;padding:6px 16px;background:#b3261e;color:#fff;font:600 13px "IBM Plex Sans",sans-serif;text-align:center;display:none}
   .cc-in.recording .cc-listen{display:block}
   .cc-inwrap{position:relative;flex:none}
@@ -94,15 +91,13 @@
   const panel = document.createElement('section');
   panel.className = 'cc-panel'; panel.hidden = true; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Claude');
   panel.innerHTML = `<div class="cc-head"><span class="cc-grip"></span><b>Claude<small>Lee y escribe Excellovint</small></b>
-      <button type="button" class="cc-lang" id="ccLang" title="Idioma del dictado"></button>
       <button type="button" class="cc-ib" data-a="size" aria-label="Tamaño">${I.down}</button>
       <button type="button" class="cc-ib" data-a="close" aria-label="Cerrar">${I.close}</button></div>
     <div class="cc-log" id="ccLog"></div>
-    <div class="cc-inwrap"><div class="cc-listen">Escuchando… toca el micrófono para terminar</div>
-    <form class="cc-in" id="ccForm"><div class="cc-pill"><textarea id="ccTa" rows="1" placeholder="Pregunta o dicta una orden…" aria-label="Mensaje"></textarea><button type="button" class="cc-mic" id="ccMic" aria-label="Dictar"></button><button type="submit" class="cc-send" id="ccSend" aria-label="Enviar">${I.send}</button></div></form></div>`;
+    <div class="cc-inwrap">
+    <form class="cc-in" id="ccForm"><div class="cc-pill"><textarea id="ccTa" rows="1" placeholder="Pregunta o escribe una orden…" aria-label="Mensaje"></textarea><button type="submit" class="cc-send" id="ccSend" aria-label="Enviar">${I.send}</button></div></form></div>`;
   document.body.appendChild(scrim); document.body.appendChild(fab); document.body.appendChild(panel);
-  const log = panel.querySelector('#ccLog'), ta = panel.querySelector('#ccTa'), send = panel.querySelector('#ccSend'), form = panel.querySelector('#ccForm'), micBtn = panel.querySelector('#ccMic');
-  micBtn.innerHTML = I.mic;
+  const log = panel.querySelector('#ccLog'), ta = panel.querySelector('#ccTa'), send = panel.querySelector('#ccSend'), form = panel.querySelector('#ccForm');
 
   const SUGG = ['¿Qué hay pendiente hoy?', 'Orden urgente para Paris: …', '¿Cómo va el málico del L16?', 'Agrega a compras: …'];
   function add(role, text) {
@@ -111,7 +106,7 @@
   }
   function empty() {
     if (log.children.length) return;
-    log.innerHTML = `<div class="cc-empty"><p>Pregunta por cualquier vino o dicta una orden de trabajo: va directo a Excellovint.</p><div class="cc-sugg">${SUGG.map(s => `<button type="button" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`;
+    log.innerHTML = `<div class="cc-empty"><p>Pregunta por cualquier vino o escribe una orden de trabajo: va directo a Excellovint.</p><div class="cc-sugg">${SUGG.map(s => `<button type="button" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`;
   }
   const scrollEnd = () => { log.scrollTop = log.scrollHeight; };
   async function loadConv() {
@@ -142,47 +137,19 @@
   panel.querySelector('.cc-head').addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
   panel.querySelector('.cc-head').addEventListener('touchend', e => { if (y0 == null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; if (dy > 60) { if (panel.classList.contains('cc-half')) setOpen(false); else panel.classList.add('cc-half'); } else if (dy < -40) panel.classList.remove('cc-half'); });
 
-  // Composer: grow with the text; mic ↔ send swap.
-  const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 132) + 'px'; form.classList.toggle('has-text', !!ta.value.trim()); };
+  // Composer: grow with the text; send is enabled once there is text.
+  let busy = false;
+  const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 132) + 'px'; send.disabled = busy || !ta.value.trim(); };
   ta.addEventListener('input', grow);
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(min-width:761px)').matches) { e.preventDefault(); form.requestSubmit(); } });
 
-  // Dictation: browser speech recognition (Chrome on Android/desktop, Safari). Tap the mic to start/stop; ES/EN in the header.
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const langBtn = panel.querySelector('#ccLang');
-  let lang = get('cc.lang') || 'ES';
-  const drawLang = () => { langBtn.innerHTML = I.globe + (lang === 'ES' ? 'ES' : 'EN'); langBtn.title = 'Dictado en ' + (lang === 'ES' ? 'español' : 'inglés') + ' · toca para cambiar'; };
-  drawLang();
-  langBtn.addEventListener('click', () => { lang = lang === 'EN' ? 'ES' : 'EN'; set('cc.lang', lang); drawLang(); if (rec) rec.stop(); });
-  let rec = null;
-  if (!SR) { micBtn.hidden = true; langBtn.hidden = true; form.classList.add('has-text'); }
-  micBtn.addEventListener('click', () => {
-    if (rec) { rec.stop(); return; }
-    rec = new SR(); rec.lang = lang === 'ES' ? 'es-MX' : 'en-US'; rec.continuous = true; rec.interimResults = true;
-    const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
-    // Rebuild the whole transcript on every update. Android Chrome sends each new result with everything said
-    // before it ("hola", "hola cómo", "hola cómo estás"), so a result that starts with the text so far replaces it.
-    rec.onresult = ev => {
-      let acc = '';
-      for (let i = 0; i < ev.results.length; i++) {
-        const t = ev.results[i][0].transcript.trim(); if (!t) continue;
-        const a = acc.toLowerCase(), tl = t.toLowerCase();
-        if (!acc || tl.startsWith(a)) acc = t;            // cumulative result: replace
-        else if (a.endsWith(tl) || a.includes(tl)) { }     // repeat of something already there: skip
-        else acc += ' ' + t;                               // genuinely new phrase: append
-      }
-      ta.value = base + acc; grow();
-    };
-    rec.onend = () => { rec = null; micBtn.classList.remove('on'); form.classList.remove('recording'); grow(); if (ta.value.trim()) ta.focus(); };
-    rec.onerror = ev => { if (ev.error === 'not-allowed') add('assistant', 'Permite el micrófono para este sitio en el navegador para dictar.'); };
-    micBtn.classList.add('on'); form.classList.add('recording'); rec.start();
-  });
   form.addEventListener('submit', async e => {
-    e.preventDefault(); if (rec) rec.stop();
-    const text = ta.value.trim(); if (!text || send.disabled) return;
+    e.preventDefault();
+    const text = ta.value.trim(); if (!text || busy) return;
     const em = log.querySelector('.cc-empty'); if (em) em.remove();
-    add('user', text); ta.value = ''; grow(); send.disabled = true;
+    busy = true; add('user', text); ta.value = ''; grow();
     const wait = document.createElement('div'); wait.className = 'cc-typing'; wait.innerHTML = '<i></i><i></i><i></i>'; log.appendChild(wait); scrollEnd();
+    const sentAt = Date.now() - 5000;
     try {
       const r = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conv, text }) });
       const j = await r.json().catch(() => ({}));
@@ -196,7 +163,22 @@
         log.appendChild(d);
       });
       if (j.changed) { const b = document.getElementById('syncBtn'); if (b) b.click(); }
-    } catch (err) { wait.replaceWith(add('assistant', 'No pude responder: ' + err.message)); }
-    send.disabled = false; scrollEnd();
+    } catch (err) {
+      // The connection dropped (phone locked, app switched, weak signal) but the server keeps working and saves
+      // the answer. Check the saved conversation for up to ~90 s before giving up.
+      let got = null;
+      if (err instanceof TypeError) {
+        for (let i = 0; i < 30 && !got; i++) {
+          await new Promise(res => setTimeout(res, 3000));
+          try {
+            const h = await (await fetch('/api/chat?conv=' + encodeURIComponent(conv))).json();
+            got = (h.messages || []).filter(m => m.role === 'assistant' && m.at && Date.parse(m.at) > sentAt).pop() || null;
+          } catch (e) {}
+        }
+      }
+      wait.replaceWith(add('assistant', got ? got.text : 'No pude responder: ' + (err instanceof TypeError ? 'se perdió la conexión. Intenta de nuevo.' : err.message)));
+      if (got) { const b = document.getElementById('syncBtn'); if (b) b.click(); }
+    }
+    busy = false; grow(); scrollEnd();
   });
 })();

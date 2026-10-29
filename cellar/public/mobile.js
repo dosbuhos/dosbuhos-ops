@@ -20,7 +20,15 @@
   const $ = s => document.querySelector(s);
   const mq = window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 540px)');
   // Phone ↔ desktop switch (rotating a phone or tablet): the phone layer rearranges the page, so reload to rebuild cleanly.
-  mq.addEventListener('change', () => { setTimeout(() => location.reload(), 150); });
+  // iPad/iPhone Chrome doesn't always fire the media-query change (or restores the page from the back/forward
+  // cache, or settles the viewport after load), so also re-check on resize, rotation, return to the tab and shortly after load.
+  const startPhone = mq.matches;
+  let reloading = false;
+  const recheck = () => { if (!reloading && mq.matches !== startPhone) { reloading = true; setTimeout(() => location.reload(), 150); } };
+  mq.addEventListener('change', recheck);
+  ['resize', 'orientationchange', 'pageshow', 'focus'].forEach(ev => window.addEventListener(ev, recheck));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
+  [400, 1200, 3000].forEach(ms => setTimeout(recheck, ms));
   if (!mq.matches) return; // desktop / tablet: leave the page as it is
   const TITLES = { weeks: 'Calendar', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
   const SEARCH = { protocols: '.pl-q' }; // Wines and Trials have their own search + Filtros bar (below)
@@ -114,6 +122,7 @@
 
   // ---- Today: card actions (✓ Done, ⋯ more) ----
   function decorateAsg() {
+    if (!mq.matches) return; // a tablet that turned wide: the page reloads into the desktop layout
     document.querySelectorAll('#asgView .asg-row:not(.asg-head):not(.m-dec)').forEach(row => {
       row.classList.add('m-dec');
       const pri = row.querySelector('select.asg-pri'), asig = row.querySelector('.asg-who'), st = row.querySelector('select.asg-st');
