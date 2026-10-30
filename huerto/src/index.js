@@ -1,3 +1,4 @@
+import { upcoming, upcomingSowings, listRequests, addRequest, vote, answerRequest } from './cocina.js';
 import { listShopping, editShopping, listBank, editBank } from './insumos.js';
 import { latestCensus, saveCensus } from './censo.js';
 import { livePlan } from './planstore.js';
@@ -89,6 +90,17 @@ export default {
         const q = role === 'huerto' ? 'DELETE FROM cosechas WHERE id=?' : "DELETE FROM cosechas WHERE id=? AND quien='cocina' AND at > datetime('now','-3 days')";
         const r = await env.DB.prepare(q).bind(Number(b.id)).run();
         return json(r.meta.changes ? { ok: true } : { error: 'Solo se pueden borrar registros de la cocina de los últimos 3 días' }, r.meta.changes ? 200 : 400);
+      }
+      if (p === '/api/cocina/proximas' && request.method === 'GET') return json(await upcoming(env, 16));
+      if (p === '/api/cocina/siembras' && request.method === 'GET') return json({ rows: await upcomingSowings(env, 6) });
+      if (p === '/api/cocina/pedidos' && request.method === 'GET') return json({ rows: await listRequests(env) });
+      if ((p === '/api/cocina/pedido' || p === '/api/cocina/voto' || p === '/api/cocina/responder') && request.method === 'POST') {
+        const role = await pinRole(request, env);
+        if (!role) return json({ error: 'PIN incorrecto' }, 401);
+        if (p === '/api/cocina/responder' && role !== 'huerto') return json({ error: 'Solo el huerto responde pedidos' }, 403);
+        const b = await request.json();
+        const r = p === '/api/cocina/pedido' ? await addRequest(env, b, role) : p === '/api/cocina/voto' ? await vote(env, b, role) : await answerRequest(env, b);
+        return json(r, r.error ? 400 : 200);
       }
       // Qué hay hoy en cada cama (del plan vivo, que incluye el censo): para el mapa de la cocina.
       if (p === '/api/hoy-camas' && request.method === 'GET') {

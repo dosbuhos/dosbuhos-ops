@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Cosecha · Cocina Dos Búhos</title>
+<title>Huerto · Cocina Dos Búhos</title>
 <style>
 :root{--bg:#f3f1ea;--surface:#fff;--sunk:#ebe8df;--fg:#1f241d;--muted:#5b6157;--faint:#8a8f84;--line:#dcd8cc;--leaf:#2f5d3a;--accent:#2f5d3a;--accent-ink:#fff;--warn:#a8641b;--danger:#a0302a;--r:14px}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#151814;--surface:#1e221d;--sunk:#262b25;--fg:#e9ece4;--muted:#aab1a3;--faint:#7d8477;--line:#343a32;--leaf:#7dbb8a;--accent:#7dbb8a;--accent-ink:#11160f}}
@@ -46,13 +46,39 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 .zones{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .zones button{min-height:40px;font-weight:600;padding:0 12px;font-size:14px}
 .zones button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--bg);padding:8px 0}
+.tabs button{min-height:46px;font-size:15px}
+.tabs button[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.kpi b{display:block;font-size:26px;font-family:Georgia,serif;font-weight:400;line-height:1.1}
+.kpi span{font-size:13px;color:var(--muted)}
+.tl{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+.tlh,.tlr{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px;align-items:center}
+.tlh .mons{display:grid;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tlh .mons span{border-left:1px solid var(--line);padding-left:3px;white-space:nowrap;overflow:hidden}
+.tlr{padding:6px 0;border-top:1px solid var(--line)}
+.tlr .nm{font-size:14px;font-weight:600;line-height:1.2;min-width:0}
+.tlr .nm small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.cells{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}
+.cells i{display:block;height:18px;border-radius:4px;background:var(--sunk)}
+.grp{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
+.st{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--sunk);white-space:nowrap}
+.st.aceptada,.st.en_plan,.st.hecha{background:color-mix(in srgb,var(--leaf) 22%,transparent);color:var(--leaf)}
+.st.no_se_puede{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}
+.req{padding:10px 0;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:4px}
+.sow{padding:10px 0;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:6px}
+.votes{display:flex;gap:6px}
+.votes button{min-height:42px;font-weight:600;font-size:14px;padding:0 12px}
+.votes button[aria-pressed="true"].up{background:var(--leaf);border-color:var(--leaf);color:var(--accent-ink)}
+.votes button[aria-pressed="true"].down{background:var(--danger);border-color:var(--danger);color:#fff}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:13px}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 </style>
 </head>
 <body>
 <main>
-  <div><div class="eyebrow">Huerto Dos Búhos · Cocina</div><h1>¿Qué cosecharon hoy?</h1></div>
+  <div><div class="eyebrow">Huerto Dos Búhos · Cocina</div><h1>El huerto para la cocina</h1></div>
 
   <section class="panel grid" id="pinbox" hidden>
     <p style="margin:0">Escribe el PIN de la cocina para anotar la cosecha.</p>
@@ -61,7 +87,39 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
     <p class="err" id="pinerr" hidden>PIN incorrecto.</p>
   </section>
 
-  <section class="panel grid" id="form" hidden>
+  <nav class="tabs" id="tabs" hidden role="tablist">
+    <button role="tab" data-t="cosecha">Cosecha</button>
+    <button role="tab" data-t="viene">Qué viene</button>
+    <button role="tab" data-t="pedidos">Pedidos</button>
+  </nav>
+
+  <section data-tab="viene" hidden>
+    <div class="kpis" id="kpis"></div>
+  </section>
+  <section class="panel" data-tab="viene" hidden>
+    <h2>Lo que viene del huerto · próximas 16 semanas</h2>
+    <div id="tl"></div>
+    <p class="small muted" style="margin:10px 0 0">Cada cuadrito es una semana. Más oscuro = más cantidad. Toquen un cultivo para ver de qué camas sale y para qué platillo.</p>
+  </section>
+
+  <section class="panel grid" data-tab="pedidos" hidden>
+    <h2>Pedir un cultivo</h2>
+    <p class="small muted" style="margin:-4px 0 0">¿Quieren algo que no está en el huerto, o más de algo? Pídanlo aquí y el huerto les responde.</p>
+    <label>¿Qué quieren que se siembre?<input id="p-cultivo" list="todos" placeholder="Ej. betabel baby, flor de calabaza" maxlength="60"></label>
+    <datalist id="todos"></datalist>
+    <label>¿Cuánto?<input id="p-cant" placeholder="Ej. 1 kg por semana" maxlength="60"></label>
+    <label>¿Para cuándo?<select id="p-para"></select></label>
+    <label>Nota <span class="small">(opcional)</span><input id="p-nota" placeholder="Ej. para el menú de primavera" maxlength="200"></label>
+    <button class="primary" id="p-enviar">Enviar pedido</button>
+  </section>
+  <section class="panel" data-tab="pedidos" hidden><h2>Sus pedidos</h2><div id="pedidos"></div></section>
+  <section class="panel" data-tab="pedidos" hidden>
+    <h2>Lo que se va a sembrar · próximas 6 semanas</h2>
+    <p class="small muted" style="margin:0 0 4px">¿Sí lo van a usar? Su respuesta nos ayuda a no sembrar de más.</p>
+    <div id="siembras"></div>
+  </section>
+
+  <section class="panel grid" id="form" data-tab="cosecha" hidden>
     <label>Fecha<input id="fecha" type="date"></label>
     <label>¿Qué cosecharon?<input id="cultivo" list="cultivos" placeholder="Ej. lechuga, kale, zanahoria" autocomplete="off"></label>
     <datalist id="cultivos"></datalist>
@@ -72,7 +130,7 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
     <button class="primary" id="guardar">Anotar</button>
   </section>
 
-  <section class="panel" id="mapa" hidden>
+  <section class="panel" id="mapa" data-tab="cosecha" hidden>
     <h2>Mapa del huerto · qué hay hoy</h2>
     <div class="zones" id="zones"></div>
     <div id="mapbox"></div>
@@ -80,9 +138,9 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
     <p class="small muted" style="margin:6px 0 0">Color fuerte = listo para cosechar. Toca una cama para ponerla en el registro. ↑ Norte</p>
   </section>
 
-  <section class="panel" id="semana" hidden><h2>Esta semana</h2><div class="chips" id="totales"></div></section>
-  <section class="panel" id="lista" hidden><h2>Últimos registros</h2><div id="rows"></div></section>
-  <p class="small muted" style="margin:0">Pueden borrar un registro de la cocina en los primeros 3 días si se equivocaron.</p>
+  <section class="panel" id="semana" data-tab="cosecha" hidden><h2>Esta semana</h2><div class="chips" id="totales"></div></section>
+  <section class="panel" id="lista" data-tab="cosecha" hidden><h2>Últimos registros</h2><div id="rows"></div></section>
+  <p class="small muted" data-tab="cosecha" hidden style="margin:0">Pueden borrar un registro de la cocina en los primeros 3 días si se equivocaron.</p>
 </main>
 <script>
 const $ = id => document.getElementById(id);
@@ -96,15 +154,18 @@ const today = () => { const d = new Date(); return d.getFullYear() + "-" + Strin
 const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const fmt = iso => { const [y, m, d] = iso.split("-").map(Number); return d + " " + MES[m - 1]; };
 const nf = n => (Math.round(n * 10) / 10).toLocaleString("es-MX");
+const nq = (n, u) => u === "kg" ? nf(n) : Math.round(n).toLocaleString("es-MX");
 function toast(m){ const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
 const name = k => { const c = CROPS.find(x => x.clave === k); return c ? c.nombre : k; };
 
 function drawUnits(){ $("units").innerHTML = UNITS.map(([k, n]) => `<button type="button" data-u="${k}" aria-pressed="${UNIT === k}">${n}</button>`).join(""); $("units").querySelectorAll("button").forEach(b => b.onclick = () => { UNIT = b.dataset.u; drawUnits(); }); }
 async function checkPin(p){ const r = await fetch("/api/cocina/pin", {method: "POST", headers: {"x-pin": p}}); const j = await r.json().catch(() => ({})); return j.ok; }
-function show(ok){ $("pinbox").hidden = ok; $("form").hidden = !ok; $("lista").hidden = !ok; $("semana").hidden = !ok; $("mapa").hidden = !ok; }
+let TAB = (() => { try { return localStorage.getItem("cocina-tab") || "cosecha"; } catch (e) { return "cosecha"; } })(), OK = false;
+function show(ok){ OK = ok; $("pinbox").hidden = ok; $("tabs").hidden = !ok; document.querySelectorAll("[data-tab]").forEach(el => el.hidden = !ok || el.dataset.tab !== TAB); document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === TAB)); }
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem("cocina-tab", TAB); } catch (e) {} show(true); window.scrollTo(0, 0); if (TAB === "cosecha") drawMap(); });
 
 async function load(){
-  try { const r = await fetch("/api/cultivos"); CROPS = (await r.json()).rows || []; $("cultivos").innerHTML = CROPS.map(c => `<option value="${esc(c.nombre)}">`).join(""); } catch (e) {}
+  try { const r = await fetch("/api/cultivos"); CROPS = (await r.json()).rows || []; $("cultivos").innerHTML = CROPS.map(c => `<option value="${esc(c.nombre)}">`).join(""); $("todos").innerHTML = $("cultivos").innerHTML; } catch (e) {}
   try {
     const r = await fetch("/api/cocina/registros", {cache: "no-store"}); const rows = (await r.json()).rows || [];
     $("rows").innerHTML = rows.slice(0, 30).map(x => `<div class="row"><div><b>${esc(name(x.cultivo))}</b><div class="small muted">${fmt(x.fecha)}${x.cama && x.cama !== "—" ? " · " + esc(x.cama) : ""}${x.quien === "cocina" ? " · cocina" : x.quien ? " · huerto" : ""}${x.nota ? " · " + esc(x.nota) : ""}</div></div><span class="q">${nf(x.cantidad)} ${esc(x.u)}</span>${x.quien === "cocina" ? `<button class="x" data-del="${x.id}" aria-label="Borrar">✕</button>` : "<span></span>"}</div>`).join("") || `<p class="muted small" style="margin:0">Todavía no hay registros.</p>`;
@@ -177,6 +238,70 @@ async function loadMap(){
 }
 $("cama").addEventListener("input", () => { SEL = $("cama").value.trim().toUpperCase(); drawMap(); });
 loadMap();
+
+// ---------- qué viene ----------
+let PROX = null, OPEN = null;
+function monthsHeader(weeks){
+  const spans = []; weeks.forEach((d, i) => { const m = +d.slice(5, 7) - 1; if (!spans.length || spans[spans.length - 1].m !== m) spans.push({m, n: 1}); else spans[spans.length - 1].n++; });
+  return `<div class="tlh"><span></span><div class="mons" style="grid-template-columns:${spans.map(x => x.n + "fr").join(" ")}">${spans.map(x => `<span>${x.n >= 2 ? MES[x.m] : ""}</span>`).join("")}</div></div>`;
+}
+function rowHtml(r){
+  const kg = r.unidad === "kg", base = kg ? "47,93,58" : "176,74,108";
+  const cells = r.semanas.map(v => v > 0 ? `<i style="background:rgba(${base},${(0.25 + 0.75 * v / (r.pico || 1)).toFixed(2)})" title="${nq(v, r.unidad)} ${r.unidad}"></i>` : `<i></i>`).join("");
+  const when = r.desde === 0 ? "ya en cosecha" : "desde " + fmt(r.desde_fecha);
+  return `<div class="tlr" data-c="${esc(r.clave)}"><div class="nm"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${r.color};margin-right:5px"></span>${esc(r.nombre)}<small>${when} · hasta ${nq(r.pico, r.unidad)} ${kg ? "kg" : "flores"}/sem</small></div><div class="cells">${cells}</div></div>${OPEN === r.clave ? `<div class="small muted" style="padding:0 0 8px 0">Camas: ${r.camas.join(", ")}${r.menu ? "<br>Para: " + esc(r.menu) : ""}</div>` : ""}`;
+}
+function drawProx(){
+  if (!PROX) return;
+  const C = PROX.cultivos, now = C.filter(r => r.desde === 0), soon = C.filter(r => r.desde > 0 && r.desde <= 4), later = C.filter(r => r.desde > 4);
+  const kgNow = now.filter(r => r.unidad === "kg").reduce((a, r) => a + r.semanas[0], 0);
+  const next = soon.filter(r => r.unidad === "kg")[0];
+  $("kpis").innerHTML = `<div class="kpi"><b>≈ ${nf(kgNow)} kg</b><span>listos esta semana · ${now.length} cultivos</span></div><div class="kpi"><b>${next ? esc(next.nombre.split(" (")[0]) : "—"}</b><span>${next ? "lo próximo, desde " + fmt(next.desde_fecha) : "nada nuevo en 4 semanas"}</span></div>`;
+  const grp = (t, L) => L.length ? `<div class="grp">${t}</div>${L.map(rowHtml).join("")}` : "";
+  $("tl").innerHTML = `<div class="tl">${monthsHeader(PROX.semanas)}${grp("Ya en cosecha", now)}${grp("Llega en las próximas 4 semanas", soon)}${grp("Más adelante", later)}</div>`;
+  $("tl").querySelectorAll(".tlr").forEach(r => r.onclick = () => { OPEN = OPEN === r.dataset.c ? null : r.dataset.c; drawProx(); });
+}
+// ---------- pedidos ----------
+const EST = {nueva: "Recibido", aceptada: "Aceptado", en_plan: "En el plan", no_se_puede: "No se puede", hecha: "Listo"};
+async function postJ(path, body){
+  const r = await fetch(path, {method: "POST", headers: {"content-type": "application/json", "x-pin": PIN}, body: JSON.stringify(body)});
+  if (r.status === 401) { setPin(""); PIN = ""; show(false); toast("PIN incorrecto"); return null; }
+  const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || "No se pudo guardar"); return null; } return j;
+}
+async function loadPedidos(){
+  try {
+    const [p, sw] = await Promise.all([fetch("/api/cocina/pedidos", {cache: "no-store"}).then(r => r.json()), fetch("/api/cocina/siembras", {cache: "no-store"}).then(r => r.json())]);
+    $("pedidos").innerHTML = (p.rows || []).map(x => `<div class="req"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${esc(x.cultivo)}</b><span class="st ${x.estado}">${EST[x.estado] || x.estado}</span></div><span class="small muted">${[x.cantidad, x.para, x.nota].filter(Boolean).map(esc).join(" · ")}</span>${x.respuesta ? `<span class="small">Huerto: ${esc(x.respuesta)}</span>` : ""}</div>`).join("") || `<p class="small muted" style="margin:0">Aún no hay pedidos.</p>`;
+    const G = {}; (sw.rows || []).forEach(x => { const g = G[x.cultivo] = G[x.cultivo] || {cultivo: x.cultivo, color: x.color, menu: x.menu, items: []}; g.items.push(x); });
+    const groups = Object.values(G).sort((a, b) => a.items[0].siembra.localeCompare(b.items[0].siembra));
+    $("siembras").innerHTML = groups.map((g, gi) => {
+      const vs = g.items.map(x => x.voto ? x.voto.voto : 0), v = vs.every(y => y === vs[0]) ? vs[0] : 0, why = (g.items.find(x => x.voto && x.voto.nota) || {voto: {}}).voto.nota || "";
+      const beds = [...new Set(g.items.map(x => x.cama))].join(", "), d0 = g.items[0].siembra, d1 = g.items[g.items.length - 1].siembra, c0 = g.items.map(x => x.cosecha).sort()[0];
+      return `<div class="sow" data-g="${gi}"><div><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${g.color};margin-right:5px"></span><b>${esc(g.cultivo)}</b> <span class="small muted">· ${esc(beds)}</span><br><span class="small muted">Se siembra ${fmt(d0)}${d1 !== d0 ? " – " + fmt(d1) : ""} → cosecha desde ${fmt(c0)}${g.menu ? " · " + esc(g.menu) : ""}</span></div>
+      <div class="votes"><button type="button" class="up" data-v="1" aria-pressed="${v === 1}">👍 Sí lo usamos</button><button type="button" class="down" data-v="-1" aria-pressed="${v === -1}">👎 No lo necesitamos</button></div>
+      ${v === -1 ? `<input data-why placeholder="¿Por qué? (opcional)" value="${esc(why)}" maxlength="200">` : ""}</div>`;
+    }).join("") || `<p class="small muted" style="margin:0">No hay siembras en las próximas semanas.</p>`;
+    $("siembras").querySelectorAll(".sow").forEach(row => {
+      const g = groups[+row.dataset.g];
+      const send = async (v, nota) => { let ok = true; for (const x of g.items) ok = !!(await postJ("/api/cocina/voto", {siembra: x.id, cultivo: x.cultivo, voto: v, nota: nota || ""})) && ok; return ok; };
+      row.querySelectorAll("[data-v]").forEach(b => b.onclick = async () => { const cur = b.getAttribute("aria-pressed") === "true"; if (await send(cur ? 0 : +b.dataset.v)) { toast(cur ? "Quitado" : "Gracias"); loadPedidos(); } });
+      const w = row.querySelector("[data-why]"); if (w) w.onchange = async () => { if (await send(-1, w.value.trim())) toast("Guardado"); };
+    });
+  } catch (e) {}
+}
+function fillPara(){
+  const d = new Date(), opts = ["Lo antes posible"]; for (let i = 1; i <= 6; i++) { const x = new Date(d.getFullYear(), d.getMonth() + i, 1); opts.push(MESL[x.getMonth()] + " " + x.getFullYear()); }
+  $("p-para").innerHTML = opts.map(o => `<option>${o}</option>`).join("");
+}
+const MESL = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+$("p-enviar").onclick = async () => {
+  const c = $("p-cultivo").value.trim(); if (!c) { $("p-cultivo").focus(); toast("¿Qué quieren que se siembre?"); return; }
+  const b = $("p-enviar"); b.disabled = true;
+  if (await postJ("/api/cocina/pedido", {cultivo: c, cantidad: $("p-cant").value.trim(), para: $("p-para").value, nota: $("p-nota").value.trim()})) { toast("Pedido enviado"); $("p-cultivo").value = ""; $("p-cant").value = ""; $("p-nota").value = ""; loadPedidos(); }
+  b.disabled = false;
+};
+async function loadProx(){ try { PROX = await fetch("/api/cocina/proximas", {cache: "no-store"}).then(r => r.json()); drawProx(); } catch (e) {} }
+fillPara(); loadProx(); loadPedidos();
 
 $("pinok").onclick = async () => { const p = $("pin").value.trim(); if (p && await checkPin(p)) { PIN = p; setPin(p); $("pinerr").hidden = true; show(true); } else $("pinerr").hidden = false; };
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinok").click(); };

@@ -13,3 +13,4 @@ CREATE TABLE IF NOT EXISTS plan (v INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT 
 CREATE TABLE IF NOT EXISTS censo (id INTEGER PRIMARY KEY AUTOINCREMENT, cama TEXT NOT NULL, lineas TEXT NOT NULL, quien TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
 -- censo: lo que Adrián dice que hay en la tierra en cada cama (líneas en orden, metros y cultivo)
 -- lista, banco: lista de compras y banco de semillas (src/insumos.js). config k='pin_cocina': PIN de la cocina (solo cosechas).
+-- solicitudes: pedidos de la cocina y su validación (👍/👎) de las siembras próximas (src/cocina.js)
