@@ -282,7 +282,7 @@ async function runTool(env, user, name, a) {
   }
   if (name === 'cama') {
     const id = String(a.cama || '').toUpperCase().trim(), B = BED[id];
-    if (!B) return { error: 'Cama no existe. Usa A1–A24, B1–B10 o I1–I4.' };
+    if (!B) return { error: 'Cama no existe. Usa A1–A24, B1–B10 o I1–I3.' };
     const list = (P.byBed[id] || []).slice().sort((x, y) => x.s - y.s);
     return {
       cama: id, medidas: B.sec === 'A' ? '1 × 5 m, tramos de norte a sur' : B.sec === 'I' ? '1 × 8 m dentro de un invernadero VEVOR, tramos de oeste a este (sin heladas fuertes; sin el retraso de invierno)' : '1.4 × 9.5 m, tramos de oeste a este (sección B: solo flores)', area_m2: B.area,
@@ -345,7 +345,7 @@ async function runTool(env, user, name, a) {
 function instructions(user) {
   return `Huerto orgánico de Bodega Dos Búhos (San Miguel de Allende, ~2,000 m, heladas de noviembre a febrero). Abastece al restaurante. Conectado como ${user.nombre}. Hoy: ${isoMX()}.
 Equipo: Adrián Bárcenas es el único jardinero (L–V 7:00–16:00, desayuno 10–11, ~40 h/semana); solo lee español y se comunica por WhatsApp. Eric y Melanie lo manejan a distancia.
-Camas: sección A = 24 camas de 1 × 5 m (verdura y hierbas; tramos medidos de norte a sur). Sección B = 10 camas de 1.4 × 9.5 m, SOLO flores comestibles y decorativas (nunca verdura). Invernaderos VEVOR (8.3 × 2.9 m, entre las secciones a cada lado del pasillo central, donde estaban las tinas): camas I1–I4 de 1 × 8 m, para cultivos de calor en invierno (ejote, epazote, etc.); abrir de día y cerrar de noche. Preferir camas completas o medias.
+Camas: sección A = 24 camas de 1 × 5 m (verdura y hierbas; tramos medidos de norte a sur). Sección B = 10 camas de 1.4 × 9.5 m, SOLO flores comestibles y decorativas (nunca verdura). Invernaderos VEVOR (8.3 × 2.9 m, entre las secciones a cada lado del pasillo central, donde estaban las tinas): camas I1–I3 de 1 × 8 m para cultivos de calor en invierno (ejote, epazote, etc.); el lado sur del invernadero este es la mesa de semillero (charolas). Abrir de día y cerrar de noche. Preferir camas completas o medias.
 Semana 1 del plan empieza el lunes ${PLAN_START}. Cosecha a cocina: lunes, miércoles y viernes antes de las 10:00.
 Usa las herramientas para cada dato; no inventes fechas ni kilos. El plan de siembras se puede editar (ver_plan, agregar_siembra, cambiar_siembra, quitar_siembra, agregar_cultivo, tareas_extra); cada cambio queda en historial_plan con quién lo hizo y se puede revertir. Antes de cambiar: lee ver_plan de esa cama, explica el cambio y confírmalo con la persona; después revisa los problemas que regresa la herramienta (traslapes) y corrígelos. Un reporte de Adrián (reportar_cama) no cambia el plan: si contradice el plan, propón el ajuste. Respeta: sección B solo flores; camas completas o medias cuando se pueda; la semana de Adrián no debe pasar de 40 h (resumen_semana); lo caro o difícil de cultivar se compra. Responde en el idioma de quien pregunta.`;
 }

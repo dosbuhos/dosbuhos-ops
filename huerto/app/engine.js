@@ -4,8 +4,9 @@ const BEDS = (() => {
   const b = [];
   for (let i = 1; i <= 24; i++) b.push({id: "A" + i, area: 5, len: 5, sec: "A", q: ["A-NO","A-NE","A-SO","A-SE"][Math.floor((i - 1) / 6)]});
   for (let i = 1; i <= 10; i++) b.push({id: "B" + i, area: 13.3, len: 9.5, sec: "B", q: i <= 5 ? "B-O" : "B-E"});
-  // Invernaderos VEVOR (8.3 × 2.9 m) entre las secciones, a cada lado del pasillo central: 2 camas de 1 × 8 m cada uno.
-  for (let i = 1; i <= 4; i++) b.push({id: "I" + i, area: 8, len: 8, sec: "I", q: "I"});
+  // Invernaderos VEVOR (8.3 × 2.9 m) entre las secciones, a cada lado del pasillo central: camas de 1 × 8 m.
+  // El lado sur del invernadero este es la mesa de semillero (no es cama).
+  for (let i = 1; i <= 3; i++) b.push({id: "I" + i, area: 8, len: 8, sec: "I", q: "I"});
   return b;
 })();
 const BED = Object.fromEntries(BEDS.map(b => [b.id, b]));

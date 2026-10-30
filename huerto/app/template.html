@@ -188,7 +188,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">38 camas · 285 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión /*BUILD*/</div>
+    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión /*BUILD*/</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
     <button role="tab" data-v="hoy">Hoy</button>
@@ -276,6 +276,7 @@ function mapSVG(opts){
     for (let k = 1; k < 7; k++) s += `<line x1="${gx + k * w / 7}" y1="${gy + .08}" x2="${gx + k * w / 7}" y2="${gy + h - .08}" stroke="#3f8f6a" stroke-opacity=".55" stroke-width=".07"/>`;
     s += `<text class="feat" x="${gx + w / 2}" y="${Y0 - y + 1.1}" text-anchor="middle">${lab}</text>`;
   }
+  for (const [x, y, w, h, lab] of (GEO.mesas || [])) s += `<rect x="${x-X0}" y="${Y0-y-h}" width="${w}" height="${h}" rx=".12" fill="var(--soil-2)" stroke="var(--soil)" stroke-width=".1"/><text class="feat" x="${x-X0+w/2}" y="${Y0-y-h/2+.25}" text-anchor="middle">${lab}</text>`;
   if (false) for (const [x, lab] of []) s += `<circle cx="${x-X0}" cy="${Y0-31.6}" r=".85" fill="var(--sunk)" stroke="var(--fg)" stroke-width=".08"/><text class="feat" x="${x-X0}" y="${Y0-31.6+1.75}" text-anchor="middle">${lab}</text>`;
   s += `<text class="seclab" x="${31.03-X0}" y="${Y0-91.4}" text-anchor="middle">Sección A · granados</text>`;
   s += `<text class="seclab" x="${31.03-X0}" y="${Y0-4.4}" text-anchor="middle">Sección B · limones eureka</text>`;
@@ -798,7 +799,7 @@ views.semillero = () => {
       <button class="btn icon" id="snext" aria-label="Semana siguiente">→</button></div>
     <div class="bar small"><span class="chip">${used} cultivo${used === 1 ? "" : "s"} en la mesa</span>${sowNow.length ? `<span class="chip warn">Sembrar esta semana: ${[...new Set(sowNow.map(p => shortName(p.c.n)))].map(esc).join(", ")}</span>` : ""}</div>
   </div>
-  <p class="small muted" style="margin:0;max-width:72ch">Las charolas están en la mesa de semillero, fuera de las camas: no ocupan espacio del huerto. La cama que aparece es solo el destino final; sigue produciendo su cultivo anterior hasta el día del trasplante. Todo lo que se trasplanta nace aquí, entre 4 y 9 semanas antes. La última semana se endurece: al sol y al viento, con menos agua. Kale y acelga de octubre se siembran directo en la cama porque ya no da tiempo de semillero.</p>
+  <p class="small muted" style="margin:0;max-width:72ch">Las charolas están en la mesa de semillero (dentro del invernadero este, lado sur), fuera de las camas: no ocupan espacio del huerto. La cama que aparece es solo el destino final; sigue produciendo su cultivo anterior hasta el día del trasplante. Todo lo que se trasplanta nace aquí, entre 4 y 9 semanas antes. La última semana se endurece: al sol y al viento, con menos agua. Kale y acelga de octubre se siembran directo en la cama porque ya no da tiempo de semillero.</p>
   <div class="cols">
     <section class="panel">
       <h3 style="margin-bottom:8px">En la mesa esta semana</h3>
