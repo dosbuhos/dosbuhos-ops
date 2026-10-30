@@ -1,4 +1,4 @@
-import { upcoming, upcomingSowings, listRequests, addRequest, vote, answerRequest } from './cocina.js';
+import { upcoming, upcomingSowings, listRequests, addRequest, vote, answerRequest, listMessages, postMessage } from './cocina.js';
 import { listShopping, editShopping, listBank, editBank } from './insumos.js';
 import { latestCensus, saveCensus } from './censo.js';
 import { livePlan } from './planstore.js';
@@ -91,6 +91,14 @@ export default {
         const r = await env.DB.prepare(q).bind(Number(b.id)).run();
         return json(r.meta.changes ? { ok: true } : { error: 'Solo se pueden borrar registros de la cocina de los últimos 3 días' }, r.meta.changes ? 200 : 400);
       }
+      if (p === '/api/mensajes' && request.method === 'GET') return json({ rows: await listMessages(env) });
+      if (p === '/api/mensajes' && request.method === 'POST') {
+        const role = await pinRole(request, env);
+        if (!role) return json({ error: 'PIN incorrecto' }, 401);
+        const b = await request.json();
+        const r = await postMessage(env, role, b.nombre, b.texto);
+        return json(r, r.error ? 400 : 200);
+      }
       if (p === '/api/cocina/proximas' && request.method === 'GET') return json(await upcoming(env, 16));
       if (p === '/api/cocina/siembras' && request.method === 'GET') return json({ rows: await upcomingSowings(env, 6) });
       if (p === '/api/cocina/pedidos' && request.method === 'GET') return json({ rows: await listRequests(env) });
@@ -116,7 +124,7 @@ export default {
       if (p === '/api/cultivos' && request.method === 'GET') {
         const live = await livePlan(env);
         const all = Object.assign({}, CROPS, (live && live.data && live.data.cultivos) || {});
-        return json({ rows: Object.entries(all).filter(([, c]) => c.u === 'kg' && !c.nokg).map(([k, c]) => ({ clave: k, nombre: c.n })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) });
+        return json({ rows: Object.entries(all).filter(([, c]) => !c.nokg && !/^Decorativa/.test(c.menu || '')).map(([k, c]) => ({ clave: k, nombre: c.n })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) });
       }
       if (p === '/api/lista' && request.method === 'GET') return json({ rows: await listShopping(env) });
       if (p === '/api/banco' && request.method === 'GET') return json({ rows: await listBank(env) });

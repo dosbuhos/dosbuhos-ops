@@ -85,3 +85,23 @@ export async function votesSummary(env) {
   const { results } = await env.DB.prepare("SELECT siembra, cultivo, voto, nota, at FROM solicitudes WHERE tipo='voto' ORDER BY id DESC").all();
   return results;
 }
+
+// ---------- mensajes huerto ↔ cocina ----------
+let msgReady = false;
+async function ensureMsg(env) {
+  if (msgReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS mensajes (id INTEGER PRIMARY KEY AUTOINCREMENT, de TEXT NOT NULL, nombre TEXT, texto TEXT NOT NULL, at TEXT NOT NULL DEFAULT (datetime('now')))").run();
+  msgReady = true;
+}
+export async function listMessages(env) {
+  await ensureMsg(env);
+  const { results } = await env.DB.prepare('SELECT * FROM (SELECT * FROM mensajes ORDER BY id DESC LIMIT 150) ORDER BY id').all();
+  return results;
+}
+export async function postMessage(env, de, nombre, texto) {
+  await ensureMsg(env);
+  texto = String(texto || '').trim().slice(0, 1000);
+  if (!texto) return { error: 'Mensaje vacío' };
+  const r = await env.DB.prepare('INSERT INTO mensajes (de, nombre, texto) VALUES (?,?,?)').bind(de, String(nombre || '').trim().slice(0, 30), texto).run();
+  return { ok: true, id: r.meta.last_row_id };
+}

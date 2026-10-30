@@ -46,8 +46,15 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 .zones{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .zones button{min-height:40px;font-weight:600;padding:0 12px;font-size:14px}
 .zones button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--bg);padding:8px 0}
-.tabs button{min-height:46px;font-size:15px}
+.tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:var(--bg);padding:8px 0}
+.tabs button{min-height:46px;font-size:14px;padding:0 4px;position:relative}
+.tabs .badge{position:absolute;top:-5px;right:-3px;background:var(--danger);color:#fff;border-radius:999px;font-size:11px;min-width:19px;height:19px;line-height:19px;padding:0 5px}
+.thread{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;padding:4px 0}
+.msg{max-width:85%;padding:9px 12px;border-radius:14px;background:var(--sunk);align-self:flex-start;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:color-mix(in srgb,var(--leaf) 20%,var(--surface))}
+.msg small{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+.send{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin-top:10px}
+.send textarea{font:inherit;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:48px;resize:vertical;background:var(--surface);color:var(--fg)}
 .tabs button[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
@@ -72,6 +79,9 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 .votes button{min-height:42px;font-weight:600;font-size:14px;padding:0 12px}
 .votes button[aria-pressed="true"].up{background:var(--leaf);border-color:var(--leaf);color:var(--accent-ink)}
 .votes button[aria-pressed="true"].down{background:var(--danger);border-color:var(--danger);color:#fff}
+.quick{display:flex;flex-wrap:wrap;gap:6px}
+.quick button{min-height:42px;font-weight:600;font-size:14px;padding:0 12px;border-radius:999px}
+.quick button[aria-pressed="true"]{background:var(--leaf);border-color:var(--leaf);color:var(--accent-ink)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:13px}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 </style>
@@ -91,6 +101,7 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
     <button role="tab" data-t="cosecha">Cosecha</button>
     <button role="tab" data-t="viene">Qué viene</button>
     <button role="tab" data-t="pedidos">Pedidos</button>
+    <button role="tab" data-t="mensajes">Mensajes<span class="badge" id="badge" hidden></span></button>
   </nav>
 
   <section data-tab="viene" hidden>
@@ -105,8 +116,8 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
   <section class="panel grid" data-tab="pedidos" hidden>
     <h2>Pedir un cultivo</h2>
     <p class="small muted" style="margin:-4px 0 0">¿Quieren algo que no está en el huerto, o más de algo? Pídanlo aquí y el huerto les responde.</p>
-    <label>¿Qué quieren que se siembre?<input id="p-cultivo" list="todos" placeholder="Ej. betabel baby, flor de calabaza" maxlength="60"></label>
-    <datalist id="todos"></datalist>
+    <label>¿Qué quieren que se siembre?<select id="p-sel"></select></label>
+    <input id="p-cultivo" placeholder="Escriban el cultivo (ej. betabel baby)" maxlength="60" hidden>
     <label>¿Cuánto?<input id="p-cant" placeholder="Ej. 1 kg por semana" maxlength="60"></label>
     <label>¿Para cuándo?<select id="p-para"></select></label>
     <label>Nota <span class="small">(opcional)</span><input id="p-nota" placeholder="Ej. para el menú de primavera" maxlength="200"></label>
@@ -119,10 +130,21 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
     <div id="siembras"></div>
   </section>
 
+  <section class="panel" data-tab="mensajes" hidden>
+    <h2>Mensajes con el huerto</h2>
+    <p class="small muted" style="margin:0 0 8px">Preguntas y respuestas entre la cocina y el huerto (Eric, Melanie, Adrián).</p>
+    <div class="thread" id="thread"></div>
+    <div class="send"><textarea id="m-text" rows="2" placeholder="Escriban aquí…" maxlength="1000"></textarea><button class="primary" id="m-send">Enviar</button></div>
+    <label style="margin-top:8px">Firma<input id="m-name" placeholder="Ej. Lalo" maxlength="30"></label>
+  </section>
+
   <section class="panel grid" id="form" data-tab="cosecha" hidden>
     <label>Fecha<input id="fecha" type="date"></label>
-    <label>¿Qué cosecharon?<input id="cultivo" list="cultivos" placeholder="Ej. lechuga, kale, zanahoria" autocomplete="off"></label>
-    <datalist id="cultivos"></datalist>
+    <div><div class="small muted" style="margin-bottom:6px">¿Qué cosecharon?</div>
+      <div class="quick" id="quick"></div>
+      <select id="cultsel" style="margin-top:8px" aria-label="Cultivo"></select>
+      <input id="cultivo" placeholder="Escriban el cultivo" maxlength="40" autocomplete="off" hidden style="margin-top:8px">
+    </div>
     <label>Cantidad<input id="cantidad" type="number" inputmode="decimal" step="0.1" min="0" placeholder="0.0"></label>
     <div class="units" id="units" role="group" aria-label="Unidad"></div>
     <label>Cama <span class="small">(opcional: tóquenla en el mapa)</span><input id="cama" placeholder="Ej. A3" maxlength="6" autocapitalize="characters"></label>
@@ -162,10 +184,10 @@ function drawUnits(){ $("units").innerHTML = UNITS.map(([k, n]) => `<button type
 async function checkPin(p){ const r = await fetch("/api/cocina/pin", {method: "POST", headers: {"x-pin": p}}); const j = await r.json().catch(() => ({})); return j.ok; }
 let TAB = (() => { try { return localStorage.getItem("cocina-tab") || "cosecha"; } catch (e) { return "cosecha"; } })(), OK = false;
 function show(ok){ OK = ok; $("pinbox").hidden = ok; $("tabs").hidden = !ok; document.querySelectorAll("[data-tab]").forEach(el => el.hidden = !ok || el.dataset.tab !== TAB); document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === TAB)); }
-document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem("cocina-tab", TAB); } catch (e) {} show(true); window.scrollTo(0, 0); if (TAB === "cosecha") drawMap(); });
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem("cocina-tab", TAB); } catch (e) {} show(true); window.scrollTo(0, 0); if (TAB === "cosecha") drawMap(); if (TAB === "mensajes") drawMsgs(); });
 
 async function load(){
-  try { const r = await fetch("/api/cultivos"); CROPS = (await r.json()).rows || []; $("cultivos").innerHTML = CROPS.map(c => `<option value="${esc(c.nombre)}">`).join(""); $("todos").innerHTML = $("cultivos").innerHTML; } catch (e) {}
+  try { const r = await fetch("/api/cultivos"); CROPS = (await r.json()).rows || []; fillCropPickers(); } catch (e) {}
   try {
     const r = await fetch("/api/cocina/registros", {cache: "no-store"}); const rows = (await r.json()).rows || [];
     $("rows").innerHTML = rows.slice(0, 30).map(x => `<div class="row"><div><b>${esc(name(x.cultivo))}</b><div class="small muted">${fmt(x.fecha)}${x.cama && x.cama !== "—" ? " · " + esc(x.cama) : ""}${x.quien === "cocina" ? " · cocina" : x.quien ? " · huerto" : ""}${x.nota ? " · " + esc(x.nota) : ""}</div></div><span class="q">${nf(x.cantidad)} ${esc(x.u)}</span>${x.quien === "cocina" ? `<button class="x" data-del="${x.id}" aria-label="Borrar">✕</button>` : "<span></span>"}</div>`).join("") || `<p class="muted small" style="margin:0">Todavía no hay registros.</p>`;
@@ -177,7 +199,7 @@ async function load(){
 }
 async function guardar(){
   const txt = $("cultivo").value.trim(), cant = +$("cantidad").value;
-  if (!txt) { $("cultivo").focus(); toast("¿Qué cosecharon?"); return; }
+  if (!txt) { ($("cultivo").hidden ? $("cultsel") : $("cultivo")).focus(); toast("¿Qué cosecharon?"); return; }
   if (!(cant > 0)) { $("cantidad").focus(); toast("Escribe la cantidad"); return; }
   const hit = CROPS.find(c => c.nombre.toLowerCase() === txt.toLowerCase() || c.clave === txt.toLowerCase());
   const body = {fecha: $("fecha").value || today(), cultivo: hit ? hit.clave : txt, cantidad: cant, u: UNIT, cama: $("cama").value.trim().toUpperCase(), nota: $("nota").value.trim()};
@@ -186,7 +208,7 @@ async function guardar(){
     const r = await fetch("/api/cosechas", {method: "POST", headers: {"content-type": "application/json", "x-pin": PIN}, body: JSON.stringify(body)});
     if (r.status === 401) { setPin(""); PIN = ""; show(false); toast("PIN incorrecto"); return; }
     const j = await r.json(); if (!r.ok) { toast(j.error || "No se pudo guardar"); return; }
-    toast("Anotado"); $("cultivo").value = ""; $("cantidad").value = ""; $("nota").value = ""; $("cama").value = ""; SEL = ""; drawMap(); $("cultivo").focus(); load();
+    toast("Anotado"); setCrop(""); $("cantidad").value = ""; $("nota").value = ""; $("cama").value = ""; SEL = ""; drawMap(); $("cultivo").focus(); load();
   } catch (e) { toast("Sin conexión. Intenta otra vez."); }
   finally { b.disabled = false; }
 }
@@ -229,15 +251,37 @@ function drawMap(){
   }
   s += `</svg>`;
   $("mapbox").innerHTML = s;
-  $("mapbox").querySelectorAll(".bed").forEach(g => g.onclick = () => { SEL = g.dataset.bed; $("cama").value = SEL; const crops = [...new Set((HOY[SEL] || []).filter(p => p.cosecha).map(p => p.n))], all = [...new Set((HOY[SEL] || []).map(p => p.n))]; if (crops.length === 1 && !$("cultivo").value) $("cultivo").value = crops[0]; drawMap(); toast("Cama " + SEL + (all.length ? ": " + all.join(", ") : "")); });
+  $("mapbox").querySelectorAll(".bed").forEach(g => g.onclick = () => { SEL = g.dataset.bed; $("cama").value = SEL; const crops = [...new Set((HOY[SEL] || []).filter(p => p.cosecha).map(p => p.n))], all = [...new Set((HOY[SEL] || []).map(p => p.n))]; if (crops.length === 1 && !$("cultivo").value) setCrop(crops[0]); drawMap(); toast("Cama " + SEL + (all.length ? ": " + all.join(", ") : "")); });
   const inZone = new Set(GEO.beds.filter(b => (b.seccion || b.id[0]) === ZONE).flatMap(b => (HOY[b.id] || []).map(p => p.n)));
   $("legend").innerHTML = [...inZone].map(n => `<span><i style="background:${seen[n]}"></i>${esc(n)}</span>`).join("");
 }
 async function loadMap(){
-  try { const [g, h] = await Promise.all([fetch("/geo.json").then(r => r.json()), fetch("/api/hoy-camas", {cache: "no-store"}).then(r => r.json())]); GEO = g; HOY = h.camas || {}; drawMap(); } catch (e) {}
+  try { const [g, h] = await Promise.all([fetch("/geo.json").then(r => r.json()), fetch("/api/hoy-camas", {cache: "no-store"}).then(r => r.json())]); GEO = g; HOY = h.camas || {}; READY = [...new Set(Object.values(HOY).flat().filter(p => p.cosecha).map(p => p.n))]; drawMap(); if (CROPS.length) fillCropPickers(); } catch (e) {}
 }
 $("cama").addEventListener("input", () => { SEL = $("cama").value.trim().toUpperCase(); drawMap(); });
 loadMap();
+
+// ---------- selector de cultivo (funciona igual en celular, tableta y laptop) ----------
+let READY = [];
+const OTRO = "__otro";
+function fillCropPickers(){
+  const ready = new Set(READY);
+  const opt = c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`;
+  const now = CROPS.filter(c => ready.has(c.nombre)), rest = CROPS.filter(c => !ready.has(c.nombre));
+  $("cultsel").innerHTML = `<option value="">Elegir cultivo…</option>` + (now.length ? `<optgroup label="Listo para cosechar">${now.map(opt).join("")}</optgroup><optgroup label="Todo el huerto">${rest.map(opt).join("")}</optgroup>` : CROPS.map(opt).join("")) + `<option value="${OTRO}">Otro (escribir)…</option>`;
+  $("p-sel").innerHTML = `<option value="">Elegir cultivo…</option>${CROPS.map(opt).join("")}<option value="${OTRO}">Otro, algo nuevo (escribir)…</option>`;
+  $("quick").innerHTML = now.slice(0, 10).map(c => `<button type="button" data-q="${esc(c.nombre)}" aria-pressed="${$("cultivo").value === c.nombre}">${esc(c.nombre.replace(/ \(.*\)$/, ""))}</button>`).join("");
+  $("quick").querySelectorAll("button").forEach(b => b.onclick = () => setCrop(b.dataset.q));
+  if ($("cultivo").value) setCrop($("cultivo").value, true);
+}
+function setCrop(name, silent){
+  const has = CROPS.some(c => c.nombre === name);
+  $("cultsel").value = name ? (has ? name : OTRO) : "";
+  $("cultivo").value = name || ""; $("cultivo").hidden = !name || has;
+  $("quick").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.q === name));
+}
+$("cultsel").onchange = () => { const v = $("cultsel").value; if (v === OTRO) { $("cultivo").value = ""; $("cultivo").hidden = false; $("cultivo").focus(); $("quick").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", false)); } else setCrop(v); };
+$("p-sel").onchange = () => { const v = $("p-sel").value; $("p-cultivo").hidden = v !== OTRO; $("p-cultivo").value = v === OTRO ? "" : v; if (v === OTRO) $("p-cultivo").focus(); };
 
 // ---------- qué viene ----------
 let PROX = null, OPEN = null;
@@ -295,13 +339,39 @@ function fillPara(){
 }
 const MESL = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 $("p-enviar").onclick = async () => {
-  const c = $("p-cultivo").value.trim(); if (!c) { $("p-cultivo").focus(); toast("¿Qué quieren que se siembre?"); return; }
+  const c = $("p-cultivo").value.trim(); if (!c) { ($("p-cultivo").hidden ? $("p-sel") : $("p-cultivo")).focus(); toast("¿Qué quieren que se siembre?"); return; }
   const b = $("p-enviar"); b.disabled = true;
-  if (await postJ("/api/cocina/pedido", {cultivo: c, cantidad: $("p-cant").value.trim(), para: $("p-para").value, nota: $("p-nota").value.trim()})) { toast("Pedido enviado"); $("p-cultivo").value = ""; $("p-cant").value = ""; $("p-nota").value = ""; loadPedidos(); }
+  if (await postJ("/api/cocina/pedido", {cultivo: c, cantidad: $("p-cant").value.trim(), para: $("p-para").value, nota: $("p-nota").value.trim()})) { toast("Pedido enviado"); $("p-cultivo").value = ""; $("p-sel").value = ""; $("p-cultivo").hidden = true; $("p-cant").value = ""; $("p-nota").value = ""; loadPedidos(); }
   b.disabled = false;
 };
 async function loadProx(){ try { PROX = await fetch("/api/cocina/proximas", {cache: "no-store"}).then(r => r.json()); drawProx(); } catch (e) {} }
 fillPara(); loadProx(); loadPedidos();
+
+// ---------- mensajes ----------
+const LSG = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+const LSS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+let MSGS = [];
+const hhmm = at => { const d = new Date(at.replace(" ", "T") + "Z"); return d.getDate() + " " + MES[d.getMonth()] + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+function drawMsgs(){
+  const box = $("thread"), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = MSGS.map(m => `<div class="msg${m.de === "cocina" ? " me" : ""}"><small>${esc(m.nombre || (m.de === "cocina" ? "Cocina" : "Huerto"))} · ${m.de === "cocina" ? "cocina" : "huerto"} · ${hhmm(m.at)}</small>${esc(m.texto)}</div>`).join("") || `<p class="small muted" style="margin:0">Todavía no hay mensajes.</p>`;
+  if (atBottom || TAB === "mensajes") box.scrollTop = box.scrollHeight;
+  const seen = +LSG("cocina-visto", "0"), unread = MSGS.filter(m => m.de !== "cocina" && m.id > seen).length;
+  if (TAB === "mensajes" && OK && MSGS.length) LSS("cocina-visto", String(MSGS[MSGS.length - 1].id));
+  $("badge").hidden = !(unread && TAB !== "mensajes"); $("badge").textContent = unread;
+}
+async function loadMsgs(){ try { MSGS = (await fetch("/api/mensajes", {cache: "no-store"}).then(r => r.json())).rows || []; drawMsgs(); } catch (e) {} }
+$("m-name").value = LSG("cocina-nombre", "");
+$("m-name").onchange = () => LSS("cocina-nombre", $("m-name").value.trim());
+$("m-send").onclick = async () => {
+  const t = $("m-text").value.trim(); if (!t) { $("m-text").focus(); return; }
+  if (!$("m-name").value.trim()) { $("m-name").focus(); toast("Pongan su nombre para firmar"); return; }
+  LSS("cocina-nombre", $("m-name").value.trim());
+  const b = $("m-send"); b.disabled = true;
+  if (await postJ("/api/mensajes", {texto: t, nombre: $("m-name").value.trim()})) { $("m-text").value = ""; await loadMsgs(); }
+  b.disabled = false;
+};
+loadMsgs(); setInterval(() => { if (document.visibilityState === "visible") loadMsgs(); }, 20000);
 
 $("pinok").onclick = async () => { const p = $("pin").value.trim(); if (p && await checkPin(p)) { PIN = p; setPin(p); $("pinerr").hidden = true; show(true); } else $("pinerr").hidden = false; };
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinok").click(); };

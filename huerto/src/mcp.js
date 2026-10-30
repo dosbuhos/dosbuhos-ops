@@ -5,7 +5,7 @@ import { CROPS, PLANTINGS, EXTRA_TASKS, STOCK, BUY, PLAN_START, PLAN_WEEKS, BED,
 import { livePlan, savePlan, planHistory } from './planstore.js';
 import { latestCensus, saveCensus } from './censo.js';
 import { listShopping, editShopping, listBank, editBank, bankToStock } from './insumos.js';
-import { listRequests, answerRequest, votesSummary, upcomingSowings } from './cocina.js';
+import { listRequests, answerRequest, votesSummary, upcomingSowings, listMessages, postMessage } from './cocina.js';
 
 const enc = new TextEncoder();
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -152,6 +152,7 @@ const TOOLS = [
   { name: 'quitar_siembra', ro: false, description: 'Quita una o varias siembras del plan por id.', inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } }, required: ['ids'] } },
   { name: 'agregar_cultivo', ro: false, description: 'Agrega o corrige un cultivo del catálogo. Campos: clave (minúsculas, sin espacios), nombre, metodo (directa | plántula | bulbo | división), semanas_a_cosecha (desde siembra en cama o trasplante), semanas_de_cosecha, rinde (por semana en una cama A de 5 m²), unidad (kg | flores), hileras, espaciado (m entre plantas, solo plántula), semanas_charola (solo plántula), como_sembrar (instrucción para Adrián), menu (platillo), nota, color (#hex).', inputSchema: { type: 'object', properties: { clave: { type: 'string' }, nombre: { type: 'string' }, metodo: { type: 'string' }, semanas_a_cosecha: { type: 'number' }, semanas_de_cosecha: { type: 'number' }, rinde: { type: 'number' }, unidad: { type: 'string' }, hileras: { type: 'number' }, espaciado: { type: 'number' }, semanas_charola: { type: 'number' }, como_sembrar: { type: 'string' }, menu: { type: 'string' }, nota: { type: 'string' }, color: { type: 'string' } }, required: ['clave'] } },
   { name: 'tareas_extra', ro: false, description: 'Ver, agregar o quitar tareas sueltas de la lista de Adrián (no salen del plan de siembras). accion: ver | agregar | quitar. Para agregar: fecha (cualquier día de la semana), dia (1=lunes … 5=viernes), texto, minutos, tipo (prep | cuidado | semillero). Para quitar: indice (de ver).', inputSchema: { type: 'object', properties: { accion: { type: 'string', enum: ['ver', 'agregar', 'quitar'] }, fecha: { type: 'string' }, dia: { type: 'integer' }, texto: { type: 'string' }, minutos: { type: 'number' }, tipo: { type: 'string' }, indice: { type: 'integer' } }, required: ['accion'] } },
+  { name: 'mensajes_cocina', ro: false, description: 'Chat entre el huerto y la cocina (Lalo, Isa). accion: ver (últimos mensajes; de = huerto o cocina) | enviar (texto): manda un mensaje como el huerto, firmado con tu nombre. Escribe en español, corto y amable.', inputSchema: { type: 'object', properties: { accion: { type: 'string', enum: ['ver', 'enviar'] }, texto: { type: 'string' } }, required: ['accion'] } },
   { name: 'pedidos_cocina', ro: false, description: 'Lo que pide la cocina (Lalo, Isa) desde su página: pedidos de cultivos (qué, cuánto, para cuándo) y su validación de las siembras próximas (👍 sí lo usamos / 👎 no lo necesitamos). accion: ver | responder (id, estado: aceptada | en_plan | no_se_puede | hecha, respuesta: texto corto que ve la cocina). Para cumplir un pedido, agrega la siembra con agregar_siembra y responde en_plan.', inputSchema: { type: 'object', properties: { accion: { type: 'string', enum: ['ver', 'responder'] }, id: { type: 'string' }, estado: { type: 'string', enum: ['aceptada', 'en_plan', 'no_se_puede', 'hecha'] }, respuesta: { type: 'string' } }, required: ['accion'] } },
   { name: 'lista_compras', ro: false, description: 'Lista de compras del huerto (insumos que hacen falta: semilla, composta, malla, herramienta…). accion: ver | agregar (item, cantidad, nota) | comprado (id) | pendiente (id) | quitar (id).', inputSchema: { type: 'object', properties: { accion: { type: 'string', enum: ['ver', 'agregar', 'comprado', 'pendiente', 'quitar'] }, id: { type: 'string' }, item: { type: 'string' }, cantidad: { type: 'string' }, nota: { type: 'string' } }, required: ['accion'] } },
   { name: 'banco_semillas', ro: false, description: 'Banco de semillas que lleva Adrián: qué semilla hay y cuánto queda (nivel: mucho | medio | poco | agotado; cantidad en texto, p. ej. "media bolsa", "50 g"). accion: ver | agregar (nombre, cantidad, nivel, nota) | actualizar (id + campos) | quitar (id).', inputSchema: { type: 'object', properties: { accion: { type: 'string', enum: ['ver', 'agregar', 'actualizar', 'quitar'] }, id: { type: 'string' }, nombre: { type: 'string' }, cantidad: { type: 'string' }, nivel: { type: 'string', enum: ['mucho', 'medio', 'poco', 'agotado'] }, nota: { type: 'string' } }, required: ['accion'] } },
@@ -251,6 +252,10 @@ async function runTool(env, user, name, a) {
     }
     if (a.accion === 'quitar') { const t = d.tareas[a.indice]; if (!t) return { error: 'Índice no existe' }; d.tareas.splice(a.indice, 1); return commit(env, user, live, d, 'Quita tarea: ' + t.t.slice(0, 80), []); }
     return { error: 'accion: ver, agregar o quitar' };
+  }
+  if (name === 'mensajes_cocina') {
+    if (a.accion === 'enviar') return await postMessage(env, 'huerto', user.nombre, a.texto);
+    return await listMessages(env);
   }
   if (name === 'pedidos_cocina') {
     if (a.accion === 'responder') return await answerRequest(env, a);

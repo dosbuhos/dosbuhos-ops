@@ -14,3 +14,4 @@ CREATE TABLE IF NOT EXISTS censo (id INTEGER PRIMARY KEY AUTOINCREMENT, cama TEX
 -- censo: lo que Adrián dice que hay en la tierra en cada cama (líneas en orden, metros y cultivo)
 -- lista, banco: lista de compras y banco de semillas (src/insumos.js). config k='pin_cocina': PIN de la cocina (solo cosechas).
 -- solicitudes: pedidos de la cocina y su validación (👍/👎) de las siembras próximas (src/cocina.js)
+-- mensajes: chat huerto ↔ cocina (de = huerto | cocina)
