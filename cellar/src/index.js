@@ -6,6 +6,7 @@ import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
 import { pushPurchase, pullPurchases } from './compras.js';
 import { readInventory, addMovement, saveItem } from './inventario.js';
+import { mcpRoute } from './mcp.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -19,6 +20,8 @@ export default {
     // App-managed users (Settings → Users), alongside the ALLOWED_EMAILS secret.
     try { const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = 'users'").all(); env.__users = results.map(r => Object.assign({ email: r.id }, JSON.parse(r.data))); } catch (e) { env.__users = []; }
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
+    // Remote MCP server for people's own Claude apps (/mcp + its OAuth endpoints); see src/mcp.js.
+    if (p === '/mcp' || p.startsWith('/oauth/') || p.startsWith('/.well-known/oauth') || p.startsWith('/.well-known/openid')) { const r = await mcpRoute(request, env, url, ctx); if (r) return r; }
     // PUBLIC="1" (for now): no sign-in, everyone can view and edit. Set PUBLIC to "0" and add the Google secrets to require login.
     const open = env.PUBLIC === '1';
     const email = open ? 'public' : await sessionEmail(request, env);
@@ -108,7 +111,7 @@ const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purch
 const CREW_TASK_KEYS = new Set(['done', 'wo', 'asig', 'pri', 'day', 'week']);
 async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
-  if (!COLL.test(coll || '')) return J({ code: 'bad_request' }, 400);
+  if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);
   const m = request.method;
   if (m === 'GET' && !id) {
     const v = await env.DB.prepare('SELECT COUNT(*) n, MAX(updated_at) u FROM docs WHERE coll = ?').bind(coll).first();

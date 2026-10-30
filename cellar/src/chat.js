@@ -54,7 +54,7 @@ async function dbPut(env, coll, id, data) {
 }
 
 // ---------- tools ----------
-const TOOLS = [
+export const TOOLS = [
   { name: 'list_wines', description: 'All wines/lots in the cellar app: id, name, vessel/volume line, and which Excellovint tab(s) hold their log.', input_schema: { type: 'object', properties: {} } },
   { name: 'read_tab', description: 'Read the last rows of one Excellovint tab (e.g. "L08 - SE", "L00 - Winery"). Returns rows with their sheet row number and named columns: date, ubi, voli, volf, ph, bx, tp, at, am (malic), sl (free SO2), st (total SO2), aa (VA), note (ACCION), pri, by, asig, ini (done initials; XX = cancelled).', input_schema: { type: 'object', properties: { tab: { type: 'string' }, last: { type: 'integer', description: 'How many of the last rows (default 30, max 120)' } }, required: ['tab'] } },
   { name: 'open_work_orders', description: 'Every open work order across all lot tabs: rows with ASIG set and INI empty, optionally only those dated on/before a date or assigned to someone.', input_schema: { type: 'object', properties: { asig: { type: 'string', description: 'Filter, e.g. "P", "J", "P/J", "D"' }, through: { type: 'string', description: 'YYYY-MM-DD; only rows dated on or before this' } } } },
@@ -69,7 +69,7 @@ const TOOLS = [
   { name: 'update_purchase', description: 'Change a purchase: status (open/ordered/received), priority, assignee, notes, or delete it.', input_schema: { type: 'object', properties: { id: { type: 'string' }, set: { type: 'object', description: 'Fields to change: item, qty, pri, asig, where, notes, status' }, delete: { type: 'boolean' } }, required: ['id'] } },
 ];
 
-async function runTool(env, ctx, name, a) {
+export async function runTool(env, ctx, name, a) {
   if (name === 'list_wines') {
     return (await dbList(env, 'lots')).map(l => ({ id: l.id, name: l.name, line: l.ubi, tabs: (l.sheet || []).map(x => x.tab), group: l.group }));
   }
