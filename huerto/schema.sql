@@ -10,3 +10,6 @@ CREATE TABLE IF NOT EXISTS mcp (k TEXT PRIMARY KEY, data TEXT NOT NULL, exp INTE
 -- mcp: clientes, códigos y tokens del conector de Claude (solo hashes SHA-256)
 CREATE TABLE IF NOT EXISTS plan (v INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, quien TEXT, nota TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
 -- plan: copia viva del plan de siembras; cada cambio es una versión (historial y revertir)
+CREATE TABLE IF NOT EXISTS censo (id INTEGER PRIMARY KEY AUTOINCREMENT, cama TEXT NOT NULL, lineas TEXT NOT NULL, quien TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
+-- censo: lo que Adrián dice que hay en la tierra en cada cama (líneas en orden, metros y cultivo)
+-- lista, banco: lista de compras y banco de semillas (src/insumos.js). config k='pin_cocina': PIN de la cocina (solo cosechas).

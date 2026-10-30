@@ -20,6 +20,7 @@
     try { pin = await ensurePin(); } catch (e) { refresh(); throw e; }
     const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-pin': pin }, body: JSON.stringify(body) });
     if (r.status === 401) { setPin(''); refresh(); throw { code: 'bad_pin' }; }
+    if (r.status === 400) { const j = await r.json().catch(() => ({})); throw { code: 'invalid', message: j.error || 'Datos inválidos' }; }
     if (!r.ok) { refresh(); throw { code: 'unavailable' }; }
     return r.json().catch(() => ({}));
   }
@@ -62,4 +63,5 @@
     },
   };
   window.claude = { use: async n => (n === 'db' ? db : null) };
+  window.huertoApi = { post };
 })();

@@ -98,6 +98,42 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .monthpick button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .bedinfo .row{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
 .timeline{display:flex;flex-direction:column;gap:8px}
+
+/* compras y semillas */
+.li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.li input[type=checkbox]{width:24px;height:24px;accent-color:var(--leaf)}
+.li.done .what{color:var(--faint);text-decoration:line-through}
+.li .x,.sb .x{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:9px;width:40px;min-height:40px;cursor:pointer}
+.addrow{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;gap:6px;margin-top:10px}
+.addrow input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}
+.addrow .btn{min-height:44px}
+.sb{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.sb .top{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.lvl{display:flex;gap:4px;flex-wrap:wrap}
+.lvl button{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 10px;border-radius:8px;min-height:40px;cursor:pointer}
+.lvl button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.lvl button.low[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:#fff}
+.sb input{font-size:16px;min-height:42px;width:100%;box-sizing:border-box}
+
+/* censo de camas */
+.cc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:70px}
+.cc.saved{border-color:color-mix(in srgb,var(--ok) 55%,var(--line))}
+.cch{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cch b{font-size:20px;font-family:var(--serif, Georgia, serif)}
+.cbar{display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--sunk);border:1px solid var(--line)}
+.cbar i{display:block;height:100%;border-right:2px solid var(--surface)}
+.cl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.cl .n2{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:6px}
+.cl input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}
+.mstep{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mstep button{border:0;background:var(--sunk);font-size:20px;width:40px;min-height:44px;cursor:pointer;color:var(--fg)}
+.mstep input{border:0;border-radius:0;width:56px !important;text-align:center;padding:0}
+.cl .x{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:9px;width:44px;min-height:44px;font-size:16px;cursor:pointer}
+.cfoot{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cfoot .btn{min-height:44px}
+.cfoot .rest{flex:1;font-size:13px;color:var(--muted);text-align:right}
+.cfoot .over{color:var(--danger, #b3261e);font-weight:700}
+
 .real{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--sunk)}
 .real .rep{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:start;font-size:14px}
 .real .rep button{border:0;background:none;color:var(--faint);font-size:18px;line-height:1;padding:0 4px;cursor:pointer}
@@ -199,7 +235,9 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
     <button role="tab" data-v="semillero">Semillero</button>
     <button role="tab" data-v="experiencias">Experiencias</button>
     <button role="tab" data-v="cultivos">Cultivos</button>
-    <button role="tab" data-v="compras">Compras</button>
+    <button role="tab" data-v="censo">Censo</button>
+    <button role="tab" data-v="insumos">Compras y semillas</button>
+    <button role="tab" data-v="compras">Semilla del plan</button>
     <button role="tab" data-v="registro">Registro</button>
   </nav>
   <main id="main"></main>
@@ -216,7 +254,9 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   <button data-v="experiencias">Experiencias</button>
   <button data-v="calendario">Calendario</button>
   <button data-v="cultivos">Cultivos</button>
-  <button data-v="compras">Compras</button>
+  <button data-v="compras">Semilla del plan</button>
+  <button data-v="censo">Censo de camas</button>
+  <button data-v="insumos">Compras y semillas</button>
   <button data-v="registro">Registro de cosecha</button>
   <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión /*BUILD*/</p>
 </div></div>
@@ -235,7 +275,7 @@ const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n)
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const nf = (v, d = 0) => v.toLocaleString("es-MX", {maximumFractionDigits: d, minimumFractionDigits: d});
 const todayW = (() => { const t = new Date(); t.setHours(12); return Math.floor((t - D(PLAN_START)) / (7 * DAY)); })();
-const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, flags: {}, harvests: [], reports: [], upd: null, db: null, dbTried: false};
+const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, flags: {}, harvests: [], reports: [], upd: null, lista: [], bank: null, censo: {}, cdraft: {}, czone: null, cfocus: null, db: null, dbTried: false};
 (function initMonth(){ const d = wkDate(state.w); d.setDate(d.getDate() + 2); state.month = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); })();
 const MONTHS = (() => { const m = []; for (let i = 0; i < 13; i++) { const d = new Date(2026, 9 + i, 15); m.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); } return m; })();
 const monthLabel = k => { const [y, m] = k.split("-").map(Number); return MESL[m - 1] + " " + y; };
@@ -330,7 +370,7 @@ function bedTimeline(bedId){
   const b = BED[bedId];
   return `<div class="bedinfo" style="display:flex;flex-direction:column;gap:12px">
     <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : b.sec === "I" ? "1 × 8 m dentro del invernadero (tramos de oeste a este)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
-    ${bedReal(bedId)}
+    ${bedCensoSummary(bedId)}
     <h3 style="margin:2px 0 -4px">Plan del año</h3>
     <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
       <span class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}</span><br>
@@ -445,8 +485,160 @@ function bindReal(root, rerender){
   };
 }
 
-/* ---------- vistas ---------- */
+
+
 const views = {};
+/* ---------- compras y banco de semillas ---------- */
+const NIV = [["mucho", "Mucho"], ["medio", "Medio"], ["poco", "Poco"], ["agotado", "Se acabó"]];
+function applyBank(){
+  if (!state.bank) return;
+  for (const k of Object.keys(STOCK)) delete STOCK[k];
+  state.bank.forEach(r => { if (r.cultivo && r.nivel !== "agotado") STOCK[r.cultivo] = r.nombre + (r.cantidad ? " · " + r.cantidad : "") + (r.nivel === "poco" ? " (queda poco)" : ""); });
+}
+async function insPost(path, body, okMsg){
+  if (!window.huertoApi) { toast("Se guarda desde la página del huerto."); return null; }
+  try { const r = await window.huertoApi.post(path, body); if (okMsg) toast(okMsg); await loadInsumos(); return r; }
+  catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : e && e.message ? e.message : "No se pudo guardar"); return null; }
+}
+views.insumos = () => {
+  const L = state.lista || [], pend = L.filter(x => x.estado === "pendiente"), done = L.filter(x => x.estado !== "pendiente");
+  const B = (state.bank || []).slice().sort((a, b) => NIV.findIndex(n => n[0] === b.nivel) - NIV.findIndex(n => n[0] === a.nivel) || a.nombre.localeCompare(b.nombre, "es"));
+  const low = B.filter(r => r.nivel === "poco" || r.nivel === "agotado");
+  const row = x => `<div class="li${x.estado === "pendiente" ? "" : " done"}"><input type="checkbox" data-buy="${esc(x.id)}" ${x.estado === "pendiente" ? "" : "checked"} aria-label="Comprado"><div class="what"><b>${esc(x.item)}</b>${x.cantidad ? ` · ${esc(x.cantidad)}` : ""}${x.nota ? `<br><span class="small muted">${esc(x.nota)}</span>` : ""}</div><button class="x" data-ldel="${esc(x.id)}" aria-label="Quitar">✕</button></div>`;
+  return `
+  <div><div class="eyebrow">Lo que hace falta y lo que hay</div><h2>Compras y semillas</h2></div>
+  ${window.huertoApi ? "" : `<div class="notice">Se edita desde la página pública del huerto.</div>`}
+  <div class="cols">
+  <section class="panel" aria-label="Lista de compras">
+    <div class="bar" style="justify-content:space-between"><h3>Lista de compras</h3><span class="chip${pend.length ? " warn" : ""}">${pend.length} pendiente${pend.length === 1 ? "" : "s"}</span></div>
+    <p class="small muted" style="margin:4px 0 0">Todo lo que haga falta: semilla, composta, malla, charolas, herramienta. Palomear cuando ya se compró.</p>
+    <div class="addrow"><input id="li-item" placeholder="¿Qué hace falta?" maxlength="80"><input id="li-cant" placeholder="Cuánto" maxlength="40"><button class="btn primary" id="li-add">Agregar</button></div>
+    ${pend.map(row).join("") || `<p class="small muted" style="margin:10px 0 0">Nada pendiente.</p>`}
+    ${done.length ? `<h3 style="margin:14px 0 2px">Comprado (últimas 2 semanas)</h3>${done.map(row).join("")}` : ""}
+  </section>
+  <section class="panel" aria-label="Banco de semillas">
+    <div class="bar" style="justify-content:space-between"><h3>Banco de semillas</h3>${low.length ? `<span class="chip warn">${low.length} con poco o nada</span>` : ""}</div>
+    <p class="small muted" style="margin:4px 0 0">Cuánto queda de cada semilla, más o menos. Toca el nivel; "Cantidad" es opcional (p. ej. media bolsa, 50 g).</p>
+    ${B.map(r => `<div class="sb" data-id="${esc(r.id)}"><div class="top"><div><b>${esc(r.nombre)}</b>${r.nota ? ` <span class="small muted">· ${esc(r.nota)}</span>` : ""}</div><button class="x" data-bdel="${esc(r.id)}" aria-label="Quitar semilla">✕</button></div>
+      <div class="lvl">${NIV.map(([k, n]) => `<button data-lvl="${k}" class="${k === "poco" || k === "agotado" ? "low" : ""}" aria-pressed="${r.nivel === k}">${n}</button>`).join("")}</div>
+      <input data-bcant value="${esc(r.cantidad || "")}" placeholder="Cantidad (opcional)" maxlength="80">
+      ${(r.nivel === "poco" || r.nivel === "agotado") && !pend.some(x => x.item.toLowerCase() === ("semilla de " + r.nombre).toLowerCase()) ? `<button class="btn" data-tolist="${esc(r.nombre)}" style="align-self:flex-start;min-height:40px">＋ Agregar a la lista de compras</button>` : ""}
+    </div>`).join("")}
+    <div class="addrow"><input id="sb-nom" list="cultlist2" placeholder="Semilla nueva" maxlength="60"><input id="sb-cant" placeholder="Cuánto" maxlength="80"><button class="btn primary" id="sb-add">Agregar</button></div>
+    <datalist id="cultlist2">${Object.values(CROPS).map(c => `<option value="${esc(c.n)}">`).join("")}</datalist>
+  </section>
+  </div>`;
+};
+views.insumos.bind = root => {
+  const add = async () => { const i = root.querySelector("#li-item"), c = root.querySelector("#li-cant"); if (!i.value.trim()) { i.focus(); return; } if (await insPost("/api/lista", {accion: "agregar", item: i.value.trim(), cantidad: c.value.trim()}, "Agregado")) render(); };
+  root.querySelector("#li-add").onclick = add;
+  root.querySelector("#li-item").onkeydown = e => { if (e.key === "Enter") add(); };
+  root.querySelectorAll("[data-buy]").forEach(cb => cb.onchange = async () => { await insPost("/api/lista", {accion: cb.checked ? "comprado" : "pendiente", id: cb.dataset.buy}); render(); });
+  root.querySelectorAll("[data-ldel]").forEach(b => b.onclick = async () => { await insPost("/api/lista", {accion: "quitar", id: b.dataset.ldel}); render(); });
+  root.querySelectorAll(".sb").forEach(card => {
+    const id = card.dataset.id;
+    card.querySelectorAll("[data-lvl]").forEach(b => b.onclick = async () => { const r = state.bank.find(x => x.id === id); if (r) r.nivel = b.dataset.lvl; render(); await insPost("/api/banco", {accion: "actualizar", id, nivel: b.dataset.lvl}); render(); });
+    const ci = card.querySelector("[data-bcant]"); ci.onchange = async () => { await insPost("/api/banco", {accion: "actualizar", id, cantidad: ci.value.trim()}, "Guardado"); };
+    const tl = card.querySelector("[data-tolist]"); if (tl) tl.onclick = async () => { await insPost("/api/lista", {accion: "agregar", item: "Semilla de " + tl.dataset.tolist}, "Agregado a la lista"); render(); };
+  });
+  root.querySelectorAll("[data-bdel]").forEach(b => b.onclick = async () => { await insPost("/api/banco", {accion: "quitar", id: b.dataset.bdel}); render(); });
+  root.querySelector("#sb-add").onclick = async () => { const n = root.querySelector("#sb-nom"), c = root.querySelector("#sb-cant"); if (!n.value.trim()) { n.focus(); return; } if (await insPost("/api/banco", {accion: "agregar", nombre: n.value.trim(), cantidad: c.value.trim()}, "Semilla agregada")) render(); };
+};
+
+/* ---------- censo de camas ---------- */
+const NOTAS = ["Listo para cosechar", "Recién sembrado", "Creciendo", "Viejo / sacar", "Plaga o enfermedad", "Floreando"];
+const nowW = () => Math.max(0, Math.min(PLAN_WEEKS - 1, todayW));
+function cropByText(t){ const low = String(t || "").trim().toLowerCase(); if (!low) return null; for (const [k, c] of Object.entries(CROPS)) if (k === low || c.n.toLowerCase() === low) return k; for (const [k, c] of Object.entries(CROPS)) if (c.n.toLowerCase().split(/[ (]/)[0] === low) return k; return null; }
+function cropColor(t){ const k = cropByText(t); return k ? CROPS[k].c : "#8f9c7a"; }
+function censoFromPlan(bed){
+  const w = nowW();
+  return (plan.byBed[bed] || []).filter(p => (p.ex || p.s <= w) && p.end >= w).sort((a, b) => a.pos - b.pos)
+    .map(p => ({m: p.m, cultivo: p.c.n, nota: "", fecha: ""}));
+}
+function censoDraft(bed){
+  if (!state.cdraft[bed]) { const c = state.censo[bed]; state.cdraft[bed] = c ? c.lineas.map(l => Object.assign({}, l, {cultivo: CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo})) : censoFromPlan(bed); }
+  return state.cdraft[bed];
+}
+const censoThisWeek = bed => { const c = state.censo[bed]; if (!c) return false; const d = new Date(c.at.replace(" ", "T") + "Z"); return (Date.now() - d) < 7 * DAY; };
+function censoBar(bed, L){
+  const len = BED[bed].len; let used = 0;
+  const segs = L.filter(l => +l.m > 0).map(l => { used += +l.m; return `<i style="width:${Math.min(100, +l.m / len * 100)}%;background:${cropColor(l.cultivo)}" title="${esc(nf(+l.m, 1) + " m " + l.cultivo)}"></i>`; }).join("");
+  return {html: segs, used};
+}
+function censoCard(bed){
+  const B = BED[bed], L = censoDraft(bed), c = state.censo[bed], {html, used} = censoBar(bed, L);
+  const rest = B.len - used, dir = B.sec === "A" ? "norte → sur" : "oeste → este";
+  return `<section class="cc${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">
+    <div class="cch"><b>${bed}</b><span class="small muted">${nf(B.len, 1)} m · ${dir}</span>${c ? `<span class="chip${censoThisWeek(bed) ? "" : " warn"}">✓ ${esc(fmtISO(c.at.slice(0, 10)))}</span>` : `<span class="chip warn">sin revisar · según el plan</span>`}</div>
+    <div class="cbar" aria-hidden="true">${html}</div>
+    ${L.map((l, i) => `<div class="cl" data-i="${i}">
+      <div class="mstep"><button type="button" data-dec aria-label="Menos">−</button><input type="number" inputmode="decimal" step="0.5" min="0" data-f="m" value="${l.m === "" ? "" : +l.m}" aria-label="Metros"><button type="button" data-inc aria-label="Más">+</button></div>
+      <input list="cultlist" data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Cultivo" aria-label="Cultivo">
+      <button type="button" class="x" data-del aria-label="Quitar línea">✕</button>
+      <div class="n2"><input list="notalist" data-f="nota" value="${esc(l.nota || "")}" placeholder="Nota (opcional)" aria-label="Nota"><input type="date" data-f="fecha" value="${esc(l.fecha || "")}" aria-label="Fecha de siembra (opcional)" title="Fecha de siembra (opcional)"></div>
+    </div>`).join("")}
+    <div class="cfoot"><button type="button" class="btn" data-add>＋ Agregar</button>${L.length ? `<button type="button" class="btn" data-empty>Cama vacía</button>` : ""}<span class="rest${rest < -0.01 ? " over" : ""}">${rest < -0.01 ? `Sobran ${nf(-rest, 1)} m` : rest > 0.01 ? `${nf(rest, 1)} m vacío` : "Cama completa"}</span><button type="button" class="btn primary" data-save>Guardar</button></div>
+  </section>`;
+}
+function bindCard(card){
+  const bed = card.dataset.bed, L = censoDraft(bed);
+  const redraw = () => { const n = document.createElement("div"); n.innerHTML = censoCard(bed); card.replaceWith(n.firstElementChild); bindCard(document.getElementById("cc-" + bed)); };
+  const soft = () => { const {html, used} = censoBar(bed, L), rest = BED[bed].len - used, r = card.querySelector(".rest"); card.querySelector(".cbar").innerHTML = html; r.className = "rest" + (rest < -0.01 ? " over" : ""); r.textContent = rest < -0.01 ? `Sobran ${nf(-rest, 1)} m` : rest > 0.01 ? `${nf(rest, 1)} m vacío` : "Cama completa"; };
+  card.querySelectorAll(".cl").forEach(row => {
+    const i = +row.dataset.i;
+    row.querySelectorAll("[data-f]").forEach(inp => inp.addEventListener("input", () => { L[i][inp.dataset.f] = inp.dataset.f === "m" ? (inp.value === "" ? "" : +inp.value) : inp.value; soft(); }));
+    row.querySelector("[data-dec]").onclick = () => { L[i].m = Math.max(0, (+L[i].m || 0) - 0.5); redraw(); };
+    row.querySelector("[data-inc]").onclick = () => { L[i].m = (+L[i].m || 0) + 0.5; redraw(); };
+    row.querySelector("[data-del]").onclick = () => { L.splice(i, 1); redraw(); };
+  });
+  card.querySelector("[data-add]").onclick = () => { const used = L.reduce((a, l) => a + (+l.m || 0), 0); L.push({m: Math.max(0.5, Math.round((BED[bed].len - used) * 2) / 2) || 1, cultivo: "", nota: "", fecha: ""}); redraw(); const ins = document.querySelectorAll(`#cc-${bed} input[data-f=cultivo]`); if (ins.length) ins[ins.length - 1].focus(); };
+  const emp = card.querySelector("[data-empty]"); if (emp) emp.onclick = () => { L.splice(0, L.length); redraw(); };
+  card.querySelector("[data-save]").onclick = async (ev) => {
+    const b = ev.currentTarget;
+    const lineas = L.filter(l => (+l.m > 0) || String(l.cultivo).trim()).map(l => ({m: +l.m, cultivo: String(l.cultivo).trim(), nota: l.nota || "", fecha: l.fecha || ""}));
+    if (lineas.some(l => !(l.m > 0) || !l.cultivo)) { toast("Cada línea necesita metros y cultivo"); return; }
+    if (lineas.reduce((a, l) => a + l.m, 0) > BED[bed].len + 0.01) { toast(`La cama mide ${nf(BED[bed].len, 1)} m`); return; }
+    if (!window.huertoApi) { toast("El censo se guarda desde la página del huerto (no desde Claude)."); return; }
+    b.disabled = true; b.textContent = "Guardando…";
+    try {
+      const r = await window.huertoApi.post("/api/censo", {cama: bed, lineas});
+      state.censo[bed] = {cama: bed, lineas: r.lineas || lineas, at: new Date().toISOString().replace("T", " ").slice(0, 19)};
+      delete state.cdraft[bed];
+      toast(`${bed} guardada`);
+      if (typeof loadCenso === "function") loadCenso();
+      if (typeof loadLive === "function") { loadLive.v = null; loadLive(); }
+      redraw();
+    } catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : e && e.message ? e.message : "No se pudo guardar"); b.disabled = false; b.textContent = "Guardar"; }
+  };
+}
+function bedCensoSummary(bed){
+  const c = state.censo[bed];
+  return `<section class="real" aria-label="Lo que hay hoy en la cama">
+    <div class="bar" style="justify-content:space-between"><h3>Hoy en la tierra</h3><button class="btn primary" data-censo="${bed}">Actualizar esta cama</button></div>
+    ${c ? (c.lineas.length ? c.lineas.map(l => `<div class="rep"><span class="dot" style="margin-top:5px;background:${cropColor(CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo)}"></span><div><b>${esc(CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo)}</b> · ${nf(l.m, 1)} m${l.nota ? ` · <span class="muted">${esc(l.nota)}</span>` : ""}${l.fecha ? `<br><span class="small muted">Sembrado ${esc(fmtISO(l.fecha))}</span>` : ""}</div><span></span></div>`).join("") : `<p class="small muted" style="margin:0">Vacía.</p>`) + `<p class="small muted" style="margin:0">Censo del ${esc(fmtISO(c.at.slice(0, 10)))}</p>`
+      : `<p class="small muted" style="margin:0">Aún sin censo. Toca “Actualizar esta cama”.</p>`}
+  </section>`;
+}
+views.censo = () => {
+  const ids = BEDS.filter(b => !state.czone || state.czone === "todo" || (state.czone === "B" ? b.sec === "B" : b.q === state.czone)).map(b => b.id);
+  const done = BEDS.filter(b => censoThisWeek(b.id)).length;
+  const opts = [...new Set([...Object.values(CROPS).map(c => c.n)])].sort((a, b) => a.localeCompare(b, "es"));
+  return `
+  <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Lo que hay hoy en la tierra</div><h2>Censo de camas</h2></div><span class="chip${done === BEDS.length ? "" : " warn"}">${done} de ${BEDS.length} revisadas esta semana</span></div>
+  <p class="small muted" style="margin:0;max-width:70ch">Una línea por cultivo, en orden: de <b>norte a sur</b> en la sección A, de <b>oeste a este</b> en la sección B y los invernaderos. Metros y cultivo; nota y fecha solo si hacen falta. Al guardar, el mapa y el plan se actualizan.</p>
+  ${window.huertoApi ? "" : `<div class="notice">El censo se guarda desde la página pública del huerto.</div>`}
+  <div class="monthpick" role="group" aria-label="Zona">${ZONES.map(([k, n]) => `<button data-cz="${k}" aria-pressed="${(state.czone || "todo") === k}">${n}</button>`).join("")}</div>
+  <datalist id="cultlist">${opts.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+  <datalist id="notalist">${NOTAS.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+  <div style="display:flex;flex-direction:column;gap:12px">${ids.map(censoCard).join("")}</div>`;
+};
+views.censo.bind = root => {
+  root.querySelectorAll("[data-cz]").forEach(b => b.onclick = () => { state.czone = b.dataset.cz; render(); });
+  root.querySelectorAll(".cc").forEach(bindCard);
+  if (state.cfocus) { const el = document.getElementById("cc-" + state.cfocus); state.cfocus = null; if (el) setTimeout(() => el.scrollIntoView({behavior: "smooth", block: "start"}), 50); }
+};
+
+/* ---------- vistas ---------- */
 
 /* ---------- HOY (vista principal en el celular) ---------- */
 function todayRef(){
@@ -627,7 +819,7 @@ views.mapa = () => {
     <div class="bar small"><span class="chip">≈ ${nf(kg)} kg de cosecha</span>${fl ? `<span class="chip">≈ ${nf(fl)} flores</span>` : ""}</div></div>
   <div class="monthpick" role="group" aria-label="Mes">${MONTHS.map(k => `<button data-m="${k}" aria-pressed="${k === state.month}">${monthShort(k)}</button>`).join("")}</div>
   <div class="cols">
-    <div class="mapbox">${zonePicker("m")}<div id="mmap" style="margin-top:8px">${mapSVG({fill: id => monthFill(id, w)})}</div></div>
+    <div class="mapbox">${zonePicker("m")}<button class="btn primary" id="tocenso" style="margin-top:8px;width:100%;min-height:46px">Actualizar camas (censo)</button><div id="mmap" style="margin-top:8px">${mapSVG({fill: id => monthFill(id, w)})}</div></div>
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
       <section class="panel">
         <h3 style="margin-bottom:8px">Cómo leer el mapa</h3>
@@ -642,6 +834,8 @@ views.mapa = () => {
 views.mapa.bind = root => {
   root.querySelectorAll(".monthpick button").forEach(b => b.onclick = () => { state.month = b.dataset.m; render(); });
   bindReal(root, render);
+  const tc = root.querySelector("#tocenso"); if (tc) tc.onclick = () => go("censo");
+  root.querySelectorAll("[data-censo]").forEach(b => b.onclick = () => { state.cfocus = b.dataset.censo; go("censo"); });
   bindBeds(root.querySelector("#mmap"), () => { state.upd = null; render(); const p = document.getElementById("bedpanel"); if (p && window.innerWidth < 860) p.scrollIntoView({behavior: "smooth", block: "start"}); });
   bindZones(root, render);
 };
@@ -920,7 +1114,7 @@ async function toggleDone(id, on){
   catch (e) { toast("No se pudo guardar la marca."); }
 }
 /* ---------- render ---------- */
-const TITLES = {hoy: "Hoy", semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Compras", registro: "Registro"};
+const TITLES = {insumos: "Compras y semillas", censo: "Censo de camas", hoy: "Hoy", semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Semilla del plan", registro: "Registro"};
 const MAIN4 = ["hoy", "semana", "mapa", "cosecha"];
 function render(){
   const main = document.getElementById("main");
@@ -947,8 +1141,12 @@ render();
 // Plan vivo: en la versión web se carga de /api/plan (lo editan Eric, Melanie y Claude); si no hay, queda el del código.
 function reloadPlan(){ const np = buildPlan(); for (const k of Object.keys(plan)) delete plan[k]; Object.assign(plan, np); }
 if (location.protocol.startsWith("http") && !/claude|anthropic/.test(location.hostname)) {
-  const loadLive = async () => { try { const r = await fetch("/api/plan", {cache: "no-store"}); if (!r.ok) return; const j = await r.json(); if (j && j.data && j.v !== loadLive.v) { loadLive.v = j.v; applyPlanData(j.data); reloadPlan(); if (!typing() && !state.upd) render(); } } catch (e) {} };
+  window.loadLive = async () => { try { const r = await fetch("/api/plan", {cache: "no-store"}); if (!r.ok) return; const j = await r.json(); if (j && j.data && j.v !== loadLive.v) { loadLive.v = j.v; applyPlanData(j.data); applyBank(); reloadPlan(); if (!typing() && !state.upd) render(); } } catch (e) {} };
   loadLive(); setInterval(() => { if (document.visibilityState === "visible") loadLive(); }, 60000);
+  window.loadCenso = async () => { try { const r = await fetch("/api/censo", {cache: "no-store"}); if (!r.ok) return; const j = await r.json(); const m = {}; (j.rows || []).forEach(c => { m[c.cama] = c; }); state.censo = m; if (state.view !== "censo" && !typing() && !state.upd) render(); } catch (e) {} };
+  loadCenso();
+  window.loadInsumos = async () => { try { const [a, b] = await Promise.all([fetch("/api/lista", {cache: "no-store"}).then(r => r.json()), fetch("/api/banco", {cache: "no-store"}).then(r => r.json())]); state.lista = a.rows || []; state.bank = b.rows || []; applyBank(); if (!typing() && !state.upd && state.view !== "censo") render(); } catch (e) {} };
+  loadInsumos();
 }
 (async () => {
   try {

@@ -1,4 +1,7 @@
+import { listShopping, editShopping, listBank, editBank } from './insumos.js';
+import { latestCensus, saveCensus } from './censo.js';
 import { livePlan } from './planstore.js';
+import { CROPS } from './plan.js';
 import { mcpRoute } from './mcp.js';
 // Huerto Dos Búhos: sirve la app pública (public/) y una API mínima para tareas hechas y registro de cosecha.
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -8,6 +11,21 @@ async function pinOk(request, env) {
   if (!pin) return false;
   const row = await env.DB.prepare("SELECT v FROM config WHERE k='pin'").first();
   return !!row && row.v === pin;
+}
+
+// PIN de la cocina (config k='pin_cocina'): solo sirve para anotar cosechas en /cocina.
+async function pinRole(request, env) {
+  const pin = request.headers.get('x-pin') || '';
+  if (!pin) return null;
+  const { results } = await env.DB.prepare("SELECT k, v FROM config WHERE k IN ('pin','pin_cocina')").all();
+  for (const r of results) if (r.v === pin) return r.k === 'pin' ? 'huerto' : 'cocina';
+  return null;
+}
+let migrated = false;
+async function migrate(env) {
+  if (migrated) return;
+  try { await env.DB.prepare('ALTER TABLE cosechas ADD COLUMN quien TEXT').run(); } catch (e) {}
+  migrated = true;
 }
 
 export default {
@@ -45,13 +63,52 @@ export default {
         return json({ rows: results });
       }
       if (p === '/api/cosechas' && request.method === 'POST') {
-        if (!(await pinOk(request, env))) return json({ error: 'PIN incorrecto' }, 401);
+        const role = await pinRole(request, env);
+        if (!role) return json({ error: 'PIN incorrecto' }, 401);
+        await migrate(env);
         const b = await request.json();
         const cantidad = Number(b.cantidad);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha || '') || !b.cama || !b.cultivo || !(cantidad >= 0)) return json({ error: 'Datos inválidos' }, 400);
-        await env.DB.prepare('INSERT INTO cosechas (fecha, cama, cultivo, cantidad, u, nota) VALUES (?,?,?,?,?,?)')
-          .bind(b.fecha, String(b.cama).slice(0, 60), String(b.cultivo).slice(0, 40), cantidad, String(b.u || 'kg').slice(0, 10), String(b.nota || '').slice(0, 200)).run();
-        return json({ ok: true });
+        const cama = String(b.cama || (role === 'cocina' ? '—' : '')).slice(0, 60);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha || '') || !cama || !String(b.cultivo || '').trim() || !(cantidad > 0)) return json({ error: 'Faltan fecha, cultivo o cantidad' }, 400);
+        const r = await env.DB.prepare('INSERT INTO cosechas (fecha, cama, cultivo, cantidad, u, nota, quien) VALUES (?,?,?,?,?,?,?)')
+          .bind(b.fecha, cama, String(b.cultivo).trim().slice(0, 40), cantidad, String(b.u || 'kg').slice(0, 10), String(b.nota || '').slice(0, 200), role).run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      // Cocina: página /cocina con su propio PIN, solo para anotar lo que cosechan.
+      if (p === '/api/cocina/pin' && request.method === 'POST') { const role = await pinRole(request, env); return json({ ok: !!role, role }); }
+      if (p === '/api/cocina/registros' && request.method === 'GET') {
+        await migrate(env);
+        const { results } = await env.DB.prepare('SELECT id, fecha, cama, cultivo, cantidad, u, nota, quien, at FROM cosechas ORDER BY fecha DESC, id DESC LIMIT 80').all();
+        return json({ rows: results });
+      }
+      if (p === '/api/cocina/borrar' && request.method === 'POST') {
+        const role = await pinRole(request, env);
+        if (!role) return json({ error: 'PIN incorrecto' }, 401);
+        await migrate(env);
+        const b = await request.json();
+        const q = role === 'huerto' ? 'DELETE FROM cosechas WHERE id=?' : "DELETE FROM cosechas WHERE id=? AND quien='cocina' AND at > datetime('now','-3 days')";
+        const r = await env.DB.prepare(q).bind(Number(b.id)).run();
+        return json(r.meta.changes ? { ok: true } : { error: 'Solo se pueden borrar registros de la cocina de los últimos 3 días' }, r.meta.changes ? 200 : 400);
+      }
+      if (p === '/api/cultivos' && request.method === 'GET') {
+        const live = await livePlan(env);
+        const all = Object.assign({}, CROPS, (live && live.data && live.data.cultivos) || {});
+        return json({ rows: Object.entries(all).filter(([, c]) => c.u === 'kg' && !c.nokg).map(([k, c]) => ({ clave: k, nombre: c.n })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) });
+      }
+      if (p === '/api/lista' && request.method === 'GET') return json({ rows: await listShopping(env) });
+      if (p === '/api/banco' && request.method === 'GET') return json({ rows: await listBank(env) });
+      if ((p === '/api/lista' || p === '/api/banco') && request.method === 'POST') {
+        if (!(await pinOk(request, env))) return json({ error: 'PIN incorrecto' }, 401);
+        const b = await request.json();
+        const r = p === '/api/lista' ? await editShopping(env, b, 'Adrián (app)') : await editBank(env, b);
+        return json(r, r.error ? 400 : 200);
+      }
+      if (p === '/api/censo' && request.method === 'GET') return json({ rows: await latestCensus(env) });
+      if (p === '/api/censo' && request.method === 'POST') {
+        if (!(await pinOk(request, env))) return json({ error: 'PIN incorrecto' }, 401);
+        const b = await request.json();
+        const r = await saveCensus(env, b.cama, b.lineas, 'Adrián (app)');
+        return json(r, r.error ? 400 : 200);
       }
       if (p === '/api/plan' && request.method === 'GET') {
         const live = await livePlan(env);

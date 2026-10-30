@@ -28,3 +28,7 @@ open(os.path.join(here, '..', 'src', 'plan.js'), 'w', encoding='utf-8').write(
     + data + '\n' + eng_mod + '\nexport { ' + ', '.join(names) + ' };\n')
 print('plan.js ok')
 
+# Página de la cocina (registro de cosecha con su propio PIN).
+import shutil
+shutil.copyfile(os.path.join(here, 'cocina.html'), os.path.join(here, '..', 'public', 'cocina.html'))
+print('cocina.html ok')

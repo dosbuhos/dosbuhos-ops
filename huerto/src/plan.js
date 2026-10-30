@@ -364,7 +364,7 @@ function traysActive(plan, w){ return plan.P.filter(p => p.tray && w >= p.ts && 
 const BASE_TASKS = [
   {d:1, t:"Revisar riego: abrir el goteo, caminar cada cama y destapar goteros", min:45},
   {d:4, t:"Deshierbe general de pasillos y camas", min:180},
-  {d:5, t:"Fotos por WhatsApp: una foto de cada cuadrante (A-NO, A-NE, A-SO, A-SE, B-O, B-E)", min:20},
+  {d:5, t:"Censo de camas: en la app, Mapa → \"Actualizar camas\": revisar cada cama (metros y cultivo, de norte a sur) y guardar. Luego en Más → \"Compras y semillas\": anotar lo que haga falta y cuánta semilla queda", min:50},
   {d:5, t:"Composta: voltear la pila y agregar restos de cosecha", min:45},
   {d:5, t:"Preparar las experiencias de visitantes de la semana (ver pestaña Experiencias)", min:45},
 ];
