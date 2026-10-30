@@ -1,7 +1,7 @@
 import { listShopping, editShopping, listBank, editBank } from './insumos.js';
 import { latestCensus, saveCensus } from './censo.js';
 import { livePlan } from './planstore.js';
-import { CROPS } from './plan.js';
+import { CROPS, PLAN_START, applyPlanData, buildPlan } from './plan.js';
 import { mcpRoute } from './mcp.js';
 // Huerto Dos Búhos: sirve la app pública (public/) y una API mínima para tareas hechas y registro de cosecha.
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -89,6 +89,17 @@ export default {
         const q = role === 'huerto' ? 'DELETE FROM cosechas WHERE id=?' : "DELETE FROM cosechas WHERE id=? AND quien='cocina' AND at > datetime('now','-3 days')";
         const r = await env.DB.prepare(q).bind(Number(b.id)).run();
         return json(r.meta.changes ? { ok: true } : { error: 'Solo se pueden borrar registros de la cocina de los últimos 3 días' }, r.meta.changes ? 200 : 400);
+      }
+      // Qué hay hoy en cada cama (del plan vivo, que incluye el censo): para el mapa de la cocina.
+      if (p === '/api/hoy-camas' && request.method === 'GET') {
+        const live = await livePlan(env);
+        if (live) applyPlanData(live.data);
+        const plan = buildPlan();
+        const today = new Date(Date.now() - 6 * 3600e3);
+        const w = Math.floor((today - new Date(PLAN_START + 'T06:00:00Z')) / (7 * 86400000));
+        const out = {};
+        plan.P.forEach(x => { if ((x.ex || x.s <= w) && x.end >= w) (out[x.bed] = out[x.bed] || []).push({ n: x.c.n, c: x.c.c, pos: x.pos, m: x.m, cosecha: !x.c.nokg && w >= x.h0 }); });
+        return json({ camas: out });
       }
       if (p === '/api/cultivos' && request.method === 'GET') {
         const live = await livePlan(env);

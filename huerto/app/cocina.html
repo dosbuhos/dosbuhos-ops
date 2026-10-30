@@ -35,6 +35,19 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 .chip{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--sunk)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:9}
 .err{color:var(--danger);font-weight:600}
+.map{width:100%;height:auto;display:block;touch-action:manipulation}
+.map .wall{stroke:#9b7b5a;stroke-width:.18}
+.map .tree{fill:#a9bd8f;opacity:.75}
+.map .bed rect.box{fill:var(--surface);stroke:var(--fg);stroke-width:.08}
+.map .bed{cursor:pointer}
+.map .bed.sel rect.box{stroke:var(--danger);stroke-width:.35}
+.map text{font:600 .9px -apple-system,sans-serif;fill:var(--fg)}
+.map .lab{font-size:.75px;fill:var(--fg)}
+.zones{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.zones button{min-height:40px;font-weight:600;padding:0 12px;font-size:14px}
+.zones button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:13px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 </style>
 </head>
 <body>
@@ -54,9 +67,17 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
     <datalist id="cultivos"></datalist>
     <label>Cantidad<input id="cantidad" type="number" inputmode="decimal" step="0.1" min="0" placeholder="0.0"></label>
     <div class="units" id="units" role="group" aria-label="Unidad"></div>
-    <label>Cama <span class="small">(si la saben)</span><input id="cama" placeholder="Ej. A3" maxlength="6" autocapitalize="characters"></label>
+    <label>Cama <span class="small">(opcional: tóquenla en el mapa)</span><input id="cama" placeholder="Ej. A3" maxlength="6" autocapitalize="characters"></label>
     <label>Nota <span class="small">(opcional)</span><input id="nota" placeholder="Ej. para el menú del fin de semana" maxlength="200"></label>
     <button class="primary" id="guardar">Anotar</button>
+  </section>
+
+  <section class="panel" id="mapa" hidden>
+    <h2>Mapa del huerto · qué hay hoy</h2>
+    <div class="zones" id="zones"></div>
+    <div id="mapbox"></div>
+    <div class="legend" id="legend"></div>
+    <p class="small muted" style="margin:6px 0 0">Color fuerte = listo para cosechar. Toca una cama para ponerla en el registro. ↑ Norte</p>
   </section>
 
   <section class="panel" id="semana" hidden><h2>Esta semana</h2><div class="chips" id="totales"></div></section>
@@ -80,7 +101,7 @@ const name = k => { const c = CROPS.find(x => x.clave === k); return c ? c.nombr
 
 function drawUnits(){ $("units").innerHTML = UNITS.map(([k, n]) => `<button type="button" data-u="${k}" aria-pressed="${UNIT === k}">${n}</button>`).join(""); $("units").querySelectorAll("button").forEach(b => b.onclick = () => { UNIT = b.dataset.u; drawUnits(); }); }
 async function checkPin(p){ const r = await fetch("/api/cocina/pin", {method: "POST", headers: {"x-pin": p}}); const j = await r.json().catch(() => ({})); return j.ok; }
-function show(ok){ $("pinbox").hidden = ok; $("form").hidden = !ok; $("lista").hidden = !ok; $("semana").hidden = !ok; }
+function show(ok){ $("pinbox").hidden = ok; $("form").hidden = !ok; $("lista").hidden = !ok; $("semana").hidden = !ok; $("mapa").hidden = !ok; }
 
 async function load(){
   try { const r = await fetch("/api/cultivos"); CROPS = (await r.json()).rows || []; $("cultivos").innerHTML = CROPS.map(c => `<option value="${esc(c.nombre)}">`).join(""); } catch (e) {}
@@ -104,7 +125,7 @@ async function guardar(){
     const r = await fetch("/api/cosechas", {method: "POST", headers: {"content-type": "application/json", "x-pin": PIN}, body: JSON.stringify(body)});
     if (r.status === 401) { setPin(""); PIN = ""; show(false); toast("PIN incorrecto"); return; }
     const j = await r.json(); if (!r.ok) { toast(j.error || "No se pudo guardar"); return; }
-    toast("Anotado"); $("cultivo").value = ""; $("cantidad").value = ""; $("nota").value = ""; $("cultivo").focus(); load();
+    toast("Anotado"); $("cultivo").value = ""; $("cantidad").value = ""; $("nota").value = ""; $("cama").value = ""; SEL = ""; drawMap(); $("cultivo").focus(); load();
   } catch (e) { toast("Sin conexión. Intenta otra vez."); }
   finally { b.disabled = false; }
 }
@@ -112,6 +133,51 @@ async function borrar(id){
   const r = await fetch("/api/cocina/borrar", {method: "POST", headers: {"content-type": "application/json", "x-pin": PIN}, body: JSON.stringify({id})});
   const j = await r.json().catch(() => ({})); toast(r.ok ? "Borrado" : (j.error || "No se pudo borrar")); load();
 }
+
+// ---------- mapa ----------
+let GEO = null, HOY = {}, ZONE = "A", SEL = "";
+const X0 = 11.5, Y0 = 93.5;
+const ZONES = [["A", "Sección A · verdura"], ["I", "Invernaderos"], ["B", "Sección B · flores"]];
+function zoneBox(z){
+  const bs = GEO.beds.filter(b => (b.seccion || b.id[0]) === z);
+  const x0 = Math.min(...bs.map(b => b.x)) - X0, x1 = Math.max(...bs.map(b => b.x + b.w)) - X0;
+  const y0 = Math.min(...bs.map(b => Y0 - b.y - b.h)), y1 = Math.max(...bs.map(b => Y0 - b.y));
+  const pad = z === "I" ? 1.4 : 1.8;
+  return [x0 - pad, y0 - pad, x1 - x0 + 2 * pad, y1 - y0 + 2 * pad];
+}
+function drawMap(){
+  if (!GEO) return;
+  $("zones").innerHTML = ZONES.map(([k, n]) => `<button type="button" data-z="${k}" aria-pressed="${ZONE === k}">${n}</button>`).join("");
+  $("zones").querySelectorAll("button").forEach(b => b.onclick = () => { ZONE = b.dataset.z; drawMap(); });
+  let s = `<svg class="map" viewBox="${zoneBox(ZONE).join(" ")}" role="img" aria-label="Mapa de camas">`;
+  for (const l of GEO.lines) s += `<line class="wall" x1="${l[0]-X0}" y1="${Y0-l[1]}" x2="${l[2]-X0}" y2="${Y0-l[3]}"/>`;
+  for (const t of GEO.trees) s += `<circle class="tree" cx="${t[0]-X0}" cy="${Y0-t[1]}" r="1.3"/>`;
+  for (const [x, y, w, h] of (GEO.tuneles || [])) s += `<rect x="${x-X0}" y="${Y0-y-h}" width="${w}" height="${h}" rx="1" fill="#7cc4a0" fill-opacity=".3" stroke="#3f8f6a" stroke-width=".12"/>`;
+  for (const [x, y, w, h, lab] of (GEO.mesas || [])) s += `<rect x="${x-X0}" y="${Y0-y-h}" width="${w}" height="${h}" rx=".12" fill="#e2d6c3" stroke="#9b7b5a" stroke-width=".08"/><text class="lab" x="${x-X0+w/2}" y="${Y0-y-h/2+.25}" text-anchor="middle">${lab}</text>`;
+  const seen = {};
+  for (const b of GEO.beds) {
+    const x = b.x - X0, y = Y0 - b.y - b.h, vert = b.h > b.w, len = vert ? b.h : b.w;
+    let inner = `<rect class="box" x="${x}" y="${y}" width="${b.w}" height="${b.h}" rx=".12"/>`;
+    (HOY[b.id] || []).forEach(p => {
+      seen[p.n] = p.c;
+      const a = p.pos / len * (vert ? b.h : b.w), l = p.m / len * (vert ? b.h : b.w);
+      inner += vert ? `<rect x="${x+.05}" y="${y+a+.05}" width="${b.w-.1}" height="${Math.max(0,l-.1)}" fill="${p.c}" fill-opacity="${p.cosecha ? 1 : .35}"/>` : `<rect x="${x+a+.05}" y="${y+.05}" width="${Math.max(0,l-.1)}" height="${b.h-.1}" fill="${p.c}" fill-opacity="${p.cosecha ? 1 : .35}"/>`;
+    });
+    const lx = vert ? x + b.w / 2 : x - .4, ly = vert ? y - .45 : y + b.h / 2 + .3;
+    s += `<g class="bed${SEL === b.id ? " sel" : ""}" data-bed="${b.id}">${inner}<text x="${lx}" y="${ly}" text-anchor="${vert ? "middle" : "end"}">${b.id}</text></g>`;
+  }
+  s += `</svg>`;
+  $("mapbox").innerHTML = s;
+  $("mapbox").querySelectorAll(".bed").forEach(g => g.onclick = () => { SEL = g.dataset.bed; $("cama").value = SEL; const crops = [...new Set((HOY[SEL] || []).filter(p => p.cosecha).map(p => p.n))], all = [...new Set((HOY[SEL] || []).map(p => p.n))]; if (crops.length === 1 && !$("cultivo").value) $("cultivo").value = crops[0]; drawMap(); toast("Cama " + SEL + (all.length ? ": " + all.join(", ") : "")); });
+  const inZone = new Set(GEO.beds.filter(b => (b.seccion || b.id[0]) === ZONE).flatMap(b => (HOY[b.id] || []).map(p => p.n)));
+  $("legend").innerHTML = [...inZone].map(n => `<span><i style="background:${seen[n]}"></i>${esc(n)}</span>`).join("");
+}
+async function loadMap(){
+  try { const [g, h] = await Promise.all([fetch("/geo.json").then(r => r.json()), fetch("/api/hoy-camas", {cache: "no-store"}).then(r => r.json())]); GEO = g; HOY = h.camas || {}; drawMap(); } catch (e) {}
+}
+$("cama").addEventListener("input", () => { SEL = $("cama").value.trim().toUpperCase(); drawMap(); });
+loadMap();
+
 $("pinok").onclick = async () => { const p = $("pin").value.trim(); if (p && await checkPin(p)) { PIN = p; setPin(p); $("pinerr").hidden = true; show(true); } else $("pinerr").hidden = false; };
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinok").click(); };
 $("guardar").onclick = guardar;

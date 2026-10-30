@@ -32,3 +32,4 @@ print('plan.js ok')
 import shutil
 shutil.copyfile(os.path.join(here, 'cocina.html'), os.path.join(here, '..', 'public', 'cocina.html'))
 print('cocina.html ok')
+shutil.copyfile(os.path.join(here, 'geo.json'), os.path.join(here, '..', 'public', 'geo.json'))
