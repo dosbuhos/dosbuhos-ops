@@ -79,9 +79,6 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 .votes button{min-height:42px;font-weight:600;font-size:14px;padding:0 12px}
 .votes button[aria-pressed="true"].up{background:var(--leaf);border-color:var(--leaf);color:var(--accent-ink)}
 .votes button[aria-pressed="true"].down{background:var(--danger);border-color:var(--danger);color:#fff}
-.quick{display:flex;flex-wrap:wrap;gap:6px}
-.quick button{min-height:42px;font-weight:600;font-size:14px;padding:0 12px;border-radius:999px}
-.quick button[aria-pressed="true"]{background:var(--leaf);border-color:var(--leaf);color:var(--accent-ink)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:13px}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 </style>
@@ -141,8 +138,7 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
   <section class="panel grid" id="form" data-tab="cosecha" hidden>
     <label>Fecha<input id="fecha" type="date"></label>
     <div><div class="small muted" style="margin-bottom:6px">¿Qué cosecharon?</div>
-      <div class="quick" id="quick"></div>
-      <select id="cultsel" style="margin-top:8px" aria-label="Cultivo"></select>
+      <select id="cultsel" aria-label="Cultivo"></select>
       <input id="cultivo" placeholder="Escriban el cultivo" maxlength="40" autocomplete="off" hidden style="margin-top:8px">
     </div>
     <label>Cantidad<input id="cantidad" type="number" inputmode="decimal" step="0.1" min="0" placeholder="0.0"></label>
@@ -270,17 +266,14 @@ function fillCropPickers(){
   const now = CROPS.filter(c => ready.has(c.nombre)), rest = CROPS.filter(c => !ready.has(c.nombre));
   $("cultsel").innerHTML = `<option value="">Elegir cultivo…</option>` + (now.length ? `<optgroup label="Listo para cosechar">${now.map(opt).join("")}</optgroup><optgroup label="Todo el huerto">${rest.map(opt).join("")}</optgroup>` : CROPS.map(opt).join("")) + `<option value="${OTRO}">Otro (escribir)…</option>`;
   $("p-sel").innerHTML = `<option value="">Elegir cultivo…</option>${CROPS.map(opt).join("")}<option value="${OTRO}">Otro, algo nuevo (escribir)…</option>`;
-  $("quick").innerHTML = now.slice(0, 10).map(c => `<button type="button" data-q="${esc(c.nombre)}" aria-pressed="${$("cultivo").value === c.nombre}">${esc(c.nombre.replace(/ \(.*\)$/, ""))}</button>`).join("");
-  $("quick").querySelectorAll("button").forEach(b => b.onclick = () => setCrop(b.dataset.q));
   if ($("cultivo").value) setCrop($("cultivo").value, true);
 }
 function setCrop(name, silent){
   const has = CROPS.some(c => c.nombre === name);
   $("cultsel").value = name ? (has ? name : OTRO) : "";
   $("cultivo").value = name || ""; $("cultivo").hidden = !name || has;
-  $("quick").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.q === name));
 }
-$("cultsel").onchange = () => { const v = $("cultsel").value; if (v === OTRO) { $("cultivo").value = ""; $("cultivo").hidden = false; $("cultivo").focus(); $("quick").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", false)); } else setCrop(v); };
+$("cultsel").onchange = () => { const v = $("cultsel").value; if (v === OTRO) { $("cultivo").value = ""; $("cultivo").hidden = false; $("cultivo").focus(); } else setCrop(v); };
 $("p-sel").onchange = () => { const v = $("p-sel").value; $("p-cultivo").hidden = v !== OTRO; $("p-cultivo").value = v === OTRO ? "" : v; if (v === OTRO) $("p-cultivo").focus(); };
 
 // ---------- qué viene ----------
