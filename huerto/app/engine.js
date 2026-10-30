@@ -174,4 +174,17 @@ function forecast(plan) {
   return out;
 }
 
+// Plan editable: la copia viva vive en la base de datos (tabla plan). Formato: {siembras:[{id,cama,cultivo,siembra,...}], cultivos:{clave:{...}}, tareas:[...], semillas:{...}}.
+const OPT_KEYS = ["pos", "m", "ex", "d", "t", "char", "esp", "tsem", "note"];
+function plantingToObj(x, i) { const o = {id: "s" + (i + 1), cama: x[0], cultivo: x[1], siembra: x[2] || ""}; const op = x[3] || {}; OPT_KEYS.forEach(k => { if (op[k] !== undefined) o[k] = op[k]; }); return o; }
+function objToPlanting(o) { const op = {}; OPT_KEYS.forEach(k => { if (o[k] !== undefined && o[k] !== null && o[k] !== "") op[k] = o[k]; }); return [o.cama, o.cultivo, o.siembra || "", op]; }
+function applyPlanData(data) {
+  if (!data) return false;
+  if (data.cultivos) for (const [k, c] of Object.entries(data.cultivos)) CROPS[k] = Object.assign({}, CROPS[k] || {}, c);
+  if (Array.isArray(data.siembras)) PLANTINGS.splice(0, PLANTINGS.length, ...data.siembras.filter(o => CROPS[o.cultivo] && BED[o.cama]).map(objToPlanting));
+  if (Array.isArray(data.tareas) && typeof EXTRA_TASKS !== "undefined") EXTRA_TASKS.splice(0, EXTRA_TASKS.length, ...data.tareas);
+  if (data.semillas && typeof STOCK !== "undefined") { for (const k of Object.keys(STOCK)) delete STOCK[k]; Object.assign(STOCK, data.semillas); }
+  return true;
+}
+
 if (typeof module !== "undefined" && module.exports) module.exports = {traysActive, BEDS, BED, buildPlan, bedState, bedSegs, weekTasks, weekHours, forecast, wk, wkDate, fmt};

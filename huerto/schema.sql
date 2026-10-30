@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS camas (id INTEGER PRIMARY KEY AUTOINCREMENT, cama TEX
 -- camas: reportes de estado real (limpia / lista / sembrada) que hace Adrián desde el mapa
 CREATE TABLE IF NOT EXISTS mcp (k TEXT PRIMARY KEY, data TEXT NOT NULL, exp INTEGER NOT NULL);
 -- mcp: clientes, códigos y tokens del conector de Claude (solo hashes SHA-256)
+CREATE TABLE IF NOT EXISTS plan (v INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, quien TEXT, nota TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
+-- plan: copia viva del plan de siembras; cada cambio es una versión (historial y revertir)

@@ -22,7 +22,7 @@ print('ok', len(web))
 # Motor del plan para el Worker (servidor MCP): mismos datos y cálculos que la página.
 eng_mod = eng.split("if (typeof module !== \"undefined\"")[0]
 names = ['CROPS', 'PLANTINGS', 'EXTRA_TASKS', 'STOCK', 'BUY', 'EXPERIENCES', 'PLAN_START', 'PLAN_WEEKS', 'FIRST_DAY',
-         'BEDS', 'BED', 'DAY', 'D', 'wk', 'wkDate', 'fmt', 'MES', 'factor', 'buildPlan', 'bedSegs', 'bedState', 'traysActive', 'weekTasks', 'weekHours', 'forecast', 'where']
+         'BEDS', 'BED', 'DAY', 'D', 'wk', 'wkDate', 'fmt', 'MES', 'factor', 'buildPlan', 'bedSegs', 'bedState', 'traysActive', 'weekTasks', 'weekHours', 'forecast', 'where', 'plantingToObj', 'objToPlanting', 'applyPlanData']
 open(os.path.join(here, '..', 'src', 'plan.js'), 'w', encoding='utf-8').write(
     '// GENERADO por app/build.py a partir de app/plan-data.js y app/engine.js. No editar a mano.\n'
     + data + '\n' + eng_mod + '\nexport { ' + ', '.join(names) + ' };\n')

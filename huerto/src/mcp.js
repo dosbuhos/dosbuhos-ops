@@ -1,7 +1,8 @@
 // Servidor MCP remoto: deja que el Claude de cada persona (claude.ai, escritorio, celular) consulte y actualice el huerto.
 // URL del conector: https://<host>/mcp. Inicio de sesión: OAuth 2.1 (registro dinámico + PKCE S256); la página de
 // autorización pide el nombre y el PIN de la app (el mismo de config k='pin'). Los tokens se guardan solo como SHA-256.
-import { CROPS, PLANTINGS, STOCK, BUY, PLAN_START, PLAN_WEEKS, BED, BEDS, wk, wkDate, fmt, factor, buildPlan, bedState, traysActive, weekTasks, weekHours, forecast, where } from './plan.js';
+import { CROPS, PLANTINGS, EXTRA_TASKS, STOCK, BUY, PLAN_START, PLAN_WEEKS, BED, BEDS, wk, wkDate, fmt, factor, buildPlan, bedState, traysActive, weekTasks, weekHours, forecast, where, plantingToObj, applyPlanData } from './plan.js';
+import { livePlan, savePlan, planHistory } from './planstore.js';
 
 const enc = new TextEncoder();
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -131,7 +132,7 @@ const isoMX = (d = new Date()) => new Date(d.getTime() - 6 * 3600e3).toISOString
 const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const weekOf = (fecha) => { const d = new Date((fecha || isoMX()) + 'T12:00:00'); return Math.max(0, Math.min(PLAN_WEEKS - 1, Math.floor((d - new Date(PLAN_START + 'T12:00:00')) / (7 * 86400000)))); };
 const cropName = (k) => (CROPS[k] ? CROPS[k].n : k);
-let PLAN = null; const plan = () => (PLAN = PLAN || buildPlan());
+let PLAN = null, PLAN_V = null; const plan = () => PLAN;
 
 const TOOLS = [
   { name: 'resumen_semana', ro: true, description: 'Lista de Adrián para una semana: tareas por día (con id y si ya está hecha), horas de trabajo contra 40 h disponibles, y la cosecha esperada por cultivo. Sin fecha = esta semana.', inputSchema: { type: 'object', properties: { fecha: { type: 'string', description: 'Cualquier día de la semana, YYYY-MM-DD' } } } },
@@ -142,6 +143,14 @@ const TOOLS = [
   { name: 'cultivos', ro: true, description: 'Catálogo de cultivos del plan: nombre, método, semanas a cosecha, rendimiento, plato del menú que abastece, y semilla en bodega. También lo que conviene comprar en vez de cultivar.', inputSchema: { type: 'object', properties: {} } },
   { name: 'reportar_cama', ro: false, description: 'Guarda el estado real de una cama, igual que el botón "Actualizar cama" de la app. estado: limpia | lista | sembrada. Para sembrada indica cultivo (clave del catálogo o nombre libre), fecha de siembra y opcional cosecha estimada (si falta se calcula).', inputSchema: { type: 'object', properties: { cama: { type: 'string' }, estado: { type: 'string', enum: ['limpia', 'lista', 'sembrada'] }, metros: { type: 'number', description: 'Default: toda la cama' }, mitad: { type: 'string', enum: ['norte', 'sur', 'oeste', 'este'], description: 'Si es media cama' }, cultivo: { type: 'string' }, fecha: { type: 'string' }, cosecha: { type: 'string' } }, required: ['cama', 'estado'] } },
   { name: 'registrar_cosecha', ro: false, description: 'Anota una entrega de cosecha a cocina (kg o piezas).', inputSchema: { type: 'object', properties: { fecha: { type: 'string' }, cama: { type: 'string' }, cultivo: { type: 'string', description: 'Clave del catálogo (p. ej. lechuga, kale)' }, cantidad: { type: 'number' }, unidad: { type: 'string', description: 'kg o flores; default según el cultivo' }, nota: { type: 'string' } }, required: ['cama', 'cultivo', 'cantidad'] } },
+  { name: 'ver_plan', ro: true, description: 'Las siembras del plan (la copia viva que se puede editar), cada una con su id. Filtra por cama o cultivo. Incluye las ventanas de cosecha calculadas y los problemas detectados (traslapes, tramos fuera de la cama).', inputSchema: { type: 'object', properties: { cama: { type: 'string' }, cultivo: { type: 'string' } } } },
+  { name: 'agregar_siembra', ro: false, description: 'Agrega una siembra al plan. cultivo = clave del catálogo (ver cultivos; si no existe, primero agregar_cultivo). siembra = fecha en la cama (YYYY-MM-DD; se agrupa por semana que empieza en lunes). Tramo: inicio (m desde el norte en A / el oeste en B) y metros; sin ellos = cama completa. Cultivos de plántula van por charola salvo directa=true. Para algo que ya está sembrado usa ya_estaba con su ventana de cosecha.', inputSchema: { type: 'object', properties: { cama: { type: 'string' }, cultivo: { type: 'string' }, siembra: { type: 'string' }, inicio: { type: 'number' }, metros: { type: 'number' }, directa: { type: 'boolean', description: 'Sembrar directo un cultivo que normalmente va por charola' }, charola: { type: 'boolean', description: 'Empezar en charola un cultivo de siembra directa' }, ya_estaba: { type: 'object', properties: { cosecha_desde: { type: 'string' }, cosecha_hasta: { type: 'string' } } }, nota: { type: 'string' } }, required: ['cama', 'cultivo'] } },
+  { name: 'cambiar_siembra', ro: false, description: 'Cambia una siembra existente por id (de ver_plan): cama, cultivo, fecha, inicio, metros, nota, directa, ya_estaba.', inputSchema: { type: 'object', properties: { id: { type: 'string' }, cama: { type: 'string' }, cultivo: { type: 'string' }, siembra: { type: 'string' }, inicio: { type: 'number' }, metros: { type: 'number' }, directa: { type: 'boolean' }, charola: { type: 'boolean' }, ya_estaba: { type: 'object', properties: { cosecha_desde: { type: 'string' }, cosecha_hasta: { type: 'string' } } }, nota: { type: 'string' } }, required: ['id'] } },
+  { name: 'quitar_siembra', ro: false, description: 'Quita una o varias siembras del plan por id.', inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } }, required: ['ids'] } },
+  { name: 'agregar_cultivo', ro: false, description: 'Agrega o corrige un cultivo del catálogo. Campos: clave (minúsculas, sin espacios), nombre, metodo (directa | plántula | bulbo | división), semanas_a_cosecha (desde siembra en cama o trasplante), semanas_de_cosecha, rinde (por semana en una cama A de 5 m²), unidad (kg | flores), hileras, espaciado (m entre plantas, solo plántula), semanas_charola (solo plántula), como_sembrar (instrucción para Adrián), menu (platillo), nota, color (#hex).', inputSchema: { type: 'object', properties: { clave: { type: 'string' }, nombre: { type: 'string' }, metodo: { type: 'string' }, semanas_a_cosecha: { type: 'number' }, semanas_de_cosecha: { type: 'number' }, rinde: { type: 'number' }, unidad: { type: 'string' }, hileras: { type: 'number' }, espaciado: { type: 'number' }, semanas_charola: { type: 'number' }, como_sembrar: { type: 'string' }, menu: { type: 'string' }, nota: { type: 'string' }, color: { type: 'string' } }, required: ['clave'] } },
+  { name: 'tareas_extra', ro: false, description: 'Ver, agregar o quitar tareas sueltas de la lista de Adrián (no salen del plan de siembras). accion: ver | agregar | quitar. Para agregar: fecha (cualquier día de la semana), dia (1=lunes … 5=viernes), texto, minutos, tipo (prep | cuidado | semillero). Para quitar: indice (de ver).', inputSchema: { type: 'object', properties: { accion: { type: 'string', enum: ['ver', 'agregar', 'quitar'] }, fecha: { type: 'string' }, dia: { type: 'integer' }, texto: { type: 'string' }, minutos: { type: 'number' }, tipo: { type: 'string' }, indice: { type: 'integer' } }, required: ['accion'] } },
+  { name: 'semillas_en_bodega', ro: false, description: 'Ver o actualizar qué semilla hay en bodega por cultivo (clave → texto, p. ej. "Kale lacinato, 270 g"). texto vacío lo quita.', inputSchema: { type: 'object', properties: { clave: { type: 'string' }, texto: { type: 'string' } } } },
+  { name: 'historial_plan', ro: false, description: 'Últimos cambios al plan (versión, quién, qué). Con revertir_a = número de versión, regresa el plan a como estaba en esa versión (queda como un cambio nuevo, no se pierde nada).', inputSchema: { type: 'object', properties: { revertir_a: { type: 'integer' } } } },
   { name: 'marcar_tarea', ro: false, description: 'Marca o desmarca una tarea de la lista de Adrián como hecha. Usa el id y la fecha de resumen_semana.', inputSchema: { type: 'object', properties: { id: { type: 'string' }, fecha: { type: 'string', description: 'Cualquier día de esa semana' }, hecha: { type: 'boolean', description: 'default true' } }, required: ['id'] } },
 ];
 
@@ -150,8 +159,108 @@ async function reports(env) {
   return results.map(r => Object.assign({}, r, { cultivo_nombre: r.cultivo ? cropName(r.cultivo) : '' }));
 }
 
+async function ensurePlan(env) {
+  const live = await livePlan(env);
+  if (live && live.v !== PLAN_V) { applyPlanData(live.data); PLAN = buildPlan(); PLAN_V = live.v; }
+  if (!PLAN) PLAN = buildPlan();
+  return live;
+}
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const mondayOf = (f) => { const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); };
+function applyFields(o, a) {
+  if (a.cama !== undefined) o.cama = String(a.cama).toUpperCase().trim();
+  if (a.cultivo !== undefined) o.cultivo = String(a.cultivo).trim();
+  if (a.siembra !== undefined) o.siembra = a.siembra ? mondayOf(a.siembra) : '';
+  if (a.inicio !== undefined) o.pos = Number(a.inicio);
+  if (a.metros !== undefined) o.m = Number(a.metros);
+  if (a.directa !== undefined) { if (a.directa) o.d = 1; else delete o.d; }
+  if (a.charola !== undefined) { if (a.charola) o.t = true; else delete o.t; }
+  if (a.nota !== undefined) o.note = String(a.nota).slice(0, 200);
+  if (a.ya_estaba) { o.ex = [a.ya_estaba.cosecha_desde, a.ya_estaba.cosecha_hasta]; o.siembra = ''; }
+  if (o.pos !== undefined && o.m === undefined) o.m = BED[o.cama] ? BED[o.cama].len - o.pos : undefined;
+  return o;
+}
+function checkSiembra(o) {
+  const B = BED[o.cama]; if (!B) return 'Cama no existe: ' + o.cama;
+  if (!CROPS[o.cultivo]) return 'Cultivo no está en el catálogo: ' + o.cultivo + '. Usa cultivos o agregar_cultivo.';
+  if (B.sec === 'B' && CROPS[o.cultivo].u !== 'flores') return 'La sección B es solo flores.';
+  if (o.ex) { if (!DATE.test(o.ex[0] || '') || !DATE.test(o.ex[1] || '')) return 'ya_estaba necesita cosecha_desde y cosecha_hasta (YYYY-MM-DD)'; }
+  else if (!DATE.test(o.siembra || '')) return 'Falta la fecha de siembra (YYYY-MM-DD)';
+  const pos = o.pos || 0, m = o.m === undefined ? B.len : o.m;
+  if (!(m > 0) || pos < 0 || pos + m > B.len + 1e-9) return `El tramo no cabe en ${o.cama} (${B.len} m)`;
+  return null;
+}
+// Guarda una versión nueva del plan y devuelve los problemas que detecta el motor para las camas tocadas.
+async function commit(env, user, live, data, nota, camas) {
+  if (!live) await savePlan(env, { siembras: PLANTINGS.map(plantingToObj), cultivos: {}, tareas: JSON.parse(JSON.stringify(EXTRA_TASKS)), semillas: Object.assign({}, STOCK) }, 'Claude', 'Plan inicial (copia del código)');
+  const before = new Set((PLAN ? PLAN.issues : []));
+  const v = await savePlan(env, data, user.nombre, nota);
+  applyPlanData(data); PLAN = buildPlan(); PLAN_V = v;
+  const nuevos = PLAN.issues.filter(i => !before.has(i) || (camas || []).some(c => i.startsWith(c + ':')));
+  return { ok: true, version: v, cambio: nota, problemas: nuevos, aviso: 'La app y la lista de Adrián se actualizan solas en 1 minuto.' };
+}
+
 async function runTool(env, user, name, a) {
+  const live = await ensurePlan(env);
   const P = plan();
+  const cur = () => JSON.parse(JSON.stringify(live ? live.data : { siembras: PLANTINGS.map(plantingToObj), cultivos: {}, tareas: EXTRA_TASKS, semillas: STOCK }));
+  if (name === 'ver_plan') {
+    const d = cur(), cama = a.cama ? String(a.cama).toUpperCase().trim() : '', cult = a.cultivo ? String(a.cultivo).toLowerCase().trim() : '';
+    const byId = {}; P.P.forEach((p, i) => { byId[d.siembras[i] && d.siembras[i].id] = p; });
+    return { version: live ? live.v : 0, siembras: d.siembras.filter(o => (!cama || o.cama === cama) && (!cult || o.cultivo === cult || cropName(o.cultivo).toLowerCase().includes(cult))).map(o => { const p = byId[o.id]; return Object.assign({}, o, { nombre: cropName(o.cultivo), cosecha: p && !p.c.nokg ? iso(wkDate(Math.max(0, p.h0))) + ' a ' + iso(wkDate(p.end)) : null, semillero: p && p.tray ? 'charola ' + iso(wkDate(p.ts)) : null }); }), problemas: P.issues };
+  }
+  if (name === 'agregar_siembra' || name === 'cambiar_siembra') {
+    const d = cur(); let o, i = -1;
+    if (name === 'cambiar_siembra') { i = d.siembras.findIndex(x => x.id === a.id); if (i < 0) return { error: 'No hay siembra con id ' + a.id }; o = applyFields(Object.assign({}, d.siembras[i]), a); if (a.siembra) delete o.ex; }
+    else { o = applyFields({ id: 's' + (Math.max(0, ...d.siembras.map(x => +String(x.id).slice(1) || 0)) + 1) }, a); }
+    const e = checkSiembra(o); if (e) return { error: e };
+    if (i >= 0) d.siembras[i] = o; else d.siembras.push(o);
+    return commit(env, user, live, d, `${name === 'agregar_siembra' ? 'Agrega' : 'Cambia'} ${o.id}: ${cropName(o.cultivo)} en ${o.cama}${o.m ? ' (' + o.m + ' m)' : ''} ${o.siembra || 'ya estaba'}`, [o.cama]);
+  }
+  if (name === 'quitar_siembra') {
+    const d = cur(), ids = new Set((a.ids || []).map(String)), gone = d.siembras.filter(x => ids.has(x.id));
+    if (!gone.length) return { error: 'Ningún id encontrado' };
+    d.siembras = d.siembras.filter(x => !ids.has(x.id));
+    return commit(env, user, live, d, 'Quita ' + gone.map(x => `${x.id} ${cropName(x.cultivo)} en ${x.cama}`).join(', '), gone.map(x => x.cama));
+  }
+  if (name === 'agregar_cultivo') {
+    const k = String(a.clave || '').toLowerCase().trim(); if (!/^[a-z][a-z0-9_]{1,30}$/.test(k)) return { error: 'clave inválida (minúsculas, sin espacios)' };
+    const d = cur(), base = CROPS[k] || {}, c = Object.assign({}, (d.cultivos || {})[k] || {});
+    const map = { nombre: 'n', metodo: 'met', semanas_a_cosecha: 'sem', semanas_de_cosecha: 'dur', rinde: 'kg', unidad: 'u', hileras: 'rows', espaciado: 'esp', semanas_charola: 'char', como_sembrar: 'dist', menu: 'menu', nota: 'nota', color: 'c' };
+    for (const [from, to] of Object.entries(map)) if (a[from] !== undefined) c[to] = a[from];
+    const full = Object.assign({ rows: 2, esp: null, c: '#6b8f3d', met: 'directa', dist: '', sem: 8, dur: 6, kg: 1, u: 'kg', cos: 20, mo: 1, menu: '', nota: '' }, base, c);
+    if (!full.n) return { error: 'Falta nombre' };
+    if (full.met === 'plántula' && (!full.esp || !full.char)) return { error: 'Para plántula hacen falta espaciado y semanas_charola' };
+    d.cultivos = Object.assign(d.cultivos || {}, { [k]: Object.assign(c, { n: full.n }) });
+    if (!base.n) d.cultivos[k] = full;
+    return commit(env, user, live, d, (base.n ? 'Corrige cultivo ' : 'Nuevo cultivo ') + full.n, []);
+  }
+  if (name === 'tareas_extra') {
+    const d = cur(); d.tareas = d.tareas || [];
+    if (a.accion === 'ver') return d.tareas.map((t, i) => ({ indice: i, semana_del: t.w, dia: DIAS[t.d || 1], texto: t.t, minutos: t.min, tipo: t.k }));
+    if (a.accion === 'agregar') {
+      if (!a.texto || !DATE.test(a.fecha || '')) return { error: 'Faltan fecha y texto' };
+      const t = { w: mondayOf(a.fecha), d: Math.min(5, Math.max(1, a.dia || ((new Date(a.fecha + 'T12:00:00').getDay() + 6) % 7 + 1))), t: String(a.texto).slice(0, 300), min: Number(a.minutos) || 30, k: ['prep', 'cuidado', 'semillero'].includes(a.tipo) ? a.tipo : 'prep' };
+      d.tareas.push(t);
+      return commit(env, user, live, d, 'Tarea: ' + t.t.slice(0, 80), []);
+    }
+    if (a.accion === 'quitar') { const t = d.tareas[a.indice]; if (!t) return { error: 'Índice no existe' }; d.tareas.splice(a.indice, 1); return commit(env, user, live, d, 'Quita tarea: ' + t.t.slice(0, 80), []); }
+    return { error: 'accion: ver, agregar o quitar' };
+  }
+  if (name === 'semillas_en_bodega') {
+    const d = cur(); d.semillas = d.semillas || {};
+    if (!a.clave) return d.semillas;
+    const k = String(a.clave).toLowerCase().trim();
+    if (a.texto) d.semillas[k] = String(a.texto).slice(0, 120); else delete d.semillas[k];
+    return commit(env, user, live, d, 'Semilla en bodega: ' + k + (a.texto ? ' = ' + a.texto : ' (quitada)'), []);
+  }
+  if (name === 'historial_plan') {
+    if (a.revertir_a) {
+      const h = await planHistory(env, a.revertir_a); if (!h) return { error: 'Versión no existe' };
+      return commit(env, user, live, h.data, 'Regresa el plan a la versión ' + a.revertir_a, []);
+    }
+    return await planHistory(env);
+  }
   if (name === 'resumen_semana') {
     const w = weekOf(a.fecha), T = weekTasks(P, w);
     const { results } = await env.DB.prepare('SELECT task FROM hechas WHERE w = ? AND estado = ?').bind(w, 'hecho').all();
@@ -238,7 +347,7 @@ function instructions(user) {
 Equipo: Adrián Bárcenas es el único jardinero (L–V 7:00–16:00, desayuno 10–11, ~40 h/semana); solo lee español y se comunica por WhatsApp. Eric y Melanie lo manejan a distancia.
 Camas: sección A = 24 camas de 1 × 5 m (verdura y hierbas; tramos medidos de norte a sur). Sección B = 10 camas de 1.4 × 9.5 m, SOLO flores comestibles y decorativas (nunca verdura). Preferir camas completas o medias.
 Semana 1 del plan empieza el lunes ${PLAN_START}. Cosecha a cocina: lunes, miércoles y viernes antes de las 10:00.
-Usa las herramientas para cada dato; no inventes fechas ni kilos. Los reportes de cama y las cosechas registradas no cambian el plan de siembras: el plan (qué se siembra y cuándo) lo edita Eric con Claude en el código. Si alguien pide cambiar el plan, resume el cambio para pasárselo a Eric. Responde en el idioma de quien pregunta.`;
+Usa las herramientas para cada dato; no inventes fechas ni kilos. El plan de siembras se puede editar (ver_plan, agregar_siembra, cambiar_siembra, quitar_siembra, agregar_cultivo, tareas_extra); cada cambio queda en historial_plan con quién lo hizo y se puede revertir. Antes de cambiar: lee ver_plan de esa cama, explica el cambio y confírmalo con la persona; después revisa los problemas que regresa la herramienta (traslapes) y corrígelos. Un reporte de Adrián (reportar_cama) no cambia el plan: si contradice el plan, propón el ajuste. Respeta: sección B solo flores; camas completas o medias cuando se pueda; la semana de Adrián no debe pasar de 40 h (resumen_semana); lo caro o difícil de cultivar se compra. Responde en el idioma de quien pregunta.`;
 }
 
 async function rpc(env, user, m) {

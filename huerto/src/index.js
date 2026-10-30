@@ -1,3 +1,4 @@
+import { livePlan } from './planstore.js';
 import { mcpRoute } from './mcp.js';
 // Huerto Dos Búhos: sirve la app pública (public/) y una API mínima para tareas hechas y registro de cosecha.
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -51,6 +52,10 @@ export default {
         await env.DB.prepare('INSERT INTO cosechas (fecha, cama, cultivo, cantidad, u, nota) VALUES (?,?,?,?,?,?)')
           .bind(b.fecha, String(b.cama).slice(0, 60), String(b.cultivo).slice(0, 40), cantidad, String(b.u || 'kg').slice(0, 10), String(b.nota || '').slice(0, 200)).run();
         return json({ ok: true });
+      }
+      if (p === '/api/plan' && request.method === 'GET') {
+        const live = await livePlan(env);
+        return json(live ? { v: live.v, data: live.data } : { v: 0, data: null });
       }
       if (p === '/api/camas' && request.method === 'GET') {
         const { results } = await env.DB.prepare('SELECT id, cama, estado, m, pos, cultivo, fecha, cosecha FROM camas ORDER BY id DESC LIMIT 500').all();

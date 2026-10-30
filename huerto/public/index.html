@@ -264,7 +264,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 30/10 12:10</div>
+    <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 30/10 12:17</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
     <button role="tab" data-v="hoy">Hoy</button>
@@ -294,7 +294,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   <button data-v="cultivos">Cultivos</button>
   <button data-v="compras">Compras</button>
   <button data-v="registro">Registro de cosecha</button>
-  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 30/10 12:10</p>
+  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 30/10 12:17</p>
 </div></div>
 <div class="tip" id="tip" hidden></div>
 
@@ -742,6 +742,19 @@ function forecast(plan) {
     out[key][p.crop] = (out[key][p.crop] || 0) + p.c.kg * p.scale;
   } }
   return out;
+}
+
+// Plan editable: la copia viva vive en la base de datos (tabla plan). Formato: {siembras:[{id,cama,cultivo,siembra,...}], cultivos:{clave:{...}}, tareas:[...], semillas:{...}}.
+const OPT_KEYS = ["pos", "m", "ex", "d", "t", "char", "esp", "tsem", "note"];
+function plantingToObj(x, i) { const o = {id: "s" + (i + 1), cama: x[0], cultivo: x[1], siembra: x[2] || ""}; const op = x[3] || {}; OPT_KEYS.forEach(k => { if (op[k] !== undefined) o[k] = op[k]; }); return o; }
+function objToPlanting(o) { const op = {}; OPT_KEYS.forEach(k => { if (o[k] !== undefined && o[k] !== null && o[k] !== "") op[k] = o[k]; }); return [o.cama, o.cultivo, o.siembra || "", op]; }
+function applyPlanData(data) {
+  if (!data) return false;
+  if (data.cultivos) for (const [k, c] of Object.entries(data.cultivos)) CROPS[k] = Object.assign({}, CROPS[k] || {}, c);
+  if (Array.isArray(data.siembras)) PLANTINGS.splice(0, PLANTINGS.length, ...data.siembras.filter(o => CROPS[o.cultivo] && BED[o.cama]).map(objToPlanting));
+  if (Array.isArray(data.tareas) && typeof EXTRA_TASKS !== "undefined") EXTRA_TASKS.splice(0, EXTRA_TASKS.length, ...data.tareas);
+  if (data.semillas && typeof STOCK !== "undefined") { for (const k of Object.keys(STOCK)) delete STOCK[k]; Object.assign(STOCK, data.semillas); }
+  return true;
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = {traysActive, BEDS, BED, buildPlan, bedState, bedSegs, weekTasks, weekHours, forecast, wk, wkDate, fmt};
@@ -1458,6 +1471,12 @@ try { const v = localStorage.getItem("huerto-vista"); if (v && views[v]) state.v
 try { const z = localStorage.getItem("huerto-zona"); if (z) state.zone = z; } catch (e) {}
 const hv = location.hash.replace("#", ""); if (views[hv]) state.view = hv;
 render();
+// Plan vivo: en la versión web se carga de /api/plan (lo editan Eric, Melanie y Claude); si no hay, queda el del código.
+function reloadPlan(){ const np = buildPlan(); for (const k of Object.keys(plan)) delete plan[k]; Object.assign(plan, np); }
+if (location.protocol.startsWith("http") && !/claude|anthropic/.test(location.hostname)) {
+  const loadLive = async () => { try { const r = await fetch("/api/plan", {cache: "no-store"}); if (!r.ok) return; const j = await r.json(); if (j && j.data && j.v !== loadLive.v) { loadLive.v = j.v; applyPlanData(j.data); reloadPlan(); if (!typing() && !state.upd) render(); } } catch (e) {} };
+  loadLive(); setInterval(() => { if (document.visibilityState === "visible") loadLive(); }, 60000);
+}
 (async () => {
   try {
     const db = window.claude && window.claude.use ? await window.claude.use("db") : null;

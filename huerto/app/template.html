@@ -937,6 +937,12 @@ try { const v = localStorage.getItem("huerto-vista"); if (v && views[v]) state.v
 try { const z = localStorage.getItem("huerto-zona"); if (z) state.zone = z; } catch (e) {}
 const hv = location.hash.replace("#", ""); if (views[hv]) state.view = hv;
 render();
+// Plan vivo: en la versión web se carga de /api/plan (lo editan Eric, Melanie y Claude); si no hay, queda el del código.
+function reloadPlan(){ const np = buildPlan(); for (const k of Object.keys(plan)) delete plan[k]; Object.assign(plan, np); }
+if (location.protocol.startsWith("http") && !/claude|anthropic/.test(location.hostname)) {
+  const loadLive = async () => { try { const r = await fetch("/api/plan", {cache: "no-store"}); if (!r.ok) return; const j = await r.json(); if (j && j.data && j.v !== loadLive.v) { loadLive.v = j.v; applyPlanData(j.data); reloadPlan(); if (!typing() && !state.upd) render(); } } catch (e) {} };
+  loadLive(); setInterval(() => { if (document.visibilityState === "visible") loadLive(); }, 60000);
+}
 (async () => {
   try {
     const db = window.claude && window.claude.use ? await window.claude.use("db") : null;
