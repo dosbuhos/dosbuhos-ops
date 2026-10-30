@@ -64,7 +64,7 @@ summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space
     <h2>Crew</h2>
     <p class="sub">Who gives and who receives work orders. Receivers appear as name buttons when you assign (tap one or two). The tag is what goes in Excellovint's ASIG column; old initials listed as aliases still match.</p>
     <div id="crew"></div>
-    <div class="add" style="flex-wrap:wrap" id="crewAdd"><input id="cName" placeholder="First name" style="flex:2 1 140px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit"><select id="cRole" style="flex:1 1 130px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit;background:#fff"><option value="receiver">Receives orders</option><option value="assigner">Assigns orders</option></select><button class="btn primary" id="cAdd">Add</button></div>
+    <div class="add" style="flex-wrap:wrap" id="crewAdd"><input id="cName" placeholder="First name" style="flex:2 1 140px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit"><select id="cRole" style="flex:1 1 130px;border:1px solid var(--rule);border-radius:8px;padding:10px;font:inherit;background:#fff"><option value="receiver">Receives orders</option><option value="assigner">Assigns orders</option><option value="both">Assigns + receives</option></select><button class="btn primary" id="cAdd">Add</button></div>
   </section>
   <section id="usersSec" hidden>
     <h2>Users</h2>
@@ -119,8 +119,8 @@ summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space
   const tagOf = n => String(n).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   async function loadCrew() {
     const j = await (await fetch('/api/db/staff')).json();
-    crew = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)).sort((a, b) => (a.role === b.role ? 0 : a.role === 'assigner' ? -1 : 1) || (a.order || 0) - (b.order || 0));
-    $('#crew').innerHTML = crew.length ? crew.map(c => `<div class="note"><div style="flex:1"><b>${esc(c.name)}</b> <span style="color:var(--muted)">· ${c.role === 'assigner' ? 'assigns' : 'receives'} · tag ${esc(c.tag)}${(c.aliases || []).length ? ' · also ' + esc(c.aliases.join(', ')) : ''}</span></div><button class="x" data-cdel="${esc(c.id)}" aria-label="Remove">×</button></div>`).join('') : '<div class="empty">No crew yet.</div>';
+    crew = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)).sort((a, b) => ((a.role === 'receiver') - (b.role === 'receiver')) || (a.order || 0) - (b.order || 0));
+    $('#crew').innerHTML = crew.length ? crew.map(c => `<div class="note"><div style="flex:1"><b>${esc(c.name)}</b> <span style="color:var(--muted)">· ${c.role === 'assigner' ? 'assigns' : c.role === 'both' ? 'assigns + receives' : 'receives'} · tag ${esc(c.tag)}${(c.aliases || []).length ? ' · also ' + esc(c.aliases.join(', ')) : ''}</span></div><button class="x" data-cdel="${esc(c.id)}" aria-label="Remove">×</button></div>`).join('') : '<div class="empty">No crew yet.</div>';
   }
   $('#cAdd').onclick = async () => {
     const name = $('#cName').value.trim(); if (!name) return; const tag = tagOf(name);
