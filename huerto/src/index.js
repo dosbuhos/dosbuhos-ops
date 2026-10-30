@@ -67,7 +67,7 @@ export default {
         if (b.del) { await env.DB.prepare('DELETE FROM camas WHERE id=?').bind(Number(b.del)).run(); return json({ ok: true }); }
         const m = Number(b.m), pos = b.pos == null ? null : Number(b.pos);
         const okDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
-        if (!/^[AB]\d{1,2}$/.test(b.cama || '') || !['limpia', 'lista', 'sembrada'].includes(b.estado) || !(m > 0 && m <= 10) || !okDate(b.fecha)) return json({ error: 'Datos inválidos' }, 400);
+        if (!/^[ABI]\d{1,2}$/.test(b.cama || '') || !['limpia', 'lista', 'sembrada'].includes(b.estado) || !(m > 0 && m <= 10) || !okDate(b.fecha)) return json({ error: 'Datos inválidos' }, 400);
         const r = await env.DB.prepare('INSERT INTO camas (cama, estado, m, pos, cultivo, fecha, cosecha) VALUES (?,?,?,?,?,?,?)')
           .bind(b.cama, b.estado, m, pos, String(b.cultivo || '').slice(0, 40), b.fecha, okDate(b.cosecha) ? b.cosecha : '').run();
         return json({ ok: true, id: String(r.meta.last_row_id) });

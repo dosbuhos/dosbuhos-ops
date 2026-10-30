@@ -4,6 +4,8 @@ const BEDS = (() => {
   const b = [];
   for (let i = 1; i <= 24; i++) b.push({id: "A" + i, area: 5, len: 5, sec: "A", q: ["A-NO","A-NE","A-SO","A-SE"][Math.floor((i - 1) / 6)]});
   for (let i = 1; i <= 10; i++) b.push({id: "B" + i, area: 13.3, len: 9.5, sec: "B", q: i <= 5 ? "B-O" : "B-E"});
+  // Invernaderos VEVOR (8.3 × 2.9 m) entre las secciones, a cada lado del pasillo central: 2 camas de 1 × 8 m cada uno.
+  for (let i = 1; i <= 4; i++) b.push({id: "I" + i, area: 8, len: 8, sec: "I", q: "I"});
   return b;
 })();
 const BED = Object.fromEntries(BEDS.map(b => [b.id, b]));
@@ -39,7 +41,7 @@ function buildPlan() {
     const tray = !ex && ((c.met === "plántula" && !direct) || !!opt.t);
     const char = opt.char ?? c.char;
     const esp = opt.esp ?? c.esp;
-    const h0 = ex ? wk(ex[0]) : opt.t ? s + Math.ceil((opt.tsem ?? 3) * factor(sow, c)) : s + Math.ceil((c.sem + (direct && c.char ? c.char : 0)) * factor(sow, c));
+    const h0 = ex ? wk(ex[0]) : opt.t ? s + Math.ceil((opt.tsem ?? 3) * (B.sec === "I" ? 1 : factor(sow, c))) : s + Math.ceil((c.sem + (direct && c.char ? c.char : 0)) * (B.sec === "I" ? 1 : factor(sow, c)));
     const h1 = ex ? wk(ex[1]) : h0 + c.dur - 1;
     const plants = esp ? c.rows * Math.floor(m / esp) : 0;
     const cells = tray ? Math.ceil(plants * 1.3) : 0;

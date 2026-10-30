@@ -188,7 +188,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">34 camas · 253 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión /*BUILD*/</div>
+    <div class="facts">38 camas · 285 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión /*BUILD*/</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
     <button role="tab" data-v="hoy">Hoy</button>
@@ -247,7 +247,7 @@ function toast(msg){ const t = document.createElement("div"); t.className = "toa
 
 /* ---------- mapa ---------- */
 const Y0 = 93.5, X0 = 11.5;
-const ZONES = [["todo", "Todo"], ["A-NO", "A1–A6"], ["A-NE", "A7–A12"], ["A-SO", "A13–A18"], ["A-SE", "A19–A24"], ["B", "Sección B"]];
+const ZONES = [["todo", "Todo"], ["A-NO", "A1–A6"], ["A-NE", "A7–A12"], ["A-SO", "A13–A18"], ["A-SE", "A19–A24"], ["B", "Sección B"], ["I", "Invernaderos"]];
 function zoneBox(z){
   if (!z || z === "todo") return [0, 0, 39, 91];
   const ids = BEDS.filter(b => z === "B" ? b.sec === "B" : b.q === z).map(b => b.id);
@@ -269,8 +269,9 @@ function mapSVG(opts){
   for (const t of GEO.trees) s += `<circle class="tree" cx="${t[0]-X0}" cy="${Y0-t[1]}" r="1.3"/>`;
   const [fx, fy, fr] = GEO.fuente;
   s += `<circle cx="${fx-X0}" cy="${Y0-fy}" r="${fr}" fill="var(--water)" stroke="var(--water-ink)" stroke-width=".1"/><text class="feat" x="${fx-X0}" y="${Y0-fy+.2}" text-anchor="middle" fill="var(--water-ink)">fuente</text>`;
-  // tinas de hierro
-  for (const [x, lab] of [[27.4, "Tina O · menta"], [34.7, "Tina E · flores"]]) s += `<circle cx="${x-X0}" cy="${Y0-31.6}" r=".85" fill="var(--sunk)" stroke="var(--fg)" stroke-width=".08"/><text class="feat" x="${x-X0}" y="${Y0-31.6+1.75}" text-anchor="middle">${lab}</text>`;
+  // invernaderos VEVOR (donde estaban las tinas)
+  for (const [x, y, w, h, lab] of (GEO.tuneles || [])) s += `<rect x="${x-X0}" y="${Y0-y-h}" width="${w}" height="${h}" rx=".5" fill="none" stroke="var(--water-ink)" stroke-width=".12" stroke-dasharray=".4 .25"/><text class="feat" x="${x-X0+w/2}" y="${Y0-y+1.1}" text-anchor="middle">${lab}</text>`;
+  if (false) for (const [x, lab] of []) s += `<circle cx="${x-X0}" cy="${Y0-31.6}" r=".85" fill="var(--sunk)" stroke="var(--fg)" stroke-width=".08"/><text class="feat" x="${x-X0}" y="${Y0-31.6+1.75}" text-anchor="middle">${lab}</text>`;
   s += `<text class="seclab" x="${31.03-X0}" y="${Y0-91.4}" text-anchor="middle">Sección A · granados</text>`;
   s += `<text class="seclab" x="${31.03-X0}" y="${Y0-4.4}" text-anchor="middle">Sección B · limones eureka</text>`;
   s += `<text class="feat" x="1.4" y="1.8">↑ N</text>`;
@@ -322,7 +323,7 @@ function bedTimeline(bedId){
   const list = plan.byBed[bedId] || [];
   const b = BED[bedId];
   return `<div class="bedinfo" style="display:flex;flex-direction:column;gap:12px">
-    <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
+    <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : b.sec === "I" ? "1 × 8 m dentro del invernadero (tramos de oeste a este)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
     ${bedReal(bedId)}
     <h3 style="margin:2px 0 -4px">Plan del año</h3>
     <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
