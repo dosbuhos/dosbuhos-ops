@@ -270,7 +270,12 @@ function mapSVG(opts){
   const [fx, fy, fr] = GEO.fuente;
   s += `<circle cx="${fx-X0}" cy="${Y0-fy}" r="${fr}" fill="var(--water)" stroke="var(--water-ink)" stroke-width=".1"/><text class="feat" x="${fx-X0}" y="${Y0-fy+.2}" text-anchor="middle" fill="var(--water-ink)">fuente</text>`;
   // invernaderos VEVOR (donde estaban las tinas)
-  for (const [x, y, w, h, lab] of (GEO.tuneles || [])) s += `<rect x="${x-X0}" y="${Y0-y-h}" width="${w}" height="${h}" rx=".5" fill="none" stroke="var(--water-ink)" stroke-width=".12" stroke-dasharray=".4 .25"/><text class="feat" x="${x-X0+w/2}" y="${Y0-y+1.1}" text-anchor="middle">${lab}</text>`;
+  for (const [x, y, w, h, lab] of (GEO.tuneles || [])) {
+    const gx = x - X0, gy = Y0 - y - h;
+    s += `<rect x="${gx}" y="${gy}" width="${w}" height="${h}" rx="1" fill="#7cc4a0" fill-opacity=".35" stroke="#3f8f6a" stroke-width=".14"/>`;
+    for (let k = 1; k < 7; k++) s += `<line x1="${gx + k * w / 7}" y1="${gy + .08}" x2="${gx + k * w / 7}" y2="${gy + h - .08}" stroke="#3f8f6a" stroke-opacity=".55" stroke-width=".07"/>`;
+    s += `<text class="feat" x="${gx + w / 2}" y="${Y0 - y + 1.1}" text-anchor="middle">${lab}</text>`;
+  }
   if (false) for (const [x, lab] of []) s += `<circle cx="${x-X0}" cy="${Y0-31.6}" r=".85" fill="var(--sunk)" stroke="var(--fg)" stroke-width=".08"/><text class="feat" x="${x-X0}" y="${Y0-31.6+1.75}" text-anchor="middle">${lab}</text>`;
   s += `<text class="seclab" x="${31.03-X0}" y="${Y0-91.4}" text-anchor="middle">Sección A · granados</text>`;
   s += `<text class="seclab" x="${31.03-X0}" y="${Y0-4.4}" text-anchor="middle">Sección B · limones eureka</text>`;
