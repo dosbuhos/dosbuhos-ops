@@ -1,3 +1,4 @@
+import { mcpRoute } from './mcp.js';
 // Huerto Dos Búhos: sirve la app pública (public/) y una API mínima para tareas hechas y registro de cosecha.
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
@@ -12,6 +13,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const p = url.pathname;
+    // Servidor MCP remoto para el Claude de cada persona (/mcp y su OAuth); ver src/mcp.js.
+    if (p === '/mcp' || p.startsWith('/oauth/') || p.startsWith('/.well-known/')) { const r = await mcpRoute(request, env, url); if (r) return r; }
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       if (p === '/api/pin' && request.method === 'POST') return json({ ok: await pinOk(request, env) });
