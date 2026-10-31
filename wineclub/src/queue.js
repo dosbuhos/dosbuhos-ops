@@ -4,7 +4,7 @@ import { esc, fdate, chip, page, STATUS_LABEL, MESES } from './ui.js';
 import { addDays, weekdayMon0, daysBetween } from './schedule.js';
 import { allOccurrences } from './data.js';
 import { recordedPending, inboxReason } from './visibility.js';
-import { billingSummary } from './billing.js';
+import { buildAlerts } from './alerts.js';
 import { okBanner, attribution } from './pages.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -18,6 +18,7 @@ export const unconfirmed = (o) => o.state === 'overdue' && !recordedPending(o);
 const dueNow = (o, today) => o.state === 'today' || o.state === 'exception' || (o.state === 'overdue' && recordedPending(o)) || (o.state === 'held' && o.holdReleaseDue);
 
 function whenText(o, today) {
+  if (o.state === 'done') return `${o.f?.status === 'shipped' || o.f?.status === 'delivered' ? 'Enviado' : 'Entregado'} ${o.f?.done_on ? fdate(o.f.done_on, today, { weekday: false }) : ''}`.trim();
   if (o.state === 'held') return o.holdReleaseDue ? 'Resguardo · ya puede salir' : 'En resguardo en bodega';
   const d = daysBetween(today, o.eff);
   if (d === 0) return 'Hoy';
@@ -48,7 +49,7 @@ export function qrow(o, today, { action = null, back = '/' } = {}) {
     <form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="status" value="needs_prep"><input type="hidden" name="back" value="${esc(back)}"><button class="qbtn ghost">Pendiente</button></form>`;
   return `<article class="qrow ${tone}${action === 'confirm' ? ' confirm' : ''}" id="e${o.subId}-${o.k}">
     <a class="qmain" href="${shipHref(o)}">
-      <span class="qwhen">${esc(whenText(o, today))}${o.state !== 'held' && daysBetween(today, o.eff) < 0 ? ` <span class="muted">· ${esc(fdate(o.eff, today, { weekday: false }))}</span>` : ''}</span>
+      <span class="qwhen">${esc(whenText(o, today))}${o.state !== 'held' && o.state !== 'done' && daysBetween(today, o.eff) < 0 ? ` <span class="muted">· ${esc(fdate(o.eff, today, { weekday: false }))}</span>` : ''}</span>
       <span class="name">${esc(s.member_name)}</span><span class="meta">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')} · ${how}</span>
       ${chips.length ? `<span class="chips">${chips.join('')}</span>` : ''}
     </a>
@@ -78,15 +79,9 @@ export function queuePage({ env, user, ctx, url, okAudit }) {
   const byMonth = new Map();
   for (const o of later) { const key = o.eff.slice(0, 7); if (!byMonth.has(key)) byMonth.set(key, []); byMonth.get(key).push(o); }
 
-  const alerts = [];
-  if (paymentBlocked) alerts.push(`<a class="alert red" href="/envios?f=cobro"><b>${plural(paymentBlocked, 'caja bloqueada', 'cajas bloqueadas')} por pago</b><span>No entregar hasta revisar el pago.</span></a>`);
-  if (blocked.length) alerts.push(`<a class="alert red" href="${user.isManager ? '/conciliar' : '#bloqueados'}"><b>Calendarios bloqueados: ${plural(blocked.length, 'socio', 'socios')} sin club</b><span>Sus envíos no aparecen aquí hasta asignar su club${user.isManager ? '. Toca para resolver.' : '. Avisa a un administrador.'}</span></a>`);
-  if (user.isManager && sync && !sync.ok) alerts.push(`<a class="alert amber" href="/ajustes"><b>Stripe no se sincronizó</b><span>${esc(sync.error)}</span></a>`);
-
+  const alertList = buildAlerts(ctx, user);
   const body = `
   ${okBanner(okAudit, today)}
-  ${billingSummary(ctx)}
-  ${alerts.join('')}
   <div class="tiles">
     <a class="tile ${now.length ? 'wine' : ''}" href="#entregar"><div class="v">${now.length}</div><div class="l">Por entregar ahora</div></a>
     <a class="tile ${toConfirm.length ? 'red' : ''}" href="/confirmar"><div class="v">${toConfirm.length}</div><div class="l">Por confirmar${blocked.length ? ' · incompleto' : ''}</div></a>
@@ -121,7 +116,7 @@ export function queuePage({ env, user, ctx, url, okAudit }) {
       <div class="s">${esc(s.product_name || 'sin producto')} · ${esc(s.status)}</div></div>${chip('Resolver', 'red')}</a>`).join('')}</div></details>` : ''}
   <p class="center small"><a href="/preguntar">Pregúntale al club (asistente)</a></p>
   ${QCSS}`;
-  return page({ title: 'Por entregar', body, user, env, tab: 'agenda' });
+  return page({ title: 'Por entregar', body, user, env, tab: 'agenda', alerts: alertList.length, alertsRed: alertList.filter(a => a.tone === 'red').length });
 }
 
 // ---------- catch-up: past dates nobody recorded ----------
@@ -140,7 +135,7 @@ export function confirmPage({ env, user, ctx, url, okAudit }) {
   return page({ title: 'Ponerse al día', body, user, env, tab: 'agenda' });
 }
 
-const QCSS = `<style>
+export const QCSS = `<style>
 .qh{display:flex;align-items:baseline;gap:8px;font-size:15px;font-weight:800;margin:22px 0 8px;color:var(--ink)}
 .qh .n{font-size:13px;color:var(--muted);font-weight:700}
 .qrow{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;margin:8px 0;overflow:hidden}

@@ -49,6 +49,9 @@ export function stateLabel(o) {
 export const chip = (text, tone = 'grey') => `<span class="chip ${tone}">${esc(text)}</span>`;
 
 const CSS = `
+.bell{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin-left:auto;color:#fff;flex:none}.bell svg{width:24px;height:24px}
+.bell .bdg{position:absolute;top:4px;right:2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#fff;color:var(--wine);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}.bell .bdg.r{background:#ffd7d2;color:var(--red)}
+.top .who{max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .benefit-stepper{display:flex;align-items:center;gap:12px;margin-top:12px}
 .work-member{font-size:18px;font-weight:700;overflow-wrap:anywhere;text-underline-offset:3px}
 .member-filters{margin-bottom:12px}
@@ -194,9 +197,9 @@ const r=await fetch(ph.dataset.url,{method:'POST',body:fd});if(!r.ok)throw new E
 catch(err){st.textContent='No se pudo subir: '+err.message}})}
 `;
 
-export function page({ title, body, user, env, tab = '' }) {
+export function page({ title, body, user, env, tab = '', alerts = null, alertsRed = 0 }) {
   const envTag = env.APP_ENV && env.APP_ENV !== 'production' ? `<span class="env">${esc(env.APP_ENV)}</span>` : '';
-  const nav = [['/', 'agenda', 'Agenda'], ['/envios', 'envios', 'Envíos'], ['/socios', 'socios', 'Socios'], ['/clubes', 'clubes', 'Clubes']];
+  const nav = [['/', 'agenda', 'Agenda'], ['/calendario', 'envios', 'Envíos'], ['/socios', 'socios', 'Socios'], ['/clubes', 'clubes', 'Clubes']];
   if (user?.isManager) nav.push(['/ajustes', 'ajustes', 'Ajustes']);
   return new Response(`<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -204,7 +207,7 @@ export function page({ title, body, user, env, tab = '' }) {
 <title>${esc(title)} · Club Dos Búhos</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236b2737'/%3E%3Ctext x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='Georgia'%3EDB%3C/text%3E%3C/svg%3E">
 <style>${CSS}</style></head><body>
-<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<a class="who" href="/auth/salir" style="color:#fff;text-decoration:none" title="Salir">${esc(user.email)}</a>` : ''}</header>
+<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<a class="bell" href="/avisos" aria-label="Avisos${alerts ? ': ' + alerts : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>${alerts ? `<span class="bdg${alertsRed ? ' r' : ''}">${alerts}</span>` : ''}</a><a class="who" href="/auth/salir" style="color:#fff;text-decoration:none" title="Salir">${esc(user.email)}</a>` : ''}</header>
 <main>${body}</main>
 ${user ? `<nav class="navbar">${nav.map(([href, k, label]) => `<a href="${href}" class="${tab === k ? 'on' : ''}">${ICON[k]}<span>${label}</span></a>`).join('')}</nav>` : ''}
 <script>${SCRIPT}</script></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'same-origin' } });

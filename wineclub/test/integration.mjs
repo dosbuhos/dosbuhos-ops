@@ -438,6 +438,25 @@ try {
     assert.equal(q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n,before);
   });
 
+  await check('member view, calendar and avisos render; quick log records one box with an audit and refuses repeats or future dates', async () => {
+    const socios = await get('/socios?f=todos');
+    assert.match(socios, /class="pills"/);
+    assert.match(await get('/calendario'), /Semana del/);
+    assert.match(await get('/avisos'), /<h1>Avisos<\/h1>/);
+    const open = [...socios.matchAll(/action="\/envio\/(\d+)\/(\d+)\/rapido"/g)].map(m => [m[1], m[2]])
+      .find(([s, k]) => !q(`SELECT status FROM fulfillments WHERE subscription_id=${s} AND k=${k} AND status IS NOT NULL`).length);
+    assert.ok(open, 'an open box offers the quick form');
+    const [s, k] = open, path = `/envio/${s}/${k}/rapido`;
+    const version = String(q(`SELECT version FROM fulfillments WHERE subscription_id=${s} AND k=${k}`)[0]?.version || 0);
+    assert.equal((await post(path, { version, como: 'pickup', done_on: '2099-01-01', back: '/socios' })).status, 400, 'future date refused');
+    const r = await post(path, { version, como: 'pickup', done_on: '2026-10-10', order_ref: 'OV-RAPIDO', back: '/socios' });
+    assert.equal(r.status, 303); assert.match(r.headers.get('location'), /^\/socios\?ok=\d+#e/);
+    const f = q(`SELECT * FROM fulfillments WHERE subscription_id=${s} AND k=${k}`)[0];
+    assert.equal(f.status, 'handed'); assert.equal(f.done_on, '2026-10-10'); assert.equal(f.order_ref, 'OV-RAPIDO'); assert.equal(f.method, 'pickup');
+    assert.ok(q(`SELECT COUNT(*) n FROM audit_log WHERE entity='fulfillment' AND entity_id='${s}:${k}' AND action LIKE '%registro rápido%'`)[0].n >= 1);
+    assert.equal((await post(path, { version: String(f.version), como: 'pickup', done_on: '2026-10-11', back: '/socios' })).status, 400, 'already recorded');
+  });
+
   console.log(`\n${passed} integration checks passed`);
 } catch (e) {
   console.error('FAILED:', e.stack, e.cause?.code || e.cause?.message || ''); process.exitCode = 1;

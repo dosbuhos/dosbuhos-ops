@@ -261,7 +261,7 @@ export function membersPage({ env, user, ctx, members, url }) {
   const clubsOpts = [...ctx.clubs.values()].filter(c => c.active).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const body = `<h1>Socios <span class="muted small">${active.length} activos</span></h1>
   <p class="small"><a href="/alertas">Alertas de cobro (${billingIssues(ctx).length}) →</a></p>
-  <nav class="chips member-filters" aria-label="Filtrar socios por estado">${filters.map(([key,label])=>`<a class="chip ${key==='contactar'?'amber':key==='suspendidos'?'red':filter===key?'wine':''}" ${filter===key?'aria-current="page"':''} href="/socios?f=${key}" style="text-decoration:none;padding:10px 14px">${label} (${groups[key].length})</a>`).join('')}</nav>
+  <nav class="chips member-filters" aria-label="Filtrar socios por estado">${filters.map(([key,label])=>`<a class="chip ${key==='contactar'?'amber':key==='suspendidos'?'red':filter===key?'wine':''}" ${filter===key?'aria-current="page"':''} href="/socios/lista?f=${key}" style="text-decoration:none;padding:10px 14px">${label} (${groups[key].length})</a>`).join('')}</nav>
   ${filter==='archivados'?'<p class="small muted">Suscripciones terminadas. Se conserva todo el historial; las cajas antiguas pendientes siguen disponibles en Envíos.</p>':''}
   <div class="search"><input id="q" type="search" placeholder="Buscar nombre, teléfono, correo o club" aria-label="Buscar socios" autocomplete="off" value="${esc(query)}"></div>
   <p id="search-results" class="small muted" aria-live="polite">${list.length} socios en este filtro</p>
