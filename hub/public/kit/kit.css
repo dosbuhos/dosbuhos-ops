@@ -275,3 +275,27 @@ body.login { min-height: 100vh; display: flex; align-items: center; justify-cont
 .noresults { padding: 22px 4px; color: var(--muted); }
 .noresults b { color: var(--ink); }
 .offline { margin: 0 0 14px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--warn); font-size: 14px; }
+
+/* ======================================================================
+   Pass 2: segmented role picker, avatars, back link, placeholder panels
+   ====================================================================== */
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--paper-2); padding: 2px; gap: 2px; }
+.seg button { min-height: 40px; min-width: 44px; padding: 0 12px; border: 0; border-radius: 4px; background: none; color: var(--muted); font: 500 13.5px var(--f-body); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1.5px var(--ink); }
+.seg.full { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
+@media (min-width: 640px) { .seg.full { display: inline-grid; width: auto; grid-template-columns: repeat(4, auto); } }
+.seg button[aria-pressed="true"][data-v="admin"] { color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+.seg button[aria-pressed="true"][data-v=""] { color: var(--muted); box-shadow: 0 0 0 1px var(--rule); font-weight: 500; }
+.seg button:disabled { opacity: .5; cursor: default; }
+.avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font: 600 15px var(--f-body); letter-spacing: .02em; }
+.avatar.lg { width: 52px; height: 52px; font-size: 19px; }
+.avatar.off { background: var(--paper-2); color: var(--muted); }
+.back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--muted); text-decoration: none; font-size: 14px; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+.future { display: grid; gap: 12px; }
+.future .lead { max-width: 60ch; }
+.future .ghost { display: grid; gap: 8px; }
+.future .ghost > div { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px; background: var(--paper); border: 1px dashed var(--rule); border-radius: var(--radius); color: var(--muted); }
+.future .ghost b { color: var(--ink); font-weight: 500; }
+.future .ghost .r { margin-left: auto; text-align: right; font-size: 12.5px; }
+
+@media (max-width: 560px) { .tabs { gap: 0; justify-content: space-between; } .tabs a { font-size: 16px; padding: 8px 4px; } }

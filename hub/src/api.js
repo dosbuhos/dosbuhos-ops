@@ -67,7 +67,11 @@ export async function api(request, env, url, user) {
       if (email === user.email && (!isAdmin || !active)) return J({ code: 'bad_request', message: 'You cannot lock yourself out.' }, 400);
       await env.DB.prepare('UPDATE users SET name = ?, is_admin = ?, active = ? WHERE email = ?').bind(name, isAdmin, active, email).run();
       if (!active) await env.DB.prepare('DELETE FROM sessions WHERE email = ?').bind(email).run();
-      await audit(env, user.email, 'user.update', email, { name, is_admin: !!isAdmin, active: !!active });
+      const changed = {};
+      if (name !== u.name) changed.name = name;
+      if (isAdmin !== u.is_admin) changed.is_admin = !!isAdmin;
+      if (active !== u.active) changed.active = !!active;
+      if (Object.keys(changed).length) await audit(env, user.email, 'user.update', email, changed);
       return J({ ok: true });
     }
     if (m === 'DELETE') {
@@ -88,14 +92,16 @@ export async function api(request, env, url, user) {
     const a = await env.DB.prepare('SELECT slug FROM apps WHERE slug = ?').bind(slug).first();
     if (!u || !a) return J({ code: 'not_found' }, 404);
     if (b.role === null || b.role === '' || b.role === undefined) {
+      const prev = await env.DB.prepare('SELECT role FROM grants WHERE email = ? AND slug = ?').bind(email, slug).first();
       await env.DB.prepare('DELETE FROM grants WHERE email = ? AND slug = ?').bind(email, slug).run();
-      await audit(env, user.email, 'grant.remove', email, { slug });
+      if (prev) await audit(env, user.email, 'grant.remove', email, { slug, from: prev.role });
       return J({ ok: true, role: null });
     }
     if (!ROLES.has(b.role)) return J({ code: 'bad_request', message: 'Role must be admin, editor or viewer.' }, 400);
+    const prev = await env.DB.prepare('SELECT role FROM grants WHERE email = ? AND slug = ?').bind(email, slug).first();
     await env.DB.prepare('INSERT INTO grants (email, slug, role, granted_by, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email, slug) DO UPDATE SET role = excluded.role, granted_by = excluded.granted_by')
       .bind(email, slug, b.role, user.email, Date.now()).run();
-    await audit(env, user.email, 'grant.set', email, { slug, role: b.role });
+    await audit(env, user.email, 'grant.set', email, { slug, role: b.role, from: prev ? prev.role : null });
     return J({ ok: true, role: b.role });
   }
   if (p === '/api/admin/apps' && m === 'GET') {
@@ -137,7 +143,8 @@ export async function api(request, env, url, user) {
       if (!(await env.DB.prepare('SELECT slug FROM sections WHERE slug = ?').bind(next.section).first())) return J({ code: 'bad_request', message: 'Unknown section.' }, 400);
       await env.DB.prepare('UPDATE apps SET name = ?, section = ?, description = ?, status = ?, mode = ?, url = ?, binding = ?, public = ?, sort = ? WHERE slug = ?')
         .bind(next.name, next.section, next.description, next.status, next.mode, next.url, next.binding, next.public, next.sort, slug).run();
-      await audit(env, user.email, 'app.update', slug, next);
+      const changed = Object.fromEntries(Object.entries(next).filter(([k, v]) => v !== a[k]));
+      if (Object.keys(changed).length) await audit(env, user.email, 'app.update', slug, changed);
       return J({ ok: true });
     }
     if (m === 'DELETE') {

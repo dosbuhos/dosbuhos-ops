@@ -39,7 +39,7 @@ export default {
     }
     if (p === '/admin' || p === '/admin.html') return Response.redirect(url.origin + '/admin/', 302);
     if (p.startsWith('/admin/')) {
-      if (!user.admin) return denied('Hub admin');
+      if (!user.admin) return denied('la administración del Hub');
       return assets(request, env, 'no-store', '/admin.html');
     }
     if (p === '/' || p === '/index.html') return assets(request, env, 'no-store', '/index.html');

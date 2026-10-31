@@ -37,3 +37,12 @@ Phone gets a single-column list (rows ≥ 64 px), desktop a grid — research: l
 ## Standing rule (Eric, Oct 30): on mobile everything is vertical
 
 No horizontal scrolling anywhere on a phone: no scrolling chip bars, carousels or wide tables. Chips wrap; lists stack; tables become cards below 720 px. `html, body { overflow-x: clip }` in the kit is the safety net, not the fix.
+
+## Pass 2 — admin (Oct 30 2026)
+
+- **People:** list ⇄ person on phones (one screen at a time, "‹ Everyone" back), side by side on desktop. Search by name or email, initials avatars, last sign-in in words. Adding a person is a 2-field form that lands straight on their access screen.
+- **Access:** a 4-way picker per app (None / View / Edit / Admin), full width on phones with 40px+ targets, a one-line meaning for each role above the list, "Set all" per section. Confirmation only where it matters: making someone an app admin or a Hub admin, removing a person.
+- **Apps:** the spreadsheet is gone. One card per app grouped by section; tap to open its fields, with plain labels ("How it opens", not "mode").
+- **Activity:** the audit log reads as sentences ("Eric changed Jimena on Calendario de bodega from Viewer → Editor"), grouped by day in San Miguel time, filter by who and by kind of change. The API now records only what changed and the previous role.
+- **Secrets / Health:** designed placeholders that show what phase 3 puts there.
+- Checked: no element scrolls sideways at 360 px on any tab; tabs fit one line from 360 px up and wrap below that.

@@ -10,200 +10,364 @@
 <link rel="stylesheet" href="/kit/kit.css">
 <link rel="icon" href="/icon-192.png">
 <style>
-  .people { display: grid; grid-template-columns: 1fr; gap: 14px; }
-  @media (min-width: 900px) { .people { grid-template-columns: 340px 1fr; align-items: start; } }
+  /* People: list + detail. Phone shows one at a time; desktop shows both. */
+  .people { display: grid; gap: 16px; }
+  @media (min-width: 900px) { .people { grid-template-columns: 340px 1fr; align-items: start; } .people .back { display: none; } }
+  @media (max-width: 899px) { .people.has-sel .plist-col { display: none; } .people:not(.has-sel) .detail-col { display: none; } }
   .plist { display: flex; flex-direction: column; gap: 6px; }
-  .person { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
-  .person[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .person { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+  .person[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .person .who { flex: 1; min-width: 0; }
   .person .who b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .person .who small { color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .person.off { opacity: .55; }
-  .access-sec { margin: 0 0 14px; }
-  .access-sec h3 { font-family: var(--f-display); font-size: 18px; font-weight: 600; padding-left: 10px; border-left: 3px solid var(--k, var(--rule)); margin: 0 0 6px; }
-  .access-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
-  .access-row:last-child { border-bottom: 0; }
-  .access-row .n { flex: 1; min-width: 0; }
-  .access-row .n small { color: var(--muted); display: block; }
-  .apps-table input, .apps-table select { min-height: 30px; padding: 3px 8px; font-size: 13px; }
-  .apps-table select { width: auto; min-width: 112px; padding-right: 24px; }
-  .apps-table td { padding: 6px 8px; }
-  .apps-table input.w-url { min-width: 220px; }
-  .apps-table input.w-sm { width: 64px; }
-  .apps-table input.w-md { width: 150px; }
-  .detail { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .person .who small { color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  .person.off { opacity: .6; }
+  .addp summary { list-style: none; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 1px dashed var(--rule); border-radius: var(--radius); cursor: pointer; font-weight: 500; color: var(--accent); }
+  .addp summary::-webkit-details-marker { display: none; }
+  .addp[open] summary { display: none; }
+
+  .phead { display: flex; align-items: center; gap: 14px; }
+  .phead .h-display { font-size: 26px; line-height: 1.05; }
+  .flags { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  .access-sec { padding: 12px 0; border-top: 1px solid var(--rule); }
+  .access-sec .sec-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .access-sec h3 { font-family: var(--f-display); font-size: 19px; font-weight: 600; padding-left: 10px; border-left: 3px solid var(--k, var(--rule)); }
+  .access-sec .bulk { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .access-sec .bulk select { min-height: 36px; }
+  .access-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+  @media (min-width: 640px) { .access-row { flex-direction: row; align-items: center; } .access-row .n { flex: 1; } }
+  .access-row .n b { font-weight: 500; }
+  .access-row .n small { color: var(--muted); display: block; font-size: 12.5px; }
+  .role-help { font-size: 12.5px; color: var(--muted); display: grid; gap: 2px; padding: 10px 12px; background: var(--paper-2); border-radius: var(--radius-sm); }
+
+  /* Apps: one card per app, editing opens inside it */
+  .appcard { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); position: relative; overflow: hidden; }
+  .appcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--k, var(--rule)); }
+  .appcard summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 14px 10px 18px; cursor: pointer; }
+  .appcard summary::-webkit-details-marker { display: none; }
+  .appcard summary .n { flex: 1; min-width: 0; }
+  .appcard summary .n b { font-family: var(--f-display); font-size: 19px; font-weight: 600; display: block; line-height: 1.1; }
+  .appcard summary .n small { color: var(--muted); font-size: 12.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .appcard .edit { display: grid; gap: 12px; padding: 4px 14px 16px 18px; border-top: 1px solid var(--rule); padding-top: 14px; }
+  .appcard .edit .grid2 { display: grid; gap: 12px; }
+  @media (min-width: 640px) { .appcard .edit .grid2 { grid-template-columns: 1fr 1fr; } }
+  .appgroup h3 { font-family: var(--f-display); font-size: 20px; font-weight: 600; margin: 8px 0 8px; }
+
+  /* Audit: day headers and sentences */
+  .filters { display: grid; gap: 10px; }
+  @media (min-width: 640px) { .filters { grid-template-columns: 1fr 1fr; } }
+  .day { font-family: var(--f-display); font-size: 19px; font-weight: 600; margin: 18px 0 6px; }
+  .ev { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
+  .ev .t { flex: none; width: 52px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); padding-top: 1px; }
+  .ev .s { flex: 1; min-width: 0; line-height: 1.45; }
+  .ev .s b { font-weight: 600; }
+  .ev .s .q { color: var(--muted); }
+  .ev.sys .s { color: var(--muted); }
+  .ev .tag { flex: none; }
+  .end { color: var(--muted); font-size: 13px; padding: 14px 0; }
 </style>
 </head>
 <body>
 <header class="topbar"><div class="topbar-in">
-  <a class="wordmark" href="/" aria-label="Dos Búhos"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
-  <span class="crumb">Hub admin</span>
+  <a class="wordmark" href="/" aria-label="Dos Búhos, home"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <span class="crumb">Admin</span>
   <span class="spacer"></span>
   <span class="who" id="who"></span>
-  <nav><a href="/">Home</a><a href="/auth/salir">Sign out</a></nav>
+  <nav><a href="/">Apps</a><a href="/auth/salir">Sign out</a></nav>
 </div></header>
 
 <main class="wrap">
   <nav class="tabs" id="tabs">
-    <a href="#people">People</a><a href="#apps">Apps</a><a href="#audit">Audit log</a><a href="#secrets">Secrets</a><a href="#health">App health</a>
+    <a href="#people">People</a><a href="#apps">Apps</a><a href="#audit">Activity</a><a href="#secrets">Secrets</a><a href="#health">Health</a>
   </nav>
   <div id="view"></div>
 </main>
-<div id="toast" class="toast" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
 
 <script>
 const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const when = ms => ms ? new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
-const ROLES = ['', 'viewer', 'editor', 'admin'];
-const ROLE_LABEL = { '': 'No access', viewer: 'Viewer', editor: 'Editor', admin: 'Admin' };
+const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const TZ = 'America/Mexico_City';
+const ROLES = [['', 'None'], ['viewer', 'View'], ['editor', 'Edit'], ['admin', 'Admin']];
+const ROLE_NAME = { viewer: 'Viewer', editor: 'Editor', admin: 'Admin' };
+const STATUS_NAME = { live: 'Live', import: 'To import', soon: 'Coming soon', hub: 'Hub page' };
+const MODE_NAME = { link: 'Opens its own address', proxy: 'Served through the Hub', internal: 'A Hub page' };
+const initials = u => { const n = (u.name || u.email).replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean); return ((n[0] || '?')[0] + (n.length > 1 ? n.at(-1)[0] : '')).toUpperCase(); };
+const ago = ms => { if (!ms) return 'never signed in'; const d = (Date.now() - ms) / 864e5; return d < 1 ? 'signed in today' : d < 2 ? 'signed in yesterday' : `signed in ${Math.floor(d)} days ago`; };
+
 let toastT;
-function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2800); }
 async function call(method, path, body) {
   const r = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { toast(j.message || `That did not work (${r.status}).`, true); throw new Error(j.message || r.status); }
+  if (r.status === 401) { location.href = '/?next=/admin/'; throw new Error('signed out'); }
+  if (!r.ok) { toast(j.message || `That didn't save (error ${r.status}). Try again.`, true); throw new Error(j.message || r.status); }
   return j;
 }
 
-const state = { me: null, users: [], apps: [], sections: [], selected: null };
-const views = { people, apps, audit, secrets: soon('Secrets', 'Phase 3: app secrets (write-only, bound to Workers) and team credentials (reveal on click, logged).'), health: soon('App health', 'Phase 3: every app\'s status, last deploy, errors, database size and who used it this week.') };
-
+const st = { me: null, users: [], apps: [], sections: [], sel: null, q: '' };
+const views = { people, apps, audit, secrets, health };
 async function route() {
-  const tab = (location.hash || '#people').slice(1);
-  for (const a of $('#tabs').children) a.toggleAttribute('aria-current', a.getAttribute('href') === '#' + tab);
-  $('#view').innerHTML = '<p class="muted">Loading…</p>';
-  try { await (views[tab] || views.people)(); } catch (e) { $('#view').innerHTML = `<div class="empty"><b>Could not load this page</b>${esc(e.message)}</div>`; }
+  const tab = (location.hash || '#people').slice(1).split('/')[0];
+  for (const a of $('#tabs').children) a.setAttribute('aria-current', a.getAttribute('href') === '#' + tab ? 'page' : 'false');
+  $('#view').innerHTML = '<div class="stack"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
+  try { await (views[tab] || people)(); }
+  catch (e) { if (e.message !== 'signed out') $('#view').innerHTML = `<div class="empty"><b>This page didn't load</b>Check the connection and reload. (${esc(e.message)})</div>`; }
 }
-window.addEventListener('hashchange', route);
+addEventListener('hashchange', route);
+(async () => { st.me = await call('GET', '/api/me'); $('#who').textContent = st.me.name || st.me.email; route(); })();
 
-(async () => {
-  state.me = await call('GET', '/api/me');
-  $('#who').textContent = state.me.name || state.me.email;
-  route();
-})();
-
-/* ---------------- People & access ---------------- */
-async function people() {
+async function loadAll() {
   const [u, a] = await Promise.all([call('GET', '/api/admin/users'), call('GET', '/api/admin/apps')]);
-  state.users = u.users; state.apps = a.apps; state.sections = a.sections;
-  if (state.selected && !state.users.some(x => x.email === state.selected)) state.selected = null;
+  st.users = u.users; st.apps = a.apps; st.sections = a.sections;
+}
+const appName = slug => (st.apps.find(a => a.slug === slug) || {}).name || slug;
+const personName = email => { const u = st.users.find(x => x.email === email); return u && u.name ? u.name : email; };
+
+/* ============================ People ============================ */
+async function people() {
+  await loadAll();
+  const hashSel = decodeURIComponent((location.hash.split('/')[1] || ''));
+  st.sel = hashSel && st.users.some(u => u.email === hashSel) ? hashSel : (matchMedia('(min-width: 900px)').matches ? st.sel : null);
   $('#view').innerHTML = `
-    <div class="people">
-      <div class="stack">
-        <form class="panel stack" id="addUser" autocomplete="off">
-          <div class="field"><span>Gmail address</span><input name="email" type="email" required placeholder="nombre@dosbuhos.com"></div>
-          <div class="field"><span>Name</span><input name="name" placeholder="How they appear in the apps"></div>
-          <div class="between"><label class="toggle"><input type="checkbox" name="is_admin"> Hub admin</label><button class="btn primary">Add person</button></div>
-        </form>
+    <div class="people ${st.sel ? 'has-sel' : ''}" id="people">
+      <div class="plist-col stack">
+        <details class="addp" id="addp"><summary>＋ Add a person</summary>
+          <form class="panel stack" id="addUser" autocomplete="off">
+            <div class="field"><span>Gmail address</span><input name="email" type="email" required inputmode="email" placeholder="nombre@dosbuhos.com"></div>
+            <div class="field"><span>Name, as the team knows them</span><input name="name" placeholder="Jimena"></div>
+            <p class="muted small" style="margin:0">They can sign in once you give them at least one app on the next screen.</p>
+            <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="addCancel">Cancel</button><button class="btn primary">Add and choose apps</button></div>
+          </form>
+        </details>
+        <label class="search" style="margin:0"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><input id="pq" type="search" placeholder="Find a person" value="${esc(st.q)}" aria-label="Find a person"></label>
         <div class="plist" id="plist"></div>
       </div>
-      <div id="access"></div>
+      <div class="detail-col" id="access"></div>
     </div>`;
+  $('#addCancel').onclick = () => $('#addp').open = false;
   $('#addUser').onsubmit = async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    const r = await call('POST', '/api/admin/users', { email: f.get('email'), name: f.get('name'), is_admin: !!f.get('is_admin') });
-    toast(`Added ${r.email}`); state.selected = r.email; people();
+    const r = await call('POST', '/api/admin/users', { email: f.get('email'), name: f.get('name') });
+    toast(`Added ${f.get('name') || r.email}. Now pick their apps.`); location.hash = '#people/' + encodeURIComponent(r.email);
   };
-  renderList(); renderAccess();
+  $('#pq').oninput = e => { st.q = e.target.value; renderList(); };
+  renderList(); renderPerson();
 }
 function renderList() {
-  $('#plist').innerHTML = state.users.map(u => `
-    <button class="person${u.active ? '' : ' off'}" data-email="${esc(u.email)}" aria-pressed="${state.selected === u.email}">
-      <span class="who"><b>${esc(u.name || u.email)}</b><small>${esc(u.email)} · ${u.grants.length} app${u.grants.length === 1 ? '' : 's'}${u.last_login ? ' · seen ' + when(u.last_login) : ' · never signed in'}</small></span>
-      ${u.is_admin ? '<span class="chip k k-admin">Hub admin</span>' : ''}${u.active ? '' : '<span class="chip bad">Locked</span>'}
-    </button>`).join('') || '<div class="empty"><b>Nobody yet</b>Add the first person with their Gmail.</div>';
-  for (const b of document.querySelectorAll('.person')) b.onclick = () => { state.selected = b.dataset.email; renderList(); renderAccess(); };
+  const q = fold(st.q.trim());
+  const list = st.users.filter(u => !q || fold(u.name + ' ' + u.email).includes(q));
+  $('#plist').innerHTML = list.map(u => `
+    <button class="person${u.active ? '' : ' off'}" data-email="${esc(u.email)}" aria-current="${st.sel === u.email}">
+      <span class="avatar${u.active ? '' : ' off'}" aria-hidden="true">${esc(initials(u))}</span>
+      <span class="who"><b>${esc(u.name || u.email)}</b><small>${u.is_admin ? 'Hub admin · every app' : `${u.grants.length} app${u.grants.length === 1 ? '' : 's'}`} · ${ago(u.last_login)}</small></span>
+      ${u.active ? '' : '<span class="chip bad">Locked</span>'}
+    </button>`).join('') || (q ? `<p class="muted">Nobody matches “${esc(st.q)}”.</p>` : '<div class="empty"><b>Nobody yet</b>Add the first person with their Gmail.</div>');
+  for (const b of $$('.person')) b.onclick = () => { location.hash = '#people/' + encodeURIComponent(b.dataset.email); };
 }
-function renderAccess() {
-  const u = state.users.find(x => x.email === state.selected);
+function renderPerson() {
+  const u = st.users.find(x => x.email === st.sel);
   const box = $('#access');
-  if (!u) { box.innerHTML = '<div class="empty"><b>Pick a person</b>Their apps and roles show here.</div>'; return; }
-  const me = u.email === state.me.email;
+  if (!u) { box.innerHTML = '<div class="empty"><b>Pick a person</b>Their apps and what they can do in each show here.</div>'; return; }
+  const self = u.email === st.me.email;
   const role = slug => (u.grants.find(g => g.slug === slug) || {}).role || '';
+  const grantable = s => st.apps.filter(a => a.section === s.slug && ['live', 'import'].includes(a.status));
   box.innerHTML = `
     <div class="panel stack">
-      <div class="between">
-        <div><div class="h-display" style="font-size:24px">${esc(u.name || u.email)}</div><div class="muted small">${esc(u.email)}</div></div>
-        <div class="row" style="align-items:center">
-          <label class="toggle"><input type="checkbox" id="uAdmin" ${u.is_admin ? 'checked' : ''} ${me ? 'disabled' : ''}> Hub admin</label>
-          <label class="toggle"><input type="checkbox" id="uActive" ${u.active ? 'checked' : ''} ${me ? 'disabled' : ''}> Active</label>
-          <button class="btn sm danger" id="uRemove" ${me ? 'disabled' : ''}>Remove</button>
-        </div>
-      </div>
+      <button class="back" id="back">‹ Everyone</button>
+      <div class="phead"><span class="avatar lg${u.active ? '' : ' off'}" aria-hidden="true">${esc(initials(u))}</span>
+        <div style="min-width:0"><div class="h-display">${esc(u.name || u.email)}</div><div class="muted small">${esc(u.email)} · ${ago(u.last_login)}</div></div></div>
       <div class="field"><span>Name</span><input id="uName" value="${esc(u.name)}" placeholder="Name"></div>
-      ${u.is_admin ? '<p class="muted small">Hub admins are admins in every app; the roles below only matter if that flag comes off.</p>' : ''}
-      <div>${state.sections.map(s => {
-        const apps = state.apps.filter(a => a.section === s.slug && a.status !== 'soon' && a.status !== 'hub');
-        if (!apps.length) return '';
-        return `<div class="access-sec k-${esc(s.slug)}"><h3>${esc(s.name)}</h3>${apps.map(a => `
-          <div class="access-row"><span class="n">${esc(a.name)}<small>${esc(a.description)}</small></span>
-            <select class="inline" data-slug="${esc(a.slug)}">${ROLES.map(r => `<option value="${r}" ${role(a.slug) === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>
-          </div>`).join('')}</div>`; }).join('')}
+      <div class="flags">
+        <label class="toggle"><input type="checkbox" id="uAdmin" ${u.is_admin ? 'checked' : ''} ${self ? 'disabled' : ''}> Hub admin (every app, plus this page)</label>
+        <label class="toggle"><input type="checkbox" id="uActive" ${u.active ? 'checked' : ''} ${self ? 'disabled' : ''}> Can sign in</label>
       </div>
+      ${u.is_admin ? '<p class="role-help">Hub admins can open and manage every app. The choices below only apply if you turn that off.</p>' : `
+      <div class="role-help"><span><b>View</b> — sees everything in the app, can't change anything.</span><span><b>Edit</b> — does the daily work: creates and updates records.</span><span><b>Admin</b> — also changes that app's settings and its people.</span></div>`}
+      <div>${st.sections.map(s => {
+        const apps = grantable(s); if (!apps.length) return '';
+        return `<div class="access-sec k-${esc(s.slug)}">
+          <div class="sec-top"><h3>${esc(s.name)}</h3>${apps.length > 1 ? `<label class="bulk"><span>Set all</span><select class="inline" data-bulk="${esc(s.slug)}" aria-label="Set the same access for every ${esc(s.name)} app"><option value="-">—</option>${ROLES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>` : ''}</div>
+          ${apps.map(a => `<div class="access-row"><span class="n"><b>${esc(a.name)}</b>${a.status === 'import' ? ' <span class="chip">To import</span>' : ''}<small>${esc(a.description)}</small></span>
+            <span class="seg full" role="group" aria-label="${esc(a.name)} access" data-slug="${esc(a.slug)}">${ROLES.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${role(a.slug) === v}">${l}</button>`).join('')}</span></div>`).join('')}
+        </div>`; }).join('')}
+      </div>
+      ${self ? '' : `<div class="between" style="border-top:1px solid var(--rule);padding-top:14px"><span class="muted small">Removing ends their sessions now and deletes their access. The activity log keeps their history.</span><button class="btn danger" id="uRemove">Remove ${esc(u.name || 'person')}</button></div>`}
     </div>`;
-  for (const sel of box.querySelectorAll('select[data-slug]')) sel.onchange = async () => {
-    await call('PUT', '/api/admin/grants', { email: u.email, slug: sel.dataset.slug, role: sel.value || null });
-    const g = u.grants.filter(x => x.slug !== sel.dataset.slug); if (sel.value) g.push({ slug: sel.dataset.slug, role: sel.value }); u.grants = g;
-    toast(sel.value ? `${ROLE_LABEL[sel.value]} on ${sel.dataset.slug}` : `Removed from ${sel.dataset.slug}`); renderList();
+  $('#back').onclick = () => { location.hash = '#people'; };
+  const setRole = async (slug, v) => {
+    if (role(slug) === v) return;
+    await call('PUT', '/api/admin/grants', { email: u.email, slug, role: v || null });
+    u.grants = u.grants.filter(g => g.slug !== slug); if (v) u.grants.push({ slug, role: v });
   };
-  const patch = async (body) => { await call('PATCH', `/api/admin/users/${encodeURIComponent(u.email)}`, body); Object.assign(u, body, { is_admin: body.is_admin === undefined ? u.is_admin : (body.is_admin ? 1 : 0), active: body.active === undefined ? u.active : (body.active ? 1 : 0) }); renderList(); };
-  $('#uAdmin').onchange = async (e) => { await patch({ is_admin: e.target.checked }); toast(e.target.checked ? 'Now a Hub admin' : 'No longer a Hub admin'); renderAccess(); };
-  $('#uActive').onchange = async (e) => { await patch({ active: e.target.checked }); toast(e.target.checked ? 'Active' : 'Locked out everywhere'); };
-  $('#uName').onchange = async (e) => { await patch({ name: e.target.value.trim() }); toast('Name saved'); };
-  $('#uRemove').onclick = async () => { if (!confirm(`Remove ${u.email} from the Hub? Their sessions end now.`)) return; await call('DELETE', `/api/admin/users/${encodeURIComponent(u.email)}`); toast(`Removed ${u.email}`); state.selected = null; people(); };
+  for (const seg of $$('.seg[data-slug]', box)) for (const b of $$('button', seg)) b.onclick = async () => {
+    if (b.dataset.v === 'admin' && !confirm(`Make ${u.name || u.email} an admin of ${appName(seg.dataset.slug)}? They'll be able to change its settings.`)) return;
+    await setRole(seg.dataset.slug, b.dataset.v);
+    for (const x of $$('button', seg)) x.setAttribute('aria-pressed', x === b);
+    toast(b.dataset.v ? `${u.name || u.email}: ${ROLE_NAME[b.dataset.v]} on ${appName(seg.dataset.slug)}` : `${u.name || u.email} no longer has ${appName(seg.dataset.slug)}`);
+    renderList();
+  };
+  for (const b of $$('select[data-bulk]', box)) b.onchange = async () => {
+    const s = st.sections.find(x => x.slug === b.dataset.bulk), v = b.value;
+    if (v === '-') return;
+    if (v === 'admin' && !confirm(`Make ${u.name || u.email} admin of every ${s.name} app?`)) { b.value = '-'; return; }
+    for (const a of grantable(s)) await setRole(a.slug, v);
+    toast(`${u.name || u.email}: ${v ? ROLE_NAME[v] : 'no access'} on all of ${s.name}`); renderPerson(); renderList();
+  };
+  const patch = async (body) => { await call('PATCH', `/api/admin/users/${encodeURIComponent(u.email)}`, body); for (const k in body) u[k] = typeof body[k] === 'boolean' ? (body[k] ? 1 : 0) : body[k]; renderList(); };
+  $('#uName').onchange = async e => { await patch({ name: e.target.value.trim() }); toast('Name saved'); renderPerson(); };
+  $('#uAdmin').onchange = async e => {
+    if (e.target.checked && !confirm(`Make ${u.name || u.email} a Hub admin? They'll see every app and this page, and can add or remove people.`)) { e.target.checked = false; return; }
+    await patch({ is_admin: e.target.checked }); toast(e.target.checked ? 'Now a Hub admin' : 'No longer a Hub admin'); renderPerson();
+  };
+  $('#uActive').onchange = async e => { await patch({ active: e.target.checked }); toast(e.target.checked ? `${u.name || u.email} can sign in` : `${u.name || u.email} is locked out everywhere`); renderPerson(); };
+  const rm = $('#uRemove'); if (rm) rm.onclick = async () => {
+    if (!confirm(`Remove ${u.name || u.email} from the Hub? They're signed out now and lose every app.`)) return;
+    await call('DELETE', `/api/admin/users/${encodeURIComponent(u.email)}`); toast(`Removed ${u.name || u.email}`); location.hash = '#people';
+  };
 }
 
-/* ---------------- Apps registry ---------------- */
+/* ============================ Apps ============================ */
 async function apps() {
-  const a = await call('GET', '/api/admin/apps'); state.apps = a.apps; state.sections = a.sections;
-  const opt = (list, v) => list.map(x => `<option value="${esc(x)}" ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
-  $('#view').innerHTML = `
-    <div class="stack">
-      <p class="muted small">Status: live = deployed · import = exists elsewhere · soon = placeholder card · hub = a page of the Hub. Mode: link = opens its own address · proxy = served under /slug/ through the Hub (needs a binding) · internal = a Hub path. Changes save as you leave each field.</p>
-      <div class="table-wrap"><table class="t apps-table"><thead><tr><th>Sort</th><th>Slug</th><th>Name</th><th>Section</th><th>Status</th><th>Mode</th><th>URL</th><th>Binding</th><th>Public</th><th></th></tr></thead><tbody>
-      ${state.apps.map(x => `<tr data-slug="${esc(x.slug)}">
-        <td><input class="w-sm num" name="sort" value="${x.sort}"></td>
-        <td class="num">${esc(x.slug)}</td>
-        <td><input class="w-md" name="name" value="${esc(x.name)}"><input class="w-url" name="description" value="${esc(x.description)}" placeholder="One line" style="margin-top:4px"></td>
-        <td><select name="section">${opt(state.sections.map(s => s.slug), x.section)}</select></td>
-        <td><select name="status">${opt(['live', 'import', 'soon', 'hub'], x.status)}</select></td>
-        <td><select name="mode">${opt(['link', 'proxy', 'internal'], x.mode)}</select></td>
-        <td><input class="w-url" name="url" value="${esc(x.url)}" placeholder="https://… or /path"></td>
-        <td><input class="w-md num" name="binding" value="${esc(x.binding)}" placeholder="CELLAR"></td>
-        <td><input type="checkbox" name="public" ${x.public ? 'checked' : ''} style="width:auto;min-height:0"></td>
-        <td>${x.status === 'hub' ? '' : '<button class="btn sm danger" data-del>Remove</button>'}</td>
-      </tr>`).join('')}
-      </tbody></table></div>
-      <form class="panel" id="addApp" autocomplete="off">
-        <div class="row">
-          <div class="field"><span>Slug</span><input name="slug" required pattern="[a-z][a-z0-9-]*" placeholder="reporte-diario"></div>
-          <div class="field"><span>Name</span><input name="name" required></div>
-          <div class="field"><span>Section</span><select name="section">${opt(state.sections.map(s => s.slug), 'hospitalidad')}</select></div>
-          <div class="field"><span>Status</span><select name="status">${opt(['soon', 'import', 'live'], 'soon')}</select></div>
-          <button class="btn primary">Add app</button>
+  await loadAll();
+  const opt = (pairs, v) => pairs.map(([k, l]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  const secPairs = st.sections.map(s => [s.slug, s.name]);
+  $('#view').innerHTML = `<div class="stack">
+    <p class="muted small" style="margin:0;max-width:70ch">What shows on everyone's home screen. Tap an app to edit it; changes save when you leave a field. “Coming soon” apps show as a quiet line under their section and can't be opened.</p>
+    ${st.sections.map(s => { const list = st.apps.filter(a => a.section === s.slug); if (!list.length) return ''; return `
+      <div class="appgroup k-${esc(s.slug)}"><h3>${esc(s.name)}</h3><div class="stack" style="gap:8px">
+      ${list.map(a => `<details class="appcard k-${esc(a.section)}" data-slug="${esc(a.slug)}"><summary>
+          <span class="n"><b>${esc(a.name)}</b><small>${esc(a.description || '—')}</small></span>
+          <span class="chip${a.status === 'live' ? ' ok' : a.status === 'import' ? ' warn' : ''}">${STATUS_NAME[a.status]}</span></summary>
+        <div class="edit">
+          <div class="grid2">
+            <label class="field"><span>Name</span><input name="name" value="${esc(a.name)}"></label>
+            <label class="field"><span>Section</span><select name="section">${opt(secPairs, a.section)}</select></label>
+          </div>
+          <label class="field"><span>One line about it</span><input name="description" value="${esc(a.description)}"></label>
+          <div class="grid2">
+            <label class="field"><span>Status</span><select name="status">${opt(Object.entries(STATUS_NAME), a.status)}</select></label>
+            <label class="field"><span>How it opens</span><select name="mode">${opt(Object.entries(MODE_NAME), a.mode)}</select></label>
+          </div>
+          <label class="field"><span>Address (for “Opens its own address” or a Hub page)</span><input name="url" value="${esc(a.url)}" placeholder="https://… or /path" inputmode="url"></label>
+          <div class="grid2">
+            <label class="field"><span>Service binding (for “Served through the Hub”)</span><input name="binding" value="${esc(a.binding)}" placeholder="CELLAR" autocapitalize="characters"></label>
+            <label class="field"><span>Order in its section</span><input name="sort" value="${a.sort}" inputmode="numeric"></label>
+          </div>
+          <label class="toggle"><input type="checkbox" name="public" ${a.public ? 'checked' : ''}> Public pages (guests can use it without signing in)</label>
+          <div class="between"><span class="muted small">Address in the Hub: /${esc(a.slug)}/</span>${a.status === 'hub' ? '' : `<button type="button" class="btn danger sm" data-del>Remove this app</button>`}</div>
+        </div></details>`).join('')}
+      </div></div>`; }).join('')}
+    <details class="addp"><summary>＋ Add an app</summary>
+      <form class="panel stack" id="addApp" autocomplete="off">
+        <div class="grid2" style="display:grid;gap:12px">
+          <label class="field"><span>Name</span><input name="name" required placeholder="Reporte diario"></label>
+          <label class="field"><span>Short address (letters, numbers, dashes)</span><input name="slug" required pattern="[a-z][a-z0-9-]*" placeholder="reporte-diario" autocapitalize="off"></label>
+          <label class="field"><span>Section</span><select name="section">${opt(secPairs, 'hospitalidad')}</select></label>
+          <label class="field"><span>Status</span><select name="status">${opt([['soon', 'Coming soon'], ['import', 'To import'], ['live', 'Live']], 'soon')}</select></label>
         </div>
-      </form>
-    </div>`;
-  for (const tr of document.querySelectorAll('tr[data-slug]')) {
-    for (const el of tr.querySelectorAll('input,select')) el.onchange = async () => {
+        <label class="field"><span>One line about it</span><input name="description"></label>
+        <div class="row" style="justify-content:flex-end"><button class="btn primary">Add app</button></div>
+      </form></details>
+  </div>`;
+  for (const card of $$('.appcard')) {
+    const slug = card.dataset.slug;
+    for (const el of $$('input,select', card)) el.onchange = async () => {
       const v = el.type === 'checkbox' ? el.checked : el.value;
-      await call('PATCH', `/api/admin/apps/${tr.dataset.slug}`, { [el.name]: v }); toast(`${tr.dataset.slug}: ${el.name} saved`);
+      await call('PATCH', `/api/admin/apps/${slug}`, { [el.name]: v });
+      const a = st.apps.find(x => x.slug === slug); a[el.name] = v;
+      if (el.name === 'name') $('summary b', card).textContent = v;
+      if (el.name === 'description') $('summary small', card).textContent = v || '—';
+      if (el.name === 'status') { const c = $('summary .chip', card); c.textContent = STATUS_NAME[v]; c.className = 'chip' + (v === 'live' ? ' ok' : v === 'import' ? ' warn' : ''); }
+      toast(`${a.name}: saved`);
     };
-    const del = tr.querySelector('[data-del]'); if (del) del.onclick = async () => { if (!confirm(`Remove ${tr.dataset.slug} and its grants?`)) return; await call('DELETE', `/api/admin/apps/${tr.dataset.slug}`); toast('Removed'); apps(); };
+    const del = $('[data-del]', card); if (del) del.onclick = async () => {
+      if (!confirm(`Remove ${appName(slug)} from the Hub? Everyone loses access to it here; the app itself isn't touched.`)) return;
+      await call('DELETE', `/api/admin/apps/${slug}`); toast('Removed'); apps();
+    };
   }
-  $('#addApp').onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); await call('POST', '/api/admin/apps', f); toast(`Added ${f.slug}`); apps(); };
+  $('#addApp').onsubmit = async e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); await call('POST', '/api/admin/apps', f); toast(`Added ${f.name}`); apps(); };
 }
 
-/* ---------------- Audit log ---------------- */
+/* ============================ Activity ============================ */
+let auditRows = [];
 async function audit() {
-  const { rows } = await call('GET', '/api/admin/audit?limit=300');
-  $('#view').innerHTML = rows.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>
-    ${rows.map(r => `<tr><td class="num" style="white-space:nowrap">${when(r.at)}</td><td>${esc(r.actor)}</td><td><span class="chip">${esc(r.action)}</span></td><td>${esc(r.target)}</td><td class="detail" title="${esc(r.detail)}">${esc(r.detail)}</td></tr>`).join('')}
-    </tbody></table></div>` : '<div class="empty"><b>Nothing yet</b>Sign-ins and changes show here.</div>';
+  const [{ rows }] = await Promise.all([call('GET', '/api/admin/audit?limit=500'), loadAll()]);
+  auditRows = rows;
+  const people = [...new Set(rows.map(r => r.actor))];
+  $('#view').innerHTML = `<div class="stack">
+    <div class="filters">
+      <label class="field"><span>Who</span><select id="fWho"><option value="">Everyone</option>${people.map(p => `<option value="${esc(p)}">${esc(personName(p))}</option>`).join('')}</select></label>
+      <label class="field"><span>What</span><select id="fWhat"><option value="">Everything</option><option value="access">Access changes</option><option value="people">People added or removed</option><option value="apps">App changes</option><option value="login">Sign-ins</option></select></label>
+    </div>
+    <div id="log"></div></div>`;
+  $('#fWho').onchange = $('#fWhat').onchange = drawLog;
+  drawLog();
 }
-function soon(title, text) { return async () => { $('#view').innerHTML = `<div class="empty"><b>${esc(title)}</b>${esc(text)}</div>`; }; }
+const KIND = { access: /^grant\.|^user\.update/, people: /^user\.(add|remove)/, apps: /^app\./, login: /^log(in|out)/ };
+function drawLog() {
+  const who = $('#fWho').value, what = $('#fWhat').value;
+  const rows = auditRows.filter(r => (!who || r.actor === who) && (!what || KIND[what].test(r.action)));
+  if (!rows.length) { $('#log').innerHTML = '<div class="empty"><b>Nothing here yet</b>Sign-ins and changes appear as they happen.</div>'; return; }
+  const dayFmt = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' });
+  const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+  let html = '', last = '';
+  for (const r of rows) {
+    const day = dayFmt.format(r.at);
+    if (day !== last) { html += `<h3 class="day">${day}</h3>`; last = day; }
+    const sys = /^log/.test(r.action);
+    html += `<div class="ev${sys ? ' sys' : ''}"><span class="t" title="${new Date(r.at).toLocaleString('en-US', { timeZone: TZ })} (San Miguel time)">${timeFmt.format(r.at)}</span><span class="s">${sentence(r)}</span></div>`;
+  }
+  $('#log').innerHTML = html + '<p class="end">That\'s everything in the log' + (auditRows.length >= 500 ? ' (latest 500 entries)' : '') + '. Times are San Miguel time.</p>';
+}
+function sentence(r) {
+  let d = {}; try { d = JSON.parse(r.detail || '{}'); } catch {}
+  const A = `<b>${esc(personName(r.actor))}</b>`, T = `<b>${esc(personName(r.target))}</b>`, app = s => `<b>${esc(appName(s))}</b>`;
+  switch (r.action) {
+    case 'login': return `${A} signed in`;
+    case 'logout': return `${A} signed out`;
+    case 'login.denied': return `${esc(r.actor)} tried to sign in but isn't on the list`;
+    case 'user.add': return `${A} added ${T}${d.is_admin ? ' as a Hub admin' : ''}`;
+    case 'user.remove': return `${A} removed ${esc(r.target)} from the Hub`;
+    case 'user.update': {
+      const parts = [];
+      if ('is_admin' in d) parts.push(d.is_admin ? `made ${T} a Hub admin` : `took Hub admin away from ${T}`);
+      if ('active' in d) parts.push(d.active ? `let ${T} sign in again` : `locked ${T} out`);
+      if ('name' in d) parts.push(`renamed ${esc(r.target)} to <b>${esc(d.name)}</b>`);
+      return `${A} ${parts.join(' and ') || `updated ${T}`}`;
+    }
+    case 'grant.set': return d.from ? `${A} changed ${T} on ${app(d.slug)} from ${ROLE_NAME[d.from]} → ${ROLE_NAME[d.role]}` : `${A} gave ${T} ${ROLE_NAME[d.role]} on ${app(d.slug)}`;
+    case 'grant.remove': return `${A} took away ${T}'s access to ${app(d.slug)}${d.from ? ` <span class="q">(was ${ROLE_NAME[d.from]})</span>` : ''}`;
+    case 'app.add': return `${A} added the app ${app(r.target)}`;
+    case 'app.remove': return `${A} removed the app ${esc(r.target)}`;
+    case 'app.update': {
+      const f = Object.keys(d).map(k => k === 'status' ? `status → ${STATUS_NAME[d[k]] || d[k]}` : k === 'mode' ? `opens → ${MODE_NAME[d[k]] || d[k]}` : k === 'public' ? (d[k] ? 'made public' : 'made private') : k).join(', ');
+      return `${A} edited ${app(r.target)} <span class="q">(${esc(f || 'no change')})</span>`;
+    }
+    default: return `${A} ${esc(r.action)} ${esc(r.target)}`;
+  }
+}
+
+/* ============================ Phase 3 placeholders ============================ */
+async function secrets() {
+  $('#view').innerHTML = `<div class="future">
+    <p class="lead">Coming in phase 3. Two kinds of secret will live here, and values never show in lists.</p>
+    <div class="panel stack"><div class="h-display" style="font-size:21px">App keys</div>
+      <p class="muted small" style="margin:0">Zoho, Stripe, Google, Anthropic. Apps use them; nobody reads them back. Paste a new value to rotate it.</p>
+      <div class="ghost"><div><b>Zoho Inventory</b><span class="r">used by Muestras, Tablero de ventas<br>rotated —</span></div><div><b>Anthropic (Claude)</b><span class="r">used by Calendario de bodega<br>rotated —</span></div></div></div>
+    <div class="panel stack"><div class="h-display" style="font-size:21px">Team logins</div>
+      <p class="muted small" style="margin:0">Parrot, OpenTable, Meta Business, supplier portals. Hub admins can reveal one with a tap; every reveal is written to Activity.</p>
+      <div class="ghost"><div><b>Parrot admin</b><span class="r">owner: Michael<br>•••••••• · Reveal</span></div><div><b>OpenTable</b><span class="r">owner: Michael<br>•••••••• · Reveal</span></div></div></div>
+  </div>`;
+}
+async function health() {
+  $('#view').innerHTML = `<div class="future">
+    <p class="lead">Coming in phase 3. One line per app, so you see trouble before the team calls you.</p>
+    <div class="ghost">${['Calendario de bodega', 'Huerto', 'Mantenimiento', 'Spark CRM', 'Club de vinos'].map(n => `<div><b>${n}</b><span class="r">status · last update · errors this week<br>people who used it this week</span></div>`).join('')}</div>
+  </div>`;
+}
 </script>
 </body>
 </html>
