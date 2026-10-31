@@ -48,7 +48,7 @@ export function shipCard(o, today, back) {
   ${['overdue','today','upcoming','exception'].includes(o.state) ? `<p class="small"><a href="${shipHref(o)}#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>` : ''}</article>`;
 }
 
-function okBanner(okAudit, today) {
+export function okBanner(okAudit, today) {
   if (!okAudit) return '';
   const after = okAudit.after_json ? JSON.parse(okAudit.after_json) : {};
   const label = after.status ? STATUS_LABEL[after.status] : 'Programado';

@@ -1,3 +1,4 @@
+import * as Q from './queue.js';
 import { identify } from './auth.js';
 import { esc } from './ui.js';
 import { STATUSES, DONE, isDate, dueDate, parseBottles, membershipYear } from './schedule.js';
@@ -109,7 +110,11 @@ async function handle(request, env) {
   if(m==='GET'&&p==='/alertas')return billingPage({env,user,ctx:await loadContext(env)});
   if (m === 'GET' && p === '/') {
     const ctx = await loadContext(env);
-    return P.agendaPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
+    return Q.queuePage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
+  }
+  if (m === 'GET' && p === '/confirmar') {
+    const ctx = await loadContext(env);
+    return Q.confirmPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
   }
 
   // ---------- shipments ----------
@@ -133,7 +138,7 @@ async function handle(request, env) {
       return P.shipmentPage({ env, user, ctx: sh.ctx, o: sh.o, photos, history });
     }
     if (action === 'entregar') {
-      if (m === 'GET') return fulfillPage({ env, user, ctx: sh.ctx, o: sh.o, como: url.searchParams.get('como') });
+      if (m === 'GET') return fulfillPage({ env, user, ctx: sh.ctx, o: sh.o, como: url.searchParams.get('como'), back: url.searchParams.get('back') });
       if (m === 'POST') return fulfillSubmit(env, user, sh, request);
     }
     if (m !== 'POST') return notFound(env, user);

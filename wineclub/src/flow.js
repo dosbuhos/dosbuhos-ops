@@ -21,7 +21,7 @@ function checklist(list) {
 }
 
 // ---------- GET: review + confirm ----------
-export function fulfillPage({ env, user, ctx, o, como, error = null, form = {} }) {
+export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, back = null }) {
   const today = ctx.today, s = o.sub, f = o.f || {};
   como = como === 'shipped' || como === 'handed' ? como : (s.delivery_pref === 'envio' ? 'shipped' : 'handed');
   const problem = packingProblem(o);
@@ -44,6 +44,7 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {} }
   </div>
   <form method="post" action="/envio/${o.subId}/${o.k}/entregar" enctype="multipart/form-data" id="ff">
   <input type="hidden" name="version" value="${f.version || 0}">
+  <input type="hidden" name="back" value="${esc(form.back || back || '')}">
   <input type="hidden" name="packing" value="${esc(JSON.stringify(o.bottles))}">
   <h2>Qué lleva la caja ${o.bottles ? `<span class="muted small">(${o.bottlesTotal} de ${o.expectedBottles})</span>` : ''}</h2>
   <div class="card">
@@ -140,7 +141,8 @@ export async function fulfillSubmit(env, user, sh, request) {
       `${como === 'shipped' ? 'enviado' : 'entregado en mano'}${early ? ' (antes de tiempo)' : ''}${problem ? ' (con excepción de caja)' : ''}`,
       { version, note: reason, photo: attachment }));
   } catch (e) { if (e.status === 409) return fail(e.message, 409); throw e; }
-  return new Response(null, { status: 303, headers: { location: `/?ok=${auditId}` } });
+  const back = typeof form.back === 'string' && /^\/[a-z]*$/.test(form.back) ? form.back : '/';
+  return new Response(null, { status: 303, headers: { location: `${back}?ok=${auditId}` } });
 }
 
 // ---------- reopen (correction) ----------
