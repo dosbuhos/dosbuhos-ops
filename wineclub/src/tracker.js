@@ -78,7 +78,8 @@ export function shipmentRow(o, today, back) {
     : `en ${daysBetween(today, o.eff)} días`;
   const details = `
     <dl class="facts"><dt>Pago</dt><dd>${esc(pay.long)}${f.stripe_invoice_id ? ` · <a href="https://dashboard.stripe.com/invoices/${encodeURIComponent(f.stripe_invoice_id)}" target="_blank" rel="noopener">ver factura</a>` : ''}</dd><dt>Previsto</dt><dd>${esc(exactDate(o.due))}${o.delayed ? ` · aplazado al ${esc(exactDate(o.eff))}` : ''}</dd>
-    ${f.done_on ? `<dt>Salió</dt><dd>${esc(doneText(o, today))}${f.handled_by ? ' · ' + esc(f.handled_by) : ''}</dd>` : ''}
+    ${f.done_on ? `<dt>Salió</dt><dd>${esc(doneText(o, today))}${f.handled_by ? ' · entregó ' + esc(f.handled_by) : ''}</dd>` : ''}
+    ${f.updated_by ? `<dt>Registró</dt><dd>${esc(f.updated_by)}${f.updated_at ? ' · ' + esc(f.updated_at.slice(0, 10)) : ''}</dd>` : ''}
     ${f.order_ref ? `<dt>Pedido</dt><dd>${esc(f.order_ref)}</dd>` : ''}${f.tracking ? `<dt>Guía</dt><dd>${esc(f.carrier || '')} ${esc(f.tracking)}</dd>` : ''}
     ${f.note ? `<dt>Nota</dt><dd>${esc(f.note)}</dd>` : ''}</dl>
     ${o.bottles ? `<div class="box"><b>Caja (${o.bottlesTotal} botellas)</b>${bottleList(o.bottles)}</div>` : (o.missingAllocation ? '<p class="warn">Falta definir qué botellas lleva esta caja.</p>' : '')}

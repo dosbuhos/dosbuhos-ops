@@ -6,6 +6,7 @@ import { esc } from './ui.js';
 import { STATUSES, DONE, isDate, dueDate, parseBottles, membershipYear } from './schedule.js';
 import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal, isIgnored } from './data.js';
 import { subEnded } from './visibility.js';
+import { activityData, activityPage } from './activity.js';
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
 import { fulfillPage, fulfillSubmit, reopen, reconcileData, reconcilePage, reconcileSubmit, packingProblem } from './flow.js';
@@ -535,6 +536,10 @@ async function handle(request, env) {
   }
 
   // ---------- settings (managers) ----------
+  if (m === 'GET' && p === '/actividad') {
+    if (!user.isManager) return forbidden(env, user);
+    return activityPage({ env, user, data: await activityData(env, url) });
+  }
   if (p === '/ajustes' || p === '/sync' || p === '/exportar.json' || p === '/ajustes/beneficios') {
     if (!user.isManager) return forbidden(env, user);
     if (m === 'GET' && p === '/ajustes/beneficios') {

@@ -472,7 +472,8 @@ export function settingsPage({ env, user, ctx, auditRows, eventCount, url }) {
     <dt>Versión de API</dt><dd class="small">Solicitudes: 2025-03-31.basil</dd></dl>
     <form method="post" action="/sync" style="margin-top:12px"><button class="btn" ${env.STRIPE_SECRET_KEY ? '' : 'disabled'}>Sincronizar ahora</button></form>
     ${env.STRIPE_SECRET_KEY ? '' : '<p class="small muted">Agrega el secreto <code>STRIPE_SECRET_KEY</code> en Cloudflare (Workers → este Worker → Settings → Variables and Secrets). Usa una llave restringida de solo lectura.</p>'}</div>
-  <div class="rows"><a class="row" href="/conciliar"><div class="main"><div class="t">Conciliar Stripe</div><div class="s">Productos de Stripe → club</div></div></a>
+  <div class="rows"><a class="row" href="/actividad"><div class="main"><div class="t">Actividad</div><div class="s">Quién registró cada caja y cada cambio</div></div></a>
+  <a class="row" href="/conciliar"><div class="main"><div class="t">Conciliar Stripe</div><div class="s">Productos de Stripe → club</div></div></a>
   <a class="row" href="/migracion"><div class="main"><div class="t">Migración del sistema anterior</div><div class="s">Historial de envíos de wineclubadmin</div></div></a>
   <a class="row" href="/ajustes/beneficios"><div class="main"><div class="t">Beneficios por club</div><div class="s">Qué incluye cada club</div></div></a></div>
   <h2>Inicio del registro</h2><div class="card"><form method="post" action="/ajustes">

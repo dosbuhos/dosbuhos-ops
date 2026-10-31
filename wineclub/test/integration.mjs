@@ -478,6 +478,22 @@ try {
     assert.equal((await post(`/socio/${id}/regreso`, { club_id: '3', start_date: '2026-10-25' })).status, 400, 'no second active stage');
   });
 
+  await check('each box records the signed-in person, and Actividad lists it by person', async () => {
+    const socios = await get('/socios?f=todos');
+    const open = [...socios.matchAll(/action="\/envio\/(\d+)\/(\d+)\/rapido"/g)].map(m => [m[1], m[2]])
+      .find(([s, k]) => !q(`SELECT status FROM fulfillments WHERE subscription_id=${s} AND k=${k} AND status IS NOT NULL`).length);
+    const [s, k] = open;
+    const version = String(q(`SELECT version FROM fulfillments WHERE subscription_id=${s} AND k=${k}`)[0]?.version || 0);
+    const r = await fetch(B + `/envio/${s}/${k}/rapido`, { method: 'POST', redirect: 'manual', headers: { ...O, cookie: 'devuser=michael@dosbuhos.com', 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ version, como: 'courier', done_on: '2026-10-12', back: '/socios' }) });
+    await r.text(); assert.equal(r.status, 303);
+    assert.equal(q(`SELECT updated_by FROM fulfillments WHERE subscription_id=${s} AND k=${k}`)[0].updated_by, 'michael@dosbuhos.com');
+    assert.equal(q(`SELECT who FROM audit_log WHERE entity='fulfillment' AND entity_id='${s}:${k}' ORDER BY id DESC LIMIT 1`)[0].who, 'michael@dosbuhos.com');
+    const act = await get('/actividad?quien=michael%40dosbuhos.com');
+    assert.match(act, /michael@dosbuhos\.com/); assert.match(act, /Marcó la caja #\d+ como “enviado”/);
+    assert.match(await get('/socios?f=todos'), /Registró<\/dt><dd>michael@dosbuhos\.com/);
+  });
+
   console.log(`\n${passed} integration checks passed`);
 } catch (e) {
   console.error('FAILED:', e.stack, e.cause?.code || e.cause?.message || ''); process.exitCode = 1;
