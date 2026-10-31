@@ -478,6 +478,17 @@ details.cdone>.cgrid{margin-top:8px}
 .taskw .tmore{position:absolute;top:2px;right:0;width:40px;height:40px;min-height:40px}
 .taskw.done .tx{text-decoration:line-through;color:var(--muted)}
 .tpanel{padding:0 0 12px}
+
+/* Harvest rows on one line: name + bed/expected | kg field | ✓ */
+.harv{grid-template-columns:minmax(0,1fr) auto !important;gap:6px 10px;padding:8px 0}
+.harv .hn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.harv .hrow{display:flex;gap:6px;align-items:center}
+.harv .hrow .fl{margin:0}
+.harv .inu{width:96px}
+.harv .inu input{min-height:44px;padding:0 6px 0 10px;text-align:right}
+.harv .inu .u{padding:0 8px 0 4px}
+.harv .hsave{width:48px;min-width:48px;min-height:44px;padding:0;font-size:20px;font-weight:700}
+.harv .ferr,.harv .hdone{grid-column:1 / -1}
 </style>
 
 <div class="wrap">
@@ -1192,9 +1203,9 @@ views.hoy = () => {
     <div class="bar" style="justify-content:space-between"><h3>Cosecha para cocina</h3><span class="small muted">antes de las 10:00</span></div>
     ${harvG.length ? harvG.map(g => { const key = g.beds.join(", ") + "|" + g.crop; const exp = g.qty / 3; const c = CROPS[g.crop]; const got = logged[key]; const u = c.u === "kg" ? "kg" : "pzas";
       const sv = (state.hsaved || {})[key], err = (state.herr || {})[key];
-      return `<div class="harv"><div style="min-width:0"><div><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))}</div><div class="small muted">${c.u === "kg" && exp < 0.25 ? "Según pida cocina" : "Esperado ≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null && !sv ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
+      return `<div class="harv"><div style="min-width:0"><div class="hn"><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))} · ${c.u === "kg" && exp < 0.25 ? "según pida cocina" : "≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null && !sv ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
       ${sv ? `<div class="hdone" role="status"><span>✓ ${nf(sv.v, 1)} ${u} anotado</span>${sv.id && window.huertoApi ? `<button type="button" class="lnk" data-hundo="${esc(key)}">Deshacer</button>` : ""}<button type="button" class="lnk" data-hmore="${esc(key)}">Anotar otra cantidad</button></div>`
-      : `<div class="hrow"><label class="fl"><span class="fll">Cantidad cosechada</span><span class="inu"><input type="number" inputmode="decimal" step="0.1" min="0" data-keep="hv|${esc(key)}" data-key="${esc(key)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"${err ? ` class="invalid" aria-invalid="true"` : ""}><span class="u">${u}</span></span></label><button class="btn" data-save="1">Anotar cosecha</button></div>${err ? `<span class="ferr">Escribe los ${u === "kg" ? "kg" : "piezas"} antes de anotar.</span>` : ""}`}</div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
+      : `<div class="hrow"><label class="fl"><span class="inu"><input type="number" aria-label="Cantidad cosechada de ${esc(c.n)} (${u})" placeholder="0" inputmode="decimal" step="0.1" min="0" data-keep="hv|${esc(key)}" data-key="${esc(key)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"${err ? ` class="invalid" aria-invalid="true"` : ""}><span class="u">${u}</span></span></label><button class="btn hsave" data-save="1" aria-label="Anotar cosecha de ${esc(c.n)}" title="Anotar cosecha">✓</button></div>${err ? `<span class="ferr">Escribe los ${u === "kg" ? "kg" : "piezas"} antes de anotar.</span>` : ""}`}</div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
   </section>` : `<p class="small muted" style="margin:0">La cosecha para cocina se hace lunes, miércoles y viernes.</p>`}
   <button class="btn" id="towa" style="align-self:flex-start">Copiar la semana para WhatsApp</button>`;
 };
