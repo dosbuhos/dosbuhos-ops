@@ -26,7 +26,7 @@ export function tone(o, today) {
   if (o.state === 'today') return 'now';
   return 'future';
 }
-const TONE_LABEL = { ok: 'Entregado', late: 'Atrasado', now: 'Hoy', hold: 'En bodega', pay: 'Revisar cobro', block: 'Bloqueado por pago', future: 'Próximo', off: 'Sin registro previo' };
+const TONE_LABEL = { ok: 'Entregado', late: 'Atrasado', now: 'Hoy', hold: 'En resguardo', pay: 'Revisar cobro', block: 'Bloqueado por pago', future: 'Próximo', off: 'Sin registro previo' };
 
 function doneText(o, today) {
   const f = o.f || {};
@@ -58,6 +58,7 @@ function quickForm(o, today, back) {
         <option value="signup">Se lo llevó al inscribirse</option></select></label>
       <label>Fecha real<input type="date" name="done_on" value="${defDate}" max="${today}" required></label>
     </div>
+    <div class="date-quick"><button type="button" class="chip" data-d="${today}">Hoy</button>${o.eff < today ? `<button type="button" class="chip" data-d="${o.eff}">Fecha prevista</button>` : ''}</div>
     <label>Pedido Zoho (opcional)<input name="order_ref" value="${esc(f.order_ref || '')}" placeholder="OV-02072"></label>
     <button class="btn">Guardar entrega</button>
     <p class="small muted">Para revisar la caja botella por botella, guía o foto: <a href="${shipHref(o)}/entregar?back=${encodeURIComponent(back)}">registro completo</a>.</p>
@@ -70,7 +71,7 @@ export function shipmentRow(o, today, back) {
   const right = t === 'ok' ? doneText(o, today)
     : t === 'late' ? (recordedPending(o) ? 'Pendiente confirmado' : 'Sin registro')
     : t === 'now' ? 'Toca hoy'
-    : t === 'hold' ? 'En bodega'
+    : t === 'hold' ? 'En resguardo'
     : t === 'pay' ? 'Revisar cobro'
     : t === 'block' ? 'Bloqueado por pago'
     : t === 'off' ? (o.state === 'pretracking' ? 'Antes del registro' : STATUS_LABEL[o.status] || 'Omitido')
@@ -86,7 +87,7 @@ export function shipmentRow(o, today, back) {
     <p class="small"><a href="${shipHref(o)}">Abrir envío completo →</a></p>`;
   return `<details class="ship-acc t-${t}" id="e${o.subId}-${o.k}" ${OPEN_NOW.includes(o.state) && t === 'late' ? '' : ''}>
     <summary><span class="dot" aria-hidden="true"></span><span class="sn">#${o.n}</span><span class="sd">${esc(due)}</span>
-      <span class="sflags"><span class="pay ${pay.paid ? 'yes' : pay.paid === false ? 'no' : 'na'}">${esc(pay.short)}</span><span class="sr">${esc(right)}</span></span></summary>
+      <span class="chev" aria-hidden="true"></span><span class="sflags"><span class="pay ${pay.paid ? 'yes' : pay.paid === false ? 'no' : 'na'}">${esc(pay.short)}</span><span class="sr">${esc(right)}</span></span></summary>
     <div class="acc-body">${details}</div></details>`;
 }
 
@@ -146,10 +147,10 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
     const isOpen = open === String(m.id) || all.some(o => open === `${o.subId}:${o.k}`);
     return `<details class="member" id="m${m.id}" ${isOpen ? 'open' : ''}>
       <summary>
-        <span class="mtop"><span class="mname">${esc(m.name)}</span>${status}</span>
+        <span class="mtop"><span class="mname">${esc(m.name)}</span><span class="mright">${status}<span class="chev" aria-hidden="true"></span></span></span>
         <span class="msub">${esc(blocks.map(b => b.club ? b.club.name : 'Sin club').join(' · '))} · Alta ${joined ? esc(exactDate(joined)) : '—'}</span>
         ${owed.length ? `<span class="mcount">${doneN} de ${owed.length} entregadas${manual ? ' · cobro manual' : ` · ${paidN} de ${owed.length} pagadas`}</span>` : ''}
-        <span class="pills" aria-label="${done} entregados, ${late} atrasados">${all.map(o => `<span class="pill t-${tone(o, today)}" title="Envío #${o.n}: ${esc(TONE_LABEL[tone(o, today)])}">${o.n}</span>`).join('')}</span>
+        <span class="pills" aria-label="${done} entregados, ${late} atrasados. Toca para ver cada envío">${all.map(o => `<span class="pill t-${tone(o, today)}" title="Envío #${o.n}: ${esc(TONE_LABEL[tone(o, today)])}">${o.n}</span>`).join('')}</span>
       </summary>
       <div class="mbody">
         <p class="small muted">${esc(pref)}${first?.s.member_phone ? ` · <a href="tel:${esc(first.s.member_phone)}">${esc(first.s.member_phone)}</a>` : ''} · <a href="/socio/${m.id}">Perfil del socio</a></p>
@@ -163,7 +164,8 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
   <h1>Socios</h1>
   <form method="get" action="/socios" class="msearch"><input type="hidden" name="f" value="${esc(filter)}"><input type="search" name="q" value="${esc(url.searchParams.get('q') || '')}" placeholder="Buscar socio" aria-label="Buscar socio"></form>
   <nav class="mfilters">${chipLink('activos', 'Activos')}${chipLink('atrasados', 'Con atrasos')}${chipLink('aldia', 'Al día')}${chipLink('cobro', 'Cobro')}${chipLink('todos', 'Todos')}</nav>
-  <p class="legend"><span><i class="pill t-ok"></i>Entregado</span><span><i class="pill t-late"></i>Atrasado</span><span><i class="pill t-now"></i>Hoy</span><span><i class="pill t-hold"></i>En bodega</span><span><i class="pill t-pay"></i>Revisar cobro</span><span><i class="pill t-block"></i>Pago bloqueado</span><span><i class="pill t-future"></i>Próximo</span></p>
+  <p class="legend-tip">Toca a un socio para ver sus envíos; toca un envío para ver la caja, el pago y registrarlo.</p>
+  <p class="legend"><span><i class="pill t-ok"></i>Entregado</span><span><i class="pill t-late"></i>Atrasado</span><span><i class="pill t-now"></i>Hoy</span><span><i class="pill t-hold"></i>En resguardo</span><span><i class="pill t-pay"></i>Revisar cobro</span><span><i class="pill t-block"></i>Pago bloqueado</span><span><i class="pill t-future"></i>Próximo</span></p>
   ${cards.length ? cards.map(card).join('') : `<div class="card empty">${q ? `Nadie coincide con “${esc(url.searchParams.get('q'))}”.` : 'Nadie en esta lista.'}</div>`}
   <p class="small center"><a href="/socios/lista">Directorio completo y alta de socios</a></p>
   ${TCSS}`;
@@ -275,4 +277,18 @@ h1{margin:6px 0 10px}
 .cal-late{background:var(--red-soft);border-radius:12px;padding:0 12px;margin:10px 0}
 .cal-late>summary{list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center;min-height:52px;color:var(--red);cursor:pointer}
 .cal-late>summary::-webkit-details-marker{display:none}.cal-late>summary span{font-size:13px}
+.ship-acc.t-hold,.ship-acc.t-hold>summary{border-left-color:#e0b800}.ship-acc.t-hold .dot{background:#e0b800}
+
+/* expand affordance */
+.chev{flex:none;width:28px;height:28px;border-radius:50%;background:var(--grey-soft);display:inline-flex;align-items:center;justify-content:center;transition:transform .15s}
+.chev::before{content:"";width:8px;height:8px;border-right:2.5px solid var(--wine);border-bottom:2.5px solid var(--wine);transform:translateY(-2px) rotate(45deg)}
+details[open]>summary .chev,details[open]>summary .mright .chev{transform:rotate(180deg)}
+.mright{display:flex;align-items:center;gap:8px;flex:none}
+.ship-acc>summary{grid-template-columns:auto auto 1fr auto;grid-template-areas:'dot n d chev' '. f f f'}
+.ship-acc .chev{grid-area:chev;width:24px;height:24px}
+@media (min-width:560px){.ship-acc>summary{grid-template-columns:auto auto auto 1fr auto;grid-template-areas:'dot n d f chev'}}
+.legend-tip{font-size:13px;color:var(--muted);margin:0 0 6px}
+/* held = yellow */
+.pill.t-hold{background:#f6d44a;color:#4a3b00;border-color:#d9b400}
+.ship-acc.t-hold{border-left-color:#e0b800}.ship-acc.t-hold .dot{background:#e0b800}.ship-acc.t-hold .sr{background:#fdf3c4;color:#5c4a00}
 </style>`;

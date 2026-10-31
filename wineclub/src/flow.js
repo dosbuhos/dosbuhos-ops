@@ -13,6 +13,7 @@ const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.s
 const OPEN = ['overdue', 'today', 'upcoming', 'exception', 'held'];
 const COMO = { shipped: 'Ya se envió', handed: 'Ya se entregó' };
 
+const daysSince = (d, today) => Math.round((Date.parse(today) - Date.parse(d)) / 864e5);
 export const packingProblem = (o) => !o.bottles ? 'missing' : (o.bottlesTotal !== o.expectedBottles ? 'count' : null);
 
 function checklist(list) {
@@ -28,7 +29,12 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
   const early = o.eff > today;
   const addr = s.delivery_address || s.stripe_address;
   const v = (k, d = '') => esc(form[k] ?? d);
-  const body = `<p><a href="/envio/${o.subId}/${o.k}">← Envío</a></p>
+  const backTo = form.back || back || '';
+  const backHref = /^\/[a-z]*$/.test(backTo) ? backTo : `/envio/${o.subId}/${o.k}`;
+  // Catching up on old boxes: no default date, so nobody records "today" for a box that left months ago.
+  const catchUp = backTo === '/confirmar' || daysSince(o.eff, today) > 3;
+  const defDate = catchUp ? '' : today;
+  const body = `<p><a href="${esc(backHref)}">← Volver</a></p>
   <h1>${COMO[como]}</h1>
   ${billingWarning(ctx,s,{paid:!!f.paid_on})}
   <div class="card small"><b>Pago de esta caja:</b> ${f.paid_on?`Pago asociado en Stripe el ${esc(exactDate(f.paid_on))}${f.paid_amount!=null?' · '+money(f.paid_amount,s.price_currency):''}`:'Sin pago asociado. Comprueba la factura del periodo en Stripe antes de entregar; esto no demuestra un impago.'}</div>
@@ -36,9 +42,7 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
   <div class="card">
     <div style="font-size:19px;font-weight:700">${esc(s.member_name)}</div>
     <div class="muted">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')}</div>
-    <p class="small muted">Alta: ${esc(exactDate(s.start_date))}</p>
-    ${dateFacts(o)}
-    <div class="small" style="margin-top:6px"><b>${esc(fdate(o.eff, today))}</b> · ${esc(rel(o.eff, today))}${o.delayed ? ` · pospuesto (original ${esc(fdate(o.due, today))})` : ''}</div>
+    <div class="small" style="margin-top:6px">Previsto <b>${esc(fdate(o.eff, today))}</b> · ${esc(rel(o.eff, today))}${o.delayed ? ` · pospuesto (original ${esc(fdate(o.due, today))})` : ''}</div>
     <div class="chips">${chip(s.delivery_pref === 'envio' ? 'Envío a domicilio' : 'Recoge en bodega', s.delivery_pref === 'envio' ? 'wine' : 'grey')}</div>
     ${addr ? `<p class="small" style="margin:6px 0 0">${esc(addr)}</p>` : ''}${s.member_phone ? `<p class="small" style="margin:4px 0 0"><a href="tel:${esc(s.member_phone)}">${esc(s.member_phone)}</a></p>` : ''}
   </div>
@@ -49,7 +53,7 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
   <h2>Qué lleva la caja ${o.bottles ? `<span class="muted small">(${o.bottlesTotal} de ${o.expectedBottles})</span>` : ''}</h2>
   <div class="card">
     ${o.bottles ? checklist(o.bottles) : ''}
-    ${!problem ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="packed" value="1" required style="width:24px;height:24px;min-height:0"> Revisé las botellas y cantidades de esta caja</label>` : ''}
+    ${!problem ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="packed" value="1" required style="width:24px;height:24px;min-height:0"> ${catchUp ? 'Confirmo que esta fue la caja que se entregó' : 'Revisé las botellas y cantidades de esta caja'}</label>` : ''}
     ${problem === 'missing' ? `<div class="warn">No está definido qué botellas lleva este envío.</div>` : ''}
     ${problem === 'count' ? `<div class="warn amber">La caja tiene ${o.bottlesTotal} botellas y el club lleva ${o.expectedBottles}.</div>` : ''}
     ${problem ? `<p class="small muted">Defínelo en <a href="/envio/${o.subId}/${o.k}#botellas">el envío</a>, o registra la entrega con un motivo:</p>
@@ -66,22 +70,25 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
     </div>
     <div id="hand-only" style="${como === 'handed' ? '' : 'display:none'}"><label for="mt">Cómo se entregó</label>
       <select id="mt" name="method"><option value="pickup" ${form.method !== 'signup' ? 'selected' : ''}>Recogió en bodega</option><option value="signup" ${form.method === 'signup' ? 'selected' : ''}>Se lo llevó al inscribirse</option></select></div>
-    <label for="dn">Fecha</label><input id="dn" type="date" name="done_on" value="${v('done_on', today)}" max="${today}" required>
-    <label for="ref">Número de pedido (Zoho)</label><input id="ref" name="order_ref" value="${v('order_ref', f.order_ref || '')}" placeholder="OV-02072">
+    <label for="dn">${catchUp ? '¿Qué día salió? (fecha real)' : 'Fecha'}</label><input id="dn" type="date" name="done_on" value="${v('done_on', defDate)}" max="${today}" required>
+    <div class="date-quick"><button type="button" class="chip" data-d="${today}">Hoy</button>${o.eff < today ? `<button type="button" class="chip" data-d="${o.eff}">La fecha prevista · ${esc(fdate(o.eff, today, { weekday: false }))}</button>` : ''}</div>
+    ${catchUp ? '<p class="small muted" style="margin:4px 0 0">Si no sabes el día exacto, usa la fecha prevista y anótalo en la nota.</p>' : ''}
     <div id="ship-only" style="${como === 'shipped' ? '' : 'display:none'}"><div class="grid2">
       <div><label for="car">Paquetería</label><input id="car" name="carrier" value="${v('carrier', f.carrier || '')}"></div>
       <div><label for="trk">Guía</label><input id="trk" name="tracking" value="${v('tracking', f.tracking || '')}"></div></div></div>
-    <label for="hb">Quién lo entregó</label><input id="hb" name="handled_by" value="${v('handled_by', f.handled_by || user.email)}">
+    <details class="more" ${form.order_ref || form.note ? 'open' : ''}><summary>Más datos (opcional): pedido, nota, foto, quién lo entregó</summary>
+    <label for="ref">Número de pedido (Zoho)</label><input id="ref" name="order_ref" value="${v('order_ref', f.order_ref || '')}" placeholder="OV-02072">
     <label for="nt">Nota</label><textarea id="nt" name="note" rows="2">${v('note', f.note || '')}</textarea>
-    <label for="ph">Foto del envío (opcional)</label><input id="ph" type="file" name="photo" accept="image/*">
-    <p class="small muted">Después de confirmar puedes guardar la firma del cliente, un recibo firmado o una captura de WhatsApp en “Comprobantes de recepción”.</p>
+    <label for="hb">Quién lo entregó</label><input id="hb" name="handled_by" value="${v('handled_by', f.handled_by || user.email)}">
+    <label for="ph">Foto</label><input id="ph" type="file" name="photo" accept="image/*">
+    <p class="small muted">La firma del socio o un comprobante se pueden agregar después, desde el envío.</p></details>
   </div>
   <div style="padding:14px 0 6px"><button class="btn" id="ffb">${COMO[como]}</button><p class="small muted" id="ffh" style="margin:6px 0 0"></p></div>
   </form>
   <script>
   document.querySelectorAll('#ff label.btn').forEach(l=>l.classList.add('como'));
   (()=>{const pk=document.querySelector('#ff input[name=packed]'),b=document.getElementById('ffb'),h=document.getElementById('ffh');if(!pk)return;
-    const sync=()=>{b.disabled=!pk.checked;h.textContent=pk.checked?'':'Marca primero “Revisé las botellas”.'};pk.addEventListener('change',sync);sync()})();
+    const sync=()=>{b.disabled=!pk.checked;h.textContent=pk.checked?'':'Marca primero la casilla de la caja.'};pk.addEventListener('change',sync);sync()})();
   document.querySelectorAll('#ff input[name=como]').forEach(r=>r.addEventListener('change',()=>{const b=document.getElementById('ffb');b.textContent=r.value==='shipped'?'Ya se envió':'Ya se entregó'}));
   const ff=document.getElementById('ff');
   ff.addEventListener('submit',async e=>{const ph=document.getElementById('ph');if(!ph.files[0])return;e.preventDefault();e.stopImmediatePropagation();
@@ -271,3 +278,4 @@ export async function reconcileSubmit(env, user, pid, form) {
     'stripe_product', pid, { club_id: p.club_id, relevance: p.relevance }, after, p.name);
   return null;
 }
+

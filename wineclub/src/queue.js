@@ -121,7 +121,14 @@ export function confirmPage({ env, user, ctx, url, okAudit }) {
   ${okBanner(okAudit, today)}
   <h1>Cajas sin registro</h1>
   <p class="muted">Estas cajas ya pasaron su fecha y nadie anotó si salieron. Si ya salió, toca <b>Ya se entregó</b> (o <b>Ya se envió</b>) y anota la fecha real. Si no, toca <b>Aún no sale</b> y queda en “Para entregar”.</p>
-  ${list.length ? `<p class="qcount"><b>${plural(list.length, 'caja', 'cajas')}</b> por revisar, de la más antigua a la más reciente.</p>${list.map(o => qrow(o, today, { action: 'confirm', back: '/confirmar' })).join('')}`
+  ${list.length ? (() => {
+    const groups = new Map();
+    for (const o of list) { if (!groups.has(o.sub.member_id)) groups.set(o.sub.member_id, []); groups.get(o.sub.member_id).push(o); }
+    return `<p class="qcount"><b>${plural(list.length, 'caja', 'cajas')}</b> de ${plural(groups.size, 'socio', 'socios')}. Empieza por quien tiene más.</p>` +
+      [...groups.values()].sort((a, b) => b.length - a.length || a[0].sub.member_name.localeCompare(b[0].sub.member_name, 'es')).map(g => `
+      <section class="cgroup"><h2><a href="/socio/${g[0].sub.member_id}">${esc(g[0].sub.member_name)}</a><span>${esc(g[0].club.name)} · ${g[0].sub.delivery_pref === 'envio' ? 'Envío' : 'Recoge'} · ${plural(g.length, 'caja', 'cajas')}</span></h2>
+      ${g.map(o => qrow(o, today, { action: 'confirm', back: '/confirmar' })).join('')}</section>`).join('');
+  })()
     : '<div class="card empty"><b>Todo al día.</b><br>No hay cajas con fecha pasada sin registro.</div>'}
   ${QCSS}`;
   return page({ title: 'Cajas sin registro', body, user, env, tab: 'agenda' });
@@ -131,7 +138,7 @@ export const QCSS = `<style>
 .qh{display:flex;align-items:baseline;gap:8px;font-size:15px;font-weight:800;margin:22px 0 8px;color:var(--ink)}
 .qh .n{font-size:13px;color:var(--muted);font-weight:700}
 .qrow{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;margin:8px 0;overflow:hidden}
-.qrow.late{border-left-color:var(--red)}.qrow.now{border-left-color:var(--wine)}.qrow.held{border-left-color:var(--amber)}
+.qrow.late{border-left-color:var(--red)}.qrow.now{border-left-color:var(--wine)}.qrow.held{border-left-color:#e0b800}
 .qmain{display:flex;flex-direction:column;gap:2px;padding:12px 14px;text-decoration:none;color:var(--ink);min-height:56px}
 .qmain .qwhen{font-size:13px;font-weight:700;color:var(--muted)}.qrow.late .qwhen{color:var(--red)}.qrow.now .qwhen{color:var(--wine)}
 .qmain .name{font-size:18px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
@@ -151,4 +158,6 @@ export const QCSS = `<style>
 .qempty{color:var(--muted);margin:4px 0 0}
 .qrange{display:flex;gap:10px;align-items:center;margin:18px 0}.qrange label{margin:0;white-space:nowrap}.qrange select{width:auto}
 .qcount{margin:14px 0 4px}
+.cgroup{margin:18px 0 6px}.cgroup h2{display:flex;flex-direction:column;gap:2px;font-size:18px;margin:0 0 4px}.cgroup h2 a{color:var(--ink);text-decoration:none}.cgroup h2 span{font-size:13px;font-weight:600;color:var(--muted)}
+.cgroup .qrow .name{display:none}.cgroup .qrow .qwhen{font-size:15px}
 </style>`;

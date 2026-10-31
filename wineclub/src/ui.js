@@ -204,6 +204,8 @@ button.chip,.chip[role=button],[onclick].chip{min-height:40px!important;display:
 
 .calendar-link{min-height:44px}
 @media (max-width:719px){main tr:has(>th){display:none}}
+
+.date-quick{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0}.date-quick .chip{border:1px solid var(--line);background:#fff;cursor:pointer;font:600 13px inherit}
 `;
 
 const ICON = {
@@ -215,6 +217,7 @@ const ICON = {
 };
 
 const SCRIPT = `
+document.addEventListener('click',e=>{const b=e.target.closest('.date-quick [data-d]');if(!b)return;const f=b.closest('form');const i=f&&f.querySelector('input[type=date]');if(i){i.value=b.dataset.d}});
 (()=>{const open=()=>{const t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(t&&t.tagName==='DETAILS'){t.open=true;t.scrollIntoView({block:'start'})}};open();addEventListener('hashchange',open)})();
 (()=>{const b=document.querySelector('.bell');if(!b||b.querySelector('.bdg'))return;fetch('/avisos.json').then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.n)return;const s=document.createElement('span');s.className='bdg'+(j.red?' r':'');s.textContent=j.n;b.appendChild(s);b.setAttribute('aria-label','Avisos: '+j.n)}).catch(()=>{})})();
 document.querySelectorAll('main table').forEach(t=>{const h=[...t.querySelectorAll('thead th,tr:first-child th')].map(x=>x.textContent.trim());if(!h.length)return;t.querySelectorAll('tbody tr').forEach(r=>[...r.children].forEach((c,i)=>{if(h[i]&&c.tagName==='TD')c.dataset.label=h[i]}))});
