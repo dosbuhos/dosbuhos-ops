@@ -11,7 +11,7 @@ import {billingWarning} from './billing.js';
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
 const OPEN = ['overdue', 'today', 'upcoming', 'exception', 'held'];
-const COMO = { shipped: 'Marcar enviado', handed: 'Entregado en mano' };
+const COMO = { shipped: 'Ya se envió', handed: 'Ya se entregó' };
 
 export const packingProblem = (o) => !o.bottles ? 'missing' : (o.bottlesTotal !== o.expectedBottles ? 'count' : null);
 
@@ -67,19 +67,22 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
     <div id="hand-only" style="${como === 'handed' ? '' : 'display:none'}"><label for="mt">Cómo se entregó</label>
       <select id="mt" name="method"><option value="pickup" ${form.method !== 'signup' ? 'selected' : ''}>Recogió en bodega</option><option value="signup" ${form.method === 'signup' ? 'selected' : ''}>Se lo llevó al inscribirse</option></select></div>
     <label for="dn">Fecha</label><input id="dn" type="date" name="done_on" value="${v('done_on', today)}" max="${today}" required>
-    <label for="ref">Pedido Zoho / OC</label><input id="ref" name="order_ref" value="${v('order_ref', f.order_ref || '')}" placeholder="OV-02072">
+    <label for="ref">Número de pedido (Zoho)</label><input id="ref" name="order_ref" value="${v('order_ref', f.order_ref || '')}" placeholder="OV-02072">
     <div id="ship-only" style="${como === 'shipped' ? '' : 'display:none'}"><div class="grid2">
       <div><label for="car">Paquetería</label><input id="car" name="carrier" value="${v('carrier', f.carrier || '')}"></div>
       <div><label for="trk">Guía</label><input id="trk" name="tracking" value="${v('tracking', f.tracking || '')}"></div></div></div>
-    <label for="hb">Lo entregó / envió</label><input id="hb" name="handled_by" value="${v('handled_by', f.handled_by || user.email)}">
+    <label for="hb">Quién lo entregó</label><input id="hb" name="handled_by" value="${v('handled_by', f.handled_by || user.email)}">
     <label for="nt">Nota</label><textarea id="nt" name="note" rows="2">${v('note', f.note || '')}</textarea>
     <label for="ph">Foto del envío (opcional)</label><input id="ph" type="file" name="photo" accept="image/*">
     <p class="small muted">Después de confirmar puedes guardar la firma del cliente, un recibo firmado o una captura de WhatsApp en “Comprobantes de recepción”.</p>
   </div>
-  <div class="sticky-foot" style="position:sticky;bottom:calc(var(--nav) + 6px);padding:10px 0"><button class="btn" id="ffb">Confirmar</button></div>
+  <div style="padding:14px 0 6px"><button class="btn" id="ffb">${COMO[como]}</button><p class="small muted" id="ffh" style="margin:6px 0 0"></p></div>
   </form>
   <script>
   document.querySelectorAll('#ff label.btn').forEach(l=>l.classList.add('como'));
+  (()=>{const pk=document.querySelector('#ff input[name=packed]'),b=document.getElementById('ffb'),h=document.getElementById('ffh');if(!pk)return;
+    const sync=()=>{b.disabled=!pk.checked;h.textContent=pk.checked?'':'Marca primero “Revisé las botellas”.'};pk.addEventListener('change',sync);sync()})();
+  document.querySelectorAll('#ff input[name=como]').forEach(r=>r.addEventListener('change',()=>{const b=document.getElementById('ffb');b.textContent=r.value==='shipped'?'Ya se envió':'Ya se entregó'}));
   const ff=document.getElementById('ff');
   ff.addEventListener('submit',async e=>{const ph=document.getElementById('ph');if(!ph.files[0])return;e.preventDefault();e.stopImmediatePropagation();
     const b=document.getElementById('ffb');b.disabled=true;b.textContent='Guardando…';
@@ -87,7 +90,7 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
     c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.82));const fd=new FormData(ff);fd.set('photo',blob,'foto.jpg');
     const r=await fetch(ff.action,{method:'POST',body:fd,redirect:'follow'});document.open();document.write(await r.text());document.close();history.replaceState(null,'',r.url)}
-    catch(err){b.disabled=false;b.textContent='Confirmar';alert('No se pudo guardar: '+err.message)}});
+    catch(err){b.disabled=false;b.textContent='Guardar';alert('No se pudo guardar: '+err.message)}});
   </script>`;
   return page({ title: COMO[como], body, user, env, tab: 'agenda' });
 }

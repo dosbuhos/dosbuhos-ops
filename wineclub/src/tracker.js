@@ -2,7 +2,7 @@
 //  · /socios     — one card per member: join date, then a colour-coded pill per shipment; open a shipment to see
 //                  the box and log it right there.
 //  · /calendario — month → week: what should go out, to whom, and what already went out.
-import { esc, fdate, chip, page, STATUS_LABEL, MESES, bottleList } from './ui.js';
+import { esc, fdate, chip, page, STATUS_LABEL, MESES, bottleList, money } from './ui.js';
 import { addDays, weekdayMon0, daysBetween } from './schedule.js';
 import { subOccurrences, subClub, isIgnored, allOccurrences } from './data.js';
 import { exactDate, recordedPending, joinedDate } from './visibility.js';
@@ -20,17 +20,27 @@ export function tone(o, today) {
   if (o.state === 'done') return 'ok';
   if (['skipped', 'pretracking', 'paused'].includes(o.state)) return 'off';
   if (['payment_blocked', 'suspended'].includes(o.state)) return 'block';
-  if (o.state === 'payment_contact' || o.state === 'held') return 'hold';
+  if (o.state === 'held') return 'hold';
+  if (o.state === 'payment_contact') return 'pay';
   if (o.state === 'overdue' || o.state === 'exception') return 'late';
   if (o.state === 'today') return 'now';
   return 'future';
 }
-const TONE_LABEL = { ok: 'Entregado', late: 'Atrasado', now: 'Hoy', hold: 'En resguardo / cobro', block: 'Bloqueado por pago', future: 'Próximo', off: 'Sin registro previo' };
+const TONE_LABEL = { ok: 'Entregado', late: 'Atrasado', now: 'Hoy', hold: 'En bodega', pay: 'Revisar cobro', block: 'Bloqueado por pago', future: 'Próximo', off: 'Sin registro previo' };
 
 function doneText(o, today) {
   const f = o.f || {};
   const how = f.status === 'shipped' || f.status === 'delivered' ? 'Enviado' : f.method === 'signup' ? 'Se lo llevó al inscribirse' : 'Recogido';
   return `${how} ${f.done_on ? fdate(f.done_on, today, { weekday: false }) : ''}`.trim();
+}
+
+// Payment for this box, as Stripe attached it. Manual memberships are billed outside Stripe.
+function payInfo(o, today) {
+  const f = o.f || {}, s = o.sub;
+  if (f.stripe_invoice_id && f.paid_on) return { paid: true, short: `Pagado ${fdate(f.paid_on, today, { weekday: false })}`, long: `Pagado el ${exactDate(f.paid_on)}${f.paid_amount != null ? ' · ' + money(f.paid_amount, s.price_currency) : ''}` };
+  if (!s.stripe_subscription_id) return { paid: null, short: 'Cobro manual', long: 'Membresía cobrada fuera de Stripe.' };
+  if (o.state === 'upcoming' || o.state === 'today' && !f.paid_on) return { paid: null, short: 'Cobro por venir', long: 'Stripe todavía no registra el cobro de este periodo.' };
+  return { paid: false, short: 'Sin pago', long: 'Stripe no tiene un pago asociado a esta caja. Revisa la factura del periodo; esto no confirma un impago.' };
 }
 
 // The inline log form: date, how, optional PO. Writes through /rapido with the same version check as every write.
@@ -42,7 +52,7 @@ function quickForm(o, today, back) {
   return `<form method="post" action="${shipHref(o)}/rapido" class="quick">
     <input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${esc(back)}">
     <div class="quick-grid">
-      <label>¿Cómo salió?<select name="como">
+      <label>Cómo<select name="como">
         <option value="pickup" ${pickup ? 'selected' : ''}>Recogió en bodega</option>
         <option value="courier" ${pickup ? '' : 'selected'}>Enviado a domicilio</option>
         <option value="signup">Se lo llevó al inscribirse</option></select></label>
@@ -55,26 +65,28 @@ function quickForm(o, today, back) {
 }
 
 function shipmentRow(o, today, back) {
-  const t = tone(o, today), f = o.f || {};
+  const t = tone(o, today), f = o.f || {}, pay = payInfo(o, today);
   const due = o.delayed ? `${fdate(o.eff, today, { weekday: false })} (aplazado)` : fdate(o.due, today, { weekday: false });
   const right = t === 'ok' ? doneText(o, today)
     : t === 'late' ? (recordedPending(o) ? 'Pendiente confirmado' : 'Sin registro')
     : t === 'now' ? 'Toca hoy'
-    : t === 'hold' ? (o.state === 'held' ? 'En resguardo' : 'Contactar por pago')
+    : t === 'hold' ? 'En bodega'
+    : t === 'pay' ? 'Revisar cobro'
     : t === 'block' ? 'Bloqueado por pago'
     : t === 'off' ? (o.state === 'pretracking' ? 'Antes del registro' : STATUS_LABEL[o.status] || 'Omitido')
     : `en ${daysBetween(today, o.eff)} días`;
   const details = `
-    <dl class="facts"><dt>Previsto</dt><dd>${esc(exactDate(o.due))}${o.delayed ? ` · aplazado al ${esc(exactDate(o.eff))}` : ''}</dd>
+    <dl class="facts"><dt>Pago</dt><dd>${esc(pay.long)}${f.stripe_invoice_id ? ` · <a href="https://dashboard.stripe.com/invoices/${encodeURIComponent(f.stripe_invoice_id)}" target="_blank" rel="noopener">ver factura</a>` : ''}</dd><dt>Previsto</dt><dd>${esc(exactDate(o.due))}${o.delayed ? ` · aplazado al ${esc(exactDate(o.eff))}` : ''}</dd>
     ${f.done_on ? `<dt>Salió</dt><dd>${esc(doneText(o, today))}${f.handled_by ? ' · ' + esc(f.handled_by) : ''}</dd>` : ''}
     ${f.order_ref ? `<dt>Pedido</dt><dd>${esc(f.order_ref)}</dd>` : ''}${f.tracking ? `<dt>Guía</dt><dd>${esc(f.carrier || '')} ${esc(f.tracking)}</dd>` : ''}
     ${f.note ? `<dt>Nota</dt><dd>${esc(f.note)}</dd>` : ''}</dl>
     ${o.bottles ? `<div class="box"><b>Caja (${o.bottlesTotal} botellas)</b>${bottleList(o.bottles)}</div>` : (o.missingAllocation ? '<p class="warn">Falta definir qué botellas lleva esta caja.</p>' : '')}
     ${quickForm(o, today, back)}
-    ${t === 'block' || t === 'hold' && o.state === 'payment_contact' ? '<p class="small">Revisa el pago antes de entregar.</p>' : ''}
+    ${t === 'block' || t === 'pay' ? '<p class="small">Revisa el pago antes de entregar.</p>' : ''}
     <p class="small"><a href="${shipHref(o)}">Abrir envío completo →</a></p>`;
   return `<details class="ship-acc t-${t}" id="e${o.subId}-${o.k}" ${OPEN_NOW.includes(o.state) && t === 'late' ? '' : ''}>
-    <summary><span class="dot" aria-hidden="true"></span><span class="sn">#${o.n}</span><span class="sd">${esc(due)}</span><span class="sr">${esc(right)}</span></summary>
+    <summary><span class="dot" aria-hidden="true"></span><span class="sn">#${o.n}</span><span class="sd">${esc(due)}</span>
+      <span class="sflags"><span class="pay ${pay.paid ? 'yes' : pay.paid === false ? 'no' : 'na'}">${esc(pay.short)}</span><span class="sr">${esc(right)}</span></span></summary>
     <div class="acc-body">${details}</div></details>`;
 }
 
@@ -91,7 +103,7 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
     members.get(s.member_id).subs.push(s);
   }
   const cards = [];
-  let counts = { activos: 0, atrasados: 0, aldia: 0, todos: 0 };
+  let counts = { activos: 0, atrasados: 0, aldia: 0, cobro: 0, todos: 0 };
   for (const m of members.values()) {
     const blocks = [];
     let late = 0, done = 0, active = false;
@@ -110,26 +122,33 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
       blocks.push({ s, club, occ, ended });
     }
     const hay = (m.name + ' ' + m.subs.map(s => s.member_email || '').join(' ')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    counts.todos++; if (active) counts.activos++; if (late) counts.atrasados++; else if (active) counts.aldia++;
+    const payProblem = m.subs.some(s => s.suspended_on || s.payment_followup_on) || blocks.some(b => b.occ.some(o => ['block', 'pay'].includes(tone(o, today))));
+    counts.todos++; if (active) counts.activos++; if (late) counts.atrasados++; if (payProblem) counts.cobro++; if (!late && !payProblem && active) counts.aldia++;
     if (q && !hay.includes(q)) continue;
     if (filter === 'activos' && !active) continue;
     if (filter === 'atrasados' && !late) continue;
-    if (filter === 'aldia' && (late || !active)) continue;
+    if (filter === 'aldia' && (late || !active || payProblem)) continue;
+    if (filter === 'cobro' && !payProblem) continue;
     cards.push({ m, blocks, late, done, active, joined: joinedDate(ctx, m.id) });
   }
   cards.sort((a, b) => (b.late > 0) - (a.late > 0) || a.m.name.localeCompare(b.m.name, 'es'));
   const back = url.pathname + url.search.replace(/[?&]ok=\d+/, '');
   const card = ({ m, blocks, late, done, active, joined }) => {
     const all = blocks.flatMap(b => b.occ);
+    const owed = all.filter(o => !['upcoming', 'pretracking', 'skipped'].includes(o.state));
+    const paidN = owed.filter(o => o.f?.stripe_invoice_id && o.f?.paid_on).length, doneN = owed.filter(o => o.state === 'done').length;
+    const manual = blocks.every(b => !b.s.stripe_subscription_id);
     const first = blocks[0];
     const pref = first?.s.delivery_pref === 'envio' ? 'Envío a domicilio' : 'Recoge en bodega';
     const noClub = blocks.some(b => !b.club);
-    const status = noClub ? '<span class="mstat late">Sin club</span>' : late ? `<span class="mstat late">${plural(late, 'atrasado', 'atrasados')}</span>` : active ? '<span class="mstat ok">Al día</span>' : '<span class="mstat off">Terminado</span>';
+    const payIssue = blocks.some(b => b.s.suspended_on) ? 'Pago bloqueado' : all.some(o => ['block', 'pay'].includes(tone(o, today))) ? 'Revisar cobro' : null;
+    const status = noClub ? '<span class="mstat late">Sin club</span>' : payIssue ? `<span class="mstat late">${payIssue}</span>` : late ? `<span class="mstat late">${plural(late, 'atrasado', 'atrasados')}</span>` : active ? '<span class="mstat ok">Al día</span>' : '<span class="mstat off">Terminado</span>';
     const isOpen = open === String(m.id) || all.some(o => open === `${o.subId}:${o.k}`);
     return `<details class="member" id="m${m.id}" ${isOpen ? 'open' : ''}>
       <summary>
         <span class="mtop"><span class="mname">${esc(m.name)}</span>${status}</span>
         <span class="msub">${esc(blocks.map(b => b.club ? b.club.name : 'Sin club').join(' · '))} · Alta ${joined ? esc(exactDate(joined)) : '—'}</span>
+        ${owed.length ? `<span class="mcount">${doneN} de ${owed.length} entregadas${manual ? ' · cobro manual' : ` · ${paidN} de ${owed.length} pagadas`}</span>` : ''}
         <span class="pills" aria-label="${done} entregados, ${late} atrasados">${all.map(o => `<span class="pill t-${tone(o, today)}" title="Envío #${o.n}: ${esc(TONE_LABEL[tone(o, today)])}">${o.n}</span>`).join('')}</span>
       </summary>
       <div class="mbody">
@@ -143,8 +162,8 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
   ${okBanner(okAudit, today)}
   <h1>Socios</h1>
   <form method="get" action="/socios" class="msearch"><input type="hidden" name="f" value="${esc(filter)}"><input type="search" name="q" value="${esc(url.searchParams.get('q') || '')}" placeholder="Buscar socio" aria-label="Buscar socio"></form>
-  <nav class="mfilters">${chipLink('activos', 'Activos')}${chipLink('atrasados', 'Con atrasos')}${chipLink('aldia', 'Al día')}${chipLink('todos', 'Todos')}</nav>
-  <p class="legend"><span><i class="pill t-ok"></i>Entregado</span><span><i class="pill t-late"></i>Atrasado</span><span><i class="pill t-now"></i>Hoy</span><span><i class="pill t-hold"></i>Resguardo / cobro</span><span><i class="pill t-future"></i>Próximo</span></p>
+  <nav class="mfilters">${chipLink('activos', 'Activos')}${chipLink('atrasados', 'Con atrasos')}${chipLink('aldia', 'Al día')}${chipLink('cobro', 'Cobro')}${chipLink('todos', 'Todos')}</nav>
+  <p class="legend"><span><i class="pill t-ok"></i>Entregado</span><span><i class="pill t-late"></i>Atrasado</span><span><i class="pill t-now"></i>Hoy</span><span><i class="pill t-hold"></i>En bodega</span><span><i class="pill t-pay"></i>Revisar cobro</span><span><i class="pill t-block"></i>Pago bloqueado</span><span><i class="pill t-future"></i>Próximo</span></p>
   ${cards.length ? cards.map(card).join('') : `<div class="card empty">${q ? `Nadie coincide con “${esc(url.searchParams.get('q'))}”.` : 'Nadie en esta lista.'}</div>`}
   <p class="small center"><a href="/socios/lista">Directorio completo y alta de socios</a></p>
   ${TCSS}`;
@@ -188,7 +207,7 @@ export function calendarPage({ env, user, ctx, url, okAudit }) {
   ${okBanner(okAudit, today)}
   <h1>Envíos por semana</h1>
   <nav class="mfilters"><a href="/calendario" aria-current="page">Calendario</a><a href="/envios">Buscar y filtrar</a><a href="/envios?f=resguardo">En resguardo</a><a href="/envios?f=entregados">Entregados</a></nav>
-  ${late.length ? `<details class="cal-late"><summary><b>${plural(late.length, 'caja atrasada', 'cajas atrasadas')} de meses anteriores</b><span>Toca para ver</span></summary>${late.map(row).join('')}</details>` : ''}
+  ${late.length ? `<details class="cal-late"><summary><b>${plural(late.length, 'caja atrasada', 'cajas atrasadas')} de meses anteriores</b><span aria-hidden="true">▾</span></summary>${late.map(row).join('')}</details>` : ''}
   ${[...groups.entries()].map(([mk, weeks]) => {
     const list = [...weeks.values()].flat();
     return `<section class="cal-month"><h2>${MESES[Number(mk.slice(5)) - 1]} ${mk.slice(0, 4)}<span>${summary(list)}</span></h2>
@@ -219,19 +238,26 @@ h1{margin:6px 0 10px}
 .mstat.late{background:var(--red-soft);color:var(--red)}.mstat.ok{background:var(--green-soft);color:var(--green)}.mstat.off{background:var(--grey-soft);color:var(--muted)}
 .pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .pill{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:26px;padding:0 6px;border-radius:7px;font-size:13px;font-weight:700;font-style:normal;background:var(--grey-soft);color:var(--muted);border:1.5px solid transparent}
-.pill.t-ok{background:var(--green);color:#fff}.pill.t-late{background:var(--red);color:#fff}.pill.t-now{background:var(--wine);color:#fff}
+.pill.t-ok{background:var(--green);color:#fff}.pill.t-late{background:var(--red);color:#fff}.pill.t-now{background:#fff;color:var(--wine);border:2px solid var(--wine)}.pill.t-pay{background:#fff;color:var(--amber);border:2px dashed var(--amber)}
 .pill.t-hold{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}.pill.t-block{background:var(--red-soft);color:var(--red);border-color:var(--red)}
 .pill.t-future{background:#fff;color:var(--muted);border-color:var(--line)}.pill.t-off{background:var(--grey-soft);color:#a39c95}
 .mbody{padding:6px 14px 12px}.mbody>p{margin:6px 0 10px}
 .ship-acc{border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;margin:8px 0;background:#fff}
-.ship-acc.t-ok{border-left-color:var(--green)}.ship-acc.t-late{border-left-color:var(--red)}.ship-acc.t-now{border-left-color:var(--wine)}.ship-acc.t-hold{border-left-color:var(--amber)}.ship-acc.t-block{border-left-color:var(--red)}
-.ship-acc>summary{list-style:none;display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:10px;min-height:52px;padding:6px 12px;cursor:pointer}
+.ship-acc.t-ok{border-left-color:var(--green)}.ship-acc.t-late{border-left-color:var(--red)}.ship-acc.t-now{border-left-color:var(--wine)}.ship-acc.t-hold,.ship-acc.t-pay{border-left-color:var(--amber)}.ship-acc.t-block{border-left-color:var(--red)}
+.ship-acc>summary{list-style:none;display:grid;grid-template-columns:auto auto 1fr;grid-template-areas:'dot n d' '. f f';align-items:center;column-gap:10px;row-gap:4px;min-height:52px;padding:8px 12px;cursor:pointer}
+.ship-acc .dot{grid-area:dot}.ship-acc .sn{grid-area:n}.ship-acc .sd{grid-area:d}
+.sflags{grid-area:f;display:flex;flex-wrap:wrap;gap:6px}
+.sflags>span{font-size:13px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--grey-soft)}
+.pay.yes{background:var(--green-soft);color:var(--green)}.pay.no{background:var(--red-soft);color:var(--red)}.pay.na{color:var(--muted)}
+.mcount{font-size:13px;color:var(--muted);font-weight:600}
+@media (max-width:480px){.quick-grid{grid-template-columns:1fr}}
+@media (min-width:560px){.ship-acc>summary{grid-template-columns:auto auto auto 1fr;grid-template-areas:'dot n d f'}.sflags{justify-content:flex-end}}
 .ship-acc>summary::-webkit-details-marker{display:none}
 .ship-acc .dot{width:10px;height:10px;border-radius:50%;background:var(--line)}
-.ship-acc.t-ok .dot{background:var(--green)}.ship-acc.t-late .dot{background:var(--red)}.ship-acc.t-now .dot{background:var(--wine)}.ship-acc.t-hold .dot{background:var(--amber)}.ship-acc.t-block .dot{background:var(--red)}
+.ship-acc.t-ok .dot{background:var(--green)}.ship-acc.t-late .dot{background:var(--red)}.ship-acc.t-now .dot{background:var(--wine)}.ship-acc.t-hold .dot,.ship-acc.t-pay .dot{background:var(--amber)}.ship-acc.t-block .dot{background:var(--red)}
 .ship-acc .sn{font-weight:800}.ship-acc .sd{color:var(--muted);font-size:14px}
-.ship-acc .sr{font-size:14px;font-weight:700;text-align:right}
-.ship-acc.t-ok .sr{color:var(--green)}.ship-acc.t-late .sr{color:var(--red)}.ship-acc.t-now .sr{color:var(--wine)}.ship-acc.t-hold .sr{color:var(--amber)}.ship-acc.t-block .sr{color:var(--red)}.ship-acc.t-future .sr,.ship-acc.t-off .sr{color:var(--muted);font-weight:600}
+.ship-acc .sr{text-align:left}
+.ship-acc.t-ok .sr{color:var(--green)}.ship-acc.t-late .sr{color:var(--red)}.ship-acc.t-now .sr{color:var(--wine)}.ship-acc.t-hold .sr,.ship-acc.t-pay .sr{color:var(--amber)}.ship-acc.t-block .sr{color:var(--red)}.ship-acc.t-future .sr,.ship-acc.t-off .sr{color:var(--muted);font-weight:600}
 .acc-body{padding:4px 12px 12px;border-top:1px dashed var(--line)}
 .facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 0;font-size:14px}.facts dt{color:var(--muted)}.facts dd{margin:0}
 .box{background:#fcfaf7;border-radius:10px;padding:8px 10px;margin:8px 0}

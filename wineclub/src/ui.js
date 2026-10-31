@@ -171,6 +171,39 @@ pre.code{background:#fff;border:1px solid var(--line);border-radius:12px;padding
 .shipment-work>summary{list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px;cursor:pointer}.shipment-work>summary::-webkit-details-marker{display:none}.work-heading{display:flex;flex-direction:column;gap:4px;min-width:0}.work-heading>b{font-size:18px;overflow-wrap:anywhere}
 .work-tags{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;max-width:48%}.work-tags .chip{white-space:normal}.work-toggle{font-size:12px;font-weight:650;color:var(--wine);flex-basis:100%;text-align:right}.shipment-work[open] .work-toggle>span{display:inline-block;transform:rotate(180deg)}.work-body{border-top:1px solid var(--line);padding:16px}.work-info{display:grid;grid-template-columns:1fr 1fr;gap:22px}.work-info>*{min-width:0}.work-info h3,.work-order h3{margin:16px 0 8px}.work-info p{margin:6px 0}.work-order{border-top:1px solid var(--line);margin-top:14px}
 @media(max-width:520px){.shipment-work>summary{flex-wrap:wrap;padding:14px}.work-tags{max-width:100%;justify-content:flex-start;width:100%}.work-toggle{flex-basis:auto;margin-left:auto}.work-body{padding:14px}.work-info{grid-template-columns:1fr;gap:4px}}
+
+/* ---- display audit fixes (pass 3) ---- */
+html,body{overflow-x:clip}
+main{overflow-wrap:anywhere}
+.top .who{font-size:13px}
+@media (max-width:600px){.top .who .mail{display:none}.top .who .out{display:inline}}
+@media (min-width:601px){.top .who .out{display:none}}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
+.tile .l{font-size:12.5px;line-height:1.3;hyphens:auto}
+.rows a.row{flex-wrap:wrap;row-gap:6px}
+.rows .row .main{flex:1 1 190px}
+.rows .row .t{white-space:normal;overflow:visible;text-overflow:clip}
+.rows .row>.chip,.rows .row>span.chip{flex:0 1 auto;max-width:100%;white-space:normal;text-align:left}
+a.chip,button.chip{min-height:40px;display:inline-flex;align-items:center;padding:0 12px}
+dd,td,th{overflow-wrap:anywhere}
+@media (max-width:719px){
+ main table,main thead,main tbody,main tr,main td,main th{display:block;width:auto!important;min-width:0!important}
+ main thead{display:none}
+ main tr{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+ main td{border:0!important;padding:3px 0!important;text-align:left!important}
+ main td[data-label]::before{content:attr(data-label);display:block;font-size:12px;font-weight:700;color:var(--muted)}
+}
+
+
+dl.kv{grid-template-columns:minmax(0,max-content) minmax(0,1fr)}
+dl.kv dd .chip{white-space:normal;max-width:100%}
+@media (max-width:420px){dl.kv{grid-template-columns:minmax(0,1fr)}dl.kv dt{margin-top:6px}}
+main .chip{max-width:100%;white-space:normal}
+button.chip,.chip[role=button],[onclick].chip{min-height:40px!important;display:inline-flex;align-items:center;padding:0 12px}
+@media (max-width:380px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.calendar-link{min-height:44px}
+@media (max-width:719px){main tr:has(>th){display:none}}
 `;
 
 const ICON = {
@@ -182,6 +215,8 @@ const ICON = {
 };
 
 const SCRIPT = `
+(()=>{const b=document.querySelector('.bell');if(!b||b.querySelector('.bdg'))return;fetch('/avisos.json').then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.n)return;const s=document.createElement('span');s.className='bdg'+(j.red?' r':'');s.textContent=j.n;b.appendChild(s);b.setAttribute('aria-label','Avisos: '+j.n)}).catch(()=>{})})();
+document.querySelectorAll('main table').forEach(t=>{const h=[...t.querySelectorAll('thead th,tr:first-child th')].map(x=>x.textContent.trim());if(!h.length)return;t.querySelectorAll('tbody tr').forEach(r=>[...r.children].forEach((c,i)=>{if(h[i]&&c.tagName==='TD')c.dataset.label=h[i]}))});
 document.addEventListener('submit',e=>{const f=e.target;if(f.dataset.busy){e.preventDefault();return}f.dataset.busy=1;
 const b=e.submitter;if(b){setTimeout(()=>{b.disabled=true;b.dataset.t=b.textContent;b.textContent='Guardando…'},0)}});
 window.addEventListener('pageshow',e=>{if(e.persisted){document.querySelectorAll('form[data-busy]').forEach(f=>delete f.dataset.busy);
@@ -199,15 +234,15 @@ catch(err){st.textContent='No se pudo subir: '+err.message}})}
 
 export function page({ title, body, user, env, tab = '', alerts = null, alertsRed = 0 }) {
   const envTag = env.APP_ENV && env.APP_ENV !== 'production' ? `<span class="env">${esc(env.APP_ENV)}</span>` : '';
-  const nav = [['/', 'agenda', 'Agenda'], ['/calendario', 'envios', 'Envíos'], ['/socios', 'socios', 'Socios'], ['/clubes', 'clubes', 'Clubes']];
+  const nav = [['/', 'agenda', 'Inicio'], ['/calendario', 'envios', 'Envíos'], ['/socios', 'socios', 'Socios'], ['/clubes', 'clubes', 'Clubes']];
   if (user?.isManager) nav.push(['/ajustes', 'ajustes', 'Ajustes']);
-  return new Response(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+  return new Response(`<!doctype html><html lang="es-MX"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#6b2737"><meta name="robots" content="noindex">
 <title>${esc(title)} · Club Dos Búhos</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236b2737'/%3E%3Ctext x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='Georgia'%3EDB%3C/text%3E%3C/svg%3E">
 <style>${CSS}</style></head><body>
-<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<a class="bell" href="/avisos" aria-label="Avisos${alerts ? ': ' + alerts : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>${alerts ? `<span class="bdg${alertsRed ? ' r' : ''}">${alerts}</span>` : ''}</a><a class="who" href="/auth/salir" style="color:#fff;text-decoration:none" title="Salir">${esc(user.email)}</a>` : ''}</header>
+<header class="top"><a class="brand" href="/">Club Dos Búhos</a>${envTag}${user ? `<a class="bell" href="/avisos" aria-label="Avisos${alerts ? ': ' + alerts : ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>${alerts ? `<span class="bdg${alertsRed ? ' r' : ''}">${alerts}</span>` : ''}</a><a class="who" href="/auth/salir" style="color:#fff;text-decoration:none" title="Salir (${esc(user.email)})"><span class="mail">${esc(user.email)}</span><span class="out">Salir</span></a>` : ''}</header>
 <main>${body}</main>
 ${user ? `<nav class="navbar">${nav.map(([href, k, label]) => `<a href="${href}" class="${tab === k ? 'on' : ''}">${ICON[k]}<span>${label}</span></a>`).join('')}</nav>` : ''}
 <script>${SCRIPT}</script></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'same-origin' } });

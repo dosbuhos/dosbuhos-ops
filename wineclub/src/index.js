@@ -1,6 +1,6 @@
 import * as Q from './queue.js';
 import * as T from './tracker.js';
-import { alertsPage } from './alerts.js';
+import { alertsPage, buildAlerts } from './alerts.js';
 import { identify } from './auth.js';
 import { esc } from './ui.js';
 import { STATUSES, DONE, isDate, dueDate, parseBottles, membershipYear } from './schedule.js';
@@ -115,6 +115,7 @@ async function handle(request, env) {
     return Q.queuePage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
   }
   if (m === 'GET' && p === '/avisos') return alertsPage({ env, user, ctx: await loadContext(env) });
+  if (m === 'GET' && p === '/avisos.json') { const a = buildAlerts(await loadContext(env), user); return Response.json({ n: a.length, red: a.filter(x => x.tone === 'red').length }, { headers: { 'cache-control': 'no-store' } }); }
   if (m === 'GET' && p === '/confirmar') {
     const ctx = await loadContext(env);
     return Q.confirmPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });

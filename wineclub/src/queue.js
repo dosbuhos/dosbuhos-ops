@@ -39,14 +39,14 @@ export function qrow(o, today, { action = null, back = '/' } = {}) {
   if (['past_due', 'unpaid'].includes(s.status)) chips.push(chip('Pago vencido', 'amber'));
   if (o.missingAllocation) chips.push(chip('Falta definir botellas', 'red'));
   const how = isPickup(o) ? 'Recoge' : 'Envío';
-  const deliverLabel = isPickup(o) ? 'Entregado' : 'Enviado';
+  const deliverLabel = isPickup(o) ? 'Ya se entregó' : 'Ya se envió';
   const como = isPickup(o) ? 'handed' : 'shipped';
   const backQ = `&back=${encodeURIComponent(back)}`;
   let btns = '';
   if (action === 'deliver') btns = `<a class="qbtn" href="${shipHref(o)}/entregar?como=${como}${backQ}">${deliverLabel}</a>`;
   if (action === 'confirm') btns = `
-    <a class="qbtn" href="${shipHref(o)}/entregar?como=${como}${backQ}">Ya salió</a>
-    <form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="status" value="needs_prep"><input type="hidden" name="back" value="${esc(back)}"><button class="qbtn ghost">Pendiente</button></form>`;
+    <a class="qbtn" href="${shipHref(o)}/entregar?como=${como}${backQ}">${deliverLabel}</a>
+    <form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="status" value="needs_prep"><input type="hidden" name="back" value="${esc(back)}"><button class="qbtn ghost">Aún no sale</button></form>`;
   return `<article class="qrow ${tone}${action === 'confirm' ? ' confirm' : ''}" id="e${o.subId}-${o.k}">
     <a class="qmain" href="${shipHref(o)}">
       <span class="qwhen">${esc(whenText(o, today))}${o.state !== 'held' && o.state !== 'done' && daysBetween(today, o.eff) < 0 ? ` <span class="muted">· ${esc(fdate(o.eff, today, { weekday: false }))}</span>` : ''}</span>
@@ -71,8 +71,6 @@ export function queuePage({ env, user, ctx, url, okAudit }) {
   const later = upcoming.filter(o => o.eff > endWeek && o.eff <= addDays(today, horizon));
   const recent = occ.filter(o => o.state === 'done' && (o.f?.done_on || '') >= addDays(today, -7)).sort((a, b) => (b.f.done_on || '').localeCompare(a.f.done_on || ''));
   const blocked = unmapped;
-  const paymentBlocked = occ.filter(o => o.state === 'payment_blocked').length;
-  const sync = ctx.settings.last_sync ? JSON.parse(ctx.settings.last_sync) : null;
   const back = '/';
   const rows = (list, action) => list.map(o => qrow(o, today, { action, back })).join('');
 
@@ -82,26 +80,20 @@ export function queuePage({ env, user, ctx, url, okAudit }) {
   const alertList = buildAlerts(ctx, user);
   const body = `
   ${okBanner(okAudit, today)}
-  <div class="tiles">
-    <a class="tile ${now.length ? 'wine' : ''}" href="#entregar"><div class="v">${now.length}</div><div class="l">Por entregar ahora</div></a>
-    <a class="tile ${toConfirm.length ? 'red' : ''}" href="/confirmar"><div class="v">${toConfirm.length}</div><div class="l">Por confirmar${blocked.length ? ' · incompleto' : ''}</div></a>
-    <a class="tile" href="#semana"><div class="v">${week.length}</div><div class="l">Resto de la semana</div></a>
-  </div>
-
   ${toConfirm.length ? `<section class="catchup">
-    <h2>Ponerse al día</h2>
-    <p>${plural(toConfirm.length, 'caja tiene', 'cajas tienen')} fecha pasada y nadie registró si ya salió. Revísalas una por una: <b>ya salió</b> o <b>pendiente</b>.</p>
-    <a class="btn" href="/confirmar">Revisar ${plural(toConfirm.length, 'caja', 'cajas')}</a>
-    <details class="more"><summary>Ver la lista</summary>${rows(toConfirm.slice(0, 60), null)}</details>
+    <h2>${plural(toConfirm.length, 'caja sin registro', 'cajas sin registro')}</h2>
+    <p>Ya pasó su fecha y nadie anotó si salió. Revísalas una por una.</p>
+    <a class="btn" href="/confirmar">Revisarlas</a>
   </section>` : ''}
+  ${blocked.length ? `<a class="alert red" href="#bloqueados"><b>${plural(blocked.length, 'socio sin club asignado', 'socios sin club asignado')} · lista incompleta</b><span>Sus envíos no aparecen aquí hasta asignarles club.</span></a>` : ''}
 
-  <h2 class="qh" id="entregar">Por entregar ahora <span class="n">${now.length || ''}</span></h2>
-  ${now.length ? rows(now, 'deliver') : `<p class="qempty">Nada pendiente para hoy.${toConfirm.length ? ' Revisa las cajas por confirmar arriba.' : ''}</p>`}
+  <h2 class="qh" id="entregar">Para entregar hoy <span class="n">${now.length || ''}</span></h2>
+  ${now.length ? rows(now, 'deliver') : `<p class="qempty">Nada para entregar hoy.</p>`}
 
   ${heldWaiting.length ? `<h2 class="qh">En resguardo en bodega <span class="n">${heldWaiting.length}</span></h2><p class="small muted">Cajas guardadas para el socio. Regístralas cuando salgan.</p>${rows(heldWaiting, 'deliver')}` : ''}
   ${occ.some(o => o.state === 'held' && o.holdReleaseDue) ? `<p class="small muted">${occ.filter(o => o.state === 'held' && o.holdReleaseDue).length} resguardo(s) con fecha cumplida: coordinar retiro o envío.</p>` : ''}
 
-  <h2 class="qh" id="hoy"><span id="semana"></span>Resto de esta semana <span class="n">${week.length || ''}</span></h2>
+  <h2 class="qh" id="hoy"><span id="semana"></span>Esta semana <span class="n">${week.length || ''}</span></h2>
   ${week.length ? rows(week, null) : '<p class="qempty">Nada más esta semana.</p>'}
 
   ${[...byMonth.entries()].map(([key, list]) => `<h2 class="qh">${MESES[Number(key.slice(5)) - 1]}${key.slice(0, 4) !== today.slice(0, 4) ? ' ' + key.slice(0, 4) : ''} <span class="n">${list.length}</span></h2>${rows(list, null)}`).join('')}
@@ -112,9 +104,9 @@ export function queuePage({ env, user, ctx, url, okAudit }) {
     <a class="row" href="${shipHref(o)}"><div class="main"><div class="t">${esc(o.sub.member_name)} · #${o.n}</div>
     <div class="s">${esc(attribution(o.f, today))}${o.f.order_ref ? ' · ' + esc(o.f.order_ref) : ''}</div></div></a>`).join('')}</div></details>` : ''}
 
-  ${blocked.length ? `<details class="more" id="bloqueados"><summary>Calendarios bloqueados (${blocked.length})</summary><div class="rows">${blocked.map(s => `<a class="row" href="${user.isManager ? `/conciliar#p-${esc(s.stripe_product_id || '')}` : `/socio/${s.member_id}`}"><div class="main"><div class="t">${esc(s.member_name)}</div>
+  ${blocked.length ? `<details class="more" id="bloqueados"><summary>Socios sin club asignado (${blocked.length})</summary><div class="rows">${blocked.map(s => `<a class="row" href="${user.isManager ? `/conciliar#p-${esc(s.stripe_product_id || '')}` : `/socio/${s.member_id}`}"><div class="main"><div class="t">${esc(s.member_name)}</div>
       <div class="s">${esc(s.product_name || 'sin producto')} · ${esc(s.status)}</div></div>${chip('Resolver', 'red')}</a>`).join('')}</div></details>` : ''}
-  <p class="center small"><a href="/preguntar">Pregúntale al club (asistente)</a></p>
+  <p class="center small"><a href="/preguntar">Preguntar al asistente</a></p>
   ${QCSS}`;
   return page({ title: 'Por entregar', body, user, env, tab: 'agenda', alerts: alertList.length, alertsRed: alertList.filter(a => a.tone === 'red').length });
 }
@@ -125,14 +117,14 @@ export function confirmPage({ env, user, ctx, url, okAudit }) {
   const { occ } = allOccurrences(ctx, today);
   const list = occ.filter(unconfirmed).sort(sortEff);
   const body = `
-  <p><a href="/">← Por entregar</a></p>
+  <p><a href="/">← Inicio</a></p>
   ${okBanner(okAudit, today)}
-  <h1>Ponerse al día</h1>
-  <p class="muted">Cada caja tiene una fecha pasada y ningún registro. Si ya se entregó o envió, toca <b>Ya salió</b> y anota la fecha real. Si no, toca <b>Pendiente</b> y pasa a “Por entregar”.</p>
+  <h1>Cajas sin registro</h1>
+  <p class="muted">Estas cajas ya pasaron su fecha y nadie anotó si salieron. Si ya salió, toca <b>Ya se entregó</b> (o <b>Ya se envió</b>) y anota la fecha real. Si no, toca <b>Aún no sale</b> y queda en “Para entregar”.</p>
   ${list.length ? `<p class="qcount"><b>${plural(list.length, 'caja', 'cajas')}</b> por revisar, de la más antigua a la más reciente.</p>${list.map(o => qrow(o, today, { action: 'confirm', back: '/confirmar' })).join('')}`
     : '<div class="card empty"><b>Todo al día.</b><br>No hay cajas con fecha pasada sin registro.</div>'}
   ${QCSS}`;
-  return page({ title: 'Ponerse al día', body, user, env, tab: 'agenda' });
+  return page({ title: 'Cajas sin registro', body, user, env, tab: 'agenda' });
 }
 
 export const QCSS = `<style>

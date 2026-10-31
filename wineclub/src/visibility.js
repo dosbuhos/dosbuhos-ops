@@ -24,6 +24,7 @@ export function inboxReason(o,today) {
 }
 
 export function paymentBadge(f,o) {
+  if(o?.sub&&!o.sub.stripe_subscription_id&&!(f?.stripe_invoice_id&&f?.paid_on))return `<span class="chip grey" title="Membresía cobrada fuera de Stripe">Cobro manual</span>`;
   const paid=!!(f?.stripe_invoice_id&&f?.paid_on);
   const needsReview=['overdue','today','exception','held','done','suspended','payment_blocked'].includes(o?.state);
   const label=paid?`Pagado · ${exactDate(f.paid_on)}`:'Sin pago de Stripe asociado';

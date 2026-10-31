@@ -144,14 +144,14 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
   const link = (como, label, cls = '') => `<a class="btn ${cls}" href="${back}/entregar?como=${como}">${label}</a>`;
   let actions;
   if (['suspended','payment_blocked','payment_contact'].includes(o.state)) actions = `<p class="small">Preparación y entrega bloqueadas. <a href="/socio/${s.member_id}#membresia">Revisar membresía</a></p>`;
-  else if (open) actions = `<p ${o.state === 'held' ? 'hidden' : ''}><a href="#aplazar">${o.delayed ? 'Cambiar / quitar aplazamiento' : 'Aplazar esta entrega'}</a></p>${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
-    <div class="acts">${s.delivery_pref === 'envio' ? link('shipped', early ? 'Enviar antes de tiempo' : 'Marcar enviado') + link('handed', 'Entregado en mano', 'ghost') : link('handed', early ? 'Entregar antes de tiempo' : 'Entregado en mano') + link('shipped', 'Marcar enviado', 'ghost')}</div>
-    <form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}">
+  else if (open) actions = `${early ? '<p class="small muted" style="margin-top:0">Todavía no toca. Si se entrega antes, el registro te pedirá confirmarlo.</p>' : ''}
+    <div class="acts">${s.delivery_pref === 'envio' ? link('shipped', early ? 'Enviar antes de tiempo' : 'Ya se envió') + link('handed', 'Ya se entregó', 'ghost') : link('handed', early ? 'Entregar antes de tiempo' : 'Ya se entregó') + link('shipped', 'Ya se envió', 'ghost')}</div>
+    <details class="more" ${o.state==='held'?'open':''}><summary>Otras acciones: preparar, excepción, omitir, guardar en bodega</summary><form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}">
     <div class="acts">${o.status === 'needs_prep' ? act('scheduled', 'Quitar “en preparación”', 'quiet') : act('needs_prep', 'En preparación', 'quiet')}${o.status === 'ready' ? act('scheduled', 'Quitar “listo”', 'quiet') : act('ready', 'Listo', 'quiet')}</div>
     <div class="acts">${o.status === 'exception' ? act('scheduled', 'Quitar excepción', 'quiet') : act('exception', 'Marcar excepción', 'danger')}${act('skipped', 'Omitir este envío', 'quiet')}</div></form>
     ${o.state==='held'?`<div class="banner ${o.holdReleaseDue?'amber':''}"><div><b>${esc(holdTerm(o))}</b><p class="small">${esc(f.hold_reason||'Resguardo solicitado por el socio')}</p><p class="small">${o.holdReleaseDue?'La fecha ya se cumplió: coordina el retiro o envío. ':''}Al registrar la entrega en mano o el envío, deja de estar en resguardo.</p></div></div>`:''}
     <details class="more"><summary>${o.state==='held'?'Cambiar fecha o motivo del resguardo':'Guardar este vino en bodega para el socio'}</summary><form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version||0}"><input type="hidden" name="status" value="held"><label for="hold-reason">Motivo del resguardo</label><input id="hold-reason" name="hold_reason" maxlength="300" value="${esc(f.hold_reason||'Resguardo solicitado por el socio')}" required>
-    <label for="hold-until">Retener hasta (opcional)</label><input id="hold-until" name="hold_until" type="date" value="${esc(o.state==='held'?f.hold_until||'':'')}"><p class="small">Vacío = resguardo indefinido. Con fecha, la app avisa cuando se cumple para coordinar la salida. No registra una entrega automáticamente ni cambia el cobro.</p><button class="btn quiet">${o.state==='held'?'Guardar resguardo':'Marcar en resguardo'}</button></form></details>`;
+    <label for="hold-until">Retener hasta (opcional)</label><input id="hold-until" name="hold_until" type="date" value="${esc(o.state==='held'?f.hold_until||'':'')}"><p class="small">Vacío = resguardo indefinido. Con fecha, la app avisa cuando se cumple para coordinar la salida. No registra una entrega automáticamente ni cambia el cobro.</p><button class="btn quiet">${o.state==='held'?'Guardar resguardo':'Marcar en resguardo'}</button></form></details></details>`;
   else if (o.status) actions = `${o.status === 'shipped' ? `<form method="post" action="${back}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${back}"><div class="acts one">${act('delivered', 'Marcar recibido por el socio')}</div></form>` : ''}
     <details class="more"><summary>Reabrir para corregir</summary><form method="post" action="${back}/reabrir">
     <input type="hidden" name="version" value="${f.version || 0}"><label>Motivo (obligatorio)</label><input name="reason" required placeholder="Ej. se marcó por error">
@@ -166,11 +166,10 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     : `<div class="warn">${o.missingAllocation ? 'Falta definir qué botellas lleva este envío.' : 'Sin detalle de botellas.'}</div>
        <p class="small muted">Defínelo aquí abajo para este envío${user.isManager ? `, o la caja ${o.slot} en <a href="/clubes#club${o.club.id}">${esc(o.club.name)}</a>` : ''}.</p>`;
 
-  const body = `<p><a href="/">← Agenda</a></p>
+  const body = `<p><a href="/">← Inicio</a></p>
   <div class="status-pair">${chip(visibleStatus(o), o.state === 'overdue' && !recordedPending(o) ? 'amber' : st.tone)}${paymentBadge(f,o)}</div>
   <h1>Envío #${o.n} · ${esc(s.member_name)}</h1>
   ${billingWarning(ctx,s,{paid:!!f.paid_on})}${paymentReviewWarning(f)}
-  <div class="acts"><a class="btn quiet sm" href="${back}/comprobante">Firmar recepción</a><a class="btn quiet sm" href="${back}/comprobante?tipo=receipt">Subir comprobante</a></div>
   ${photos.some(p=>['signature','receipt'].includes(p.kind))?'<p class="small"><a href="#comprobantes">✓ Ver comprobantes guardados</a></p>':''}
   <div class="card"><div class="small muted">Alta de esta suscripción: <b>${esc(exactDate(s.start_date))}</b> · ${esc(cadenceLabel(o.club.cadence_months))}</div>${dateFacts(o)}
   <a class="small calendar-link" href="/socio/${s.member_id}#calendario">Ver el calendario completo →</a></div>
@@ -191,7 +190,7 @@ export function shipmentPage({ env, user, ctx, o, photos, history }) {
     ${f.status ? `<p class="small muted">${esc(attribution(f, today))}${f.delivered_on ? ` · recibido el ${esc(fdate(f.delivered_on, today))}` : ''}${f.override_reason ? ` · excepción: ${esc(f.override_reason)}` : ''}${f.legacy_id ? ` · importado del sistema anterior (#${esc(f.legacy_id)})` : ''}</p>` : ''}</div>
   <h2>Detalles</h2><div class="card"><form method="post" action="${back}/detalles">
     <input type="hidden" name="version" value="${f.version || 0}">
-    <label for="ref">Pedido Zoho / OC</label><input id="ref" name="order_ref" value="${esc(f.order_ref || '')}" placeholder="OV-02072">
+    <label for="ref">Número de pedido (Zoho)</label><input id="ref" name="order_ref" value="${esc(f.order_ref || '')}" placeholder="OV-02072">
     <div class="grid2"><div><label for="car">Paquetería</label><input id="car" name="carrier" value="${esc(f.carrier || '')}"></div>
     <div><label for="trk">Guía</label><input id="trk" name="tracking" value="${esc(f.tracking || '')}"></div></div>
     <div class="grid2"><div><label for="dn">Entregado / enviado el</label><input id="dn" type="date" name="done_on" value="${esc(f.done_on || '')}"></div>
@@ -410,7 +409,7 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
       const b = ctx.cases.get(`${c.id}:${i}`);
       const total = b ? totalBottles(b) : 0;
       return `<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="ben"><b>${slotName(i).charAt(0).toUpperCase() + slotName(i).slice(1)}</b>
-        ${b ? chip(`${total} botellas`, total === c.bottles ? 'green' : 'amber') : chip('Sin definir', 'red')}</div>
+        ${b ? chip(`${total} botellas`, total === c.bottles ? 'green' : 'amber') : chip('Sin definir', 'grey')}</div>
         ${b ? `<div class="small">${b.map(x => `${esc(x.qty)}× ${esc(x.wine)}`).join(' · ')}</div>` : ''}
         ${m ? `<details class="more" style="margin:4px 0"><summary class="small">Editar</summary><form method="post" action="/club/${c.id}/caja/${i}">
         <textarea name="bottles" rows="7" placeholder="2 Tempranillo GR&#10;1 Pet Nat">${esc(bottlesToText(b))}</textarea>

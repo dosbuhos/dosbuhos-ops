@@ -50,9 +50,9 @@ try {
 
   await check('unconfirmed products block schedules and the agenda says so', async () => {
     const html = await get('/');
-    assert.match(html, /Calendarios bloqueados/);
+    assert.match(html, /sin club asignado/);
     assert.match(html, /Valeria Prueba/);
-    assert.match(html, /incompleto/);
+    assert.match(html, /lista incompleta/);
   });
 
   await check('migration preview writes nothing', async () => {
@@ -81,10 +81,12 @@ try {
   });
 
   await check("Vanessa's case: September and October owed, November upcoming", async () => {
-    const html = await get('/');
+    // Past dates with no record live on the catch-up list; the home screen links to it.
+    const html = await get('/confirmar');
     const card = (d) => new RegExp(`Valeria Prueba</span>\\s*<span class="meta">Círculo Diamante · Envío #${d}`);
     assert.match(html, card(2)); assert.match(html, card(3));
-    const overdueSection = html.split('id="hoy"')[0];
+    assert.match(await get('/'), /href="\/confirmar"/);
+    const overdueSection = html;
     assert.match(overdueSection, card(2), '#2 (Sep 6) is in Atrasados');
     assert.match(overdueSection, card(3), '#3 (Oct 6) is in Atrasados');
     assert.doesNotMatch(overdueSection, card(4));
