@@ -41,8 +41,9 @@ export default {
 
       if (p === '/api/hechas' && request.method === 'GET') {
         const w = Number(url.searchParams.get('w'));
-        const { results } = await env.DB.prepare('SELECT task, estado, nota FROM hechas WHERE w=?').bind(w).all();
-        return json({ rows: results.map(r => ({ w, id: r.task, estado: r.estado, nota: r.nota || '' })) });
+        const { results } = await env.DB.prepare('SELECT task, estado, nota, txt FROM hechas WHERE w=?').bind(w).all();
+        // txt solo hace falta para las tareas movidas (estado 'llega' o su estado posterior): ahí va la tarea en JSON.
+        return json({ rows: results.map(r => ({ w, id: r.task, estado: r.estado, nota: r.nota || '', ...(String(r.task).startsWith('mv-') ? { txt: r.txt || '' } : {}) })) });
       }
       if (p === '/api/avisos' && request.method === 'GET') {
         const { results } = await env.DB.prepare("SELECT w, task, nota, txt, done_at FROM hechas WHERE estado='ayuda' ORDER BY done_at DESC LIMIT 200").all();
@@ -53,7 +54,10 @@ export default {
         const b = await request.json();
         const w = Number(b.w), task = String(b.id || '').slice(0, 80);
         if (!Number.isInteger(w) || !task) return json({ error: 'Datos inválidos' }, 400);
-        const estado = ['ayuda', 'no'].includes(b.estado) ? b.estado : 'hecho';
+        // hecho | no_aplica | no (no se pudo) | ayuda | movida (nota = fecha ISO destino) | llega (tarea movida aquí; txt = JSON de la tarea)
+        const estado = ['ayuda', 'no', 'no_aplica', 'movida', 'llega'].includes(b.estado) ? b.estado : 'hecho';
+        if (estado === 'movida' && !/^\d{4}-\d{2}-\d{2}$/.test(String(b.nota || ''))) return json({ error: 'Falta la fecha a la que se mueve' }, 400);
+        if (estado === 'llega' && !String(b.txt || '').trim()) return json({ error: 'Falta la tarea movida' }, 400);
         if (b.done) await env.DB.prepare('INSERT OR REPLACE INTO hechas (w, task, estado, nota, txt) VALUES (?,?,?,?,?)')
           .bind(w, task, estado, String(b.nota || '').slice(0, 200), String(b.txt || '').slice(0, 300)).run();
         else await env.DB.prepare('DELETE FROM hechas WHERE w=? AND task=?').bind(w, task).run();

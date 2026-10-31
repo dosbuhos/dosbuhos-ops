@@ -280,7 +280,6 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .toast button{font:inherit;font-weight:700;font-size:14px;background:none;border:1px solid color-mix(in srgb,var(--bg) 50%,transparent);color:var(--bg);border-radius:8px;min-height:44px;padding:0 12px;cursor:pointer;flex:none}
 form.reg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
 form.reg label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
-textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:10px}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
 /* móvil primero: barra inferior, objetivos táctiles grandes; en pantallas anchas vuelven las pestañas de arriba */
 nav button[data-v="cocina"]{position:relative}nav button .nb{position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:9px;background:var(--danger);color:var(--surface);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
@@ -473,7 +472,7 @@ details.cdone>.cgrid{margin-top:8px}
 .taskw .th{grid-row:1;grid-column:2;display:flex;align-items:baseline;gap:8px;min-width:0;padding-right:36px;flex-wrap:nowrap}
 .taskw .th .k{font-size:11.5px;display:inline;margin:0;flex:none}
 .taskw .th .crop{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.taskw .th .t{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.taskw .th .t{flex:none;font-family:var(--body);font-size:13px;color:var(--muted);white-space:nowrap}
 .taskw .tx{grid-column:1 / -1;font-size:15.5px;line-height:1.4}
 .taskw .tmore{position:absolute;top:2px;right:0;width:40px;height:40px;min-height:40px}
 .taskw.done .tx{text-decoration:line-through;color:var(--muted)}
@@ -654,6 +653,32 @@ details.howto>summary,details.fold-p>summary{min-height:44px}
   #main .cards{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
   .callist{display:grid}
 }
+
+/* ---- Tareas: marcar como…, mover, días pasados (nov 2026) ---- */
+.taskw .why{font-weight:600}
+.taskw.nope .tx{color:var(--muted);opacity:1}
+.tgo{display:inline-flex;align-items:center;min-height:44px;padding:0 2px;margin:-10px 0 0 34px;font-size:14px;font-weight:700;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.tpanel{gap:8px}
+.tnrow{display:flex;gap:6px}.tnrow .tnote{flex:1;min-width:0;width:100%}.tnrow .btn{flex:none;min-height:44px}
+.tsel{width:100%;min-height:48px !important;font-size:16px;font-weight:600}
+.psep{display:flex;align-items:baseline;justify-content:space-between;gap:4px 10px;flex-wrap:wrap;margin:16px 0 0;padding:6px 0 4px;border-top:2px solid var(--line)}
+.psep h4{margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.unm{color:var(--warn);font-weight:700}.nw{white-space:nowrap}
+@media (max-width:359px){details.day.past>summary .hh{display:none}details.day.past>summary{font-size:14px}}
+.panel a[data-go]{color:var(--accent);font-weight:600}
+details.day.past>summary{flex-wrap:nowrap;font-size:14.5px}
+details.day.past>summary .ps{flex:1;min-width:0;color:var(--muted)}details.day.past>summary .ps>b:first-child{color:var(--fg)}
+.hwl{list-style:none;margin:0;padding:0}
+.hw{display:grid;grid-template-columns:10px auto minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.hw:last-child{border-bottom:0}.hw .dot{align-self:center}
+.hw .hb{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hw .num{white-space:nowrap}
+.hprog>summary .hps{display:flex;flex-direction:column;gap:0;min-width:0}
+.hprog .harv:last-child{border-bottom:0}
+@media (min-width:860px){.hoyp{max-width:820px}.hprog{max-width:820px}}
+/* cocina: un aviso por cultivo menos, sin barra fantasma cuando no hay cosecha */
+.kbars i.g[style*="width:0%"]{display:none}
+.kr1 .kn b.lo{color:var(--warn)}
 </style>
 
 <div class="wrap">
@@ -1125,9 +1150,9 @@ views.cocina = () => {
   const maxU = {}; S.list.forEach(r => { maxU[r.c.u] = Math.max(maxU[r.c.u] || 1, r.exp, r.got); });
   const main = S.list.filter(r => r.exp + r.got > 0 || r.down), rest = S.list.filter(r => !main.includes(r));
   const krow = r => { const max = maxU[r.c.u]; return `<div class="kr">
-      <div class="kr1"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b><span class="kv muted">${nfk(r.m)} m${r.up ? " · 👍" + r.up : ""}${r.down ? " · 👎" + r.down : ""}</span><span class="kn"><b>${nfk(r.got)}</b> de ${nfk(r.exp)} ${esc(r.c.u)}${r.kgm != null && r.got > 0 ? ` · ${nfk(r.kgm)}/m` : ""}</span></div>
+      <div class="kr1"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b><span class="kv muted">${nfk(r.m)} m${r.up ? " · 👍" + r.up : ""}${r.down ? " · 👎" + r.down : ""}</span><span class="kn"><b${r.flag && r.flag[1] === "warn" ? ` class="lo" title="${esc(r.flag[0])}"` : ""}>${r.flag && r.flag[1] === "warn" ? "↓ " : ""}${nfk(r.got)}</b> de ${nfk(r.exp)} ${esc(r.c.u)}${r.kgm != null && r.got > 0 ? ` · ${nfk(r.kgm)}/m` : ""}</span></div>
       <div class="kbars"><i class="e" style="width:${r.exp / max * 100}%"></i><i class="g" style="width:${r.got / max * 100}%"></i></div>
-      ${r.flag ? `<div class="kf ${r.flag[1]}">${r.flag[0]}${r.notes.length ? `: “${esc(r.notes[0])}”` : ""}</div>` : ""}
+      ${r.flag && r.flag[1] !== "warn" ? `<div class="kf ${r.flag[1]}">${r.flag[0]}${r.notes.length ? `: “${esc(r.notes[0])}”` : ""}</div>` : ""}
     </div>`; };
   return seg + `
   ${nuevos || downs.length || lastMsg ? `<section class="kalerts">
@@ -1144,7 +1169,7 @@ views.cocina = () => {
   </div>
   ${hasH ? "" : `<div class="notice">Aún no hay cosechas registradas, así que “cosechado” está en cero. Cuando la cocina registre lo que se lleva en su página (/cocina) o el huerto en “Registro de cosecha”, aquí se compara con lo esperado y con los metros sembrados.</div>`}
   <section class="panel"><div class="phead"><h3>Por cultivo</h3><span class="klg small muted"><i class="e"></i>esperado <i class="g"></i>cosechado</span></div>
-    <p class="small muted" style="margin:0 0 4px">Metros en tierra hoy · cosechado de lo esperado en el periodo.</p>
+    <p class="small muted" style="margin:0 0 4px">Metros en tierra hoy · cosechado de lo esperado en el periodo.${(() => { const lo = main.filter(r => r.flag && r.flag[1] === "warn").length; return lo ? ` <b class="unm">↓ ${lo} cultivo${lo > 1 ? "s" : ""}</b> se cosecha${lo > 1 ? "n" : ""} mucho menos de lo esperado.` : ""; })()}</p>
     ${main.length ? `<div class="krows">${main.map(krow).join("")}</div>` : `<p class="small muted" style="margin:0">Nada esperado ni cosechado en el periodo.</p>`}
     ${rest.length ? `<details class="krest"><summary>${rest.length} cultivos más en tierra sin cosecha en el periodo · ${nfk(rest.reduce((a, r) => a + r.m, 0))} m</summary>${rest.map(r => `<div class="kr1 kq"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b><span class="km">${nfk(r.m)} m</span></div>`).join("")}</details>` : ""}
   </section>`;
@@ -1333,45 +1358,54 @@ views.hoy = () => {
   if (!state.hd) state.hd = todayRef();
   const {w, d} = state.hd;
   if (state.w !== w) { state.w = w; subscribeDone(); }
-  const T = weekTasks(plan, w);
-  const list = T.filter(t => t.k !== "cosecha" && t.d === d);
-  const harvDay = [1, 3, 5].includes(d);
-  const harv = harvDay ? T.filter(t => t.k === "cosecha") : [];
-  const gm = {}; harv.forEach(t => { const g = gm[t.crop] = gm[t.crop] || {crop: t.crop, beds: [], qty: 0}; g.beds.push(t.bed); g.qty += t.qty; });
-  const harvG = Object.values(gm).sort((a, b) => (CROPS[a.crop].u === "kg" ? 0 : 1) - (CROPS[b.crop].u === "kg" ? 0 : 1) || b.qty - a.qty);
+  const all = dayList(w, d), list = counted(all);
   const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1;
   const date = new Date(wkDate(w).getTime() + (d - 1) * DAY);
   const isToday = isoDay(w, d) === todayISO();
-  const done = list.filter(t => state.done[t.id]).length;
+  const done = list.filter(isDone).length;
   const mins = list.reduce((a, t) => a + t.min, 0);
-  const label = {semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"};
-  const logged = {};
-  state.harvests.filter(h => h.fecha === isoDay(w, d)).forEach(h => { logged[h.cama + "|" + h.cultivo] = (logged[h.cama + "|" + h.cultivo] || 0) + (+h.cantidad || 0); });
   const auto = (() => { const r = todayRef(); return r.w === w && r.d === d; })();
   const sub = isToday ? "" : auto ? "Próximo día de trabajo" : `Semana ${w + 1}`;
   return `
   ${navStepper("dia", `${DIAS[d]} ${fmt(date)}`, sub, {group: "Día", prev: "Día anterior", next: "Día siguiente", prevOff: w === 0 && d <= first, nextOff: w === PLAN_WEEKS - 1 && d === 5})}
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas no se guardan en esta vista.</div>` : ""}
-  <div class="cols hoycols"><section class="panel" aria-label="Tareas del día">
+  <section class="panel hoyp" aria-label="Tareas del día">
     <div class="phead"><h3>Tareas</h3><span class="small muted"><b class="fgc">${done} de ${list.length}</b> hechas · <span class="num">${nf(mins / 60, 1)} h</span></span></div>
     <div class="meter thin"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div>
-    ${list.length ? list.map(t => taskRow(t, "h")).join("") : `<p class="muted" style="margin:6px 0 0">Sin tareas este día.</p>`}
-  </section>
-  ${harvDay ? `<section class="panel" aria-label="Cosecha del día">
-    <div class="bar" style="justify-content:space-between"><h3>Cosecha para cocina</h3><span class="small muted">antes de las 10:00</span></div>
-    ${harvG.length ? harvG.map(g => { const key = g.beds.join(", ") + "|" + g.crop; const exp = g.qty / 3; const c = CROPS[g.crop]; const got = logged[key]; const u = c.u === "kg" ? "kg" : "pzas";
+    ${all.length ? all.map(t => taskRow(t, "h")).join("") : `<p class="muted" style="margin:6px 0 0">Sin tareas este día.</p>`}
+  </section>`;
+};
+views.hoy.bind = root => {
+  const step = k => { let {w, d} = state.hd; d += k; if (d > 5) { w++; d = 1; } if (d < 1) { w--; d = 5; } const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1; if (w < 0 || (w === 0 && d < first) || w >= PLAN_WEEKS) return; state.hd = {w, d}; state.topen = null; render(); };
+  bindStepper(root, "dia", step);
+  bindTasks(root);
+};
+
+/* ---------- cosecha programada (vista Cosecha): lun/mié/vie, una fila por cultivo ---------- */
+function harvestDay(){
+  // Hoy si es lunes, miércoles o viernes; si no, el siguiente día de cosecha.
+  const n = new Date(); n.setHours(12, 0, 0, 0);
+  for (let i = 0; i < 7; i++) { const x = new Date(n.getTime() + i * DAY), wd = x.getDay(); if ([1, 3, 5].includes(wd)) { const iso = x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); const w = isoWD(iso).w; return {iso, w: Math.max(0, Math.min(PLAN_WEEKS - 1, w)), d: wd, today: i === 0}; } }
+}
+function harvestSection(){
+  const hd = harvestDay(), T = weekTasks(plan, hd.w).filter(t => t.k === "cosecha");
+  const gm = {}; T.forEach(t => { const g = gm[t.crop] = gm[t.crop] || {crop: t.crop, beds: [], qty: 0}; g.beds.push(t.bed); g.qty += t.qty; });
+  const harvG = Object.values(gm).sort((a, b) => (CROPS[a.crop].u === "kg" ? 0 : 1) - (CROPS[b.crop].u === "kg" ? 0 : 1) || b.qty - a.qty);
+  const saveIso = hd.iso > todayISO() ? todayISO() : hd.iso;
+  const logged = {};
+  state.harvests.filter(h => h.fecha === saveIso).forEach(h => { logged[h.cama + "|" + h.cultivo] = (logged[h.cama + "|" + h.cultivo] || 0) + (+h.cantidad || 0); });
+  const open = state.hpOpen ?? hd.today;
+  const rows = harvG.map(g => { const key = g.beds.join(", ") + "|" + g.crop; const exp = g.qty / 3; const c = CROPS[g.crop]; const got = logged[key]; const u = c.u === "kg" ? "kg" : "pzas";
       const sv = (state.hsaved || {})[key], err = (state.herr || {})[key];
       return `<div class="harv"><div style="min-width:0"><div class="hn"><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))} · ${c.u === "kg" && exp < 0.25 ? "según pida cocina" : "≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null && !sv ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
       ${sv ? `<div class="hdone" role="status"><span>✓ ${nf(sv.v, 1)} ${u} anotado</span>${sv.id && window.huertoApi ? `<button type="button" class="lnk" data-hundo="${esc(key)}">Deshacer</button>` : ""}<button type="button" class="lnk" data-hmore="${esc(key)}">Anotar otra cantidad</button></div>`
-      : `<div class="hrow"><label class="fl"><span class="inu"><input type="number" aria-label="Cantidad cosechada de ${esc(c.n)} (${u})" placeholder="0" inputmode="decimal" step="0.1" min="0" data-keep="hv|${esc(key)}" data-key="${esc(key)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"${err ? ` class="invalid" aria-invalid="true"` : ""}><span class="u">${u}</span></span></label><button class="btn hsave" data-save="1" aria-label="Anotar cosecha de ${esc(c.n)}" title="Anotar cosecha">✓</button></div>${err ? `<span class="ferr">Escribe los ${u === "kg" ? "kg" : "piezas"} antes de anotar.</span>` : ""}`}</div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
-  </section>` : `<p class="small muted" style="margin:0">La cosecha para cocina se hace lunes, miércoles y viernes.</p>`}</div>
-  <button class="btn" id="towa" style="align-self:flex-start">Copiar la semana para WhatsApp</button>`;
-};
-views.hoy.bind = root => {
-  const step = k => { let {w, d} = state.hd; d += k; if (d > 5) { w++; d = 1; } if (d < 1) { w--; d = 5; } const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1; if (w < 0 || (w === 0 && d < first) || w >= PLAN_WEEKS) return; state.hd = {w, d}; render(); };
-  bindStepper(root, "dia", step);
-  bindTasks(root);
-  root.querySelector("#towa").onclick = () => copyText(whatsappText(state.hd.w));
+      : `<div class="hrow"><label class="fl"><span class="inu"><input type="number" aria-label="Cantidad cosechada de ${esc(c.n)} (${u})" placeholder="0" inputmode="decimal" step="0.1" min="0" data-keep="hv|${esc(key)}" data-key="${esc(key)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"${err ? ` class="invalid" aria-invalid="true"` : ""}><span class="u">${u}</span></span></label><button class="btn hsave" data-save="1" aria-label="Anotar cosecha de ${esc(c.n)}" title="Anotar cosecha">✓</button></div>${err ? `<span class="ferr">Escribe los ${u === "kg" ? "kg" : "piezas"} antes de anotar.</span>` : ""}`}</div>`; }).join("");
+  return `<details class="panel fold-p hprog" id="hprog"${open ? " open" : ""}><summary><span class="hps"><h3>Cosecha programada</h3><span class="small muted">${hd.today ? "hoy" : esc(dShort(hd.iso))} · antes de las 10:00 · ${harvG.length} cultivo${harvG.length === 1 ? "" : "s"}</span></span></summary>
+    <p class="small muted" style="margin:0 0 2px">La cocina o el huerto anotan lo que se llevan. Si no se cosechó, marca la tarea de cosecha como «No se pudo».</p>
+    ${rows || `<p class="muted" style="margin:6px 0 0">Nada para cosechar ${hd.today ? "hoy" : "ese día"}.</p>`}</details>`;
+}
+function bindHarvest(root){
+  const dt = root.querySelector("#hprog"); if (dt) dt.ontoggle = () => { state.hpOpen = dt.open; };
   const H = state.hsaved = state.hsaved || {}, E = state.herr = state.herr || {};
   root.querySelectorAll("[data-hmore]").forEach(b => b.onclick = () => { delete H[b.dataset.hmore]; render(); });
   root.querySelectorAll("[data-hundo]").forEach(b => b.onclick = async () => {
@@ -1379,63 +1413,68 @@ views.hoy.bind = root => {
     try { await window.huertoApi.post("/api/cocina/borrar", {id: sv.id}); delete H[key]; toast("Cosecha borrada"); window.dispatchEvent(new Event("huerto-refresh")); render(); }
     catch (e) { saveErr(e, "No se pudo deshacer. Revisa la conexión."); }
   });
-  root.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+  root.querySelectorAll(".harv [data-save]").forEach(b => b.onclick = async () => {
     const inp = b.closest(".hrow").querySelector("input"), key = inp.dataset.key; const v = +inp.value;
     if (!inp.value || !(v > 0)) { E[key] = true; render(); const n = [...document.querySelectorAll(".harv input[data-key]")].find(x => x.dataset.key === key); if (n) n.focus(); return; }
     delete E[key];
     if (!state.db) { toast("No se puede guardar en esta vista."); return; }
-    const c = CROPS[inp.dataset.crop];
+    const c = CROPS[inp.dataset.crop], hd = harvestDay();
     b.disabled = true;
-    try { const ref = await state.db.collection("cosechas").add({fecha: isoDay(state.hd.w, state.hd.d) > todayISO() ? todayISO() : isoDay(state.hd.w, state.hd.d), cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); inp.value = ""; H[key] = {v, id: ref && ref.id}; render(); }
+    try { const ref = await state.db.collection("cosechas").add({fecha: hd.iso > todayISO() ? todayISO() : hd.iso, cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); inp.value = ""; H[key] = {v, id: ref && ref.id}; render(); }
     catch (e) { saveErr(e); b.disabled = false; }
   });
-};
+}
 
 views.semana = () => {
   const w = state.w;
   const T = weekTasks(plan, w);
   const hrs = T.reduce((a, t) => a + t.min, 0) / 60;
   const over = hrs > CAP_H;
-  const work = T.filter(t => t.k !== "cosecha");
   const harv = T.filter(t => t.k === "cosecha");
   const byCrop = {};
   harv.forEach(t => { const o = byCrop[t.crop] = byCrop[t.crop] || {beds: [], qty: 0, u: t.u}; o.beds.push(t.bed); o.qty += t.qty; });
-  const doneCount = T.filter(t => state.done[t.id]).length;
   const actBeds = {};
   T.forEach(t => { if (!t.bed || t.k === "semillero") return; const pri = {prep: 3, siembra: 4, cuidado: 2, cosecha: 1, semillero: 0}[t.k]; if (!actBeds[t.bed] || actBeds[t.bed].pri < pri) actBeds[t.bed] = {k: t.k, pri}; });
   const KC = {prep: ["url(#hatch)", "Preparar"], siembra: [cssv("--leaf"), "Sembrar o trasplantar"], cuidado: [cssv("--warn"), "Ralear o tutorar"], cosecha: [cssv("--accent"), "Cosechar"]};
   const fill = id => { const a = actBeds[id]; if (!a) return {}; if (a.k === "prep") return {hatch: true, crop: "preparar"}; return {fill: KC[a.k][0], ink: "var(--bg)", crop: KC[a.k][1].split(" ")[0].toLowerCase()}; };
-  // Un día abierto (hoy si es esta semana; si no, el primero con tareas); los demás doblados: "Martes 3 nov · 7 tareas".
-  const tr = todayRef(), DO = state.dayOpen = state.dayOpen || {};
-  let days = "", firstD = null;
+  // Hoy y lo que viene, abiertos; los días que ya pasaron van al final, doblados en una línea de resumen.
+  const tr = todayRef(), tIso = todayISO(), DO = state.dayOpen = state.dayOpen || {};
+  let up = "", past = "", nAll = 0, nDone = 0, nUn = 0, firstUp = null;
   for (let d = 1; d <= 5; d++) {
-    const list = work.filter(t => t.d === d);
-    if ((d === 1 || d === 3 || d === 5) && harv.length && !(w === 0 && typeof FIRST_DAY !== "undefined" && d < FIRST_DAY)) list.unshift({id: "hv" + d, d, k: "cosecha", t: "Cosecha para cocina antes de las 10:00 (ver lista de cosecha), pesar y anotar", min: 0});
-    if (!list.length) continue;
-    if (firstD == null) firstD = d;
-    const def = tr.w === w ? d === tr.d : d === firstD, open = DO[w + "-" + d] ?? def;
-    const nd = list.filter(t => state.done[t.id]).length;
-    days += `<details class="day" data-day="${w}-${d}"${open ? " open" : ""}><summary><span><b>${DIAS[d]} ${fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY))}</b>${tr.w === w && tr.d === d ? ` <span class="chip">hoy</span>` : ""}</span><span class="small muted">${list.length} tarea${list.length === 1 ? "" : "s"}${nd ? ` · ${nd} hecha${nd === 1 ? "" : "s"}` : ""} · <span class="num">${nf(list.reduce((a, t) => a + t.min, 0) / 60, 1)} h</span></span></summary>
-    ${list.map(t => taskRow(t, "c")).join("")}</details>`;
+    const all = dayList(w, d); if (!all.length) continue;
+    const list = counted(all), nd = list.filter(isDone).length, un = unmarked(all), h = nf(list.reduce((a, t) => a + t.min, 0) / 60, 1);
+    nAll += list.length; nDone += nd;
+    const iso = isoDay(w, d), date = new Date(wkDate(w).getTime() + (d - 1) * DAY), isPast = iso < tIso;
+    const rows = all.map(t => taskRow(t, "c")).join("");
+    if (isPast) {
+      nUn += un;
+      const open = DO[w + "-" + d] ?? false;
+      past += `<details class="day past" data-day="${w}-${d}"${open ? " open" : ""}><summary><span class="ps"><b>${DIAS[d].slice(0, 3)} ${fmt(date)}</b> · ${nd} de ${list.length}<span class="hh"> hechas</span>${un ? ` · <b class="unm nw">${un} sin marcar</b>` : ` · <span class="num">${h} h</span>`}</span></summary>${rows}</details>`;
+    } else {
+      if (firstUp == null) firstUp = d;
+      const open = DO[w + "-" + d] ?? true;
+      const tag = tr.w === w && tr.d === d ? ` <span class="chip">${iso === tIso ? "hoy" : "próximo"}</span>` : "";
+      up += `<details class="day" data-day="${w}-${d}"${open ? " open" : ""}><summary><span><b>${DIAS[d]} ${fmt(date)}</b>${tag}</span><span class="small muted">${nd} de ${list.length} hechas · <span class="num">${h} h</span></span></summary>${rows}</details>`;
+    }
   }
+  const days = up + (past ? `<div class="psep"><h4>Días anteriores</h4>${nUn ? `<span class="small unm">${nUn} sin marcar: ciérralas aquí</span>` : `<span class="small muted">todo marcado</span>`}</div>${past}` : "");
   const harvRows = Object.entries(byCrop).sort((a, b) => CROPS[a[0]].u.localeCompare(CROPS[b[0]].u) || b[1].qty - a[1].qty)
-    .map(([c, o]) => `<tr><td><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}</td>${td("Camas", o.beds.join(", "), "num small")}${td("Semana", o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores", "r num")}</tr>`).join("");
+    .map(([c, o]) => `<li class="hw"><span class="dot" style="background:${CROPS[c].c}"></span><b>${esc(shortName(CROPS[c].n))}</b><span class="hb">${esc(o.beds.join(", "))}</span><span class="num">${o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " fl."}</span></li>`).join("");
   const kgTot = Object.entries(byCrop).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, o]) => a + o.qty, 0);
   return `
   <div class="vtop">${weekStepper("sem", w, `Semana ${w + 1} de ${PLAN_WEEKS}`)}</div>
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas de tareas no se guardan en esta vista. Ábrelo desde tu cuenta de Claude para que se compartan con Melanie.</div>` : ""}
   <div class="cols">
     <section class="panel days" aria-label="Tareas por día">
-      <div class="phead"><h3>Lista de Adrián</h3><span class="small muted"><b class="fgc">${doneCount} de ${T.length}</b> hechas</span></div>
+      <div class="phead"><h3>Lista de Adrián</h3><span class="small muted"><b class="fgc">${nDone} de ${nAll}</b> hechas</span></div>
       <div class="wload"><span class="small"><b class="num">${nf(hrs, 1)} h</b> de ${CAP_H} h</span>${over ? `<span class="chip warn">⚠ Pedir apoyo: ${nf(hrs - CAP_H, 0)} h extra</span>` : `<span class="chip ok">✓ Cabe en la semana</span>`}</div>
       <div class="meter thin${over ? " over" : ""}"><i style="width:${Math.min(100, hrs / CAP_H * 100)}%"></i></div>
-      ${days}
-      <button class="btn" id="wa" style="align-self:flex-start;margin-top:4px">Copiar para WhatsApp</button>
+      ${days || `<p class="muted" style="margin:6px 0 0">Sin tareas esta semana.</p>`}
     </section>
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
       <section class="panel" aria-label="Cosecha de la semana">
-        <div class="bar" style="justify-content:space-between;margin-bottom:6px"><h3>Cosecha esperada</h3><span class="num small">${nf(kgTot, 1)} kg</span></div>
-        ${harvRows ? `<div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Camas</th><th class="r">Semana</th></tr></thead><tbody>${harvRows}</tbody></table></div><p class="small muted" style="margin:8px 0 0">Repartir en 3 entregas: lunes, miércoles y viernes.</p>` : `<p class="muted small" style="margin:0">Sin cosecha esta semana: las camas se están limpiando y sembrando.</p>`}
+        <div class="phead"><h3>Cosecha esperada</h3><span class="num small">${nf(kgTot, 1)} kg</span></div>
+        ${harvRows ? `<ul class="hwl">${harvRows}</ul><p class="small muted" style="margin:6px 0 0">En 3 entregas: lun, mié y vie (fl. = flores). Se anota en la pestaña Cosecha.</p>` : `<p class="muted small" style="margin:0">Sin cosecha esta semana: las camas se están limpiando y sembrando.</p>`}
       </section>
       <section class="mapbox" aria-label="Mapa de la semana">
         <div class="legend" style="padding:4px 4px 8px"><span><span class="dot" style="background:var(--soil)"></span>Preparar</span><span><span class="dot" style="background:var(--leaf)"></span>Sembrar</span><span><span class="dot" style="background:var(--warn)"></span>Ralear o tutorar</span><span><span class="dot" style="background:var(--accent)"></span>Cosechar</span></div>
@@ -1449,48 +1488,9 @@ views.semana.bind = root => {
   bindWeekStepper(root, "sem");
   root.querySelectorAll("details.day").forEach(dt => dt.ontoggle = () => { state.dayOpen[dt.dataset.day] = dt.open; });
   bindTasks(root);
-  root.querySelector("#wa").onclick = () => copyText(whatsappText(state.w));
   bindBeds(root.querySelector("#wkmap"), () => { state.view = "mapa"; render(); });
   bindZones(root, render);
 };
-
-function whatsappText(w){
-  const T = weekTasks(plan, w);
-  const work = T.filter(t => t.k !== "cosecha");
-  const harv = T.filter(t => t.k === "cosecha");
-  let s = `*Huerto Dos Búhos · semana del ${weekRange(w)}*\n`;
-  for (let d = 1; d <= 5; d++) {
-    const list = work.filter(t => t.d === d);
-    if (w === 0 && typeof FIRST_DAY !== "undefined" && d < FIRST_DAY) continue;
-    const date = fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY));
-    s += `\n*${DIAS[d].toUpperCase()} ${date}*\n`;
-    if (d % 2 === 1 && harv.length) s += `▢ Cosecha para cocina antes de las 10:00, pesar y anotar\n`;
-    list.forEach(t => s += `▢ ${t.b ? `*${t.b}* · ` : ""}${t.t}\n`);
-  }
-  if (harv.length) {
-    const byCrop = {};
-    harv.forEach(t => { const o = byCrop[t.crop] = byCrop[t.crop] || {beds: [], qty: 0, u: t.u}; o.beds.push(t.bed); o.qty += t.qty; });
-    s += `\n*COSECHA DE LA SEMANA* (aprox., repartir lun/mié/vie)\n`;
-    Object.entries(byCrop).forEach(([c, o]) => s += `• ${CROPS[c].n}: ${o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores"} (${o.beds.join(", ")})\n`);
-  }
-  s += `\nAl terminar cada cama, mandar foto. Viernes: foto de cada cuadrante.`;
-  return s;
-}
-function copyText(txt){
-  const done = () => toast("Copiado. Pégalo en el chat de Adrián.");
-  try {
-    navigator.clipboard.writeText(txt).then(done, () => showCopyBox(txt));
-  } catch (e) { showCopyBox(txt); }
-}
-function showCopyBox(txt){
-  const box = document.createElement("div");
-  box.className = "panel"; box.style.cssText = "position:fixed;inset:auto 16px 16px 16px;z-index:8;max-width:680px;margin:0 auto";
-  box.innerHTML = `<div class="bar" style="justify-content:space-between;margin-bottom:8px"><h3>Selecciona y copia</h3><button class="btn">Cerrar</button></div><textarea class="wa" readonly></textarea>`;
-  box.querySelector("textarea").value = txt;
-  box.querySelector("button").onclick = () => box.remove();
-  document.body.appendChild(box);
-  const ta = box.querySelector("textarea"); ta.focus(); ta.select();
-}
 
 const ST_WORD = {cosecha: "en cosecha", crece: "creciendo", prepara: "preparar la cama"};
 function zoneBeds(z){ return BEDS.filter(b => !z || z === "todo" || (z === "B" ? b.sec === "B" : z === "I" ? b.sec === "I" : b.q === z)).map(b => b.id); }
@@ -1567,7 +1567,7 @@ views.cosecha = () => {
   const year = data.reduce((a, d) => a + d.tot, 0);
   const crops = Object.keys(CROPS).filter(c => months.some(m => (F[m] || {})[c]));
   const table = `<table><thead><tr><th>Cultivo</th>${months.map(m => `<th class="r">${monthShort(m)}</th>`).join("")}<th class="r">Año</th></tr></thead><tbody>${crops.map(c => { let t = 0; const cells = months.map(m => { const v = (F[m] || {})[c] || 0; t += v; return `<td class="r num">${v ? nf(v) : "<span class='muted'>·</span>"}</td>`; }).join(""); return `<tr><td style="white-space:nowrap"><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}${CROPS[c].u !== "kg" ? " <span class='muted small'>(flores)</span>" : ""}</td>${cells}<td class="r num"><b>${nf(t)}</b></td></tr>`; }).join("")}</tbody></table>`;
-  return `
+  return `${harvestSection()}
   <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Pronóstico para cocina · kilos por mes</div><h2>≈ ${nf(year)} kg en 12 meses</h2></div>
   <div class="legend">${cats.map(k => `<span><span class="dot" style="background:var(${CAT[k][1]})"></span>${CAT[k][0]}</span>`).join("")}<span><span style="width:14px;height:0;border-top:2.5px solid var(--fg);display:inline-block"></span>Registrado</span></div></div>
   <section class="panel chart" id="chart">${svg}</section>
@@ -1576,6 +1576,7 @@ views.cosecha = () => {
     <ul class="clist only-narrow">${crops.map(c => { let t = 0; const ms = months.map(m => { const v = (F[m] || {})[c] || 0; t += v; return v ? `<span>${monthShort(m)} <b class="num">${nf(v)}</b></span>` : ""; }).join(""); return `<li><div class="crh"><span class="dot" style="background:${CROPS[c].c}"></span><b>${esc(CROPS[c].n)}</b><span class="num">${nf(t)} ${CROPS[c].u === "kg" ? "kg" : "flores"}/año</span></div><div class="cmon">${ms}</div></li>`; }).join("")}</ul></section>`;
 };
 views.cosecha.bind = root => {
+  bindHarvest(root);
   const tip = document.getElementById("tip"), box = root.querySelector("#chart");
   box.querySelectorAll("[data-tip]").forEach(el => {
     el.addEventListener("mousemove", e => { const [a, b, c] = el.dataset.tip.split("|"); tip.innerHTML = `<b>${a}</b><br>${b}: ${c}`; tip.hidden = false; tip.style.left = e.pageX + "px"; tip.style.top = e.pageY - 8 + "px"; });
@@ -1792,37 +1793,142 @@ views.registro.bind = root => {
 
 /* ---------- tareas ---------- */
 const KLAB = {semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"};
-// A task is done (check), couldn't be done (✗ + reason) or needs help; "⋯" opens those options and a note.
-const NOPE = ["Plaga o animales", "Clima", "Falta material", "No hubo tiempo", "Ya no hacía falta"];
+const DSH = ["dom","lun","mar","mié","jue","vie","sáb"];
+const dShort = iso => { const x = D(iso); return DSH[x.getDay()] + " " + fmt(x); };
+const isoWD = iso => ({w: Math.floor(Math.round((D(iso) - D(PLAN_START)) / DAY) / 7), d: D(iso).getDay()});
+// Estado de cada tarea (tabla hechas, por semana): hecho | no_aplica | no | ayuda | movida (nota = fecha destino) | llega (tarea movida a esta semana, txt = JSON).
+const NOPE = [["plaga", "plaga o animales"], ["clima", "clima"], ["material", "falta material"], ["tiempo", "no hubo tiempo"]];
+const tst = id => { const r = (state.tst || {})[id]; return !r || r.e === "llega" ? null : r; };
+const counted = list => list.filter(t => { const s = tst(t.id); return !s || (s.e !== "movida" && s.e !== "no_aplica"); });
+const isDone = t => (tst(t.id) || {}).e === "hecho";
+const unmarked = list => list.filter(t => !tst(t.id)).length;
+const tmin = m => m >= 60 ? nf(m / 60, 1) + " h" : Math.round(m) + " min";
+// Tareas que llegaron movidas a esta semana (filas mv-…), ya convertidas en tareas normales.
+function movedIn(w){
+  if (state.tstW !== w) return [];
+  const out = [];
+  Object.entries(state.tst || {}).forEach(([id, r]) => { if (!id.startsWith("mv-") || !r.txt) return; try { const j = JSON.parse(r.txt); if (j && j.t && j.d) out.push({id, w, d: +j.d, t: j.t, k: KLAB[j.k] ? j.k : "base", b: j.b || "", min: +j.min || 0, from: j.from || "", hv: !!j.hv, mv: true, txt: r.txt}); } catch (e) {} });
+  return out;
+}
+// Lista de un día: tareas del plan (sin las de cosecha por cama), la tarea de cosecha lun/mié/vie y las que llegaron movidas.
+function dayList(w, d){
+  const T = weekTasks(plan, w), first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1;
+  if (d < first) return movedIn(w).filter(t => t.d === d);
+  const out = T.filter(t => t.k !== "cosecha" && t.d === d);
+  if ([1, 3, 5].includes(d) && T.some(t => t.k === "cosecha")) out.unshift({id: "hv" + d, d, k: "cosecha", t: "Cosecha para cocina antes de las 10:00: pesar y anotar lo que se lleva", min: 0, hv: true});
+  out.forEach(t => t.w = w);
+  return out.concat(movedIn(w).filter(t => t.d === d));
+}
+function moveTarget(t, n){
+  let w = t.w, d = t.d;
+  if (n === 1) { d++; if (d > 5) { w++; d = 1; } } else w++;
+  return w >= PLAN_WEEKS ? null : mkTarget(t, w, d);
+}
+function mkTarget(t, w, d){
+  const iso = isoDay(w, d), o = {t: t.t, k: t.k, b: t.b || undefined, min: Math.round(t.min || 0), d, from: isoDay(t.w, t.d), hv: t.hv ? 1 : undefined};
+  let txt = JSON.stringify(o);
+  while (txt.length > 300 && o.t.length > 1) { o.t = o.t.slice(0, Math.max(1, o.t.length - (txt.length - 300) - 2)) + "…"; txt = JSON.stringify(o); }
+  return {w, d, iso, id: `mv-${t.w}-${t.id}`, txt};
+}
+function statusWords(t){
+  const s = tst(t.id), n = s && s.n ? esc(s.n) : "";
+  const pre = t.mv ? `⏭ de ${esc(dShort(t.from))}` : "";
+  let w = "", c = "";
+  if (s) {
+    if (s.e === "no_aplica") { w = "✗ No aplica" + (n ? ": " + n : ""); }
+    else if (s.e === "no") { w = "✗ No se pudo" + (n ? ": " + n : ""); c = "bad"; }
+    else if (s.e === "ayuda") { w = "Pidió ayuda" + (n ? ": " + n : ""); c = "warn"; }
+    else if (s.e === "movida") { w = "⏭ Movida al " + esc(dShort(s.n)); }
+    else if (s.e === "hecho" && n) w = n;
+  }
+  const all = [pre, w].filter(Boolean).join(" · ");
+  return all ? `<span class="why ${c}">${all}</span>` : "";
+}
 function taskRow(t, pre){
-  const done = state.done[t.id], nope = (state.nope || {})[t.id], help = (state.flags || {})[t.id], open = state.topen === t.id;
-  const note = nope != null ? nope : help != null ? help : (state.dnote || {})[t.id] || "";
-  return `<div class="taskw${done ? " done" : ""}${nope != null ? " nope" : ""}${open ? " open" : ""}"><label class="task${done ? " done" : ""}"><input type="checkbox" data-id="${t.id}" ${done ? "checked" : ""}${nope != null ? ` aria-label="No se pudo"` : ""}><span class="th"><span class="k ${t.k}">${KLAB[t.k]}</span>${t.b ? `<b class="crop">${esc(t.b)}</b>` : ""}${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</span><span class="tx">${esc(t.t)}${nope != null ? `<span class="why bad">✗ No se pudo${nope ? ": " + esc(nope) : ""}</span>` : help != null ? `<span class="why warn">Pidió ayuda${help ? ": " + esc(help) : ""}</span>` : done && note ? `<span class="why">${esc(note)}</span>` : ""}</span></label><button type="button" class="tmore" data-more="${t.id}" aria-expanded="${open}" aria-label="Más opciones de la tarea">⋯</button>
-  ${open ? `<div class="tpanel">
-    <div class="treasons">${NOPE.map(r => `<button type="button" data-tr="${esc(r)}">${esc(r)}</button>`).join("")}</div>
-    <input class="tnote" maxlength="200" value="${esc(note)}" placeholder="Nota (opcional): qué pasó" aria-label="Nota de la tarea">
-    <div class="tst"><button type="button" data-ts="hecho" aria-pressed="${!!done}">✓ Hecha</button><button type="button" data-ts="no" aria-pressed="${nope != null}">✗ No se pudo</button><button type="button" data-ts="ayuda" aria-pressed="${help != null}">Pedir ayuda</button></div>
-    ${t.k === "cosecha" ? `<p class="small muted" style="margin:0">Si no se cosechó, márcala “No se pudo”: así no se cuenta como cosecha.</p>` : ""}</div>` : ""}</div>`;
+  (state.tmap = state.tmap || {})[t.id] = t;
+  const s = tst(t.id), done = s && s.e === "hecho", closed = s && ["no", "no_aplica", "movida"].includes(s.e), open = state.topen === t.id;
+  const lbl = s && !done ? ({no: "No se pudo", no_aplica: "No aplica", movida: "Movida", ayuda: "Pidió ayuda"})[s.e] : "";
+  return `<div class="taskw${done ? " done" : ""}${closed ? " nope" : ""}${open ? " open" : ""}"><label class="task${done ? " done" : ""}"><input type="checkbox" data-id="${esc(t.id)}" ${done ? "checked" : ""}${lbl ? ` aria-label="${lbl}"` : ""}><span class="th"><span class="k ${t.k}">${KLAB[t.k]}</span>${t.b ? `<b class="crop">${esc(t.b)}</b>` : ""}${t.min ? `<span class="t">(${tmin(t.min)})</span>` : ""}</span><span class="tx">${esc(t.t)}${statusWords(t)}</span></label><button type="button" class="tmore" data-more="${esc(t.id)}" aria-expanded="${open}" aria-label="Marcar la tarea como…">⋯</button>
+  ${t.hv && !s ? `<a class="tgo" href="#cosecha" data-go="cosecha">Abrir cosecha ›</a>` : ""}
+  ${open ? taskPanel(t, s) : ""}</div>`;
+}
+function taskPanel(t, s){
+  const m1 = moveTarget(t, 1), m7 = moveTarget(t, 7);
+  let note = s && s.e !== "movida" ? s.n || "" : "";
+  NOPE.forEach(([, r]) => { const l = note.toLowerCase(); if (l === r) note = ""; else if (l.startsWith(r + " · ")) note = note.slice(r.length + 3); });
+  const opt = (v, l, off) => `<option value="${v}"${off ? " disabled" : ""}>${l}</option>`;
+  return `<div class="tpanel">
+    <p class="small muted" style="margin:0">Cierra la tarea si ya no aplica; queda anotado.</p>
+    <div class="tnrow"><input class="tnote" maxlength="160" value="${esc(note)}" placeholder="Nota (opcional), luego elige abajo" aria-label="Nota de la tarea" enterkeyhint="done"><button type="button" class="btn" data-tother hidden>Guardar</button></div>
+    <select class="tsel" aria-label="Marcar como">
+      <option value="" selected disabled>Marcar como…</option>
+      ${opt("hecho", "✓ Hecha")}${opt("no_aplica", "✗ No aplica / ya no hace falta")}
+      ${NOPE.map(([k, r]) => opt("no:" + k, "✗ No se pudo: " + r)).join("")}
+      ${opt("mv1", m1 ? `⏭ Mover ${m1.w !== t.w ? "al lunes" : "a mañana"} (${dShort(m1.iso)})` : "⏭ Mover a mañana (fin del plan)", !m1)}
+      ${opt("mv7", m7 ? `⏭ Mover a la próxima semana (${dShort(m7.iso)})` : "⏭ Mover a la próxima semana (fin del plan)", !m7)}
+      ${opt("ayuda", "✋ Pedir ayuda")}${opt("otro", "Otro motivo…")}${s ? opt("clear", "↺ Quitar la marca") : ""}
+    </select>
+    <p class="ferr" data-terr hidden>Escribe el motivo y toca Guardar.</p>
+    ${t.k === "cosecha" ? `<p class="small muted" style="margin:0">Si no se cosechó, márcala «No se pudo»: así no se cuenta como cosecha.</p>` : ""}</div>`;
 }
 function bindTasks(root){
-  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => { const t = state.tmap[cb.dataset.id]; if (t) applyStatus(t, cb.checked ? "hecho" : "clear", "", {quiet: true}); }));
   root.querySelectorAll("[data-more]").forEach(b => b.onclick = () => { state.topen = state.topen === b.dataset.more ? null : b.dataset.more; render(); });
+  root.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.go); });
   root.querySelectorAll(".taskw.open").forEach(w => {
-    const id = w.querySelector("[data-more]").dataset.more, inp = w.querySelector(".tnote");
-    w.querySelectorAll("[data-tr]").forEach(b => b.onclick = () => { inp.value = b.dataset.tr; inp.focus(); });
-    w.querySelectorAll("[data-ts]").forEach(b => b.onclick = () => { setTaskState(id, b.dataset.ts, inp.value.trim()); state.topen = null; });
+    const t = state.tmap[w.querySelector("[data-more]").dataset.more], inp = w.querySelector(".tnote"), sel = w.querySelector(".tsel"), ob = w.querySelector("[data-tother]"), er = w.querySelector("[data-terr]");
+    const saveOther = () => { const n = inp.value.trim(); if (!n) { er.hidden = false; inp.classList.add("invalid"); inp.focus(); return; } state.topen = null; applyStatus(t, "no", n); };
+    sel.onchange = () => {
+      const v = sel.value; if (!v) return;
+      if (v === "otro") { ob.hidden = false; inp.placeholder = "¿Por qué no se pudo?"; inp.focus(); return; }
+      state.topen = null; applyStatus(t, v, inp.value.trim());
+    };
+    ob.onclick = saveOther;
+    inp.onkeydown = e => { if (e.key === "Enter" && !ob.hidden) { e.preventDefault(); saveOther(); } };
+    inp.oninput = () => { er.hidden = true; inp.classList.remove("invalid"); };
   });
 }
-async function setTaskState(id, estado, nota){
-  state.nope = state.nope || {}; state.flags = state.flags || {}; state.dnote = state.dnote || {};
-  const prev = {d: state.done[id], n: state.nope[id], f: state.flags[id]};
-  delete state.nope[id]; delete state.flags[id]; state.done[id] = false;
-  if (estado === "hecho") { state.done[id] = true; state.dnote[id] = nota; } else if (estado === "no") state.nope[id] = nota; else state.flags[id] = nota;
-  render();
+// Aplica un estado (y lo deshace): escribe la fila de la tarea y, al mover, la fila destino mv-<semana>-<id> en la semana destino.
+async function applyStatus(t, choice, note, o = {}){
+  state.tst = state.tst || {};
+  const id = t.id, w = t.w, prev = state.tst[id] ? {...state.tst[id]} : null;
+  const keep = t.mv ? {txt: t.txt} : {};
+  const ops = [], undo = [];
+  let row = null, msg = "";
+  if (prev && prev.e === "movida" && prev.n) {
+    const old = isoWD(prev.n), tg = mkTarget(t, old.w, old.d);
+    { ops.push(["del", old.w, tg.id]); undo.push(["set", old.w, tg.id, {estado: "llega", nota: "", txt: tg.txt}]); }
+  }
+  const n = String(note || "").slice(0, 160);
+  if (choice === "clear") { row = t.mv ? {estado: "llega", nota: "", txt: t.txt} : null; msg = "Marca quitada"; }
+  else if (choice === "hecho") { row = {estado: "hecho", nota: n}; msg = "Tarea hecha"; }
+  else if (choice === "no_aplica") { row = {estado: "no_aplica", nota: n}; msg = "Cerrada: no aplica"; }
+  else if (choice === "ayuda") { row = {estado: "ayuda", nota: n, txt: t.mv ? t.txt : ((t.b ? t.b + ": " : "") + t.t).slice(0, 300)}; msg = "Ayuda pedida"; }
+  else if (choice === "no" || choice.startsWith("no:")) { const r = (NOPE.find(x => "no:" + x[0] === choice) || [])[1]; row = {estado: "no", nota: [r, n].filter(Boolean).join(" · ").slice(0, 200)}; msg = "Anotado: no se pudo" + (r ? " (" + r + ")" : ""); }
+  else if (choice === "mv1" || choice === "mv7") {
+    const tg = moveTarget(t, choice === "mv1" ? 1 : 7); if (!tg) return;
+    row = {estado: "movida", nota: tg.iso};
+    ops.push(["set", tg.w, tg.id, {estado: "llega", nota: "", txt: tg.txt}]); undo.push(["del", tg.w, tg.id]);
+    msg = "Movida al " + dShort(tg.iso);
+  } else return;
+  if (row) row = {...keep, ...row};
+  ops.unshift(row ? ["set", w, id, row] : ["del", w, id]);
+  undo.unshift(prev ? ["set", w, id, {estado: prev.e, nota: prev.n || "", txt: prev.txt || ""}] : ["del", w, id]);
+  const before = {...state.tst};
+  const local = list => list.forEach(([op, ww, k, d]) => { if (ww !== state.tstW) return; if (op === "del") delete state.tst[k]; else state.tst[k] = {e: d.estado, n: d.nota || "", txt: d.txt || ""}; });
+  const remote = async list => { for (const [op, ww, k, d] of list) { const ref = state.db.doc(`hechas/w${ww}-${k}`); if (op === "del") await ref.delete(); else await ref.set({w: ww, id: k, ...d, at: Date.now()}); } };
+  local(ops); syncDone(); rerenderTasks();
   if (!state.db) return;
-  try { await state.db.doc(`hechas/w${state.w}-${id}`).set({w: state.w, id, estado, nota, at: Date.now()}); toast(estado === "hecho" ? "Tarea hecha" : estado === "no" ? "Anotado: no se pudo" : "Ayuda pedida"); }
-  catch (e) { state.done[id] = prev.d; if (prev.n != null) state.nope[id] = prev.n; else delete state.nope[id]; if (prev.f != null) state.flags[id] = prev.f; else delete state.flags[id]; render(); saveErr(e, "No se pudo guardar la tarea."); }
+  try { await remote(ops); }
+  catch (e) { state.tst = before; syncDone(); rerenderTasks(); saveErr(e, "No se pudo guardar la tarea."); return; }
+  if (o.quiet) return;
+  toast(msg, {action: "Deshacer", ms: 5000, on: async () => {
+    const b2 = {...state.tst}; local(undo); syncDone(); rerenderTasks();
+    try { await remote(undo); toast("Deshecho"); } catch (e) { state.tst = b2; syncDone(); rerenderTasks(); saveErr(e, "No se pudo deshacer. Revisa la conexión."); }
+  }});
 }
+const syncDone = () => { const d = {}; Object.entries(state.tst || {}).forEach(([k, r]) => { if (r.e === "hecho") d[k] = true; }); state.done = d; };
+const rerenderTasks = () => { if (state.view === "semana" || state.view === "hoy") render(); };
 /* ---------- datos compartidos ---------- */
 const typing = () => { if (document.querySelector(".pinsheet:not([hidden])")) return true; const a = document.activeElement; return !!a && a.matches("input:not([type=checkbox]):not([type=radio]), textarea, select"); };
 let unsubDone = null;
@@ -1830,19 +1936,13 @@ function subscribeDone(){
   if (!state.db) return;
   if (unsubDone) unsubDone();
   const w = state.w;
+  state.tst = {}; state.tstW = w; syncDone();
   unsubDone = state.db.collection("hechas").where("w", "==", w).onSnapshot(snap => {
     if (w !== state.w) return;
-    const d = {}, f = {}, no = {}, dn = {}; snap.docs.forEach(x => { const v = x.data(); if (!v || !v.id) return; if (v.estado === "ayuda") f[v.id] = v.nota || ""; else if (v.estado === "no") no[v.id] = v.nota || ""; else { d[v.id] = true; if (v.nota) dn[v.id] = v.nota; } });
-    state.done = d; state.flags = f; state.nope = no; state.dnote = dn; if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
+    const m = {}; snap.docs.forEach(x => { const v = x.data(); if (!v || !v.id) return; m[v.id] = {e: v.estado || "hecho", n: v.nota || "", txt: v.txt || ""}; });
+    state.tst = m; state.tstW = w; syncDone();
+    if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
   }, () => {});
-}
-async function toggleDone(id, on){
-  state.done[id] = on; if (state.nope) delete state.nope[id]; if (state.flags) delete state.flags[id];
-  if (state.view === "semana" || state.view === "hoy") render();
-  if (!state.db) return;
-  const ref = state.db.doc(`hechas/w${state.w}-${id}`);
-  try { on ? await ref.set({w: state.w, id, estado: "hecho", at: Date.now()}) : await ref.delete(); }
-  catch (e) { state.done[id] = !on; if (state.view === "semana" || state.view === "hoy") render(); saveErr(e, "No se pudo guardar la marca. Revisa la conexión."); }
 }
 /* ---------- render ---------- */
 const TITLES = {cocina: "Cocina", mensajes: "Mensajes con cocina", pedidos: "Pedidos de cocina", insumos: "Compras y banco de semillas", censo: "Censo de camas", hoy: "Hoy", semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Semillas que pide el plan", registro: "Registro de cosecha"};
