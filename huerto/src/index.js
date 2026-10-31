@@ -60,7 +60,7 @@ export default {
         return json({ ok: true });
       }
       if (p === '/api/cosechas' && request.method === 'GET') {
-        const { results } = await env.DB.prepare('SELECT fecha, cama, cultivo, cantidad, u, nota FROM cosechas ORDER BY fecha DESC, id DESC LIMIT 1000').all();
+        const { results } = await env.DB.prepare('SELECT fecha, cama, cultivo, cantidad, u, nota, quien FROM cosechas ORDER BY fecha DESC, id DESC LIMIT 1000').all();
         return json({ rows: results });
       }
       if (p === '/api/cosechas' && request.method === 'POST') {
