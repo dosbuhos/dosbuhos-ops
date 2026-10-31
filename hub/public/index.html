@@ -14,50 +14,180 @@
 </head>
 <body>
 <header class="topbar"><div class="topbar-in">
-  <a class="wordmark" href="/" aria-label="Dos Búhos"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <a class="wordmark" href="/" aria-label="Dos Búhos, inicio"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
   <span class="spacer"></span>
   <span class="who" id="who"></span>
   <nav id="nav"></nav>
 </div></header>
 
 <main class="wrap">
-  <div class="hello"><h1 id="hello">Hola</h1><span class="date" id="date"></span></div>
-  <div id="home" class="stack"></div>
+  <div class="home-head"><h1 id="hello">Hola</h1><span class="date" id="date"></span></div>
+  <div id="offline" class="offline" hidden>Sin conexión. Lo que ya está abierto sigue funcionando; las apps nuevas abren cuando vuelva la señal.</div>
+  <label class="search">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <input id="q" type="search" placeholder="Buscar una app" autocomplete="off" enterkeyhint="go" aria-label="Buscar una app">
+    <button class="clear" id="clear" type="button" aria-label="Borrar búsqueda" hidden>×</button>
+  </label>
+  <nav class="jump" id="jump" aria-label="Secciones"></nav>
+  <div id="home"><div class="apps"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
 </main>
 
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const STATUS = { soon: 'Próximamente', import: 'Por importar' };
-const first = n => (n || '').trim().split(/\s+/)[0] || '';
+const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const ROLE = { admin: 'Administrador', editor: 'Editor', viewer: 'Solo lectura' };
+const LATER = { soon: 'Próximamente', import: 'Por importar' };
+const DEMO = new URLSearchParams(location.search).has('demo');
+const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="FILL" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+
+// Per-person, per-browser conveniences. Nothing depends on them.
+let me, data, store = { recents: [], favs: [] };
+const KEY = () => 'hub:' + me.email;
+function load() { try { store = Object.assign(store, JSON.parse(localStorage.getItem(KEY()) || '{}')); } catch {} }
+function save() { try { localStorage.setItem(KEY(), JSON.stringify(store)); } catch {} }
+
+addEventListener('offline', () => $('#offline').hidden = false);
+addEventListener('online', () => $('#offline').hidden = true);
+if (!navigator.onLine) $('#offline').hidden = false;
 
 (async () => {
-  const [me, home] = await Promise.all([fetch('/api/me').then(r => r.ok ? r.json() : null), fetch('/api/home').then(r => r.ok ? r.json() : null)]);
-  if (!me) { location.href = '/?next=' + encodeURIComponent(location.pathname); return; }
+  try {
+    const [m, h] = await Promise.all([fetch('/api/me'), fetch('/api/home')]);
+    if (m.status === 401) { location.href = '/?next=/'; return; }
+    me = await m.json(); data = await h.json();
+  } catch {
+    $('#home').innerHTML = '<div class="empty"><b>No se pudo cargar</b>Revisa la señal y vuelve a abrir la página.</div>'; return;
+  }
+  load();
   $('#who').textContent = me.name || me.email;
   $('#nav').innerHTML = (me.admin ? '<a href="/admin/">Administrar</a>' : '') + '<a href="/auth/salir">Salir</a>';
-  $('#hello').textContent = `Hola, ${esc(first(me.name) || me.email.split('@')[0])}`;
+  const first = (me.name || '').trim().split(/\s+/)[0] || me.email.split('@')[0];
+  $('#hello').textContent = `Hola, ${first}`;
   $('#date').textContent = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  const bySection = new Map();
-  for (const a of home.apps) { if (!bySection.has(a.section)) bySection.set(a.section, []); bySection.get(a.section).push(a); }
-  const sections = home.sections.filter(s => bySection.has(s.slug));
-  if (!sections.length) { $('#home').innerHTML = '<div class="empty"><b>Todavía no tienes aplicaciones</b>Pide a Eric que te dé acceso.</div>'; return; }
-  $('#home').innerHTML = sections.map(s => {
-    const apps = bySection.get(s.slug);
-    const live = apps.filter(a => a.href).length;
-    return `<section class="section k-${esc(s.slug)}">
-      <div class="section-head"><h2>${esc(s.name)}</h2><span class="count">${live}/${apps.length}</span></div>
-      <div class="grid">${apps.map(card).join('')}</div>
-    </section>`;
-  }).join('');
+  if (DEMO) addDemoStats(data.apps);
+  render();
 })();
 
-function card(a) {
-  const cls = `card k-${esc(a.section)}` + (a.status === 'soon' ? ' is-soon' : a.status === 'import' ? ' is-import' : '');
-  const foot = STATUS[a.status] ? `<span class="chip">${STATUS[a.status]}</span>` : (a.mode === 'link' && a.href ? `<span class="ext" title="Abre en su propia dirección">↗</span>` : '');
-  const inner = `<div class="card-name">${esc(a.name)}</div><div class="card-desc">${esc(a.description)}</div><div class="card-foot">${foot}</div>`;
-  return a.href ? `<a class="${cls}" href="${esc(a.href)}">${inner}</a>` : `<div class="${cls}" aria-disabled="true">${inner}</div>`;
+const q = $('#q');
+q.addEventListener('input', () => { $('#clear').hidden = !q.value; render(); });
+$('#clear').onclick = () => { q.value = ''; $('#clear').hidden = true; render(); q.focus(); };
+q.addEventListener('keydown', e => { if (e.key === 'Enter') { const a = $('#home a.open'); if (a) a.click(); } });
+
+function render() {
+  const usable = data.apps.filter(a => a.href);
+  const term = fold(q.value.trim());
+  if (term) return renderSearch(usable, term);
+
+  const bySlug = Object.fromEntries(data.apps.map(a => [a.slug, a]));
+  const favs = store.favs.map(s => bySlug[s]).filter(a => a && a.href);
+  const recents = store.recents.map(s => bySlug[s]).filter(a => a && a.href && !store.favs.includes(a.slug)).slice(0, 4);
+  const sections = data.sections.filter(s => data.apps.some(a => a.section === s.slug));
+  let html = '';
+
+  if (!usable.length) {
+    html = '<div class="empty"><b>Todavía no tienes apps</b>Pide a Eric que te dé acceso; aparecerán aquí.</div>';
+  } else {
+    if (favs.length) html += `<section class="home-block"><h2 class="block-title">Favoritas</h2><div class="recents">${favs.map(mini).join('')}</div></section>`;
+    if (recents.length) html += `<section class="home-block"><h2 class="block-title">Recientes</h2><div class="recents">${recents.map(mini).join('')}</div></section>`;
+    for (const s of sections) {
+      const apps = data.apps.filter(a => a.section === s.slug);
+      const live = apps.filter(a => a.href), later = apps.filter(a => !a.href);
+      html += `<section class="home-block k-${esc(s.slug)}" id="s-${esc(s.slug)}">
+        <div class="section-head"><h2>${esc(s.name)}</h2><span class="count">${live.length ? live.length + (live.length === 1 ? ' app' : ' apps') : 'nada abierto aún'}</span></div>
+        ${live.length ? `<div class="apps">${live.map(row).join('')}</div>` : ''}
+        ${later.length ? laterList(later) : ''}
+      </section>`;
+    }
+  }
+  $('#home').innerHTML = html;
+  $('#jump').innerHTML = sections.map(s => `<a class="k-${esc(s.slug)}" href="#s-${esc(s.slug)}">${esc(s.name)}</a>`).join('');
+  wire();
+}
+
+function renderSearch(usable, term) {
+  const hits = usable.map(a => ({ a, score: match(a, term) })).filter(x => x.score > 0).sort((x, y) => y.score - x.score).map(x => x.a);
+  $('#home').innerHTML = hits.length
+    ? `<section class="home-block"><h2 class="block-title">Resultados <span class="count">${hits.length}</span></h2><div class="apps">${hits.map(row).join('')}</div></section>`
+    : `<p class="noresults">No hay una app que se llame <b>${esc(q.value)}</b>. Prueba con otra palabra, como “bodega”, “huerto” o “ventas”.</p>`;
+  wire();
+}
+
+// Forgiving match: accents ignored, words in any order, one typo allowed in words of 4+ letters.
+function match(a, term) {
+  const name = fold(a.name), hay = fold(`${a.name} ${a.description} ${a.section} ${a.slug}`);
+  if (name.startsWith(term)) return 4;
+  if (name.includes(term)) return 3;
+  const words = term.split(/\s+/), pool = hay.split(/[^a-z0-9ñ]+/).filter(Boolean);
+  if (words.every(w => hay.includes(w))) return 2;
+  if (words.every(w => w.length >= 4 && pool.some(p => near(p, w) || near(p.slice(0, w.length), w)))) return 1;
+  return 0;
+}
+// Optimal string alignment distance ≤ 1: one wrong, missing, extra or swapped letter.
+function near(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+  }
+  return d[a.length][b.length] <= 1;
+}
+
+function row(a) {
+  const fav = store.favs.includes(a.slug);
+  const meta = [a.stat ? stat(a.stat) : '', !me.admin && a.role ? `<span class="chip">${ROLE[a.role] || a.role}</span>` : ''].filter(Boolean).join('');
+  return `<article class="app k-${esc(a.section)}">
+    <a class="open" href="${esc(a.href)}" data-slug="${esc(a.slug)}" aria-label="Abrir ${esc(a.name)}"></a>
+    <div class="body"><div class="name">${esc(a.name)}</div><div class="desc">${esc(a.description)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
+    <button class="fav" type="button" data-fav="${esc(a.slug)}" aria-pressed="${fav}" aria-label="${fav ? 'Quitar de favoritas' : 'Marcar como favorita'}" title="${fav ? 'Quitar de favoritas' : 'Favorita'}">${STAR.replace('FILL', fav ? 'currentColor' : 'none')}</button>
+  </article>`;
+}
+function mini(a) {
+  return `<a class="k-${esc(a.section)}" href="${esc(a.href)}" data-slug="${esc(a.slug)}"><b>${esc(a.name)}</b><small>${esc(sectionName(a.section))}</small></a>`;
+}
+function laterList(apps) {
+  const names = apps.map(a => a.name).join(' · ');
+  return `<details class="later"><summary><span>${apps.length === 1 ? '1 más en camino' : apps.length + ' más en camino'}</span><span class="names">${esc(names)}</span></summary>
+    <ul>${apps.map(a => `<li><div><b>${esc(a.name)}</b><br><span>${esc(a.description)}</span></div><span class="chip">${LATER[a.status] || 'Próximamente'}</span></li>`).join('')}</ul></details>`;
+}
+const sectionName = slug => (data.sections.find(s => s.slug === slug) || {}).name || '';
+
+// A number, its period, its change, and a small trend line. Apps will report these; ?demo=1 shows samples.
+function stat(s) {
+  const pts = s.series || [], w = 64, h = 22, pad = 2;
+  let svg = '';
+  if (pts.length > 1) {
+    const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+    const xy = pts.map((v, i) => [pad + i * (w - 2 * pad) / (pts.length - 1), h - pad - (v - lo) / span * (h - 2 * pad)]);
+    const last = xy.at(-1);
+    svg = `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="M${xy.map(p => p.map(n => n.toFixed(1)).join(' ')).join('L')}"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.2"/></svg>`;
+  }
+  // `better` says which way is good for this number (fewer open orders is good), so colour follows meaning, not direction.
+  const good = s.delta && ((s.delta > 0) === (s.better !== 'down'));
+  const d = s.delta ? `<span class="d ${good ? 'good' : 'bad'}">${s.delta > 0 ? '▲' : '▼'} ${Math.abs(s.delta)}%</span>` : '';
+  return `<span class="stat">${svg}<span class="top"><span class="v">${esc(s.value)}</span>${d}</span><span class="l">${esc(s.label)}</span></span>`;
+}
+
+function wire() {
+  for (const a of document.querySelectorAll('a[data-slug]')) a.addEventListener('click', () => {
+    store.recents = [a.dataset.slug, ...store.recents.filter(s => s !== a.dataset.slug)].slice(0, 8); save();
+  });
+  for (const b of document.querySelectorAll('[data-fav]')) b.onclick = () => {
+    const s = b.dataset.fav;
+    store.favs = store.favs.includes(s) ? store.favs.filter(x => x !== s) : [...store.favs, s]; save(); render();
+  };
+}
+
+function addDemoStats(apps) {
+  const S = {
+    cellar: { value: '7', label: 'órdenes abiertas · ejemplo', delta: -12, better: 'down', series: [11, 10, 12, 9, 9, 8, 7] },
+    huerto: { value: '14 kg', label: 'cosecha esta semana · ejemplo', delta: 8, series: [6, 9, 8, 11, 12, 13, 14] },
+    mantenimiento: { value: '5', label: 'tareas pendientes · ejemplo', delta: 25, better: 'down', series: [3, 4, 3, 4, 4, 4, 5] },
+    wineclub: { value: '3', label: 'envíos hoy · ejemplo', series: [1, 2, 0, 4, 2, 1, 3] },
+  };
+  for (const a of apps) if (S[a.slug]) a.stat = S[a.slug];
 }
 </script>
 </body>
