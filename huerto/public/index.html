@@ -496,6 +496,171 @@ details.cdone>.cgrid{margin-top:8px}
 .harv .inu .u{padding:0 8px 0 4px}
 .harv .hsave{width:48px;min-width:48px;min-height:44px;padding:0;font-size:20px;font-weight:700}
 .harv .ferr,.harv .hdone{grid-column:1 / -1}
+
+/* ---- Densidad (nov 2026): menos aire, metadatos en una línea arriba del texto, ayudas plegadas ---- */
+.sr-only{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.fgc{color:var(--fg)}
+/* encabezado de panel: título pequeño a la izquierda, dato o acción a la derecha, una sola línea */
+.phead{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;flex-wrap:wrap}
+.phead h3{margin:0}.phead .ht{text-transform:none;letter-spacing:0;font-weight:500}
+.meter.thin{height:5px;border-radius:3px;margin:6px 0 2px}.meter.thin i{border-radius:3px}
+.wload{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:6px}
+.panel.days{gap:0}.panel.days details.day:first-of-type{margin-top:6px}
+/* "¿Cómo funciona?" plegado: una línea mientras no se abra */
+details.howto{font-size:13.5px;color:var(--muted);margin:0}
+details.howto>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;font-weight:600;list-style:none;color:var(--muted)}
+details.howto>summary::-webkit-details-marker{display:none}
+details.howto>summary::before{content:"ⓘ";font-size:14px}details.howto>summary::after{content:"▾";font-size:12px}details.howto[open]>summary::after{content:"▴"}
+details.howto>p{margin:0 0 4px;max-width:70ch;line-height:1.45}
+details.howto>.kv{color:var(--fg);font-size:13.5px;margin-bottom:4px}
+.card details.howto>summary::before{content:none}
+.csum{display:block !important;padding:12px 12px !important;min-height:48px;line-height:1.35}
+.csum>b{float:left;margin-right:10px;font-size:16px;line-height:1.35}
+.csum .chev{float:right;margin-left:8px;width:20px}
+.csum .cln{display:inline;font-size:15px}.csum .cstat{display:inline;white-space:nowrap}
+.cgrid{gap:6px !important}
+.cztop .zsel{flex:0 1 210px;min-width:0}.cztop{flex-wrap:nowrap}
+details.fold-p>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:40px}
+details.fold-p>summary::-webkit-details-marker{display:none}
+details.fold-p>summary::after{content:"▾";color:var(--muted)}details.fold-p[open]>summary::after{content:"▴"}
+details.fold-p[open]>summary{margin-bottom:8px}
+/* filas genéricas: encabezado (nombre + estado) y una línea de datos a todo lo ancho */
+ul.rows{list-style:none;margin:0;padding:0}
+ul.rows>li{padding:8px 0;border-bottom:1px solid var(--line)}ul.rows>li:last-child{border-bottom:0}
+ul.rows .rh{display:flex;align-items:center;gap:8px}ul.rows .rh b{flex:1;min-width:0}
+ul.rows .rm{color:var(--muted);margin-top:2px;line-height:1.4}ul.rows .rm b{color:var(--fg)}
+/* mapa: zona + censo en una fila */
+.mtools{display:flex;gap:8px;align-items:center}.mtools .zsel{flex:1;min-width:0}.mtools .btn{flex:none;min-height:44px;white-space:nowrap}
+.bedinfo h3{margin:2px 0 -4px}
+.real .phead{flex-wrap:nowrap}.real .phead h3{flex:1;min-width:0}
+.real .phead .btn{min-height:44px;padding:6px 14px;flex:none}
+.real{padding:8px 10px;gap:6px}
+/* experiencias */
+.eh{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.eh h4{flex:1;min-width:0}
+/* insumos: agregar en una fila */
+.addrow1{display:grid;grid-template-columns:minmax(0,1fr) 92px 48px;gap:6px;margin:8px 0 2px}
+.addrow1 input{font-size:16px;min-height:44px;width:100%;padding-inline:8px}
+.addrow1 .addsq{width:48px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.sb:not(.pd) .top{display:grid;grid-template-columns:minmax(0,1fr) 108px 44px;gap:6px;align-items:center}
+.sb .top input{min-height:44px;font-size:15px;padding-inline:8px}
+.sb .sn{min-width:0;overflow-wrap:anywhere}
+.sb{gap:6px;padding:8px 0}
+/* pedidos: aceptar / no se puede / otra… en una fila */
+.pact{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+.pact select{min-height:48px;font-size:15px;width:100%;padding-inline:6px}
+.pact{gap:6px}.pact .btn{padding-inline:4px;white-space:nowrap;font-size:14.5px}
+.pd:last-of-type{border-bottom:0}
+.pd{gap:8px}
+/* mensajes: texto arriba, firma + enviar abajo */
+.send2{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin-top:10px}
+.send2 textarea{grid-column:1 / -1;font:inherit;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:48px;resize:vertical;background:var(--surface);color:var(--fg)}
+.send2 input{font-size:16px;min-height:48px}.send2 .btn{min-height:48px;padding-inline:18px}
+/* cocina */
+.kr1{flex-wrap:nowrap}.kr1 b{flex:1 1 0 !important;min-width:0}.kr1 .kv{font-size:13px;flex:none}
+.kf{font-size:12.5px;padding:2px 7px}.kr1 .kn{margin-left:auto;font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.kr1 .kn b{color:var(--fg)}
+.kr{padding:8px 0;gap:4px}
+.klg i:first-child{margin-left:0}
+/* censo: código y estado en la línea de arriba, cultivos a todo lo ancho */
+.csum{grid-template-columns:auto minmax(0,1fr) 20px;row-gap:2px;padding:8px 12px;min-height:52px}
+.csum>b{font-size:16px}
+.csum .cstat{font-size:12.5px}
+.csum .cln{grid-column:1 / -1;font-size:15px;line-height:1.35}
+.cbody{gap:8px}
+.cl{row-gap:6px;padding:6px 0}
+.cl .sown,.cl .cos{gap:4px}
+/* calendario: la cama arriba, sus cultivos a todo lo ancho */
+.callist>li{display:block;padding:8px 12px}
+.callist .cb{display:block;font-size:14px;font-weight:700;margin-bottom:4px;color:var(--muted)}
+.callist{gap:6px}
+#main>.view>.zsel select{min-height:44px}
+/* registro */
+.cmon{margin-top:2px}.clist li{padding:8px 0}
+/* tablas -> filas compactas en el celular: la primera celda es el encabezado, las demás van seguidas */
+@media (max-width:859px){
+  .eyebrow.brandline,header.top .eyebrow{display:none}
+  header.top{padding-block:0 6px}
+  h1{font-size:24px}
+  .view{gap:12px}
+  .panel{padding:10px 12px}
+  .mapbox{padding:8px}
+  .mnav{grid-template-columns:44px minmax(0,1fr) 44px;padding:3px;border-radius:12px}
+  .mnav button{width:44px;height:44px}
+  .mnav h2{font-size:19px}.mnav .msub{font-size:11px}
+  .taskw .task{padding:7px 0;row-gap:2px}
+  .taskw .tx{font-size:15.5px;line-height:1.38}
+  .taskw .tmore{top:0}
+  details.day>summary{min-height:44px;padding:4px 0}
+  table.stack tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;padding:8px 0}
+  table.stack td{width:auto;padding:0}
+  table.stack td:first-child{flex:1 1 100%;font-size:15.5px;padding:0}
+  table.stack td[data-l]{display:inline-flex;align-items:baseline;gap:5px;font-size:14px;grid-template-columns:none}
+  table.stack td[data-l]::before{font-size:12.5px;font-weight:500}
+  table.stack td.r{text-align:left}
+  table.stack td.num{font-family:var(--body)}
+  .ktiles{gap:6px}
+  .kt{padding:8px 10px;gap:2px;border-radius:10px}
+  .kt b{font-size:19px}.kt>span{font-size:12px}.kt>small{font-size:11.5px;line-height:1.3}
+  .kseg{padding:3px}.kseg button{min-height:42px}
+  .kper button{min-height:40px;padding:4px 14px}.kper{gap:8px}
+  .kal{padding:8px 12px}
+  .cards{gap:6px}
+  .cgroup .cards{gap:0}
+  .cgroup .cards>details.fold{border-radius:0;margin-top:-1px}
+  .cgroup .cards>details.fold:first-child{border-radius:var(--r) var(--r) 0 0;margin-top:0}
+  .cgroup .cards>details.fold:last-child{border-radius:0 0 var(--r) var(--r)}
+  .cgroup .cards>details.fold:only-child{border-radius:var(--r)}
+  .cgroup{gap:6px}
+  details.fold>summary{min-height:48px;padding:6px 12px}
+  .card{padding:10px 12px;gap:6px}
+  .kv{display:block}
+  .kv dt{display:inline;font-weight:600}.kv dt::after{content:": "}
+  .kv dd{display:inline}.kv dd::after{content:"";display:block;margin-bottom:4px}
+  form.reg{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+  form.reg .rl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  .harv{padding:6px 0}
+  .dq{gap:8px}.dq button{min-height:40px}
+  #sheet .sgrp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+  #sheet .sgrp h3{grid-column:1 / -1}
+  #sheet .sgrp button{font-size:15px;padding:8px 12px;min-height:52px;line-height:1.25}
+  .sheet .in{gap:4px}
+}
+input[type=checkbox]{min-height:0 !important}
+.callist ol li{display:block}.callist .sw{display:inline-block;vertical-align:1px;margin:0 6px 0 0}
+@media (max-width:859px){
+  .callist>li{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px 2px}
+  .callist{gap:0}
+  .callist .cb{float:left;margin:0 8px 0 0;font-size:15px;color:var(--fg);line-height:1.35}
+  .callist ol{gap:3px}
+}
+/* tap targets: 44 px everywhere */
+details.howto>summary,details.fold-p>summary{min-height:44px}
+.kseg button{min-height:44px !important}.kper button{min-height:44px !important}
+.taskw .tmore{width:44px !important;height:44px !important;min-height:44px !important;top:-2px !important;right:-4px}
+.taskw .th{padding-right:40px}
+.harv .hn{white-space:normal;overflow:visible;text-overflow:clip}
+.dq button{min-height:44px !important}
+.msg.me small{color:color-mix(in srgb,var(--fg) 72%,var(--muted))}
+@media (max-width:359px){.harv{grid-template-columns:minmax(0,1fr) !important}.harv .hrow{justify-content:flex-end}}
+@media (max-width:389px){
+  .sb:not(.pd) .top{grid-template-columns:minmax(0,1fr) 44px}
+  .sb:not(.pd) .top input{grid-column:1 / -1;grid-row:2}
+  .kr1{flex-wrap:wrap}.kr1 .kn{flex-basis:100%;margin-left:18px}
+}
+@media (min-width:860px){
+  .cgrid{max-width:none;grid-template-columns:repeat(2,minmax(0,1fr)) !important;align-items:start}
+  .cgrid>.cc.open{grid-column:1 / -1}
+  .hoycols{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+  .chead{max-width:820px}
+  .chart svg{max-height:340px}
+  .krows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px}
+  .cc.open .cl{grid-template-columns:22px minmax(0,1fr) 260px !important}
+  .cc.open .cl>label.fl{grid-column:2}
+  .cc.open .cl>div.fl{grid-column:3}
+  .cc.open .cl>.ldet{grid-column:2 / -1}
+  .cc.open .cfoot{max-width:520px}
+  #main .cards{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  .callist{display:grid}
+}
 </style>
 <script>// Adaptador para la versión web pública: reemplaza la base de datos de Claude por la API del Worker (/api/*).
 (function () {
@@ -620,7 +785,7 @@ details.cdone>.cgrid{margin-top:8px}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 12:02</div>
+    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 12:29</div>
   </header>
   <nav class="tabs" aria-label="Vistas">
     <button data-v="hoy">Hoy</button>
@@ -657,7 +822,7 @@ details.cdone>.cgrid{margin-top:8px}
   <div class="sgrp"><h3>Cocina</h3>
     <button data-v="pedidos">Pedidos de cocina</button>
     <button data-v="mensajes">Mensajes con cocina</button></div>
-  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 12:02</p>
+  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 12:29</p>
 </div></div>
 <div class="tip" id="tip" hidden></div>
 
@@ -1144,7 +1309,8 @@ const monthLabel = k => { const [y, m] = k.split("-").map(Number); return MESL[m
 // Un solo patrón de navegación por días, semanas y meses: ‹ etiqueta ›, barra completa, flechas en los extremos.
 function navStepper(key, main, sub, o = {}){
   const note = o.prevOff && o.startNote ? o.startNote : o.nextOff && o.endNote ? o.endNote : "";
-  return `<div class="mnav" role="group" aria-label="${esc(o.group || "Navegar")}"><button type="button" data-step="${key}" data-d="-1" aria-label="${esc(o.prev || "Anterior")}"${o.prevOff ? " disabled" : ""}>‹</button><div class="mlab">${sub ? `<span class="msub">${sub}</span>` : ""}<h2 aria-live="polite">${main}</h2></div><button type="button" data-step="${key}" data-d="1" aria-label="${esc(o.next || "Siguiente")}"${o.nextOff ? " disabled" : ""}>›</button></div>${note ? `<p class="mnote">${esc(note)}</p>` : ""}`;
+  // The "why is ‹ disabled" note sits on the disabled button (title) and for screen readers; it no longer takes a line.
+  return `<div class="mnav" role="group" aria-label="${esc(o.group || "Navegar")}"><button type="button" data-step="${key}" data-d="-1" aria-label="${esc(o.prev || "Anterior")}"${o.prevOff ? ` disabled${note ? ` title="${esc(note)}"` : ""}` : ""}>‹</button><div class="mlab">${sub ? `<span class="msub">${sub}</span>` : ""}<h2 aria-live="polite">${main}</h2></div><button type="button" data-step="${key}" data-d="1" aria-label="${esc(o.next || "Siguiente")}"${o.nextOff ? ` disabled${note ? ` title="${esc(note)}"` : ""}` : ""}>›</button></div>${note ? `<p class="sr-only">${esc(note)}</p>` : ""}`;
 }
 const bindStepper = (root, key, fn) => root.querySelectorAll(`[data-step="${key}"]`).forEach(b => b.onclick = () => fn(+b.dataset.d));
 const monthStepper = sub => { const i = MONTHS.indexOf(state.month); return navStepper("mes", monthLabel(state.month), sub, {group: "Mes", prev: "Mes anterior", next: "Mes siguiente", prevOff: i <= 0, nextOff: i >= MONTHS.length - 1, startNote: `El plan empieza en ${monthLabel(MONTHS[0]).toLowerCase()}: no hay meses antes.`, endNote: `El plan llega hasta ${monthLabel(MONTHS[MONTHS.length - 1]).toLowerCase()}.`}); };
@@ -1187,7 +1353,7 @@ function zoneBox(z){
   const pad = z === "B" ? 1.6 : 1.2;
   return [x0 - pad - (z === "B" ? .8 : 0), y0 - pad - .6, x1 - x0 + 2 * pad + (z === "B" ? .8 : 0), y1 - y0 + 2 * pad + .6];
 }
-function zonePicker(id){ return `<label class="zsel"><select data-zones="${id}" aria-label="Zona del mapa">${ZONES.map(([k, l]) => `<option value="${k}"${(state.zone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todo el huerto" : l}</option>`).join("")}</select></label>`; }
+function zonePicker(id){ return `<label class="zsel"><select data-zones="${id}" aria-label="Zona del huerto">${ZONES.map(([k, l]) => `<option value="${k}"${(state.zone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todo el huerto" : l}</option>`).join("")}</select></label>`; }
 function bindZones(root, after){ root.querySelectorAll("select[data-zones]").forEach(s => s.onchange = () => { state.zone = s.value; try { localStorage.setItem("huerto-zona", state.zone); } catch (e) {} after(); }); }
 function mapSVG(opts){
   // opts.fill(bedId) -> {fill, op, hatch, crop}
@@ -1270,13 +1436,12 @@ function bindBeds(root, after){
 function bedTimeline(bedId){
   const list = plan.byBed[bedId] || [];
   const b = BED[bedId];
-  return `<div class="bedinfo" style="display:flex;flex-direction:column;gap:12px">
-    <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : b.sec === "I" ? "1 × 8 m dentro del invernadero (tramos de oeste a este)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
+  return `<div class="bedinfo" style="display:flex;flex-direction:column;gap:10px">
+    <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m, norte → sur" : b.sec === "I" ? "1 × 8 m en invernadero, oeste → este" : "1.4 × 9.5 m, oeste → este"} · ${nf(b.area,1)} m² · ${b.q} · 2 goteos</div></div>
     ${bedCensoSummary(bedId)}
-    <h3 style="margin:2px 0 -4px">Plan del año</h3>
-    <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div style="grid-column:2 / -1"><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
-      <span class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}</span><br>
-      <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div></div>`).join("")}</div>
+    <h3>Plan del año</h3>
+    <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div style="grid-column:2 / -1"><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span>
+      <div class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))} · ${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/sem`} <span class="muted">· ${esc(p.note || p.c.menu)}</span></div></div></div>`).join("")}</div>
   </div>`;
 }
 
@@ -1408,39 +1573,36 @@ function softDelete(key, msg, commit){
   state.hide.add(key); render();
   toast(msg, {action: "Deshacer", on: () => { state.hide.delete(key); render(); }, done: async () => { try { await commit(); } finally { state.hide.delete(key); if (state.view === "insumos" && !typing()) render(); } }});
 }
+const PLUS = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 views.insumos = () => {
   const L = (state.lista || []).filter(x => !state.hide.has("l" + x.id)), pend = L.filter(x => x.estado === "pendiente"), done = L.filter(x => x.estado !== "pendiente");
   const B = (state.bank || []).filter(r => !state.hide.has("b" + r.id)).slice().sort((a, b) => NIV.findIndex(n => n[0] === b.nivel) - NIV.findIndex(n => n[0] === a.nivel) || a.nombre.localeCompare(b.nombre, "es"));
   const low = B.filter(r => r.nivel === "poco" || r.nivel === "agotado"), rest = B.filter(r => !low.includes(r));
   const row = x => `<div class="li${x.estado === "pendiente" ? "" : " done"}"><label class="lic"><input type="checkbox" data-buy="${esc(x.id)}" ${x.estado === "pendiente" ? "" : "checked"}><span class="what"><b>${esc(x.item)}</b>${x.cantidad ? ` · ${esc(x.cantidad)}` : ""}${x.nota ? `<br><span class="small muted">${esc(x.nota)}</span>` : ""}</span></label><button class="x" data-ldel="${esc(x.id)}" aria-label="Quitar ${esc(x.item)} de la lista">✕</button></div>`;
-  const seed = r => `<div class="sb" data-id="${esc(r.id)}"><div class="top"><div><b>${esc(r.nombre)}</b>${r.nota ? ` <span class="small muted">· ${esc(r.nota)}</span>` : ""}</div><button class="x" data-bdel="${esc(r.id)}" aria-label="Quitar ${esc(r.nombre)} del banco">✕</button></div>
-      <div class="lvl" role="group" aria-label="Cuánto queda">${NIV.map(([k, n]) => `<button data-lvl="${k}" class="${k === "poco" || k === "agotado" ? "low" : ""}" aria-pressed="${r.nivel === k}">${n}</button>`).join("")}</div>
-      <input data-bcant data-keep="bc|${esc(r.id)}" value="${esc(r.cantidad || "")}" placeholder="Cantidad (opcional): media bolsa, 50 g…" maxlength="80" aria-label="Cantidad de ${esc(r.nombre)} (opcional)">
+  const seed = r => `<div class="sb" data-id="${esc(r.id)}"><div class="top"><div class="sn"><b>${esc(r.nombre)}</b>${r.nota ? ` <span class="small muted">· ${esc(r.nota)}</span>` : ""}</div><input data-bcant data-keep="bc|${esc(r.id)}" value="${esc(r.cantidad || "")}" placeholder="Cuánto" maxlength="80" aria-label="Cantidad de ${esc(r.nombre)} (opcional): media bolsa, 50 g…"><button class="x" data-bdel="${esc(r.id)}" aria-label="Quitar ${esc(r.nombre)} del banco">✕</button></div>
+      <div class="lvl" role="group" aria-label="Cuánto queda de ${esc(r.nombre)}">${NIV.map(([k, n]) => `<button data-lvl="${k}" class="${k === "poco" || k === "agotado" ? "low" : ""}" aria-pressed="${r.nivel === k}">${n}</button>`).join("")}</div>
       ${(r.nivel === "poco" || r.nivel === "agotado") && !pend.some(x => x.item.toLowerCase() === ("semilla de " + r.nombre).toLowerCase()) ? `<button class="btn" data-tolist="${esc(r.nombre)}" style="align-self:flex-start">＋ Agregar a la lista de compras</button>` : ""}
     </div>`;
   return `
-  <p class="small muted" style="margin:0">Lo que hace falta comprar y cuánta semilla queda.</p>
   ${window.huertoApi ? "" : `<div class="notice">Se edita desde la página pública del huerto.</div>`}
   <div class="cols">
   <section class="panel" aria-label="Lista de compras">
     <div class="bar" style="justify-content:space-between"><h3>Lista de compras</h3><span class="chip${pend.length ? " warn" : ""}">${pend.length} pendiente${pend.length === 1 ? "" : "s"}</span></div>
-    <p class="small muted" style="margin:4px 0 0">Todo lo que haga falta: semilla, composta, malla, charolas, herramienta. Palomear cuando ya se compró.</p>
-    <div class="addstack"><label class="fl"><span class="fll">Qué falta</span><input id="li-item" data-keep="li-item" placeholder="Ej. composta, malla sombra" maxlength="80"></label><label class="fl"><span class="fll">Cuánto <small>(opcional)</small></span><input id="li-cant" data-keep="li-cant" placeholder="Ej. 3 bultos" maxlength="40"></label><button class="btn primary" id="li-add">Agregar a la lista</button></div>
+    <div class="addrow1"><input id="li-item" data-keep="li-item" placeholder="Qué falta" aria-label="Qué falta" maxlength="80"><input id="li-cant" data-keep="li-cant" placeholder="Cuánto" aria-label="Cuánto (opcional)" maxlength="40"><button class="btn primary addsq" id="li-add" aria-label="Agregar a la lista" title="Agregar a la lista">${PLUS}</button></div>
     ${pend.map(row).join("") || `<p class="small muted" style="margin:10px 0 0">Nada pendiente.</p>`}
     ${done.length ? `<h3 style="margin:14px 0 2px">Comprado (últimas 2 semanas)</h3>${done.map(row).join("")}` : ""}
   </section>
   <section class="panel" aria-label="Banco de semillas">
     <div class="bar" style="justify-content:space-between"><h3>Banco de semillas</h3>${low.length ? `<span class="chip warn">${low.length} con poco o nada</span>` : ""}</div>
-    <p class="small muted" style="margin:4px 0 0">Cuánto queda de cada semilla, más o menos. Toca el nivel; la cantidad es opcional. Lo que tiene poco o se acabó va primero.</p>
-    ${low.map(seed).join("") || `<p class="small muted" style="margin:10px 0 0">Ninguna semilla con poco o nada.</p>`}
-    ${rest.length ? `<details class="fold" data-fold="bank"${state.bankOpen ? " open" : ""}><summary><span class="fs"><b>${rest.length} semilla${rest.length === 1 ? "" : "s"} con mucho o medio</b><span class="small muted">Toca para ver y cambiar</span></span></summary>${rest.map(seed).join("")}</details>` : ""}
-    <div class="addstack"><label class="fl"><span class="fll">Semilla nueva</span><input id="sb-nom" data-keep="sb-nom" list="cultlist2" placeholder="Ej. Cilantro" maxlength="60"></label><label class="fl"><span class="fll">Cuánto <small>(opcional)</small></span><input id="sb-cant" data-keep="sb-cant" placeholder="Ej. media bolsa" maxlength="80"></label><button class="btn primary" id="sb-add">Agregar al banco</button></div>
+    ${low.map(seed).join("") || (rest.length ? "" : `<p class="small muted" style="margin:10px 0 0">Sin semillas anotadas.</p>`)}
+    ${rest.length ? `<details class="fold" data-fold="bank"${state.bankOpen ? " open" : ""}><summary><span class="fs"><b>${rest.length} semilla${rest.length === 1 ? "" : "s"} con mucho o medio</b></span></summary>${rest.map(seed).join("")}</details>` : ""}
+    <div class="addrow1"><input id="sb-nom" data-keep="sb-nom" list="cultlist2" placeholder="Semilla nueva" aria-label="Semilla nueva" maxlength="60"><input id="sb-cant" data-keep="sb-cant" placeholder="Cuánto" aria-label="Cuánto (opcional)" maxlength="80"><button class="btn primary addsq" id="sb-add" aria-label="Agregar al banco" title="Agregar al banco">${PLUS}</button></div>
     <datalist id="cultlist2">${Object.values(CROPS).map(c => `<option value="${esc(c.n)}">`).join("")}</datalist>
   </section>
   </div>`;
 };
 views.insumos.bind = root => {
-  const add = async () => { const i = root.querySelector("#li-item"), c = root.querySelector("#li-cant"); if (!i.value.trim()) { i.focus(); toast("Escribe qué falta"); return; } const it = i.value.trim(), ca = c.value.trim(); if (await insPost("/api/lista", {accion: "agregar", item: it, cantidad: ca}, "Agregado a la lista")) { i.value = ""; c.value = ""; render(); } };
+  const add = async () => { const i = root.querySelector("#li-item"), c = root.querySelector("#li-cant"); if (!i.value.trim()) { i.focus(); toast("Escribe qué falta"); return; } const it = i.value.trim(), ca = c.value.trim(); if (await insPost("/api/lista", {accion: "agregar", item: it, cantidad: ca}, "Agregado a la lista")) { ["#li-item", "#li-cant"].forEach(q => { const e = document.querySelector(q); if (e) e.value = ""; }); render(); } };
   root.querySelector("#li-add").onclick = add;
   root.querySelector("#li-item").onkeydown = e => { if (e.key === "Enter") add(); };
   root.querySelectorAll("[data-buy]").forEach(cb => cb.onchange = async () => { await insPost("/api/lista", {accion: cb.checked ? "comprado" : "pendiente", id: cb.dataset.buy}); render(); });
@@ -1453,7 +1615,7 @@ views.insumos.bind = root => {
     const tl = card.querySelector("[data-tolist]"); if (tl) tl.onclick = async () => { await insPost("/api/lista", {accion: "agregar", item: "Semilla de " + tl.dataset.tolist}, "Agregado a la lista"); render(); };
   });
   root.querySelectorAll("[data-bdel]").forEach(b => b.onclick = () => { const id = b.dataset.bdel, r = (state.bank || []).find(y => y.id === id); softDelete("b" + id, `Quitada: ${r ? r.nombre : "semilla"}`, () => insPost("/api/banco", {accion: "quitar", id})); });
-  root.querySelector("#sb-add").onclick = async () => { const n = root.querySelector("#sb-nom"), c = root.querySelector("#sb-cant"); if (!n.value.trim()) { n.focus(); toast("Escribe el nombre de la semilla"); return; } if (await insPost("/api/banco", {accion: "agregar", nombre: n.value.trim(), cantidad: c.value.trim()}, "Semilla agregada")) { n.value = ""; c.value = ""; render(); } };
+  root.querySelector("#sb-add").onclick = async () => { const n = root.querySelector("#sb-nom"), c = root.querySelector("#sb-cant"); if (!n.value.trim()) { n.focus(); toast("Escribe el nombre de la semilla"); return; } if (await insPost("/api/banco", {accion: "agregar", nombre: n.value.trim(), cantidad: c.value.trim()}, "Semilla agregada")) { ["#sb-nom", "#sb-cant"].forEach(q => { const e = document.querySelector(q); if (e) e.value = ""; }); render(); } };
 };
 
 /* ---------- mensajes con la cocina ---------- */
@@ -1461,11 +1623,11 @@ const mHH = at => { const d = new Date(String(at).replace(" ", "T") + "Z"); retu
 views.mensajes = embedded => {
   const M = state.msgs || [];
   let name = ""; try { name = localStorage.getItem("huerto-nombre") || ""; } catch (e) {}
-  return `${embedded ? "" : `<p class="small muted" style="margin:0">Huerto ↔ cocina (Lalo e Isa).</p>`}
+  return `${embedded ? "" : `<p class="small muted" style="margin:0">Huerto ↔ cocina (Lalo e Isa)</p>`}
   <section class="panel">
     <div class="thread" id="thread">${M.map(m => `<div class="msg${m.de === "huerto" ? " me" : ""}"><small>${esc(m.nombre || (m.de === "huerto" ? "Huerto" : "Cocina"))} · ${m.de} · ${mHH(m.at)}</small>${esc(m.texto)}</div>`).join("") || `<p class="small muted" style="margin:0">Todavía no hay mensajes.</p>`}</div>
-    <div class="send"><label class="fl"><span class="fll">Mensaje</span><textarea id="m-text" data-keep="m-text" rows="2" placeholder="Escribe a la cocina…" maxlength="1000"></textarea></label><button class="btn primary" id="m-send">Enviar mensaje</button></div>
-    <label class="fl" style="margin-top:8px"><span class="fll">Firma <small>(tu nombre; la cocina lo ve)</small></span><input id="m-name" value="${esc(name)}" placeholder="Ej. Eric, Melanie, Adrián" maxlength="30"></label>
+    <div class="send2"><textarea id="m-text" data-keep="m-text" rows="2" placeholder="Escribe a la cocina…" aria-label="Mensaje" maxlength="1000"></textarea>
+      <input id="m-name" value="${esc(name)}" placeholder="Tu nombre (firma)" aria-label="Firma: tu nombre; la cocina lo ve" maxlength="30"><button class="btn primary" id="m-send">Enviar</button></div>
   </section>`;
 };
 views.mensajes.bind = root => {
@@ -1485,13 +1647,12 @@ views.pedidos = embedded => {
   const P = state.pedidos || [], V = state.pvotos || [];
   const neg = V.filter(x => x.voto && x.voto.voto === -1), pos = V.filter(x => x.voto && x.voto.voto === 1);
   return `
-  <p class="small muted" style="margin:0;max-width:70ch">${embedded ? "" : "Lo que pide la cocina (Lalo e Isa). "}La cocina pide cultivos desde su página (/cocina). Contesten cada pedido aquí: escriban una respuesta si hace falta y toquen “Aceptar pedido” o “No se puede”. La cocina ve la respuesta. Si hay que sembrar algo nuevo, avisen a Eric o a Melanie para meterlo al plan.</p>
+  <details class="howto"><summary>¿Cómo funcionan los pedidos?</summary><p>${embedded ? "" : "Lo que pide la cocina (Lalo e Isa). "}La cocina pide cultivos desde su página (/cocina). Contesten cada pedido aquí: escriban una respuesta si hace falta y toquen “Aceptar pedido” o “No se puede”. La cocina ve la respuesta. Si hay que sembrar algo nuevo, avisen a Eric o a Melanie para meterlo al plan.</p></details>
   <div class="cols">
-  <section class="panel"><h3 style="margin-bottom:6px">Pedidos</h3>
+  <section class="panel"><h3 class="sr-only">Pedidos</h3>
     ${P.map(x => `<div class="sb pd" data-id="${esc(x.id)}"><div class="top"><div><b>${esc(x.cultivo)}</b> <span class="chip${x.estado === "nueva" ? " warn" : ""}">${PLAB[x.estado] || esc(x.estado)}</span><br><span class="small muted">${[x.cantidad, x.para, x.nota].filter(Boolean).map(esc).join(" · ")}</span></div></div>
-      <label class="fl"><span class="fll">Respuesta para la cocina <small>(opcional)</small></span><input data-resp data-keep="pr|${esc(x.id)}" value="${esc(x.respuesta || "")}" placeholder="Ej. Hay desde el 15 de diciembre" maxlength="200"></label>
-      <div class="pact"><button class="btn primary" data-pe="aceptada" aria-pressed="${x.estado === "aceptada"}">Aceptar pedido</button><button class="btn" data-pe="no_se_puede" aria-pressed="${x.estado === "no_se_puede"}">No se puede</button></div>
-      <label class="fl"><span class="fll">Otra respuesta</span><select data-pother><option value="">Elegir…</option>${POTHER.map(([k, n]) => `<option value="${k}"${x.estado === k ? " selected" : ""}>${n}</option>`).join("")}</select></label></div>`).join("") || `<p class="small muted" style="margin:0">Sin pedidos.</p>`}
+      <input data-resp data-keep="pr|${esc(x.id)}" value="${esc(x.respuesta || "")}" placeholder="Respuesta para la cocina (opcional)" aria-label="Respuesta para la cocina (opcional)" maxlength="200">
+      <div class="pact"><button class="btn primary" data-pe="aceptada" aria-pressed="${x.estado === "aceptada"}">Aceptar</button><button class="btn" data-pe="no_se_puede" aria-pressed="${x.estado === "no_se_puede"}">No se puede</button><select data-pother aria-label="Otra respuesta"><option value="">Otra…</option>${POTHER.map(([k, n]) => `<option value="${k}"${x.estado === k ? " selected" : ""}>${n}</option>`).join("")}</select></div></div>`).join("") || `<p class="small muted" style="margin:0">Sin pedidos.</p>`}
   </section>
   <section class="panel"><h3 style="margin-bottom:6px">Siembras que la cocina validó</h3>
     ${neg.length ? `<div class="notice" style="margin-bottom:8px">👎 ${neg.length} siembra${neg.length > 1 ? "s" : ""} que la cocina dice que no necesita.</div>` : ""}
@@ -1548,9 +1709,8 @@ views.cocina = () => {
   const maxU = {}; S.list.forEach(r => { maxU[r.c.u] = Math.max(maxU[r.c.u] || 1, r.exp, r.got); });
   const main = S.list.filter(r => r.exp + r.got > 0 || r.down), rest = S.list.filter(r => !main.includes(r));
   const krow = r => { const max = maxU[r.c.u]; return `<div class="kr">
-      <div class="kr1"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b><span class="km">${nfk(r.m)} m</span>${r.up || r.down ? `<span class="kv">${r.up ? "👍" + r.up : ""}${r.down ? " 👎" + r.down : ""}</span>` : ""}</div>
+      <div class="kr1"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b><span class="kv muted">${nfk(r.m)} m${r.up ? " · 👍" + r.up : ""}${r.down ? " · 👎" + r.down : ""}</span><span class="kn"><b>${nfk(r.got)}</b> de ${nfk(r.exp)} ${esc(r.c.u)}${r.kgm != null && r.got > 0 ? ` · ${nfk(r.kgm)}/m` : ""}</span></div>
       <div class="kbars"><i class="e" style="width:${r.exp / max * 100}%"></i><i class="g" style="width:${r.got / max * 100}%"></i></div>
-      <div class="kn small muted">${nfk(r.exp)} esperado · <b>${nfk(r.got)} cosechado</b> ${esc(r.c.u)}${r.kgm != null && r.got > 0 ? ` · ${nfk(r.kgm)} ${esc(r.c.u)}/m` : ""}</div>
       ${r.flag ? `<div class="kf ${r.flag[1]}">${r.flag[0]}${r.notes.length ? `: “${esc(r.notes[0])}”` : ""}</div>` : ""}
     </div>`; };
   return seg + `
@@ -1559,17 +1719,17 @@ views.cocina = () => {
     ${downs.length ? `<button class="kal bad" data-kt="pedidos"><b>${downs.length} siembra${downs.length > 1 ? "s" : ""} que la cocina no necesita</b><span>${esc(downs.slice(0, 3).map(x => x.cultivo).join(", "))}</span></button>` : ""}
     ${lastMsg ? `<button class="kal" data-kt="mensajes"><b>Último mensaje de la cocina · ${esc(mHH(lastMsg.at))}</b><span>${esc(String(lastMsg.texto).slice(0, 90))}</span></button>` : ""}
   </section>` : ""}
-  <div class="kper" role="group" aria-label="Periodo"><span class="small muted">Periodo</span>${[[4, "4 sem"], [8, "8 sem"], [52, "Temporada"]].map(([n, t]) => `<button data-kp="${n}" aria-pressed="${per === n}">${t}</button>`).join("")}</div>
+  <div class="kper" role="group" aria-label="Periodo">${[[4, "4 sem"], [8, "8 sem"], [52, "Temporada"]].map(([n, t]) => `<button data-kp="${n}" aria-pressed="${per === n}">${t}</button>`).join("")}</div>
   <div class="ktiles">
     <div class="kt"><span>Metros sembrados hoy</span><b>${nfk(S.used)} <small>de ${nfk(S.total)} m</small></b><i><em style="width:${Math.min(100, Math.round(S.used / S.total * 100))}%"></em></i></div>
-    <div class="kt"><span>Cosecha esperada</span><b>${nfk(S.exp)} <small>kg</small></b><small>según el plan, ${per >= 52 ? "temporada" : "últimas " + per + " semanas"}</small></div>
+    <div class="kt"><span>Cosecha esperada</span><b>${nfk(S.exp)} <small>kg</small></b><small>según el plan</small></div>
     <div class="kt"><span>Cosechado (registrado)</span><b>${nfk(S.got)} <small>kg</small></b><small>${S.exp > 0 ? Math.round(S.got / S.exp * 100) + "% de lo esperado" : "—"}</small></div>
-    <div class="kt"><span>Rendimiento</span><b>${S.used > 0 ? nfk(S.got / S.used) : "—"} <small>kg por metro</small></b><small>cosechado ÷ metros en tierra</small></div>
+    <div class="kt"><span>Rendimiento</span><b>${S.used > 0 ? nfk(S.got / S.used) : "—"} <small>kg/m</small></b><small>cosechado ÷ metros</small></div>
   </div>
   ${hasH ? "" : `<div class="notice">Aún no hay cosechas registradas, así que “cosechado” está en cero. Cuando la cocina registre lo que se lleva en su página (/cocina) o el huerto en “Registro de cosecha”, aquí se compara con lo esperado y con los metros sembrados.</div>`}
-  <section class="panel"><h3 style="margin-bottom:2px">Por cultivo</h3>
-    <p class="small muted" style="margin:0 0 8px">Metros en tierra hoy, lo esperado y lo cosechado en el periodo. <span class="klg"><i class="e"></i>esperado <i class="g"></i>cosechado</span></p>
-    ${main.map(krow).join("") || `<p class="small muted" style="margin:0">Nada esperado ni cosechado en el periodo.</p>`}
+  <section class="panel"><div class="phead"><h3>Por cultivo</h3><span class="klg small muted"><i class="e"></i>esperado <i class="g"></i>cosechado</span></div>
+    <p class="small muted" style="margin:0 0 4px">Metros en tierra hoy · cosechado de lo esperado en el periodo.</p>
+    ${main.length ? `<div class="krows">${main.map(krow).join("")}</div>` : `<p class="small muted" style="margin:0">Nada esperado ni cosechado en el periodo.</p>`}
     ${rest.length ? `<details class="krest"><summary>${rest.length} cultivos más en tierra sin cosecha en el periodo · ${nfk(rest.reduce((a, r) => a + r.m, 0))} m</summary>${rest.map(r => `<div class="kr1 kq"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b><span class="km">${nfk(r.m)} m</span></div>`).join("")}</details>` : ""}
   </section>`;
 };
@@ -1613,7 +1773,7 @@ function cropOptionsHtml(cur){
 }
 // Sowing date while taking the census: usually an estimate, so offer "how long ago" picks; "Fecha…" for an exact day.
 const detSummary = l => { const p = [l.fecha ? `Siembra ≈ ${fmtISO(l.fecha)}` : "", l.cosecha ? `Cosecha ≈ ${fmtISO(l.cosecha)}` : (l.fecha && harvestOf(l) ? `Cosecha ≈ ${fmtISO(harvestOf(l))}` : ""), l.nota ? `“${l.nota}”` : ""].filter(Boolean);
-  return p.length ? `<span class="ds">${esc(p.join(" · "))}</span><span class="de">Editar</span>` : `<span class="ds empty">Fecha de siembra, cosecha y nota</span><span class="de">Agregar</span>`; };
+  return p.length ? `<span class="ds">${esc(p.join(" · "))}</span><span class="de">Editar</span>` : `<span class="ds empty">Siembra, cosecha y nota</span><span class="de">Agregar</span>`; };
 const DQ = [["7", "1 sem"], ["14", "2 sem"], ["30", "1 mes"], ["60", "2 meses"], ["90", "3+ meses"], ["otra", "Fecha…"]];
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
 const dqOf = l => l._dq || (l.fecha ? "otra" : "");
@@ -1624,40 +1784,39 @@ function censoStatus(bed){
   if ((state.cdirty || {})[bed]) return ["sin guardar", "warn"];
   if (censoThisWeek(bed)) return ["✓ revisada " + fmtISO(c.at.slice(0, 10)), "ok"];
   if (c) return ["revisada " + fmtISO(c.at.slice(0, 10)) + " · revisar", "warn"];
-  return ["sin revisar (según el plan)", "warn"];
+  return ["según el plan", "warn"];
 }
 const censoLine = L => L.filter(l => +l.m > 0).map(l => `${l.cultivo ? shortCrop(l.cultivo) : "¿?"} ${fm(l.m)}`).join(" + ") || "Vacía";
 function censoCard(bed){
   const B = BED[bed], L = censoDraft(bed), open = state.copen === bed, [st, stc] = censoStatus(bed);
-  const head = `<button type="button" class="csum" data-copen aria-expanded="${open}" aria-controls="cb-${bed}"><b>${bed}</b><span class="cst"><span class="cln">${esc(censoLine(L))}</span><span class="cstat ${stc}">${esc(st)}</span></span><span class="chev" aria-hidden="true">${open ? "▴" : "▾"}</span></button>`;
+  const head = `<button type="button" class="csum" data-copen aria-expanded="${open}" aria-controls="cb-${bed}"><b>${bed}</b><span class="chev" aria-hidden="true">${open ? "▴" : "▾"}</span><span class="cln">${esc(censoLine(L))}</span> <span class="cstat ${stc}">· ${esc(st)}</span></button>`;
   if (!open) return `<section class="cc${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">${head}</section>`;
   const {html, used} = censoBar(bed, L);
   const rest = B.len - used, ends = B.sec === "A" ? ["Norte", "Sur"] : ["Oeste", "Este"], from = B.sec === "A" ? "norte" : "oeste";
   return `<section class="cc open${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">${head}<div class="cbody" id="cb-${bed}">
-    <div class="small muted">${fm(B.len)} de largo · un renglón por cultivo, desde el ${from}</div>
     <div class="cbar" aria-hidden="true">${html}</div>
-    <div class="cends"><span>${ends[0]}</span><span class="rest${rest < -0.01 ? " over" : rest <= 0.01 ? " full" : ""}">${rest < -0.01 ? `Sobran ${fm(-rest)}` : rest > 0.01 ? `${fm(rest)} vacío` : "Cama completa ✓"}</span><span>${ends[1]}</span></div>
+    <div class="cends"><span>${ends[0]}</span><span class="rest${rest < -0.01 ? " over" : rest <= 0.01 ? " full" : ""}">${fm(B.len)} · ${rest < -0.01 ? `Sobran ${fm(-rest)}` : rest > 0.01 ? `${fm(rest)} vacío` : "Cama completa ✓"}</span><span>${ends[1]}</span></div>
     ${L.length ? "" : `<p class="small muted" style="margin:0">La cama queda vacía. Toca “Agregar cultivo” si hay algo sembrado.</p>`}
     ${L.map((l, i) => `<div class="cl" data-i="${i}">
       <span class="sw" style="background:${l.cultivo ? cropColor(l.cultivo) : "var(--line)"};color:${l.cultivo ? inkOn(cropColor(l.cultivo)) : "var(--fg)"}"><b>${i + 1}</b></span>
-      <label class="fl"><span class="fll">Cultivo</span>${l._otro ? `<input data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Nombre del cultivo" maxlength="40"${l._err ? ` class="invalid" aria-invalid="true" aria-describedby="ce-${bed}-${i}"` : ""}>` : `<select class="crop${l.cultivo ? "" : " empty"}${l._err ? " invalid" : ""}" data-crop${l._err ? ` aria-invalid="true" aria-describedby="ce-${bed}-${i}"` : ""}>${cropOptionsHtml(l.cultivo)}</select>`}
+      <label class="fl"><span class="sr-only">Cultivo ${i + 1}</span>${l._otro ? `<input data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Nombre del cultivo" maxlength="40"${l._err ? ` class="invalid" aria-invalid="true" aria-describedby="ce-${bed}-${i}"` : ""}>` : `<select class="crop${l.cultivo ? "" : " empty"}${l._err ? " invalid" : ""}" data-crop${l._err ? ` aria-invalid="true" aria-describedby="ce-${bed}-${i}"` : ""}>${cropOptionsHtml(l.cultivo)}</select>`}
         ${l._err ? `<span class="ferr" id="ce-${bed}-${i}">Elige el cultivo de este renglón (o quítalo).</span>` : ""}</label>
-      <div class="fl"><span class="fll" id="cm-${bed}-${i}">Metros <small>(contando desde el ${from})</small></span>
+      <div class="fl"><span class="sr-only" id="cm-${bed}-${i}">Metros de ${esc(l.cultivo || "este renglón")}, contando desde el ${from}</span>
       <div class="mstep">${+l.m <= 0.5 ? `<button type="button" class="trash" data-dec aria-label="Quitar ${esc(l.cultivo || "este renglón")} de la cama" title="Quitar de la cama"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>` : `<button type="button" data-dec aria-label="Menos medio metro">−</button>`}<select data-m aria-labelledby="cm-${bed}-${i}">${[...new Set([...M_OPTS(B.len), +l.m > 0 ? Math.round(+l.m * 100) / 100 : 0.5])].sort((x, y) => x - y).map(v => `<option value="${v}"${Math.abs(v - +l.m) < 0.01 ? " selected" : ""}>${fm(v)}</option>`).join("")}</select><button type="button" data-inc aria-label="Más medio metro">+</button></div></div>
       <details class="ldet" data-det${l._open || (!l.fecha && !l.cosecha && !l.nota && l._new) ? " open" : ""}><summary>${detSummary(l)}</summary><div class="ldb">
-      <div class="sown"><span class="q">¿Hace cuánto se sembró? <small>(aprox.; sirve para calcular la cosecha)</small></span>
+      <div class="sown"><span class="q">¿Hace cuánto se sembró? <small>(aprox.)</small></span>
         <div class="dq" role="group" aria-label="Hace cuánto se sembró">${DQ.map(([k, t]) => `<button type="button" data-dq="${k}" aria-pressed="${dqOf(l) === k}">${t}</button>`).join("")}</div>
         ${dqOf(l) === "otra" ? `<input type="date" data-f="fecha" value="${esc(l.fecha || "")}" max="${todayISO()}" aria-label="Fecha de siembra">` : ""}
         ${l.fecha ? `<span class="hint">Sembrado ≈ <b>${esc(fmtISO(l.fecha))}</b></span>` : ""}</div>
-      <label class="cos"><span class="q">Cosecha estimada <small>(si no sabes, déjala vacía)</small></span>
+      <label class="cos"><span class="q">Cosecha estimada <small>(opcional)</small></span>
         <input type="date" data-f="cosecha" value="${esc(l.cosecha || "")}">
         <span class="hint">${l.cosecha ? "" : harvestOf(l) ? `Vacía = se calcula con la siembra: ≈ <b>${esc(fmtISO(harvestOf(l)))}</b>` : "Vacía = se calcula con el plan."}</span></label>
-      <label class="cos"><span class="q">Nota <small>(opcional: plaga, floreando…)</small></span>
+      <label class="cos"><span class="q">Nota <small>(opcional)</small></span>
       <input class="nota" data-f="nota" list="notalist" value="${esc(l.nota || "")}" maxlength="80" placeholder="Ej. con pulgón"></label>
       <button type="button" class="rm" data-del>Quitar ${esc(l.cultivo || "este renglón")} de la cama</button></div></details>
     </div>`).join("")}
     <div class="cfoot"><button type="button" class="btn addsq" data-add aria-label="Agregar cultivo" title="Agregar cultivo"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" class="btn primary" data-save>Guardar ${bed}</button></div>
-    ${L.length ? `<div class="cdanger"><button type="button" class="rm" data-empty>Vaciar toda la cama</button><span class="small muted">Se puede deshacer; no se guarda hasta tocar “Guardar ${bed}”.</span></div>` : ""}
+    ${L.length ? `<div class="cdanger"><button type="button" class="rm" data-empty>Vaciar toda la cama</button></div>` : ""}
   </div></section>`;
 }
 function bindCard(card){
@@ -1714,9 +1873,9 @@ function bindCard(card){
 function bedCensoSummary(bed){
   const c = state.censo[bed];
   return `<section class="real" aria-label="Lo que hay hoy en la cama">
-    <div class="bar" style="justify-content:space-between"><h3>Hoy en la tierra</h3><button class="btn primary" data-censo="${bed}">Actualizar esta cama</button></div>
-    ${c ? (c.lineas.length ? c.lineas.map(l => `<div class="rep"><span class="dot" style="margin-top:5px;background:${cropColor(CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo)}"></span><div><b>${esc(CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo)}</b> · ${nf(l.m, 1)} m${l.nota ? ` · <span class="muted">${esc(l.nota)}</span>` : ""}${l.fecha || l.cosecha ? `<br><span class="small muted">${[l.fecha ? "Sembrado ≈ " + esc(fmtISO(l.fecha)) : "", l.cosecha ? "cosecha ≈ " + esc(fmtISO(l.cosecha)) : ""].filter(Boolean).join(" · ")}</span>` : ""}</div><span></span></div>`).join("") : `<p class="small muted" style="margin:0">Vacía.</p>`) + `<p class="small muted" style="margin:0">Censo del ${esc(fmtISO(c.at.slice(0, 10)))}</p>`
-      : `<p class="small muted" style="margin:0">Aún sin censo. Toca “Actualizar esta cama”.</p>`}
+    <div class="phead"><h3>Hoy en la tierra${c ? ` <span class="ht">· censo ${esc(fmtISO(c.at.slice(0, 10)))}</span>` : ""}</h3><button class="btn primary" data-censo="${bed}" aria-label="Actualizar cama ${bed}">Actualizar</button></div>
+    ${c ? (c.lineas.length ? c.lineas.map(l => `<div class="rep"><span class="dot" style="margin-top:5px;background:${cropColor(CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo)}"></span><div><b>${esc(CROPS[l.cultivo] ? CROPS[l.cultivo].n : l.cultivo)}</b> · ${nf(l.m, 1)} m${l.nota ? ` · <span class="muted">${esc(l.nota)}</span>` : ""}${l.fecha || l.cosecha ? `<br><span class="small muted">${[l.fecha ? "Sembrado ≈ " + esc(fmtISO(l.fecha)) : "", l.cosecha ? "cosecha ≈ " + esc(fmtISO(l.cosecha)) : ""].filter(Boolean).join(" · ")}</span>` : ""}</div><span></span></div>`).join("") : `<p class="small muted" style="margin:0">Vacía.</p>`)
+      : `<p class="small muted" style="margin:0">Aún sin censo. Toca “Actualizar”.</p>`}
   </section>`;
 }
 views.censo = () => {
@@ -1727,11 +1886,11 @@ views.censo = () => {
   return `
   ${state.cfrom === "mapa" ? `<button type="button" class="btn back" data-backmap>← Volver al mapa</button>` : ""}
   <div class="chead"><div class="cprog"><b>${done} de ${BEDS.length}</b> camas revisadas esta semana<span class="pbar"><i style="width:${Math.round(done / BEDS.length * 100)}%"></i></span></div>
-  <p class="small muted" style="margin:0;max-width:70ch">Toca una cama para revisarla. Un renglón por cultivo, en orden: <b>norte → sur</b> en la sección A; <b>oeste → este</b> en la B e invernaderos. Al guardar se actualizan el mapa y el plan.</p></div>
+  <details class="howto"><summary>¿Cómo se hace el censo?</summary><p>Toca una cama para revisarla. Un renglón por cultivo, en orden: <b>norte → sur</b> en la sección A; <b>oeste → este</b> en la B e invernaderos. Al guardar se actualizan el mapa y el plan.</p></details></div>
   ${window.huertoApi ? "" : `<div class="notice">El censo se guarda desde la página pública del huerto.</div>`}
-  <label class="zsel"><select data-cz aria-label="Zona">${ZONES.map(([k, n]) => `<option value="${k}"${(state.czone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todas las camas" : n}</option>`).join("")}</select></label>
+  <div class="phead cztop"><h3>${todo.length ? `Por revisar · ${todo.length}` : "Camas"}</h3><label class="zsel"><select data-cz aria-label="Zona">${ZONES.map(([k, n]) => `<option value="${k}"${(state.czone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todas las camas" : n}</option>`).join("")}</select></label></div>
   <datalist id="notalist">${NOTAS.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
-  ${todo.length ? `<h3>Por revisar · ${todo.length}</h3><div class="cgrid">${todo.map(censoCard).join("")}</div>` : `<p class="notice" style="margin:0">✓ Todas las camas de esta zona están revisadas esta semana.</p>`}
+  ${todo.length ? `<div class="cgrid">${todo.map(censoCard).join("")}</div>` : `<p class="notice" style="margin:0">✓ Todas las camas de esta zona están revisadas esta semana.</p>`}
   ${ok.length ? `<details class="cdone"${okOpen ? " open" : ""}><summary>${ok.length} revisada${ok.length === 1 ? "" : "s"} esta semana</summary><div class="cgrid">${ok.map(censoCard).join("")}</div></details>` : ""}`;
 };
 views.censo.bind = root => {
@@ -1776,11 +1935,10 @@ views.hoy = () => {
   const sub = isToday ? "" : auto ? "Próximo día de trabajo" : `Semana ${w + 1}`;
   return `
   ${navStepper("dia", `${DIAS[d]} ${fmt(date)}`, sub, {group: "Día", prev: "Día anterior", next: "Día siguiente", prevOff: w === 0 && d <= first, nextOff: w === PLAN_WEEKS - 1 && d === 5})}
-  <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small">${done} de ${list.length} tareas hechas</span><span class="small num">${nf(mins / 60, 1)} h de trabajo</span></div>
-    <div class="meter"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div></div>
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas no se guardan en esta vista.</div>` : ""}
-  <section class="panel" aria-label="Tareas del día">
-    <h3 style="margin-bottom:4px">Tareas</h3>
+  <div class="cols hoycols"><section class="panel" aria-label="Tareas del día">
+    <div class="phead"><h3>Tareas</h3><span class="small muted"><b class="fgc">${done} de ${list.length}</b> hechas · <span class="num">${nf(mins / 60, 1)} h</span></span></div>
+    <div class="meter thin"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div>
     ${list.length ? list.map(t => taskRow(t, "h")).join("") : `<p class="muted" style="margin:6px 0 0">Sin tareas este día.</p>`}
   </section>
   ${harvDay ? `<section class="panel" aria-label="Cosecha del día">
@@ -1790,7 +1948,7 @@ views.hoy = () => {
       return `<div class="harv"><div style="min-width:0"><div class="hn"><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))} · ${c.u === "kg" && exp < 0.25 ? "según pida cocina" : "≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null && !sv ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
       ${sv ? `<div class="hdone" role="status"><span>✓ ${nf(sv.v, 1)} ${u} anotado</span>${sv.id && window.huertoApi ? `<button type="button" class="lnk" data-hundo="${esc(key)}">Deshacer</button>` : ""}<button type="button" class="lnk" data-hmore="${esc(key)}">Anotar otra cantidad</button></div>`
       : `<div class="hrow"><label class="fl"><span class="inu"><input type="number" aria-label="Cantidad cosechada de ${esc(c.n)} (${u})" placeholder="0" inputmode="decimal" step="0.1" min="0" data-keep="hv|${esc(key)}" data-key="${esc(key)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"${err ? ` class="invalid" aria-invalid="true"` : ""}><span class="u">${u}</span></span></label><button class="btn hsave" data-save="1" aria-label="Anotar cosecha de ${esc(c.n)}" title="Anotar cosecha">✓</button></div>${err ? `<span class="ferr">Escribe los ${u === "kg" ? "kg" : "piezas"} antes de anotar.</span>` : ""}`}</div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
-  </section>` : `<p class="small muted" style="margin:0">La cosecha para cocina se hace lunes, miércoles y viernes.</p>`}
+  </section>` : `<p class="small muted" style="margin:0">La cosecha para cocina se hace lunes, miércoles y viernes.</p>`}</div>
   <button class="btn" id="towa" style="align-self:flex-start">Copiar la semana para WhatsApp</button>`;
 };
 views.hoy.bind = root => {
@@ -1849,16 +2007,14 @@ views.semana = () => {
   const kgTot = Object.entries(byCrop).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, o]) => a + o.qty, 0);
   return `
   <div class="vtop">${weekStepper("sem", w, `Semana ${w + 1} de ${PLAN_WEEKS}`)}</div>
-  <div class="bar">
-    <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small"><b class="num">${nf(hrs, 1)} h</b> de ${CAP_H} h disponibles</span>${over ? `<span class="chip warn">⚠ Pedir apoyo: ${nf(hrs - CAP_H, 0)} h extra</span>` : `<span class="chip">✓ Cabe en la semana</span>`}</div>
-      <div class="meter${over ? " over" : ""}"><i style="width:${Math.min(100, hrs / CAP_H * 100)}%"></i></div></div>
-    <button class="btn primary" id="wa">Copiar para WhatsApp</button>
-  </div>
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas de tareas no se guardan en esta vista. Ábrelo desde tu cuenta de Claude para que se compartan con Melanie.</div>` : ""}
   <div class="cols">
     <section class="panel days" aria-label="Tareas por día">
-      <div class="bar" style="justify-content:space-between"><h3>Lista de Adrián</h3><span class="chip">${doneCount} de ${T.length} hechas</span></div>
+      <div class="phead"><h3>Lista de Adrián</h3><span class="small muted"><b class="fgc">${doneCount} de ${T.length}</b> hechas</span></div>
+      <div class="wload"><span class="small"><b class="num">${nf(hrs, 1)} h</b> de ${CAP_H} h</span>${over ? `<span class="chip warn">⚠ Pedir apoyo: ${nf(hrs - CAP_H, 0)} h extra</span>` : `<span class="chip ok">✓ Cabe en la semana</span>`}</div>
+      <div class="meter thin${over ? " over" : ""}"><i style="width:${Math.min(100, hrs / CAP_H * 100)}%"></i></div>
       ${days}
+      <button class="btn" id="wa" style="align-self:flex-start;margin-top:4px">Copiar para WhatsApp</button>
     </section>
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
       <section class="panel" aria-label="Cosecha de la semana">
@@ -1938,11 +2094,10 @@ views.mapa = () => {
   const kg = Object.entries(totals).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, v]) => a + v, 0);
   const fl = Object.entries(totals).filter(([c]) => CROPS[c].u !== "kg").reduce((a, [, v]) => a + v, 0);
   return `
-  <div class="vtop">${monthStepper("Camas a mediados de mes")}
-    <div class="bar small"><span class="chip">≈ ${nf(kg)} kg de cosecha</span>${fl ? `<span class="chip">≈ ${nf(fl)} flores</span>` : ""}</div></div>
+  <div class="vtop">${monthStepper(`≈ ${nf(kg)} kg${fl ? ` · ${nf(fl)} flores` : ""} este mes`)}</div>
   <div class="cols">
-    <div class="mapbox">${zonePicker("m")}<button class="btn primary" id="tocenso" style="margin-top:8px;width:100%;min-height:46px">Actualizar camas (censo)</button>
-      <p class="small muted maphint">Toca una cama en el mapa o en la lista para ver su plan del año y actualizarla.</p>
+    <div class="mapbox"><div class="mtools">${zonePicker("m")}<button class="btn" id="tocenso">Actualizar censo</button></div>
+      <p class="small muted maphint only-wide">Camas a mediados de mes. Toca una cama en el mapa o en la lista para ver su plan del año y actualizarla.</p>
       <div id="mmap">${mapSVG({fill: id => monthFill(id, w)})}</div>
       <h3 class="blh">Camas en ${esc(monthLabel(state.month).toLowerCase())}</h3>
       ${bedList(w)}</div>
@@ -2000,7 +2155,7 @@ views.cosecha = () => {
   <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Pronóstico para cocina · kilos por mes</div><h2>≈ ${nf(year)} kg en 12 meses</h2></div>
   <div class="legend">${cats.map(k => `<span><span class="dot" style="background:var(${CAT[k][1]})"></span>${CAT[k][0]}</span>`).join("")}<span><span style="width:14px;height:0;border-top:2.5px solid var(--fg);display:inline-block"></span>Registrado</span></div></div>
   <section class="panel chart" id="chart">${svg}</section>
-  <p class="small muted" style="margin:0">Noviembre sale casi vacío porque todas las camas se limpian en octubre; la producción arranca en diciembre. Los rendimientos son estimaciones de partida: el registro semanal de Adrián los corrige.</p>
+  <details class="howto"><summary>¿Por qué noviembre sale casi vacío?</summary><p>Todas las camas se limpian en octubre; la producción arranca en diciembre. Los rendimientos son estimaciones de partida: el registro semanal de Adrián los corrige.</p></details>
   <section class="panel"><h3 style="margin-bottom:8px">Detalle por cultivo</h3><div class="scroll only-wide">${table}</div>
     <ul class="clist only-narrow">${crops.map(c => { let t = 0; const ms = months.map(m => { const v = (F[m] || {})[c] || 0; t += v; return v ? `<span>${monthShort(m)} <b class="num">${nf(v)}</b></span>` : ""; }).join(""); return `<li><div class="crh"><span class="dot" style="background:${CROPS[c].c}"></span><b>${esc(CROPS[c].n)}</b><span class="num">${nf(t)} ${CROPS[c].u === "kg" ? "kg" : "flores"}/año</span></div><div class="cmon">${ms}</div></li>`; }).join("")}</ul></section>`;
 };
@@ -2017,7 +2172,8 @@ views.cosecha.bind = root => {
 views.calendario = () => {
   const N = PLAN_WEEKS, pct = w => (w / N * 100);
   const months = MONTHS.map(k => ({k, w: Math.round((new Date(+k.slice(0, 4), +k.slice(5) - 1, 1, 12) - D(PLAN_START)) / (7 * DAY))})).filter(m => m.w >= 0 && m.w < N);
-  const rows = BEDS.map(b => `<div class="grow"><span class="b">${b.id}</span><div class="track">${(plan.byBed[b.id] || []).map(p => {
+  const ZB = new Set(zoneBeds(state.zone)), CB = BEDS.filter(b => ZB.has(b.id));
+  const rows = CB.map(b => `<div class="grow"><span class="b">${b.id}</span><div class="track">${(plan.byBed[b.id] || []).map(p => {
       const g = Math.max(0, (p.h0 - p.s) / (p.end - p.s + 1) * 100);
       return `<div class="seg" style="left:${pct(p.s)}%;width:${pct(p.end - p.s + 1)}%;top:${p.pos / BED[b.id].len * 100}%;bottom:auto;height:${p.m / BED[b.id].len * 100}%;background:${p.c.c}" title="${esc(p.c.n)}${p.frac < .999 ? " (" + nf(p.m, 1) + " m)" : ""}: ${p.ex ? "ya sembrado" : "siembra " + fmt(wkDate(p.s))}, cosecha ${fmt(wkDate(p.h0))} – ${fmt(wkDate(p.end))}"><i class="g" style="width:${g}%"></i><span>${esc(shortName(p.c.n))}</span></div>`;
     }).join("")}${todayW >= 0 && todayW < N ? `<i class="nowline" style="left:${pct(todayW + .5)}%"></i>` : ""}</div></div>`).join("");
@@ -2028,10 +2184,10 @@ views.calendario = () => {
     if (!p.ex && p.s > w) return `${name}: ${p.tray ? `semillero ${fmt(wkDate(p.ts))}, ` : ""}siembra ${fmt(wkDate(p.s))}${p.c.nokg ? "" : ` · cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}`;
     if (p.c.nokg || w >= p.h0) return `${name}: ${p.c.nokg ? "en la cama" : "en cosecha"} hasta ${fmt(wkDate(p.end))}`;
     return `${name}: creciendo, cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`; };
-  const list = BEDS.map(b => { const ps = (plan.byBed[b.id] || []).filter(p => p.end >= w).sort((x, y) => x.s - y.s || x.pos - y.pos);
+  const list = CB.map(b => { const ps = (plan.byBed[b.id] || []).filter(p => p.end >= w).sort((x, y) => x.s - y.s || x.pos - y.pos);
     return `<li><b class="cb">${b.id}</b><ol>${ps.map(p => `<li><span class="sw" style="background:${p.c.c}"></span><span>${phrase(p)}</span></li>`).join("") || `<li class="muted">Sin siembras de aquí en adelante.</li>`}</ol></li>`; }).join("");
   return `
-  <p class="small muted" style="margin:0">Las ${BEDS.length} camas, semana por semana.</p>
+  ${zonePicker("cal")}
   <ul class="callist only-narrow">${list}</ul>
   <div class="only-wide" style="display:contents">
   <div class="legend small"><span><span class="dot" style="background:var(--leaf);opacity:.45"></span>Tramo claro: creciendo</span><span><span class="dot" style="background:var(--leaf)"></span>Tramo fuerte: en cosecha</span><span><span class="dot" style="background:var(--accent)"></span>Línea: semana actual</span></div>
@@ -2040,6 +2196,8 @@ views.calendario = () => {
     ${rows}
   </div></section></div>`;
 };
+
+views.calendario.bind = root => bindZones(root, render);
 
 views.cultivos = () => {
   const card = ([id, c]) => {
@@ -2056,7 +2214,7 @@ views.cultivos = () => {
     ${c.nota ? `<p class="small muted" style="margin:0">${esc(c.nota)}</p>` : ""}</details>`;
   };
   const groups = [...Object.entries(CAT).map(([k, [n]]) => [n, Object.entries(CROPS).filter(([id]) => CROPCAT[id] === k)]), ["Flores y otros", Object.entries(CROPS).filter(([id]) => !CROPCAT[id])]].filter(g => g[1].length);
-  return `<p class="small muted" style="margin:0;max-width:70ch"><b>${Object.keys(CROPS).length} cultivos en el plan.</b> Toca uno para ver su ficha. Prioridad: cultivos de corte y rebrote, siembra directa y perennes, para que una persona pueda llevar el huerto; lo que es complicado o barato se compra. "Cama A" = 5 m²; en camas B el rendimiento se multiplica por 2.7.</p>
+  return `<details class="howto"><summary>${Object.keys(CROPS).length} cultivos en el plan · cómo se eligieron</summary><p>Toca uno para ver su ficha. Prioridad: cultivos de corte y rebrote, siembra directa y perennes, para que una persona pueda llevar el huerto; lo que es complicado o barato se compra. "Cama A" = 5 m²; en camas B el rendimiento se multiplica por 2.7.</p></details>
   ${groups.map(([n, list]) => `<section class="cgroup"><h3>${esc(n)} · ${list.length}</h3><div class="cards">${list.sort((a, b) => a[1].n.localeCompare(b[1].n, "es")).map(card).join("")}</div></section>`).join("")}
   <section class="panel"><h3 style="margin-bottom:8px">Mejor comprar que cultivar</h3><div class="scroll"><table class="stack"><tbody>${BUY.map(b => `<tr><td class="nw"><b>${esc(b.n)}</b></td><td class="small"><span class="v">${esc(b.why)}</span></td></tr>`).join("")}</tbody></table></div></section>`;
 };
@@ -2092,23 +2250,25 @@ views.compras = () => {
   let maxTrays = 0; for (let w = 0; w < PLAN_WEEKS; w++) maxTrays = Math.max(maxTrays, traysActive(plan, w).reduce((a, p) => a + p.trays, 0));
   return `
   <div class="vtop">${navStepper("cmp", `${weekRange(from).split(" – ")[0]} – ${weekRange(to).split(" – ")[1]}`, "Semillas para 6 semanas", {group: "Semanas", prev: "6 semanas antes", next: "6 semanas después", prevOff: from <= 0, nextOff: from + 6 > PLAN_WEEKS - 1, startNote: "Son las primeras semanas del plan."})}</div>
-  <section class="panel"><div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Se usa</th><th>Dónde</th><th class="r">Cantidad</th><th>Cama</th></tr></thead><tbody>
+  <section class="panel"><ul class="rows only-narrow">${items.map(r => { const k = Object.keys(CROPS).find(x => CROPS[x] === r.c); return `<li><div class="rh"><span class="dot" style="background:${r.c.c}"></span><b>${esc(r.c.n)}</b>${STOCK[k] ? `<span class="chip">en bodega</span>` : ""}</div><div class="rm small">${fmt(wkDate(r.when))} · ${r.uso === "semillero" ? "semillero → " : "cama "}<b>${esc(r.bed)}</b> · ${esc(r.q)}</div></li>`; }).join("") || `<li class="muted">No hay siembras en estas semanas.</li>`}</ul>
+  <div class="scroll only-wide"><table class="stack"><thead><tr><th>Cultivo</th><th>Se usa</th><th>Dónde</th><th class="r">Cantidad</th><th>Cama</th></tr></thead><tbody>
   ${items.map(r => `<tr><td><span class="dot" style="background:${r.c.c}"></span> ${esc(r.c.n)}</td>${td("Se usa", fmt(wkDate(r.when)), "num")}${td("Dónde", r.uso + (STOCK[Object.keys(CROPS).find(k => CROPS[k] === r.c)] ? ` <span class="chip">en bodega</span>` : ""), "small")}${td("Cantidad", r.q, "r num")}${td("Cama", r.bed, "num small")}</tr>`).join("") || `<tr><td colspan="5" class="muted">No hay siembras en estas semanas.</td></tr>`}
   </tbody></table></div></section>
   <details class="fold yr"><summary><span class="fs"><b>Lista de compra del año</b><span class="small muted">${yrList.filter(([k]) => !STOCK[k]).length} por comprar · ${yrList.filter(([k]) => STOCK[k]).length} en bodega · toca para ver</span></span></summary><div class="yrb">
-  <div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Estado</th><th>Primera siembra</th><th class="r">Semilla para el año</th></tr></thead><tbody>
+  <ul class="rows only-narrow">${yrList.map(([k, r]) => `<li><div class="rh"><span class="dot" style="background:${CROPS[k].c}"></span><b>${esc(CROPS[k].n)}</b>${STOCK[k] ? `<span class="chip">✓ En bodega</span>` : `<span class="chip warn">Comprar</span>`}</div><div class="rm small">desde ${fmt(wkDate(r.first))} · ${esc(yq(k, r))}${STOCK[k] && STOCK[k] !== CROPS[k].n ? ` · ${esc(STOCK[k])}` : ""}</div></li>`).join("")}</ul>
+  <div class="scroll only-wide"><table class="stack"><thead><tr><th>Cultivo</th><th>Estado</th><th>Primera siembra</th><th class="r">Semilla para el año</th></tr></thead><tbody>
   ${yrList.map(([k, r]) => `<tr><td><span class="dot" style="background:${CROPS[k].c}"></span> ${esc(CROPS[k].n)}${STOCK[k] && STOCK[k] !== CROPS[k].n ? ` <span class="muted small">· ${esc(STOCK[k])}</span>` : ""}</td>${td("Estado", STOCK[k] ? `<span class="chip">✓ En bodega</span>` : `<span class="chip warn">Comprar</span>`)}${td("Primera siembra", fmt(wkDate(r.first)), "num small")}${td("Semilla", yq(k, r), "r num small")}</tr>`).join("")}
   </tbody></table></div>
   <p class="small muted" style="margin:8px 0 0">"En bodega": revisar que alcance para la cantidad indicada y que la semilla tenga menos de 2 años. Las hierbas perennes no se compran: se dividen las que ya existen.</p></div></details>
   <section class="panel"><h3 style="margin-bottom:8px">En bodega, fuera del plan de camas</h3><div class="scroll"><table class="stack"><tbody>${EXTRA_SEEDS.map(x => `<tr><td class="nw"><b>${esc(x.n)}</b></td><td class="small"><span class="v">${esc(x.uso)}</span></td></tr>`).join("")}</tbody></table></div></section>
-  <section class="panel"><h3 style="margin-bottom:8px">Material del semillero (una sola vez)</h3>
+  <details class="panel fold-p"><summary><h3>Material del semillero (una sola vez)</h3></summary>
   <ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
     <li><b>Charolas: 30 de 200 cavidades (ya compradas)</b>. Máximo ${maxTrays} en uso a la vez; sobran para la experiencia "Planta y llévatela"</li>
     <li>Mesa de semillero (ya existe), con malla sombra 50% y cerca de una toma de agua</li>
     <li>Sustrato: 2 partes de fibra de coco o peat moss + 1 parte de composta cernida + 1 de perlita</li>
     <li>Manta térmica o plástico para tapar las charolas en noches de helada (dic–feb)</li>
     <li>Regadera de flor fina y etiquetas con cultivo, cama y fecha</li>
-  </ul></section>
+  </ul></details>
   <p class="small muted" style="margin:0;max-width:70ch">Para semilla directa, la bolsa indica cuántos metros de hilera rinde; comprar con margen y guardar en lugar fresco y seco. No se compran plántulas: todo lo que va trasplantado sale del semillero.</p>`;
 };
 views.compras.bind = root => bindStepper(root, "cmp", d => { state.w = Math.max(0, Math.min(PLAN_WEEKS - 1, state.w + 6 * d)); render(); });
@@ -2123,18 +2283,19 @@ views.semillero = () => {
   const rowStatus = p => w < p.ts ? ["Por sembrar", ""] : w < p.s - 1 ? ["En charola", "ok"] : w === p.s - 1 ? ["Endurecer", "warn"] : ["Trasplantado", ""];
   return `
   <div class="vtop">${weekStepper("sdl", w, `Semillero · semana ${w + 1}`)}
-    <div class="bar small"><span class="chip">${used} cultivo${used === 1 ? "" : "s"} en la mesa</span>${sowNow.length ? `<span class="chip warn">Sembrar esta semana: ${[...new Set(sowNow.map(p => shortName(p.c.n)))].map(esc).join(", ")}</span>` : ""}</div>
+    ${sowNow.length ? `<div class="bar small"><span class="chip warn">Sembrar esta semana: ${[...new Set(sowNow.map(p => shortName(p.c.n)))].map(esc).join(", ")}</span></div>` : ""}
   </div>
-  <p class="small muted" style="margin:0;max-width:72ch">Las charolas están en la mesa de semillero (dentro del invernadero este, lado sur), fuera de las camas: no ocupan espacio del huerto. La cama que aparece es solo el destino final; sigue produciendo su cultivo anterior hasta el día del trasplante. Todo lo que se trasplanta nace aquí, entre 4 y 9 semanas antes. La última semana se endurece: al sol y al viento, con menos agua. Kale y acelga de octubre se siembran directo en la cama porque ya no da tiempo de semillero.</p>
+  <details class="howto"><summary>¿Dónde está y cómo funciona el semillero?</summary><p>Las charolas están en la mesa de semillero (dentro del invernadero este, lado sur), fuera de las camas: no ocupan espacio del huerto. La cama que aparece es solo el destino final; sigue produciendo su cultivo anterior hasta el día del trasplante. Todo lo que se trasplanta nace aquí, entre 4 y 9 semanas antes. La última semana se endurece: al sol y al viento, con menos agua. Kale y acelga de octubre se siembran directo en la cama porque ya no da tiempo de semillero.</p></details>
   <div class="cols">
     <section class="panel">
-      <h3 style="margin-bottom:8px">En la mesa esta semana</h3>
-      ${act.length || sowNow.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th class="r">Semillas</th><th>Va a</th><th>Trasplante</th><th>1ª cosecha</th><th>Estado</th></tr></thead><tbody>
-      ${[...new Set([...sowNow, ...act])].map(p => { const st = rowStatus(p); return `<tr><td><span class="dot" style="background:${p.c.c}"></span> <b>${esc(p.c.n)}</b></td>${td("Semillas", p.cells * 2, "r num")}${td("Va a la cama", p.bed, "num small")}${td("Trasplante", fmt(wkDate(p.s)), "num small")}${td("1ª cosecha", fmt(wkDate(p.h0)), "num small")}${td("Estado", `<span class="chip ${st[1]}">${p.ts === w ? "Sembrar hoy" : st[0]}</span>`)}</tr>`; }).join("")}
-      </tbody></table></div>` : `<p class="muted small" style="margin:0">La mesa está vacía esta semana.</p>`}
+      <div class="phead"><h3>En la mesa esta semana</h3><span class="small muted">${used} cultivo${used === 1 ? "" : "s"}</span></div>
+      ${act.length || sowNow.length ? `<div class="scroll only-wide"><table><thead><tr><th>Cultivo</th><th class="r">Semillas</th><th>Va a</th><th>Trasplante</th><th>1ª cosecha</th><th>Estado</th></tr></thead><tbody>
+      ${[...new Set([...sowNow, ...act])].map(p => { const st = rowStatus(p); return `<tr><td><span class="dot" style="background:${p.c.c}"></span> <b>${esc(p.c.n)}</b></td><td class="r num">${p.cells * 2}</td><td class="num small">${p.bed}</td><td class="num small">${fmt(wkDate(p.s))}</td><td class="num small">${fmt(wkDate(p.h0))}</td><td><span class="chip ${st[1]}">${p.ts === w ? "Sembrar hoy" : st[0]}</span></td></tr>`; }).join("")}
+      </tbody></table></div>
+      <ul class="rows only-narrow">${[...new Set([...sowNow, ...act])].map(p => { const st = rowStatus(p); return `<li><div class="rh"><span class="dot" style="background:${p.c.c}"></span><b>${esc(p.c.n)}</b><span class="chip ${st[1]}">${p.ts === w ? "Sembrar hoy" : st[0]}</span></div><div class="rm small"><span class="num">${p.cells * 2}</span> semillas → <b>${p.bed}</b> · trasplante ${fmt(wkDate(p.s))} · 1ª cosecha ${fmt(wkDate(p.h0))}</div></li>`; }).join("")}</ul>` : `<p class="muted small" style="margin:0">La mesa está vacía esta semana.</p>`}
     </section>
-    <section class="panel">
-      <h3 style="margin-bottom:8px">Cómo sembrar una charola</h3>
+    <details class="panel fold-p">
+      <summary><h3>Cómo sembrar una charola</h3></summary>
       <ol class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
         <li>Sustrato húmedo: 2 partes de fibra de coco o peat moss + 1 de composta cernida + 1 de perlita. Apretar ligeramente.</li>
         <li>2 semillas por cavidad, a una profundidad de 2 veces el tamaño de la semilla.</li>
@@ -2143,13 +2304,13 @@ views.semillero = () => {
         <li>Cuando salgan 2 hojas, dejar la planta más fuerte por cavidad (cortar la otra con tijera).</li>
         <li>Una semana antes de trasplantar: endurecer al sol y regar menos.</li>
       </ol>
-    </section>
+    </details>
   </div>
   <section class="panel"><h3 style="margin-bottom:8px">Todo el año</h3>
     <div class="scroll only-wide"><div class="gantt" style="min-width:860px">
       ${all.map(p => `<div class="grow" style="grid-template-columns:200px 1fr"><span class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(shortName(p.c.n))} · destino ${p.bed}</span><div class="track"><div class="seg" style="left:${pct(p.ts)}%;width:${pct(p.s - p.ts)}%;background:${p.c.c}" title="${esc(p.c.n)}: charola ${fmt(wkDate(p.ts))}, trasplante ${fmt(wkDate(p.s))}"><span>${p.bed}</span></div><i class="nowline" style="left:${pct(w + .5)}%"></i></div></div>`).join("")}
     </div></div>
-    <ul class="plist only-narrow">${all.filter(p => p.s >= w).map(p => `<li${w >= p.ts && w < p.s ? ' class="now"' : ""}><span class="sw" style="background:${p.c.c}"></span><span><b>${esc(shortName(p.c.n))}</b> → cama ${p.bed}<br><span class="small muted">charola ${fmt(wkDate(p.ts))} · trasplante ${fmt(wkDate(p.s))}${w >= p.ts && w < p.s ? " · en la mesa ahora" : ""}</span></span></li>`).join("") || `<li class="muted">No quedan charolas en el plan.</li>`}</ul>
+    <ul class="plist only-narrow">${all.filter(p => p.s >= w).map(p => `<li${w >= p.ts && w < p.s ? ' class="now"' : ""}><span class="sw" style="background:${p.c.c}"></span><span><b>${esc(shortName(p.c.n))}</b> → ${p.bed} <span class="small muted">· charola ${fmt(wkDate(p.ts))} · trasplante ${fmt(wkDate(p.s))}${w >= p.ts && w < p.s ? " · en la mesa" : ""}</span></span></li>`).join("") || `<li class="muted">No quedan charolas en el plan.</li>`}</ul>
   </section>`;
 };
 views.semillero.bind = root => bindWeekStepper(root, "sdl");
@@ -2163,19 +2324,19 @@ views.experiencias = () => {
     const on = ok(e);
     const crops = e.uses.filter(u => CROPS[u] && inHarvest.includes(u));
     return `<article class="card" style="${on ? "" : "opacity:.55"}">
-      <div class="bar" style="justify-content:space-between;gap:6px"><span class="chip ${on ? "" : "warn"}">${on ? "Disponible este mes" : "No este mes"}</span><span class="small num muted">${e.min} min · máx ${e.max}</span></div>
-      <h4>${esc(e.es)}</h4><div class="small muted" style="margin-top:-6px">${esc(e.en)} · ${esc(e.when)}</div>
+      <div class="eh"><h4>${esc(e.es)}</h4><span class="chip ${on ? "ok" : "warn"}">${on ? "Este mes" : "No este mes"}</span></div>
+      <div class="small muted" style="margin-top:-6px">${esc(e.en)} · ${esc(e.when)} · ${e.min} min · máx ${e.max}</div>
       <p class="small" style="margin:0">${esc(e.what)}</p>
       ${crops.length ? `<p class="small" style="margin:0"><b>Este mes:</b> ${crops.map(c => esc(CROPS[c].n)).join(", ")}</p>` : ""}
-      <dl class="kv"><dt>Adrián prepara</dt><dd>${esc(e.prep)}</dd><dt>Material</dt><dd>${esc(e.mat)}</dd><dt>For the guide</dt><dd lang="en">${esc(e.guide)}</dd></dl>
+      <details class="howto"><summary>Preparación y guía</summary><dl class="kv"><dt>Adrián prepara</dt><dd>${esc(e.prep)}</dd><dt>Material</dt><dd>${esc(e.mat)}</dd><dt>For the guide</dt><dd lang="en">${esc(e.guide)}</dd></dl></details>
     </article>`;
   }).join("");
   return `
-  <div class="vtop">${monthStepper("Huerto para visitantes · 1 o 2 veces por semana")}</div>
-  <section class="panel"><h3 style="margin-bottom:8px">In the garden this month · para el guía</h3>
+  <div class="vtop">${monthStepper(`${EXPERIENCES.filter(ok).length} de ${EXPERIENCES.length} disponibles`)}</div>
+  <details class="panel fold-p"><summary><h3>Para el guía · ${inHarvest.length} cultivos en cosecha</h3></summary>
+    <p class="small muted" style="margin:0 0 8px">Los guías conducen en inglés; Adrián deja todo listo el viernes y puede acompañar en español. Ninguna requiere enseñar técnica: se aprende haciendo, con lo que el huerto ya está produciendo. 1 o 2 veces por semana.</p>
     <div class="legend">${inHarvest.map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)} <span class="muted" lang="en">· ${esc(CROPS[c].en || "")}</span></span>`).join("") || `<span class="muted">Beds are being prepared and sown this month: show the nursery trays and the compost pile.</span>`}</div>
-  </section>
-  <p class="small muted" style="margin:0;max-width:72ch">Los guías conducen en inglés; Adrián deja todo listo el viernes y puede acompañar en español. Ninguna requiere enseñar técnica: se aprende haciendo, con lo que el huerto ya está produciendo.</p>
+  </details>
   <div class="cards">${cards}</div>`;
 };
 views.experiencias.bind = root => bindMonthStepper(root);
@@ -2185,16 +2346,16 @@ views.registro = () => {
   const rows = state.harvests.slice(0, 60).map(h => `<tr><td>${esc(CROPS[h.cultivo]?.n || h.cultivo)}</td>${td("Fecha", esc(fmtISO(h.fecha)), "num nw")}${td("Cama", esc(h.cama), "num")}${td("Cantidad", `${nf(+h.cantidad || 0, 1)} ${esc(h.u)}`, "r num")}${h.nota ? td("Nota", esc(h.nota), "small muted") : `<td class="small muted hide-narrow"></td>`}</tr>`).join("");
   const canWrite = !!state.db;
   return `
-  <p class="small muted" style="margin:0;max-width:70ch">Lo que realmente salió del huerto. Adrián manda por WhatsApp el peso de cada entrega; aquí se captura. Con 4–6 semanas de registro se ajustan los rendimientos del plan.</p>
+  <details class="howto"><summary>Lo que realmente salió del huerto</summary><p>Adrián manda por WhatsApp el peso de cada entrega; aquí se captura. Con 4–6 semanas de registro se ajustan los rendimientos del plan.</p></details>
   ${canWrite ? `<form class="reg panel" id="regf">
-    <label>Fecha<input type="date" id="rf-fecha" data-keep="rf-fecha" value="${iso}" required></label>
-    <label>Cama<select id="rf-cama" data-keep="rf-cama">${BEDS.map(b => `<option>${b.id}</option>`).join("")}</select></label>
-    <label>Cultivo<select id="rf-cultivo" data-keep="rf-cultivo">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${esc(c.n)}</option>`).join("")}</select></label>
-    <label>Cantidad<input type="number" id="rf-cant" data-keep="rf-cant" min="0" step="0.1" inputmode="decimal" required placeholder="kg o flores"></label>
-    <label>Nota<input type="text" id="rf-nota" data-keep="rf-nota" placeholder="opcional"></label>
+    <label><span class="rl">Fecha</span><input type="date" id="rf-fecha" data-keep="rf-fecha" value="${iso}" required></label>
+    <label><span class="rl">Cama</span><select id="rf-cama" data-keep="rf-cama">${BEDS.map(b => `<option>${b.id}</option>`).join("")}</select></label>
+    <label><span class="rl">Cultivo</span><select id="rf-cultivo" data-keep="rf-cultivo">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${esc(c.n)}</option>`).join("")}</select></label>
+    <label><span class="rl">Cantidad</span><input type="number" id="rf-cant" data-keep="rf-cant" min="0" step="0.1" inputmode="decimal" required placeholder="kg o flores"></label>
+    <label><span class="rl">Nota</span><input type="text" id="rf-nota" data-keep="rf-nota" placeholder="Nota (opcional)"></label>
     <button class="btn primary" type="submit">Guardar cosecha</button>
   </form>` : `<div class="notice">El registro se guarda solo al abrir esta página desde tu cuenta de Claude.</div>`}
-  <section class="panel"><h3 style="margin-bottom:8px">Cosechas anotadas</h3><div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Fecha</th><th>Cama</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></div></section>
+  <section class="panel"><h3 style="margin-bottom:2px">Cosechas anotadas</h3>${state.harvests.length ? `<ul class="rows only-narrow">${state.harvests.slice(0, 60).map(h => `<li><div class="rh"><b>${esc(CROPS[h.cultivo]?.n || h.cultivo)}</b><span class="num">${nf(+h.cantidad || 0, 1)} ${esc(h.u)}</span></div><div class="rm small">${esc(fmtISO(h.fecha))} · ${esc(h.cama || "—")}${h.nota ? ` · ${esc(h.nota)}` : ""}</div></li>`).join("")}</ul>` : ""}<div class="scroll${state.harvests.length ? " only-wide" : ""}"><table class="stack"><thead><tr><th>Cultivo</th><th>Fecha</th><th>Cama</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></div></section>
   <section class="panel"><h3 style="margin-bottom:8px">Reportes de camas</h3>${state.reports.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Cama</th><th>Fecha</th><th>Estado</th><th>Cuánto</th><th>Cosecha ≈</th></tr></thead><tbody>${state.reports.slice(0, 80).map(r => `<tr><td class="num">${esc(r.cama)}</td>${td("Fecha", esc(fmtISO(r.fecha)), "num nw")}${td("Estado", r.estado === "sembrada" ? esc(CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado] || esc(r.estado))}${td("Cuánto", esc(repWhere(r)), "small")}${r.cosecha ? td("Cosecha ≈", esc(fmtISO(r.cosecha)), "num small") : `<td class="hide-narrow"></td>`}</tr>`).join("")}</tbody></table></div>` : `<p class="muted small" style="margin:0">Aún no hay reportes. Se hacen desde el Mapa: tocar la cama → “Actualizar cama”.</p>`}</section>`;
 };
 views.registro.bind = root => {
