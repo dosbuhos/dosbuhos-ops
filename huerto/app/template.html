@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: cuaderno de campo — barra de vistas arriba, contenido en una columna; el mapa del huerto es la pieza central */
-:root{
+:root{color-scheme:light;
   --bg:#f2f3ec; --surface:#fbfbf7; --sunk:#e8eadf; --fg:#1d261c; --muted:#5d6656; --faint:#646b5c;
   --line:#d3d7c6; --accent:#9e2a3f; --accent-ink:#ffffff; --soil:#8a6a4c; --soil-2:#c9b49a; --leaf:#3e6b35;
   --ok:#2f7a3a; --warn:#8a5200; --danger:#b3261e; --ink-dark:#1d261c; --ink-light:#ffffff; --water:#bcd3e0; --water-ink:#3c6176; --tree:#a9bb8d;
@@ -14,11 +14,7 @@
   --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --r:10px;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#9aa290;
-  --line:#343d31; --accent:#e06a80; --accent-ink:#1a0d10; --soil:#b8946f; --soil-2:#5c4a38; --leaf:#8cc27c;
-  --ok:#6fc07a; --warn:#e3a33c; --danger:#ff8a80; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}}
+/* Siempre en modo claro (también si el teléfono está en modo oscuro). */
 :root[data-theme="dark"]{
   --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#9aa290;
   --line:#343d31; --accent:#e06a80; --accent-ink:#1a0d10; --soil:#b8946f; --soil-2:#5c4a38; --leaf:#8cc27c;
