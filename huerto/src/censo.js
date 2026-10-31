@@ -37,6 +37,8 @@ function windowFor(c, l, today) {
   const durD = Math.max(2, Math.min(60, c.dur || 6)) * 7;
   if (/sacar|viej|quitar|arrancar/.test(nota)) return [today, addDays(today, 7)];
   if (/listo|cosech/.test(nota)) return [today, addDays(today, durD)];
+  // Cosecha estimada written by the gardener wins over the calculated one.
+  if (DATE.test(l.cosecha || '')) { const h0 = l.cosecha < today ? today : l.cosecha; return [h0, addDays(h0, durD - 1)]; }
   let fecha = DATE.test(l.fecha || '') ? l.fecha : (/reci|sembr|naci/.test(nota) ? today : null);
   if (fecha) {
     const h0 = addDays(fecha, Math.round((c.sem || 8) * factor(fecha, c) * 7));
@@ -56,7 +58,7 @@ export async function saveCensus(env, cama, lineas, quien) {
     const m = Math.round(Number(l.m) * 100) / 100, cultivo = String(l.cultivo || '').trim().slice(0, 40);
     if (!(m > 0) || !cultivo) continue;
     total += m;
-    L.push({ m, cultivo, nota: String(l.nota || '').trim().slice(0, 80), fecha: DATE.test(l.fecha || '') ? l.fecha : '' });
+    L.push({ m, cultivo, nota: String(l.nota || '').trim().slice(0, 80), fecha: DATE.test(l.fecha || '') ? l.fecha : '', cosecha: DATE.test(l.cosecha || '') ? l.cosecha : '' });
   }
   if (total > B.len + 0.01) return { error: `Son ${total} m y la cama mide ${B.len} m` };
   await ensure(env);
@@ -81,7 +83,7 @@ export async function saveCensus(env, cama, lineas, quien) {
   for (const l of L) {
     const k = cropKey(l.cultivo, data);
     const c = Object.assign({}, CROPS[k] || {}, (data.cultivos || {})[k] || {});
-    const o = { id: 's' + next++, cama, cultivo: k, siembra: '', pos: Math.round(pos * 100) / 100, m: l.m, ex: windowFor(c, l, today), note: (l.nota ? l.nota + ' · ' : '') + 'censo ' + fecha + (l.fecha ? ', sembrado ' + l.fecha : '') };
+    const o = { id: 's' + next++, cama, cultivo: k, siembra: '', pos: Math.round(pos * 100) / 100, m: l.m, ex: windowFor(c, l, today), note: (l.nota ? l.nota + ' · ' : '') + 'censo ' + fecha + (l.fecha ? ', sembrado ' + l.fecha : '') + (l.cosecha ? ', cosecha ' + l.cosecha : '') };
     if (o.pos + o.m > B.len) o.m = Math.round((B.len - o.pos) * 100) / 100;
     if (o.m > 0) data.siembras.push(o);
     pos += l.m;
