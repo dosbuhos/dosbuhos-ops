@@ -12,9 +12,9 @@ body{margin:0}
 
 /* Layout: cuaderno de campo — barra de vistas arriba, contenido en una columna; el mapa del huerto es la pieza central */
 :root{
-  --bg:#f2f3ec; --surface:#fbfbf7; --sunk:#e8eadf; --fg:#1d261c; --muted:#5d6656; --faint:#8b927f;
+  --bg:#f2f3ec; --surface:#fbfbf7; --sunk:#e8eadf; --fg:#1d261c; --muted:#5d6656; --faint:#646b5c;
   --line:#d3d7c6; --accent:#9e2a3f; --accent-ink:#ffffff; --soil:#8a6a4c; --soil-2:#c9b49a; --leaf:#3e6b35;
-  --ok:#2f7a3a; --warn:#b26a00; --water:#bcd3e0; --water-ink:#3c6176; --tree:#a9bb8d;
+  --ok:#2f7a3a; --warn:#8a5200; --danger:#b3261e; --ink-dark:#1d261c; --ink-light:#ffffff; --water:#bcd3e0; --water-ink:#3c6176; --tree:#a9bb8d;
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
   --display:"Young Serif", Georgia, "Times New Roman", serif;
   --body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -22,14 +22,14 @@ body{margin:0}
   --r:10px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#7c8471;
+  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#9aa290;
   --line:#343d31; --accent:#e06a80; --accent-ink:#1a0d10; --soil:#b8946f; --soil-2:#5c4a38; --leaf:#8cc27c;
-  --ok:#6fc07a; --warn:#e3a33c; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
+  --ok:#6fc07a; --warn:#e3a33c; --danger:#ff8a80; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#7c8471;
+  --bg:#131813; --surface:#1b211a; --sunk:#232a21; --fg:#e4e9dc; --muted:#a6ae9b; --faint:#9aa290;
   --line:#343d31; --accent:#e06a80; --accent-ink:#1a0d10; --soil:#b8946f; --soil-2:#5c4a38; --leaf:#8cc27c;
-  --ok:#6fc07a; --warn:#e3a33c; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
+  --ok:#6fc07a; --warn:#e3a33c; --danger:#ff8a80; --water:#2c4654; --water-ink:#a9cde0; --tree:#3d4d34;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
@@ -41,10 +41,10 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,34px);lin
 h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0;text-wrap:balance}
 h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
 .facts{font-size:13px;color:var(--muted);font-family:var(--mono)}
-nav.tabs{display:flex;gap:4px;overflow-x:auto;padding-block:12px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;scrollbar-width:none}
+nav.tabs{display:flex;flex-wrap:wrap;gap:4px;padding-block:12px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;scrollbar-width:none}
 nav.tabs button{font:inherit;font-size:14px;font-weight:600;border:1px solid transparent;background:none;color:var(--muted);padding:7px 13px;border-radius:999px;cursor:pointer;white-space:nowrap}
-nav.tabs button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
-nav.tabs button:hover:not([aria-selected="true"]){border-color:var(--line);color:var(--fg)}
+nav.tabs button[aria-current="page"]{background:var(--fg);color:var(--bg)}
+nav.tabs button:hover:not([aria-current="page"]){border-color:var(--line);color:var(--fg)}
 button:focus-visible,select:focus-visible,input:focus-visible,.bed:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .view{display:flex;flex-direction:column;gap:18px}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
@@ -70,13 +70,13 @@ select,input{font:inherit;font-size:14px;border:1px solid var(--line);background
 /* tareas */
 .days{display:flex;flex-direction:column;gap:14px}
 .day h3{display:flex;justify-content:space-between;gap:8px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px}
-.task{display:flex;gap:10px;align-items:flex-start;padding:7px 2px;border-bottom:1px dashed var(--line)}
+.task{display:flex;gap:10px;align-items:flex-start;padding:7px 2px;border-bottom:1px dashed var(--line);cursor:pointer;min-height:44px}
 .task:last-child{border-bottom:0}
 .task input{margin-top:3px;width:18px;height:18px;accent-color:var(--leaf);flex:none;padding:0}
-.task label{flex:1;min-width:0;cursor:pointer}
+.task .tx{flex:1;min-width:0}
 .task .k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
-.k.semillero{color:var(--s1)} .k.prep{color:var(--soil)} .k.siembra{color:var(--leaf)} .k.cuidado{color:var(--warn)} .k.base{color:var(--faint)}
-.task.done label{color:var(--faint);text-decoration:line-through}
+.k.semillero{color:color-mix(in srgb,var(--s1) 80%,var(--fg))} .k.prep{color:var(--soil)} .k.siembra{color:var(--leaf)} .k.cuidado{color:var(--warn)} .k.base{color:var(--faint)}
+.task.done .tx{color:var(--faint);text-decoration:line-through}
 .task .t{font-family:var(--mono);font-size:12px;color:var(--faint);white-space:nowrap}
 .task b.crop{font-weight:700;color:var(--fg)}
 .task.done b.crop{color:inherit}
@@ -126,8 +126,8 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .lvl{display:flex;gap:4px;flex-wrap:wrap}
 .lvl button{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 10px;border-radius:8px;min-height:40px;cursor:pointer}
 .lvl button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.lvl button.low[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:#fff}
-.sb input{font-size:16px;min-height:42px;width:100%;box-sizing:border-box}
+.lvl button.low[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:var(--surface)}
+.sb input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}
 
 /* censo de camas */
 .cc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 10px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:70px}
@@ -136,7 +136,7 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .cch b{font-size:22px;font-family:var(--serif, Georgia, serif);font-weight:400}
 .cch .chip{margin-left:auto}
 .cbar{display:flex;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:repeating-linear-gradient(135deg,var(--sunk) 0 6px,var(--surface) 6px 12px)}
-.cbar i{display:flex;align-items:center;justify-content:center;height:100%;border-right:2px solid var(--surface);font-style:normal;font-size:11.5px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);overflow:hidden;white-space:nowrap;padding:0 4px;min-width:0;line-height:1.05;text-align:center}
+.cbar i{display:flex;align-items:center;justify-content:center;height:100%;border-right:2px solid var(--surface);font-style:normal;font-size:12px;font-weight:700;overflow:hidden;white-space:nowrap;padding:0 4px;min-width:0;line-height:1.05;text-align:center}
 .cbar i:last-child{border-right:0}
 .cbar .vac{flex:1;color:var(--muted);text-shadow:none;font-weight:600;background:none}
 .cends{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:-6px;letter-spacing:.04em;text-transform:uppercase}
@@ -145,7 +145,7 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .cl .mrow-old{grid-column:2 / -1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .cl .mrow .lab{font-size:13px;color:var(--muted)}
 .cl .mrow .lnk{margin-left:auto}
-.cl select,.cl input{font-size:16px;min-height:40px;width:100%;box-sizing:border-box;padding:6px 8px}
+.cl select,.cl input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box;padding:6px 8px}
 .cl select.crop{font-weight:700;font-size:17px;min-height:44px}
 .cl select.crop.empty{font-weight:400;color:var(--muted)}
 .cl .mstep{grid-column:2 / -1}.mstep{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
@@ -154,24 +154,24 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .cl .x{border:0;background:none;color:var(--faint);width:28px;min-height:40px;font-size:18px;cursor:pointer;padding:0}
 .cl .more{grid-column:2 / -1;display:flex;gap:6px;align-items:center}
 .cl .more select{flex:1}
-.cl .more input,.cl .more select{min-height:38px;font-size:15px}
+.cl .more input,.cl .more select{min-height:44px;font-size:15px}
 .cl .more .fe{max-width:128px;font-size:14px;padding:4px 6px}
 .lnk{border:0;background:none;color:var(--muted);font-size:13px;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;grid-column:2 / -1;justify-self:start}
 .cfoot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:6px;border-top:1px dashed var(--line)}
 .cfoot .btn{min-height:40px;font-size:14px}
 .cends .rest{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;color:var(--muted)}
 .cends .rest.full{color:var(--ok)}
-.cends .over{color:var(--danger, #b3261e);font-weight:700}
+.cends .over{color:var(--danger);font-weight:700}
 .cfoot{flex-wrap:nowrap}
 .kseg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--sunk);padding:4px;border-radius:12px}
-.kseg button{min-height:42px;border:0;border-radius:9px;background:none;font:inherit;font-weight:700;font-size:14.5px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.kseg button{min-height:44px;border:0;border-radius:9px;background:none;font:inherit;font-weight:700;font-size:14.5px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .kseg button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.kb{min-width:20px;height:20px;border-radius:10px;background:var(--danger, #b3261e);color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
+.kb{min-width:20px;height:20px;border-radius:10px;background:var(--danger);color:var(--surface);font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
 .kalerts{display:flex;flex-direction:column;gap:8px}
 .kal{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);border-left:4px solid var(--muted);background:var(--surface);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer;color:var(--fg)}
-.kal span{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}.kal.warn{border-left-color:#c98a00}.kal.bad{border-left-color:var(--danger, #b3261e)}
+.kal span{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}.kal.warn{border-left-color:var(--warn)}.kal.bad{border-left-color:var(--danger)}
 .kper{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.kper button{min-height:38px;padding:4px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font:inherit;font-size:13.5px;font-weight:600;color:var(--fg);cursor:pointer}
+.kper button{min-height:44px;padding:4px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font:inherit;font-size:13.5px;font-weight:600;color:var(--fg);cursor:pointer}
 .kper button[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .ktiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 @media (min-width:860px){.ktiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -185,21 +185,36 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .kbars .e,.klg .e{background:color-mix(in srgb,var(--muted) 35%,transparent)}.kbars .g,.klg .g{background:var(--ok)}
 .klg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 8px;vertical-align:-1px}
 .kn b{color:var(--fg)}
-.krest{border-top:1px solid var(--line);padding-top:8px}.krest>summary{min-height:40px;display:flex;align-items:center;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}.kq{padding:6px 0;border-top:1px dashed var(--line)}
-.kf{font-size:13px;font-weight:600;padding:4px 8px;border-radius:6px;background:var(--sunk);align-self:flex-start}.kf.bad{color:var(--danger, #b3261e)}.kf.warn{color:#8a5c00}.kf.ok{color:var(--ok)}
+.krest{border-top:1px solid var(--line);padding-top:8px}.krest>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}.kq{padding:6px 0;border-top:1px dashed var(--line)}
+.kf{font-size:13px;font-weight:600;padding:4px 8px;border-radius:6px;background:var(--sunk);align-self:flex-start}.kf.bad{color:var(--danger)}.kf.warn{color:var(--warn)}.kf.ok{color:var(--ok)}
 .bar>div:has(>.mnav){flex:1 1 100%;min-width:0}
 .mnav{width:100%;max-width:440px;display:flex;align-items:center;gap:6px;margin-top:2px}
 .mnav h2{flex:1;min-width:0;text-align:center;margin:0}
 .mnav button{flex:none;width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);font-size:24px;line-height:1;cursor:pointer}
 .mnav button:disabled{opacity:.35;cursor:default}
 .zsel{display:flex;align-items:center;gap:8px;margin:0}.zsel span{font-size:13px;font-weight:600;color:var(--muted)}.zsel select{flex:1;min-height:44px;font-weight:600}
+.mstep .trash{color:var(--danger);display:inline-flex;align-items:center;justify-content:center}
+.cfoot .addsq{flex:0 0 auto;width:48px;min-width:48px;height:48px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.cfoot [data-save]{flex:1}
+.taskw{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:start;border-bottom:1px solid var(--line)}
+.taskw>.task{border-bottom:0}
+.taskw .tmore{width:44px;min-height:48px;border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;border-radius:10px}
+.taskw.open .tmore{background:var(--sunk);color:var(--fg)}
+.taskw .why{display:block;font-size:13px;font-weight:600;margin-top:2px;color:var(--muted)}.taskw .why.bad{color:var(--danger)}.taskw .why.warn{color:var(--warn)}
+.taskw.nope .tx{opacity:.85}
+.tpanel{grid-column:1 / -1;display:flex;flex-direction:column;gap:8px;padding:4px 0 12px}
+.tst{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.tst button,.treasons button{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font:inherit;font-size:14px;font-weight:600;color:var(--fg);cursor:pointer;padding:4px 8px}
+.tst button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.treasons{display:flex;flex-wrap:wrap;gap:6px}.treasons button{min-height:40px;font-size:13px;border-radius:999px}
+.tpanel .tnote{min-height:44px;font-size:16px}
 .chead{display:flex;flex-direction:column;gap:8px}
 .cgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
 @media (min-width:1000px){.cgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .cbar i{flex-direction:column;line-height:1.15;min-width:0}.cbar i .bn{max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
 .cfoot .lnk{min-height:40px;display:inline-flex;align-items:center}
 .cl .ldet{grid-column:2 / -1;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
-.cl .ldet>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding:6px 10px;cursor:pointer;list-style:none;font-size:13.5px}
+.cl .ldet>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;cursor:pointer;list-style:none;font-size:13.5px}
 .cl .ldet>summary::-webkit-details-marker{display:none}
 .cl .ldet .ds{flex:1;min-width:0;color:var(--fg);overflow-wrap:anywhere}.cl .ldet .ds.empty{color:var(--muted)}
 .cl .ldet .de{flex:none;font-weight:700;color:var(--accent, var(--fg));font-size:13px}.cl .ldet .de::after{content:" ▾"}.cl .ldet[open] .de::after{content:" ▴"}
@@ -215,15 +230,15 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .cl .cos{grid-column:2 / -1;display:flex;flex-direction:column;gap:6px;margin:0}
 .cl .cos .q{font-size:13px;font-weight:600;color:var(--fg)}.cl .cos .q small{font-weight:400;color:var(--muted)}
 .cl .cos .hint{font-size:12.5px;color:var(--muted)}.cl .cos .hint:empty{display:none}.cl .cos .hint b{color:var(--fg)}
-.cl .nota{grid-column:2 / -1;font-size:15px;min-height:42px}
+.cl .nota{grid-column:2 / -1;font-size:15px;min-height:44px}
 .cl .nota::placeholder{color:var(--faint)}
 .cprog{display:block;font-size:14px;color:var(--muted)}.cprog b{color:var(--fg)}
 .cprog .pbar{display:block;margin-top:6px;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}.cprog .pbar i{display:block;height:100%;background:var(--ok)}
 .cl{grid-template-columns:6px minmax(0,1fr);row-gap:8px}
-.cl .rm{justify-self:start;min-height:40px;border:0;background:none;padding:0;font:inherit;font-size:14px;font-weight:600;color:var(--danger, #b3261e);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.cl .rm{justify-self:start;text-align:left;min-height:44px;border:0;background:none;padding:0;font:inherit;font-size:14px;font-weight:600;color:var(--danger);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .cl .mstep{width:100%;box-sizing:border-box;min-height:44px}
-.cl .mstep select{flex:1;min-height:42px;font-size:17px}
-.cl .mstep button{width:52px;min-height:42px;font-size:20px}
+.cl .mstep select{flex:1;min-height:44px;font-size:17px}
+.cl .mstep button{width:52px;min-height:44px;font-size:20px}
 .cl .x{width:40px;min-height:40px;justify-self:end}
 .cl .nb{font-size:17px;color:var(--muted)}
 
@@ -247,9 +262,9 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .grow{display:grid;grid-template-columns:44px 1fr;align-items:center;height:22px}
 .grow .b{font-family:var(--mono);font-weight:500;color:var(--muted)}
 .track{position:relative;height:18px;background:var(--sunk);border-radius:3px}
-.seg{position:absolute;top:0;bottom:0;border-radius:2px;overflow:hidden;white-space:nowrap;font-size:10px;font-weight:600;color:#fff;padding-left:3px;display:flex;align-items:center;box-shadow:0 0 0 1px var(--surface)}
+.seg{position:absolute;top:0;bottom:0;border-radius:2px;overflow:hidden;white-space:nowrap;font-size:10.5px;font-weight:700;padding-left:3px;display:flex;align-items:center;box-shadow:0 0 0 1px var(--surface)}
 .seg .g{position:absolute;inset:0;background:var(--surface);opacity:.55}
-.seg span{position:relative;text-shadow:0 0 2px rgba(0,0,0,.45)}
+.seg span{position:relative;background:var(--surface);color:var(--fg);border-radius:3px;padding:0 3px;line-height:1.3}
 .gmonths{display:grid;grid-template-columns:44px 1fr;height:20px}
 .gmonths div{position:relative}
 .gmonths b{position:absolute;font-size:11px;color:var(--muted);font-weight:600;transform:translateX(2px)}
@@ -268,13 +283,14 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px}
 .kv dt{color:var(--muted)} .kv dd{margin:0}
 .notice{font-size:13px;color:var(--muted);background:var(--sunk);border-radius:8px;padding:9px 12px}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:8px;font-size:14px;z-index:9}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;z-index:40;display:flex;align-items:center;gap:12px;width:max-content;max-width:calc(100vw - 32px)}
+.toast button{font:inherit;font-weight:700;font-size:14px;background:none;border:1px solid color-mix(in srgb,var(--bg) 50%,transparent);color:var(--bg);border-radius:8px;min-height:44px;padding:0 12px;cursor:pointer;flex:none}
 form.reg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
 form.reg label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
 textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:10px}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
 /* móvil primero: barra inferior, objetivos táctiles grandes; en pantallas anchas vuelven las pestañas de arriba */
-nav button[data-v="cocina"]{position:relative}nav button .nb{position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:9px;background:var(--danger, #b3261e);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+nav button[data-v="cocina"]{position:relative}nav button .nb{position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:9px;background:var(--danger);color:var(--surface);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 nav.tabs button .nb{position:static;margin-left:6px}
 nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--surface);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
 nav.bottom button{font:inherit;font-size:11.5px;font-weight:600;color:var(--muted);background:none;border:0;border-radius:10px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
@@ -282,8 +298,9 @@ nav.bottom button svg{width:22px;height:22px;stroke:currentColor;fill:none;strok
 nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
 .sheet{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}
 .sheet[hidden]{display:none}
-.sheet .in{background:var(--surface);width:100%;border-radius:16px 16px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px}
-.sheet .in button{font:inherit;font-size:16px;font-weight:600;text-align:left;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer}
+.sheet .in{background:var(--surface);width:100%;border-radius:16px 16px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;max-height:92vh;overflow-y:auto}
+#sheet .sgrp button{font:inherit;font-size:16px;font-weight:600;text-align:left;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-height:48px;cursor:pointer;width:100%}
+#sheet .sgrp button[aria-current="page"]{border-color:var(--fg);box-shadow:inset 3px 0 0 var(--fg)}
 .zones{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .zones button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:8px 12px;border-radius:999px;white-space:nowrap;cursor:pointer;min-height:38px}
 .zones button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
@@ -301,7 +318,8 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   header.top{padding-block:4px 10px}
   .task{padding:12px 2px;gap:12px}
   .task input{width:26px;height:26px;margin-top:0}
-  .task label{font-size:15.5px;line-height:1.45}
+  .task .tx{font-size:15.5px;line-height:1.45}
+  .task{min-height:48px;align-items:center}
   .btn{min-height:44px;font-size:15px}
   .btn.icon{min-width:44px}
   select,input{font-size:16px;min-height:44px}
@@ -311,29 +329,230 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   .day h3{position:sticky;top:0;background:var(--surface);padding-top:6px;z-index:1}
 }
 @media (min-width:860px){ nav.bottom,.only-mobile{display:none} }
+
+/* ---- arreglos de la auditoría UX (oct 2026) ---- */
+.cbar i.pill span{background:var(--surface);color:var(--fg);border-radius:4px;padding:0 4px;max-width:100%}
+.cbar i{gap:1px}
+@media (min-width:860px){nav.tabs button{min-height:44px}.btn{min-height:40px}select,input{min-height:40px}}
+.vtop{display:flex;flex-direction:column;gap:10px}
+.mnav{width:100%;max-width:none;display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
+@media (min-width:860px){.mnav{max-width:560px}}
+.mnav .mlab{min-width:0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:0}
+.mnav h2{margin:0;font-size:21px;line-height:1.2;text-align:center}
+.mnav .msub{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mnav button{width:48px;height:48px;border:0;border-radius:10px;background:var(--sunk)}
+.mnote{margin:-4px 0 0;font-size:13px;color:var(--muted)}
+.fl{display:flex;flex-direction:column;gap:4px;min-width:0;margin:0}
+.fll{font-size:13px;font-weight:600;color:var(--muted)}.fll small{font-weight:400;font-size:12.5px}
+.ferr{font-size:13.5px;font-weight:600;color:var(--danger)}
+.invalid{border-color:var(--danger) !important;outline:2px solid var(--danger);outline-offset:0}
+.only-narrow{display:none !important}
+@media (max-width:859px){.only-wide{display:none !important}.only-narrow{display:block !important}}
+.chip.ok{background:color-mix(in srgb,var(--ok) 12%,var(--surface));color:color-mix(in srgb,var(--ok) 78%,var(--fg))}
+.chip.warn{background:color-mix(in srgb,var(--warn) 14%,var(--surface))}
+/* tablas -> tarjetas en el celular */
+td.nw{white-space:nowrap}
+@media (max-width:859px){
+  table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;width:100%}
+  table.stack thead{display:none}
+  table.stack tr{padding:10px 0;border-bottom:1px solid var(--line)}
+  table.stack tr:last-child{border-bottom:0}
+  table.stack td{border:0;padding:2px 0;text-align:left;white-space:normal}
+  table.stack td:first-child{font-weight:700;font-size:16px;padding-bottom:4px}
+  table.stack td[data-l]{display:grid;grid-template-columns:minmax(96px,40%) minmax(0,1fr);gap:10px;font-size:14px}
+  table.stack td[data-l]::before{content:attr(data-l);color:var(--muted);font-weight:600;font-size:13px;font-family:var(--body)}
+  table.stack td.hide-narrow{display:none}
+}
+/* mapa: lista de camas */
+.maphint{margin:10px 2px 6px}
+.blh{margin:14px 2px 6px}
+.bedlist{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+@media (min-width:600px){.bedlist{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.blr{width:100%;min-height:56px;display:grid;grid-template-columns:44px minmax(0,1fr) 16px;align-items:center;gap:8px;text-align:left;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer}
+.blr[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.blr>b{font-family:var(--mono);font-size:16px}
+.blc{display:flex;flex-direction:column;gap:2px;font-size:14px;line-height:1.3;min-width:0}
+.bli{display:flex;gap:6px;align-items:flex-start;overflow-wrap:anywhere}
+.bli .sw{width:10px;height:10px;border-radius:3px;flex:none;margin-top:4px}
+.chev{color:var(--muted);font-size:18px;text-align:center}
+/* calendario y semillero en el celular */
+.callist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.callist>li{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:grid;grid-template-columns:40px minmax(0,1fr);gap:8px}
+.callist .cb{font-family:var(--mono);font-size:16px}
+.callist ol,.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.callist ol li,.plist li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:8px;font-size:14.5px;line-height:1.35}
+.callist .sw,.plist .sw{width:10px;height:10px;border-radius:3px;margin-top:5px}
+.plist li{padding:6px 0;border-bottom:1px dashed var(--line)}.callist ol li.muted,.plist li.muted{display:block}.plist li.now b{color:var(--ok)}
+.clist{list-style:none;margin:0;padding:0}
+.clist li{padding:10px 0;border-bottom:1px solid var(--line)}.clist li:last-child{border-bottom:0}
+.crh{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}.crh b{flex:1 1 60%;min-width:0}
+.cmon{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13.5px;color:var(--muted);margin-top:4px}.cmon b{color:var(--fg)}
+/* semana: días doblados */
+details.day{border-bottom:1px solid var(--line)}
+details.day>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;min-height:48px;cursor:pointer;list-style:none;padding:6px 0}
+details.day>summary::-webkit-details-marker{display:none}
+details.day>summary::after{content:"▾";color:var(--muted)}details.day[open]>summary::after{content:"▴"}
+details.day>summary>span:first-child{flex:1;min-width:0}
+/* plegables genéricos (cultivos, banco de semillas) */
+details.fold{border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+details.fold>summary{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;cursor:pointer;list-style:none}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:"▾";margin-left:auto;color:var(--muted)}details.fold[open]>summary::after{content:"▴"}
+details.fold .fs{display:flex;flex-direction:column;min-width:0}
+details.fold>.kv,details.fold>p{padding:0 12px 12px}
+details.fold[data-fold]{margin-top:10px}details.fold.yr .yrb{padding:0 12px 12px}details.fold[data-fold] .sb{padding:10px 12px}
+.cgroup{display:flex;flex-direction:column;gap:8px}
+.cards:has(>details){grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start}
+/* hoy: cosecha */
+.harv{grid-template-columns:minmax(0,1fr)}
+.hrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.inu{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.inu input{border:0;flex:1;width:100%;min-height:48px;font-size:17px}
+.inu .u{padding:0 12px;color:var(--muted);font-weight:600}
+.inu:has(input.invalid){outline:2px solid var(--danger)}.inu input.invalid{outline:0}
+.harv .btn{min-height:48px}
+.hdone{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-weight:600;color:var(--ok)}
+.hdone .lnk{min-height:44px;font-size:14px;color:var(--fg)}
+/* censo plegado */
+.cgrid{grid-template-columns:minmax(0,1fr) !important;max-width:820px}
+.cc{padding:0;gap:0}
+.csum{display:grid;grid-template-columns:48px minmax(0,1fr) 20px;align-items:center;gap:8px;width:100%;min-height:56px;padding:8px 12px;font:inherit;color:var(--fg);background:none;border:0;text-align:left;cursor:pointer;border-radius:var(--r)}
+.csum>b{font-family:var(--mono);font-size:18px}
+.cst{display:flex;flex-direction:column;min-width:0;gap:1px}
+.cln{font-size:14.5px;overflow-wrap:anywhere}
+.cstat{font-size:13px;font-weight:600;color:var(--muted)}.cstat.warn{color:var(--warn)}.cstat.ok{color:var(--ok)}
+.cc.open{border-color:var(--fg)}
+.cc.open .csum{border-bottom:1px solid var(--line);border-radius:var(--r) var(--r) 0 0}
+.cbody{display:flex;flex-direction:column;gap:10px;padding:10px 12px 12px}
+.cl{grid-template-columns:22px minmax(0,1fr) !important}
+.cl .sw{grid-row:1 / span 4;display:flex;justify-content:center;padding-top:6px;font-size:12px}
+.cl .fl{grid-column:2 / -1}
+.cbar i .bn{font-size:12px}
+.cfoot{display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px}
+.cfoot .btn{min-height:48px;width:100%}
+.cdanger{display:flex;flex-direction:column;gap:2px;padding-top:6px;border-top:1px dashed var(--line)}
+.cdanger .rm{min-height:44px;justify-self:start;align-self:flex-start;border:0;background:none;padding:0;font:inherit;font-size:14px;font-weight:600;color:var(--danger);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.dq button{min-height:44px}
+details.cdone{border-top:1px solid var(--line);padding-top:6px}
+details.cdone>summary{min-height:48px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-weight:700;color:var(--fg);list-style:none}details.cdone>summary::-webkit-details-marker{display:none}details.cdone>summary::after{content:"▾";color:var(--muted)}details.cdone[open]>summary::after{content:"▴"}
+details.cdone>.cgrid{margin-top:8px}
+.btn.back{align-self:flex-start;min-height:44px}
+/* insumos */
+.addstack{display:flex;flex-direction:column;gap:8px;margin:12px 0 4px;padding:10px;border:1px dashed var(--line);border-radius:10px}
+.addstack input{font-size:16px;min-height:44px;width:100%}
+.addstack .btn{min-height:48px;width:100%}
+.li{grid-template-columns:minmax(0,1fr) auto}
+.lic{display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;min-width:0}
+.li .x,.sb .x{width:44px;min-height:44px;flex:none}
+.lvl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.lvl button{min-height:44px;padding:8px 4px}
+/* pedidos */
+.pd{gap:10px}
+.pd input,.pd select{font-size:16px;min-height:44px;width:100%}
+.pact{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.pact .btn{min-height:48px}
+.pact .btn[aria-pressed="true"]:not(.primary){background:var(--fg);color:var(--bg);border-color:var(--fg)}
+/* mensajes */
+.send{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+.send .btn{min-height:48px}
+.panel .fl input{font-size:16px;min-height:44px}
+@media (max-width:599px){.send{grid-template-columns:minmax(0,1fr)}}
+/* más */
+.shead{display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:-14px;background:var(--surface);padding:2px 0 6px;z-index:1}
+.shead b{font-family:var(--display);font-weight:400;font-size:20px}
+.shead .btn{min-height:44px;min-width:88px}
+.sgrp{display:flex;flex-direction:column;gap:6px}.sgrp h3{margin:8px 2px 0}
+@media (min-width:860px){.sheet{align-items:flex-start;justify-content:center;padding-top:72px}.sheet .in{max-width:440px;border-radius:16px}}
+/* PIN */
+.pinsheet{align-items:flex-end}
+.pinsheet .in{gap:10px}
+.pinsheet .pinh b{font-family:var(--display);font-weight:400;font-size:20px}
+.pinsheet input{font-size:22px;letter-spacing:.3em;min-height:52px;width:100%;text-align:center}
+.pinb{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.pinb .btn{min-height:48px;width:100%}
+@media (min-width:860px){.pinsheet{align-items:center;justify-content:center}.pinsheet .in{max-width:400px;border-radius:16px}}
+@media (max-width:859px){.toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}}
+
+/* Task rows: one slim header line (check, tag, crop, time, ⋯), the description uses the full width below. */
+.taskw{display:block;position:relative;border-bottom:1px solid var(--line)}
+.taskw .task{display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:10px;row-gap:3px;align-items:center;padding:8px 0;min-height:0;border:0}
+.taskw .task input{grid-row:1;grid-column:1;width:22px;height:22px;margin:0}
+.taskw .th{grid-row:1;grid-column:2;display:flex;align-items:baseline;gap:8px;min-width:0;padding-right:36px;flex-wrap:nowrap}
+.taskw .th .k{font-size:11.5px;display:inline;margin:0;flex:none}
+.taskw .th .crop{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.taskw .th .t{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.taskw .tx{grid-column:1 / -1;font-size:15.5px;line-height:1.4}
+.taskw .tmore{position:absolute;top:2px;right:0;width:40px;height:40px;min-height:40px}
+.taskw.done .tx{text-decoration:line-through;color:var(--muted)}
+.tpanel{padding:0 0 12px}
 </style>
 <script>// Adaptador para la versión web pública: reemplaza la base de datos de Claude por la API del Worker (/api/*).
 (function () {
   const KEY = 'huerto-pin';
   const getPin = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
   const setPin = p => { try { p ? localStorage.setItem(KEY, p) : localStorage.removeItem(KEY); } catch (e) {} };
-  async function ensurePin() {
-    let p = getPin();
+  // Hoja dentro de la app para pedir el PIN (campo numérico oculto). Resuelve con el PIN ya verificado, o '' si se cancela.
+  // Se superpone a la página: no borra lo que la persona estaba escribiendo.
+  let asking = null;
+  function askPin(why) {
+    if (asking) return asking;
+    asking = new Promise(resolve => {
+      const back = document.activeElement;
+      const el = document.createElement('div');
+      el.className = 'sheet pinsheet';
+      el.innerHTML = '<form class="in" role="dialog" aria-modal="true" aria-labelledby="pin-t" novalidate>'
+        + '<div class="pinh"><b id="pin-t">PIN para guardar</b></div>'
+        + (why ? '<p class="small muted" style="margin:0">' + why + '</p>' : '')
+        + '<label class="fl" for="pin-i"><span class="fll">PIN (pídelo a Eric o Melanie)</span>'
+        + '<input id="pin-i" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="12" enterkeyhint="done" aria-describedby="pin-e pin-h"></label>'
+        + '<p class="ferr" id="pin-e" role="alert" hidden></p>'
+        + '<p class="small muted" id="pin-h" style="margin:0">Se recuerda en este teléfono: no hay que escribirlo cada vez.</p>'
+        + '<div class="pinb"><button type="submit" class="btn primary">Guardar con este PIN</button><button type="button" class="btn" data-x>Cancelar</button></div></form>';
+      document.body.appendChild(el);
+      const form = el.querySelector('form'), inp = el.querySelector('#pin-i'), err = el.querySelector('#pin-e'), ok = el.querySelector('button[type=submit]');
+      const done = v => { el.remove(); document.removeEventListener('keydown', onKey, true); asking = null; if (back && back.focus) try { back.focus({ preventScroll: true }); } catch (e) {} resolve(v); };
+      const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); done(''); } };
+      document.addEventListener('keydown', onKey, true);
+      el.addEventListener('click', e => { if (e.target === el) done(''); });
+      el.querySelector('[data-x]').onclick = () => done('');
+      const show = m => { err.textContent = m; err.hidden = false; inp.classList.add('invalid'); inp.setAttribute('aria-invalid', 'true'); inp.select(); };
+      inp.oninput = () => { err.hidden = true; inp.classList.remove('invalid'); inp.removeAttribute('aria-invalid'); };
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const p = inp.value.trim();
+        if (!p) { show('Escribe el PIN'); return; }
+        ok.disabled = true; ok.textContent = 'Revisando…';
+        let j = null;
+        try { j = await (await fetch('/api/pin', { method: 'POST', headers: { 'x-pin': p } })).json(); } catch (e2) { j = { net: true }; }
+        ok.disabled = false; ok.textContent = 'Guardar con este PIN';
+        if (j && j.ok) { setPin(p); done(p); return; }
+        show(j && j.net ? 'Sin conexión. Intenta de nuevo.' : 'PIN incorrecto');
+      };
+      setTimeout(() => inp.focus(), 30);
+    });
+    return asking;
+  }
+  async function ensurePin(why) {
+    const p = getPin();
     if (p) return p;
-    p = (prompt('PIN para guardar cambios (pídelo a Eric o Melanie):') || '').trim();
-    if (!p) throw { code: 'no_pin' };
-    const r = await fetch('/api/pin', { method: 'POST', headers: { 'x-pin': p } });
-    const j = await r.json().catch(() => ({}));
-    if (!j.ok) { alert('PIN incorrecto'); throw { code: 'bad_pin' }; }
-    setPin(p);
-    return p;
+    const n = await askPin(why);
+    if (!n) throw { code: 'no_pin' };
+    return n;
   }
   const refresh = () => window.dispatchEvent(new Event('huerto-refresh'));
   async function post(path, body) {
     let pin;
     try { pin = await ensurePin(); } catch (e) { refresh(); throw e; }
-    const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-pin': pin }, body: JSON.stringify(body) });
-    if (r.status === 401) { setPin(''); refresh(); throw { code: 'bad_pin' }; }
+    const send = p => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-pin': p }, body: JSON.stringify(body) });
+    let r;
+    try { r = await send(pin); } catch (e) { refresh(); throw { code: 'unavailable' }; }
+    if (r.status === 401) {
+      // El PIN guardado ya no sirve (lo cambiaron): pedirlo otra vez y reintentar una sola vez.
+      setPin('');
+      try { pin = await ensurePin('El PIN guardado en este teléfono ya no sirve. Escríbelo de nuevo.'); } catch (e) { refresh(); throw e; }
+      try { r = await send(pin); } catch (e) { refresh(); throw { code: 'unavailable' }; }
+      if (r.status === 401) { setPin(''); refresh(); throw { code: 'bad_pin' }; }
+    }
     if (r.status === 400) { const j = await r.json().catch(() => ({})); throw { code: 'invalid', message: j.error || 'Datos inválidos' }; }
     if (!r.ok) { refresh(); throw { code: 'unavailable' }; }
     return r.json().catch(() => ({}));
@@ -361,7 +580,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
         },
         async add(doc) {
           if (name === 'camas') { const j = await post('/api/camas', doc); refresh(); return { id: j.id }; }
-          await post('/api/cosechas', doc); refresh();
+          const j = await post('/api/cosechas', doc); refresh(); return { id: j && j.id };
         },
       };
       return q;
@@ -390,24 +609,17 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 11:18</div>
+    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 11:58</div>
   </header>
-  <nav class="tabs" role="tablist" aria-label="Vistas">
-    <button role="tab" data-v="hoy">Hoy</button>
-    <button role="tab" data-v="semana">Semana</button>
-    <button role="tab" data-v="mapa">Mapa del mes</button>
-    <button role="tab" data-v="cosecha">Cosecha</button>
-    <button role="tab" data-v="calendario">Calendario</button>
-    <button role="tab" data-v="semillero">Semillero</button>
-    <button role="tab" data-v="experiencias">Experiencias</button>
-    <button role="tab" data-v="cultivos">Cultivos</button>
-    <button role="tab" data-v="cocina">Cocina</button>
-    <button role="tab" data-v="censo">Censo</button>
-    <button role="tab" data-v="insumos">Compras y semillas</button>
-    <button role="tab" data-v="pedidos">Pedidos de cocina</button>
-    <button role="tab" data-v="mensajes">Mensajes</button>
-    <button role="tab" data-v="compras">Semilla del plan</button>
-    <button role="tab" data-v="registro">Registro</button>
+  <nav class="tabs" aria-label="Vistas">
+    <button data-v="hoy">Hoy</button>
+    <button data-v="semana">Semana</button>
+    <button data-v="mapa">Mapa del mes</button>
+    <button data-v="cosecha">Cosecha</button>
+    <button data-v="calendario">Calendario</button>
+    <button data-v="censo">Censo</button>
+    <button data-v="cocina">Cocina</button>
+    <button data-v="mas" aria-haspopup="dialog">Más ▾</button>
   </nav>
   <main id="main"></main>
 </div>
@@ -419,18 +631,22 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   <button data-v="cocina"><svg viewBox="0 0 24 24"><path d="M6 13h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M8 13c-2.2 0-4-1.6-4-3.6S5.8 6 8 6c.6-1.8 2.2-3 4-3s3.4 1.2 4 3c2.2 0 4 1.4 4 3.4S18.2 13 16 13"/></svg><span>Cocina</span></button>
   <button data-v="mas"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span>Más</span></button>
 </nav>
-<div class="sheet" id="sheet" hidden><div class="in" role="menu" aria-label="Más vistas">
-  <button data-v="semillero">Semillero</button>
-  <button data-v="experiencias">Experiencias</button>
-  <button data-v="calendario">Calendario</button>
-  <button data-v="cultivos">Cultivos</button>
-  <button data-v="compras">Semilla del plan</button>
-  <button data-v="censo">Censo de camas</button>
-  <button data-v="insumos">Compras y semillas</button>
-  <button data-v="pedidos">Pedidos de cocina</button>
-  <button data-v="mensajes">Mensajes con cocina</button>
-  <button data-v="registro">Registro de cosecha</button>
-  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 11:18</p>
+<div class="sheet" id="sheet" hidden><div class="in" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
+  <div class="shead"><b id="sheet-t">Más vistas</b><button type="button" class="btn" data-close>Cerrar</button></div>
+  <div class="sgrp"><h3>Plan</h3>
+    <button data-v="calendario">Calendario</button>
+    <button data-v="cultivos">Cultivos</button>
+    <button data-v="semillero">Semillero</button>
+    <button data-v="compras">Semillas que pide el plan</button>
+    <button data-v="experiencias">Experiencias para visitantes</button></div>
+  <div class="sgrp"><h3>Registrar</h3>
+    <button data-v="censo">Censo de camas</button>
+    <button data-v="registro">Registro de cosecha</button>
+    <button data-v="insumos">Compras y banco de semillas</button></div>
+  <div class="sgrp"><h3>Cocina</h3>
+    <button data-v="pedidos">Pedidos de cocina</button>
+    <button data-v="mensajes">Mensajes con cocina</button></div>
+  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 11:58</p>
 </div></div>
 <div class="tip" id="tip" hidden></div>
 
@@ -906,19 +1122,47 @@ const CAP_H = 40;
 const plan = buildPlan();
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Celda que en el celular se vuelve "Etiqueta: valor" dentro de una tarjeta (tablas con class="stack").
+const td = (l, v, c = "") => `<td data-l="${esc(l)}"${c ? ` class="${c}"` : ""}><span class="v">${v}</span></td>`;
 const nf = (v, d = 0) => v.toLocaleString("es-MX", {maximumFractionDigits: d, minimumFractionDigits: d});
 const todayW = (() => { const t = new Date(); t.setHours(12); return Math.floor((t - D(PLAN_START)) / (7 * DAY)); })();
 const state = {view: "semana", w: Math.min(Math.max(todayW, 0), PLAN_WEEKS - 1), month: null, bed: null, done: {}, flags: {}, harvests: [], reports: [], upd: null, msgs: [], pedidos: [], pvotos: [], lista: [], bank: null, censo: {}, cdraft: {}, czone: null, cfocus: null, db: null, dbTried: false};
 (function initMonth(){ const d = wkDate(state.w); d.setDate(d.getDate() + 2); state.month = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); })();
 const MONTHS = (() => { const m = []; for (let i = 0; i < 13; i++) { const d = new Date(2026, 9 + i, 15); m.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); } return m; })();
 const monthLabel = k => { const [y, m] = k.split("-").map(Number); return MESL[m - 1] + " " + y; };
-const monthStepper = () => { const i = MONTHS.indexOf(state.month); return `<div class="mnav" role="group" aria-label="Mes"><button type="button" data-ms="-1" aria-label="Mes anterior"${i <= 0 ? " disabled" : ""}>‹</button><h2 aria-live="polite">${monthLabel(state.month)}</h2><button type="button" data-ms="1" aria-label="Mes siguiente"${i >= MONTHS.length - 1 ? " disabled" : ""}>›</button></div>`; };
-const bindMonthStepper = root => root.querySelectorAll("[data-ms]").forEach(b => b.onclick = () => { const i = MONTHS.indexOf(state.month) + +b.dataset.ms; if (MONTHS[i]) { state.month = MONTHS[i]; render(); } });
+// Un solo patrón de navegación por días, semanas y meses: ‹ etiqueta ›, barra completa, flechas en los extremos.
+function navStepper(key, main, sub, o = {}){
+  const note = o.prevOff && o.startNote ? o.startNote : o.nextOff && o.endNote ? o.endNote : "";
+  return `<div class="mnav" role="group" aria-label="${esc(o.group || "Navegar")}"><button type="button" data-step="${key}" data-d="-1" aria-label="${esc(o.prev || "Anterior")}"${o.prevOff ? " disabled" : ""}>‹</button><div class="mlab">${sub ? `<span class="msub">${sub}</span>` : ""}<h2 aria-live="polite">${main}</h2></div><button type="button" data-step="${key}" data-d="1" aria-label="${esc(o.next || "Siguiente")}"${o.nextOff ? " disabled" : ""}>›</button></div>${note ? `<p class="mnote">${esc(note)}</p>` : ""}`;
+}
+const bindStepper = (root, key, fn) => root.querySelectorAll(`[data-step="${key}"]`).forEach(b => b.onclick = () => fn(+b.dataset.d));
+const monthStepper = sub => { const i = MONTHS.indexOf(state.month); return navStepper("mes", monthLabel(state.month), sub, {group: "Mes", prev: "Mes anterior", next: "Mes siguiente", prevOff: i <= 0, nextOff: i >= MONTHS.length - 1, startNote: `El plan empieza en ${monthLabel(MONTHS[0]).toLowerCase()}: no hay meses antes.`, endNote: `El plan llega hasta ${monthLabel(MONTHS[MONTHS.length - 1]).toLowerCase()}.`}); };
+const bindMonthStepper = root => bindStepper(root, "mes", d => { const i = MONTHS.indexOf(state.month) + d; if (MONTHS[i]) { state.month = MONTHS[i]; render(); } });
+const weekStepper = (key, w, sub) => navStepper(key, weekRange(w), sub, {group: "Semana", prev: "Semana anterior", next: "Semana siguiente", prevOff: w <= 0, nextOff: w >= PLAN_WEEKS - 1, startNote: "Es la primera semana del plan.", endNote: "Es la última semana del plan."});
+const bindWeekStepper = (root, key) => bindStepper(root, key, d => { const w = state.w + d; if (w >= 0 && w < PLAN_WEEKS) { state.w = w; subscribeDone(); render(); } });
 const monthShort = k => { const [y, m] = k.split("-").map(Number); return MES[m - 1] + (m === 1 || k === MONTHS[0] ? " " + String(y).slice(2) : ""); };
 const weekRange = w => { const a = wkDate(w), b = wkDate(w); if (w === 0 && typeof FIRST_DAY !== "undefined") a.setDate(a.getDate() + FIRST_DAY - 1); b.setDate(b.getDate() + 4); return fmt(a) + " – " + fmt(b) + " " + b.getFullYear(); };
 const weekOfMonth = k => { const [y, m] = k.split("-").map(Number); const mid = new Date(y, m - 1, 15, 12); return Math.max(0, Math.min(PLAN_WEEKS - 1, Math.floor((mid - D(PLAN_START)) / (7 * DAY)))); };
 
-function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+// Aviso breve abajo. opt.action + opt.on = botón (p. ej. "Deshacer"); opt.done corre al cerrarse sin deshacer (para borrar de verdad después).
+function toast(msg, opt = {}){
+  const cur = toast.cur; if (cur) { clearTimeout(cur.tm); cur.el.remove(); if (cur.done) cur.done(); }
+  const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
+  const sp = document.createElement("span"); sp.textContent = msg; t.appendChild(sp);
+  const me = {el: t, done: opt.done || null};
+  if (opt.action) { const b = document.createElement("button"); b.type = "button"; b.textContent = opt.action; b.onclick = () => { clearTimeout(me.tm); t.remove(); toast.cur = null; if (opt.on) opt.on(); }; t.appendChild(b); }
+  me.tm = setTimeout(() => { t.remove(); if (toast.cur === me) toast.cur = null; if (me.done) me.done(); }, opt.ms || (opt.action ? 5000 : 2200));
+  toast.cur = me; document.body.appendChild(t);
+}
+// Un solo mensaje claro por error. Sin PIN (canceló) no es un error de conexión.
+function saveErr(e, fallback){
+  const c = e && e.code;
+  if (c === "no_pin") return toast("No se guardó: hace falta el PIN.");
+  if (c === "bad_pin") return toast("PIN incorrecto");
+  if (c === "quota_exceeded") return toast("El registro está lleno; hay que depurar entradas viejas.");
+  if (c === "invalid" && e.message) return toast(e.message);
+  toast(fallback || "No se pudo guardar. Revisa la conexión e intenta de nuevo.");
+}
 
 /* ---------- mapa ---------- */
 const Y0 = 93.5, X0 = 11.5;
@@ -932,7 +1176,7 @@ function zoneBox(z){
   const pad = z === "B" ? 1.6 : 1.2;
   return [x0 - pad - (z === "B" ? .8 : 0), y0 - pad - .6, x1 - x0 + 2 * pad + (z === "B" ? .8 : 0), y1 - y0 + 2 * pad + .6];
 }
-function zonePicker(id){ return `<label class="zsel"><span>Zona</span><select data-zones="${id}" aria-label="Zona del mapa">${ZONES.map(([k, l]) => `<option value="${k}"${(state.zone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todo el huerto" : l}</option>`).join("")}</select></label>`; }
+function zonePicker(id){ return `<label class="zsel"><select data-zones="${id}" aria-label="Zona del mapa">${ZONES.map(([k, l]) => `<option value="${k}"${(state.zone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todo el huerto" : l}</option>`).join("")}</select></label>`; }
 function bindZones(root, after){ root.querySelectorAll("select[data-zones]").forEach(s => s.onchange = () => { state.zone = s.value; try { localStorage.setItem("huerto-zona", state.zone); } catch (e) {} after(); }); }
 function mapSVG(opts){
   // opts.fill(bedId) -> {fill, op, hatch, crop}
@@ -985,7 +1229,19 @@ function mapSVG(opts){
   return s + `</svg>`;
 }
 function shortName(n){ return n.replace(/ \(.*\)/, "").replace(" de corte", "").replace(" toscano", "").replace(" arcoíris","").replace(" baby"," baby").replace(" y flor","").replace(" jalapeño y serrano"," jalapeño").replace("Pensamiento y viola","Viola").replace("Epazote, pápalo y pipicha","Epazote y pápalo").replace(" (repollo)","").replace("Chícharo chino","Chícharo").replace("Ajo y chalote","Ajo y chalote"); }
-function textOn(hex){ const h = hex.replace("#",""); const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16); return (0.299*r + 0.587*g + 0.114*b) > 150 ? "#1d261c" : "#ffffff"; }
+// Texto sobre el color de un cultivo: oscuro o blanco, el que tenga más contraste (WCAG). wash = [color, opacidad] de una capa encima (p. ej. el tramo "creciendo").
+const hexRGB = h => { h = String(h || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map(x => x + x).join(""); return /^[0-9a-f]{6}$/i.test(h) ? [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)) : null; };
+const relLum = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
+const contrastOf = (a, b) => { const x = relLum(a), y = relLum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+function inkOn(hex, wash){
+  let c = hexRGB(hex); if (!c) return "var(--fg)";
+  const w = wash && hexRGB(wash[0]); if (w) c = c.map((v, i) => v * (1 - wash[1]) + w[i] * wash[1]);
+  const dk = hexRGB(cssv("--ink-dark")) || [29, 38, 28], lt = hexRGB(cssv("--ink-light")) || [255, 255, 255];
+  return contrastOf(c, dk) >= contrastOf(c, lt) ? "var(--ink-dark)" : "var(--ink-light)";
+}
+const textOn = hex => inkOn(hex);
+// true si el mejor color de texto (oscuro o blanco) llega a 4.5:1 sobre ese color
+const inkOk = hex => { const c = hexRGB(hex); if (!c) return false; const dk = hexRGB(cssv("--ink-dark")) || [29, 38, 28], lt = hexRGB(cssv("--ink-light")) || [255, 255, 255]; return Math.max(contrastOf(c, dk), contrastOf(c, lt)) >= 4.5; };
 function monthFill(bedId, w){
   return bedSegs(plan, bedId, w).map(sg => {
     if (sg.st === "prepara") return {pos: sg.pos, m: sg.m, hatch: true, crop: "preparar"};
@@ -1007,9 +1263,9 @@ function bedTimeline(bedId){
     <div><h2>Cama ${bedId}</h2><div class="muted small">${b.sec === "A" ? "1 × 5 m (tramos de norte a sur)" : b.sec === "I" ? "1 × 8 m dentro del invernadero (tramos de oeste a este)" : "1.4 × 9.5 m (tramos de oeste a este)"} · ${nf(b.area,1)} m² · cuadrante ${b.q} · 2 líneas de goteo</div></div>
     ${bedCensoSummary(bedId)}
     <h3 style="margin:2px 0 -4px">Plan del año</h3>
-    <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
+    <div class="timeline">${list.slice().sort((a, b) => a.s - b.s || a.pos - b.pos).map(p => `<div class="tl"><span class="sw" style="background:${p.c.c}"></span><div style="grid-column:2 / -1"><b>${esc(p.c.n)}</b> <span class="muted small">· ${p.frac < .999 ? `tramo ${nf(p.pos, 1)}–${nf(p.pos + p.m, 1)} m` : "cama completa"}${p.ex ? " · ya sembrado" : ""}</span><br>
       <span class="small">${p.ex ? "" : `Siembra ${fmt(wkDate(p.s))} · `}${p.c.nokg ? `hasta ${fmt(wkDate(p.end))}` : `cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}</span><br>
-      <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div><button class="ed" data-pedit="${p.i}" aria-label="Editar ${esc(p.c.n)}" title="Corregir fechas o metros">✎</button></div>`).join("")}</div>
+      <span class="small muted">${p.c.nokg ? "" : `${nf(p.c.kg * p.scale, p.c.u === "kg" ? 1 : 0)} ${p.c.u}/semana · `}${esc(p.note || p.c.menu)}</span></div></div>`).join("")}</div>
   </div>`;
 }
 
@@ -1063,7 +1319,7 @@ function updForm(bed, f){
       <select id="u-crop"><option value="">Elegir…</option>${opts.map(o => `<option value="${esc(o.v)}"${f.crop === o.v ? " selected" : ""}>${esc(o.n)}</option>`).join("")}<option value="__otro"${f.crop === "__otro" ? " selected" : ""}>Otro (escribir)…</option></select>
       ${f.crop === "__otro" ? `<input type="text" id="u-new" maxlength="40" placeholder="Nombre del cultivo" value="${esc(f.nuevo || "")}" style="margin-top:8px">` : ""}</div>
       <div class="two"><label>Fecha de siembra<input type="date" id="u-fecha" value="${f.fecha}"></label><label>Cosecha estimada<input type="date" id="u-cos" value="${f.cosecha || ""}"></label></div>` : ""}
-    <div class="bar"><button class="btn primary" id="usave" style="min-height:44px;flex:1">Guardar</button><button class="btn" id="ucancel" style="min-height:44px">Cancelar</button></div>
+    <div class="bar"><button class="btn primary" id="usave" style="min-height:44px;flex:1">Guardar estado</button><button class="btn" id="ucancel" style="min-height:44px">Cancelar</button></div>
   </div>`;
 }
 function bindReal(root, rerender){
@@ -1116,7 +1372,7 @@ function bindReal(root, rerender){
       if (f.editId) { await state.db.doc(`camas/${f.editId}`).delete(); state.reports = state.reports.filter(r => r._id !== f.editId); }
       const ref = await state.db.collection("camas").add(doc); state.reports = [{...doc, _id: ref && ref.id ? ref.id : "tmp" + doc.at}, ...state.reports]; state.upd = null; toast("Cama actualizada"); rerender();
     }
-    catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar"); }
+    catch (e) { saveErr(e); }
   };
 }
 
@@ -1133,63 +1389,72 @@ function applyBank(){
 async function insPost(path, body, okMsg){
   if (!window.huertoApi) { toast("Se guarda desde la página del huerto."); return null; }
   try { const r = await window.huertoApi.post(path, body); if (okMsg) toast(okMsg); await loadInsumos(); return r; }
-  catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : e && e.message ? e.message : "No se pudo guardar"); return null; }
+  catch (e) { saveErr(e); return null; }
+}
+// Borrar con "Deshacer": se oculta al momento y se borra de verdad a los 5 s si no se deshace.
+state.hide = new Set();
+function softDelete(key, msg, commit){
+  state.hide.add(key); render();
+  toast(msg, {action: "Deshacer", on: () => { state.hide.delete(key); render(); }, done: async () => { try { await commit(); } finally { state.hide.delete(key); if (state.view === "insumos" && !typing()) render(); } }});
 }
 views.insumos = () => {
-  const L = state.lista || [], pend = L.filter(x => x.estado === "pendiente"), done = L.filter(x => x.estado !== "pendiente");
-  const B = (state.bank || []).slice().sort((a, b) => NIV.findIndex(n => n[0] === b.nivel) - NIV.findIndex(n => n[0] === a.nivel) || a.nombre.localeCompare(b.nombre, "es"));
-  const low = B.filter(r => r.nivel === "poco" || r.nivel === "agotado");
-  const row = x => `<div class="li${x.estado === "pendiente" ? "" : " done"}"><input type="checkbox" data-buy="${esc(x.id)}" ${x.estado === "pendiente" ? "" : "checked"} aria-label="Comprado"><div class="what"><b>${esc(x.item)}</b>${x.cantidad ? ` · ${esc(x.cantidad)}` : ""}${x.nota ? `<br><span class="small muted">${esc(x.nota)}</span>` : ""}</div><button class="x" data-ldel="${esc(x.id)}" aria-label="Quitar">✕</button></div>`;
+  const L = (state.lista || []).filter(x => !state.hide.has("l" + x.id)), pend = L.filter(x => x.estado === "pendiente"), done = L.filter(x => x.estado !== "pendiente");
+  const B = (state.bank || []).filter(r => !state.hide.has("b" + r.id)).slice().sort((a, b) => NIV.findIndex(n => n[0] === b.nivel) - NIV.findIndex(n => n[0] === a.nivel) || a.nombre.localeCompare(b.nombre, "es"));
+  const low = B.filter(r => r.nivel === "poco" || r.nivel === "agotado"), rest = B.filter(r => !low.includes(r));
+  const row = x => `<div class="li${x.estado === "pendiente" ? "" : " done"}"><label class="lic"><input type="checkbox" data-buy="${esc(x.id)}" ${x.estado === "pendiente" ? "" : "checked"}><span class="what"><b>${esc(x.item)}</b>${x.cantidad ? ` · ${esc(x.cantidad)}` : ""}${x.nota ? `<br><span class="small muted">${esc(x.nota)}</span>` : ""}</span></label><button class="x" data-ldel="${esc(x.id)}" aria-label="Quitar ${esc(x.item)} de la lista">✕</button></div>`;
+  const seed = r => `<div class="sb" data-id="${esc(r.id)}"><div class="top"><div><b>${esc(r.nombre)}</b>${r.nota ? ` <span class="small muted">· ${esc(r.nota)}</span>` : ""}</div><button class="x" data-bdel="${esc(r.id)}" aria-label="Quitar ${esc(r.nombre)} del banco">✕</button></div>
+      <div class="lvl" role="group" aria-label="Cuánto queda">${NIV.map(([k, n]) => `<button data-lvl="${k}" class="${k === "poco" || k === "agotado" ? "low" : ""}" aria-pressed="${r.nivel === k}">${n}</button>`).join("")}</div>
+      <input data-bcant data-keep="bc|${esc(r.id)}" value="${esc(r.cantidad || "")}" placeholder="Cantidad (opcional): media bolsa, 50 g…" maxlength="80" aria-label="Cantidad de ${esc(r.nombre)} (opcional)">
+      ${(r.nivel === "poco" || r.nivel === "agotado") && !pend.some(x => x.item.toLowerCase() === ("semilla de " + r.nombre).toLowerCase()) ? `<button class="btn" data-tolist="${esc(r.nombre)}" style="align-self:flex-start">＋ Agregar a la lista de compras</button>` : ""}
+    </div>`;
   return `
-  <div><div class="eyebrow">Lo que hace falta y lo que hay</div><h2>Compras y semillas</h2></div>
+  <p class="small muted" style="margin:0">Lo que hace falta comprar y cuánta semilla queda.</p>
   ${window.huertoApi ? "" : `<div class="notice">Se edita desde la página pública del huerto.</div>`}
   <div class="cols">
   <section class="panel" aria-label="Lista de compras">
     <div class="bar" style="justify-content:space-between"><h3>Lista de compras</h3><span class="chip${pend.length ? " warn" : ""}">${pend.length} pendiente${pend.length === 1 ? "" : "s"}</span></div>
     <p class="small muted" style="margin:4px 0 0">Todo lo que haga falta: semilla, composta, malla, charolas, herramienta. Palomear cuando ya se compró.</p>
-    <div class="addrow"><input id="li-item" placeholder="¿Qué hace falta?" maxlength="80"><input id="li-cant" placeholder="Cuánto" maxlength="40"><button class="btn primary" id="li-add">Agregar</button></div>
+    <div class="addstack"><label class="fl"><span class="fll">Qué falta</span><input id="li-item" data-keep="li-item" placeholder="Ej. composta, malla sombra" maxlength="80"></label><label class="fl"><span class="fll">Cuánto <small>(opcional)</small></span><input id="li-cant" data-keep="li-cant" placeholder="Ej. 3 bultos" maxlength="40"></label><button class="btn primary" id="li-add">Agregar a la lista</button></div>
     ${pend.map(row).join("") || `<p class="small muted" style="margin:10px 0 0">Nada pendiente.</p>`}
     ${done.length ? `<h3 style="margin:14px 0 2px">Comprado (últimas 2 semanas)</h3>${done.map(row).join("")}` : ""}
   </section>
   <section class="panel" aria-label="Banco de semillas">
     <div class="bar" style="justify-content:space-between"><h3>Banco de semillas</h3>${low.length ? `<span class="chip warn">${low.length} con poco o nada</span>` : ""}</div>
-    <p class="small muted" style="margin:4px 0 0">Cuánto queda de cada semilla, más o menos. Toca el nivel; "Cantidad" es opcional (p. ej. media bolsa, 50 g).</p>
-    ${B.map(r => `<div class="sb" data-id="${esc(r.id)}"><div class="top"><div><b>${esc(r.nombre)}</b>${r.nota ? ` <span class="small muted">· ${esc(r.nota)}</span>` : ""}</div><button class="x" data-bdel="${esc(r.id)}" aria-label="Quitar semilla">✕</button></div>
-      <div class="lvl">${NIV.map(([k, n]) => `<button data-lvl="${k}" class="${k === "poco" || k === "agotado" ? "low" : ""}" aria-pressed="${r.nivel === k}">${n}</button>`).join("")}</div>
-      <input data-bcant value="${esc(r.cantidad || "")}" placeholder="Cantidad (opcional)" maxlength="80">
-      ${(r.nivel === "poco" || r.nivel === "agotado") && !pend.some(x => x.item.toLowerCase() === ("semilla de " + r.nombre).toLowerCase()) ? `<button class="btn" data-tolist="${esc(r.nombre)}" style="align-self:flex-start;min-height:40px">＋ Agregar a la lista de compras</button>` : ""}
-    </div>`).join("")}
-    <div class="addrow"><input id="sb-nom" list="cultlist2" placeholder="Semilla nueva" maxlength="60"><input id="sb-cant" placeholder="Cuánto" maxlength="80"><button class="btn primary" id="sb-add">Agregar</button></div>
+    <p class="small muted" style="margin:4px 0 0">Cuánto queda de cada semilla, más o menos. Toca el nivel; la cantidad es opcional. Lo que tiene poco o se acabó va primero.</p>
+    ${low.map(seed).join("") || `<p class="small muted" style="margin:10px 0 0">Ninguna semilla con poco o nada.</p>`}
+    ${rest.length ? `<details class="fold" data-fold="bank"${state.bankOpen ? " open" : ""}><summary><span class="fs"><b>${rest.length} semilla${rest.length === 1 ? "" : "s"} con mucho o medio</b><span class="small muted">Toca para ver y cambiar</span></span></summary>${rest.map(seed).join("")}</details>` : ""}
+    <div class="addstack"><label class="fl"><span class="fll">Semilla nueva</span><input id="sb-nom" data-keep="sb-nom" list="cultlist2" placeholder="Ej. Cilantro" maxlength="60"></label><label class="fl"><span class="fll">Cuánto <small>(opcional)</small></span><input id="sb-cant" data-keep="sb-cant" placeholder="Ej. media bolsa" maxlength="80"></label><button class="btn primary" id="sb-add">Agregar al banco</button></div>
     <datalist id="cultlist2">${Object.values(CROPS).map(c => `<option value="${esc(c.n)}">`).join("")}</datalist>
   </section>
   </div>`;
 };
 views.insumos.bind = root => {
-  const add = async () => { const i = root.querySelector("#li-item"), c = root.querySelector("#li-cant"); if (!i.value.trim()) { i.focus(); return; } if (await insPost("/api/lista", {accion: "agregar", item: i.value.trim(), cantidad: c.value.trim()}, "Agregado")) render(); };
+  const add = async () => { const i = root.querySelector("#li-item"), c = root.querySelector("#li-cant"); if (!i.value.trim()) { i.focus(); toast("Escribe qué falta"); return; } const it = i.value.trim(), ca = c.value.trim(); if (await insPost("/api/lista", {accion: "agregar", item: it, cantidad: ca}, "Agregado a la lista")) { i.value = ""; c.value = ""; render(); } };
   root.querySelector("#li-add").onclick = add;
   root.querySelector("#li-item").onkeydown = e => { if (e.key === "Enter") add(); };
   root.querySelectorAll("[data-buy]").forEach(cb => cb.onchange = async () => { await insPost("/api/lista", {accion: cb.checked ? "comprado" : "pendiente", id: cb.dataset.buy}); render(); });
-  root.querySelectorAll("[data-ldel]").forEach(b => b.onclick = async () => { await insPost("/api/lista", {accion: "quitar", id: b.dataset.ldel}); render(); });
+  root.querySelectorAll("[data-ldel]").forEach(b => b.onclick = () => { const id = b.dataset.ldel, x = (state.lista || []).find(y => y.id === id); softDelete("l" + id, `Quitado: ${x ? x.item : "artículo"}`, () => insPost("/api/lista", {accion: "quitar", id})); });
+  const fd = root.querySelector('[data-fold="bank"]'); if (fd) fd.ontoggle = () => { state.bankOpen = fd.open; };
   root.querySelectorAll(".sb").forEach(card => {
     const id = card.dataset.id;
     card.querySelectorAll("[data-lvl]").forEach(b => b.onclick = async () => { const r = state.bank.find(x => x.id === id); if (r) r.nivel = b.dataset.lvl; render(); await insPost("/api/banco", {accion: "actualizar", id, nivel: b.dataset.lvl}); render(); });
     const ci = card.querySelector("[data-bcant]"); ci.onchange = async () => { await insPost("/api/banco", {accion: "actualizar", id, cantidad: ci.value.trim()}, "Guardado"); };
     const tl = card.querySelector("[data-tolist]"); if (tl) tl.onclick = async () => { await insPost("/api/lista", {accion: "agregar", item: "Semilla de " + tl.dataset.tolist}, "Agregado a la lista"); render(); };
   });
-  root.querySelectorAll("[data-bdel]").forEach(b => b.onclick = async () => { await insPost("/api/banco", {accion: "quitar", id: b.dataset.bdel}); render(); });
-  root.querySelector("#sb-add").onclick = async () => { const n = root.querySelector("#sb-nom"), c = root.querySelector("#sb-cant"); if (!n.value.trim()) { n.focus(); return; } if (await insPost("/api/banco", {accion: "agregar", nombre: n.value.trim(), cantidad: c.value.trim()}, "Semilla agregada")) render(); };
+  root.querySelectorAll("[data-bdel]").forEach(b => b.onclick = () => { const id = b.dataset.bdel, r = (state.bank || []).find(y => y.id === id); softDelete("b" + id, `Quitada: ${r ? r.nombre : "semilla"}`, () => insPost("/api/banco", {accion: "quitar", id})); });
+  root.querySelector("#sb-add").onclick = async () => { const n = root.querySelector("#sb-nom"), c = root.querySelector("#sb-cant"); if (!n.value.trim()) { n.focus(); toast("Escribe el nombre de la semilla"); return; } if (await insPost("/api/banco", {accion: "agregar", nombre: n.value.trim(), cantidad: c.value.trim()}, "Semilla agregada")) { n.value = ""; c.value = ""; render(); } };
 };
 
 /* ---------- mensajes con la cocina ---------- */
 const mHH = at => { const d = new Date(String(at).replace(" ", "T") + "Z"); return d.getDate() + " " + MES[d.getMonth()] + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
-views.mensajes = () => {
+views.mensajes = embedded => {
   const M = state.msgs || [];
   let name = ""; try { name = localStorage.getItem("huerto-nombre") || ""; } catch (e) {}
-  return `<div><div class="eyebrow">Huerto ↔ cocina (Lalo e Isa)</div><h2>Mensajes con cocina</h2></div>
+  return `${embedded ? "" : `<p class="small muted" style="margin:0">Huerto ↔ cocina (Lalo e Isa).</p>`}
   <section class="panel">
     <div class="thread" id="thread">${M.map(m => `<div class="msg${m.de === "huerto" ? " me" : ""}"><small>${esc(m.nombre || (m.de === "huerto" ? "Huerto" : "Cocina"))} · ${m.de} · ${mHH(m.at)}</small>${esc(m.texto)}</div>`).join("") || `<p class="small muted" style="margin:0">Todavía no hay mensajes.</p>`}</div>
-    <div class="send"><textarea id="m-text" rows="2" placeholder="Escribe a la cocina…" maxlength="1000"></textarea><button class="btn primary" id="m-send" style="min-height:48px">Enviar</button></div>
-    <label class="small muted" style="display:flex;flex-direction:column;gap:4px;margin-top:8px">Firma<input id="m-name" value="${esc(name)}" placeholder="Ej. Eric, Melanie, Adrián" maxlength="30" style="font-size:16px;min-height:44px"></label>
+    <div class="send"><label class="fl"><span class="fll">Mensaje</span><textarea id="m-text" data-keep="m-text" rows="2" placeholder="Escribe a la cocina…" maxlength="1000"></textarea></label><button class="btn primary" id="m-send">Enviar mensaje</button></div>
+    <label class="fl" style="margin-top:8px"><span class="fll">Firma <small>(tu nombre; la cocina lo ve)</small></span><input id="m-name" value="${esc(name)}" placeholder="Ej. Eric, Melanie, Adrián" maxlength="30"></label>
   </section>`;
 };
 views.mensajes.bind = root => {
@@ -1198,24 +1463,24 @@ views.mensajes.bind = root => {
     const x = root.querySelector("#m-text").value.trim(), n = root.querySelector("#m-name").value.trim();
     if (!x) return; if (!n) { root.querySelector("#m-name").focus(); toast("Pon tu nombre para firmar"); return; }
     try { localStorage.setItem("huerto-nombre", n); } catch (e) {}
-    if (await insPost("/api/mensajes", {texto: x, nombre: n})) { await loadMsgsHuerto(); render(); }
+    if (await insPost("/api/mensajes", {texto: x, nombre: n})) { root.querySelector("#m-text").value = ""; await loadMsgsHuerto(); render(); }
   };
 };
 
 /* ---------- pedidos de la cocina ---------- */
-const PEST = [["aceptada", "Aceptar"], ["en_plan", "Ya está en el plan"], ["no_se_puede", "No se puede"], ["hecha", "Listo"]];
+const POTHER = [["en_plan", "Ya está en el plan"], ["hecha", "Listo, ya se entregó"]];
 const PLAB = {nueva: "Nuevo", aceptada: "Aceptado", en_plan: "En el plan", no_se_puede: "No se puede", hecha: "Listo"};
-views.pedidos = () => {
+views.pedidos = embedded => {
   const P = state.pedidos || [], V = state.pvotos || [];
   const neg = V.filter(x => x.voto && x.voto.voto === -1), pos = V.filter(x => x.voto && x.voto.voto === 1);
   return `
-  <div><div class="eyebrow">Lo que pide la cocina (Lalo e Isa)</div><h2>Pedidos de cocina</h2></div>
-  <p class="small muted" style="margin:0;max-width:70ch">La cocina pide cultivos y dice si va a usar lo que se va a sembrar, desde su página (/cocina). Respondan aquí; la cocina ve la respuesta. Para meter un pedido al plan, pídanselo a Claude.</p>
+  <p class="small muted" style="margin:0;max-width:70ch">${embedded ? "" : "Lo que pide la cocina (Lalo e Isa). "}La cocina pide cultivos desde su página (/cocina). Contesten cada pedido aquí: escriban una respuesta si hace falta y toquen “Aceptar pedido” o “No se puede”. La cocina ve la respuesta. Si hay que sembrar algo nuevo, avisen a Eric o a Melanie para meterlo al plan.</p>
   <div class="cols">
   <section class="panel"><h3 style="margin-bottom:6px">Pedidos</h3>
-    ${P.map(x => `<div class="sb" data-id="${esc(x.id)}"><div class="top"><div><b>${esc(x.cultivo)}</b> <span class="chip${x.estado === "nueva" ? " warn" : ""}">${PLAB[x.estado] || x.estado}</span><br><span class="small muted">${[x.cantidad, x.para, x.nota].filter(Boolean).map(esc).join(" · ")}</span></div></div>
-      <div class="lvl">${PEST.map(([k, n]) => `<button data-pe="${k}" aria-pressed="${x.estado === k}">${n}</button>`).join("")}</div>
-      <input data-resp value="${esc(x.respuesta || "")}" placeholder="Respuesta para la cocina (opcional)" maxlength="200"></div>`).join("") || `<p class="small muted" style="margin:0">Sin pedidos.</p>`}
+    ${P.map(x => `<div class="sb pd" data-id="${esc(x.id)}"><div class="top"><div><b>${esc(x.cultivo)}</b> <span class="chip${x.estado === "nueva" ? " warn" : ""}">${PLAB[x.estado] || esc(x.estado)}</span><br><span class="small muted">${[x.cantidad, x.para, x.nota].filter(Boolean).map(esc).join(" · ")}</span></div></div>
+      <label class="fl"><span class="fll">Respuesta para la cocina <small>(opcional)</small></span><input data-resp data-keep="pr|${esc(x.id)}" value="${esc(x.respuesta || "")}" placeholder="Ej. Hay desde el 15 de diciembre" maxlength="200"></label>
+      <div class="pact"><button class="btn primary" data-pe="aceptada" aria-pressed="${x.estado === "aceptada"}">Aceptar pedido</button><button class="btn" data-pe="no_se_puede" aria-pressed="${x.estado === "no_se_puede"}">No se puede</button></div>
+      <label class="fl"><span class="fll">Otra respuesta</span><select data-pother><option value="">Elegir…</option>${POTHER.map(([k, n]) => `<option value="${k}"${x.estado === k ? " selected" : ""}>${n}</option>`).join("")}</select></label></div>`).join("") || `<p class="small muted" style="margin:0">Sin pedidos.</p>`}
   </section>
   <section class="panel"><h3 style="margin-bottom:6px">Siembras que la cocina validó</h3>
     ${neg.length ? `<div class="notice" style="margin-bottom:8px">👎 ${neg.length} siembra${neg.length > 1 ? "s" : ""} que la cocina dice que no necesita.</div>` : ""}
@@ -1226,8 +1491,11 @@ views.pedidos = () => {
 views.pedidos.bind = root => {
   root.querySelectorAll(".sb[data-id]").forEach(card => {
     const id = card.dataset.id, inp = card.querySelector("[data-resp]");
-    card.querySelectorAll("[data-pe]").forEach(b => b.onclick = async () => { if (await insPost("/api/cocina/responder", {id, estado: b.dataset.pe, respuesta: inp.value.trim()}, "Respondido")) { await loadPedidosHuerto(); render(); } });
-    inp.onchange = async () => { const cur = (state.pedidos || []).find(x => x.id === id); await insPost("/api/cocina/responder", {id, estado: cur && cur.estado !== "nueva" ? cur.estado : "aceptada", respuesta: inp.value.trim()}, "Guardado"); await loadPedidosHuerto(); render(); };
+    const answer = async estado => { if (await insPost("/api/cocina/responder", {id, estado, respuesta: inp.value.trim()}, `Respondido: ${PLAB[estado]}`)) { await loadPedidosHuerto(); render(); } };
+    card.querySelectorAll("[data-pe]").forEach(b => b.onclick = () => answer(b.dataset.pe));
+    const so = card.querySelector("[data-pother]"); so.onchange = () => { if (so.value) answer(so.value); };
+    // Cambiar el texto de un pedido ya contestado lo guarda; en uno nuevo, se manda con el botón.
+    inp.onchange = async () => { const cur = (state.pedidos || []).find(x => x.id === id); if (!cur || cur.estado === "nueva") return; await insPost("/api/cocina/responder", {id, estado: cur.estado, respuesta: inp.value.trim()}, "Respuesta guardada"); await loadPedidosHuerto(); render(); };
   });
 };
 
@@ -1260,9 +1528,9 @@ views.cocina = () => {
   const nuevos = (state.pedidos || []).filter(x => x.estado === "nueva").length;
   const msgN = (state.msgs || []).filter(m => m.de !== "huerto" && recentDays(m.at, 7)).length;
   const seg = `<div class="kseg" role="tablist">${[["resumen", "Resumen", 0], ["pedidos", "Pedidos", nuevos], ["mensajes", "Mensajes", msgN]].map(([k, n, c]) => `<button role="tab" data-kt="${k}" aria-selected="${tab === k}">${n}${c ? `<span class="kb">${c}</span>` : ""}</button>`).join("")}</div>`;
-  const strip = h => h.replace(/^\s*<div><div class="eyebrow">[\s\S]*?<\/h2><\/div>/, "");
-  if (tab === "pedidos") return seg + strip(views.pedidos());
-  if (tab === "mensajes") return seg + strip(views.mensajes());
+  // Embebidas: sin su encabezado propio (el título ya está arriba).
+  if (tab === "pedidos") return seg + views.pedidos(true);
+  if (tab === "mensajes") return seg + views.mensajes(true);
   const S = kitchenStats(per), hasH = (state.harvests || []).length > 0;
   const lastMsg = (state.msgs || []).filter(m => m.de !== "huerto").slice(-1)[0];
   const downs = (state.pvotos || []).filter(x => x.voto && x.voto.voto === -1);
@@ -1321,7 +1589,9 @@ const fm = v => { const r = Math.round(+v * 100) / 100; return (Number.isInteger
 function shortCrop(n){ return String(n || "").replace(/ \(.*\)$/, ""); }
 function censoBar(bed, L){
   const len = BED[bed].len; let used = 0;
-  const segs = L.filter(l => +l.m > 0).map(l => { used += +l.m; const w = Math.min(100, +l.m / len * 100), name = l.cultivo ? shortCrop(l.cultivo) : "¿?"; return `<i style="flex:0 0 ${w}%;background:${l.cultivo ? cropColor(l.cultivo) : "#9aa092"}" title="${esc(fm(l.m) + " " + (l.cultivo || "sin cultivo"))}">${w >= 36 ? `<span class="bn">${esc(name)}</span><span>${fm(l.m)}</span>` : w >= 12 ? fm(l.m) : ""}</i>`; }).join("");
+  // Cada tramo lleva el número de su renglón (el mismo que el cuadrito de color del renglón); el nombre solo si cabe.
+  const segs = L.map((l, i) => ({l, i})).filter(x => +x.l.m > 0).map(({l, i}) => { used += +l.m; const w = Math.min(100, +l.m / len * 100), name = l.cultivo ? shortCrop(l.cultivo) : "¿?", col = l.cultivo ? cropColor(l.cultivo) : "#9aa092";
+    return `<i${inkOk(col) ? "" : ` class="pill"`} style="flex:0 1 ${w}%;background:${col};color:${inkOn(col)}" title="${esc(fm(l.m) + " " + (l.cultivo || "sin cultivo"))}">${w >= 36 ? `<span class="bn">${i + 1} · ${esc(name)}</span><span>${fm(l.m)}</span>` : w >= 14 ? `<span class="bn">${i + 1}</span><span>${fm(l.m)}</span>` : `<span class="bn">${i + 1}</span>`}</i>`; }).join("");
   const rest = len - used;
   return {html: segs + (rest > 0.01 ? `<i class="vac">${rest / len >= 0.12 ? "vacío " + fm(rest) : ""}</i>` : ""), used};
 }
@@ -1338,47 +1608,66 @@ const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return 
 const dqOf = l => l._dq || (l.fecha ? "otra" : "");
 const cropKeyOf = name => (Object.entries(CROPS).find(([k, c]) => c.n === name || k === name) || [])[0];
 const harvestOf = l => { const k = cropKeyOf(l.cultivo); return k && l.fecha ? estHarvest(k, l.fecha) : ""; };
+function censoStatus(bed){
+  const c = state.censo[bed];
+  if ((state.cdirty || {})[bed]) return ["sin guardar", "warn"];
+  if (censoThisWeek(bed)) return ["✓ revisada " + fmtISO(c.at.slice(0, 10)), "ok"];
+  if (c) return ["revisada " + fmtISO(c.at.slice(0, 10)) + " · revisar", "warn"];
+  return ["sin revisar (según el plan)", "warn"];
+}
+const censoLine = L => L.filter(l => +l.m > 0).map(l => `${l.cultivo ? shortCrop(l.cultivo) : "¿?"} ${fm(l.m)}`).join(" + ") || "Vacía";
 function censoCard(bed){
-  const B = BED[bed], L = censoDraft(bed), c = state.censo[bed], {html, used} = censoBar(bed, L);
-  const rest = B.len - used, ends = B.sec === "A" ? ["Norte", "Sur"] : ["Oeste", "Este"];
-  return `<section class="cc${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">
-    <div class="cch"><b>${bed}</b><span class="small muted">${fm(B.len)}</span>${c ? `<span class="chip${censoThisWeek(bed) ? "" : " warn"}">✓ revisada ${esc(fmtISO(c.at.slice(0, 10)))}</span>` : `<span class="chip warn">sin revisar · según el plan</span>`}</div>
+  const B = BED[bed], L = censoDraft(bed), open = state.copen === bed, [st, stc] = censoStatus(bed);
+  const head = `<button type="button" class="csum" data-copen aria-expanded="${open}" aria-controls="cb-${bed}"><b>${bed}</b><span class="cst"><span class="cln">${esc(censoLine(L))}</span><span class="cstat ${stc}">${esc(st)}</span></span><span class="chev" aria-hidden="true">${open ? "▴" : "▾"}</span></button>`;
+  if (!open) return `<section class="cc${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">${head}</section>`;
+  const {html, used} = censoBar(bed, L);
+  const rest = B.len - used, ends = B.sec === "A" ? ["Norte", "Sur"] : ["Oeste", "Este"], from = B.sec === "A" ? "norte" : "oeste";
+  return `<section class="cc open${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">${head}<div class="cbody" id="cb-${bed}">
+    <div class="small muted">${fm(B.len)} de largo · un renglón por cultivo, desde el ${from}</div>
     <div class="cbar" aria-hidden="true">${html}</div>
     <div class="cends"><span>${ends[0]}</span><span class="rest${rest < -0.01 ? " over" : rest <= 0.01 ? " full" : ""}">${rest < -0.01 ? `Sobran ${fm(-rest)}` : rest > 0.01 ? `${fm(rest)} vacío` : "Cama completa ✓"}</span><span>${ends[1]}</span></div>
-    ${L.map((l, i) => { const open = l._open || l.nota || l.fecha;
-      return `<div class="cl" data-i="${i}">
-      <span class="sw" style="background:${l.cultivo ? cropColor(l.cultivo) : "var(--line)"}"></span>
-      ${l._otro ? `<input data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Nombre del cultivo" maxlength="40" aria-label="Cultivo">` : `<select class="crop${l.cultivo ? "" : " empty"}" data-crop aria-label="Cultivo">${cropOptionsHtml(l.cultivo)}</select>`}
-      <div class="mstep"><button type="button" data-dec aria-label="Menos medio metro">−</button><select data-m aria-label="Metros">${[...new Set([...M_OPTS(B.len), +l.m > 0 ? Math.round(+l.m * 100) / 100 : 0.5])].sort((x, y) => x - y).map(v => `<option value="${v}"${Math.abs(v - +l.m) < 0.01 ? " selected" : ""}>${fm(v)}</option>`).join("")}</select><button type="button" data-inc aria-label="Más medio metro">+</button></div>
+    ${L.length ? "" : `<p class="small muted" style="margin:0">La cama queda vacía. Toca “Agregar cultivo” si hay algo sembrado.</p>`}
+    ${L.map((l, i) => `<div class="cl" data-i="${i}">
+      <span class="sw" style="background:${l.cultivo ? cropColor(l.cultivo) : "var(--line)"};color:${l.cultivo ? inkOn(cropColor(l.cultivo)) : "var(--fg)"}"><b>${i + 1}</b></span>
+      <label class="fl"><span class="fll">Cultivo</span>${l._otro ? `<input data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Nombre del cultivo" maxlength="40"${l._err ? ` class="invalid" aria-invalid="true" aria-describedby="ce-${bed}-${i}"` : ""}>` : `<select class="crop${l.cultivo ? "" : " empty"}${l._err ? " invalid" : ""}" data-crop${l._err ? ` aria-invalid="true" aria-describedby="ce-${bed}-${i}"` : ""}>${cropOptionsHtml(l.cultivo)}</select>`}
+        ${l._err ? `<span class="ferr" id="ce-${bed}-${i}">Elige el cultivo de este renglón (o quítalo).</span>` : ""}</label>
+      <div class="fl"><span class="fll" id="cm-${bed}-${i}">Metros <small>(contando desde el ${from})</small></span>
+      <div class="mstep">${+l.m <= 0.5 ? `<button type="button" class="trash" data-dec aria-label="Quitar ${esc(l.cultivo || "este renglón")} de la cama" title="Quitar de la cama"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>` : `<button type="button" data-dec aria-label="Menos medio metro">−</button>`}<select data-m aria-labelledby="cm-${bed}-${i}">${[...new Set([...M_OPTS(B.len), +l.m > 0 ? Math.round(+l.m * 100) / 100 : 0.5])].sort((x, y) => x - y).map(v => `<option value="${v}"${Math.abs(v - +l.m) < 0.01 ? " selected" : ""}>${fm(v)}</option>`).join("")}</select><button type="button" data-inc aria-label="Más medio metro">+</button></div></div>
       <details class="ldet" data-det${l._open || (!l.fecha && !l.cosecha && !l.nota && l._new) ? " open" : ""}><summary>${detSummary(l)}</summary><div class="ldb">
-      <div class="sown"><span class="q">¿Hace cuánto se sembró? <small>(aprox.)</small></span>
+      <div class="sown"><span class="q">¿Hace cuánto se sembró? <small>(aprox.; sirve para calcular la cosecha)</small></span>
         <div class="dq" role="group" aria-label="Hace cuánto se sembró">${DQ.map(([k, t]) => `<button type="button" data-dq="${k}" aria-pressed="${dqOf(l) === k}">${t}</button>`).join("")}</div>
         ${dqOf(l) === "otra" ? `<input type="date" data-f="fecha" value="${esc(l.fecha || "")}" max="${todayISO()}" aria-label="Fecha de siembra">` : ""}
         ${l.fecha ? `<span class="hint">Sembrado ≈ <b>${esc(fmtISO(l.fecha))}</b></span>` : ""}</div>
       <label class="cos"><span class="q">Cosecha estimada <small>(si no sabes, déjala vacía)</small></span>
-        <input type="date" data-f="cosecha" value="${esc(l.cosecha || "")}" aria-label="Cosecha estimada">
+        <input type="date" data-f="cosecha" value="${esc(l.cosecha || "")}">
         <span class="hint">${l.cosecha ? "" : harvestOf(l) ? `Vacía = se calcula con la siembra: ≈ <b>${esc(fmtISO(harvestOf(l)))}</b>` : "Vacía = se calcula con el plan."}</span></label>
-      <input class="nota" data-f="nota" list="notalist" value="${esc(l.nota || "")}" maxlength="80" placeholder="Nota (opcional): plaga, floreando…" aria-label="Nota">
+      <label class="cos"><span class="q">Nota <small>(opcional: plaga, floreando…)</small></span>
+      <input class="nota" data-f="nota" list="notalist" value="${esc(l.nota || "")}" maxlength="80" placeholder="Ej. con pulgón"></label>
       <button type="button" class="rm" data-del>Quitar ${esc(l.cultivo || "este renglón")} de la cama</button></div></details>
-    </div>`; }).join("")}
-    <div class="cfoot"><button type="button" class="btn" data-add>＋ Agregar cultivo</button>${L.length ? `<button type="button" class="lnk" data-empty style="grid-column:auto">Vaciar cama</button>` : ""}<button type="button" class="btn primary" data-save style="margin-left:auto">Guardar</button></div>
-  </section>`;
+    </div>`).join("")}
+    <div class="cfoot"><button type="button" class="btn addsq" data-add aria-label="Agregar cultivo" title="Agregar cultivo"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" class="btn primary" data-save>Guardar ${bed}</button></div>
+    ${L.length ? `<div class="cdanger"><button type="button" class="rm" data-empty>Vaciar toda la cama</button><span class="small muted">Se puede deshacer; no se guarda hasta tocar “Guardar ${bed}”.</span></div>` : ""}
+  </div></section>`;
 }
 function bindCard(card){
   const bed = card.dataset.bed, L = censoDraft(bed), len = BED[bed].len;
   const dirty = () => { (state.cdirty = state.cdirty || {})[bed] = true; };
-  card.addEventListener("input", dirty); card.addEventListener("change", dirty); card.addEventListener("click", e => { if (e.target.closest("button:not([data-save])")) dirty(); });
+  const tg = card.querySelector("[data-copen]");
+  tg.onclick = () => { state.copen = state.copen === bed ? null : bed; render(); const el = document.getElementById("cc-" + bed); if (el && state.copen === bed) el.scrollIntoView({block: "start"}); };
+  if (state.copen !== bed) return;
+  card.addEventListener("input", dirty); card.addEventListener("change", dirty); card.addEventListener("click", e => { if (e.target.closest("button:not([data-save]):not([data-copen])")) dirty(); });
   const redraw = () => { const n = document.createElement("div"); n.innerHTML = censoCard(bed); card.replaceWith(n.firstElementChild); bindCard(document.getElementById("cc-" + bed)); };
   const clamp = v => Math.max(0.5, Math.min(len, Math.round(v * 2) / 2));
   card.querySelectorAll(".cl").forEach(row => {
     const i = +row.dataset.i;
     const cs = row.querySelector("[data-crop]");
-    if (cs) cs.onchange = () => { if (cs.value === "__otro") { L[i]._otro = true; L[i].cultivo = ""; redraw(); const inp = document.querySelector(`#cc-${bed} .cl[data-i="${i}"] input[data-f=cultivo]`); if (inp) inp.focus(); } else { L[i].cultivo = cs.value; redraw(); } };
-    row.querySelectorAll("input[data-f], select[data-f]").forEach(inp => inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => { L[i][inp.dataset.f] = inp.value; if (inp.dataset.f === "fecha" || inp.dataset.f === "cosecha") { redraw(); return; } if (inp.dataset.f === "cultivo") { const {html} = censoBar(bed, L); card.querySelector(".cbar").innerHTML = html; } }));
+    if (cs) cs.onchange = () => { L[i]._err = false; if (cs.value === "__otro") { L[i]._otro = true; L[i].cultivo = ""; redraw(); const inp = document.querySelector(`#cc-${bed} .cl[data-i="${i}"] input[data-f=cultivo]`); if (inp) inp.focus(); } else { L[i].cultivo = cs.value; redraw(); } };
+    row.querySelectorAll("input[data-f], select[data-f]").forEach(inp => inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => { L[i][inp.dataset.f] = inp.value; if (inp.dataset.f === "fecha" || inp.dataset.f === "cosecha") { redraw(); return; } if (inp.dataset.f === "cultivo") { if (inp.value.trim() && L[i]._err) { L[i]._err = false; inp.classList.remove("invalid"); const er = row.querySelector(".ferr"); if (er) er.remove(); } const {html} = censoBar(bed, L); card.querySelector(".cbar").innerHTML = html; card.querySelector(".cln").textContent = censoLine(L); } }));
     row.querySelector("[data-m]").onchange = e => { L[i].m = +e.target.value; redraw(); };
-    row.querySelector("[data-dec]").onclick = () => { L[i].m = clamp((+L[i].m || 0.5) - 0.5); redraw(); };
+    row.querySelector("[data-dec]").onclick = () => { if (+L[i].m <= 0.5) { row.querySelector("[data-del]").click(); return; } L[i].m = clamp((+L[i].m || 0.5) - 0.5); redraw(); };
     row.querySelector("[data-inc]").onclick = () => { L[i].m = clamp((+L[i].m || 0) + 0.5); redraw(); };
-    row.querySelector("[data-del]").onclick = () => { L.splice(i, 1); redraw(); };
+    row.querySelector("[data-del]").onclick = () => { const gone = L.splice(i, 1)[0]; redraw();
+      toast(`Quitado: ${gone.cultivo || "renglón"} (sin guardar)`, {action: "Deshacer", on: () => { L.splice(Math.min(i, L.length), 0, gone); render(); }}); };
     const det = row.querySelector("[data-det]"); if (det) det.ontoggle = () => { L[i]._open = det.open; if (!det.open) redraw(); };
     row.querySelectorAll("[data-dq]").forEach(b => b.onclick = () => { const k = b.dataset.dq;
       if (k === "otra") { L[i]._dq = "otra"; }                              // exact date: keep what is there
@@ -1387,23 +1676,28 @@ function bindCard(card){
       redraw(); });
   });
   card.querySelector("[data-add]").onclick = () => { const used = L.reduce((a, l) => a + (+l.m || 0), 0); L.push({m: clamp(len - used > 0.4 ? len - used : 1), cultivo: "", nota: "", fecha: "", _new: true}); redraw(); const sel = document.querySelectorAll(`#cc-${bed} select[data-crop]`); if (sel.length) sel[sel.length - 1].focus(); };
-  const emp = card.querySelector("[data-empty]"); if (emp) emp.onclick = () => { L.splice(0, L.length); redraw(); };
+  const emp = card.querySelector("[data-empty]"); if (emp) emp.onclick = () => { const prev = L.splice(0, L.length); redraw();
+    toast(`${bed} vaciada (sin guardar)`, {action: "Deshacer", on: () => { L.splice(0, L.length, ...prev); render(); }}); };
   card.querySelector("[data-save]").onclick = async (ev) => {
     const b = ev.currentTarget;
-    const lineas = L.filter(l => (+l.m > 0) || String(l.cultivo).trim()).map(l => ({m: +l.m, cultivo: String(l.cultivo).trim(), nota: l.nota || "", fecha: l.fecha || "", cosecha: l.cosecha || ""}));
-    if (lineas.some(l => !(l.m > 0) || !l.cultivo)) { toast("Elige el cultivo de cada línea"); return; }
-    if (lineas.reduce((a, l) => a + l.m, 0) > len + 0.01) { toast(`La cama mide ${fm(len)}`); return; }
+    const keep = L.filter(l => (+l.m > 0) || String(l.cultivo).trim());
+    const bad = keep.find(l => !(+l.m > 0) || !String(l.cultivo).trim());
+    if (bad) { L.forEach(l => { l._err = keep.includes(l) && !String(l.cultivo).trim(); }); redraw();
+      const el = document.querySelector(`#cc-${bed} .invalid`); if (el) { el.scrollIntoView({behavior: "smooth", block: "center"}); el.focus({preventScroll: true}); } return; }
+    const lineas = keep.map(l => ({m: +l.m, cultivo: String(l.cultivo).trim(), nota: l.nota || "", fecha: l.fecha || "", cosecha: l.cosecha || ""}));
+    if (lineas.reduce((a, l) => a + l.m, 0) > len + 0.01) { toast(`La cama mide ${fm(len)}: quita metros antes de guardar.`); return; }
     if (!window.huertoApi) { toast("El censo se guarda desde la página del huerto (no desde Claude)."); return; }
     b.disabled = true; b.textContent = "Guardando…";
     try {
       const r = await window.huertoApi.post("/api/censo", {cama: bed, lineas});
       state.censo[bed] = {cama: bed, lineas: r.lineas || lineas, at: new Date().toISOString().replace("T", " ").slice(0, 19)};
       delete state.cdraft[bed]; if (state.cdirty) delete state.cdirty[bed];
-      toast(`${bed} guardada`);
+      if (state.copen === bed) state.copen = null;
       if (typeof loadCenso === "function") loadCenso();
       if (typeof loadLive === "function") { loadLive.v = null; loadLive(); }
-      redraw();
-    } catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : e && e.message ? e.message : "No se pudo guardar"); b.disabled = false; b.textContent = "Guardar"; }
+      render();
+      toast(`${bed} guardada`, state.cfrom === "mapa" ? {action: "← Volver al mapa", on: () => { state.bed = bed; go("mapa"); }} : {});
+    } catch (e) { saveErr(e); b.disabled = false; b.textContent = `Guardar ${bed}`; }
   };
 }
 function bedCensoSummary(bed){
@@ -1415,22 +1709,26 @@ function bedCensoSummary(bed){
   </section>`;
 }
 views.censo = () => {
-  const ids = BEDS.filter(b => !state.czone || state.czone === "todo" || (state.czone === "B" ? b.sec === "B" : b.q === state.czone)).map(b => b.id);
+  const ids = zoneBeds(state.czone);
   const done = BEDS.filter(b => censoThisWeek(b.id)).length;
-  const opts = [...new Set([...Object.values(CROPS).map(c => c.n)])].sort((a, b) => a.localeCompare(b, "es"));
+  const todo = ids.filter(id => !censoThisWeek(id)), ok = ids.filter(id => censoThisWeek(id));
+  const okOpen = state.cdoneOpen || ok.includes(state.copen);
   return `
+  ${state.cfrom === "mapa" ? `<button type="button" class="btn back" data-backmap>← Volver al mapa</button>` : ""}
   <div class="chead"><div class="cprog"><b>${done} de ${BEDS.length}</b> camas revisadas esta semana<span class="pbar"><i style="width:${Math.round(done / BEDS.length * 100)}%"></i></span></div>
-  <p class="small muted" style="margin:0;max-width:70ch">Un renglón por cultivo, en orden: <b>norte → sur</b> en la sección A; <b>oeste → este</b> en la B e invernaderos. Al guardar se actualizan el mapa y el plan.</p></div>
+  <p class="small muted" style="margin:0;max-width:70ch">Toca una cama para revisarla. Un renglón por cultivo, en orden: <b>norte → sur</b> en la sección A; <b>oeste → este</b> en la B e invernaderos. Al guardar se actualizan el mapa y el plan.</p></div>
   ${window.huertoApi ? "" : `<div class="notice">El censo se guarda desde la página pública del huerto.</div>`}
-  <label class="zsel"><span>Zona</span><select data-cz aria-label="Zona">${ZONES.map(([k, n]) => `<option value="${k}"${(state.czone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todas las camas" : n}</option>`).join("")}</select></label>
-  <datalist id="cultlist">${opts.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+  <label class="zsel"><select data-cz aria-label="Zona">${ZONES.map(([k, n]) => `<option value="${k}"${(state.czone || "todo") === k ? " selected" : ""}>${k === "todo" ? "Todas las camas" : n}</option>`).join("")}</select></label>
   <datalist id="notalist">${NOTAS.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
-  <div class="cgrid">${ids.map(censoCard).join("")}</div>`;
+  ${todo.length ? `<h3>Por revisar · ${todo.length}</h3><div class="cgrid">${todo.map(censoCard).join("")}</div>` : `<p class="notice" style="margin:0">✓ Todas las camas de esta zona están revisadas esta semana.</p>`}
+  ${ok.length ? `<details class="cdone"${okOpen ? " open" : ""}><summary>${ok.length} revisada${ok.length === 1 ? "" : "s"} esta semana</summary><div class="cgrid">${ok.map(censoCard).join("")}</div></details>` : ""}`;
 };
 views.censo.bind = root => {
   root.querySelectorAll("select[data-cz]").forEach(s => s.onchange = () => { state.czone = s.value; render(); });
   root.querySelectorAll(".cc").forEach(bindCard);
-  if (state.cfocus) { const el = document.getElementById("cc-" + state.cfocus); state.cfocus = null; if (el) setTimeout(() => el.scrollIntoView({behavior: "smooth", block: "start"}), 50); }
+  const bm = root.querySelector("[data-backmap]"); if (bm) bm.onclick = () => go("mapa");
+  const dn = root.querySelector(".cdone"); if (dn) dn.ontoggle = () => { state.cdoneOpen = dn.open; };
+  if (state.cfocus) { const id = state.cfocus; state.cfocus = null; if (state.copen !== id) { state.copen = id; render(); } const el = document.getElementById("cc-" + id); if (el) setTimeout(() => el.scrollIntoView({behavior: "smooth", block: "start"}), 50); }
 };
 
 /* ---------- vistas ---------- */
@@ -1457,18 +1755,16 @@ views.hoy = () => {
   const harvG = Object.values(gm).sort((a, b) => (CROPS[a.crop].u === "kg" ? 0 : 1) - (CROPS[b.crop].u === "kg" ? 0 : 1) || b.qty - a.qty);
   const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1;
   const date = new Date(wkDate(w).getTime() + (d - 1) * DAY);
-  const isToday = (() => { const r = todayRef(); return r.w === w && r.d === d; })();
+  const isToday = isoDay(w, d) === todayISO();
   const done = list.filter(t => state.done[t.id]).length;
   const mins = list.reduce((a, t) => a + t.min, 0);
   const label = {semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"};
   const logged = {};
   state.harvests.filter(h => h.fecha === isoDay(w, d)).forEach(h => { logged[h.cama + "|" + h.cultivo] = (logged[h.cama + "|" + h.cultivo] || 0) + (+h.cantidad || 0); });
+  const auto = (() => { const r = todayRef(); return r.w === w && r.d === d; })();
+  const sub = isToday ? "" : auto ? "Próximo día de trabajo" : `Semana ${w + 1}`;
   return `
-  <div class="hoyhead">
-    <button class="btn icon" id="dprev" aria-label="Día anterior" ${w === 0 && d <= first ? "disabled" : ""}>←</button>
-    <div style="text-align:center;flex:1;min-width:0"><div class="eyebrow">${isToday ? "Hoy" : "Semana " + (w + 1)}</div><h2>${DIAS[d]} ${fmt(date)}</h2></div>
-    <button class="btn icon" id="dnext" aria-label="Día siguiente" ${w === PLAN_WEEKS - 1 && d === 5 ? "disabled" : ""}>→</button>
-  </div>
+  ${navStepper("dia", `${DIAS[d]} ${fmt(date)}`, sub, {group: "Día", prev: "Día anterior", next: "Día siguiente", prevOff: w === 0 && d <= first, nextOff: w === PLAN_WEEKS - 1 && d === 5})}
   <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small">${done} de ${list.length} tareas hechas</span><span class="small num">${nf(mins / 60, 1)} h de trabajo</span></div>
     <div class="meter"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div></div>
   ${state.db === null && state.dbTried ? `<div class="notice">Las marcas no se guardan en esta vista.</div>` : ""}
@@ -1478,27 +1774,35 @@ views.hoy = () => {
   </section>
   ${harvDay ? `<section class="panel" aria-label="Cosecha del día">
     <div class="bar" style="justify-content:space-between"><h3>Cosecha para cocina</h3><span class="small muted">antes de las 10:00</span></div>
-    ${harvG.length ? harvG.map(g => { const key = g.beds.join(", ") + "|" + g.crop; const exp = g.qty / 3; const c = CROPS[g.crop]; const got = logged[key];
-      return `<div class="harv"><div style="min-width:0"><div><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))}</div><div class="small muted">${c.u === "kg" && exp < 0.25 ? "Según pida cocina" : "Esperado ≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
-      <div class="q"><input type="number" inputmode="decimal" step="0.1" min="0" placeholder="${c.u === "kg" ? "kg" : "pzas"}" aria-label="Cantidad de ${esc(c.n)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"><button class="btn" data-save="1">Anotar</button></div></div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
+    ${harvG.length ? harvG.map(g => { const key = g.beds.join(", ") + "|" + g.crop; const exp = g.qty / 3; const c = CROPS[g.crop]; const got = logged[key]; const u = c.u === "kg" ? "kg" : "pzas";
+      const sv = (state.hsaved || {})[key], err = (state.herr || {})[key];
+      return `<div class="harv"><div style="min-width:0"><div><span class="dot" style="background:${c.c}"></span> <b>${esc(c.n)}</b></div><div class="small muted">${esc(g.beds.join(", "))}</div><div class="small muted">${c.u === "kg" && exp < 0.25 ? "Según pida cocina" : "Esperado ≈ " + (c.u === "kg" ? nf(exp, 1) + " kg" : nf(exp) + " flores")}${got != null && !sv ? ` · <b style="color:var(--ok)">anotado ${nf(got, 1)} ${c.u}</b>` : ""}</div></div>
+      ${sv ? `<div class="hdone" role="status"><span>✓ ${nf(sv.v, 1)} ${u} anotado</span>${sv.id && window.huertoApi ? `<button type="button" class="lnk" data-hundo="${esc(key)}">Deshacer</button>` : ""}<button type="button" class="lnk" data-hmore="${esc(key)}">Anotar otra cantidad</button></div>`
+      : `<div class="hrow"><label class="fl"><span class="fll">Cantidad cosechada</span><span class="inu"><input type="number" inputmode="decimal" step="0.1" min="0" data-keep="hv|${esc(key)}" data-key="${esc(key)}" data-bed="${esc(g.beds.join(", "))}" data-crop="${g.crop}"${err ? ` class="invalid" aria-invalid="true"` : ""}><span class="u">${u}</span></span></label><button class="btn" data-save="1">Anotar cosecha</button></div>${err ? `<span class="ferr">Escribe los ${u === "kg" ? "kg" : "piezas"} antes de anotar.</span>` : ""}`}</div>`; }).join("") : `<p class="muted" style="margin:6px 0 0">Nada para cosechar hoy.</p>`}
   </section>` : `<p class="small muted" style="margin:0">La cosecha para cocina se hace lunes, miércoles y viernes.</p>`}
   <button class="btn" id="towa" style="align-self:flex-start">Copiar la semana para WhatsApp</button>`;
 };
 views.hoy.bind = root => {
   const step = k => { let {w, d} = state.hd; d += k; if (d > 5) { w++; d = 1; } if (d < 1) { w--; d = 5; } const first = w === 0 && typeof FIRST_DAY !== "undefined" ? FIRST_DAY : 1; if (w < 0 || (w === 0 && d < first) || w >= PLAN_WEEKS) return; state.hd = {w, d}; render(); };
-  root.querySelector("#dprev").onclick = () => step(-1);
-  root.querySelector("#dnext").onclick = () => step(1);
+  bindStepper(root, "dia", step);
   bindTasks(root);
   root.querySelector("#towa").onclick = () => copyText(whatsappText(state.hd.w));
+  const H = state.hsaved = state.hsaved || {}, E = state.herr = state.herr || {};
+  root.querySelectorAll("[data-hmore]").forEach(b => b.onclick = () => { delete H[b.dataset.hmore]; render(); });
+  root.querySelectorAll("[data-hundo]").forEach(b => b.onclick = async () => {
+    const key = b.dataset.hundo, sv = H[key]; if (!sv) return;
+    try { await window.huertoApi.post("/api/cocina/borrar", {id: sv.id}); delete H[key]; toast("Cosecha borrada"); window.dispatchEvent(new Event("huerto-refresh")); render(); }
+    catch (e) { saveErr(e, "No se pudo deshacer. Revisa la conexión."); }
+  });
   root.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
-    const inp = b.parentNode.querySelector("input"); const v = +inp.value;
-    if (!inp.value || !(v >= 0)) { inp.focus(); return; }
+    const inp = b.closest(".hrow").querySelector("input"), key = inp.dataset.key; const v = +inp.value;
+    if (!inp.value || !(v > 0)) { E[key] = true; render(); const n = [...document.querySelectorAll(".harv input[data-key]")].find(x => x.dataset.key === key); if (n) n.focus(); return; }
+    delete E[key];
     if (!state.db) { toast("No se puede guardar en esta vista."); return; }
     const c = CROPS[inp.dataset.crop];
     b.disabled = true;
-    try { await state.db.collection("cosechas").add({fecha: isoDay(state.hd.w, state.hd.d) > todayISO() ? todayISO() : isoDay(state.hd.w, state.hd.d), cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); toast("Anotado"); inp.value = ""; }
-    catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar"); }
-    b.disabled = false;
+    try { const ref = await state.db.collection("cosechas").add({fecha: isoDay(state.hd.w, state.hd.d) > todayISO() ? todayISO() : isoDay(state.hd.w, state.hd.d), cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); inp.value = ""; H[key] = {v, id: ref && ref.id}; render(); }
+    catch (e) { saveErr(e); b.disabled = false; }
   });
 };
 
@@ -1515,23 +1819,26 @@ views.semana = () => {
   const actBeds = {};
   T.forEach(t => { if (!t.bed || t.k === "semillero") return; const pri = {prep: 3, siembra: 4, cuidado: 2, cosecha: 1, semillero: 0}[t.k]; if (!actBeds[t.bed] || actBeds[t.bed].pri < pri) actBeds[t.bed] = {k: t.k, pri}; });
   const KC = {prep: ["url(#hatch)", "Preparar"], siembra: [cssv("--leaf"), "Sembrar o trasplantar"], cuidado: [cssv("--warn"), "Ralear o tutorar"], cosecha: [cssv("--accent"), "Cosechar"]};
-  const fill = id => { const a = actBeds[id]; if (!a) return {}; if (a.k === "prep") return {hatch: true, crop: "preparar"}; return {fill: KC[a.k][0], ink: "#ffffff", crop: KC[a.k][1].split(" ")[0].toLowerCase()}; };
-  let days = "";
+  const fill = id => { const a = actBeds[id]; if (!a) return {}; if (a.k === "prep") return {hatch: true, crop: "preparar"}; return {fill: KC[a.k][0], ink: "var(--bg)", crop: KC[a.k][1].split(" ")[0].toLowerCase()}; };
+  // Un día abierto (hoy si es esta semana; si no, el primero con tareas); los demás doblados: "Martes 3 nov · 7 tareas".
+  const tr = todayRef(), DO = state.dayOpen = state.dayOpen || {};
+  let days = "", firstD = null;
   for (let d = 1; d <= 5; d++) {
     const list = work.filter(t => t.d === d);
     if ((d === 1 || d === 3 || d === 5) && harv.length && !(w === 0 && typeof FIRST_DAY !== "undefined" && d < FIRST_DAY)) list.unshift({id: "hv" + d, d, k: "cosecha", t: "Cosecha para cocina antes de las 10:00 (ver lista de cosecha), pesar y anotar", min: 0});
     if (!list.length) continue;
-    days += `<div class="day"><h3><span>${DIAS[d]} ${wkDate(w).getDate() + d - 1 > 0 ? fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY)) : ""}</span><span class="num">${nf(list.reduce((a, t) => a + t.min, 0) / 60, 1)} h</span></h3>
-    ${list.map(t => taskRow(t, "c")).join("")}</div>`;
+    if (firstD == null) firstD = d;
+    const def = tr.w === w ? d === tr.d : d === firstD, open = DO[w + "-" + d] ?? def;
+    const nd = list.filter(t => state.done[t.id]).length;
+    days += `<details class="day" data-day="${w}-${d}"${open ? " open" : ""}><summary><span><b>${DIAS[d]} ${fmt(new Date(wkDate(w).getTime() + (d - 1) * DAY))}</b>${tr.w === w && tr.d === d ? ` <span class="chip">hoy</span>` : ""}</span><span class="small muted">${list.length} tarea${list.length === 1 ? "" : "s"}${nd ? ` · ${nd} hecha${nd === 1 ? "" : "s"}` : ""} · <span class="num">${nf(list.reduce((a, t) => a + t.min, 0) / 60, 1)} h</span></span></summary>
+    ${list.map(t => taskRow(t, "c")).join("")}</details>`;
   }
   const harvRows = Object.entries(byCrop).sort((a, b) => CROPS[a[0]].u.localeCompare(CROPS[b[0]].u) || b[1].qty - a[1].qty)
-    .map(([c, o]) => `<tr><td><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}</td><td class="num small">${o.beds.join(", ")}</td><td class="r num">${o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores"}</td></tr>`).join("");
+    .map(([c, o]) => `<tr><td><span class="dot" style="background:${CROPS[c].c}"></span> ${esc(CROPS[c].n)}</td>${td("Camas", o.beds.join(", "), "num small")}${td("Semana", o.u === "kg" ? nf(o.qty, 1) + " kg" : nf(o.qty) + " flores", "r num")}</tr>`).join("");
   const kgTot = Object.entries(byCrop).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, o]) => a + o.qty, 0);
   return `
+  <div class="vtop">${weekStepper("sem", w, `Semana ${w + 1} de ${PLAN_WEEKS}`)}</div>
   <div class="bar">
-    <div class="stepper"><button class="btn icon" id="wprev" aria-label="Semana anterior">←</button>
-      <div><div class="eyebrow">Semana ${w + 1} de ${PLAN_WEEKS}</div><h2>${weekRange(w)}</h2></div>
-      <button class="btn icon" id="wnext" aria-label="Semana siguiente">→</button></div>
     <div class="load"><div class="bar" style="justify-content:space-between;gap:6px"><span class="small"><b class="num">${nf(hrs, 1)} h</b> de ${CAP_H} h disponibles</span>${over ? `<span class="chip warn">⚠ Pedir apoyo: ${nf(hrs - CAP_H, 0)} h extra</span>` : `<span class="chip">✓ Cabe en la semana</span>`}</div>
       <div class="meter${over ? " over" : ""}"><i style="width:${Math.min(100, hrs / CAP_H * 100)}%"></i></div></div>
     <button class="btn primary" id="wa">Copiar para WhatsApp</button>
@@ -1545,7 +1852,7 @@ views.semana = () => {
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
       <section class="panel" aria-label="Cosecha de la semana">
         <div class="bar" style="justify-content:space-between;margin-bottom:6px"><h3>Cosecha esperada</h3><span class="num small">${nf(kgTot, 1)} kg</span></div>
-        ${harvRows ? `<div class="scroll"><table><thead><tr><th>Cultivo</th><th>Camas</th><th class="r">Semana</th></tr></thead><tbody>${harvRows}</tbody></table></div><p class="small muted" style="margin:8px 0 0">Repartir en 3 entregas: lunes, miércoles y viernes.</p>` : `<p class="muted small" style="margin:0">Sin cosecha esta semana: las camas se están limpiando y sembrando.</p>`}
+        ${harvRows ? `<div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Camas</th><th class="r">Semana</th></tr></thead><tbody>${harvRows}</tbody></table></div><p class="small muted" style="margin:8px 0 0">Repartir en 3 entregas: lunes, miércoles y viernes.</p>` : `<p class="muted small" style="margin:0">Sin cosecha esta semana: las camas se están limpiando y sembrando.</p>`}
       </section>
       <section class="mapbox" aria-label="Mapa de la semana">
         <div class="legend" style="padding:4px 4px 8px"><span><span class="dot" style="background:var(--soil)"></span>Preparar</span><span><span class="dot" style="background:var(--leaf)"></span>Sembrar</span><span><span class="dot" style="background:var(--warn)"></span>Ralear o tutorar</span><span><span class="dot" style="background:var(--accent)"></span>Cosechar</span></div>
@@ -1556,8 +1863,8 @@ views.semana = () => {
   </div>`;
 };
 views.semana.bind = root => {
-  root.querySelector("#wprev").onclick = () => { if (state.w > 0) { state.w--; subscribeDone(); render(); } };
-  root.querySelector("#wnext").onclick = () => { if (state.w < PLAN_WEEKS - 1) { state.w++; subscribeDone(); render(); } };
+  bindWeekStepper(root, "sem");
+  root.querySelectorAll("details.day").forEach(dt => dt.ontoggle = () => { state.dayOpen[dt.dataset.day] = dt.open; });
   bindTasks(root);
   root.querySelector("#wa").onclick = () => copyText(whatsappText(state.w));
   bindBeds(root.querySelector("#wkmap"), () => { state.view = "mapa"; render(); });
@@ -1602,6 +1909,16 @@ function showCopyBox(txt){
   const ta = box.querySelector("textarea"); ta.focus(); ta.select();
 }
 
+const ST_WORD = {cosecha: "en cosecha", crece: "creciendo", prepara: "preparar la cama"};
+function zoneBeds(z){ return BEDS.filter(b => !z || z === "todo" || (z === "B" ? b.sec === "B" : z === "I" ? b.sec === "I" : b.q === z)).map(b => b.id); }
+// Lista de camas debajo del mapa: en el celular las camas del mapa son muy chicas para tocarlas y leerlas.
+function bedList(w){
+  return `<ul class="bedlist" aria-label="Camas">${zoneBeds(state.zone).map(id => {
+    const segs = bedSegs(plan, id, w);
+    const lines = segs.length ? segs.map(sg => `<span class="bli"><span class="sw" style="background:${sg.st === "prepara" ? "var(--soil)" : sg.p.c.c}"></span><span>${sg.st === "prepara" ? "Preparar" : esc(shortName(sg.p.c.n))}${sg.p.frac < .999 ? ` <span class="muted">${nf(sg.m, 1)} m</span>` : ""} · <span class="muted">${ST_WORD[sg.st]}</span></span></span>`).join("") : `<span class="bli"><span class="sw" style="border:1px solid var(--line)"></span><span class="muted">Libre</span></span>`;
+    return `<li><button type="button" class="blr" data-bedrow="${id}" aria-pressed="${state.bed === id}"><b>${id}</b><span class="blc">${lines}</span><span class="chev" aria-hidden="true">›</span></button></li>`;
+  }).join("")}</ul>`;
+}
 views.mapa = () => {
   const w = weekOfMonth(state.month);
   const present = {};
@@ -1610,27 +1927,33 @@ views.mapa = () => {
   const kg = Object.entries(totals).filter(([c]) => CROPS[c].u === "kg").reduce((a, [, v]) => a + v, 0);
   const fl = Object.entries(totals).filter(([c]) => CROPS[c].u !== "kg").reduce((a, [, v]) => a + v, 0);
   return `
-  <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Estado de las camas a mediados de mes</div>${monthStepper()}</div>
+  <div class="vtop">${monthStepper("Camas a mediados de mes")}
     <div class="bar small"><span class="chip">≈ ${nf(kg)} kg de cosecha</span>${fl ? `<span class="chip">≈ ${nf(fl)} flores</span>` : ""}</div></div>
   <div class="cols">
-    <div class="mapbox">${zonePicker("m")}<button class="btn primary" id="tocenso" style="margin-top:8px;width:100%;min-height:46px">Actualizar camas (censo)</button><div id="mmap" style="margin-top:8px">${mapSVG({fill: id => monthFill(id, w)})}</div></div>
+    <div class="mapbox">${zonePicker("m")}<button class="btn primary" id="tocenso" style="margin-top:8px;width:100%;min-height:46px">Actualizar camas (censo)</button>
+      <p class="small muted maphint">Toca una cama en el mapa o en la lista para ver su plan del año y actualizarla.</p>
+      <div id="mmap">${mapSVG({fill: id => monthFill(id, w)})}</div>
+      <h3 class="blh">Camas en ${esc(monthLabel(state.month).toLowerCase())}</h3>
+      ${bedList(w)}</div>
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+      ${state.bed ? `<section class="panel" id="bedpanel">${bedTimeline(state.bed)}</section>` : ""}
       <section class="panel">
         <h3 style="margin-bottom:8px">Cómo leer el mapa</h3>
-        <div class="legend"><span><span class="dot" style="background:var(--leaf)"></span>Color fuerte: en cosecha</span><span><span class="dot" style="background:var(--leaf);opacity:.38"></span>Color claro: creciendo</span><span><span class="dot" style="background:url(#)" ></span><span class="dot" style="background:repeating-linear-gradient(45deg,var(--soil) 0 2px,var(--soil-2) 2px 4px)"></span>Preparar cama</span><span><span class="dot" style="border:1px solid var(--line)"></span>Libre</span></div>
+        <div class="legend"><span><span class="dot" style="background:var(--leaf)"></span>Color fuerte: en cosecha</span><span><span class="dot" style="background:var(--leaf);opacity:.38"></span>Color claro: creciendo</span><span><span class="dot" style="background:repeating-linear-gradient(45deg,var(--soil) 0 2px,var(--soil-2) 2px 4px)"></span>Preparar cama</span><span><span class="dot" style="border:1px solid var(--line)"></span>Libre</span></div>
         <h3 style="margin:14px 0 8px">Cultivos este mes</h3>
         <div class="legend">${Object.keys(present).map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)}</span>`).join("") || `<span class="muted">Camas en preparación</span>`}</div>
       </section>
-      <section class="panel" id="bedpanel">${state.bed ? bedTimeline(state.bed) : `<p class="muted" style="margin:0">Toca una cama para ver su plan del año o para <b>actualizar su estado</b> (limpia, lista para sembrar o sembrada).</p>`}</section>
     </div>
   </div>`;
 };
 views.mapa.bind = root => {
   bindMonthStepper(root);
   bindReal(root, render);
-  const tc = root.querySelector("#tocenso"); if (tc) tc.onclick = () => go("censo");
-  root.querySelectorAll("[data-censo]").forEach(b => b.onclick = () => { state.cfocus = b.dataset.censo; go("censo"); });
-  bindBeds(root.querySelector("#mmap"), () => { state.upd = null; render(); const p = document.getElementById("bedpanel"); if (p && window.innerWidth < 860) p.scrollIntoView({behavior: "smooth", block: "start"}); });
+  const tc = root.querySelector("#tocenso"); if (tc) tc.onclick = () => { state.cfrom = "mapa"; go("censo"); };
+  root.querySelectorAll("[data-censo]").forEach(b => b.onclick = () => { state.cfocus = state.copen = b.dataset.censo; state.cfrom = "mapa"; go("censo"); });
+  const open = id => { state.bed = id; state.upd = null; render(); const p = document.getElementById("bedpanel"); if (p && window.innerWidth < 860) p.scrollIntoView({behavior: "smooth", block: "start"}); };
+  bindBeds(root.querySelector("#mmap"), () => open(state.bed));
+  root.querySelectorAll("[data-bedrow]").forEach(b => b.onclick = () => open(b.dataset.bedrow));
   bindZones(root, render);
 };
 
@@ -1667,7 +1990,8 @@ views.cosecha = () => {
   <div class="legend">${cats.map(k => `<span><span class="dot" style="background:var(${CAT[k][1]})"></span>${CAT[k][0]}</span>`).join("")}<span><span style="width:14px;height:0;border-top:2.5px solid var(--fg);display:inline-block"></span>Registrado</span></div></div>
   <section class="panel chart" id="chart">${svg}</section>
   <p class="small muted" style="margin:0">Noviembre sale casi vacío porque todas las camas se limpian en octubre; la producción arranca en diciembre. Los rendimientos son estimaciones de partida: el registro semanal de Adrián los corrige.</p>
-  <section class="panel"><h3 style="margin-bottom:8px">Detalle por cultivo</h3><div class="scroll">${table}</div></section>`;
+  <section class="panel"><h3 style="margin-bottom:8px">Detalle por cultivo</h3><div class="scroll only-wide">${table}</div>
+    <ul class="clist only-narrow">${crops.map(c => { let t = 0; const ms = months.map(m => { const v = (F[m] || {})[c] || 0; t += v; return v ? `<span>${monthShort(m)} <b class="num">${nf(v)}</b></span>` : ""; }).join(""); return `<li><div class="crh"><span class="dot" style="background:${CROPS[c].c}"></span><b>${esc(CROPS[c].n)}</b><span class="num">${nf(t)} ${CROPS[c].u === "kg" ? "kg" : "flores"}/año</span></div><div class="cmon">${ms}</div></li>`; }).join("")}</ul></section>`;
 };
 views.cosecha.bind = root => {
   const tip = document.getElementById("tip"), box = root.querySelector("#chart");
@@ -1686,32 +2010,44 @@ views.calendario = () => {
       const g = Math.max(0, (p.h0 - p.s) / (p.end - p.s + 1) * 100);
       return `<div class="seg" style="left:${pct(p.s)}%;width:${pct(p.end - p.s + 1)}%;top:${p.pos / BED[b.id].len * 100}%;bottom:auto;height:${p.m / BED[b.id].len * 100}%;background:${p.c.c}" title="${esc(p.c.n)}${p.frac < .999 ? " (" + nf(p.m, 1) + " m)" : ""}: ${p.ex ? "ya sembrado" : "siembra " + fmt(wkDate(p.s))}, cosecha ${fmt(wkDate(p.h0))} – ${fmt(wkDate(p.end))}"><i class="g" style="width:${g}%"></i><span>${esc(shortName(p.c.n))}</span></div>`;
     }).join("")}${todayW >= 0 && todayW < N ? `<i class="nowline" style="left:${pct(todayW + .5)}%"></i>` : ""}</div></div>`).join("");
+  // En el celular: lista por cama, de hoy en adelante ("A2 · Apio: creciendo hasta 11 ene → Arúgula desde 25 ene").
+  const w = nowW();
+  const phrase = p => { const where = p.frac < .999 ? ` <span class="muted">(${nf(p.m, 1)} m)</span>` : "";
+    const name = `<b>${esc(shortName(p.c.n))}</b>${where}`;
+    if (!p.ex && p.s > w) return `${name}: ${p.tray ? `semillero ${fmt(wkDate(p.ts))}, ` : ""}siembra ${fmt(wkDate(p.s))}${p.c.nokg ? "" : ` · cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`}`;
+    if (p.c.nokg || w >= p.h0) return `${name}: ${p.c.nokg ? "en la cama" : "en cosecha"} hasta ${fmt(wkDate(p.end))}`;
+    return `${name}: creciendo, cosecha ${fmt(wkDate(Math.max(0, p.h0)))} – ${fmt(wkDate(p.end))}`; };
+  const list = BEDS.map(b => { const ps = (plan.byBed[b.id] || []).filter(p => p.end >= w).sort((x, y) => x.s - y.s || x.pos - y.pos);
+    return `<li><b class="cb">${b.id}</b><ol>${ps.map(p => `<li><span class="sw" style="background:${p.c.c}"></span><span>${phrase(p)}</span></li>`).join("") || `<li class="muted">Sin siembras de aquí en adelante.</li>`}</ol></li>`; }).join("");
   return `
-  <div><div class="eyebrow">Las 34 camas, semana por semana</div><h2>Calendario de siembra y cosecha</h2></div>
+  <p class="small muted" style="margin:0">Las ${BEDS.length} camas, semana por semana.</p>
+  <ul class="callist only-narrow">${list}</ul>
+  <div class="only-wide" style="display:contents">
   <div class="legend small"><span><span class="dot" style="background:var(--leaf);opacity:.45"></span>Tramo claro: creciendo</span><span><span class="dot" style="background:var(--leaf)"></span>Tramo fuerte: en cosecha</span><span><span class="dot" style="background:var(--accent)"></span>Línea: semana actual</span></div>
   <section class="panel scroll"><div class="gantt" style="min-width:980px">
     <div class="gmonths"><span></span><div>${months.map(m => `<b style="left:${pct(m.w)}%">${monthShort(m.k)}</b>`).join("")}</div></div>
     ${rows}
-  </div></section>`;
+  </div></section></div>`;
 };
 
 views.cultivos = () => {
-  const cards = Object.entries(CROPS).map(([id, c]) => {
+  const card = ([id, c]) => {
     const ps = plan.P.filter(p => p.crop === id);
-    return `<article class="card"><h4><span class="dot" style="background:${c.c};width:14px;height:14px"></span>${esc(c.n)}</h4>
+    const met = c.met === "directa" ? "Siembra directa" : c.met === "plántula" ? `Semillero ${c.char} semanas, luego trasplante` : c.met === "división" ? "Perenne / división de plantas existentes" : c.met === "propia" ? "Plántula propia del huerto" : c.met === "existente" ? "Ya está en el huerto" : "Bulbo o tubérculo";
+    return `<details class="fold crop"><summary><span class="dot" style="background:${c.c};width:14px;height:14px"></span><span class="fs"><b>${esc(c.n)}</b><span class="small muted">${esc(met.split(",")[0])} · ${ps.length} siembra${ps.length === 1 ? "" : "s"}</span></span></summary>
     <dl class="kv"><dt>Inglés</dt><dd>${esc(c.en || "")}</dd>
-    <dt>Método</dt><dd>${c.met === "directa" ? "Siembra directa" : c.met === "plántula" ? `Semillero ${c.char} semanas, luego trasplante` : c.met === "división" ? "Perenne / división de plantas existentes" : c.met === "propia" ? "Plántula propia del huerto" : c.met === "existente" ? "Ya está en el huerto" : "Bulbo o tubérculo"}</dd>
+    <dt>Método</dt><dd>${met}</dd>
     <dt>Cómo</dt><dd>${esc(c.dist)}</dd>
     ${c.met === "existente" ? "" : `<dt>A cosecha</dt><dd>${c.sem} semanas (más en invierno)</dd>`}
     <dt>Cosecha</dt><dd>${c.dur >= 52 ? "Todo el año" : c.dur + " semanas"} · ${nf(c.kg, c.u === "kg" ? 1 : 0)} ${c.u}/sem por cama A</dd>
     <dt>En menú</dt><dd>${esc(c.menu)}</dd>
-    <dt>Camas</dt><dd class="num small">${ps.map(p => `${p.bed}${p.frac < .999 ? " (" + nf(p.m, 1) + " m)" : ""} · ${p.ex ? "ya sembrado" : fmt(wkDate(p.s))}`).join("<br>")}</dd></dl>
-    ${c.nota ? `<p class="small muted" style="margin:0">${esc(c.nota)}</p>` : ""}</article>`;
-  }).join("");
-  return `<div><div class="eyebrow">Ficha de cada cultivo</div><h2>${Object.keys(CROPS).length} cultivos en el plan</h2></div>
-  <p class="small muted" style="margin:0;max-width:70ch">Prioridad: cultivos de corte y rebrote, siembra directa y perennes, para que una persona pueda llevar el huerto; lo que es complicado o barato se compra. "Cama A" = 5 m²; en camas B el rendimiento se multiplica por 2.7.</p>
-  <div class="cards">${cards}</div>
-  <section class="panel"><h3 style="margin-bottom:8px">Mejor comprar que cultivar</h3><div class="scroll"><table><tbody>${BUY.map(b => `<tr><td style="white-space:nowrap"><b>${esc(b.n)}</b></td><td class="small">${esc(b.why)}</td></tr>`).join("")}</tbody></table></div></section>`;
+    <dt>Camas</dt><dd class="num small">${ps.map(p => `${p.bed}${p.frac < .999 ? " (" + nf(p.m, 1) + " m)" : ""} · ${p.ex ? "ya sembrado" : fmt(wkDate(p.s))}`).join("<br>") || "—"}</dd></dl>
+    ${c.nota ? `<p class="small muted" style="margin:0">${esc(c.nota)}</p>` : ""}</details>`;
+  };
+  const groups = [...Object.entries(CAT).map(([k, [n]]) => [n, Object.entries(CROPS).filter(([id]) => CROPCAT[id] === k)]), ["Flores y otros", Object.entries(CROPS).filter(([id]) => !CROPCAT[id])]].filter(g => g[1].length);
+  return `<p class="small muted" style="margin:0;max-width:70ch"><b>${Object.keys(CROPS).length} cultivos en el plan.</b> Toca uno para ver su ficha. Prioridad: cultivos de corte y rebrote, siembra directa y perennes, para que una persona pueda llevar el huerto; lo que es complicado o barato se compra. "Cama A" = 5 m²; en camas B el rendimiento se multiplica por 2.7.</p>
+  ${groups.map(([n, list]) => `<section class="cgroup"><h3>${esc(n)} · ${list.length}</h3><div class="cards">${list.sort((a, b) => a[1].n.localeCompare(b[1].n, "es")).map(card).join("")}</div></section>`).join("")}
+  <section class="panel"><h3 style="margin-bottom:8px">Mejor comprar que cultivar</h3><div class="scroll"><table class="stack"><tbody>${BUY.map(b => `<tr><td class="nw"><b>${esc(b.n)}</b></td><td class="small"><span class="v">${esc(b.why)}</span></td></tr>`).join("")}</tbody></table></div></section>`;
 };
 
 views.compras = () => {
@@ -1744,19 +2080,16 @@ views.compras = () => {
   const yq = (k, r) => [r.cells && `${nf(r.cells)} cavidades`, r.meters && `${nf(r.meters)} m de hilera`, r.bulbs && `${nf(r.bulbs)} ${k === "ajo" ? "dientes y bulbos" : "piezas"}`, r.area && `${nf(r.area)} m² al voleo`].filter(Boolean).join(" + ");
   let maxTrays = 0; for (let w = 0; w < PLAN_WEEKS; w++) maxTrays = Math.max(maxTrays, traysActive(plan, w).reduce((a, p) => a + p.trays, 0));
   return `
-  <div class="bar" style="justify-content:space-between">
-    <div><div class="eyebrow">Semillas para las próximas 6 semanas</div><h2>${weekRange(from).split(" – ")[0]} – ${weekRange(to).split(" – ")[1]}</h2></div>
-    <div class="stepper"><button class="btn icon" id="cprev" aria-label="Antes">←</button><button class="btn icon" id="cnext" aria-label="Después">→</button></div>
-  </div>
-  <section class="panel scroll"><table><thead><tr><th>Se usa</th><th>Cultivo</th><th>Dónde</th><th class="r">Cantidad</th><th>Cama</th></tr></thead><tbody>
-  ${items.map(r => `<tr><td class="num">${fmt(wkDate(r.when))}</td><td><span class="dot" style="background:${r.c.c}"></span> ${esc(r.c.n)}</td><td class="small">${r.uso}${STOCK[Object.keys(CROPS).find(k => CROPS[k] === r.c)] ? ` <span class="chip">en bodega</span>` : ""}</td><td class="r num">${r.q}</td><td class="num small">${r.bed}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No hay siembras en estas semanas.</td></tr>`}
-  </tbody></table></section>
-  <section class="panel scroll"><div class="bar" style="justify-content:space-between;margin-bottom:8px"><h3>Lista de compra del año</h3><span class="chip warn">${yrList.filter(([k]) => !STOCK[k]).length} por comprar · ${yrList.filter(([k]) => STOCK[k]).length} en bodega</span></div>
-  <table><thead><tr><th>Estado</th><th>Cultivo</th><th>Primera siembra</th><th class="r">Semilla para el año</th></tr></thead><tbody>
-  ${yrList.map(([k, r]) => `<tr><td>${STOCK[k] ? `<span class="chip">✓ En bodega</span>` : `<span class="chip warn">Comprar</span>`}</td><td><span class="dot" style="background:${CROPS[k].c}"></span> ${esc(CROPS[k].n)}${STOCK[k] && STOCK[k] !== CROPS[k].n ? ` <span class="muted small">· ${esc(STOCK[k])}</span>` : ""}</td><td class="num small">${fmt(wkDate(r.first))}</td><td class="r num small">${yq(k, r)}</td></tr>`).join("")}
-  </tbody></table>
-  <p class="small muted" style="margin:8px 0 0">"En bodega": revisar que alcance para la cantidad indicada y que la semilla tenga menos de 2 años. Las hierbas perennes no se compran: se dividen las que ya existen.</p></section>
-  <section class="panel"><h3 style="margin-bottom:8px">En bodega, fuera del plan de camas</h3><div class="scroll"><table><tbody>${EXTRA_SEEDS.map(x => `<tr><td style="white-space:nowrap"><b>${esc(x.n)}</b></td><td class="small">${esc(x.uso)}</td></tr>`).join("")}</tbody></table></div></section>
+  <div class="vtop">${navStepper("cmp", `${weekRange(from).split(" – ")[0]} – ${weekRange(to).split(" – ")[1]}`, "Semillas para 6 semanas", {group: "Semanas", prev: "6 semanas antes", next: "6 semanas después", prevOff: from <= 0, nextOff: from + 6 > PLAN_WEEKS - 1, startNote: "Son las primeras semanas del plan."})}</div>
+  <section class="panel"><div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Se usa</th><th>Dónde</th><th class="r">Cantidad</th><th>Cama</th></tr></thead><tbody>
+  ${items.map(r => `<tr><td><span class="dot" style="background:${r.c.c}"></span> ${esc(r.c.n)}</td>${td("Se usa", fmt(wkDate(r.when)), "num")}${td("Dónde", r.uso + (STOCK[Object.keys(CROPS).find(k => CROPS[k] === r.c)] ? ` <span class="chip">en bodega</span>` : ""), "small")}${td("Cantidad", r.q, "r num")}${td("Cama", r.bed, "num small")}</tr>`).join("") || `<tr><td colspan="5" class="muted">No hay siembras en estas semanas.</td></tr>`}
+  </tbody></table></div></section>
+  <details class="fold yr"><summary><span class="fs"><b>Lista de compra del año</b><span class="small muted">${yrList.filter(([k]) => !STOCK[k]).length} por comprar · ${yrList.filter(([k]) => STOCK[k]).length} en bodega · toca para ver</span></span></summary><div class="yrb">
+  <div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Estado</th><th>Primera siembra</th><th class="r">Semilla para el año</th></tr></thead><tbody>
+  ${yrList.map(([k, r]) => `<tr><td><span class="dot" style="background:${CROPS[k].c}"></span> ${esc(CROPS[k].n)}${STOCK[k] && STOCK[k] !== CROPS[k].n ? ` <span class="muted small">· ${esc(STOCK[k])}</span>` : ""}</td>${td("Estado", STOCK[k] ? `<span class="chip">✓ En bodega</span>` : `<span class="chip warn">Comprar</span>`)}${td("Primera siembra", fmt(wkDate(r.first)), "num small")}${td("Semilla", yq(k, r), "r num small")}</tr>`).join("")}
+  </tbody></table></div>
+  <p class="small muted" style="margin:8px 0 0">"En bodega": revisar que alcance para la cantidad indicada y que la semilla tenga menos de 2 años. Las hierbas perennes no se compran: se dividen las que ya existen.</p></div></details>
+  <section class="panel"><h3 style="margin-bottom:8px">En bodega, fuera del plan de camas</h3><div class="scroll"><table class="stack"><tbody>${EXTRA_SEEDS.map(x => `<tr><td class="nw"><b>${esc(x.n)}</b></td><td class="small"><span class="v">${esc(x.uso)}</span></td></tr>`).join("")}</tbody></table></div></section>
   <section class="panel"><h3 style="margin-bottom:8px">Material del semillero (una sola vez)</h3>
   <ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
     <li><b>Charolas: 30 de 200 cavidades (ya compradas)</b>. Máximo ${maxTrays} en uso a la vez; sobran para la experiencia "Planta y llévatela"</li>
@@ -1767,10 +2100,7 @@ views.compras = () => {
   </ul></section>
   <p class="small muted" style="margin:0;max-width:70ch">Para semilla directa, la bolsa indica cuántos metros de hilera rinde; comprar con margen y guardar en lugar fresco y seco. No se compran plántulas: todo lo que va trasplantado sale del semillero.</p>`;
 };
-views.compras.bind = root => {
-  root.querySelector("#cprev").onclick = () => { state.w = Math.max(0, state.w - 6); render(); };
-  root.querySelector("#cnext").onclick = () => { state.w = Math.min(PLAN_WEEKS - 1, state.w + 6); render(); };
-};
+views.compras.bind = root => bindStepper(root, "cmp", d => { state.w = Math.max(0, Math.min(PLAN_WEEKS - 1, state.w + 6 * d)); render(); });
 
 views.semillero = () => {
   const w = state.w;
@@ -1781,18 +2111,15 @@ views.semillero = () => {
   const N = PLAN_WEEKS, pct = x => x / N * 100;
   const rowStatus = p => w < p.ts ? ["Por sembrar", ""] : w < p.s - 1 ? ["En charola", "ok"] : w === p.s - 1 ? ["Endurecer", "warn"] : ["Trasplantado", ""];
   return `
-  <div class="bar" style="justify-content:space-between">
-    <div class="stepper"><button class="btn icon" id="sprev" aria-label="Semana anterior">←</button>
-      <div><div class="eyebrow">Semillero · semana ${w + 1}</div><h2>${weekRange(w)}</h2></div>
-      <button class="btn icon" id="snext" aria-label="Semana siguiente">→</button></div>
+  <div class="vtop">${weekStepper("sdl", w, `Semillero · semana ${w + 1}`)}
     <div class="bar small"><span class="chip">${used} cultivo${used === 1 ? "" : "s"} en la mesa</span>${sowNow.length ? `<span class="chip warn">Sembrar esta semana: ${[...new Set(sowNow.map(p => shortName(p.c.n)))].map(esc).join(", ")}</span>` : ""}</div>
   </div>
   <p class="small muted" style="margin:0;max-width:72ch">Las charolas están en la mesa de semillero (dentro del invernadero este, lado sur), fuera de las camas: no ocupan espacio del huerto. La cama que aparece es solo el destino final; sigue produciendo su cultivo anterior hasta el día del trasplante. Todo lo que se trasplanta nace aquí, entre 4 y 9 semanas antes. La última semana se endurece: al sol y al viento, con menos agua. Kale y acelga de octubre se siembran directo en la cama porque ya no da tiempo de semillero.</p>
   <div class="cols">
     <section class="panel">
       <h3 style="margin-bottom:8px">En la mesa esta semana</h3>
-      ${act.length || sowNow.length ? `<div class="scroll"><table><thead><tr><th>Cultivo</th><th class="r">Semillas</th><th>Va a</th><th>Trasplante</th><th>1ª cosecha</th><th>Estado</th></tr></thead><tbody>
-      ${[...new Set([...sowNow, ...act])].map(p => { const st = rowStatus(p); return `<tr><td><span class="dot" style="background:${p.c.c}"></span> <b>${esc(p.c.n)}</b></td><td class="r num">${p.cells * 2}</td><td class="num small">${p.bed}</td><td class="num small">${fmt(wkDate(p.s))}</td><td class="num small">${fmt(wkDate(p.h0))}</td><td><span class="chip ${st[1]}">${p.ts === w ? "Sembrar hoy" : st[0]}</span></td></tr>`; }).join("")}
+      ${act.length || sowNow.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th class="r">Semillas</th><th>Va a</th><th>Trasplante</th><th>1ª cosecha</th><th>Estado</th></tr></thead><tbody>
+      ${[...new Set([...sowNow, ...act])].map(p => { const st = rowStatus(p); return `<tr><td><span class="dot" style="background:${p.c.c}"></span> <b>${esc(p.c.n)}</b></td>${td("Semillas", p.cells * 2, "r num")}${td("Va a la cama", p.bed, "num small")}${td("Trasplante", fmt(wkDate(p.s)), "num small")}${td("1ª cosecha", fmt(wkDate(p.h0)), "num small")}${td("Estado", `<span class="chip ${st[1]}">${p.ts === w ? "Sembrar hoy" : st[0]}</span>`)}</tr>`; }).join("")}
       </tbody></table></div>` : `<p class="muted small" style="margin:0">La mesa está vacía esta semana.</p>`}
     </section>
     <section class="panel">
@@ -1807,16 +2134,14 @@ views.semillero = () => {
       </ol>
     </section>
   </div>
-  <section class="panel scroll"><h3 style="margin-bottom:8px">Todo el año</h3>
-    <div class="gantt" style="min-width:860px">
-      ${all.map(p => `<div class="grow" style="grid-template-columns:150px 1fr"><span class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(shortName(p.c.n))} · destino ${p.bed}</span><div class="track"><div class="seg" style="left:${pct(p.ts)}%;width:${pct(p.s - p.ts)}%;background:${p.c.c}" title="${esc(p.c.n)}: charola ${fmt(wkDate(p.ts))}, trasplante ${fmt(wkDate(p.s))}"><span>${p.bed}</span></div><i class="nowline" style="left:${pct(w + .5)}%"></i></div></div>`).join("")}
-    </div>
+  <section class="panel"><h3 style="margin-bottom:8px">Todo el año</h3>
+    <div class="scroll only-wide"><div class="gantt" style="min-width:860px">
+      ${all.map(p => `<div class="grow" style="grid-template-columns:200px 1fr"><span class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(shortName(p.c.n))} · destino ${p.bed}</span><div class="track"><div class="seg" style="left:${pct(p.ts)}%;width:${pct(p.s - p.ts)}%;background:${p.c.c}" title="${esc(p.c.n)}: charola ${fmt(wkDate(p.ts))}, trasplante ${fmt(wkDate(p.s))}"><span>${p.bed}</span></div><i class="nowline" style="left:${pct(w + .5)}%"></i></div></div>`).join("")}
+    </div></div>
+    <ul class="plist only-narrow">${all.filter(p => p.s >= w).map(p => `<li${w >= p.ts && w < p.s ? ' class="now"' : ""}><span class="sw" style="background:${p.c.c}"></span><span><b>${esc(shortName(p.c.n))}</b> → cama ${p.bed}<br><span class="small muted">charola ${fmt(wkDate(p.ts))} · trasplante ${fmt(wkDate(p.s))}${w >= p.ts && w < p.s ? " · en la mesa ahora" : ""}</span></span></li>`).join("") || `<li class="muted">No quedan charolas en el plan.</li>`}</ul>
   </section>`;
 };
-views.semillero.bind = root => {
-  root.querySelector("#sprev").onclick = () => { if (state.w > 0) { state.w--; subscribeDone(); render(); } };
-  root.querySelector("#snext").onclick = () => { if (state.w < PLAN_WEEKS - 1) { state.w++; subscribeDone(); render(); } };
-};
+views.semillero.bind = root => bindWeekStepper(root, "sdl");
 
 views.experiencias = () => {
   const w = weekOfMonth(state.month);
@@ -1835,7 +2160,7 @@ views.experiencias = () => {
     </article>`;
   }).join("");
   return `
-  <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Huerto para visitantes · 1 o 2 veces por semana</div>${monthStepper()}</div></div>
+  <div class="vtop">${monthStepper("Huerto para visitantes · 1 o 2 veces por semana")}</div>
   <section class="panel"><h3 style="margin-bottom:8px">In the garden this month · para el guía</h3>
     <div class="legend">${inHarvest.map(c => `<span><span class="dot" style="background:${CROPS[c].c}"></span>${esc(CROPS[c].n)} <span class="muted" lang="en">· ${esc(CROPS[c].en || "")}</span></span>`).join("") || `<span class="muted">Beds are being prepared and sown this month: show the nursery trays and the compost pile.</span>`}</div>
   </section>
@@ -1846,47 +2171,72 @@ views.experiencias.bind = root => bindMonthStepper(root);
 
 views.registro = () => {
   const today = new Date(); const iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
-  const rows = state.harvests.slice(0, 60).map(h => `<tr><td class="num">${esc(h.fecha)}</td><td class="num">${esc(h.cama)}</td><td>${esc(CROPS[h.cultivo]?.n || h.cultivo)}</td><td class="r num">${nf(+h.cantidad || 0, 1)} ${esc(h.u)}</td><td class="small muted">${esc(h.nota || "")}</td></tr>`).join("");
+  const rows = state.harvests.slice(0, 60).map(h => `<tr><td>${esc(CROPS[h.cultivo]?.n || h.cultivo)}</td>${td("Fecha", esc(fmtISO(h.fecha)), "num nw")}${td("Cama", esc(h.cama), "num")}${td("Cantidad", `${nf(+h.cantidad || 0, 1)} ${esc(h.u)}`, "r num")}${h.nota ? td("Nota", esc(h.nota), "small muted") : `<td class="small muted hide-narrow"></td>`}</tr>`).join("");
   const canWrite = !!state.db;
   return `
-  <div><div class="eyebrow">Lo que realmente salió del huerto</div><h2>Registro de cosecha</h2></div>
-  <p class="small muted" style="margin:0;max-width:70ch">Adrián manda por WhatsApp el peso de cada entrega; aquí se captura. Con 4–6 semanas de registro se ajustan los rendimientos del plan.</p>
+  <p class="small muted" style="margin:0;max-width:70ch">Lo que realmente salió del huerto. Adrián manda por WhatsApp el peso de cada entrega; aquí se captura. Con 4–6 semanas de registro se ajustan los rendimientos del plan.</p>
   ${canWrite ? `<form class="reg panel" id="regf">
-    <label>Fecha<input type="date" id="rf-fecha" value="${iso}" required></label>
-    <label>Cama<select id="rf-cama">${BEDS.map(b => `<option>${b.id}</option>`).join("")}</select></label>
-    <label>Cultivo<select id="rf-cultivo">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${esc(c.n)}</option>`).join("")}</select></label>
-    <label>Cantidad<input type="number" id="rf-cant" min="0" step="0.1" inputmode="decimal" required placeholder="kg o flores"></label>
-    <label>Nota<input type="text" id="rf-nota" placeholder="opcional"></label>
-    <button class="btn primary" type="submit">Guardar</button>
+    <label>Fecha<input type="date" id="rf-fecha" data-keep="rf-fecha" value="${iso}" required></label>
+    <label>Cama<select id="rf-cama" data-keep="rf-cama">${BEDS.map(b => `<option>${b.id}</option>`).join("")}</select></label>
+    <label>Cultivo<select id="rf-cultivo" data-keep="rf-cultivo">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${esc(c.n)}</option>`).join("")}</select></label>
+    <label>Cantidad<input type="number" id="rf-cant" data-keep="rf-cant" min="0" step="0.1" inputmode="decimal" required placeholder="kg o flores"></label>
+    <label>Nota<input type="text" id="rf-nota" data-keep="rf-nota" placeholder="opcional"></label>
+    <button class="btn primary" type="submit">Guardar cosecha</button>
   </form>` : `<div class="notice">El registro se guarda solo al abrir esta página desde tu cuenta de Claude.</div>`}
-  <section class="panel scroll"><table><thead><tr><th>Fecha</th><th>Cama</th><th>Cultivo</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></section>
-  <section class="panel scroll"><h3 style="margin-bottom:8px">Reportes de camas</h3>${state.reports.length ? `<table><thead><tr><th>Fecha</th><th>Cama</th><th>Estado</th><th>Cuánto</th><th>Cosecha ≈</th></tr></thead><tbody>${state.reports.slice(0, 80).map(r => `<tr><td class="num">${esc(fmtISO(r.fecha))}</td><td class="num">${esc(r.cama)}</td><td>${r.estado === "sembrada" ? esc(CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado] || esc(r.estado)}</td><td class="small">${esc(repWhere(r))}</td><td class="num small">${esc(fmtISO(r.cosecha))}</td></tr>`).join("")}</tbody></table>` : `<p class="muted small" style="margin:0">Aún no hay reportes. Se hacen desde el Mapa: tocar la cama → “Actualizar cama”.</p>`}</section>`;
+  <section class="panel"><h3 style="margin-bottom:8px">Cosechas anotadas</h3><div class="scroll"><table class="stack"><thead><tr><th>Cultivo</th><th>Fecha</th><th>Cama</th><th class="r">Cantidad</th><th>Nota</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Aún no hay registros. La primera cosecha está prevista para noviembre (rábano y arúgula).</td></tr>`}</tbody></table></div></section>
+  <section class="panel"><h3 style="margin-bottom:8px">Reportes de camas</h3>${state.reports.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Cama</th><th>Fecha</th><th>Estado</th><th>Cuánto</th><th>Cosecha ≈</th></tr></thead><tbody>${state.reports.slice(0, 80).map(r => `<tr><td class="num">${esc(r.cama)}</td>${td("Fecha", esc(fmtISO(r.fecha)), "num nw")}${td("Estado", r.estado === "sembrada" ? esc(CROPS[r.cultivo]?.n || r.cultivo) : EST[r.estado] || esc(r.estado))}${td("Cuánto", esc(repWhere(r)), "small")}${r.cosecha ? td("Cosecha ≈", esc(fmtISO(r.cosecha)), "num small") : `<td class="hide-narrow"></td>`}</tr>`).join("")}</tbody></table></div>` : `<p class="muted small" style="margin:0">Aún no hay reportes. Se hacen desde el Mapa: tocar la cama → “Actualizar cama”.</p>`}</section>`;
 };
 views.registro.bind = root => {
   const f = root.querySelector("#regf"); if (!f) return;
   const cama = f.querySelector("#rf-cama"), cult = f.querySelector("#rf-cultivo");
   const syncCrop = () => { const w = Math.max(0, Math.min(PLAN_WEEKS - 1, Math.floor((D(f.querySelector("#rf-fecha").value) - D(PLAN_START)) / (7 * DAY)))); const st = bedState(plan, cama.value, w); if (st.p) cult.value = st.p.crop; };
-  cama.onchange = syncCrop; syncCrop();
+  cama.onchange = syncCrop; if (!render.kept || !render.kept["rf-cultivo"]) syncCrop();
   f.onsubmit = async e => {
     e.preventDefault();
     const c = CROPS[cult.value];
     const doc = {fecha: f.querySelector("#rf-fecha").value, cama: cama.value, cultivo: cult.value, cantidad: +f.querySelector("#rf-cant").value, u: c.u, nota: f.querySelector("#rf-nota").value.slice(0, 200), at: Date.now()};
-    try { await state.db.collection("cosechas").add(doc); toast("Guardado"); f.querySelector("#rf-cant").value = ""; f.querySelector("#rf-nota").value = ""; }
-    catch (err) { toast(err && err.code === "quota_exceeded" ? "El registro está lleno; hay que depurar entradas viejas." : "No se pudo guardar. Revisa la conexión e intenta de nuevo."); }
+    const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+    try { await state.db.collection("cosechas").add(doc); toast(`Guardado: ${nf(doc.cantidad, 1)} ${c.u} de ${c.n}`); f.querySelector("#rf-cant").value = ""; f.querySelector("#rf-nota").value = ""; }
+    catch (err) { saveErr(err); }
+    btn.disabled = false;
   };
 };
 
 /* ---------- tareas ---------- */
 const KLAB = {semillero:"Semillero",prep:"Preparar",siembra:"Siembra",cuidado:"Cuidado",base:"Rutina",cosecha:"Cosecha"};
+// A task is done (check), couldn't be done (✗ + reason) or needs help; "⋯" opens those options and a note.
+const NOPE = ["Plaga o animales", "Clima", "Falta material", "No hubo tiempo", "Ya no hacía falta"];
 function taskRow(t, pre){
-  const done = state.done[t.id];
-  return `<div class="task${done ? " done" : ""}"><input type="checkbox" id="${pre}-${t.id}" data-id="${t.id}" ${done ? "checked" : ""}><label for="${pre}-${t.id}"><span class="k ${t.k}">${KLAB[t.k]}</span>${t.b ? `<b class="crop">${esc(t.b)}</b> · ` : ""}${esc(t.t)}</label>${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</div>`;
+  const done = state.done[t.id], nope = (state.nope || {})[t.id], help = (state.flags || {})[t.id], open = state.topen === t.id;
+  const note = nope != null ? nope : help != null ? help : (state.dnote || {})[t.id] || "";
+  return `<div class="taskw${done ? " done" : ""}${nope != null ? " nope" : ""}${open ? " open" : ""}"><label class="task${done ? " done" : ""}"><input type="checkbox" data-id="${t.id}" ${done ? "checked" : ""}${nope != null ? ` aria-label="No se pudo"` : ""}><span class="th"><span class="k ${t.k}">${KLAB[t.k]}</span>${t.b ? `<b class="crop">${esc(t.b)}</b>` : ""}${t.min ? `<span class="t">${t.min >= 60 ? nf(t.min / 60, 1) + " h" : Math.round(t.min) + " min"}</span>` : ""}</span><span class="tx">${esc(t.t)}${nope != null ? `<span class="why bad">✗ No se pudo${nope ? ": " + esc(nope) : ""}</span>` : help != null ? `<span class="why warn">Pidió ayuda${help ? ": " + esc(help) : ""}</span>` : done && note ? `<span class="why">${esc(note)}</span>` : ""}</span></label><button type="button" class="tmore" data-more="${t.id}" aria-expanded="${open}" aria-label="Más opciones de la tarea">⋯</button>
+  ${open ? `<div class="tpanel">
+    <div class="treasons">${NOPE.map(r => `<button type="button" data-tr="${esc(r)}">${esc(r)}</button>`).join("")}</div>
+    <input class="tnote" maxlength="200" value="${esc(note)}" placeholder="Nota (opcional): qué pasó" aria-label="Nota de la tarea">
+    <div class="tst"><button type="button" data-ts="hecho" aria-pressed="${!!done}">✓ Hecha</button><button type="button" data-ts="no" aria-pressed="${nope != null}">✗ No se pudo</button><button type="button" data-ts="ayuda" aria-pressed="${help != null}">Pedir ayuda</button></div>
+    ${t.k === "cosecha" ? `<p class="small muted" style="margin:0">Si no se cosechó, márcala “No se pudo”: así no se cuenta como cosecha.</p>` : ""}</div>` : ""}</div>`;
 }
 function bindTasks(root){
   root.querySelectorAll(".task input").forEach(cb => cb.addEventListener("change", () => toggleDone(cb.dataset.id, cb.checked)));
+  root.querySelectorAll("[data-more]").forEach(b => b.onclick = () => { state.topen = state.topen === b.dataset.more ? null : b.dataset.more; render(); });
+  root.querySelectorAll(".taskw.open").forEach(w => {
+    const id = w.querySelector("[data-more]").dataset.more, inp = w.querySelector(".tnote");
+    w.querySelectorAll("[data-tr]").forEach(b => b.onclick = () => { inp.value = b.dataset.tr; inp.focus(); });
+    w.querySelectorAll("[data-ts]").forEach(b => b.onclick = () => { setTaskState(id, b.dataset.ts, inp.value.trim()); state.topen = null; });
+  });
+}
+async function setTaskState(id, estado, nota){
+  state.nope = state.nope || {}; state.flags = state.flags || {}; state.dnote = state.dnote || {};
+  const prev = {d: state.done[id], n: state.nope[id], f: state.flags[id]};
+  delete state.nope[id]; delete state.flags[id]; state.done[id] = false;
+  if (estado === "hecho") { state.done[id] = true; state.dnote[id] = nota; } else if (estado === "no") state.nope[id] = nota; else state.flags[id] = nota;
+  render();
+  if (!state.db) return;
+  try { await state.db.doc(`hechas/w${state.w}-${id}`).set({w: state.w, id, estado, nota, at: Date.now()}); toast(estado === "hecho" ? "Tarea hecha" : estado === "no" ? "Anotado: no se pudo" : "Ayuda pedida"); }
+  catch (e) { state.done[id] = prev.d; if (prev.n != null) state.nope[id] = prev.n; else delete state.nope[id]; if (prev.f != null) state.flags[id] = prev.f; else delete state.flags[id]; render(); saveErr(e, "No se pudo guardar la tarea."); }
 }
 /* ---------- datos compartidos ---------- */
-const typing = () => { const a = document.activeElement; return !!a && a.matches("input[type=number], input[type=text], input[type=date], textarea, select"); };
+const typing = () => { if (document.querySelector(".pinsheet:not([hidden])")) return true; const a = document.activeElement; return !!a && a.matches("input:not([type=checkbox]):not([type=radio]), textarea, select"); };
 let unsubDone = null;
 function subscribeDone(){
   if (!state.db) return;
@@ -1894,28 +2244,35 @@ function subscribeDone(){
   const w = state.w;
   unsubDone = state.db.collection("hechas").where("w", "==", w).onSnapshot(snap => {
     if (w !== state.w) return;
-    const d = {}, f = {}; snap.docs.forEach(x => { const v = x.data(); if (!v || !v.id) return; if (v.estado === "ayuda") f[v.id] = v.nota || ""; else d[v.id] = true; });
-    state.done = d; state.flags = f; if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
+    const d = {}, f = {}, no = {}, dn = {}; snap.docs.forEach(x => { const v = x.data(); if (!v || !v.id) return; if (v.estado === "ayuda") f[v.id] = v.nota || ""; else if (v.estado === "no") no[v.id] = v.nota || ""; else { d[v.id] = true; if (v.nota) dn[v.id] = v.nota; } });
+    state.done = d; state.flags = f; state.nope = no; state.dnote = dn; if ((state.view === "semana" || state.view === "hoy") && !typing()) render();
   }, () => {});
 }
 async function toggleDone(id, on){
-  state.done[id] = on;
+  state.done[id] = on; if (state.nope) delete state.nope[id]; if (state.flags) delete state.flags[id];
   if (state.view === "semana" || state.view === "hoy") render();
   if (!state.db) return;
   const ref = state.db.doc(`hechas/w${state.w}-${id}`);
   try { on ? await ref.set({w: state.w, id, estado: "hecho", at: Date.now()}) : await ref.delete(); }
-  catch (e) { toast("No se pudo guardar la marca."); }
+  catch (e) { state.done[id] = !on; if (state.view === "semana" || state.view === "hoy") render(); saveErr(e, "No se pudo guardar la marca. Revisa la conexión."); }
 }
 /* ---------- render ---------- */
-const TITLES = {cocina: "Cocina", mensajes: "Mensajes con cocina", pedidos: "Pedidos de cocina", insumos: "Compras y semillas", censo: "Censo de camas", hoy: "Hoy", semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Semilla del plan", registro: "Registro"};
+const TITLES = {cocina: "Cocina", mensajes: "Mensajes con cocina", pedidos: "Pedidos de cocina", insumos: "Compras y banco de semillas", censo: "Censo de camas", hoy: "Hoy", semillero: "Semillero", experiencias: "Experiencias", semana: "Semana", mapa: "Mapa del mes", cosecha: "Cosecha", calendario: "Calendario", cultivos: "Cultivos", compras: "Semillas que pide el plan", registro: "Registro de cosecha"};
 const MAIN4 = ["hoy", "semana", "mapa", "cosecha"];
+const TOPTABS = ["hoy", "semana", "mapa", "cosecha", "calendario", "censo", "cocina"];
 function render(){
   const main = document.getElementById("main");
   const y = window.scrollY;
+  // Lo que la persona estaba escribiendo ([data-keep]) sobrevive a cada redibujo (p. ej. al volver de pedir el PIN).
+  const kept = {}; main.querySelectorAll("[data-keep]").forEach(e => { kept[e.dataset.keep] = e.value; });
   main.innerHTML = `<div class="view">${views[state.view]()}</div>`;
+  const restored = {}; main.querySelectorAll("[data-keep]").forEach(e => { const k = e.dataset.keep; if (k in kept && e.value !== kept[k]) { e.value = kept[k]; restored[k] = 1; } });
+  render.kept = restored;
   document.getElementById("vtitle").textContent = TITLES[state.view];
-  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view));
+  document.title = TITLES[state.view] + " · Huerto Dos Búhos";
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.v === state.view || (b.dataset.v === "mas" && !TOPTABS.includes(state.view)) ? "page" : "false"));
   document.querySelectorAll("nav.bottom button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view || (b.dataset.v === "mas" && !MAIN4.includes(state.view) && state.view !== "cocina")));
+  document.querySelectorAll("#sheet [data-v]").forEach(b => b.setAttribute("aria-current", b.dataset.v === state.view ? "page" : "false"));
   const kn = (state.pedidos || []).filter(x => x.estado === "nueva").length + (state.msgs || []).filter(m => m.de !== "huerto" && Date.now() - new Date(String(m.at).replace(" ", "T") + "Z") < 2 * DAY).length;
   document.querySelectorAll('nav button[data-v="cocina"]').forEach(b => { let x = b.querySelector(".nb"); if (!kn) { if (x) x.remove(); return; } if (!x) { x = document.createElement("span"); x.className = "nb"; b.appendChild(x); } x.textContent = kn; });
   if (views[state.view].bind) views[state.view].bind(main);
@@ -1923,11 +2280,16 @@ function render(){
   render.keep = true;
 }
 const sheet = document.getElementById("sheet");
-function go(v){ sheet.hidden = true; if (v === "hoy") state.hd = null; state.view = v; try { localStorage.setItem("huerto-vista", v); } catch (e) {} render.keep = false; render(); }
-document.querySelectorAll("nav.tabs button, .sheet button").forEach(b => b.onclick = () => go(b.dataset.v));
-document.querySelectorAll("nav.bottom button").forEach(b => b.onclick = () => { if (b.dataset.v === "mas") { sheet.hidden = false; return; } go(b.dataset.v); });
-sheet.addEventListener("click", e => { if (e.target === sheet) sheet.hidden = true; });
-document.addEventListener("keydown", e => { if (e.key === "Escape") sheet.hidden = true; });
+let sheetFrom = null;
+function openSheet(from){ sheetFrom = from || null; sheet.hidden = false; const c = sheet.querySelector("[data-close]"); if (c) c.focus(); }
+function closeSheet(){ if (sheet.hidden) return; sheet.hidden = true; if (sheetFrom) sheetFrom.focus(); }
+function go(v){ sheet.hidden = true; if (v === "hoy") state.hd = null; if (v !== "censo") state.cfrom = null; state.view = v; try { localStorage.setItem("huerto-vista", v); } catch (e) {} if (location.hash.slice(1) !== v) history.pushState(null, "", "#" + v); render.keep = false; render(); }
+window.addEventListener("popstate", () => { const h = location.hash.slice(1); if (views[h] && h !== state.view) { state.view = h; if (h !== "censo") state.cfrom = null; render.keep = false; render(); } });
+document.querySelectorAll("nav.tabs button, nav.bottom button").forEach(b => b.onclick = () => { if (b.dataset.v === "mas") { openSheet(b); return; } state.cfrom = null; go(b.dataset.v); });
+sheet.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { state.cfrom = null; go(b.dataset.v); });
+sheet.querySelector("[data-close]").onclick = closeSheet;
+sheet.addEventListener("click", e => { if (e.target === sheet) closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
 state.view = window.matchMedia("(max-width: 859px)").matches ? "hoy" : "semana";
 try { const v = localStorage.getItem("huerto-vista"); if (v && views[v]) state.view = v; } catch (e) {}
 try { const z = localStorage.getItem("huerto-zona"); if (z) state.zone = z; } catch (e) {}

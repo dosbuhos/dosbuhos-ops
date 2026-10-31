@@ -1,5 +1,6 @@
 // JSON API. /api/me and /api/home for everyone signed in; /api/admin/* for Hub admins.
 import { audit } from './auth.js';
+import { themeApi } from './theme.js';
 
 export const J = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -36,6 +37,8 @@ export async function api(request, env, url, user) {
 
   if (!p.startsWith('/api/admin/')) return J({ code: 'not_found' }, 404);
   if (!user.admin) return J({ code: 'not_granted', message: 'Only a Hub admin can do that.' }, 403);
+
+  if (p === '/api/admin/theme' || p.startsWith('/api/admin/theme/')) return themeApi(request, env, url, user);
 
   if (p === '/api/admin/users' && m === 'GET') {
     const users = (await env.DB.prepare('SELECT email, name, is_admin, active, created_at, last_login FROM users ORDER BY name, email').all()).results;
@@ -113,7 +116,7 @@ export async function api(request, env, url, user) {
     const b = await body();
     const slug = String(b.slug || '').trim().toLowerCase();
     if (!SLUG.test(slug)) return J({ code: 'bad_request', message: 'Slug: lower-case letters, digits and dashes.' }, 400);
-    if (['api', 'auth', 'admin', 'kit'].includes(slug)) return J({ code: 'bad_request', message: 'That slug is reserved.' }, 400);
+    if (['api', 'auth', 'admin', 'kit', 'theme'].includes(slug)) return J({ code: 'bad_request', message: 'That slug is reserved.' }, 400);
     if (await env.DB.prepare('SELECT slug FROM apps WHERE slug = ?').bind(slug).first()) return J({ code: 'exists', message: 'That slug is taken.' }, 409);
     const section = await env.DB.prepare('SELECT slug FROM sections WHERE slug = ?').bind(String(b.section || '')).first();
     if (!section) return J({ code: 'bad_request', message: 'Unknown section.' }, 400);

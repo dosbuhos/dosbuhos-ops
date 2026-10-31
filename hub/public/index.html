@@ -7,10 +7,18 @@
 <title>Dos Búhos · Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/kit/kit.css">
+<link rel="stylesheet" href="/theme.css?app=hub"><link rel="stylesheet" href="/kit/kit.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-180.png">
 <meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#141719" media="(prefers-color-scheme: dark)">
+<style>
+.searchrow{display:flex;gap:8px;align-items:stretch;margin:0 0 14px}
+.searchrow .search{flex:1;min-width:0;margin:0}
+.jumpsel{flex:none;width:auto;max-width:9.5em;min-height:var(--db-tap,44px);padding:0 28px 0 12px;border:var(--bw,1px) solid var(--rule);border-radius:var(--r,12px);background-color:var(--paper);color:var(--ink);font:inherit;font-weight:600;font-size:14px}
+@media (min-width:720px){.jumpsel{display:none}}
+.home-head{display:flex;flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.home-head h1{font-size:28px;margin:0}
+</style>
 </head>
 <body>
 <header class="topbar"><div class="topbar-in">
@@ -23,12 +31,12 @@
 <main class="wrap">
   <div class="home-head"><h1 id="hello">Hola</h1><span class="date" id="date"></span></div>
   <div id="offline" class="offline" hidden>Sin señal. Lo que ya abriste sigue funcionando; las demás apps abren cuando regrese la señal.</div>
-  <label class="search">
+  <div class="searchrow"><label class="search">
     <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     <input id="q" type="search" placeholder="Buscar una app" autocomplete="off" enterkeyhint="go" aria-label="Buscar una app">
     <button class="clear" id="clear" type="button" aria-label="Borrar búsqueda" hidden>×</button>
   </label>
-  <nav class="jump" id="jump" aria-label="Secciones"></nav>
+  <select class="jumpsel" id="jump" aria-label="Ir a una sección" hidden></select></div>
   <div id="home"><div class="apps"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
 </main>
 
@@ -104,7 +112,8 @@ function render() {
   }
   $('#home').innerHTML = html;
   $('#jump').hidden = sections.length < 4;
-  $('#jump').innerHTML = sections.map(s => `<a class="k-${esc(s.slug)}" href="#s-${esc(s.slug)}">${esc(s.name)}</a>`).join('');
+  $('#jump').innerHTML = `<option value="">Secciones</option>` + sections.map(s => `<option value="${esc(s.slug)}">${esc(s.name)}</option>`).join('');
+  $('#jump').onchange = e => { const t = document.getElementById('s-' + e.target.value); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); e.target.value = ''; };
   wire();
 }
 

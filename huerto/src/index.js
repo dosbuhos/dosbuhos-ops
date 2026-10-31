@@ -53,7 +53,7 @@ export default {
         const b = await request.json();
         const w = Number(b.w), task = String(b.id || '').slice(0, 80);
         if (!Number.isInteger(w) || !task) return json({ error: 'Datos inválidos' }, 400);
-        const estado = b.estado === 'ayuda' ? 'ayuda' : 'hecho';
+        const estado = ['ayuda', 'no'].includes(b.estado) ? b.estado : 'hecho';
         if (b.done) await env.DB.prepare('INSERT OR REPLACE INTO hechas (w, task, estado, nota, txt) VALUES (?,?,?,?,?)')
           .bind(w, task, estado, String(b.nota || '').slice(0, 200), String(b.txt || '').slice(0, 300)).run();
         else await env.DB.prepare('DELETE FROM hechas WHERE w=? AND task=?').bind(w, task).run();

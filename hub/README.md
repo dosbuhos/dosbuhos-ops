@@ -11,6 +11,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 | `/auth/google`, `/auth/callback`, `/auth/salir` | Sign-in and sign-out |
 | `/api/…` | JSON for the pages above (`src/api.js`) |
 | `/kit/kit.css` | The shared UI kit (palette, type, rows, chips, role picker, tables, trend tiles). Apps behind the Hub can link it |
+| `/theme.css`, `/theme.json`, `/theme/logo-*` | The shared theme set in Admin → Diseño (public, CORS). How apps adopt it: [THEME.md](THEME.md) |
 | `/kit/demo.html` | Every kit component with the markup to copy (no sign-in needed) |
 
 ## Deploy (GitHub → Cloudflare Workers Builds, like the other apps)

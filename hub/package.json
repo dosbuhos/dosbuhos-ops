@@ -6,7 +6,8 @@
     "dev": "wrangler dev",
     "db:local": "wrangler d1 migrations apply hub --local",
     "db:remote": "wrangler d1 migrations apply hub --remote",
-    "deploy": "wrangler d1 migrations apply hub --remote && wrangler deploy"
+    "deploy": "wrangler d1 migrations apply hub --remote && wrangler deploy",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": { "wrangler": "^4.40.0" }
 }

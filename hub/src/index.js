@@ -3,16 +3,19 @@
 import { handleAuth, loginPage, currentUser } from './auth.js';
 import { api, roleFor, J } from './api.js';
 import { proxy } from './proxy.js';
+import { isPublicThemePath, publicTheme } from './theme.js';
 
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
-const RESERVED = new Set(['api', 'auth', 'admin', 'kit']);
+const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme']);
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     if (OPEN.test(p)) return assets(request, env, 'public, max-age=3600');
+    // The shared theme: apps on other origins load it, so no sign-in and CORS *. See THEME.md.
+    if (isPublicThemePath(p)) return publicTheme(request, env, url);
 
     const user = await currentUser(request, env);
     const seg = p.split('/')[1] || '';
@@ -62,7 +65,7 @@ function denied(what) {
   return new Response(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sin acceso · Dos Búhos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/kit/kit.css"></head><body class="login"><main class="login-card">
+<link rel="stylesheet" href="/theme.css?app=hub"><link rel="stylesheet" href="/kit/kit.css"></head><body class="login"><main class="login-card">
 <img class="login-logo wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160">
 <h1 class="h-display" style="font-size:28px">Sin acceso</h1>
 <p class="login-sub">No tienes acceso a ${what}. Pídele a Eric que te dé acceso.</p><a class="btn primary" href="/">Volver al inicio</a></main></body></html>`,

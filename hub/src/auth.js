@@ -26,6 +26,9 @@ export async function audit(env, actor, action, target = '', detail = '') {
 
 // The signed-in person, or null. { email, name, admin, sid }
 export async function currentUser(request, env) {
+  // Local development only: DEV_USER (set in a local .dev.vars / --var, never in wrangler.jsonc) signs that email in as a
+  // Hub admin, and only for requests to localhost. Production has no DEV_USER, so this line does nothing there.
+  if (env.DEV_USER && /^(localhost|127\.0\.0\.1)$/.test(new URL(request.url).hostname)) return { email: String(env.DEV_USER), name: 'Dev', admin: true, sid: 'dev' };
   const v = getCookie(request, COOKIE);
   if (!v) return null;
   const [sid, exp, sig] = v.split('|');
@@ -59,7 +62,7 @@ export function loginPage(url, message = '') {
 <meta name="robots" content="noindex"><title>Entrar · Dos Búhos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/kit/kit.css"><link rel="icon" href="/icon-192.png"></head>
+<link rel="stylesheet" href="/theme.css?app=hub"><link rel="stylesheet" href="/kit/kit.css"><link rel="icon" href="/icon-192.png"></head>
 <body class="login"><main class="login-card">
 <img class="login-logo wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160">
 <p class="login-sub">Las herramientas del equipo, en un solo lugar.</p>

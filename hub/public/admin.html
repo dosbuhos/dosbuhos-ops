@@ -7,7 +7,7 @@
 <title>Hub admin · Dos Búhos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/kit/kit.css">
+<link rel="stylesheet" href="/theme.css?app=hub"><link rel="stylesheet" href="/kit/kit.css">
 <link rel="icon" href="/icon-192.png">
 <style>
   /* People: list + detail. Phone shows one at a time; desktop shows both. */
@@ -15,21 +15,21 @@
   @media (min-width: 900px) { .people { grid-template-columns: 340px 1fr; align-items: start; } .people .back { display: none; } }
   @media (max-width: 899px) { .people.has-sel .plist-col { display: none; } .people:not(.has-sel) .detail-col { display: none; } }
   .plist { display: flex; flex-direction: column; gap: 6px; }
-  .person { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+  .person { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 12px; background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
   .person[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .person .who { flex: 1; min-width: 0; }
   .person .who b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .person .who small { color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
-  .addp summary { list-style: none; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 1px dashed var(--rule); border-radius: var(--radius); cursor: pointer; font-weight: 500; color: var(--accent); }
+  .addp summary { list-style: none; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: var(--bw) dashed var(--rule); border-radius: var(--radius); cursor: pointer; font-weight: 500; color: var(--accent); }
   .addp summary::-webkit-details-marker { display: none; }
   .addp[open] summary { display: none; }
 
   .phead { display: flex; align-items: center; gap: 14px; }
   .phead .h-display { font-size: 26px; line-height: 1.05; }
   .flags { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
-  .access-sec { padding: 12px 0; border-top: 1px solid var(--rule); }
+  .access-sec { padding: 12px 0; border-top: var(--bw) solid var(--rule); }
   .access-sec .sec-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-  .access-sec h3 { font-family: var(--f-display); font-size: 19px; font-weight: 600; padding-left: 10px; border-left: 3px solid var(--k, var(--rule)); }
+  .access-sec h3 { font-family: var(--f-display); font-size: 19px; font-weight: var(--w-display); padding-left: 10px; border-left: 3px solid var(--k, var(--rule)); }
   .access-sec .bulk { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .access-sec .bulk select { min-height: 44px; }
   .access-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
@@ -39,23 +39,23 @@
   .role-help { font-size: 12.5px; color: var(--muted); display: grid; gap: 2px; padding: 10px 12px; background: var(--paper-2); border-radius: var(--radius-sm); }
 
   /* Apps: one card per app, editing opens inside it */
-  .appcard { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); position: relative; overflow: hidden; }
+  .appcard { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); position: relative; overflow: hidden; }
   .appcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--k, var(--rule)); }
   .appcard summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 14px 10px 18px; cursor: pointer; }
   .appcard summary::-webkit-details-marker { display: none; }
   .appcard summary .n { flex: 1; min-width: 0; }
-  .appcard summary .n b { font-family: var(--f-display); font-size: 19px; font-weight: 600; display: block; line-height: 1.1; }
+  .appcard summary .n b { font-family: var(--f-display); font-size: 19px; font-weight: var(--w-display); display: block; line-height: 1.1; }
   .appcard summary .n small { color: var(--muted); font-size: 12.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .appcard .edit { display: grid; gap: 12px; padding: 4px 14px 16px 18px; border-top: 1px solid var(--rule); padding-top: 14px; }
+  .appcard .edit { display: grid; gap: 12px; padding: 4px 14px 16px 18px; border-top: var(--bw) solid var(--rule); padding-top: 14px; }
   .appcard .edit .grid2 { display: grid; gap: 12px; }
   @media (min-width: 640px) { .appcard .edit .grid2 { grid-template-columns: 1fr 1fr; } }
-  .appgroup h3 { font-family: var(--f-display); font-size: 20px; font-weight: 600; margin: 8px 0 8px; }
+  .appgroup h3 { font-family: var(--f-display); font-size: 20px; font-weight: var(--w-display); margin: 8px 0 8px; }
 
   /* Audit: day headers and sentences */
   .filters { display: grid; gap: 10px; }
   @media (min-width: 640px) { .filters { grid-template-columns: 1fr 1fr; } }
-  .day { font-family: var(--f-display); font-size: 19px; font-weight: 600; margin: 18px 0 6px; }
-  .ev { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
+  .day { font-family: var(--f-display); font-size: 19px; font-weight: var(--w-display); margin: 18px 0 6px; }
+  .ev { display: flex; gap: 12px; padding: 10px 0; border-bottom: var(--bw) solid var(--rule); align-items: flex-start; }
   .ev .t { flex: none; width: 52px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); padding-top: 1px; }
   .ev .s { flex: 1; min-width: 0; line-height: 1.45; }
   .ev .s b { font-weight: 600; }
@@ -63,6 +63,106 @@
   .ev.sys .s { color: var(--muted); }
   .ev .tag { flex: none; }
   .end { color: var(--muted); font-size: 13px; padding: 14px 0; }
+
+  .tabs a { min-width: 44px; justify-content: center; }
+
+  /* ============ Diseño: one theme for every app. Phone = one column; ≥1000px = controls | live preview ============ */
+  .dz { display: grid; gap: 16px; }
+  .dz > section { min-width: 0; }
+  .dz h2 { font-family: var(--f-display); font-weight: var(--w-display); font-size: 22px; }
+  .dz .lead { margin: 0; max-width: 70ch; }
+  @media (min-width: 1000px) {
+    .dz { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); grid-template-areas: "intro intro" "presets live" "ajustes live" "import live" "apps live" "logos live" "hist live"; align-items: start; }
+    .dz-intro { grid-area: intro; } .dz-presets { grid-area: presets; } .dz-ajustes { grid-area: ajustes; } .dz-import { grid-area: import; }
+    .dz-apps { grid-area: apps; } .dz-logos { grid-area: logos; } .dz-hist { grid-area: hist; }
+    /* Sticky beside the controls; scrolls on its own when taller than the window. Nothing else shares its column. */
+    .dz-live { grid-area: live; position: sticky; top: 66px; max-height: calc(100vh - 80px); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  }
+  .dz-live-in { display: grid; gap: 14px; }
+  @media (min-width: 1200px) { .dz-live-in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .pcard { display: flex; flex-direction: column; gap: 6px; min-height: 92px; padding: 10px 12px; text-align: left; font: inherit; color: var(--ink); background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); cursor: pointer; }
+  .pcard[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .pcard b { font-size: 19px; line-height: 1.1; }
+  .pcard small { color: var(--muted); font-size: 12.5px; line-height: 1.3; }
+  .sw { display: flex; gap: 4px; }
+  .sw i { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--field-rule); display: block; }
+  .dz-seg { display: grid !important; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); width: 100%; }
+  .dz-seg button { padding: 0 6px; }
+  .dz-fields { display: grid; gap: 14px; }
+  @media (min-width: 640px) { .dz-fields.two { grid-template-columns: 1fr 1fr; } }
+  .colorpick { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; }
+  .colorpick input[type="color"] { padding: 3px; min-height: var(--tap); height: var(--tap); cursor: pointer; }
+  .dz-colors { display: grid; gap: 10px; padding-top: 10px; }
+  .dz-colors .crow { display: grid; grid-template-columns: minmax(0, 1fr) 56px 104px; gap: 8px; align-items: center; font-size: 13.5px; }
+  .dz details > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 500; color: var(--accent); }
+  .approw { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: var(--bw) solid var(--rule); }
+  @media (min-width: 640px) { .approw { flex-direction: row; align-items: center; } .approw .n { flex: 1; } .approw select { width: 240px; } }
+  .approw .n small { display: block; color: var(--muted); font-size: 12.5px; }
+  .logos { display: grid; gap: 12px; }
+  @media (min-width: 640px) { .logos { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .logo-slot { display: flex; flex-direction: column; gap: 8px; }
+  .logo-box { height: 96px; display: grid; place-items: center; border-radius: var(--radius-sm); border: var(--bw) dashed var(--field-rule); padding: 10px; color: var(--muted); font-size: 13px; text-align: center; }
+  .logo-box img { max-width: 100%; max-height: 72px; object-fit: contain; }
+  .logo-slot .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .logo-slot .acts > * { flex: 1 1 auto; }
+  .filebtn { position: relative; overflow: hidden; }
+  .filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; min-height: 0; }
+  textarea { min-height: 120px; resize: vertical; line-height: 1.4; }
+  .note-box { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--ink); border: var(--bw) solid var(--warn); font-size: 13.5px; overflow-wrap: anywhere; }
+  .msg { font-size: 13.5px; overflow-wrap: anywhere; margin: 0; }
+  .msg.bad { color: var(--bad); font-weight: 500; } .msg.ok { color: var(--ok); font-weight: 500; }
+  .msg ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-weight: 400; }
+  .cr-sum { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cr { display: grid; gap: 0; }
+  .cr .r { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: var(--bw) solid var(--rule); }
+  .cr .aa { width: 40px; height: 40px; border-radius: var(--radius-sm); display: grid; place-items: center; font-weight: 600; font-size: 17px; border: 1px solid var(--rule); }
+  .cr .l { min-width: 0; font-size: 13.5px; line-height: 1.3; }
+  .cr .l small { display: block; color: var(--muted); font-size: 12px; font-family: var(--f-mono); }
+  .cr .v { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .cr .v .num { font-size: 14px; }
+  .hist-row { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: var(--bw) solid var(--rule); }
+  @media (min-width: 640px) { .hist-row { flex-direction: row; align-items: center; } .hist-row .n { flex: 1; min-width: 0; } }
+  .hist-row .n b { font-weight: 600; } .hist-row .n small { display: block; color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+  .hist-row .acts { display: flex; gap: 8px; } .hist-row .acts > * { flex: 1 1 auto; }
+  .dz-bar { position: sticky; bottom: 0; z-index: 30; margin: 16px -16px 0; padding: 10px 16px calc(10px + var(--safe-b)); background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(8px); border-top: var(--bw) solid var(--rule); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .dz-bar[hidden] { display: none; }
+  .dz-bar .t { flex: 1 1 180px; font-size: 13.5px; }
+  .dz-bar .acts { display: flex; gap: 8px; flex: 1 1 260px; } .dz-bar .acts .btn { flex: 1; }
+
+  /* The sample app screen. Uses only --db- tokens, set inline from the candidate theme. */
+  .pv { background: var(--db-bg); color: var(--db-ink); font: var(--db-weight-body) var(--db-size-base)/1.45 var(--db-font-body); border: var(--db-border) solid var(--db-line); border-radius: var(--db-radius-lg); overflow: hidden; width: 100%; max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; }
+  .pv * { box-sizing: border-box; }
+  .pv-top { display: flex; align-items: center; gap: var(--db-space-3); padding: var(--db-space-2) var(--db-space-4); background: var(--db-surface); border-bottom: var(--db-border) solid var(--db-line); min-height: calc(var(--db-tap) + 8px); }
+  .pv-top img { height: 26px; max-width: 120px; object-fit: contain; display: block; }
+  .pv-brand { font-family: var(--db-font-display); font-weight: var(--db-weight-display); font-size: calc(var(--db-size-base) + 3px); white-space: nowrap; }
+  .pv-app { margin-left: auto; color: var(--db-muted); font-size: var(--db-size-sm); }
+  .pv-body { padding: var(--db-space-4); display: flex; flex-direction: column; gap: var(--db-space-3); }
+  .pv-h { font-family: var(--db-font-display); font-weight: var(--db-weight-display); font-size: calc(var(--db-size-base) * 1.75); line-height: 1.05; margin: 0; }
+  .pv-sub { color: var(--db-muted); margin: 0; font-size: var(--db-size-sm); }
+  .pv-list { display: flex; flex-direction: column; gap: var(--db-space-2); }
+  .pv-card { display: flex; align-items: center; gap: var(--db-space-3); padding: var(--db-space-2) var(--db-space-3); background: var(--db-surface); border: var(--db-border) solid var(--db-line); border-radius: var(--db-radius); min-height: var(--db-tap); }
+  .pv-card .n { flex: 1; min-width: 0; }
+  .pv-card b { display: block; font-weight: 600; line-height: 1.2; }
+  .pv-card small { color: var(--db-muted); font-size: var(--db-size-sm); }
+  .pv-pill { flex: none; padding: 2px 10px; border-radius: 999px; font-size: var(--db-size-sm); font-weight: 600; white-space: nowrap; }
+  .pv-pill.ok { background: var(--db-ok-soft); color: var(--db-ok); } .pv-pill.bad { background: var(--db-bad-soft); color: var(--db-bad); }
+  .pv-pill.warn { background: var(--db-warn-soft); color: var(--db-warn); } .pv-pill.off { background: var(--db-off-soft); color: var(--db-off); }
+  .pv-form { background: var(--db-surface); border: var(--db-border) solid var(--db-line); border-radius: var(--db-radius); padding: var(--db-space-4); display: flex; flex-direction: column; gap: var(--db-space-3); }
+  .pv-form .t { font-family: var(--db-font-display); font-weight: var(--db-weight-display); font-size: calc(var(--db-size-base) + 4px); margin: 0; }
+  .pv-field { display: flex; flex-direction: column; gap: var(--db-space-1); font-size: var(--db-size-sm); color: var(--db-muted); }
+  .pv .pv-sel { appearance: none; min-height: var(--db-tap); border: var(--db-border) solid var(--db-line-strong); border-radius: var(--db-radius-sm); background: var(--db-surface); color: var(--db-ink); font: inherit; font-size: var(--db-size-base); padding: 0 var(--db-space-3); display: flex; align-items: center; justify-content: space-between; }
+  .pv-step { display: grid; grid-template-columns: var(--db-tap) minmax(0, 1fr) var(--db-tap); border: var(--db-border) solid var(--db-line-strong); border-radius: var(--db-radius-sm); overflow: hidden; }
+  .pv-step span { min-height: var(--db-tap); display: grid; place-items: center; background: var(--db-surface-2); color: var(--db-ink); font-size: 22px; }
+  .pv-step output { display: grid; place-items: center; color: var(--db-ink); font-size: calc(var(--db-size-base) + 2px); font-weight: 600; border-left: var(--db-border) solid var(--db-line); border-right: var(--db-border) solid var(--db-line); }
+  .pv-btns { display: flex; flex-wrap: wrap; gap: var(--db-space-2); }
+  .pv-btn { min-height: var(--db-tap); padding: 0 var(--db-space-4); border-radius: var(--db-radius-sm); border: var(--db-border) solid var(--db-line-strong); background: var(--db-surface); color: var(--db-ink); font: 600 var(--db-size-base) var(--db-font-body); display: inline-flex; align-items: center; justify-content: center; }
+  .pv-btn.primary { flex: 1 1 160px; background: var(--db-accent); border-color: var(--db-accent); color: var(--db-on-accent); box-shadow: var(--db-focus); }
+  .pv-link { color: var(--db-accent); font-weight: 600; text-decoration: underline; font-size: var(--db-size-sm); }
+  .pv-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--db-surface); border-top: var(--db-border) solid var(--db-line); margin-top: auto; }
+  .pv-nav span { min-height: calc(var(--db-tap) + 4px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12.5px; color: var(--db-muted); }
+  .pv-nav span::before { content: ""; width: 18px; height: 18px; border-radius: 5px; border: 2px solid currentColor; }
+  .pv-nav span[aria-current] { color: var(--db-accent); font-weight: 600; box-shadow: inset 0 3px 0 var(--db-accent); }
 </style>
 </head>
 <body>
@@ -76,7 +176,7 @@
 
 <main class="wrap">
   <nav class="tabs" id="tabs">
-    <a href="#people">People</a><a href="#apps">Apps</a><a href="#audit">Activity</a><a href="#secrets">Secrets</a><a href="#health">Health</a>
+    <a href="#people">People</a><a href="#apps">Apps</a><a href="#audit">Activity</a><a href="#diseno">Diseño</a><a href="#secrets">Secrets</a><a href="#health">Health</a>
   </nav>
   <div id="view"></div>
 </main>
@@ -106,7 +206,7 @@ async function call(method, path, body) {
 }
 
 const st = { me: null, users: [], apps: [], sections: [], sel: null, q: '' };
-const views = { people, apps, audit, secrets, health };
+const views = { people, apps, audit, secrets, health, diseno };
 async function route() {
   const tab = (location.hash || '#people').slice(1).split('/')[0];
   for (const a of $('#tabs').children) a.setAttribute('aria-current', a.getAttribute('href') === '#' + tab ? 'page' : 'false');
@@ -193,7 +293,7 @@ function renderPerson() {
             <span class="seg full" role="group" aria-label="${esc(a.name)} access" data-slug="${esc(a.slug)}">${ROLES.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${role(a.slug) === v}">${l}</button>`).join('')}</span></div>`).join('')}
         </div>`; }).join('')}
       </div>
-      ${self ? '' : `<div class="between" style="border-top:1px solid var(--rule);padding-top:14px"><span class="muted small">Removing ends their sessions now and deletes their access. The activity log keeps their history.</span><button class="btn danger" id="uRemove">Remove ${esc(u.name || 'person')}</button></div>`}
+      ${self ? '' : `<div class="between" style="border-top:var(--bw) solid var(--rule);padding-top:14px"><span class="muted small">Removing ends their sessions now and deletes their access. The activity log keeps their history.</span><button class="btn danger" id="uRemove">Remove ${esc(u.name || 'person')}</button></div>`}
     </div>`;
   $('#back').onclick = () => { location.hash = '#people'; };
   const setRole = async (slug, v) => {
@@ -302,13 +402,13 @@ async function audit() {
   $('#view').innerHTML = `<div class="stack">
     <div class="filters">
       <label class="field"><span>Who</span><select id="fWho"><option value="">Everyone</option>${people.map(p => `<option value="${esc(p)}">${esc(personName(p))}</option>`).join('')}</select></label>
-      <label class="field"><span>What</span><select id="fWhat"><option value="">Everything</option><option value="access">Access changes</option><option value="people">People added or removed</option><option value="apps">App changes</option><option value="login">Sign-ins</option></select></label>
+      <label class="field"><span>What</span><select id="fWhat"><option value="">Everything</option><option value="access">Access changes</option><option value="people">People added or removed</option><option value="apps">App changes</option><option value="login">Sign-ins</option><option value="design">Diseño (tema y logos)</option></select></label>
     </div>
     <div id="log"></div></div>`;
   $('#fWho').onchange = $('#fWhat').onchange = drawLog;
   drawLog();
 }
-const KIND = { access: /^grant\.|^user\.update/, people: /^user\.(add|remove)/, apps: /^app\./, login: /^log(in|out)/ };
+const KIND = { access: /^grant\.|^user\.update/, people: /^user\.(add|remove)/, apps: /^app\./, login: /^log(in|out)/, design: /^theme\./ };
 function drawLog() {
   const who = $('#fWho').value, what = $('#fWhat').value;
   const rows = auditRows.filter(r => (!who || r.actor === who) && (!what || KIND[what].test(r.action)));
@@ -348,6 +448,10 @@ function sentence(r) {
       const f = Object.keys(d).map(k => k === 'status' ? `status → ${STATUS_NAME[d[k]] || d[k]}` : k === 'mode' ? `opens → ${MODE_NAME[d[k]] || d[k]}` : k === 'public' ? (d[k] ? 'made public' : 'made private') : k).join(', ');
       return `${A} edited ${app(r.target)} <span class="q">(${esc(f || 'no change')})</span>`;
     }
+    case 'theme.save': return `${A} guardó el tema <b>${esc(d.name || '')}</b> <span class="q">(${esc(r.target)}${d.note ? ' · ' + esc(d.note) : ''}${d.changed && d.changed.length ? ' · cambió ' + esc(d.changed.slice(0, 6).join(', ')) + (d.changed.length > 6 ? '…' : '') : ''})</span>`;
+    case 'theme.activate': return `${A} restauró el tema <b>${esc(d.name || '')}</b> <span class="q">(${esc(r.target)})</span>`;
+    case 'theme.logo': return `${A} subió ${esc(LOGO_NAME[r.target] || r.target)} <span class="q">(${esc(d.mime || '')}, ${Math.round((d.size || 0) / 1024)} KB)</span>`;
+    case 'theme.logo.remove': return `${A} quitó ${esc(LOGO_NAME[r.target] || r.target)}`;
     default: return `${A} ${esc(r.action)} ${esc(r.target)}`;
   }
 }
@@ -369,6 +473,268 @@ async function health() {
     <p class="lead">Coming in phase 3. One line per app, so you see trouble before the team calls you.</p>
     <div class="ghost">${['Calendario de bodega', 'Huerto', 'Mantenimiento', 'Spark CRM', 'Club de vinos'].map(n => `<div><b>${n}</b><span class="r">status · last update · errors this week<br>people who used it this week</span></div>`).join('')}</div>
   </div>`;
+}
+
+/* ============================ Diseño ============================
+   One theme for every app (served at /theme.css). The editor holds a candidate theme; nothing reaches the apps until
+   "Guardar y aplicar". Pure helpers (presets, contrast, CSS) come from /kit/theme-core.js, the same file the Worker uses. */
+const LOGO_NAME = { 'logo-light': 'el logo (modo claro)', 'logo-dark': 'el logo (modo oscuro)', icon: 'el ícono de app' };
+const dz = { T: null, d: null, cand: null, saved: '', mode: 'light', apps: [], msg: {} };
+const dzClone = o => JSON.parse(JSON.stringify(o));
+const dzDate = ms => ms ? new Intl.DateTimeFormat('es-MX', { timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(ms) : '';
+async function dzFetch(method, path, body) {
+  const isForm = body instanceof FormData;
+  const r = await fetch(path, { method, headers: body && !isForm ? { 'content-type': 'application/json' } : {}, body: body ? (isForm ? body : JSON.stringify(body)) : undefined });
+  if (r.status === 401) { location.href = '/?next=/admin/%23diseno'; throw new Error('signed out'); }
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, j };
+}
+function dzFonts() {
+  if (document.getElementById('dzFonts')) return;
+  const l = document.createElement('link'); l.id = 'dzFonts'; l.rel = 'stylesheet'; l.href = dz.T.fontsUrl(dz.T.FONTS.map(f => f.name)); document.head.append(l);
+}
+function dzReloadHubTheme() { // the Hub follows the theme too: re-fetch its own theme.css
+  const l = document.querySelector('link[href^="/theme.css"]'); if (l) l.href = '/theme.css?app=hub&t=' + Date.now();
+}
+
+async function diseno() {
+  dz.T = dz.T || await import('/kit/theme-core.js');
+  const [d] = await Promise.all([call('GET', '/api/admin/theme'), loadAll()]);
+  dz.d = d; dz.apps = st.apps;
+  if (!dz.cand) { dz.cand = dzClone(d.active.theme); dz.mode = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+  dz.saved = JSON.stringify(d.active.theme);
+  dzFonts();
+  dzRender();
+}
+
+function dzRender() {
+  const { T, d } = dz;
+  const fontOpts = kind => T.FONTS.map(f => `<option value="${esc(f.name)}">${esc(f.name)}${f.kind === 'serif' ? ' · serifa' : f.kind === 'cond' ? ' · condensada' : ''}</option>`).join('');
+  const seg = (name, pairs, label) => `<div class="seg dz-seg" style="--n:${pairs.length}" role="group" aria-label="${esc(label)}" data-seg="${name}">${pairs.map(([v, l]) => `<button type="button" data-v="${v}">${esc(l)}</button>`).join('')}</div>`;
+  const appsList = [{ slug: 'hub', name: 'Hub (esta página y el lanzador)', description: 'apps.dosbuhos.com' }, ...dz.apps.filter(x => ['live', 'import'].includes(x.status) && x.mode !== 'internal')];
+  const presetOpts = '<option value="">Sigue el tema general</option>' + T.PRESETS.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('#view').innerHTML = `<div class="dz" id="dz">
+    <section class="dz-intro"><p class="lead muted small">Un solo tema para todas las apps de Dos Búhos. Elige un estilo, ajústalo y revisa la vista previa; nada cambia en las apps hasta que tocas <b>Guardar y aplicar a todas las apps</b>. El tema cambia el aspecto (colores, letra, tamaño, esquinas, espacio, logos); cómo funciona cada pantalla se cambia en el código de cada app.</p></section>
+
+    <section class="panel stack dz-presets"><h2>Estilo base</h2>
+      <p class="muted small" style="margin:0">Diez variaciones de la marca, cada una con modo claro y oscuro. Toca una para verla.</p>
+      <div class="pgrid" id="dzPresets">${T.PRESETS.map(p => `<button type="button" class="pcard" data-preset="${p.id}" aria-pressed="false">
+        <span class="sw" data-sw="${p.id}"></span><b style="font-family:${esc(T.fontStack(p.fontDisplay))};font-weight:${T.displayWeight(p.fontDisplay)}">${esc(p.name)}</b><small>${esc(p.about)}</small></button>`).join('')}</div>
+    </section>
+
+    <section class="panel stack dz-ajustes"><h2>Ajustes</h2>
+      <label class="field"><span>Nombre de este tema</span><input id="dzName" maxlength="60"></label>
+      <div class="dz-fields two">
+        <label class="field"><span>Letra de los títulos</span><select id="dzFontD">${fontOpts()}</select></label>
+        <label class="field"><span>Letra del texto</span><select id="dzFontB">${fontOpts()}</select></label>
+      </div>
+      <div class="field"><span>Tamaño de la letra</span>${seg('size', [[16, '16 px'], [17, '17 px'], [18, '18 px']], 'Tamaño de la letra')}</div>
+      <div class="field"><span>Grosor del texto</span>${seg('weightBody', [[400, 'Normal'], [500, 'Más grueso']], 'Grosor del texto')}</div>
+      <div class="field"><span id="dzAccentL">Color de acento</span><div class="colorpick"><input type="color" id="dzAccentC" aria-label="Color de acento"><input id="dzAccentH" maxlength="7" autocapitalize="off" spellcheck="false" aria-label="Color de acento en hexadecimal"></div>
+        <span class="muted small" style="font-size:12.5px">Solo para el modo que estás viendo. El color del texto del botón se ajusta solo.</span></div>
+      <div class="field"><span>Esquinas</span>${seg('radius', [[6, 'Rectas'], [10, 'Medias'], [14, 'Redondas']], 'Esquinas')}</div>
+      <div class="field"><span>Bordes</span>${seg('border', [[1, '1 px'], [1.5, '1.5 px'], [2, '2 px']], 'Grosor de los bordes')}</div>
+      <div class="field"><span>Espacio</span>${seg('density', [['compacta', 'Compacta'], ['normal', 'Normal'], ['amplia', 'Amplia']], 'Densidad')}</div>
+      <label class="field"><span>Nombre corto (cuando no hay logo)</span><input id="dzShort" maxlength="24"></label>
+      <details id="dzAll"><summary>Todos los colores (<span data-modename></span>)</summary><div class="dz-colors" id="dzColors"></div></details>
+    </section>
+
+    <section class="dz-live stack" id="dzLive">
+      <div class="panel stack">
+        <div class="between"><h2>Vista previa</h2>${seg('mode', [['light', 'Claro'], ['dark', 'Oscuro']], 'Ver en modo claro u oscuro')}</div>
+        <div class="dz-live-in"><div id="dzPv"></div><div class="stack" style="gap:8px"><h2 style="font-size:19px">Contraste</h2><div class="cr-sum" id="dzSum"></div><div class="cr" id="dzCr"></div>
+          <details><summary>Ver el otro modo</summary><div class="cr" id="dzCr2"></div></details></div></div>
+      </div>
+      <div class="panel stack" id="dzSave"><h2>Guardar</h2>
+        <label class="field"><span>Nota (qué cambió y por qué)</span><input id="dzNote" maxlength="200" placeholder="Letra más grande para el huerto"></label>
+        <button type="button" class="btn primary" id="dzSaveBtn">Guardar y aplicar a todas las apps</button>
+        <p class="msg" id="dzSaveMsg" role="status"></p>
+        <p class="muted small" style="margin:0">Las apps toman el tema nuevo en un minuto (al recargar). Activo ahora: <b id="dzActive"></b></p>
+      </div>
+    </section>
+
+    <section class="panel stack dz-import"><h2>Importar especificación</h2>
+      <p class="muted small" style="margin:0">Pega un JSON con los tokens (puede ser parcial: solo lo que cambia) o un texto con la guía de diseño, o sube un archivo .json, .md o .txt. Se carga como vista previa; no se guarda.</p>
+      <label class="field"><span>Especificación</span><textarea id="dzSpec" spellcheck="false" placeholder='{ "size": 18, "light": { "accent": "#7a2a3a" } }'></textarea></label>
+      <label class="btn filebtn"><span id="dzFileL">Elegir archivo (.json, .md, .txt)</span><input type="file" id="dzFile" accept=".json,.md,.markdown,.txt,application/json,text/markdown,text/plain"></label>
+      <button type="button" class="btn" id="dzImport">Vista previa</button>
+      <label class="field"><span>Instrucciones para la IA</span><textarea id="dzInstr" style="min-height:80px" placeholder="Más cálido, letra más grande para Adrián"></textarea></label>
+      ${d.ai.configured ? '' : `<p class="note-box" id="dzAiNote">${esc('La opción con IA necesita el secreto ANTHROPIC_API_KEY. Agrégalo en Cloudflare → Workers → hub → Settings → Variables and Secrets → Add → Secret, nombre ANTHROPIC_API_KEY. Los estilos, los controles y la importación JSON funcionan sin él.')}</p>`}
+      <button type="button" class="btn" id="dzAi">Vista previa con IA</button>
+      <div class="msg" id="dzImportMsg" role="status"></div>
+    </section>
+
+    <section class="panel stack dz-apps"><h2>Estilo por app</h2>
+      <p class="muted small" style="margin:0">Una app fijada usa ese estilo completo (colores, letra, espacio) en vez del tema general; el logo y el nombre corto son los mismos. Se guarda con el tema.</p>
+      <div>${appsList.map(x => `<div class="approw"><span class="n"><b>${esc(x.name)}</b><small>${esc(x.description || '')}</small></span><select data-app="${esc(x.slug)}" aria-label="Estilo de ${esc(x.name)}">${presetOpts}</select></div>`).join('')}</div>
+    </section>
+
+    <section class="panel stack dz-logos"><h2>Logos</h2>
+      <p class="muted small" style="margin:0">PNG, SVG, JPEG o WebP, hasta 300 KB. Se aplican al subirlos (no esperan a Guardar). Sin logo oscuro, el modo oscuro muestra el nombre corto.</p>
+      <div class="logos">${[['logo-light', 'Logo · modo claro', 'light'], ['logo-dark', 'Logo · modo oscuro', 'dark'], ['icon', 'Ícono de app', 'light']].map(([k, l, m]) => `
+        <div class="logo-slot" data-kind="${k}"><b>${l}</b><div class="logo-box" data-box="${k}" data-m="${m}"></div>
+          <div class="acts"><label class="btn filebtn">Subir<input type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" data-up="${k}" aria-label="Subir ${esc(l)}"></label><button type="button" class="btn danger" data-rm="${k}">Quitar</button></div></div>`).join('')}</div>
+    </section>
+
+    <section class="panel stack dz-hist"><h2>Historial</h2><div id="dzHist"></div></section>
+  </div>
+  <div class="dz-bar" id="dzBar" hidden><span class="t"><b>Cambios sin guardar.</b> Solo tú los ves en la vista previa.</span><span class="acts"><button type="button" class="btn" id="dzDiscard">Descartar</button><button type="button" class="btn primary" id="dzGo">Guardar…</button></span></div>`;
+  dzWire(); dzLogos(); dzHistory(); dzSync();
+}
+
+function dzSet(fn) { fn(dz.cand); dzSync(); }
+function dzWire() {
+  const { T } = dz;
+  for (const b of $$('[data-preset]')) b.onclick = () => {
+    const keep = { brand: dz.cand.brand, apps: dz.cand.apps };
+    dz.cand = { ...T.themeFromPreset(b.dataset.preset), ...keep }; dzSync();
+  };
+  for (const g of $$('[data-seg]')) for (const b of $$('button', g)) b.onclick = () => {
+    const k = g.dataset.seg, raw = b.dataset.v, v = /^[\d.]+$/.test(raw) ? Number(raw) : raw;
+    if (k === 'mode') { dz.mode = v; dzSync(); return; }
+    dzSet(c => { c[k] = v; });
+  };
+  $('#dzName').oninput = e => dzSet(c => { c.name = e.target.value; });
+  $('#dzShort').oninput = e => dzSet(c => { c.brand = { ...c.brand, shortName: e.target.value }; });
+  $('#dzFontD').onchange = e => dzSet(c => { c.fontDisplay = e.target.value; });
+  $('#dzFontB').onchange = e => dzSet(c => { c.fontBody = e.target.value; });
+  const setAccent = h => dzSet(c => { c[dz.mode].accent = h; c[dz.mode]['on-accent'] = T.bestOn(h, dz.mode === 'dark' ? c.dark.bg : '#141012'); });
+  $('#dzAccentC').oninput = e => setAccent(e.target.value);
+  $('#dzAccentH').oninput = e => { const h = T.normHex(e.target.value); if (h && e.target.value.length >= 4) setAccent(h); };
+  $('#dzColors').innerHTML = T.COLOR_KEYS.map(k => `<div class="crow"><span>${esc(T.COLOR_LABEL[k])}</span><input type="color" data-ck="${k}" aria-label="${esc(T.COLOR_LABEL[k])}"><input data-ch="${k}" maxlength="7" spellcheck="false" autocapitalize="off" aria-label="${esc(T.COLOR_LABEL[k])} en hexadecimal"></div>`).join('');
+  for (const i of $$('[data-ck]')) i.oninput = () => dzSet(c => { c[dz.mode][i.dataset.ck] = i.value; });
+  for (const i of $$('[data-ch]')) i.oninput = () => { const h = T.normHex(i.value); if (h && i.value.length >= 4) dzSet(c => { c[dz.mode][i.dataset.ch] = h; }); };
+  for (const s of $$('select[data-app]')) s.onchange = () => dzSet(c => { const a = { ...c.apps }; if (s.value) a[s.dataset.app] = s.value; else delete a[s.dataset.app]; c.apps = a; });
+  $('#dzSaveBtn').onclick = dzSave;
+  $('#dzGo').onclick = () => { $('#dzSave').scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => $('#dzNote').focus(), 350); };
+  $('#dzDiscard').onclick = () => { if (!confirm('¿Descartar los cambios de la vista previa?')) return; dz.cand = JSON.parse(dz.saved); dzSync(); };
+  $('#dzFile').onchange = e => { const f = e.target.files[0]; $('#dzFileL').textContent = f ? `Archivo: ${f.name}` : 'Elegir archivo (.json, .md, .txt)'; };
+  $('#dzImport').onclick = () => dzImport(false);
+  $('#dzAi').onclick = () => dzImport(true);
+  for (const inp of $$('[data-up]')) inp.onchange = () => dzUpload(inp.dataset.up, inp.files[0]);
+  for (const b of $$('[data-rm]')) b.onclick = async () => {
+    if (!confirm(`¿Quitar ${LOGO_NAME[b.dataset.rm]}? Las apps dejan de mostrarlo en un minuto.`)) return;
+    const r = await dzFetch('DELETE', `/api/admin/theme/logo/${b.dataset.rm}`);
+    if (!r.ok) { toast(r.j.message || 'No se pudo quitar', true); return; }
+    delete dz.d.assets[b.dataset.rm]; dzLogos(); dzSync(); dzReloadHubTheme(); toast('Logo quitado');
+  };
+}
+
+// Push the candidate into every control (except the one being typed in), the preview, the report and the save bar.
+function dzSync() {
+  const { T, cand: c } = dz, m = dz.mode, act = document.activeElement;
+  const val = (el, v) => { if (el && el !== act) el.value = v; };
+  val($('#dzName'), c.name || ''); val($('#dzShort'), c.brand?.shortName || '');
+  val($('#dzFontD'), c.fontDisplay); val($('#dzFontB'), c.fontBody);
+  val($('#dzAccentC'), c[m].accent); val($('#dzAccentH'), c[m].accent);
+  $('#dzAccentL').textContent = `Color de acento (modo ${m === 'dark' ? 'oscuro' : 'claro'})`;
+  for (const s of $$('[data-modename]')) s.textContent = m === 'dark' ? 'modo oscuro' : 'modo claro';
+  for (const k of T.COLOR_KEYS) { val($(`[data-ck="${k}"]`), c[m][k]); val($(`[data-ch="${k}"]`), c[m][k]); }
+  for (const g of $$('[data-seg]')) { const cur = g.dataset.seg === 'mode' ? m : c[g.dataset.seg]; for (const b of $$('button', g)) b.setAttribute('aria-pressed', String(b.dataset.v) === String(cur)); }
+  for (const s of $$('select[data-app]')) val(s, (c.apps || {})[s.dataset.app] || '');
+  for (const b of $$('[data-preset]')) b.setAttribute('aria-pressed', c.preset === b.dataset.preset);
+  for (const sw of $$('[data-sw]')) { const p = T.presetById(sw.dataset.sw)[m]; sw.innerHTML = ['accent', 'bg', 'ink'].map(k => `<i style="background:${p[k]}" title="${k} ${p[k]}"></i>`).join(''); }
+  dzPreview(); dzReport(); dzLogos();
+  const dirty = JSON.stringify(c) !== dz.saved;
+  $('#dzBar').hidden = !dirty;
+  const a = dz.d.active; $('#dzActive').textContent = a.id ? `v${a.id} · ${a.theme.name}` : `${a.theme.name} (predeterminado, sin guardar aún)`;
+}
+
+function dzVars(theme, mode) {
+  const { T } = dz, assets = {};
+  const all = { ...T.staticTokens(theme, assets), ...T.tokens(theme, mode) };
+  return Object.entries(all).map(([k, v]) => `--db-${k}:${String(v).replace(/"/g, "'")}`).join(';');
+}
+function dzPreview() {
+  const { cand: c } = dz, m = dz.mode, as = dz.d.assets;
+  const logo = m === 'dark' ? (as['logo-dark'] ? as['logo-dark'].url : '') : (as['logo-light'] ? as['logo-light'].url : '');
+  $('#dzPv').innerHTML = `<div class="pv" style="${esc(dzVars(c, m))}" aria-label="Vista previa de una app con este tema">
+    <div class="pv-top">${logo ? `<img src="${esc(logo)}" alt="${esc(c.brand?.shortName || 'Dos Búhos')}">` : `<span class="pv-brand">${esc(c.brand?.shortName || 'Dos Búhos')}</span>`}<span class="pv-app">Huerto</span></div>
+    <div class="pv-body">
+      <div><h3 class="pv-h">Hoy</h3><p class="pv-sub">viernes 31 de octubre · 4 tareas</p></div>
+      <div class="pv-list">
+        <div class="pv-card"><span class="n"><b>Regar camas 3 a 6</b><small>Adrián · 8:00</small></span><span class="pv-pill ok">Listo</span></div>
+        <div class="pv-card"><span class="n"><b>Cosechar lechuga</b><small>Cocina pidió 4 kg</small></span><span class="pv-pill bad">Atrasado</span></div>
+        <div class="pv-card"><span class="n"><b>Semillero de jitomate</b><small>Bajo malla, helada el lunes</small></span><span class="pv-pill warn">Resguardo</span></div>
+        <div class="pv-card"><span class="n"><b>Cama 9</b><small>En descanso hasta enero</small></span><span class="pv-pill off">Inactivo</span></div>
+      </div>
+      <div class="pv-form"><p class="t">Registrar cosecha</p>
+        <div class="pv-field">Cultivo<span class="pv-sel">Lechuga romana <span aria-hidden="true">▾</span></span></div>
+        <div class="pv-field">Charolas<span class="pv-step"><span aria-hidden="true">−</span><output>12</output><span aria-hidden="true">+</span></span></div>
+        <div class="pv-btns"><span class="pv-btn primary">Guardar cosecha</span><span class="pv-btn">Cancelar</span></div>
+        <span class="pv-link">Ver cosechas de la semana</span>
+      </div>
+    </div>
+    <nav class="pv-nav"><span aria-current="page">Hoy</span><span>Mapa</span><span>Cosechas</span><span>Más</span></nav></div>`;
+}
+function dzReport() {
+  const { T } = dz, rep = T.contrastReport(dz.cand);
+  const other = dz.mode === 'light' ? 'dark' : 'light';
+  const sum = mode => { const r = rep.filter(x => x.mode === mode), ok = r.filter(x => x.pass).length; return `<span class="chip ${ok === r.length ? 'ok' : 'bad'}">Modo ${mode === 'dark' ? 'oscuro' : 'claro'}: ${ok} de ${r.length} pasan</span>`; };
+  $('#dzSum').innerHTML = sum(dz.mode) + sum(other);
+  const rows = mode => rep.filter(x => x.mode === mode).sort((a, b) => (a.pass - b.pass) || (a.preferred - b.preferred)).map(r => `<div class="r"><span class="aa" style="color:${r.fgHex};background:${r.bgHex}" aria-hidden="true">Aa</span>
+    <span class="l">${esc(r.label)}<small>${r.fg} sobre ${r.bg}</small></span>
+    <span class="v"><span class="num">${r.ratio.toFixed(2)}:1</span>${!r.pass ? `<span class="chip bad">No pasa · mín ${r.min}</span>` : !r.preferred ? `<span class="chip warn">Pasa · ideal ${r.prefer}</span>` : '<span class="chip ok">Pasa</span>'}</span></div>`).join('');
+  $('#dzCr').innerHTML = rows(dz.mode); $('#dzCr2').innerHTML = rows(other);
+}
+
+async function dzSave() {
+  const msg = $('#dzSaveMsg'); msg.className = 'msg'; msg.textContent = 'Guardando…';
+  const r = await dzFetch('PUT', '/api/admin/theme', { theme: dz.cand, note: $('#dzNote').value });
+  if (!r.ok) { msg.className = 'msg bad'; msg.textContent = r.j.message || `No se guardó (error ${r.status}).`; toast(r.j.message || 'No se guardó', true); return; }
+  msg.className = 'msg ok'; msg.textContent = `Guardado como v${r.j.id}. Las apps lo toman al recargar (en un minuto).`;
+  $('#dzNote').value = ''; dz.cand = r.j.theme;
+  toast(`Tema guardado (v${r.j.id})`); dzReloadHubTheme();
+  dz.d = await call('GET', '/api/admin/theme'); dz.saved = JSON.stringify(dz.d.active.theme); dzHistory(); dzSync();
+}
+function dzHistory() {
+  const h = dz.d.history;
+  $('#dzHist').innerHTML = h.length ? h.map(v => `<div class="hist-row"><span class="n"><b>v${v.id} · ${esc(v.theme.name)}</b>${v.active ? ' <span class="chip ok">Activo</span>' : ''}<small>${esc(dzDate(v.created_at))} · ${esc(personName(v.author))}${v.note ? ' · “' + esc(v.note) + '”' : ''}</small></span>
+    <span class="acts"><button type="button" class="btn" data-view="${v.id}">Ver</button>${v.active ? '' : `<button type="button" class="btn" data-restore="${v.id}">Restaurar</button>`}</span></div>`).join('')
+    : '<div class="empty"><b>Sin versiones todavía</b>Las apps usan Bodega clásica hasta que guardes la primera.</div>';
+  for (const b of $$('[data-view]')) b.onclick = () => { dz.cand = dzClone(h.find(v => v.id === Number(b.dataset.view)).theme); dzSync(); $('#dzLive').scrollIntoView({ behavior: 'smooth' }); toast(`Viendo v${b.dataset.view} en la vista previa`); };
+  for (const b of $$('[data-restore]')) b.onclick = async () => {
+    const v = h.find(x => x.id === Number(b.dataset.restore));
+    if (!confirm(`¿Restaurar v${v.id} (${v.theme.name}) en todas las apps?`)) return;
+    const r = await dzFetch('POST', '/api/admin/theme/activate', { id: v.id });
+    if (!r.ok) { toast(r.j.message || 'No se pudo restaurar', true); return; }
+    dz.d = await call('GET', '/api/admin/theme'); dz.saved = JSON.stringify(dz.d.active.theme); dz.cand = dzClone(dz.d.active.theme);
+    dzHistory(); dzSync(); dzReloadHubTheme(); toast(`Restaurado v${v.id}`);
+  };
+}
+function dzLogos() {
+  for (const box of $$('[data-box]')) {
+    const a = dz.d.assets[box.dataset.box], dark = box.dataset.m === 'dark';
+    const mode = dz.cand[dark ? 'dark' : 'light'];
+    box.style.background = mode.surface; box.style.color = mode.muted;
+    const url = a ? a.url : '';
+    if (box.dataset.url !== url || !box.innerHTML) { box.dataset.url = url; box.innerHTML = a ? `<img src="${esc(a.url)}" alt="">` : 'Sin imagen'; }
+    $(`[data-rm="${box.dataset.box}"]`).disabled = !a;
+  }
+}
+async function dzUpload(kind, file) {
+  if (!file) return;
+  if (file.size > 300 * 1024) { toast(`La imagen pesa ${Math.round(file.size / 1024)} KB; el máximo es 300 KB.`, true); return; }
+  const fd = new FormData(); fd.append('file', file);
+  const r = await dzFetch('POST', `/api/admin/theme/logo/${kind}`, fd);
+  if (!r.ok) { toast(r.j.message || 'No se pudo subir', true); return; }
+  dz.d.assets[kind] = { kind, mime: r.j.mime, size: r.j.size, url: r.j.url };
+  dzLogos(); dzSync(); dzReloadHubTheme(); toast('Logo subido');
+}
+async function dzImport(useAi) {
+  const out = $('#dzImportMsg'), f = $('#dzFile').files[0];
+  const fd = new FormData();
+  fd.append('text', $('#dzSpec').value); fd.append('base', JSON.stringify(dz.cand));
+  if (useAi) fd.append('instructions', $('#dzInstr').value || 'Aplica esta especificación al tema.');
+  if (f) fd.append('file', f);
+  out.className = 'msg'; out.textContent = useAi ? 'Pidiendo el tema a la IA… (unos segundos)' : 'Leyendo…';
+  const r = await dzFetch('POST', '/api/admin/theme/import', fd);
+  if (!r.ok) { out.className = 'msg bad'; out.textContent = r.j.message || `No se pudo (error ${r.status}).`; return; }
+  dz.cand = r.j.theme; dzSync();
+  const w = r.j.warnings || [], fails = r.j.failures || [];
+  out.className = 'msg ' + (fails.length ? 'bad' : 'ok');
+  out.innerHTML = `${r.j.source === 'ai' ? 'La IA preparó una vista previa.' : 'Especificación cargada en la vista previa.'} ${fails.length ? `${fails.length} pares no pasan el contraste; corrígelos antes de guardar.` : 'Revísala y guarda si te gusta.'}${w.length ? `<ul>${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
+  if (matchMedia('(max-width: 999px)').matches) $('#dzLive').scrollIntoView({ behavior: 'smooth' });
 }
 </script>
 </body>
