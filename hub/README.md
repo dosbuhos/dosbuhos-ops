@@ -28,7 +28,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 2. Google Cloud → that OAuth client → add redirect URI `https://hub.dos-buhos.workers.dev/auth/callback` (later also `https://apps.dosbuhos.com/auth/callback`).
 3. Sign in. Admin → People: add each person by Gmail and pick their apps and roles. Nobody not on the list can sign in.
 
-Emails stay out of this repo (it is public): people live in D1, admins in the secret.
+Emails stay out of this repo (it is public): people live in D1, admins in the HUB_ADMIN_EMAILS secret.
 
 ## Custom domain
 
