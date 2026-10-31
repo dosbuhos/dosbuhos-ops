@@ -1,10 +1,13 @@
+import * as Q from './queue.js';
+import * as T from './tracker.js';
+import { alertsPage, buildAlerts } from './alerts.js';
 import { identify } from './auth.js';
 import { esc } from './ui.js';
 import { STATUSES, DONE, isDate, dueDate, parseBottles, membershipYear } from './schedule.js';
 import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal } from './data.js';
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
-import { fulfillPage, fulfillSubmit, reopen, reconcileData, reconcilePage, reconcileSubmit } from './flow.js';
+import { fulfillPage, fulfillSubmit, reopen, reconcileData, reconcilePage, reconcileSubmit, packingProblem } from './flow.js';
 import { ask } from './assistant.js';
 import { handleAuth, loginPage } from './google.js';
 import { buildPlan, migrationPage, runImport } from './legacy.js';
@@ -109,19 +112,25 @@ async function handle(request, env) {
   if(m==='GET'&&p==='/alertas')return billingPage({env,user,ctx:await loadContext(env)});
   if (m === 'GET' && p === '/') {
     const ctx = await loadContext(env);
-    return P.agendaPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
+    return Q.queuePage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
+  }
+  if (m === 'GET' && p === '/avisos') return alertsPage({ env, user, ctx: await loadContext(env) });
+  if (m === 'GET' && p === '/avisos.json') { const a = buildAlerts(await loadContext(env), user); return Response.json({ n: a.length, red: a.filter(x => x.tone === 'red').length }, { headers: { 'cache-control': 'no-store' } }); }
+  if (m === 'GET' && p === '/confirmar') {
+    const ctx = await loadContext(env);
+    return Q.confirmPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
   }
 
   // ---------- shipments ----------
-  if ((r = R(/^\/envio\/(\d+)\/(\d+)(?:\/(estado|detalles|posponer|botellas|foto|entregar|reabrir|ref|comprobante))?$/))) {
+  if ((r = R(/^\/envio\/(\d+)\/(\d+)(?:\/(estado|detalles|posponer|botellas|foto|entregar|reabrir|ref|comprobante|rapido))?$/))) {
     const sh = await loadShipment(env, Number(r[1]), Number(r[2]));
     if (!sh) return notFound(env, user);
     if (!sh.club) return notFound(env, user, 'Esta suscripción no tiene club asignado, así que no tiene envíos calculados.');
     if (!sh.o) return notFound(env, user, 'Este envío no corresponde: la suscripción terminó antes de esa fecha.');
     const action = r[3];
-    if(sh.o.state==='payment_contact'&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Contactar para nueva forma de pago',status:403,html:`<h1>Contactar para nueva forma de pago</h1><p>Este socio está en seguimiento, no suspendido. Verifica el pago de esta caja antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver seguimiento del socio</a>`});
-    if(sh.o.state==='payment_blocked'&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Envío bloqueado por pago',status:403,html:`<p>Este envío sigue bloqueado por pago pendiente. Verifica el pago en Stripe antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver socio</a>`});
-    if(sh.sub.suspended_on&&(action==='entregar'||action==='estado'))return P.simplePage({env,user,title:'Membresía suspendida',status:403,html:`<h1>Suspendido por falta de pago</h1><p>Preparación y entregas bloqueadas. Un administrador debe revisar el pago y reactivar la membresía.</p><p><a href="/socio/${sh.sub.member_id}#membresia">Ver membresía</a></p>`});
+    if(sh.o.state==='payment_contact'&&(action==='entregar'||action==='estado'||action==='rapido'))return P.simplePage({env,user,title:'Contactar para nueva forma de pago',status:403,html:`<h1>Contactar para nueva forma de pago</h1><p>Este socio está en seguimiento, no suspendido. Verifica el pago de esta caja antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver seguimiento del socio</a>`});
+    if(sh.o.state==='payment_blocked'&&(action==='entregar'||action==='estado'||action==='rapido'))return P.simplePage({env,user,title:'Envío bloqueado por pago',status:403,html:`<p>Este envío sigue bloqueado por pago pendiente. Verifica el pago en Stripe antes de preparar o entregar.</p><a href="/socio/${sh.sub.member_id}#membresia">Ver socio</a>`});
+    if(sh.sub.suspended_on&&(action==='entregar'||action==='estado'||action==='rapido'))return P.simplePage({env,user,title:'Membresía suspendida',status:403,html:`<h1>Suspendido por falta de pago</h1><p>Preparación y entregas bloqueadas. Un administrador debe revisar el pago y reactivar la membresía.</p><p><a href="/socio/${sh.sub.member_id}#membresia">Ver membresía</a></p>`});
     if(action==='comprobante') {
       if(m==='GET')return receiptPage({env,user,sh,kind:url.searchParams.get('tipo')});
       if(m==='POST')return receiptSubmit(env,user,sh,request);
@@ -133,7 +142,7 @@ async function handle(request, env) {
       return P.shipmentPage({ env, user, ctx: sh.ctx, o: sh.o, photos, history });
     }
     if (action === 'entregar') {
-      if (m === 'GET') return fulfillPage({ env, user, ctx: sh.ctx, o: sh.o, como: url.searchParams.get('como') });
+      if (m === 'GET') return fulfillPage({ env, user, ctx: sh.ctx, o: sh.o, como: url.searchParams.get('como'), back: url.searchParams.get('back') });
       if (m === 'POST') return fulfillSubmit(env, user, sh, request);
     }
     if (m !== 'POST') return notFound(env, user);
@@ -177,6 +186,25 @@ async function handle(request, env) {
       const { auditId } = await setStatus(env, user, sh, status, version, str(fm.hold_reason,300),dateOrNull(fm.hold_until));
       const back = safeBack(fm.back, here);
       return redirect(back === here ? here : withParam(back, 'ok', auditId));
+    }
+    if (action === 'rapido') {
+      // Quick log from the member and calendar views: how it left, the real date, optional PO.
+      // Same version check and audit as every write; the box snapshot is kept, and an unchecked box is noted as such.
+      const fail = (msg) => P.simplePage({ env, user, title: 'No se guardó', status: 400, html: `<p>${esc(msg)}</p><p><a class="btn" href="${esc(safeBack(fm.back, here))}">Volver</a></p>` });
+      if (!['overdue', 'today', 'exception', 'held'].includes(sh.o.state)) return fail('Esta caja ya está registrada o todavía no toca. Ábrela para cambiarla.');
+      const doneOn = dateOrNull(fm.done_on);
+      if (!doneOn) return fail('Indica la fecha real en que salió la caja.');
+      if (doneOn > sh.ctx.today) return fail('La fecha no puede ser en el futuro.');
+      const how = ['pickup', 'courier', 'signup'].includes(fm.como) ? fm.como : 'pickup';
+      const problem = packingProblem(sh.o);
+      const { auditId } = await save({
+        status: how === 'courier' ? 'shipped' : 'handed', done_on: doneOn, method: how,
+        order_ref: str(fm.order_ref, 60) || sh.o.f?.order_ref || null, handled_by: user.email,
+        bottles_json: sh.o.f?.bottles_json || (sh.o.bottles ? JSON.stringify(sh.o.bottles) : null),
+        override_reason: problem ? 'Registro rápido: caja sin revisar en la app' : null,
+      }, `${how === 'courier' ? 'enviado' : how === 'signup' ? 'entregado al inscribirse' : 'entregado en mano'} (registro rápido)`);
+      const back = safeBack(fm.back, '/socios');
+      return redirect(withParam(back, 'ok', auditId) + `#e${sh.sub.id}-${sh.o.k}`);
     }
     if (action === 'ref') {
       // Inline PO / tracking from the agenda card: touches only those two fields.
@@ -267,6 +295,14 @@ async function handle(request, env) {
   // ---------- members ----------
   if (m === 'GET' && p === '/socios') {
     const ctx = await loadContext(env);
+    return T.trackerPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
+  }
+  if (m === 'GET' && p === '/calendario') {
+    const ctx = await loadContext(env);
+    return T.calendarPage({ env, user, ctx, url, okAudit: await okAuditFor(env, user, url.searchParams.get('ok')) });
+  }
+  if (m === 'GET' && p === '/socios/lista') {
+    const ctx = await loadContext(env);
     const members = (await env.DB.prepare('SELECT * FROM members ORDER BY name COLLATE NOCASE').all()).results;
     return P.membersPage({ env, user, ctx, members, url });
   }
@@ -274,7 +310,7 @@ async function handle(request, env) {
     if (!user.isManager) return forbidden(env, user);
     const fm = await form(request);
     const name = str(fm.name, 120), start = dateOrNull(fm.start_date), clubId = Number(fm.club_id);
-    if (!name || !start || !clubId) return redirect('/socios');
+    if (!name || !start || !clubId) return redirect('/socios/lista');
     const mem = await env.DB.prepare('INSERT INTO members (name, email, phone, delivery_pref) VALUES (?,?,?,?) RETURNING id')
       .bind(name, str(fm.email, 120), str(fm.phone, 40), fm.delivery_pref === 'envio' ? 'envio' : 'recoge').first();
     const sub = await env.DB.prepare(`INSERT INTO subscriptions (member_id, club_id_override, status, start_date) VALUES (?,?,'manual',?) RETURNING id`).bind(mem.id, clubId, start).first();

@@ -50,9 +50,9 @@ try {
 
   await check('unconfirmed products block schedules and the agenda says so', async () => {
     const html = await get('/');
-    assert.match(html, /Calendarios bloqueados/);
+    assert.match(html, /sin club asignado/);
     assert.match(html, /Valeria Prueba/);
-    assert.match(html, /incompleto/);
+    assert.match(html, /lista incompleta/);
   });
 
   await check('migration preview writes nothing', async () => {
@@ -81,10 +81,12 @@ try {
   });
 
   await check("Vanessa's case: September and October owed, November upcoming", async () => {
-    const html = await get('/');
+    // Past dates with no record live on the catch-up list; the home screen links to it.
+    const html = await get('/confirmar');
     const card = (d) => new RegExp(`Valeria Prueba</span>\\s*<span class="meta">Círculo Diamante · Envío #${d}`);
     assert.match(html, card(2)); assert.match(html, card(3));
-    const overdueSection = html.split('id="hoy"')[0];
+    assert.match(await get('/'), /href="\/confirmar"/);
+    const overdueSection = html;
     assert.match(overdueSection, card(2), '#2 (Sep 6) is in Atrasados');
     assert.match(overdueSection, card(3), '#3 (Oct 6) is in Atrasados');
     assert.doesNotMatch(overdueSection, card(4));
@@ -436,6 +438,25 @@ try {
     const before = q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n;
     assert.equal((await post(`/suscripcion/${subA}/historico`,{before:'2026-10-14'})).status,400);
     assert.equal(q('SELECT COUNT(*) n FROM fulfillments WHERE status IS NOT NULL')[0].n,before);
+  });
+
+  await check('member view, calendar and avisos render; quick log records one box with an audit and refuses repeats or future dates', async () => {
+    const socios = await get('/socios?f=todos');
+    assert.match(socios, /class="pills"/);
+    assert.match(await get('/calendario'), /Semana del/);
+    assert.match(await get('/avisos'), /<h1>Avisos<\/h1>/);
+    const open = [...socios.matchAll(/action="\/envio\/(\d+)\/(\d+)\/rapido"/g)].map(m => [m[1], m[2]])
+      .find(([s, k]) => !q(`SELECT status FROM fulfillments WHERE subscription_id=${s} AND k=${k} AND status IS NOT NULL`).length);
+    assert.ok(open, 'an open box offers the quick form');
+    const [s, k] = open, path = `/envio/${s}/${k}/rapido`;
+    const version = String(q(`SELECT version FROM fulfillments WHERE subscription_id=${s} AND k=${k}`)[0]?.version || 0);
+    assert.equal((await post(path, { version, como: 'pickup', done_on: '2099-01-01', back: '/socios' })).status, 400, 'future date refused');
+    const r = await post(path, { version, como: 'pickup', done_on: '2026-10-10', order_ref: 'OV-RAPIDO', back: '/socios' });
+    assert.equal(r.status, 303); assert.match(r.headers.get('location'), /^\/socios\?ok=\d+#e/);
+    const f = q(`SELECT * FROM fulfillments WHERE subscription_id=${s} AND k=${k}`)[0];
+    assert.equal(f.status, 'handed'); assert.equal(f.done_on, '2026-10-10'); assert.equal(f.order_ref, 'OV-RAPIDO'); assert.equal(f.method, 'pickup');
+    assert.ok(q(`SELECT COUNT(*) n FROM audit_log WHERE entity='fulfillment' AND entity_id='${s}:${k}' AND action LIKE '%registro rápido%'`)[0].n >= 1);
+    assert.equal((await post(path, { version: String(f.version), como: 'pickup', done_on: '2026-10-11', back: '/socios' })).status, 400, 'already recorded');
   });
 
   console.log(`\n${passed} integration checks passed`);
