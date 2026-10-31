@@ -99,6 +99,18 @@ export async function handleAuth(request, env, url) {
     headers.append('set-cookie', cookie(STATE, '', 0));
     return new Response(null, { status: 302, headers });
   }
+  // Setup check: shows the shape of the sign-in settings (never their values) so a bad paste is easy to spot.
+  if (url.pathname === '/auth/check') {
+    const sec = String(env.GOOGLE_CLIENT_SECRET || '');
+    const lines = [
+      `client id: ${env.GOOGLE_CLIENT_ID || '(missing)'}`,
+      `client secret: ${sec ? `${sec.slice(0, 7)}… ${sec.length} characters${/\s/.test(sec) ? ' — CONTAINS A SPACE OR LINE BREAK' : ''}${sec.startsWith('GOCSPX-') ? '' : ' — does not start with GOCSPX-'}` : '(missing)'}`,
+      `session secret: ${env.SESSION_SECRET ? `set, ${String(env.SESSION_SECRET).length} characters` : '(missing)'}`,
+      `hub admins: ${env.HUB_ADMIN_EMAILS ? `${String(env.HUB_ADMIN_EMAILS).split(',').length} set` : '(missing)'}`,
+      `redirect URI to register in Google: ${url.origin}/auth/callback`,
+    ];
+    return new Response(lines.join('\n'), { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+  }
   if (url.pathname === '/auth/salir' || url.pathname === '/auth/logout') {
     const v = getCookie(request, COOKIE);
     if (v) { const sid = v.split('|')[0]; const s = await env.DB.prepare('SELECT email FROM sessions WHERE id = ?').bind(sid).first(); await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sid).run(); if (s) await audit(env, s.email, 'logout'); }
