@@ -141,7 +141,7 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .cl select,.cl input{font-size:16px;min-height:40px;width:100%;box-sizing:border-box;padding:6px 8px}
 .cl select.crop{font-weight:700;font-size:17px;min-height:44px}
 .cl select.crop.empty{font-weight:400;color:var(--muted)}
-.cl .mstep{grid-column:2}.mstep{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.cl .mstep{grid-column:2 / -1}.mstep{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
 .mstep button{border:0;background:var(--sunk);font-size:18px;width:32px;min-height:40px;cursor:pointer;color:var(--fg);padding:0}
 .mstep select{border:0;border-radius:0;width:auto !important;min-width:62px;text-align:center;font-weight:700;padding:0 2px;background:var(--surface);-webkit-appearance:none;appearance:none;text-align-last:center}
 .cl .x{border:0;background:none;color:var(--faint);width:28px;min-height:40px;font-size:18px;cursor:pointer;padding:0}
@@ -182,7 +182,8 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .cl .nota::placeholder{color:var(--faint)}
 .cprog{display:block;font-size:14px;color:var(--muted)}.cprog b{color:var(--fg)}
 .cprog .pbar{display:block;margin-top:6px;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}.cprog .pbar i{display:block;height:100%;background:var(--ok)}
-.cl{grid-template-columns:6px minmax(0,1fr) 40px;row-gap:8px}
+.cl{grid-template-columns:6px minmax(0,1fr);row-gap:8px}
+.cl .rm{justify-self:start;min-height:40px;border:0;background:none;padding:0;font:inherit;font-size:14px;font-weight:600;color:var(--danger, #b3261e);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .cl .mstep{width:100%;box-sizing:border-box;min-height:44px}
 .cl .mstep select{flex:1;min-height:42px;font-size:17px}
 .cl .mstep button{width:52px;min-height:42px;font-size:20px}
@@ -703,7 +704,6 @@ function censoCard(bed){
       return `<div class="cl" data-i="${i}">
       <span class="sw" style="background:${l.cultivo ? cropColor(l.cultivo) : "var(--line)"}"></span>
       ${l._otro ? `<input data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Nombre del cultivo" maxlength="40" aria-label="Cultivo">` : `<select class="crop${l.cultivo ? "" : " empty"}" data-crop aria-label="Cultivo">${cropOptionsHtml(l.cultivo)}</select>`}
-      <button type="button" class="x" data-del aria-label="Quitar ${esc(l.cultivo || "línea")}">✕</button>
       <div class="mstep"><button type="button" data-dec aria-label="Menos medio metro">−</button><select data-m aria-label="Metros">${[...new Set([...M_OPTS(B.len), +l.m > 0 ? Math.round(+l.m * 100) / 100 : 0.5])].sort((x, y) => x - y).map(v => `<option value="${v}"${Math.abs(v - +l.m) < 0.01 ? " selected" : ""}>${fm(v)}</option>`).join("")}</select><button type="button" data-inc aria-label="Más medio metro">+</button></div>
       <details class="ldet" data-det${l._open || (!l.fecha && !l.cosecha && !l.nota && l._new) ? " open" : ""}><summary>${detSummary(l)}</summary><div class="ldb">
       <div class="sown"><span class="q">¿Hace cuánto se sembró? <small>(aprox.)</small></span>
@@ -713,7 +713,8 @@ function censoCard(bed){
       <label class="cos"><span class="q">Cosecha estimada <small>(si no sabes, déjala vacía)</small></span>
         <input type="date" data-f="cosecha" value="${esc(l.cosecha || "")}" aria-label="Cosecha estimada">
         <span class="hint">${l.cosecha ? "" : harvestOf(l) ? `Vacía = se calcula con la siembra: ≈ <b>${esc(fmtISO(harvestOf(l)))}</b>` : "Vacía = se calcula con el plan."}</span></label>
-      <input class="nota" data-f="nota" list="notalist" value="${esc(l.nota || "")}" maxlength="80" placeholder="Nota (opcional): plaga, floreando…" aria-label="Nota"></div></details>
+      <input class="nota" data-f="nota" list="notalist" value="${esc(l.nota || "")}" maxlength="80" placeholder="Nota (opcional): plaga, floreando…" aria-label="Nota">
+      <button type="button" class="rm" data-del>Quitar ${esc(l.cultivo || "este renglón")} de la cama</button></div></details>
     </div>`; }).join("")}
     <div class="cfoot"><button type="button" class="btn" data-add>＋ Agregar cultivo</button>${L.length ? `<button type="button" class="lnk" data-empty style="grid-column:auto">Vaciar cama</button>` : ""}<button type="button" class="btn primary" data-save style="margin-left:auto">Guardar</button></div>
   </section>`;
