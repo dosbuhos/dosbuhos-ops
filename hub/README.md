@@ -16,8 +16,8 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 ## Deploy (GitHub → Cloudflare Workers Builds, like the other apps)
 
 1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → `dosbuhos-ops`.
-2. Project name `hub` (must match `name` in wrangler.jsonc), root directory `hub`, build command empty, deploy command `npm run deploy`.
-3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys; `npm run deploy` applies new migrations first.
+2. Project name `hub` (must match `name` in wrangler.jsonc), root directory `hub`, build command empty, deploy command `npx wrangler deploy`.
+3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001 and 0002 are applied.
 
 ## One-time setup
 
