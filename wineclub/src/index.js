@@ -4,7 +4,8 @@ import { alertsPage, buildAlerts } from './alerts.js';
 import { identify } from './auth.js';
 import { esc } from './ui.js';
 import { STATUSES, DONE, isDate, dueDate, parseBottles, membershipYear } from './schedule.js';
-import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal } from './data.js';
+import { loadContext, subClub, subOccurrences, getSub, writeFulfillment, undoFulfillment, audit, setSetting, todayLocal, isIgnored } from './data.js';
+import { subEnded } from './visibility.js';
 import { syncStripe, handleWebhook } from './stripe.js';
 import * as P from './pages.js';
 import { fulfillPage, fulfillSubmit, reopen, reconcileData, reconcilePage, reconcileSubmit, packingProblem } from './flow.js';
@@ -317,10 +318,27 @@ async function handle(request, env) {
     await audit(env, user.email, 'socio manual', 'member', mem.id, null, { name, club_id: clubId, start_date: start, subscription_id: sub.id });
     return redirect(`/socio/${mem.id}`);
   }
-  if ((r = R(/^\/socio\/(\d+)(?:\/(datos|beneficio|membresia|reactivar))?$/))) {
+  if ((r = R(/^\/socio\/(\d+)(?:\/(datos|beneficio|membresia|reactivar|regreso))?$/))) {
     const id = Number(r[1]);
     const member = await env.DB.prepare('SELECT * FROM members WHERE id=?').bind(id).first();
     if (!member) return notFound(env, user);
+    if (r[2] === 'regreso' && m === 'POST') {
+      // Quit and came back: a new manual stage starting on the date staff confirm; the ended stage stays as history.
+      if (!user.isManager) return forbidden(env, user);
+      const fm = await form(request);
+      const ctx = await loadContext(env, { memberId: id });
+      const start = dateOrNull(fm.start_date), club = ctx.clubs.get(Number(fm.club_id)), note = str(fm.note, 300);
+      const fail = (msg) => P.simplePage({ env, user, title: 'No se registró el regreso', status: 400, html: `<h1>No se registró el regreso</h1><p>${esc(msg)}</p><p><a href="/socio/${id}#regreso">Volver a la ficha</a></p>` });
+      if (!start || !club) return fail('Elige el club y la fecha de reinicio.');
+      if (member.suspended_on) return fail('Este socio está suspendido por falta de pago. Usa “Reactivar membresía” en su ficha.');
+      const subs = ctx.subs.filter(s => s.member_id === id && subClub(ctx, s) && !isIgnored(s));
+      if (subs.some(s => !subEnded(s, ctx.today))) return fail('Este socio ya tiene una membresía activa. Para cambiar su fecha usa “Correcciones” en la ficha.');
+      const lastEnd = subs.map(s => s.ended_on).filter(Boolean).sort().pop();
+      if (lastEnd && start < lastEnd) return fail(`La fecha de reinicio no puede ser antes del fin de su membresía anterior (${lastEnd}).`);
+      const sub = await env.DB.prepare(`INSERT INTO subscriptions (member_id, club_id_override, status, start_date) VALUES (?,?,'manual',?) RETURNING id`).bind(id, club.id, start).first();
+      await audit(env, user.email, 'regreso al club', 'member', id, { ended_on: lastEnd || null }, { subscription_id: sub.id, club_id: club.id, start_date: start, note });
+      return redirect(`/socio/${id}?regreso=${start}`);
+    }
     if(r[2]==='reactivar') {
       if(!user.isManager)return forbidden(env,user);
       if(m==='POST')return reactivate(env,user,member,await form(request));

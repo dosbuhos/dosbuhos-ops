@@ -1,7 +1,7 @@
 import { esc, fdate, rel, chip, page, bottleList, stateLabel, STATE, STATUS_LABEL, money, cadenceLabel, MESES } from './ui.js';
 import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBottles, daysBetween } from './schedule.js';
 import { allOccurrences, subOccurrences, subClub, subFlags, isIgnored } from './data.js';
-import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge, holdTerm,inboxReason } from './visibility.js';
+import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge, holdTerm,inboxReason, rejoinedDate, subEnded, subStart } from './visibility.js';
 import {billingIssues,billingIssue,billingWarning,billingSummary} from './billing.js';
 import {membershipControls,paymentReviewWarning,paymentContact} from './membership.js';
 import {quickBenefit,quickBenefitScript} from './benefits.js';
@@ -268,7 +268,7 @@ export function membersPage({ env, user, ctx, members, url }) {
   <div class="rows">${list.map(row).join('') || '<div class="empty">Sin socios en este filtro.</div>'}</div>
   <script>document.querySelectorAll('.member-filters a').forEach(a=>a.addEventListener('click',()=>{const u=new URL(a.href);const q=document.getElementById('q').value.trim();if(q)u.searchParams.set('q',q);a.href=u.pathname+u.search;}));document.addEventListener('DOMContentLoaded',()=>{const q=document.getElementById('q');if(q.value)q.dispatchEvent(new Event('input'));});</script>
   ${user.isManager ? `<details class="more"><summary>Agregar socio sin Stripe</summary><div class="card"><form method="post" action="/socios/nuevo">
-    <p class="small muted" style="margin-top:0">Para socios que no pagan por Stripe (cortesías, pagos en efectivo). Los de Stripe llegan solos.</p>
+    <p class="small muted" style="margin-top:0">Para socios que no pagan por Stripe (cortesías, pagos en efectivo). Los de Stripe llegan solos. Si ya fue socio, búscalo y usa “Registrar regreso” en su ficha para no duplicarlo.</p>
     <label for="nn">Nombre</label><input id="nn" name="name" required>
     <div class="grid2"><div><label for="ne">Correo</label><input id="ne" name="email" type="email"></div><div><label for="np">Teléfono</label><input id="np" name="phone"></div></div>
     <div class="grid2"><div><label for="nc">Club</label><select id="nc" name="club_id">${clubsOpts}</select></div>
@@ -281,8 +281,30 @@ export function membersPage({ env, user, ctx, members, url }) {
 export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   member={...member,email:member.contact_email||member.email,phone:member.contact_phone||member.phone};
   const today = ctx.today;
-  const subs = ctx.subs;
+  // Current stage first; an ended stage stays below as history.
+  const subs = [...ctx.subs].sort((a, b) => subEnded(a, today) - subEnded(b, today) || subStart(b).localeCompare(subStart(a)));
   const all = url.searchParams.get('todo') === '1';
+  const clubSubs = subs.filter(s => subClub(ctx, s) && !isIgnored(s));
+  const staged = clubSubs.length > 1;
+  const canRejoin = clubSubs.length > 0 && clubSubs.every(s => subEnded(s, today)) && !member.suspended_on;
+  let rejoinHtml = '';
+  if (canRejoin) {
+    const ends = clubSubs.map(s => s.ended_on).filter(Boolean).sort();
+    const lastEnd = ends[ends.length - 1] || null;
+    const lastClub = subClub(ctx, clubSubs[0]);
+    const opts = [...ctx.clubs.values()].filter(c => c.active || c.id === lastClub?.id).map(c => `<option value="${c.id}" ${c.id === lastClub?.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+    const minDate = lastEnd && lastEnd > today ? lastEnd : lastEnd || '';
+    rejoinHtml = `<div class="card rejoin" id="regreso" style="border-left:4px solid var(--wine)"><b>¿Regresó al club?</b>
+      <p class="small" style="margin:4px 0 0">Su membresía terminó${lastEnd ? ` el ${esc(exactDate(lastEnd))}` : ''}. Al registrar su regreso empieza una etapa nueva; las entregas anteriores se conservan abajo.</p>
+      ${user.isManager ? `<form method="post" action="/socio/${member.id}/regreso">
+        <label for="rj-club">Club</label><select id="rj-club" name="club_id">${opts}</select>
+        <label for="rj-date">Fecha de reinicio · envío #1 de la nueva etapa</label><input id="rj-date" type="date" name="start_date" value="${esc(minDate && minDate > today ? minDate : today)}" ${minDate ? `min="${esc(minDate)}"` : ''} required>
+        <p class="small muted" style="margin:4px 0 0">Las siguientes cajas se calculan desde esta fecha. Si ya pasó, las cajas desde entonces aparecen como pendientes.</p>
+        <label for="rj-note">Nota (opcional)</label><input id="rj-note" name="note" maxlength="300" placeholder="Ej. pagó en la tienda">
+        <button class="btn" style="margin-top:10px">Registrar regreso</button></form>
+        <p class="small muted">Si volvió a pagar por Stripe no hace falta: aparece solo al sincronizar. Su fecha de inicio se ajusta en “Correcciones”.</p>`
+        : '<p class="small muted">Pide a un administrador que registre su regreso.</p>'}</div>`;
+  }
   const subCards = subs.map(s => {
     const club = subClub(ctx, s);
     const flags = subFlags(ctx, s).map(x => chip(x.text, x.tone)).join('');
@@ -322,7 +344,8 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
       ${!s.stripe_subscription_id ? `<form method="post" action="/suscripcion/${s.id}/terminar" class="card"><b>Terminar suscripción manual</b>
         <label>Último día</label><input type="date" name="ended_on" value="${esc(s.ended_on || today)}"><button class="btn sm danger" style="margin-top:10px">Terminar</button></form>` : ''}
       </details>` : '';
-    return `<div class="card"><div style="font-weight:800;font-size:17px">${club ? esc(club.name) : 'Sin club'}</div>
+    const stage = staged && club && !isIgnored(s) ? (subEnded(s, today) ? `<div class="small muted">Etapa anterior · ${esc(exactDate(anchor))} – ${esc(s.ended_on ? exactDate(s.ended_on) : 'terminada')}</div>` : `<div class="small" style="color:var(--green)">Etapa actual · desde ${esc(exactDate(anchor))}</div>`) : '';
+    return `<div class="card">${stage}<div style="font-weight:800;font-size:17px">${club ? esc(club.name) : 'Sin club'}</div>
       <div class="small muted">Cobro: ${s.price_amount != null ? money(s.price_amount, s.price_currency) + (s.billing_interval ? ` cada ${s.billing_interval_count > 1 ? s.billing_interval_count + ' ' : ''}${s.billing_interval === 'month' ? (s.billing_interval_count > 1 ? 'meses' : 'mes') : s.billing_interval}` : '') : 'Sin importe registrado'}
       · ${esc(s.stripe_subscription_id ? 'Stripe: ' + s.status : 'Manual')}</div>
       <div class="chips">${flags}</div>${timeline}${corrections}</div>`;
@@ -361,9 +384,10 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   const joined = joinedDate(ctx, member.id);
   const body = `<p><a href="/socios">← Socios</a></p><h1>${esc(member.name)}</h1>
   ${subs.map(s=>billingWarning(ctx,s)).join('')}
-  ${membershipControls(member,user)}${url.searchParams.has('reactivado')?'<div class="banner green">Membresía reactivada. Se aplicaron las decisiones revisadas; las cajas con pago pendiente siguen bloqueadas.</div>':''}
-  <p class="mhead">${subs.map(x => subClub(ctx, x)?.name).filter(Boolean).map(esc).join(' · ') || 'Sin club'} · Alta <b>${joined ? esc(exactDate(joined)) : 'por confirmar'}</b><br>${esc(prefLabel(member.delivery_pref))}${member.phone ? ` · <a href="tel:${esc(member.phone)}">${esc(member.phone)}</a>` : ''} · <a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto</a></p>
+  ${membershipControls(member,user,canRejoin)}${url.searchParams.has('reactivado')?'<div class="banner green">Membresía reactivada. Se aplicaron las decisiones revisadas; las cajas con pago pendiente siguen bloqueadas.</div>':''}
+  <p class="mhead">${[...new Set((clubSubs.some(x => !subEnded(x, today)) ? clubSubs.filter(x => !subEnded(x, today)) : clubSubs).map(x => subClub(ctx, x).name))].map(esc).join(' · ') || 'Sin club'} · Alta <b>${joined ? esc(exactDate(joined)) : 'por confirmar'}</b>${rejoinedDate(ctx, member.id) ? ` · Regresó <b>${esc(exactDate(rejoinedDate(ctx, member.id)))}</b>` : ''}<br>${esc(prefLabel(member.delivery_pref))}${member.phone ? ` · <a href="tel:${esc(member.phone)}">${esc(member.phone)}</a>` : ''} · <a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto</a></p>
   ${member.staff_note ? `<div class="banner amber">${esc(member.staff_note)}</div>` : ''}
+  ${url.searchParams.has('regreso') ? `<div class="banner green">Regreso registrado. La nueva etapa empieza el ${esc(exactDate(url.searchParams.get('regreso')))}.</div>` : ''}${rejoinHtml}
   <h2 id="calendario">Envíos</h2>${subCards || '<div class="card empty">Sin suscripciones.</div>'}
   <details class="more card" id="contacto"><summary>Contacto y forma de entrega</summary><dl class="kv">
     ${member.email ? `<dt>Correo</dt><dd><a href="mailto:${esc(member.email)}">${esc(member.email)}</a></dd>` : ''}

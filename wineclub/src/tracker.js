@@ -5,7 +5,7 @@
 import { esc, fdate, chip, page, STATUS_LABEL, MESES, bottleList, money } from './ui.js';
 import { addDays, weekdayMon0, daysBetween } from './schedule.js';
 import { subOccurrences, subClub, isIgnored, allOccurrences } from './data.js';
-import { exactDate, recordedPending, joinedDate } from './visibility.js';
+import { exactDate, recordedPending, joinedDate, rejoinedDate } from './visibility.js';
 import { okBanner } from './pages.js';
 import { qrow, QCSS } from './queue.js';
 import { buildAlerts } from './alerts.js';
@@ -122,6 +122,8 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
       done += occ.filter(o => o.state === 'done').length;
       blocks.push({ s, club, occ, ended });
     }
+    // Current stage first; a member who quit and came back keeps the old stage as history.
+    blocks.sort((a, b) => (a.ended ? 1 : 0) - (b.ended ? 1 : 0) || (b.s.anchor_override || b.s.start_date).localeCompare(a.s.anchor_override || a.s.start_date));
     const hay = (m.name + ' ' + m.subs.map(s => s.member_email || '').join(' ')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     const payProblem = m.subs.some(s => s.suspended_on || s.payment_followup_on) || blocks.some(b => b.occ.some(o => ['block', 'pay'].includes(tone(o, today))));
     counts.todos++; if (active) counts.activos++; if (late) counts.atrasados++; if (payProblem) counts.cobro++; if (!late && !payProblem && active) counts.aldia++;
@@ -130,32 +132,33 @@ export function trackerPage({ env, user, ctx, url, okAudit }) {
     if (filter === 'atrasados' && !late) continue;
     if (filter === 'aldia' && (late || !active || payProblem)) continue;
     if (filter === 'cobro' && !payProblem) continue;
-    cards.push({ m, blocks, late, done, active, joined: joinedDate(ctx, m.id) });
+    cards.push({ m, blocks, late, done, active, joined: joinedDate(ctx, m.id), back: rejoinedDate(ctx, m.id) });
   }
   cards.sort((a, b) => (b.late > 0) - (a.late > 0) || a.m.name.localeCompare(b.m.name, 'es'));
   const back = url.pathname + url.search.replace(/[?&]ok=\d+/, '');
-  const card = ({ m, blocks, late, done, active, joined }) => {
-    const all = blocks.flatMap(b => b.occ);
+  const card = ({ m, blocks, late, done, active, joined, back: rejoined }) => {
+    const current = blocks.some(b => b.club && !b.ended) ? blocks.filter(b => !b.ended) : blocks;
+    const all = current.flatMap(b => b.occ), everything = blocks.flatMap(b => b.occ);
     const owed = all.filter(o => !['upcoming', 'pretracking', 'skipped'].includes(o.state));
     const paidN = owed.filter(o => o.f?.stripe_invoice_id && o.f?.paid_on).length, doneN = owed.filter(o => o.state === 'done').length;
-    const manual = blocks.every(b => !b.s.stripe_subscription_id);
+    const manual = current.every(b => !b.s.stripe_subscription_id);
     const first = blocks[0];
     const pref = first?.s.delivery_pref === 'envio' ? 'Envío a domicilio' : 'Recoge en bodega';
     const noClub = blocks.some(b => !b.club);
     const payIssue = blocks.some(b => b.s.suspended_on) ? 'Pago bloqueado' : all.some(o => ['block', 'pay'].includes(tone(o, today))) ? 'Revisar cobro' : null;
     const status = noClub ? '<span class="mstat late">Sin club</span>' : payIssue ? `<span class="mstat late">${payIssue}</span>` : late ? `<span class="mstat late">${plural(late, 'atrasado', 'atrasados')}</span>` : active ? '<span class="mstat ok">Al día</span>' : '<span class="mstat off">Terminado</span>';
-    const isOpen = open === String(m.id) || all.some(o => open === `${o.subId}:${o.k}`);
+    const isOpen = open === String(m.id) || everything.some(o => open === `${o.subId}:${o.k}`);
     return `<details class="member" id="m${m.id}" ${isOpen ? 'open' : ''}>
       <summary>
         <span class="mtop"><span class="mname">${esc(m.name)}</span><span class="mright">${status}<span class="chev" aria-hidden="true"></span></span></span>
-        <span class="msub">${esc(blocks.map(b => b.club ? b.club.name : 'Sin club').join(' · '))} · Alta ${joined ? esc(exactDate(joined)) : '—'}</span>
+        <span class="msub">${esc([...new Set(current.map(b => b.club ? b.club.name : 'Sin club'))].join(' · '))} · Alta ${joined ? esc(exactDate(joined)) : '—'}${rejoined ? ` · Regresó ${esc(exactDate(rejoined))}` : ''}</span>
         ${owed.length ? `<span class="mcount">${doneN} de ${owed.length} entregadas${manual ? ' · cobro manual' : ` · ${paidN} de ${owed.length} pagadas`}</span>` : ''}
-        <span class="pills" aria-label="${done} entregados, ${late} atrasados. Toca para ver cada envío">${all.map(o => `<span class="pill t-${tone(o, today)}" title="Envío #${o.n}: ${esc(TONE_LABEL[tone(o, today)])}">${o.n}</span>`).join('')}</span>
+        <span class="pills" aria-label="${done} entregados, ${late} atrasados. Toca para ver cada envío">${all.map(o => `<span class="pill t-${tone(o, today)}" title="Envío #${o.n}: ${esc(TONE_LABEL[tone(o, today)])}">${o.n}</span>`).join('')}${(() => { const oldLate = blocks.filter(b => !current.includes(b)).flatMap(b => b.occ).filter(o => tone(o, today) === 'late'); return oldLate.length ? `<span class="pill-sep">etapa anterior</span>${oldLate.map(o => `<span class="pill t-late" title="Etapa anterior, envío #${o.n}: atrasado">${o.n}</span>`).join('')}` : ''; })()}</span>
       </summary>
       <div class="mbody">
         <p class="small muted">${esc(pref)}${first?.s.member_phone ? ` · <a href="tel:${esc(first.s.member_phone)}">${esc(first.s.member_phone)}</a>` : ''} · <a href="/socio/${m.id}">Perfil del socio</a></p>
         ${blocks.map(b => !b.club ? `<p class="warn">Esta suscripción no tiene club asignado; sus envíos no se pueden calcular.</p>`
-          : `${blocks.length > 1 ? `<h3 class="small">${esc(b.club.name)}${b.ended ? ' · terminada' : ''}</h3>` : ''}${b.occ.map(o => shipmentRow(o, today, back + (back.includes('?') ? '&' : '?') + `abrir=${o.subId}%3A${o.k}`)).join('') || '<p class="small muted">Sin envíos todavía.</p>'}`).join('')}
+          : `${blocks.length > 1 ? `<h3 class="small">${b.ended ? 'Etapa anterior · ' : rejoined ? 'Etapa actual · ' : ''}${esc(b.club.name)}${b.ended ? ' · terminada' : ''}</h3>` : ''}${b.occ.map(o => shipmentRow(o, today, back + (back.includes('?') ? '&' : '?') + `abrir=${o.subId}%3A${o.k}`)).join('') || '<p class="small muted">Sin envíos todavía.</p>'}`).join('')}
       </div></details>`;
   };
   const chipLink = (k, label) => `<a href="/socios?f=${k}${q ? '&q=' + encodeURIComponent(q) : ''}" ${filter === k ? 'aria-current="page"' : ''}>${label} <b>${counts[k]}</b></a>`;
@@ -241,7 +244,7 @@ h1{margin:6px 0 10px}
 .pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .pill{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:26px;padding:0 6px;border-radius:7px;font-size:13px;font-weight:700;font-style:normal;background:var(--grey-soft);color:var(--muted);border:1.5px solid transparent}
 .pill.t-ok{background:var(--green);color:#fff}.pill.t-late{background:var(--red);color:#fff}.pill.t-now{background:#fff;color:var(--wine);border:2px solid var(--wine)}.pill.t-pay{background:#fff;color:var(--amber);border:2px dashed var(--amber)}
-.pill.t-hold{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}.pill.t-block{background:var(--red-soft);color:var(--red);border-color:var(--red)}
+.pill-sep{font-size:12px;color:var(--muted);align-self:center;margin-left:4px}.pill.t-hold{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}.pill.t-block{background:var(--red-soft);color:var(--red);border-color:var(--red)}
 .pill.t-future{background:#fff;color:var(--muted);border-color:var(--line)}.pill.t-off{background:var(--grey-soft);color:#a39c95}
 .mbody{padding:6px 14px 12px}.mbody>p{margin:6px 0 10px}
 .ship-acc{border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;margin:8px 0;background:#fff}

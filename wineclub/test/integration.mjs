@@ -459,6 +459,25 @@ try {
     assert.equal((await post(path, { version: String(f.version), como: 'pickup', done_on: '2026-10-11', back: '/socios' })).status, 400, 'already recorded');
   });
 
+  await check('a member who quit can come back on a chosen restart date; the old stage stays as history', async () => {
+    const made = await post('/socios/nuevo', { name: 'Regreso Prueba', club_id: '2', start_date: '2026-01-05', delivery_pref: 'recoge' });
+    const id = made.headers.get('location').match(/\/socio\/(\d+)/)[1];
+    const oldSub = q(`SELECT id FROM subscriptions WHERE member_id=${id}`)[0].id;
+    assert.equal((await post(`/socio/${id}/regreso`, { club_id: '3', start_date: '2026-10-20' })).status, 400, 'refused while the membership is active');
+    assert.equal((await post(`/suscripcion/${oldSub}/terminar`, { ended_on: '2026-06-01' })).status, 303);
+    assert.match(await get(`/socio/${id}`), /Registrar regreso/);
+    assert.equal((await post(`/socio/${id}/regreso`, { club_id: '3', start_date: '2026-05-01' })).status, 400, 'restart before the old end is refused');
+    const r = await post(`/socio/${id}/regreso`, { club_id: '3', start_date: '2026-10-20', note: 'pagó en tienda' });
+    assert.equal(r.status, 303); assert.equal(r.headers.get('location'), `/socio/${id}?regreso=2026-10-20`);
+    const subs = q(`SELECT * FROM subscriptions WHERE member_id=${id} ORDER BY id`);
+    assert.equal(subs.length, 2); assert.equal(subs[0].status, 'manual_ended'); assert.equal(subs[1].start_date, '2026-10-20'); assert.equal(subs[1].club_id_override, 3);
+    assert.ok(q(`SELECT COUNT(*) n FROM audit_log WHERE action='regreso al club' AND entity_id='${id}'`)[0].n === 1);
+    const page = await get(`/socio/${id}`);
+    assert.match(page, /Etapa actual/); assert.match(page, /Etapa anterior/); assert.match(page, /Regresó/); assert.doesNotMatch(page, /Registrar regreso/);
+    assert.match(await get('/socios?f=todos&q=regreso'), /Regresó/);
+    assert.equal((await post(`/socio/${id}/regreso`, { club_id: '3', start_date: '2026-10-25' })).status, 400, 'no second active stage');
+  });
+
   console.log(`\n${passed} integration checks passed`);
 } catch (e) {
   console.error('FAILED:', e.stack, e.cause?.code || e.cause?.message || ''); process.exitCode = 1;

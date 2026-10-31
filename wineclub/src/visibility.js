@@ -11,7 +11,18 @@ export function joinedDate(ctx, memberId) {
     .map(s => s.start_date).filter(Boolean).sort()[0] || null;
 }
 
-export const recordedPending = (o) => ['needs_prep', 'ready', 'exception'].includes(o.status) || !!o.f?.delayed_until;
+// A member who quit and came back: subscriptions are stages; an ended one stays as history.
+export const subEnded = (s, today) => ['canceled', 'manual_ended', 'incomplete_expired'].includes(s.status) || !!(s.ended_on && s.ended_on <= today);
+export const subStart = (s) => s.anchor_override || s.start_date;
+// Date of the current stage when the member had an earlier, ended one; otherwise null.
+export function rejoinedDate(ctx, memberId) {
+  const subs = ctx.subs.filter(s => s.member_id === memberId && !isIgnored(s) && subClub(ctx, s)).sort((a, b) => subStart(a).localeCompare(subStart(b)));
+  if (subs.length < 2) return null;
+  const last = subs[subs.length - 1];
+  return !subEnded(last, ctx.today) && subs.slice(0, -1).some(s => subEnded(s, ctx.today)) ? subStart(last) : null;
+}
+
+export const recordedPending =(o) => ['needs_prep', 'ready', 'exception'].includes(o.status) || !!o.f?.delayed_until;
 export const visibleStatus = (o) => ['suspended','payment_blocked','payment_contact'].includes(o.state) ? stateLabel(o) : o.holdReleaseDue ? 'Resguardo · fecha cumplida' : o.delayed && o.state === 'upcoming' ? 'Aplazado por solicitud' : o.state === 'overdue' && !recordedPending(o) ? 'Por comprobar' : stateLabel(o);
 export const holdTerm = o => o.f?.hold_until ? `Liberar a partir del ${exactDate(o.f.hold_until)}` : 'Resguardo indefinido · sin fecha de liberación';
 
