@@ -12,10 +12,11 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 | `/api/…` | JSON for the pages above (`src/api.js`) |
 | `/kit/kit.css` | The shared UI kit (palette, type, cards, chips, tables, trend tiles). Apps behind the Hub can link it |
 
-## Deploy
+## Deploy (GitHub → Cloudflare Workers Builds, like the other apps)
 
-Pushes to `main` that touch `hub/` run `.github/workflows/deploy-hub.yml` (same `CLOUDFLARE_API_TOKEN` secret as zoho-inventory):
-migrations are applied to D1, then `wrangler deploy`. First deploy creates the Worker at `https://hub.dos-buhos.workers.dev`.
+1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → `dosbuhos-ops`.
+2. Project name `hub` (must match `name` in wrangler.jsonc), root directory `hub`, build command empty, deploy command `npm run deploy`.
+3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys; `npm run deploy` applies new migrations first.
 
 ## One-time setup
 
