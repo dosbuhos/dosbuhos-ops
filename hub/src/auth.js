@@ -81,7 +81,7 @@ export async function handleAuth(request, env, url) {
     const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ code: url.searchParams.get('code') || '', client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: redirectUri, grant_type: 'authorization_code' }) });
     const tok = await r.json();
-    if (!r.ok || !tok.id_token) return loginPage(url, 'Google no confirmó el acceso.');
+    if (!r.ok || !tok.id_token) { console.log('google token exchange failed', r.status, tok.error, tok.error_description); return loginPage(url, `Google no confirmó el acceso (${tok.error || r.status}).`); }
     // id_token comes straight from Google's token endpoint over TLS, so its claims can be trusted; still check audience.
     const p = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(tok.id_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))));
     const email = String(p.email || '').toLowerCase();
