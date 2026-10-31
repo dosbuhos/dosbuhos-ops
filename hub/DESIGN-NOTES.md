@@ -33,3 +33,7 @@ Phone gets a single-column list (rows ≥ 64 px), desktop a grid — research: l
 4. Targets ≥ 48 px, focus visible, works with the fonts missing.
 
 **Review against the brief.** First draft was a 2-column card grid on phones with each placeholder as its own dashed card — that is the generic app-store look and the screenshot showed placeholders taking over half the screen. Changed to a list on phones and one collapsed line per section for anything not yet usable.
+
+## Standing rule (Eric, Oct 30): on mobile everything is vertical
+
+No horizontal scrolling anywhere on a phone: no scrolling chip bars, carousels or wide tables. Chips wrap; lists stack; tables become cards below 720 px. `html, body { overflow-x: clip }` in the kit is the safety net, not the fix.
