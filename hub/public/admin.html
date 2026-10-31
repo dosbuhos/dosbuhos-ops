@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Hub admin · Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kit/kit.css">
+<link rel="icon" href="/icon-192.png">
+<style>
+  .people { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 900px) { .people { grid-template-columns: 340px 1fr; align-items: start; } }
+  .plist { display: flex; flex-direction: column; gap: 6px; }
+  .person { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+  .person[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .person .who { flex: 1; min-width: 0; }
+  .person .who b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person .who small { color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person.off { opacity: .55; }
+  .access-sec { margin: 0 0 14px; }
+  .access-sec h3 { font-family: var(--f-display); font-size: 18px; font-weight: 600; padding-left: 10px; border-left: 3px solid var(--k, var(--rule)); margin: 0 0 6px; }
+  .access-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+  .access-row:last-child { border-bottom: 0; }
+  .access-row .n { flex: 1; min-width: 0; }
+  .access-row .n small { color: var(--muted); display: block; }
+  .apps-table input, .apps-table select { min-height: 30px; padding: 3px 8px; font-size: 13px; }
+  .apps-table select { width: auto; min-width: 112px; padding-right: 24px; }
+  .apps-table td { padding: 6px 8px; }
+  .apps-table input.w-url { min-width: 220px; }
+  .apps-table input.w-sm { width: 64px; }
+  .apps-table input.w-md { width: 150px; }
+  .detail { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <a class="wordmark" href="/" aria-label="Dos Búhos"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <span class="crumb">Hub admin</span>
+  <span class="spacer"></span>
+  <span class="who" id="who"></span>
+  <nav><a href="/">Home</a><a href="/auth/salir">Sign out</a></nav>
+</div></header>
+
+<main class="wrap">
+  <nav class="tabs" id="tabs">
+    <a href="#people">People</a><a href="#apps">Apps</a><a href="#audit">Audit log</a><a href="#secrets">Secrets</a><a href="#health">App health</a>
+  </nav>
+  <div id="view"></div>
+</main>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const when = ms => ms ? new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+const ROLES = ['', 'viewer', 'editor', 'admin'];
+const ROLE_LABEL = { '': 'No access', viewer: 'Viewer', editor: 'Editor', admin: 'Admin' };
+let toastT;
+function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+async function call(method, path, body) {
+  const r = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(j.message || `That did not work (${r.status}).`, true); throw new Error(j.message || r.status); }
+  return j;
+}
+
+const state = { me: null, users: [], apps: [], sections: [], selected: null };
+const views = { people, apps, audit, secrets: soon('Secrets', 'Phase 3: app secrets (write-only, bound to Workers) and team credentials (reveal on click, logged).'), health: soon('App health', 'Phase 3: every app\'s status, last deploy, errors, database size and who used it this week.') };
+
+async function route() {
+  const tab = (location.hash || '#people').slice(1);
+  for (const a of $('#tabs').children) a.toggleAttribute('aria-current', a.getAttribute('href') === '#' + tab);
+  $('#view').innerHTML = '<p class="muted">Loading…</p>';
+  try { await (views[tab] || views.people)(); } catch (e) { $('#view').innerHTML = `<div class="empty"><b>Could not load this page</b>${esc(e.message)}</div>`; }
+}
+window.addEventListener('hashchange', route);
+
+(async () => {
+  state.me = await call('GET', '/api/me');
+  $('#who').textContent = state.me.name || state.me.email;
+  route();
+})();
+
+/* ---------------- People & access ---------------- */
+async function people() {
+  const [u, a] = await Promise.all([call('GET', '/api/admin/users'), call('GET', '/api/admin/apps')]);
+  state.users = u.users; state.apps = a.apps; state.sections = a.sections;
+  if (state.selected && !state.users.some(x => x.email === state.selected)) state.selected = null;
+  $('#view').innerHTML = `
+    <div class="people">
+      <div class="stack">
+        <form class="panel stack" id="addUser" autocomplete="off">
+          <div class="field"><span>Gmail address</span><input name="email" type="email" required placeholder="nombre@dosbuhos.com"></div>
+          <div class="field"><span>Name</span><input name="name" placeholder="How they appear in the apps"></div>
+          <div class="between"><label class="toggle"><input type="checkbox" name="is_admin"> Hub admin</label><button class="btn primary">Add person</button></div>
+        </form>
+        <div class="plist" id="plist"></div>
+      </div>
+      <div id="access"></div>
+    </div>`;
+  $('#addUser').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const r = await call('POST', '/api/admin/users', { email: f.get('email'), name: f.get('name'), is_admin: !!f.get('is_admin') });
+    toast(`Added ${r.email}`); state.selected = r.email; people();
+  };
+  renderList(); renderAccess();
+}
+function renderList() {
+  $('#plist').innerHTML = state.users.map(u => `
+    <button class="person${u.active ? '' : ' off'}" data-email="${esc(u.email)}" aria-pressed="${state.selected === u.email}">
+      <span class="who"><b>${esc(u.name || u.email)}</b><small>${esc(u.email)} · ${u.grants.length} app${u.grants.length === 1 ? '' : 's'}${u.last_login ? ' · seen ' + when(u.last_login) : ' · never signed in'}</small></span>
+      ${u.is_admin ? '<span class="chip k k-admin">Hub admin</span>' : ''}${u.active ? '' : '<span class="chip bad">Locked</span>'}
+    </button>`).join('') || '<div class="empty"><b>Nobody yet</b>Add the first person with their Gmail.</div>';
+  for (const b of document.querySelectorAll('.person')) b.onclick = () => { state.selected = b.dataset.email; renderList(); renderAccess(); };
+}
+function renderAccess() {
+  const u = state.users.find(x => x.email === state.selected);
+  const box = $('#access');
+  if (!u) { box.innerHTML = '<div class="empty"><b>Pick a person</b>Their apps and roles show here.</div>'; return; }
+  const me = u.email === state.me.email;
+  const role = slug => (u.grants.find(g => g.slug === slug) || {}).role || '';
+  box.innerHTML = `
+    <div class="panel stack">
+      <div class="between">
+        <div><div class="h-display" style="font-size:24px">${esc(u.name || u.email)}</div><div class="muted small">${esc(u.email)}</div></div>
+        <div class="row" style="align-items:center">
+          <label class="toggle"><input type="checkbox" id="uAdmin" ${u.is_admin ? 'checked' : ''} ${me ? 'disabled' : ''}> Hub admin</label>
+          <label class="toggle"><input type="checkbox" id="uActive" ${u.active ? 'checked' : ''} ${me ? 'disabled' : ''}> Active</label>
+          <button class="btn sm danger" id="uRemove" ${me ? 'disabled' : ''}>Remove</button>
+        </div>
+      </div>
+      <div class="field"><span>Name</span><input id="uName" value="${esc(u.name)}" placeholder="Name"></div>
+      ${u.is_admin ? '<p class="muted small">Hub admins are admins in every app; the roles below only matter if that flag comes off.</p>' : ''}
+      <div>${state.sections.map(s => {
+        const apps = state.apps.filter(a => a.section === s.slug && a.status !== 'soon' && a.status !== 'hub');
+        if (!apps.length) return '';
+        return `<div class="access-sec k-${esc(s.slug)}"><h3>${esc(s.name)}</h3>${apps.map(a => `
+          <div class="access-row"><span class="n">${esc(a.name)}<small>${esc(a.description)}</small></span>
+            <select class="inline" data-slug="${esc(a.slug)}">${ROLES.map(r => `<option value="${r}" ${role(a.slug) === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>
+          </div>`).join('')}</div>`; }).join('')}
+      </div>
+    </div>`;
+  for (const sel of box.querySelectorAll('select[data-slug]')) sel.onchange = async () => {
+    await call('PUT', '/api/admin/grants', { email: u.email, slug: sel.dataset.slug, role: sel.value || null });
+    const g = u.grants.filter(x => x.slug !== sel.dataset.slug); if (sel.value) g.push({ slug: sel.dataset.slug, role: sel.value }); u.grants = g;
+    toast(sel.value ? `${ROLE_LABEL[sel.value]} on ${sel.dataset.slug}` : `Removed from ${sel.dataset.slug}`); renderList();
+  };
+  const patch = async (body) => { await call('PATCH', `/api/admin/users/${encodeURIComponent(u.email)}`, body); Object.assign(u, body, { is_admin: body.is_admin === undefined ? u.is_admin : (body.is_admin ? 1 : 0), active: body.active === undefined ? u.active : (body.active ? 1 : 0) }); renderList(); };
+  $('#uAdmin').onchange = async (e) => { await patch({ is_admin: e.target.checked }); toast(e.target.checked ? 'Now a Hub admin' : 'No longer a Hub admin'); renderAccess(); };
+  $('#uActive').onchange = async (e) => { await patch({ active: e.target.checked }); toast(e.target.checked ? 'Active' : 'Locked out everywhere'); };
+  $('#uName').onchange = async (e) => { await patch({ name: e.target.value.trim() }); toast('Name saved'); };
+  $('#uRemove').onclick = async () => { if (!confirm(`Remove ${u.email} from the Hub? Their sessions end now.`)) return; await call('DELETE', `/api/admin/users/${encodeURIComponent(u.email)}`); toast(`Removed ${u.email}`); state.selected = null; people(); };
+}
+
+/* ---------------- Apps registry ---------------- */
+async function apps() {
+  const a = await call('GET', '/api/admin/apps'); state.apps = a.apps; state.sections = a.sections;
+  const opt = (list, v) => list.map(x => `<option value="${esc(x)}" ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  $('#view').innerHTML = `
+    <div class="stack">
+      <p class="muted small">Status: live = deployed · import = exists elsewhere · soon = placeholder card · hub = a page of the Hub. Mode: link = opens its own address · proxy = served under /slug/ through the Hub (needs a binding) · internal = a Hub path. Changes save as you leave each field.</p>
+      <div class="table-wrap"><table class="t apps-table"><thead><tr><th>Sort</th><th>Slug</th><th>Name</th><th>Section</th><th>Status</th><th>Mode</th><th>URL</th><th>Binding</th><th>Public</th><th></th></tr></thead><tbody>
+      ${state.apps.map(x => `<tr data-slug="${esc(x.slug)}">
+        <td><input class="w-sm num" name="sort" value="${x.sort}"></td>
+        <td class="num">${esc(x.slug)}</td>
+        <td><input class="w-md" name="name" value="${esc(x.name)}"><input class="w-url" name="description" value="${esc(x.description)}" placeholder="One line" style="margin-top:4px"></td>
+        <td><select name="section">${opt(state.sections.map(s => s.slug), x.section)}</select></td>
+        <td><select name="status">${opt(['live', 'import', 'soon', 'hub'], x.status)}</select></td>
+        <td><select name="mode">${opt(['link', 'proxy', 'internal'], x.mode)}</select></td>
+        <td><input class="w-url" name="url" value="${esc(x.url)}" placeholder="https://… or /path"></td>
+        <td><input class="w-md num" name="binding" value="${esc(x.binding)}" placeholder="CELLAR"></td>
+        <td><input type="checkbox" name="public" ${x.public ? 'checked' : ''} style="width:auto;min-height:0"></td>
+        <td>${x.status === 'hub' ? '' : '<button class="btn sm danger" data-del>Remove</button>'}</td>
+      </tr>`).join('')}
+      </tbody></table></div>
+      <form class="panel" id="addApp" autocomplete="off">
+        <div class="row">
+          <div class="field"><span>Slug</span><input name="slug" required pattern="[a-z][a-z0-9-]*" placeholder="reporte-diario"></div>
+          <div class="field"><span>Name</span><input name="name" required></div>
+          <div class="field"><span>Section</span><select name="section">${opt(state.sections.map(s => s.slug), 'hospitalidad')}</select></div>
+          <div class="field"><span>Status</span><select name="status">${opt(['soon', 'import', 'live'], 'soon')}</select></div>
+          <button class="btn primary">Add app</button>
+        </div>
+      </form>
+    </div>`;
+  for (const tr of document.querySelectorAll('tr[data-slug]')) {
+    for (const el of tr.querySelectorAll('input,select')) el.onchange = async () => {
+      const v = el.type === 'checkbox' ? el.checked : el.value;
+      await call('PATCH', `/api/admin/apps/${tr.dataset.slug}`, { [el.name]: v }); toast(`${tr.dataset.slug}: ${el.name} saved`);
+    };
+    const del = tr.querySelector('[data-del]'); if (del) del.onclick = async () => { if (!confirm(`Remove ${tr.dataset.slug} and its grants?`)) return; await call('DELETE', `/api/admin/apps/${tr.dataset.slug}`); toast('Removed'); apps(); };
+  }
+  $('#addApp').onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); await call('POST', '/api/admin/apps', f); toast(`Added ${f.slug}`); apps(); };
+}
+
+/* ---------------- Audit log ---------------- */
+async function audit() {
+  const { rows } = await call('GET', '/api/admin/audit?limit=300');
+  $('#view').innerHTML = rows.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td class="num" style="white-space:nowrap">${when(r.at)}</td><td>${esc(r.actor)}</td><td><span class="chip">${esc(r.action)}</span></td><td>${esc(r.target)}</td><td class="detail" title="${esc(r.detail)}">${esc(r.detail)}</td></tr>`).join('')}
+    </tbody></table></div>` : '<div class="empty"><b>Nothing yet</b>Sign-ins and changes show here.</div>';
+}
+function soon(title, text) { return async () => { $('#view').innerHTML = `<div class="empty"><b>${esc(title)}</b>${esc(text)}</div>`; }; }
+</script>
+</body>
+</html>
