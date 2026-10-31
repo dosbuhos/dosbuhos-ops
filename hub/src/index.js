@@ -60,7 +60,11 @@ function login(url) {
 }
 function denied(what) {
   return new Response(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sin acceso · Dos Búhos</title>
-<link rel="stylesheet" href="/kit/kit.css"></head><body class="login"><main class="login-card"><h1 class="h-display">Sin acceso</h1>
-<p class="login-sub">Tu cuenta no tiene acceso a ${what}. Pide a Eric que te lo dé.</p><a class="btn" href="/">Volver al inicio</a></main></body></html>`,
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kit/kit.css"></head><body class="login"><main class="login-card">
+<img class="login-logo wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160">
+<h1 class="h-display" style="font-size:28px">Sin acceso</h1>
+<p class="login-sub">No tienes acceso a ${what}. Pídele a Eric que te dé acceso.</p><a class="btn primary" href="/">Volver al inicio</a></main></body></html>`,
     { status: 403, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }

@@ -10,7 +10,8 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 | `/<slug>/…` | An app served through the Hub (registry `mode = proxy`): the request goes to that app's Worker over a service binding with a signed `X-DB-User` header |
 | `/auth/google`, `/auth/callback`, `/auth/salir` | Sign-in and sign-out |
 | `/api/…` | JSON for the pages above (`src/api.js`) |
-| `/kit/kit.css` | The shared UI kit (palette, type, cards, chips, tables, trend tiles). Apps behind the Hub can link it |
+| `/kit/kit.css` | The shared UI kit (palette, type, rows, chips, role picker, tables, trend tiles). Apps behind the Hub can link it |
+| `/kit/demo.html` | Every kit component with the markup to copy (no sign-in needed) |
 
 ## Deploy (GitHub → Cloudflare Workers Builds, like the other apps)
 

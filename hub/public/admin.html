@@ -20,7 +20,6 @@
   .person .who { flex: 1; min-width: 0; }
   .person .who b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .person .who small { color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
-  .person.off { opacity: .6; }
   .addp summary { list-style: none; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 1px dashed var(--rule); border-radius: var(--radius); cursor: pointer; font-weight: 500; color: var(--accent); }
   .addp summary::-webkit-details-marker { display: none; }
   .addp[open] summary { display: none; }
@@ -32,7 +31,7 @@
   .access-sec .sec-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
   .access-sec h3 { font-family: var(--f-display); font-size: 19px; font-weight: 600; padding-left: 10px; border-left: 3px solid var(--k, var(--rule)); }
   .access-sec .bulk { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .access-sec .bulk select { min-height: 36px; }
+  .access-sec .bulk select { min-height: 44px; }
   .access-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
   @media (min-width: 640px) { .access-row { flex-direction: row; align-items: center; } .access-row .n { flex: 1; } }
   .access-row .n b { font-weight: 500; }
@@ -89,8 +88,8 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const TZ = 'America/Mexico_City';
-const ROLES = [['', 'None'], ['viewer', 'View'], ['editor', 'Edit'], ['admin', 'Admin']];
-const ROLE_NAME = { viewer: 'Viewer', editor: 'Editor', admin: 'Admin' };
+const ROLES = [['', 'No access'], ['viewer', 'View'], ['editor', 'Edit'], ['admin', 'Admin']];
+const ROLE_NAME = { viewer: 'View', editor: 'Edit', admin: 'Admin' };
 const STATUS_NAME = { live: 'Live', import: 'To import', soon: 'Coming soon', hub: 'Hub page' };
 const MODE_NAME = { link: 'Opens its own address', proxy: 'Served through the Hub', internal: 'A Hub page' };
 const initials = u => { const n = (u.name || u.email).replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean); return ((n[0] || '?')[0] + (n.length > 1 ? n.at(-1)[0] : '')).toUpperCase(); };
@@ -135,8 +134,8 @@ async function people() {
       <div class="plist-col stack">
         <details class="addp" id="addp"><summary>＋ Add a person</summary>
           <form class="panel stack" id="addUser" autocomplete="off">
-            <div class="field"><span>Gmail address</span><input name="email" type="email" required inputmode="email" placeholder="nombre@dosbuhos.com"></div>
-            <div class="field"><span>Name, as the team knows them</span><input name="name" placeholder="Jimena"></div>
+            <label class="field"><span>Gmail address</span><input name="email" type="email" required inputmode="email" placeholder="nombre@dosbuhos.com"></label>
+            <label class="field"><span>Name, as the team knows them</span><input name="name" placeholder="Jimena"></label>
             <p class="muted small" style="margin:0">They can sign in once you give them at least one app on the next screen.</p>
             <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="addCancel">Cancel</button><button class="btn primary">Add and choose apps</button></div>
           </form>
@@ -179,7 +178,7 @@ function renderPerson() {
       <button class="back" id="back">‹ Everyone</button>
       <div class="phead"><span class="avatar lg${u.active ? '' : ' off'}" aria-hidden="true">${esc(initials(u))}</span>
         <div style="min-width:0"><div class="h-display">${esc(u.name || u.email)}</div><div class="muted small">${esc(u.email)} · ${ago(u.last_login)}</div></div></div>
-      <div class="field"><span>Name</span><input id="uName" value="${esc(u.name)}" placeholder="Name"></div>
+      <label class="field"><span>Name</span><input id="uName" value="${esc(u.name)}" placeholder="Name"></label>
       <div class="flags">
         <label class="toggle"><input type="checkbox" id="uAdmin" ${u.is_admin ? 'checked' : ''} ${self ? 'disabled' : ''}> Hub admin (every app, plus this page)</label>
         <label class="toggle"><input type="checkbox" id="uActive" ${u.active ? 'checked' : ''} ${self ? 'disabled' : ''}> Can sign in</label>
@@ -222,7 +221,10 @@ function renderPerson() {
     if (e.target.checked && !confirm(`Make ${u.name || u.email} a Hub admin? They'll see every app and this page, and can add or remove people.`)) { e.target.checked = false; return; }
     await patch({ is_admin: e.target.checked }); toast(e.target.checked ? 'Now a Hub admin' : 'No longer a Hub admin'); renderPerson();
   };
-  $('#uActive').onchange = async e => { await patch({ active: e.target.checked }); toast(e.target.checked ? `${u.name || u.email} can sign in` : `${u.name || u.email} is locked out everywhere`); renderPerson(); };
+  $('#uActive').onchange = async e => {
+    if (!e.target.checked && !confirm(`Lock ${u.name || u.email} out of every app now?`)) { e.target.checked = true; return; }
+    await patch({ active: e.target.checked }); toast(e.target.checked ? `${u.name || u.email} can sign in` : `${u.name || u.email} is locked out everywhere`); renderPerson();
+  };
   const rm = $('#uRemove'); if (rm) rm.onclick = async () => {
     if (!confirm(`Remove ${u.name || u.email} from the Hub? They're signed out now and lose every app.`)) return;
     await call('DELETE', `/api/admin/users/${encodeURIComponent(u.email)}`); toast(`Removed ${u.name || u.email}`); location.hash = '#people';

@@ -85,29 +85,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; line-height: 1.1; }
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px calc(40px + var(--safe-b)); }
 
-/* ---------- home: sections and app cards ---------- */
-.hello { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 6px 0 22px; }
-.hello h1 { font-family: var(--f-display); font-size: 32px; font-weight: 600; }
-.hello .date { color: var(--muted); font-size: 14px; }
-.section { margin: 0 0 28px; }
+/* ---------- section heading (launcher, admin) ---------- */
 .section-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; padding-left: 12px; border-left: 4px solid var(--k, var(--rule)); }
 .section-head h2 { font-family: var(--f-display); font-size: 22px; font-weight: 600; }
 .section-head .count { font-size: 13px; color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
-@media (min-width: 720px) { .grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; } }
-.card { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 112px; padding: 12px 12px 10px 16px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); text-decoration: none; color: inherit; overflow: hidden; }
-.card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--k, var(--rule)); }
-a.card:hover { border-color: color-mix(in srgb, var(--k, var(--rule)) 55%, var(--rule)); }
-a.card:active { transform: translateY(1px); }
-.card.is-soon, .card.is-import { background: transparent; box-shadow: none; border-style: dashed; }
-.card.is-soon::before, .card.is-import::before { opacity: .45; }
-.card.is-soon .card-name, .card.is-import .card-name { color: var(--muted); }
-.card-name { font-family: var(--f-display); font-size: 20px; font-weight: 600; line-height: 1.05; }
-.card-desc { font-size: 12.5px; line-height: 1.35; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.card-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; min-height: 20px; }
-.card-foot .stat { font-family: var(--f-mono); font-size: 13px; }
-.card-foot .stat small { font-family: var(--f-body); font-size: 11.5px; color: var(--muted); margin-left: 4px; }
-.card-foot .ext { margin-left: auto; color: var(--muted); font-size: 12px; }
 
 /* section hues */
 .k-bodega { --k: var(--bodega); --kb: var(--bodega-soft); }
@@ -200,7 +181,6 @@ body.login { min-height: 100vh; display: flex; align-items: center; justify-cont
 
 /* section chips: phone only, sticky under the top bar */
 .jump { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
-.jump::-webkit-scrollbar { display: none; }
 .jump a { flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); text-decoration: none; font-size: 14px; font-weight: 500; }
 .jump a::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--k); }
 @media (min-width: 720px) { .jump { display: none; } }
@@ -247,9 +227,8 @@ body.login { min-height: 100vh; display: flex; align-items: center; justify-cont
 .ext { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
 .ext svg { width: 13px; height: 13px; }
 
-/* recents: compact, horizontally scrolling on phone */
+/* recents and favourites: stacked rows on phone, grid on desktop */
 .recents { display: flex; flex-direction: column; gap: 8px; }
-.recents::-webkit-scrollbar { display: none; }
 .recents a { position: relative; display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 10px; min-height: 52px; align-items: center; padding: 8px 12px 8px 16px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); text-decoration: none; box-shadow: var(--shadow); }
 .recents a::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 4px; border-radius: 0 3px 3px 0; background: var(--k); }
 .recents a b { font-family: var(--f-display); font-size: 18px; font-weight: 600; line-height: 1.05; }
@@ -299,3 +278,27 @@ body.login { min-height: 100vh; display: flex; align-items: center; justify-cont
 .future .ghost .r { margin-left: auto; text-align: right; font-size: 12.5px; }
 
 @media (max-width: 560px) { .tabs { gap: 0; justify-content: space-between; } .tabs a { font-size: 16px; padding: 8px 4px; } }
+
+/* ======================================================================
+   Pass 3: fixes from the fresh-eyes review (contrast, focus, 44px targets)
+   ====================================================================== */
+:root { --on-accent: #fff; --field-rule: #8a9194; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --on-accent: #141719; --field-rule: #6b7377; } }
+:root[data-theme="dark"] { --on-accent: #141719; --field-rule: #6b7377; }
+.btn.primary { color: var(--on-accent); }
+.toast.bad { background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input, select, textarea, .seg { border-color: var(--field-rule); }
+.topbar nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; font-size: 14px; }
+.topbar .wordmark { min-height: 44px; }
+@media (max-width: 380px) { .topbar .crumb { display: none; } }
+.jump { gap: 8px; } .jump a { min-height: 44px; }
+.btn, .btn.sm, input, select, select.inline, .seg button { min-height: 44px; }
+.tabs a { display: inline-flex; align-items: center; min-height: 44px; }
+.search .clear { min-width: 44px; min-height: 44px; }
+.toggle { min-height: 44px; } .toggle input { width: 22px; height: 22px; }
+.seg button[aria-pressed="true"][data-v=""] { color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1.5px var(--ink); }
+.app .fav[aria-pressed="true"] { color: var(--warn); }
+.login-err, .phead .small { overflow-wrap: anywhere; }
+.login-card h1 { margin: 0 0 8px; }
+.hint { color: var(--muted); font-size: 13.5px; margin: 0 0 6px; }

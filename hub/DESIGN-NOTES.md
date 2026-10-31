@@ -13,16 +13,15 @@ Running notes for the design passes. Rules come from `DESIGN-RESEARCH.md`.
 **Layout.**
 ```
 phone                                   desktop
-[wordmark ............ Admin  Salir]    [wordmark ....... name  Admin  Salir]
-[Bodega Huerta Hospitalidad … →]  ←sticky section chips (phone only)
+[wordmark ........... Administrar Salir][wordmark ....... name  Administrar  Salir]
 Hola, Eric                              Hola, Eric          viernes 30 de octubre
-viernes 30 de octubre                   [ Buscar una app…                      ]
-[ Buscar una app…              ]        Recientes  [card][card][card][card]
-Recientes  ‹card›‹card›‹card› →         ▌Bodega
+viernes 30 de octubre                   [ Buscar una app…              ]
+[ Buscar una app…              ]        Favoritas / Recientes  [card][card][card]
+(Bodega)(Huerta)(Hospitalidad)  ← chips wrap, no scrolling
+Favoritas / Recientes: stacked rows     ▌Bodega
 ▌Bodega                                 [card][card][card][card]
- ─ Calendario de bodega        ☆         Próximamente: Sala de barricas · Bitácora…
- ─ …
- Próximamente (2)  ▸
+ ─ Calendario de bodega        ☆         › 2 más en camino: Sala de barricas · …
+ › 2 más en camino
 ```
 Phone gets a single-column list (rows ≥ 64 px), desktop a grid — research: linear lists beat 2D grids for low-literacy phone use.
 
@@ -46,3 +45,14 @@ No horizontal scrolling anywhere on a phone: no scrolling chip bars, carousels o
 - **Activity:** the audit log reads as sentences ("Eric changed Jimena on Calendario de bodega from Viewer → Editor"), grouped by day in San Miguel time, filter by who and by kind of change. The API now records only what changed and the previous role.
 - **Secrets / Health:** designed placeholders that show what phase 3 puts there.
 - Checked: no element scrolls sideways at 360 px on any tab; tabs fit one line from 360 px up and wrap below that.
+
+## Pass 3 — fresh-eyes review and the kit (Oct 30 2026)
+
+A reviewer with no context checked screenshots and code. Fixed:
+- **Contrast:** dark-mode primary button (2.4:1 → 7.4:1 with `--on-accent`), dark error toast (2:1 → 7.7:1), field borders now 3:1+ (`--field-rule`), favourite star 3:1+, locked people no longer faded.
+- **Focus:** fields get a visible 2px focus outline.
+- **Targets:** every button, link in the top bar, chip, tab, select, toggle and role option is ≥ 44 px. Measured on every page at 320 and 390 px: none smaller, nothing wider than the screen.
+- **Words:** one set of role names in admin (No access / View / Edit / Admin); staff see Solo ver / Puede editar / Administra. "Por importar" is Próximamente for staff. Clearer offline and empty-section lines. No-access page has the logo, the reason and one way back.
+- **Safety:** turning off "Can sign in" asks first.
+- **Launcher on small lists:** chips appear only with 4+ sections; favourites and recents only with 5+ apps; a one-line hint teaches the star.
+- **Kit:** `/kit/demo.html` shows every component with the markup to copy.

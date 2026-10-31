@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Kit · Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kit/kit.css">
+<style>
+  .demo h2 { font-family: var(--f-display); font-size: 26px; font-weight: 600; margin: 34px 0 6px; }
+  .demo h2 + p { margin: 0 0 14px; color: var(--muted); max-width: 64ch; }
+  .demo pre { margin: 10px 0 0; padding: 10px 12px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: var(--radius-sm); font: 12px/1.5 var(--f-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .sw div { border: 1px solid var(--rule); border-radius: var(--radius-sm); overflow: hidden; font-size: 12px; background: var(--paper); }
+  .sw i { display: block; height: 40px; }
+  .sw span { display: block; padding: 6px 8px; font-family: var(--f-mono); }
+  .theme { position: fixed; right: 16px; bottom: calc(16px + var(--safe-b)); z-index: 20; }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <a class="wordmark" href="/"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <span class="crumb">Kit</span><span class="spacer"></span><nav><a href="/">Apps</a></nav>
+</div></header>
+
+<main class="wrap demo">
+  <p style="max-width:64ch">Everything an app behind the Hub needs to look like the rest of Dos Búhos. Link <code>/kit/kit.css</code> (and the three Google fonts in this page's head), then copy the markup under each example. Rules: staff screens in Spanish, nothing scrolls sideways on a phone, every tap target 44 px or more, colour never carries meaning alone.</p>
+
+  <h2>Colour</h2>
+  <p>Paper on stone, ink for text, bordeaux for the one main action. Each section has a hue used only as a stripe or dot.</p>
+  <div class="sw">
+    <div><i style="background:var(--bg)"></i><span>--bg</span></div><div><i style="background:var(--paper)"></i><span>--paper</span></div>
+    <div><i style="background:var(--ink)"></i><span>--ink</span></div><div><i style="background:var(--muted)"></i><span>--muted</span></div>
+    <div><i style="background:var(--accent)"></i><span>--accent</span></div><div><i style="background:var(--ok)"></i><span>--ok</span></div>
+    <div><i style="background:var(--warn)"></i><span>--warn</span></div><div><i style="background:var(--bad)"></i><span>--bad</span></div>
+    <div><i style="background:var(--bodega)"></i><span>.k-bodega</span></div><div><i style="background:var(--huerta)"></i><span>.k-huerta</span></div>
+    <div><i style="background:var(--hospitalidad)"></i><span>.k-hospitalidad</span></div><div><i style="background:var(--ventas)"></i><span>.k-ventas</span></div>
+    <div><i style="background:var(--marketing)"></i><span>.k-marketing</span></div><div><i style="background:var(--equipo)"></i><span>.k-equipo</span></div>
+  </div>
+
+  <h2>Type</h2>
+  <p>Barlow Condensed for names and headings, IBM Plex Sans for text, IBM Plex Mono for numbers only.</p>
+  <div class="panel stack">
+    <div class="h-display" style="font-size:34px">Calendario de bodega</div>
+    <div>Vinos, labs, mezclas y órdenes de trabajo de Excellovint.</div>
+    <div class="num" style="font-size:22px">1,240 L · 13.5%</div>
+  </div>
+  <pre>&lt;div class="h-display"&gt;Nombre&lt;/div&gt;  &lt;span class="num"&gt;1,240&lt;/span&gt;  &lt;span class="muted small"&gt;nota&lt;/span&gt;</pre>
+
+  <h2>Section heading</h2>
+  <p>Stripe in the section's hue, count in words.</p>
+  <div class="k-bodega"><div class="section-head"><h2 style="margin:0">Bodega</h2><span class="count">3 apps</span></div></div>
+  <pre>&lt;div class="k-bodega"&gt;&lt;div class="section-head"&gt;&lt;h2&gt;Bodega&lt;/h2&gt;&lt;span class="count"&gt;3 apps&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</pre>
+
+  <h2>Trend tiles</h2>
+  <p>The infographic row at the top of every app. Each tile: a number, its period, a comparison with ▲/▼ and its source. Fewer open orders is good, so that ▼ is green.</p>
+  <div class="tiles k-bodega">
+    <div class="tile"><span class="label">Órdenes abiertas</span><span class="value">7</span><span class="delta up">▼ 3 vs. semana pasada</span>
+      <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="M0 8L16 10L33 6L50 12L66 12L83 16L100 19V28H0z"/><path d="M0 8L16 10L33 6L50 12L66 12L83 16L100 19"/></svg><span class="delta">Excellovint · 7 semanas</span></div>
+    <div class="tile k-ventas"><span class="label">Botellas vendidas</span><span class="value">412</span><span class="delta up">▲ 12% vs. semana pasada</span>
+      <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="M0 20L16 18L33 21L50 14L66 15L83 9L100 6V28H0z"/><path d="M0 20L16 18L33 21L50 14L66 15L83 9L100 6"/></svg><span class="delta">Zoho · 7 semanas</span></div>
+    <div class="tile k-huerta"><span class="label">Tareas atrasadas</span><span class="value">5</span><span class="delta down">▲ 2 vs. semana pasada</span>
+      <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="M0 18L16 16L33 18L50 15L66 15L83 12L100 10V28H0z"/><path d="M0 18L16 16L33 18L50 15L66 15L83 12L100 10"/></svg><span class="delta">Mantenimiento · 7 semanas</span></div>
+  </div>
+  <pre>&lt;div class="tiles k-ventas"&gt;&lt;div class="tile"&gt;
+  &lt;span class="label"&gt;Botellas vendidas&lt;/span&gt;&lt;span class="value"&gt;412&lt;/span&gt;
+  &lt;span class="delta up"&gt;▲ 12% vs. semana pasada&lt;/span&gt;   &lt;!-- up = good, down = bad, whatever the arrow --&gt;
+  &lt;svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none"&gt;&lt;path class="area" d="…V28H0z"/&gt;&lt;path d="…"/&gt;&lt;/svg&gt;
+  &lt;span class="delta"&gt;Zoho · 7 semanas&lt;/span&gt;
+&lt;/div&gt;&lt;/div&gt;</pre>
+
+  <h2>App rows</h2>
+  <p>One column on phones, cards from 720 px. The whole row opens; the star sits above the link.</p>
+  <div class="apps">
+    <article class="app k-huerta"><a class="open" href="#" aria-label="Abrir Huerto"></a><div class="body"><div class="name">Huerto</div><div class="desc">Plan de siembra, semillero, cosechas y experiencias</div></div>
+      <button class="fav" type="button" aria-pressed="false" aria-label="Marcar como favorita"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button></article>
+  </div>
+
+  <h2>Buttons and chips</h2>
+  <p>One primary button per screen. Chips label state, never act.</p>
+  <div class="row" style="align-items:center"><button class="btn primary">Guardar</button><button class="btn">Cancelar</button><button class="btn danger">Quitar</button>
+    <span class="chip">Próximamente</span><span class="chip ok">Al día</span><span class="chip warn">Por revisar</span><span class="chip bad">Atrasado</span></div>
+  <pre>&lt;button class="btn primary"&gt;Guardar&lt;/button&gt;  &lt;span class="chip warn"&gt;Por revisar&lt;/span&gt;</pre>
+
+  <h2>Choice of one</h2>
+  <p>Instead of a dropdown when there are four or fewer options. Full width on phones.</p>
+  <span class="seg full" role="group" aria-label="Acceso"><button type="button" data-v="" aria-pressed="false">Sin acceso</button><button type="button" data-v="viewer" aria-pressed="false">Ver</button><button type="button" data-v="editor" aria-pressed="true">Editar</button><button type="button" data-v="admin" aria-pressed="false">Admin</button></span>
+  <pre>&lt;span class="seg full" role="group" aria-label="…"&gt;&lt;button aria-pressed="true"&gt;Editar&lt;/button&gt;…&lt;/span&gt;</pre>
+
+  <h2>Forms</h2>
+  <p>Label above every field, “(opcional)” instead of asterisks, one question per screen for staff flows.</p>
+  <form class="panel stack" onsubmit="event.preventDefault(); toast('Guardado')">
+    <label class="field"><span>Litros trasegados</span><input inputmode="decimal" placeholder="0"></label>
+    <label class="field"><span>Tanque</span><select><option>T-01</option><option>T-02</option></select></label>
+    <label class="field"><span>Nota (opcional)</span><textarea rows="2"></textarea></label>
+    <label class="toggle"><input type="checkbox"> Avisar a Diane</label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary">Guardar</button></div>
+  </form>
+
+  <h2>Tables</h2>
+  <p>Desktop only. Below 720 px show the same rows as stacked cards.</p>
+  <div class="table-wrap"><table class="t"><thead><tr><th>Vino</th><th class="num">Botellas</th><th>Estado</th></tr></thead>
+    <tbody><tr><td>Tempranillo Gran Reserva</td><td class="num">96</td><td><span class="chip ok">Al día</span></td></tr><tr><td>Tinto Joven Syrah</td><td class="num">12</td><td><span class="chip warn">Por revisar</span></td></tr></tbody></table></div>
+
+  <h2>Empty, loading, messages</h2>
+  <p>Empty states say what to do next. Errors say what happened and how to fix it.</p>
+  <div class="stack"><div class="empty"><b>Todavía no hay órdenes</b>Las nuevas aparecen aquí en cuanto Diane las asigna.</div><div class="skel"></div>
+    <div class="offline">Sin señal. Lo que ya abriste sigue funcionando.</div>
+    <div class="row"><button class="btn" onclick="toast('Guardado')">Mostrar aviso</button><button class="btn" onclick="toast('No se guardó: revisa la señal y vuelve a intentar.', true)">Mostrar error</button></div></div>
+</main>
+<button class="btn theme" id="theme">Claro / oscuro</button>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+let t;
+function toast(m, bad) { const e = document.getElementById('toast'); e.textContent = m; e.className = 'toast' + (bad ? ' bad' : ''); e.hidden = false; clearTimeout(t); t = setTimeout(() => e.hidden = true, 2600); }
+document.getElementById('theme').onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : (r.dataset.theme === 'light' ? 'dark' : (matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark')); };
+</script>
+</body>
+</html>

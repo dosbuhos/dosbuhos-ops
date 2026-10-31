@@ -22,7 +22,7 @@
 
 <main class="wrap">
   <div class="home-head"><h1 id="hello">Hola</h1><span class="date" id="date"></span></div>
-  <div id="offline" class="offline" hidden>Sin conexión. Lo que ya está abierto sigue funcionando; las apps nuevas abren cuando vuelva la señal.</div>
+  <div id="offline" class="offline" hidden>Sin señal. Lo que ya abriste sigue funcionando; las demás apps abren cuando regrese la señal.</div>
   <label class="search">
     <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     <input id="q" type="search" placeholder="Buscar una app" autocomplete="off" enterkeyhint="go" aria-label="Buscar una app">
@@ -36,8 +36,8 @@
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-const ROLE = { admin: 'Administrador', editor: 'Editor', viewer: 'Solo lectura' };
-const LATER = { soon: 'Próximamente', import: 'Por importar' };
+const ROLE = { admin: 'Administra', editor: 'Puede editar', viewer: 'Solo ver' };
+const LATER = { soon: 'Próximamente', import: 'Próximamente' };
 const DEMO = new URLSearchParams(location.search).has('demo');
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="FILL" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 
@@ -88,24 +88,28 @@ function render() {
   if (!usable.length) {
     html = '<div class="empty"><b>Todavía no tienes apps</b>Pide a Eric que te dé acceso; aparecerán aquí.</div>';
   } else {
-    if (favs.length) html += `<section class="home-block"><h2 class="block-title">Favoritas</h2><div class="recents">${favs.map(mini).join('')}</div></section>`;
-    if (recents.length) html += `<section class="home-block"><h2 class="block-title">Recientes</h2><div class="recents">${recents.map(mini).join('')}</div></section>`;
+    const showQuick = usable.length > 4;
+    if (showQuick && !favs.length) html += `<p class="hint">Toca ☆ en una app para tenerla siempre arriba.</p>`;
+    if (showQuick && favs.length) html += `<section class="home-block"><h2 class="block-title">Favoritas</h2><div class="recents">${favs.map(mini).join('')}</div></section>`;
+    if (showQuick && recents.length) html += `<section class="home-block"><h2 class="block-title">Recientes</h2><div class="recents">${recents.map(mini).join('')}</div></section>`;
     for (const s of sections) {
       const apps = data.apps.filter(a => a.section === s.slug);
       const live = apps.filter(a => a.href), later = apps.filter(a => !a.href);
       html += `<section class="home-block k-${esc(s.slug)}" id="s-${esc(s.slug)}">
-        <div class="section-head"><h2>${esc(s.name)}</h2><span class="count">${live.length ? live.length + (live.length === 1 ? ' app' : ' apps') : 'nada abierto aún'}</span></div>
+        <div class="section-head"><h2>${esc(s.name)}</h2><span class="count">${live.length ? live.length + (live.length === 1 ? ' app' : ' apps') : 'todavía sin apps'}</span></div>
         ${live.length ? `<div class="apps">${live.map(row).join('')}</div>` : ''}
         ${later.length ? laterList(later) : ''}
       </section>`;
     }
   }
   $('#home').innerHTML = html;
+  $('#jump').hidden = sections.length < 4;
   $('#jump').innerHTML = sections.map(s => `<a class="k-${esc(s.slug)}" href="#s-${esc(s.slug)}">${esc(s.name)}</a>`).join('');
   wire();
 }
 
 function renderSearch(usable, term) {
+  $('#jump').hidden = true;
   const hits = usable.map(a => ({ a, score: match(a, term) })).filter(x => x.score > 0).sort((x, y) => y.score - x.score).map(x => x.a);
   $('#home').innerHTML = hits.length
     ? `<section class="home-block"><h2 class="block-title">Resultados <span class="count">${hits.length}</span></h2><div class="apps">${hits.map(row).join('')}</div></section>`
