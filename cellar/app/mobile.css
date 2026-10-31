@@ -407,3 +407,8 @@
   .pp-card .chip .wo { font-size: 13px; padding: 5px 10px; }
 }
 @media (min-width: 761px) and (min-height: 541px), (min-width: 761px) and (pointer: fine) { .mbar { display: none !important; } }
+
+/* Phone tap targets: day picker and wine names open things, so give them a full-size touch area. */
+@media (max-width: 760px) { .mbar .m-dlbl { min-height: 40px; } .wn { min-height: 40px; padding-block: 9px; } }
+/* Narrow phones: wine card title gets the full width; its buttons drop under it. */
+@media (max-width: 380px) { .d-head { flex-wrap: wrap; } .d-head > div:first-child { flex: 1 1 100%; min-width: 0; } .d-meta { overflow-wrap: anywhere; } }
