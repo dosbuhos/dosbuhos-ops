@@ -5,6 +5,7 @@ import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visible
 import {billingIssues,billingIssue,billingWarning,billingSummary} from './billing.js';
 import {membershipControls,paymentReviewWarning,paymentContact} from './membership.js';
 import {quickBenefit,quickBenefitScript} from './benefits.js';
+import { shipmentRow, TCSS } from './tracker.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const shipHref = (o) => `/envio/${o.subId}/${o.k}`;
@@ -296,21 +297,11 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
       const rest = occ.filter(o => !visible.includes(o));
       const last = [...completed].filter(o=>o.f?.done_on).sort((a,b)=>b.f.done_on.localeCompare(a.f.done_on))[0];
       const anchor = s.anchor_override || s.start_date;
-      timeline = `<dl class="date-facts membership-facts">
-        <div><dt>Alta de esta suscripción</dt><dd>${esc(exactDate(s.start_date))}</dd></div>
-        <div><dt>Primer envío previsto</dt><dd>${esc(exactDate(anchor))}${s.anchor_override ? ' · ajustado' : ''}</dd></div>
-        <div><dt>Frecuencia de envíos</dt><dd>Cada ${club.cadence_months === 1 ? 'mes' : club.cadence_months + ' meses'} · ${club.bottles} botellas</dd></div>
-        ${pending.length ? `<div><dt>Fecha vencida más antigua</dt><dd>${esc(exactDate(pending[0].due))}</dd></div>` : ''}
-        <div><dt>${s.suspended_on?'Próxima fecha teórica · entrega bloqueada':'Próxima fecha futura'}</dt><dd>${future[0] ? esc(exactDate(future[0].due)) : 'Sin fecha futura'}</dd></div>
-        ${future[0]?.delayed ? `<div><dt>Siguiente fecha reprogramada</dt><dd>${esc(exactDate(future[0].eff))}</dd></div>` : ''}
-        <div><dt>Última entrega registrada</dt><dd>${last ? esc(exactDate(last.f.done_on)) : 'Sin entrega registrada'}</dd></div>
-      </dl>
-      <div class="chips">${chip(plural(completed.length, 'hecho', 'hechos'), 'green')}${occ.some(o=>o.state==='held')?chip(`${occ.filter(o=>o.state==='held').length} en resguardo en bodega`,'wine'):''}${s.suspended_on?chip('Entregas bloqueadas por suspensión','red'):paymentContact(s)?chip('Contactar para nueva forma de pago','amber'):occ.some(o=>o.state==='payment_blocked')?chip('Cajas bloqueadas por pago pendiente','red'):pending.length ? chip(`${pending.length} fechas vencidas sin entrega registrada`, 'amber') : chip('Sin fechas vencidas', 'green')}</div>
-      <p class="small muted">Fechas calculadas desde el primer envío, cada ${club.cadence_months === 1 ? 'mes' : club.cadence_months + ' meses'}. Una entrega tardía no cambia automáticamente las fechas siguientes.${Number(anchor.slice(8)) > 28 ? ' Si el día no existe en un mes, se usa su último día.' : ''}</p>
-      <h3>Calendario esperado y entregas reales</h3>
-  <p class="small muted">Ordenado por fecha prevista. “Sin entrega registrada” requiere comprobar el historial; no confirma que la caja nunca se haya entregado. El pago se muestra por separado, con la fecha registrada en Stripe. “Sin pago de Stripe asociado” requiere revisar la factura; no confirma un impago.</p>
-      <div class="schedule-list">${visible.map(scheduleRow).join('') || '<p class="empty">Sin envíos en este período.</p>'}</div>
-      ${rest.length ? `<details class="more"><summary>Ver ${rest.length} fechas más (históricas y futuras)</summary><div class="schedule-list">${rest.map(scheduleRow).join('')}</div></details>` : ''}`;
+      const back = `/socio/${member.id}`;
+      timeline = `<p class="small" style="margin:6px 0 2px">Envío #1: <b>${esc(exactDate(anchor))}</b>${s.anchor_override ? ' (ajustado)' : ''} · cada ${club.cadence_months === 1 ? 'mes' : club.cadence_months + ' meses'} · ${club.bottles} botellas</p>
+      <p class="small" style="margin:0 0 8px">${plural(completed.length, 'entrega registrada', 'entregas registradas')}${last ? ` · última ${esc(exactDate(last.f.done_on))}` : ''}${pending.length ? ` · <b style="color:var(--red)">${plural(pending.length, 'atrasada', 'atrasadas')}</b>` : ''}${future[0] ? ` · ${s.suspended_on ? 'próxima fecha (bloqueada)' : 'próxima'} ${esc(exactDate(future[0].due))}` : ''}</p>
+      <div class="ship-list">${visible.map(o => shipmentRow(o, today, back)).join('') || '<p class="empty">Sin envíos en este período.</p>'}</div>
+      ${rest.length ? `<details class="more"><summary>Ver ${rest.length} fechas más</summary><div class="ship-list">${rest.map(o => shipmentRow(o, today, back)).join('')}</div></details>` : ''}`;
     }
     const anchor = s.anchor_override || s.start_date;
     const clubOpts = [...ctx.clubs.values()].map(c => `<option value="${c.id}" ${s.club_id_override === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -371,11 +362,9 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   const body = `<p><a href="/socios">← Socios</a></p><h1>${esc(member.name)}</h1>
   ${subs.map(s=>billingWarning(ctx,s)).join('')}
   ${membershipControls(member,user)}${url.searchParams.has('reactivado')?'<div class="banner green">Membresía reactivada. Se aplicaron las decisiones revisadas; las cajas con pago pendiente siguen bloqueadas.</div>':''}
-  <div class="card enrollment"><div class="eyebrow">Primera alta del club registrada</div><div class="enrollment-date">${joined ? esc(exactDate(joined)) : 'Por confirmar'}</div>
-  <p class="small muted">Según el inicio de las suscripciones del club${subs.some(s=>s.stripe_subscription_id) ? ' en Stripe' : ''}. Es independiente de los ajustes del primer envío.</p>
-  <div class="jump-links"><a href="#calendario">Ver calendario</a><a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto y entrega</a></div></div>
+  <p class="mhead">${subs.map(x => subClub(ctx, x)?.name).filter(Boolean).map(esc).join(' · ') || 'Sin club'} · Alta <b>${joined ? esc(exactDate(joined)) : 'por confirmar'}</b><br>${esc(prefLabel(member.delivery_pref))}${member.phone ? ` · <a href="tel:${esc(member.phone)}">${esc(member.phone)}</a>` : ''} · <a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto</a></p>
   ${member.staff_note ? `<div class="banner amber">${esc(member.staff_note)}</div>` : ''}
-  <h2 id="calendario">Alta y calendario de envíos</h2>${subCards || '<div class="card empty">Sin suscripciones.</div>'}
+  <h2 id="calendario">Envíos</h2>${subCards || '<div class="card empty">Sin suscripciones.</div>'}
   <details class="more card" id="contacto"><summary>Contacto y forma de entrega</summary><dl class="kv">
     ${member.email ? `<dt>Correo</dt><dd><a href="mailto:${esc(member.email)}">${esc(member.email)}</a></dd>` : ''}
     ${member.phone ? `<dt>Teléfono</dt><dd><a href="tel:${esc(member.phone)}">${esc(member.phone)}</a></dd>` : ''}
@@ -393,7 +382,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
     <label>Nota para el equipo</label><textarea name="staff_note" rows="3">${esc(member.staff_note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar</button></form></details></details>
   <details class="more card" id="beneficios" ${url?.searchParams.has('beneficio') ? 'open' : ''}><summary>Beneficios y usos registrados</summary>${benefitsHtml}</details>`;
-  return page({ title: member.name, body, user, env, tab: 'socios' });
+  return page({ title: member.name, body: body + TCSS + '<style>.mhead{margin:-4px 0 12px;color:var(--muted);line-height:1.6}.mhead b{color:var(--ink)}</style>', user, env, tab: 'socios' });
 }
 const fmtQty = (n) => Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 });
 
@@ -416,9 +405,11 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
         <button class="btn sm" style="margin-top:8px">Guardar ${slotName(i)}</button></form></details>` : ''}</div>`;
     }).join('');
     const bens = benefits.filter(b => b.club_id === c.id);
-    return `<div class="card" id="club${c.id}"><div class="ben"><span style="font-weight:800;font-size:18px">${esc(c.name)}</span>
-      <span>${c.legacy ? chip('Cerrado', 'grey') : ''}${c.active ? '' : chip('Inactivo', 'grey')}</span></div>
-      <div class="small muted">${plural(c.bottles, 'botella', 'botellas')} · ${cadenceLabel(c.cadence_months)} · ${plural(counts.get(c.id) || 0, 'socio activo', 'socios activos')}</div>
+    const defined = Array.from({ length: slots }, (_, i) => ctx.cases.get(`${c.id}:${i + 1}`)).filter(Boolean).length;
+    return `<details class="card club-card" id="club${c.id}"><summary><span class="ben"><span style="font-weight:800;font-size:18px">${esc(c.name)}</span>
+      <span>${c.legacy ? chip('Cerrado', 'grey') : ''}${c.active ? '' : chip('Inactivo', 'grey')}</span></span>
+      <span class="small muted">${plural(c.bottles, 'botella', 'botellas')} · ${cadenceLabel(c.cadence_months)} · ${plural(counts.get(c.id) || 0, 'socio activo', 'socios activos')}</span>
+      <span class="small ${defined < slots ? 'warn-text' : 'ok-text'}">${defined} de ${slots} cajas definidas</span></summary>
       <h3>Cajas</h3><p class="small muted" style="margin-top:0">${c.allocation_mode === 'month' ? 'La caja depende del mes del envío.' : `El envío #1 lleva la caja 1, el #${slots + 1} vuelve a la caja 1.`} Los envíos ya trabajados guardan su propia copia.</p>${cases}
       ${m ? `<details class="more"><summary class="small">Configuración del club</summary><form method="post" action="/club/${c.id}">
         <label>Nombre</label><input name="name" value="${esc(c.name)}" required>
@@ -428,7 +419,7 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
         <label>Palabras para reconocer el producto en Stripe</label><input name="keywords" value="${esc(c.keywords || '')}" placeholder="bronce">
         <div class="grid2"><label><input type="checkbox" name="legacy" value="1" ${c.legacy ? 'checked' : ''} style="width:auto;min-height:0"> Cerrado a nuevos socios</label>
         <label><input type="checkbox" name="active" value="1" ${c.active ? 'checked' : ''} style="width:auto;min-height:0"> Activo</label></div>
-        <button class="btn sm" style="margin-top:8px">Guardar club</button></form></details>` : ''}</div>`;
+        <button class="btn sm" style="margin-top:8px">Guardar club</button></form></details>` : ''}</details>`;
   };
   const clubOpts = (sel) => `<option value="">— Sin club —</option>${clubs.map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
   const body = `<h1>Clubes</h1>${clubs.map(clubCard).join('')}
@@ -520,7 +511,7 @@ const METHOD_ES = { signup: 'se lo llevó al inscribirse', pickup: 'recogió en 
 export const attribution = (f, today) => f && f.status ? [STATUS_LABEL[f.status], f.done_on ? fdate(f.done_on, today, { weekday: false }) : null,
   f.method ? METHOD_ES[f.method] : null, f.handled_by || f.updated_by ? 'por ' + (f.handled_by || f.updated_by) : null].filter(Boolean).join(' · ') : '';
 
-const FILTERS = [['inbox','Inbox'],['prep', 'En preparación'], ['listos', 'Listos'],['resguardo', 'En resguardo'], ['programados', 'Programados'],
+const FILTERS = [['inbox','Por organizar'],['prep', 'En preparación'], ['listos', 'Listos'],['resguardo', 'En resguardo'], ['programados', 'Programados'],
   ['enviados', 'Enviados'], ['entregados', 'Entregados'], ['excepciones', 'Excepciones'],['contactar','Contactar · pago'],['suspendidos','Suspendidos'],['cobro','Bloqueados por pago'],['todos', 'Todos']];
 const FILTER_FN = {
   inbox:(o,today)=>!!inboxReason(o,today),
@@ -550,9 +541,11 @@ export function shipmentsPage({ env, user, ctx, url }) {
   const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const body = `<h1>Envíos <span class="muted small">${list.length}</span></h1>
   ${url.searchParams.has('clasificado')?'<div class="banner green">Envío organizado. Lo encontrarás en su nueva cola de trabajo.</div>':''}
-  ${filter==='inbox'?'<p class="small muted">Por organizar: cajas sin asignar con fecha vencida, de hoy o de los próximos 7 días. Al pasarlas a preparación o resguardo salen del Inbox. Las excepciones y resguardos con fecha cumplida vuelven para su atención.</p>':''}
+  ${filter==='inbox'?'<p class="small muted">Cajas de esta semana o atrasadas que aún no tienen siguiente paso.</p>':''}
   <div class="search"><input id="q" type="search" placeholder="Buscar socio, club, pedido o guía" aria-label="Buscar envíos" autocomplete="off"></div>
-  <div class="chips" style="margin-bottom:8px">${FILTERS.map(([k, l]) => `<a class="chip ${k === filter ? 'wine' : ''}" ${k===filter?'aria-current="page"':''} style="text-decoration:none;padding:7px 12px" href="/envios?f=${k}">${l}</a>`).join('')}</div>
+  ${(()=>{const MAIN=['inbox','prep','listos','resguardo'];const a=([k,l])=>`<a class="chip ${k === filter ? 'wine' : ''}" ${k===filter?'aria-current="page"':''} style="text-decoration:none" href="/envios?f=${k}">${l}</a>`;
+    return `<div class="chips" style="margin-bottom:6px">${FILTERS.filter(([k])=>MAIN.includes(k)).map(a).join('')}</div>
+    <details class="more filters-more" ${MAIN.includes(filter)?'':'open'}><summary>Más filtros${MAIN.includes(filter)?'':' · '+esc((FILTERS.find(([k])=>k===filter)||[])[1]||'')}</summary><div class="chips">${FILTERS.filter(([k])=>!MAIN.includes(k)).map(a).join('')}</div></details>`;})()}
   <p id="search-results" class="small muted" aria-live="polite">${list.length} envíos en este filtro</p>
   <div class="shipment-work-list">${list.map(o => {
     const s=o.sub,f=o.f||{},key=`${o.subId}:${o.k}`,id=`envio-${o.subId}-${o.k}`;
@@ -579,10 +572,10 @@ export function shipmentsPage({ env, user, ctx, url }) {
       <h3>Orden de venta y guía</h3><div class="grid2"><div><label for="ov-${id}">OV / pedido Zoho</label><input id="ov-${id}" name="order_ref" value="${esc(f.order_ref||'')}" placeholder="OV-02072" maxlength="60"></div>
       <div><label for="tracking-${id}">Guía (opcional)</label><input id="tracking-${id}" name="tracking" value="${esc(f.tracking||'')}" maxlength="80"></div></div><button class="btn quiet sm" style="margin-top:10px">Guardar OV / guía</button></form>
       <p class="small muted">Guarda la OV antes de registrar la entrega. La siguiente pantalla permite revisar la caja y confirmar.</p>
-      <div class="acts"><a class="btn" href="${shipHref(o)}/entregar?como=handed">Registrar entrega en mano</a><a class="btn ghost" href="${shipHref(o)}/entregar?como=shipped">Registrar envío</a></div>`:`<p class="small">${esc(attribution(f,today))}</p>`}
+      <div class="acts">${s.delivery_pref==='envio'?`<a class="btn" href="${shipHref(o)}/entregar?como=shipped">Ya se envió</a><a class="btn ghost" href="${shipHref(o)}/entregar?como=handed">Ya se entregó</a>`:`<a class="btn" href="${shipHref(o)}/entregar?como=handed">Ya se entregó</a><a class="btn ghost" href="${shipHref(o)}/entregar?como=shipped">Ya se envió</a>`}</div>`:`<p class="small">${esc(attribution(f,today))}</p>`}
       <div class="acts"><a class="btn quiet sm" href="${shipHref(o)}/comprobante">Firma / comprobante</a><a class="btn quiet sm" href="${shipHref(o)}">Abrir envío completo</a></div>
       </div></details>`;
-    }).join('') || `<div class="card empty">${filter==='inbox'?'Inbox al día. No hay envíos por organizar.':filter==='prep'?'No hay envíos en preparación. <a href="/envios?f=inbox">Ver Inbox</a>.':'Ningún envío con este filtro.'}</div>`}</div>`;
+    }).join('') || `<div class="card empty">${filter==='inbox'?'Todo organizado. No hay cajas pendientes de un siguiente paso.':filter==='prep'?'No hay envíos en preparación. <a href="/envios?f=inbox">Ver Inbox</a>.':'Ningún envío con este filtro.'}</div>`}</div>`;
   return page({ title: 'Envíos', body, user, env, tab: 'envios' });
 }
 

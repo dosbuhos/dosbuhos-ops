@@ -64,7 +64,7 @@ function quickForm(o, today, back) {
   </form>`;
 }
 
-function shipmentRow(o, today, back) {
+export function shipmentRow(o, today, back) {
   const t = tone(o, today), f = o.f || {}, pay = payInfo(o, today);
   const due = o.delayed ? `${fdate(o.eff, today, { weekday: false })} (aplazado)` : fdate(o.due, today, { weekday: false });
   const right = t === 'ok' ? doneText(o, today)
@@ -219,7 +219,7 @@ export function calendarPage({ env, user, ctx, url, okAudit }) {
   return page({ title: 'Envíos por semana', body, user, env, tab: 'envios', ...bell(ctx, user) });
 }
 
-const TCSS = `<style>
+export const TCSS = `<style>
 h1{margin:6px 0 10px}
 .msearch{margin:0 0 10px}.msearch input{min-height:48px;font-size:16px}
 .mfilters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}

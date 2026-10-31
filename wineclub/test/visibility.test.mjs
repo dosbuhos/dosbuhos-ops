@@ -31,11 +31,11 @@ test('theoretical, rescheduled, recorded, and originally stored dates remain dis
 test('member comparison keeps subsequent theoretical dates anchored after a late delivery',async()=>{
   const ctx=fixture();
   const html=await memberPage({env:{},user:{isManager:false},ctx,member:{id:7,name:'Valeria'},benefits:[],uses:[],url:new URL('http://localhost/socio/7')}).text();
-  assert.match(html,/Primera alta del club registrada/);
-  assert.match(html,/Calendario esperado y entregas reales/);
-  assert.match(html,/15 sep 2026/i);assert.doesNotMatch(html,/18 sep 2026/i);
-  assert.match(html,/Sin entrega registrada/);
-  assert.ok(html.indexOf('Alta y calendario de envíos')<html.indexOf('Contacto y forma de entrega'));
+  assert.match(html,/Alta <b>6 ago 2026<\/b>/);
+  assert.match(html,/id="calendario">Envíos</);
+  assert.match(html,/15 sep/i);assert.doesNotMatch(html,/18 sep/i);
+  assert.match(html,/Sin registro/);
+  assert.ok(html.indexOf('id="calendario"')<html.indexOf('Contacto y forma de entrega'));
 });
 
 test('review distinguishes recorded pending work from dates without fulfillment evidence',async()=>{

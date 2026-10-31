@@ -215,6 +215,7 @@ const ICON = {
 };
 
 const SCRIPT = `
+(()=>{const open=()=>{const t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(t&&t.tagName==='DETAILS'){t.open=true;t.scrollIntoView({block:'start'})}};open();addEventListener('hashchange',open)})();
 (()=>{const b=document.querySelector('.bell');if(!b||b.querySelector('.bdg'))return;fetch('/avisos.json').then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.n)return;const s=document.createElement('span');s.className='bdg'+(j.red?' r':'');s.textContent=j.n;b.appendChild(s);b.setAttribute('aria-label','Avisos: '+j.n)}).catch(()=>{})})();
 document.querySelectorAll('main table').forEach(t=>{const h=[...t.querySelectorAll('thead th,tr:first-child th')].map(x=>x.textContent.trim());if(!h.length)return;t.querySelectorAll('tbody tr').forEach(r=>[...r.children].forEach((c,i)=>{if(h[i]&&c.tagName==='TD')c.dataset.label=h[i]}))});
 document.addEventListener('submit',e=>{const f=e.target;if(f.dataset.busy){e.preventDefault();return}f.dataset.busy=1;

@@ -16,7 +16,7 @@ export function suspensionWarning(s) {
 export function membershipControls(member,user) {
   if(!user.isManager)return '';
   const suspended=!!member.suspended_on;
-  return `<details class="more card" id="membresia"><summary><span>Estado de membresía · ${suspended?'Suspendido':member.payment_followup_on?'Contactar para nueva forma de pago':'Sin suspensión interna'}<small>Administrar membresía</small></span><span class="membership-arrow" aria-hidden="true">▾</span></summary>
+  return `<details class="more card" id="membresia"><summary><span>Membresía · ${suspended?'Suspendido':member.payment_followup_on?'Contactar para nueva forma de pago':'Activa'}<small>Administrar membresía</small></span><span class="membership-arrow" aria-hidden="true">▾</span></summary>
   <p>Suspender bloquea preparación, entregas y beneficios. Reactivar conserva las fechas originales; revisa las cajas pendientes antes de entregarlas.</p>
   <p class="small">Esta acción no cambia Stripe ni detiene sus reintentos de cobro. Revisa la suscripción y las facturas en Stripe por separado.</p>
   ${suspended?`<a class="btn" href="/socio/${member.id}/reactivar">Reactivar membresía · revisar envíos →</a>`:''}<form method="post" action="/socio/${member.id}/membresia"><input type="hidden" name="version" value="${member.membership_version||0}">
