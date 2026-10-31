@@ -38,3 +38,4 @@ For a local preview use a separate configuration with no Google/Access settings,
 Missing wine recipes remain visibly unresolved; do not invent selections or copy a different club's box without approval. Keep Stripe prices and cancellation/payment states intact when they conflict with legacy records. Repeated or nonstandard PO references are preserved for staff review.
 
 Shipment dates remain anchored to the first expected shipment plus the club cadence. Actual late fulfillment does not automatically restart the cycle. If the business instead intends three months after the last actual delivery, confirm that policy before changing schedules. The comparison screen exposes that discrepancy without fabricating history.
+
