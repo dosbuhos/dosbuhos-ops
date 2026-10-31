@@ -274,6 +274,8 @@ form.reg label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-we
 textarea.wa{width:100%;min-height:160px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:10px}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
 /* móvil primero: barra inferior, objetivos táctiles grandes; en pantallas anchas vuelven las pestañas de arriba */
+nav button[data-v="cocina"]{position:relative}nav button .nb{position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:9px;background:var(--danger, #b3261e);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+nav.tabs button .nb{position:static;margin-left:6px}
 nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--surface);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
 nav.bottom button{font:inherit;font-size:11.5px;font-weight:600;color:var(--muted);background:none;border:0;border-radius:10px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
 nav.bottom button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -388,7 +390,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 11:00</div>
+    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 11:18</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
     <button role="tab" data-v="hoy">Hoy</button>
@@ -428,7 +430,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   <button data-v="pedidos">Pedidos de cocina</button>
   <button data-v="mensajes">Mensajes con cocina</button>
   <button data-v="registro">Registro de cosecha</button>
-  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 11:00</p>
+  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 11:18</p>
 </div></div>
 <div class="tip" id="tip" hidden></div>
 
@@ -1379,8 +1381,8 @@ function bindCard(card){
     row.querySelector("[data-del]").onclick = () => { L.splice(i, 1); redraw(); };
     const det = row.querySelector("[data-det]"); if (det) det.ontoggle = () => { L[i]._open = det.open; if (!det.open) redraw(); };
     row.querySelectorAll("[data-dq]").forEach(b => b.onclick = () => { const k = b.dataset.dq;
-      if (dqOf(L[i]) === k) { L[i]._dq = ""; L[i].fecha = ""; }            // tap again = "no sé"
-      else if (k === "otra") { L[i]._dq = "otra"; }
+      if (k === "otra") { L[i]._dq = "otra"; }                              // exact date: keep what is there
+      else if (dqOf(L[i]) === k) { L[i]._dq = ""; L[i].fecha = ""; }       // tap a pick again = "no sé"
       else { L[i]._dq = k; L[i].fecha = daysAgo(+k); }
       redraw(); });
   });
@@ -1494,7 +1496,7 @@ views.hoy.bind = root => {
     if (!state.db) { toast("No se puede guardar en esta vista."); return; }
     const c = CROPS[inp.dataset.crop];
     b.disabled = true;
-    try { await state.db.collection("cosechas").add({fecha: isoDay(state.hd.w, state.hd.d), cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); toast("Anotado"); inp.value = ""; }
+    try { await state.db.collection("cosechas").add({fecha: isoDay(state.hd.w, state.hd.d) > todayISO() ? todayISO() : isoDay(state.hd.w, state.hd.d), cama: inp.dataset.bed, cultivo: inp.dataset.crop, cantidad: v, u: c.u, nota: "", at: Date.now()}); toast("Anotado"); inp.value = ""; }
     catch (e) { toast(e && e.code === "bad_pin" ? "PIN incorrecto" : "No se pudo guardar"); }
     b.disabled = false;
   });
@@ -1913,7 +1915,9 @@ function render(){
   main.innerHTML = `<div class="view">${views[state.view]()}</div>`;
   document.getElementById("vtitle").textContent = TITLES[state.view];
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view));
-  document.querySelectorAll("nav.bottom button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view || (b.dataset.v === "mas" && !MAIN4.includes(state.view))));
+  document.querySelectorAll("nav.bottom button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view || (b.dataset.v === "mas" && !MAIN4.includes(state.view) && state.view !== "cocina")));
+  const kn = (state.pedidos || []).filter(x => x.estado === "nueva").length + (state.msgs || []).filter(m => m.de !== "huerto" && Date.now() - new Date(String(m.at).replace(" ", "T") + "Z") < 2 * DAY).length;
+  document.querySelectorAll('nav button[data-v="cocina"]').forEach(b => { let x = b.querySelector(".nb"); if (!kn) { if (x) x.remove(); return; } if (!x) { x = document.createElement("span"); x.className = "nb"; b.appendChild(x); } x.textContent = kn; });
   if (views[state.view].bind) views[state.view].bind(main);
   if (render.keep) window.scrollTo(0, y); else window.scrollTo(0, 0);
   render.keep = true;
