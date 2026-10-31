@@ -130,23 +130,35 @@ svg.map .feat{font-size:.55px;fill:var(--muted)}
 .sb input{font-size:16px;min-height:42px;width:100%;box-sizing:border-box}
 
 /* censo de camas */
-.cc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:70px}
+.cc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 10px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:70px}
 .cc.saved{border-color:color-mix(in srgb,var(--ok) 55%,var(--line))}
-.cch{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.cch b{font-size:20px;font-family:var(--serif, Georgia, serif)}
-.cbar{display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--sunk);border:1px solid var(--line)}
-.cbar i{display:block;height:100%;border-right:2px solid var(--surface)}
-.cl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;padding-bottom:8px;border-bottom:1px dashed var(--line)}
-.cl .n2{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:6px}
-.cl input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}
-.mstep{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.mstep button{border:0;background:var(--sunk);font-size:20px;width:40px;min-height:44px;cursor:pointer;color:var(--fg)}
-.mstep input{border:0;border-radius:0;width:56px !important;text-align:center;padding:0}
-.cl .x{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:9px;width:44px;min-height:44px;font-size:16px;cursor:pointer}
-.cfoot{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.cfoot .btn{min-height:44px}
-.cfoot .rest{flex:1;font-size:13px;color:var(--muted);text-align:right}
-.cfoot .over{color:var(--danger, #b3261e);font-weight:700}
+.cch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cch b{font-size:22px;font-family:var(--serif, Georgia, serif);font-weight:400}
+.cch .chip{margin-left:auto}
+.cbar{display:flex;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:repeating-linear-gradient(135deg,var(--sunk) 0 6px,var(--surface) 6px 12px)}
+.cbar i{display:flex;align-items:center;justify-content:center;height:100%;border-right:2px solid var(--surface);font-style:normal;font-size:11.5px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);overflow:hidden;white-space:nowrap;padding:0 4px;min-width:0;line-height:1.05;text-align:center}
+.cbar i:last-child{border-right:0}
+.cbar .vac{flex:1;color:var(--muted);text-shadow:none;font-weight:600;background:none}
+.cends{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:-6px;letter-spacing:.04em;text-transform:uppercase}
+.cl{display:grid;grid-template-columns:6px minmax(0,1fr) auto auto;gap:8px;align-items:center}
+.cl .sw{align-self:stretch;border-radius:3px}
+.cl select,.cl input{font-size:16px;min-height:40px;width:100%;box-sizing:border-box;padding:6px 8px}
+.cl select.crop{font-weight:700}
+.cl select.crop.empty{font-weight:400;color:var(--muted)}
+.mstep{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.mstep button{border:0;background:var(--sunk);font-size:18px;width:32px;min-height:40px;cursor:pointer;color:var(--fg);padding:0}
+.mstep select{border:0;border-radius:0;width:auto !important;min-width:62px;text-align:center;font-weight:700;padding:0 2px;background:var(--surface);-webkit-appearance:none;appearance:none;text-align-last:center}
+.cl .x{border:0;background:none;color:var(--faint);width:28px;min-height:40px;font-size:18px;cursor:pointer;padding:0}
+.cl .more{grid-column:2 / -1;display:flex;gap:6px;align-items:center}
+.cl .more input,.cl .more select{min-height:38px;font-size:15px}
+.cl .more .fe{max-width:150px}
+.lnk{border:0;background:none;color:var(--muted);font-size:13px;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;grid-column:2 / -1;justify-self:start}
+.cfoot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:6px;border-top:1px dashed var(--line)}
+.cfoot .btn{min-height:40px;font-size:14px}
+.cends .rest{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;color:var(--muted)}
+.cends .rest.full{color:var(--ok)}
+.cends .over{color:var(--danger, #b3261e);font-weight:700}
+.cfoot{flex-wrap:nowrap}
 
 .real{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--sunk)}
 .real .rep{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:start;font-size:14px}
@@ -309,7 +321,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
       <span class="eyebrow">Huerto Orgánico · Bodega Dos Búhos</span>
       <h1 id="vtitle">Semana</h1>
     </div>
-    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 30/10 13:59</div>
+    <div class="facts">37 camas · 277 m² · Adrián Bárcenas, L–V 7:00–16:00 · versión 31/10 09:57</div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Vistas">
     <button role="tab" data-v="hoy">Hoy</button>
@@ -347,7 +359,7 @@ nav.bottom button[aria-selected="true"]{color:var(--fg);background:var(--sunk)}
   <button data-v="pedidos">Pedidos de cocina</button>
   <button data-v="mensajes">Mensajes con cocina</button>
   <button data-v="registro">Registro de cosecha</button>
-  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 30/10 13:59</p>
+  <p class="small muted" style="margin:8px 4px 0;text-align:center">Versión 31/10 09:57</p>
 </div></div>
 <div class="tip" id="tip" hidden></div>
 
@@ -1161,44 +1173,60 @@ function censoDraft(bed){
   return state.cdraft[bed];
 }
 const censoThisWeek = bed => { const c = state.censo[bed]; if (!c) return false; const d = new Date(c.at.replace(" ", "T") + "Z"); return (Date.now() - d) < 7 * DAY; };
+const M_OPTS = len => { const o = []; for (let v = 0.5; v <= len + 1e-9; v += 0.5) o.push(Math.round(v * 10) / 10); return o; };
+const fm = v => { const r = Math.round(+v * 100) / 100; return (Number.isInteger(r) ? r : r.toString()) + " m"; };
+function shortCrop(n){ return String(n || "").replace(/ \(.*\)$/, ""); }
 function censoBar(bed, L){
   const len = BED[bed].len; let used = 0;
-  const segs = L.filter(l => +l.m > 0).map(l => { used += +l.m; return `<i style="width:${Math.min(100, +l.m / len * 100)}%;background:${cropColor(l.cultivo)}" title="${esc(nf(+l.m, 1) + " m " + l.cultivo)}"></i>`; }).join("");
-  return {html: segs, used};
+  const segs = L.filter(l => +l.m > 0).map(l => { used += +l.m; const w = Math.min(100, +l.m / len * 100), name = l.cultivo ? shortCrop(l.cultivo) : "¿?"; return `<i style="flex:0 0 ${w}%;background:${l.cultivo ? cropColor(l.cultivo) : "#9aa092"}" title="${esc(fm(l.m) + " " + (l.cultivo || "sin cultivo"))}">${w >= 18 ? `${esc(name)}<br>${fm(l.m)}` : w >= 9 ? fm(l.m) : ""}</i>`; }).join("");
+  const rest = len - used;
+  return {html: segs + (rest > 0.01 ? `<i class="vac">${rest / len >= 0.12 ? "vacío " + fm(rest) : ""}</i>` : ""), used};
+}
+function cropOptionsHtml(cur){
+  const names = [...new Set(Object.values(CROPS).filter(c => !/^Decorativa/.test(c.menu || "") || true).map(c => c.n))].sort((a, b) => a.localeCompare(b, "es"));
+  const custom = cur && !names.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : "";
+  return `<option value=""${cur ? "" : " selected"}>Elegir cultivo…</option>${custom}${names.map(n => `<option value="${esc(n)}"${n === cur ? " selected" : ""}>${esc(n)}</option>`).join("")}<option value="__otro">Otro (escribir)…</option>`;
 }
 function censoCard(bed){
   const B = BED[bed], L = censoDraft(bed), c = state.censo[bed], {html, used} = censoBar(bed, L);
-  const rest = B.len - used, dir = B.sec === "A" ? "norte → sur" : "oeste → este";
+  const rest = B.len - used, ends = B.sec === "A" ? ["Norte", "Sur"] : ["Oeste", "Este"];
   return `<section class="cc${censoThisWeek(bed) ? " saved" : ""}" id="cc-${bed}" data-bed="${bed}">
-    <div class="cch"><b>${bed}</b><span class="small muted">${nf(B.len, 1)} m · ${dir}</span>${c ? `<span class="chip${censoThisWeek(bed) ? "" : " warn"}">✓ ${esc(fmtISO(c.at.slice(0, 10)))}</span>` : `<span class="chip warn">sin revisar · según el plan</span>`}</div>
+    <div class="cch"><b>${bed}</b><span class="small muted">${fm(B.len)}</span>${c ? `<span class="chip${censoThisWeek(bed) ? "" : " warn"}">✓ revisada ${esc(fmtISO(c.at.slice(0, 10)))}</span>` : `<span class="chip warn">sin revisar · según el plan</span>`}</div>
     <div class="cbar" aria-hidden="true">${html}</div>
-    ${L.map((l, i) => `<div class="cl" data-i="${i}">
-      <div class="mstep"><button type="button" data-dec aria-label="Menos">−</button><input type="number" inputmode="decimal" step="0.5" min="0" data-f="m" value="${l.m === "" ? "" : +l.m}" aria-label="Metros"><button type="button" data-inc aria-label="Más">+</button></div>
-      <input list="cultlist" data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Cultivo" aria-label="Cultivo">
-      <button type="button" class="x" data-del aria-label="Quitar línea">✕</button>
-      <div class="n2"><input list="notalist" data-f="nota" value="${esc(l.nota || "")}" placeholder="Nota (opcional)" aria-label="Nota"><input type="date" data-f="fecha" value="${esc(l.fecha || "")}" aria-label="Fecha de siembra (opcional)" title="Fecha de siembra (opcional)"></div>
-    </div>`).join("")}
-    <div class="cfoot"><button type="button" class="btn" data-add>＋ Agregar</button>${L.length ? `<button type="button" class="btn" data-empty>Cama vacía</button>` : ""}<span class="rest${rest < -0.01 ? " over" : ""}">${rest < -0.01 ? `Sobran ${nf(-rest, 1)} m` : rest > 0.01 ? `${nf(rest, 1)} m vacío` : "Cama completa"}</span><button type="button" class="btn primary" data-save>Guardar</button></div>
+    <div class="cends"><span>${ends[0]}</span><span class="rest${rest < -0.01 ? " over" : rest <= 0.01 ? " full" : ""}">${rest < -0.01 ? `Sobran ${fm(-rest)}` : rest > 0.01 ? `${fm(rest)} vacío` : "Cama completa ✓"}</span><span>${ends[1]}</span></div>
+    ${L.map((l, i) => { const open = l._open || l.nota || l.fecha;
+      return `<div class="cl" data-i="${i}">
+      <span class="sw" style="background:${l.cultivo ? cropColor(l.cultivo) : "var(--line)"}"></span>
+      ${l._otro ? `<input data-f="cultivo" value="${esc(l.cultivo)}" placeholder="Nombre del cultivo" maxlength="40" aria-label="Cultivo">` : `<select class="crop${l.cultivo ? "" : " empty"}" data-crop aria-label="Cultivo">${cropOptionsHtml(l.cultivo)}</select>`}
+      <div class="mstep"><button type="button" data-dec aria-label="Menos medio metro">−</button><select data-m aria-label="Metros">${[...new Set([...M_OPTS(B.len), +l.m > 0 ? Math.round(+l.m * 100) / 100 : 0.5])].sort((x, y) => x - y).map(v => `<option value="${v}"${Math.abs(v - +l.m) < 0.01 ? " selected" : ""}>${fm(v)}</option>`).join("")}</select><button type="button" data-inc aria-label="Más medio metro">+</button></div>
+      <button type="button" class="x" data-del aria-label="Quitar ${esc(l.cultivo || "línea")}">✕</button>
+      ${open ? `<div class="more"><select data-f="nota" aria-label="Nota"><option value="">Sin nota</option>${[...new Set([...NOTAS, l.nota].filter(Boolean))].map(n => `<option${n === l.nota ? " selected" : ""}>${esc(n)}</option>`).join("")}</select><input class="fe" type="date" data-f="fecha" value="${esc(l.fecha || "")}" aria-label="Fecha de siembra" title="Fecha de siembra (opcional)"></div>` : `<button type="button" class="lnk" data-open>＋ nota o fecha de siembra</button>`}
+    </div>`; }).join("")}
+    <div class="cfoot"><button type="button" class="btn" data-add>＋ Agregar cultivo</button>${L.length ? `<button type="button" class="lnk" data-empty style="grid-column:auto">Vaciar cama</button>` : ""}<button type="button" class="btn primary" data-save style="margin-left:auto">Guardar</button></div>
   </section>`;
 }
 function bindCard(card){
-  const bed = card.dataset.bed, L = censoDraft(bed);
+  const bed = card.dataset.bed, L = censoDraft(bed), len = BED[bed].len;
   const redraw = () => { const n = document.createElement("div"); n.innerHTML = censoCard(bed); card.replaceWith(n.firstElementChild); bindCard(document.getElementById("cc-" + bed)); };
-  const soft = () => { const {html, used} = censoBar(bed, L), rest = BED[bed].len - used, r = card.querySelector(".rest"); card.querySelector(".cbar").innerHTML = html; r.className = "rest" + (rest < -0.01 ? " over" : ""); r.textContent = rest < -0.01 ? `Sobran ${nf(-rest, 1)} m` : rest > 0.01 ? `${nf(rest, 1)} m vacío` : "Cama completa"; };
+  const clamp = v => Math.max(0.5, Math.min(len, Math.round(v * 2) / 2));
   card.querySelectorAll(".cl").forEach(row => {
     const i = +row.dataset.i;
-    row.querySelectorAll("[data-f]").forEach(inp => inp.addEventListener("input", () => { L[i][inp.dataset.f] = inp.dataset.f === "m" ? (inp.value === "" ? "" : +inp.value) : inp.value; soft(); }));
-    row.querySelector("[data-dec]").onclick = () => { L[i].m = Math.max(0, (+L[i].m || 0) - 0.5); redraw(); };
-    row.querySelector("[data-inc]").onclick = () => { L[i].m = (+L[i].m || 0) + 0.5; redraw(); };
+    const cs = row.querySelector("[data-crop]");
+    if (cs) cs.onchange = () => { if (cs.value === "__otro") { L[i]._otro = true; L[i].cultivo = ""; redraw(); const inp = document.querySelector(`#cc-${bed} .cl[data-i="${i}"] input[data-f=cultivo]`); if (inp) inp.focus(); } else { L[i].cultivo = cs.value; redraw(); } };
+    row.querySelectorAll("input[data-f], select[data-f]").forEach(inp => inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => { L[i][inp.dataset.f] = inp.value; if (inp.dataset.f === "cultivo") { const {html} = censoBar(bed, L); card.querySelector(".cbar").innerHTML = html; } }));
+    row.querySelector("[data-m]").onchange = e => { L[i].m = +e.target.value; redraw(); };
+    row.querySelector("[data-dec]").onclick = () => { L[i].m = clamp((+L[i].m || 0.5) - 0.5); redraw(); };
+    row.querySelector("[data-inc]").onclick = () => { L[i].m = clamp((+L[i].m || 0) + 0.5); redraw(); };
     row.querySelector("[data-del]").onclick = () => { L.splice(i, 1); redraw(); };
+    const op = row.querySelector("[data-open]"); if (op) op.onclick = () => { L[i]._open = true; redraw(); };
   });
-  card.querySelector("[data-add]").onclick = () => { const used = L.reduce((a, l) => a + (+l.m || 0), 0); L.push({m: Math.max(0.5, Math.round((BED[bed].len - used) * 2) / 2) || 1, cultivo: "", nota: "", fecha: ""}); redraw(); const ins = document.querySelectorAll(`#cc-${bed} input[data-f=cultivo]`); if (ins.length) ins[ins.length - 1].focus(); };
+  card.querySelector("[data-add]").onclick = () => { const used = L.reduce((a, l) => a + (+l.m || 0), 0); L.push({m: clamp(len - used > 0.4 ? len - used : 1), cultivo: "", nota: "", fecha: ""}); redraw(); const sel = document.querySelectorAll(`#cc-${bed} select[data-crop]`); if (sel.length) sel[sel.length - 1].focus(); };
   const emp = card.querySelector("[data-empty]"); if (emp) emp.onclick = () => { L.splice(0, L.length); redraw(); };
   card.querySelector("[data-save]").onclick = async (ev) => {
     const b = ev.currentTarget;
     const lineas = L.filter(l => (+l.m > 0) || String(l.cultivo).trim()).map(l => ({m: +l.m, cultivo: String(l.cultivo).trim(), nota: l.nota || "", fecha: l.fecha || ""}));
-    if (lineas.some(l => !(l.m > 0) || !l.cultivo)) { toast("Cada línea necesita metros y cultivo"); return; }
-    if (lineas.reduce((a, l) => a + l.m, 0) > BED[bed].len + 0.01) { toast(`La cama mide ${nf(BED[bed].len, 1)} m`); return; }
+    if (lineas.some(l => !(l.m > 0) || !l.cultivo)) { toast("Elige el cultivo de cada línea"); return; }
+    if (lineas.reduce((a, l) => a + l.m, 0) > len + 0.01) { toast(`La cama mide ${fm(len)}`); return; }
     if (!window.huertoApi) { toast("El censo se guarda desde la página del huerto (no desde Claude)."); return; }
     b.disabled = true; b.textContent = "Guardando…";
     try {
@@ -1226,7 +1254,7 @@ views.censo = () => {
   const opts = [...new Set([...Object.values(CROPS).map(c => c.n)])].sort((a, b) => a.localeCompare(b, "es"));
   return `
   <div class="bar" style="justify-content:space-between"><div><div class="eyebrow">Lo que hay hoy en la tierra</div><h2>Censo de camas</h2></div><span class="chip${done === BEDS.length ? "" : " warn"}">${done} de ${BEDS.length} revisadas esta semana</span></div>
-  <p class="small muted" style="margin:0;max-width:70ch">Una línea por cultivo, en orden: de <b>norte a sur</b> en la sección A, de <b>oeste a este</b> en la sección B y los invernaderos. Metros y cultivo; nota y fecha solo si hacen falta. Al guardar, el mapa y el plan se actualizan.</p>
+  <p class="small muted" style="margin:0;max-width:70ch">Una línea por cultivo, en el orden en que están en la cama: de <b>norte a sur</b> en la sección A, de <b>oeste a este</b> en la B y los invernaderos. Elige el cultivo y los metros (de medio en medio). La barra muestra cómo queda la cama. Al guardar, el mapa y el plan se actualizan.</p>
   ${window.huertoApi ? "" : `<div class="notice">El censo se guarda desde la página pública del huerto.</div>`}
   <div class="monthpick" role="group" aria-label="Zona">${ZONES.map(([k, n]) => `<button data-cz="${k}" aria-pressed="${(state.czone || "todo") === k}">${n}</button>`).join("")}</div>
   <datalist id="cultlist">${opts.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
