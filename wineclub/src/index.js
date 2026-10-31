@@ -178,7 +178,7 @@ async function handle(request, env) {
       const status = String(fm.status || '');
       if (status !== 'scheduled' && !STATUSES.includes(status)) return new Response('Estado inválido', { status: 400 });
       // Shipping / handing over goes through the reviewed flow; undoing a completed shipment goes through "reabrir".
-      if (status === 'shipped' || status === 'handed') return redirect(`${here}/entregar?como=${status}`);
+      if (status === 'shipped' || status === 'handed') return redirect(`${here}/entregar?como=${status}${fm.back && safeBack(fm.back, '') ? '&back=' + encodeURIComponent(safeBack(fm.back, here)) : ''}`);
       if (status === 'scheduled' && sh.o.state === 'done') return redirect(here);
       if (status === 'delivered' && sh.o.status !== 'shipped') return redirect(here);
       if (sh.o.state === 'done' && status !== 'delivered') return redirect(here);

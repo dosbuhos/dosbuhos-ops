@@ -28,32 +28,37 @@ function whenText(o, today) {
 }
 
 // One box. `action` = 'deliver' (one-tap to the handover form), 'confirm' (yes / still pending), or none.
-export function qrow(o, today, { action = null, back = '/' } = {}) {
+// One compact row per box: who, when, what — and its status as a dropdown on the right.
+// Choosing "Entregada en mano…" / "Enviada…" opens the handover form (date + box check); the rest saves at once.
+const OPEN = new Set(['overdue', 'today', 'upcoming', 'exception', 'held']);
+export function stateSelect(o, back) {
+  const f = o.f || {}, pickup = isPickup(o);
+  const cur = o.state === 'held' ? 'held' : ['needs_prep', 'ready', 'exception'].includes(o.status) ? o.status : 'scheduled';
+  const opts = [['scheduled', 'Pendiente'], ['needs_prep', 'En preparación'], ['ready', 'Lista'],
+    ...(cur === 'exception' ? [['exception', 'Excepción']] : []), ...(cur === 'held' ? [['held', 'En resguardo']] : []),
+    [pickup ? 'handed' : 'shipped', pickup ? 'Entregada en mano…' : 'Enviada…'], [pickup ? 'shipped' : 'handed', pickup ? 'Enviada…' : 'Entregada en mano…']];
+  return `<form class="qstate" method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="back" value="${esc(back)}">
+    <select name="status" data-autosubmit data-cur="${cur}" aria-label="Estado de la caja de ${esc(o.sub.member_name)}" class="st-${cur}">${opts.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <noscript><button class="btn sm">Guardar</button></noscript></form>`;
+}
+export function qrow(o, today, { back = '/' } = {}) {
   const s = o.sub, f = o.f || {};
   const tone = o.state === 'overdue' || o.state === 'exception' ? 'late' : o.state === 'today' || (o.state === 'held' && o.holdReleaseDue) ? 'now' : o.state === 'held' ? 'held' : '';
   const chips = [];
-  if (o.status === 'ready') chips.push(chip('Caja lista', 'green'));
-  else if (o.status === 'needs_prep') chips.push(chip('Por preparar', 'amber'));
-  if (o.state === 'exception') chips.push(chip('Excepción', 'red'));
   if (o.delayed && f.delay_reason) chips.push(chip('Aplazado', 'amber'));
   if (['past_due', 'unpaid'].includes(s.status)) chips.push(chip('Pago vencido', 'amber'));
   if (o.missingAllocation) chips.push(chip('Falta definir botellas', 'red'));
+  const blocked = ['payment_blocked', 'payment_contact', 'suspended'].includes(o.state);
+  if (blocked) chips.push(chip(o.state === 'suspended' ? 'Suspendido' : 'Revisar pago', 'red'));
   const how = isPickup(o) ? 'Recoge' : 'Envío';
-  const deliverLabel = isPickup(o) ? 'Ya se entregó' : 'Ya se envió';
-  const como = isPickup(o) ? 'handed' : 'shipped';
-  const backQ = `&back=${encodeURIComponent(back)}`;
-  let btns = '';
-  if (action === 'deliver') btns = `<a class="qbtn" href="${shipHref(o)}/entregar?como=${como}${backQ}">${deliverLabel}</a>`;
-  if (action === 'confirm') btns = `
-    <a class="qbtn" href="${shipHref(o)}/entregar?como=${como}${backQ}">${deliverLabel}</a>
-    <form method="post" action="${shipHref(o)}/estado"><input type="hidden" name="version" value="${f.version || 0}"><input type="hidden" name="status" value="needs_prep"><input type="hidden" name="back" value="${esc(back)}"><button class="qbtn ghost">Aún no sale</button></form>`;
-  return `<article class="qrow ${tone}${action === 'confirm' ? ' confirm' : ''}" id="e${o.subId}-${o.k}">
+  const late = o.state !== 'held' && o.state !== 'done' && daysBetween(today, o.eff) < 0;
+  const ctrl = OPEN.has(o.state) ? stateSelect(o, back) : o.state === 'done' ? '<span class="qdone">✓ Hecha</span>' : '';
+  return `<article class="qrow ${tone}" id="e${o.subId}-${o.k}">
     <a class="qmain" href="${shipHref(o)}">
-      <span class="qwhen">${esc(whenText(o, today))}${o.state !== 'held' && o.state !== 'done' && daysBetween(today, o.eff) < 0 ? ` <span class="muted">· ${esc(fdate(o.eff, today, { weekday: false }))}</span>` : ''}</span>
-      <span class="name">${esc(s.member_name)}</span><span class="meta">${esc(o.club.name)} · Envío #${o.n} · ${plural(o.expectedBottles, 'botella', 'botellas')} · ${how}</span>
+      <span class="name">${esc(s.member_name)}</span>
+      <span class="meta"><b class="qwhen">${esc(whenText(o, today))}</b>${late ? ` · ${esc(fdate(o.eff, today, { weekday: false }))}` : ''} · ${esc(o.club.name)} #${o.n} · ${o.expectedBottles} bot. · ${how}</span>
       ${chips.length ? `<span class="chips">${chips.join('')}</span>` : ''}
-    </a>
-    ${btns ? `<div class="qacts">${btns}</div>` : ''}
+    </a>${ctrl ? `<div class="qacts">${ctrl}</div>` : ''}
   </article>`;
 }
 
@@ -120,7 +125,7 @@ export function confirmPage({ env, user, ctx, url, okAudit }) {
   <p><a href="/">← Inicio</a></p>
   ${okBanner(okAudit, today)}
   <h1>Cajas sin registro</h1>
-  <p class="muted">Estas cajas ya pasaron su fecha y nadie anotó si salieron. Si ya salió, toca <b>Ya se entregó</b> (o <b>Ya se envió</b>) y anota la fecha real. Si no, toca <b>Aún no sale</b> y queda en “Para entregar”.</p>
+  <p class="muted">Estas cajas ya pasaron su fecha y nadie anotó si salieron. Cambia su estado a la derecha: <b>Entregada en mano…</b> o <b>Enviada…</b> te pide la fecha real; si no ha salido, elige <b>En preparación</b> y queda en “Para entregar”.</p>
   ${list.length ? (() => {
     const groups = new Map();
     for (const o of list) { if (!groups.has(o.sub.member_id)) groups.set(o.sub.member_id, []); groups.get(o.sub.member_id).push(o); }
@@ -137,18 +142,20 @@ export function confirmPage({ env, user, ctx, url, okAudit }) {
 export const QCSS = `<style>
 .qh{display:flex;align-items:baseline;gap:8px;font-size:15px;font-weight:800;margin:22px 0 8px;color:var(--ink)}
 .qh .n{font-size:13px;color:var(--muted);font-weight:700}
-.qrow{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;margin:8px 0;overflow:hidden}
+.qrow{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;margin:6px 0}
 .qrow.late{border-left-color:var(--red)}.qrow.now{border-left-color:var(--wine)}.qrow.held{border-left-color:#e0b800}
-.qmain{display:flex;flex-direction:column;gap:2px;padding:12px 14px;text-decoration:none;color:var(--ink);min-height:56px}
-.qmain .qwhen{font-size:13px;font-weight:700;color:var(--muted)}.qrow.late .qwhen{color:var(--red)}.qrow.now .qwhen{color:var(--wine)}
-.qmain .name{font-size:18px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
-.qmain .meta{font-size:14px;color:var(--muted)}
-.qmain .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
-.qacts{display:flex;gap:8px;padding:0 14px 12px}
-.qacts form{margin:0;flex:1;display:flex}
-.qbtn{flex:1;display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 14px;border-radius:12px;background:var(--wine);color:#fff;font-weight:700;font-size:16px;text-decoration:none;border:2px solid var(--wine);font-family:inherit;cursor:pointer}
-.qbtn.ghost{background:#fff;color:var(--wine)}
-@media (min-width:720px){.qrow{flex-direction:row;align-items:center}.qmain{flex:1}.qacts{padding:12px 14px;flex:none;min-width:200px}.qrow.confirm .qacts{min-width:330px}}
+.qmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;padding:8px 0 8px 10px;text-decoration:none;color:var(--ink);min-height:48px;justify-content:center}
+.qmain .name{font-size:16px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.qmain .meta{font-size:13px;color:var(--muted);line-height:1.35}
+.qmain .qwhen{font-weight:700}.qrow.late .qwhen{color:var(--red)}.qrow.now .qwhen{color:var(--wine)}.qrow.held .qwhen{color:#8a6d00}
+.qmain .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.qmain .chips .chip{font-size:12px;padding:2px 8px;min-height:0}
+.qacts{flex:none;padding:6px 8px 6px 0}.qstate{margin:0}
+.qstate select{width:auto;max-width:8.2em;min-height:40px;padding:4px 24px 4px 10px;font-size:13px;font-weight:700;border-radius:999px;border:1px solid var(--line);background-color:var(--grey-soft);color:var(--ink)}
+.qstate select.st-needs_prep{background-color:var(--amber-soft);color:var(--amber);border-color:#f0d9b0}
+.qstate select.st-ready{background-color:var(--green-soft);color:var(--green);border-color:#bfe0c8}
+.qstate select.st-held{background-color:#fff4c2;color:#6b5400;border-color:#e0b800}
+.qstate select.st-exception{background-color:var(--red-soft);color:var(--red)}
+.qdone{font-size:13px;font-weight:700;color:var(--green);white-space:nowrap}
 .catchup{background:var(--red-soft);border:1px solid #f3c4bf;border-radius:var(--r);padding:14px;margin:14px 0}
 .catchup h2{margin:0 0 4px;font-size:18px;color:var(--red)}.catchup p{margin:0 0 12px}
 .catchup details.more summary{margin-top:10px}

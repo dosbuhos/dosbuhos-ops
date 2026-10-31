@@ -206,6 +206,9 @@ button.chip,.chip[role=button],[onclick].chip{min-height:40px!important;display:
 @media (max-width:719px){main tr:has(>th){display:none}}
 
 .date-quick{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0}.date-quick .chip{border:1px solid var(--line);background:#fff;cursor:pointer;font:600 13px inherit}
+.top{transition:transform .2s ease}body.hdr-hide .top{transform:translateY(-100%)}
+.sec,.search{transition:top .2s ease}body.hdr-hide .sec,body.hdr-hide .search{top:env(safe-area-inset-top)}
+@media (prefers-reduced-motion:reduce){.top,.sec,.search{transition:none}}
 `;
 
 const ICON = {
@@ -217,6 +220,8 @@ const ICON = {
 };
 
 const SCRIPT = `
+(()=>{let y=scrollY;addEventListener('scroll',()=>{const n=scrollY,b=document.body;if(n>y+8&&n>90)b.classList.add('hdr-hide');else if(n<y-8||n<90)b.classList.remove('hdr-hide');y=n},{passive:true})})();
+document.addEventListener('change',e=>{const s=e.target.closest('select[data-autosubmit]');if(s&&s.value!==s.dataset.cur)s.form.requestSubmit()});
 document.addEventListener('click',e=>{const b=e.target.closest('.date-quick [data-d]');if(!b)return;const f=b.closest('form');const i=f&&f.querySelector('input[type=date]');if(i){i.value=b.dataset.d}});
 (()=>{const open=()=>{const t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(t&&t.tagName==='DETAILS'){t.open=true;t.scrollIntoView({block:'start'})}};open();addEventListener('hashchange',open)})();
 (()=>{const b=document.querySelector('.bell');if(!b||b.querySelector('.bdg'))return;fetch('/avisos.json').then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.n)return;const s=document.createElement('span');s.className='bdg'+(j.red?' r':'');s.textContent=j.n;b.appendChild(s);b.setAttribute('aria-label','Avisos: '+j.n)}).catch(()=>{})})();

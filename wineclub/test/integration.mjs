@@ -83,7 +83,7 @@ try {
   await check("Vanessa's case: September and October owed, November upcoming", async () => {
     // Past dates with no record live on the catch-up list; the home screen links to it.
     const html = await get('/confirmar');
-    const card = (d) => new RegExp(`Valeria Prueba</span>\\s*<span class="meta">Círculo Diamante · Envío #${d}`);
+    const card = (d) => new RegExp(`Valeria Prueba</span>\\s*<span class="meta">[^\\n]*?Círculo Diamante #${d} ·`);
     assert.match(html, card(2)); assert.match(html, card(3));
     assert.match(await get('/'), /href="\/confirmar"/);
     const overdueSection = html;
@@ -492,6 +492,14 @@ try {
     const act = await get('/actividad?quien=michael%40dosbuhos.com');
     assert.match(act, /michael@dosbuhos\.com/); assert.match(act, /Marcó la caja #\d+ como “enviado”/);
     assert.match(await get('/socios?f=todos'), /Registró<\/dt><dd>michael@dosbuhos\.com/);
+  });
+
+  await check('status dropdown: handover choices open the handover form and keep the way back', async () => {
+    const html = await get('/confirmar');
+    const m = html.match(/action="\/envio\/(\d+)\/(\d+)\/estado"><input type="hidden" name="version" value="(\d+)"/);
+    assert.ok(m, 'rows carry a status dropdown'); assert.match(html, /data-autosubmit/); assert.doesNotMatch(html, /Ya se entregó/);
+    const r = await post(`/envio/${m[1]}/${m[2]}/estado`, { version: m[3], status: 'handed', back: '/confirmar' });
+    assert.equal(r.status, 303); assert.equal(r.headers.get('location'), `/envio/${m[1]}/${m[2]}/entregar?como=handed&back=%2Fconfirmar`);
   });
 
   console.log(`\n${passed} integration checks passed`);

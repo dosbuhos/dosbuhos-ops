@@ -11,7 +11,7 @@ import {billingWarning} from './billing.js';
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
 const OPEN = ['overdue', 'today', 'upcoming', 'exception', 'held'];
-const COMO = { shipped: 'Ya se envió', handed: 'Ya se entregó' };
+const COMO = { shipped: 'Registrar envío', handed: 'Registrar entrega' };
 
 const daysSince = (d, today) => Math.round((Date.parse(today) - Date.parse(d)) / 864e5);
 export const packingProblem = (o) => !o.bottles ? 'missing' : (o.bottlesTotal !== o.expectedBottles ? 'count' : null);
@@ -89,7 +89,7 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
   document.querySelectorAll('#ff label.btn').forEach(l=>l.classList.add('como'));
   (()=>{const pk=document.querySelector('#ff input[name=packed]'),b=document.getElementById('ffb'),h=document.getElementById('ffh');if(!pk)return;
     const sync=()=>{b.disabled=!pk.checked;h.textContent=pk.checked?'':'Marca primero la casilla de la caja.'};pk.addEventListener('change',sync);sync()})();
-  document.querySelectorAll('#ff input[name=como]').forEach(r=>r.addEventListener('change',()=>{const b=document.getElementById('ffb');b.textContent=r.value==='shipped'?'Ya se envió':'Ya se entregó'}));
+  document.querySelectorAll('#ff input[name=como]').forEach(r=>r.addEventListener('change',()=>{const b=document.getElementById('ffb');b.textContent=r.value==='shipped'?'Registrar envío':'Registrar entrega'}));
   const ff=document.getElementById('ff');
   ff.addEventListener('submit',async e=>{const ph=document.getElementById('ph');if(!ph.files[0])return;e.preventDefault();e.stopImmediatePropagation();
     const b=document.getElementById('ffb');b.disabled=true;b.textContent='Guardando…';
