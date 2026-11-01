@@ -10,9 +10,58 @@ const LINK_MAX_USES = 5;      // same link can open on phone browser + home-scre
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const STATUSES = ['pendiente', 'en_proceso', 'en_espera', 'hecha', 'cancelada'];
 const STATUS_LABEL = {
-  pendiente: 'Pendiente', en_proceso: 'En proceso', en_espera: 'En espera',
-  hecha: 'Hecha', cancelada: 'Cancelada',
+  pendiente: 'Por hacer', en_proceso: 'En curso', en_espera: 'Esperando',
+  hecha: 'Hecho', cancelada: 'No aplica',
 };
+const WAIT_LABEL = { material: 'Esperando material', proveedor: 'Esperando proveedor' };
+const statusLabel = (s, w) => (s === 'en_espera' && WAIT_LABEL[w]) || STATUS_LABEL[s] || s;
+const OPEN_SQL = "('pendiente','en_proceso','en_espera')";
+const PURCHASE_STATUSES = ['pedido', 'comprado', 'recibido', 'cancelado'];
+const PURCHASE_LABEL = { pedido: 'Pedido', comprado: 'Comprado', recibido: 'Recibido', cancelado: 'Cancelado' };
+// San Miguel de Allende: UTC-6 todo el año (sin horario de verano desde 2022)
+const MX_OFFSET_H = 6;
+const mxToday = () => new Date(Date.now() - MX_OFFSET_H * 3600000).toISOString().slice(0, 10);
+function addDaysYmd(ymd, n) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+function addMonthsYmd(ymd, n) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m - 1 + n + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m - 1 + n, Math.min(d, last))).toISOString().slice(0, 10);
+}
+function advanceYmd(ymd, n, unit) {
+  n = Math.max(1, n || 1);
+  if (unit === 'day') return addDaysYmd(ymd, n);
+  if (unit === 'week') return addDaysYmd(ymd, 7 * n);
+  if (unit === 'month') return addMonthsYmd(ymd, n);
+  return null; // 'once'
+}
+
+// ---------- schema detection (the Worker keeps working before migration 0005 is applied) ----------
+let SCHEMA = null;
+let SCHEMA_AT = 0;
+async function schema(env) {
+  if (SCHEMA && Date.now() - SCHEMA_AT < 60000) return SCHEMA;
+  const [tables, tcols, ecols] = await env.DB.batch([
+    env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table'"),
+    env.DB.prepare("SELECT name FROM pragma_table_info('tasks')"),
+    env.DB.prepare("SELECT name FROM pragma_table_info('equipment')"),
+  ]);
+  const t = new Set(tables.results.map((r) => r.name));
+  const tc = new Set(tcols.results.map((r) => r.name));
+  const ec = new Set(ecols.results.map((r) => r.name));
+  SCHEMA = {
+    pm: t.has('pm_schedules') && tc.has('pm_id'),
+    purchases: t.has('purchases'),
+    wait: tc.has('wait_reason'),
+    equipExtra: ec.has('warranty_until'),
+  };
+  SCHEMA.ready = SCHEMA.pm && SCHEMA.purchases && SCHEMA.wait && SCHEMA.equipExtra;
+  SCHEMA_AT = Date.now();
+  return SCHEMA;
+}
+const needs = (ok) => { if (!ok) fail(409, 'Falta aplicar la migración 0005 de la base de datos'); };
 const PRIORITY_LABEL = { 1: 'Urgente', 2: 'Alta', 3: 'Normal', 4: 'Baja' };
 
 export default {
@@ -28,6 +77,10 @@ export default {
       }
     }
     return env.ASSETS.fetch(request);
+  },
+  // Cron (wrangler.jsonc → triggers.crons): genera las órdenes del plan preventivo una vez al día
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runPM(env, true).catch((e) => console.error('pm', e)));
   },
 };
 
@@ -249,6 +302,11 @@ async function api(request, env, url) {
     case 'providers': return providersApi(request, env, user, seg, method);
     case 'areas': return areasApi(request, env, user, seg, method);
     case 'users': return usersApi(request, env, user, seg, method);
+    case 'pm': return pmApi(request, env, url, user, seg, method);
+    case 'purchases': return purchasesApi(request, env, url, user, seg, method);
+    case 'summary': return summaryApi(env, user);
+    case 'search': return searchApi(env, url);
+    case 'calendar': return calendarApi(env, url);
   }
   fail(404, 'No encontrado');
 }
@@ -296,6 +354,8 @@ async function sendEmailAccess(env, request, u, email) {
 }
 
 async function bootstrap(env, user) {
+  try { await runPM(env); } catch (e) { console.error('pm', e); }
+  const sc = await schema(env);
   const [areas, providers, equipment, users] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, sort, active FROM areas ORDER BY sort, name'),
     env.DB.prepare('SELECT id, name, kind, company, specialty, phone, notes, active FROM providers ORDER BY kind DESC, name'),
@@ -311,79 +371,122 @@ async function bootstrap(env, user) {
     providers: providers.results,
     equipment: equipment.results,
     users: users.results,
+    features: { pm: sc.pm, purchases: sc.purchases, wait: sc.wait, equipExtra: sc.equipExtra, ready: sc.ready },
+    today: mxToday(),
   });
 }
 
 // ---------- tasks ----------
-const TASK_SELECT = `
-  SELECT t.*, a.name AS area_name, e.name AS equipment_name,
+function taskSelect(sc, { list = false } = {}) {
+  const extra = sc.purchases
+    ? `, (SELECT COALESCE(SUM(pu.cost), 0) FROM purchases pu WHERE pu.task_id = t.id AND pu.status != 'cancelado') AS material_cost,
+         (SELECT COUNT(*) FROM purchases pu WHERE pu.task_id = t.id AND pu.status IN ('pedido','comprado')) AS open_purchases`
+    : ', 0 AS material_cost, 0 AS open_purchases';
+  const cols = list
+    ? `t.id, t.title, substr(t.description, 1, 240) AS description, t.kind, t.area_id, t.equipment_id, t.priority, t.status,
+       t.provider_id, t.due_date, t.cost, t.created_by, t.created_at, t.updated_at, t.completed_at
+       ${sc.wait ? ', t.wait_reason' : ', NULL AS wait_reason'}${sc.pm ? ', t.pm_id' : ', NULL AS pm_id'}`
+    : `t.*${sc.wait ? '' : ', NULL AS wait_reason'}${sc.pm ? '' : ', NULL AS pm_id'}`;
+  return `
+  SELECT ${cols}, a.name AS area_name, e.name AS equipment_name,
          p.name AS provider_name, p.kind AS provider_kind, p.company AS provider_company, p.phone AS provider_phone,
          u.name AS created_by_name,
          (SELECT COUNT(*) FROM photos ph WHERE ph.task_id = t.id) AS photo_count,
          (SELECT COUNT(*) FROM task_notes n WHERE n.task_id = t.id AND n.kind = 'nota') AS note_count
+         ${extra}
   FROM tasks t
   LEFT JOIN areas a ON a.id = t.area_id
   LEFT JOIN equipment e ON e.id = t.equipment_id
   LEFT JOIN providers p ON p.id = t.provider_id
   LEFT JOIN users u ON u.id = t.created_by`;
+}
+const getTask = async (env, sc, id) => env.DB.prepare(`${taskSelect(sc)} WHERE t.id = ?`).bind(id).first();
+
+// Default due date when the reporter doesn't set one: urgent → today, high → tomorrow, normal → 7 days.
+function defaultDue(priority) {
+  const today = mxToday();
+  if (priority === 1) return today;
+  if (priority === 2) return addDaysYmd(today, 1);
+  if (priority === 3) return addDaysYmd(today, 7);
+  return null;
+}
 
 async function tasksApi(request, env, url, user, seg, method) {
   const id = int(seg[1]);
+  const sc = await schema(env);
 
   if (!id && method === 'GET') {
     const q = url.searchParams;
     const where = [];
     const params = [];
     const view = q.get('view') || 'open';
-    if (view === 'open') where.push("t.status IN ('pendiente','en_proceso','en_espera')");
+    const today = mxToday();
+    if (view === 'open') where.push(`t.status IN ${OPEN_SQL}`);
     else if (view === 'done') where.push("t.status IN ('hecha','cancelada')");
-    if (q.get('area')) { where.push('t.area_id = ?'); params.push(int(q.get('area'))); }
+    if (q.get('status') && STATUSES.includes(q.get('status'))) { where.push('t.status = ?'); params.push(q.get('status')); }
+    if (q.get('area')) {
+      if (q.get('area') === '0') where.push('t.area_id IS NULL');
+      else { where.push('t.area_id = ?'); params.push(int(q.get('area'))); }
+    }
     if (q.get('provider')) {
       if (q.get('provider') === 'none') where.push('t.provider_id IS NULL');
       else { where.push('t.provider_id = ?'); params.push(int(q.get('provider'))); }
     }
     if (q.get('equipment')) { where.push('t.equipment_id = ?'); params.push(int(q.get('equipment'))); }
     if (q.get('mine') === '1') { where.push('t.created_by = ?'); params.push(user.id); }
+    if (q.get('overdue') === '1') { where.push(`t.status IN ${OPEN_SQL} AND t.due_date < ?`); params.push(today); }
     if (q.get('q')) {
-      where.push('(t.title LIKE ? OR t.description LIKE ?)');
+      where.push("(t.title LIKE ? OR t.description LIKE ? OR CAST(t.id AS TEXT) = ?)");
       const like = '%' + q.get('q').slice(0, 100) + '%';
-      params.push(like, like);
+      params.push(like, like, q.get('q').replace(/^#/, ''));
     }
+    if (isDate(q.get('from'))) { where.push('COALESCE(t.completed_at, t.created_at) >= ?'); params.push(q.get('from')); }
+    const limit = Math.min(500, Math.max(1, int(q.get('limit')) || (view === 'open' ? 500 : 60)));
+    const offset = Math.max(0, int(q.get('offset')) || 0);
     const order = view === 'done'
       ? 'COALESCE(t.completed_at, t.updated_at) DESC'
-      : "t.priority ASC, CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END, t.due_date ASC, t.created_at DESC";
-    const sql = `${TASK_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order} LIMIT 500`;
+      : `CASE WHEN t.status IN ${OPEN_SQL} AND t.due_date < '${today}' THEN 0 ELSE 1 END, t.priority ASC,
+         CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END, t.due_date ASC, t.created_at DESC`;
+    const sql = `${taskSelect(sc, { list: true })} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order} LIMIT ${limit + 1} OFFSET ${offset}`;
     const { results } = await env.DB.prepare(sql).bind(...params).all();
-    return json({ tasks: results });
+    const more = results.length > limit;
+    return json({ tasks: more ? results.slice(0, limit) : results, more, today });
   }
 
   if (!id && method === 'POST') {
     const b = await body(request);
     const title = str(b.title, 200);
-    if (!title) fail(400, 'Escribe qué se necesita');
-    const kind = b.kind === 'servicio' ? 'servicio' : 'tarea';
+    if (!title) fail(400, 'Escribe qué pasa');
+    const kind = ['servicio', 'preventivo'].includes(b.kind) ? b.kind : 'tarea';
     const priority = [1, 2, 3, 4].includes(int(b.priority)) ? int(b.priority) : 3;
     const status = STATUSES.includes(b.status) ? b.status : 'pendiente';
-    const dueDate = isDate(b.due_date) ? b.due_date : null;
+    let dueDate = isDate(b.due_date) ? b.due_date : null;
+    if (!dueDate && b.due_date === undefined && kind === 'tarea' && status === 'pendiente') dueDate = defaultDue(priority);
     let completedAt = null;
     if (status === 'hecha') {
       // service date given as YYYY-MM-DD → store at midday Mexico time (18:00 UTC)
       completedAt = isDate(b.completed_date) ? `${b.completed_date} 18:00:00` : null;
     }
+    let areaId = int(b.area_id);
+    const equipmentId = int(b.equipment_id);
+    if (!areaId && equipmentId) {
+      const eq = await env.DB.prepare('SELECT area_id FROM equipment WHERE id = ?').bind(equipmentId).first();
+      areaId = eq ? eq.area_id : null;
+    }
     const r = await env.DB.prepare(
       `INSERT INTO tasks (title, description, kind, area_id, equipment_id, priority, status, provider_id,
                           due_date, cost, created_by, completed_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END))`
-    ).bind(title, str(b.description, 4000), kind, int(b.area_id), int(b.equipment_id), priority, status,
+    ).bind(title, str(b.description, 4000), kind, areaId, equipmentId, priority, status,
       int(b.provider_id), dueDate, num(b.cost), user.id, completedAt, status).run();
     const newId = r.meta.last_row_id;
-    let log = kind === 'servicio' ? `Servicio registrado por ${user.name}` : `Creada por ${user.name}`;
+    let log = kind === 'servicio' ? `Servicio registrado por ${user.name}` : `Reportada por ${user.name}`;
     if (int(b.provider_id)) {
       const p = await env.DB.prepare('SELECT name FROM providers WHERE id = ?').bind(int(b.provider_id)).first();
       if (p) log += ` · asignada a ${p.name}`;
     }
     await addNote(env, newId, user.id, log, 'sistema');
-    return json({ task: await env.DB.prepare(`${TASK_SELECT} WHERE t.id = ?`).bind(newId).first() }, 201);
+    return json({ task: await getTask(env, sc, newId) }, 201);
   }
 
   if (id && seg[2] === 'notes' && method === 'POST') {
@@ -391,7 +494,7 @@ async function tasksApi(request, env, url, user, seg, method) {
     const text = str(b.body, 4000);
     if (!text) fail(400, 'Nota vacía');
     const exists = await env.DB.prepare('SELECT id FROM tasks WHERE id = ?').bind(id).first();
-    if (!exists) fail(404, 'Tarea no encontrada');
+    if (!exists) fail(404, 'Orden no encontrada');
     await addNote(env, id, user.id, text, 'nota');
     await env.DB.prepare("UPDATE tasks SET updated_at = datetime('now') WHERE id = ?").bind(id).run();
     return json({ ok: true }, 201);
@@ -399,27 +502,32 @@ async function tasksApi(request, env, url, user, seg, method) {
 
   if (id && seg[2] === 'photos' && method === 'POST') {
     const exists = await env.DB.prepare('SELECT id FROM tasks WHERE id = ?').bind(id).first();
-    if (!exists) fail(404, 'Tarea no encontrada');
+    if (!exists) fail(404, 'Orden no encontrada');
     const photo = await savePhoto(request, env, user, { task_id: id });
     await env.DB.prepare("UPDATE tasks SET updated_at = datetime('now') WHERE id = ?").bind(id).run();
     return json({ photo }, 201);
   }
 
   if (id && !seg[2] && method === 'GET') {
-    const task = await env.DB.prepare(`${TASK_SELECT} WHERE t.id = ?`).bind(id).first();
-    if (!task) fail(404, 'Tarea no encontrada');
-    const [notes, photos] = await env.DB.batch([
+    const task = await getTask(env, sc, id);
+    if (!task) fail(404, 'Orden no encontrada');
+    const q = [
       env.DB.prepare(`SELECT n.id, n.kind, n.body, n.created_at, n.user_id, u.name AS user_name
                       FROM task_notes n LEFT JOIN users u ON u.id = n.user_id
                       WHERE n.task_id = ? ORDER BY n.created_at ASC, n.id ASC`).bind(id),
-      env.DB.prepare('SELECT id, user_id, created_at FROM photos WHERE task_id = ? ORDER BY id').bind(id),
-    ]);
-    return json({ task, notes: notes.results, photos: photos.results });
+      env.DB.prepare(`SELECT ph.id, ph.user_id, ph.created_at, u.name AS user_name FROM photos ph
+                      LEFT JOIN users u ON u.id = ph.user_id WHERE ph.task_id = ? ORDER BY ph.id`).bind(id),
+    ];
+    if (sc.purchases) q.push(env.DB.prepare(`SELECT pu.*, p.name AS provider_name, u.name AS requested_by_name FROM purchases pu
+      LEFT JOIN providers p ON p.id = pu.provider_id LEFT JOIN users u ON u.id = pu.requested_by
+      WHERE pu.task_id = ? ORDER BY pu.id`).bind(id));
+    const [notes, photos, purchases] = await env.DB.batch(q);
+    return json({ task, notes: notes.results, photos: photos.results, purchases: purchases ? purchases.results : [] });
   }
 
   if (id && !seg[2] && method === 'PATCH') {
-    const t = await env.DB.prepare(`${TASK_SELECT} WHERE t.id = ?`).bind(id).first();
-    if (!t) fail(404, 'Tarea no encontrada');
+    const t = await getTask(env, sc, id);
+    if (!t) fail(404, 'Orden no encontrada');
     const b = await body(request);
     const sets = [];
     const params = [];
@@ -452,11 +560,16 @@ async function tasksApi(request, env, url, user, seg, method) {
     }
     if ('status' in b) {
       if (!STATUSES.includes(b.status)) fail(400, 'Estado inválido');
-      if (b.status !== t.status) {
-        sets.push('status = ?'); params.push(b.status);
-        if (b.status === 'hecha') sets.push("completed_at = datetime('now')");
-        else sets.push('completed_at = NULL');
-        logs.push(`Estado: ${STATUS_LABEL[t.status]} → ${STATUS_LABEL[b.status]}`);
+      const wait = b.status === 'en_espera' && WAIT_LABEL[b.wait_reason] ? b.wait_reason : null;
+      const changed = b.status !== t.status || (sc.wait && b.status === 'en_espera' && wait !== t.wait_reason);
+      if (changed) {
+        if (b.status !== t.status) {
+          sets.push('status = ?'); params.push(b.status);
+          if (b.status === 'hecha') sets.push("completed_at = datetime('now')");
+          else sets.push('completed_at = NULL');
+        }
+        if (sc.wait) { sets.push('wait_reason = ?'); params.push(wait); }
+        logs.push(`Estado: ${statusLabel(t.status, t.wait_reason)} → ${statusLabel(b.status, wait)}`);
       }
     }
     if ('provider_id' in b && int(b.provider_id) !== t.provider_id) {
@@ -470,20 +583,24 @@ async function tasksApi(request, env, url, user, seg, method) {
       const v = isDate(b.due_date) ? b.due_date : null;
       if (v !== t.due_date) {
         sets.push('due_date = ?'); params.push(v);
-        logs.push(v ? `Fecha estimada: ${fmtDate(v)}` : 'Sin fecha estimada');
+        logs.push(v ? `Fecha límite: ${fmtDate(v)}` : 'Sin fecha límite');
       }
     }
     if ('cost' in b) {
       const v = num(b.cost);
-      if (v !== t.cost) { sets.push('cost = ?'); params.push(v); }
+      if (v !== t.cost) {
+        sets.push('cost = ?'); params.push(v);
+        logs.push(v ? `Mano de obra y otros: $${v.toLocaleString('es-MX')}` : 'Costo de mano de obra quitado');
+      }
     }
-
-    if (sets.length) {
+    const note = str(b.note, 4000);
+    if (sets.length || note) {
       sets.push("updated_at = datetime('now')");
       await env.DB.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`).bind(...params, id).run();
       for (const l of logs) await addNote(env, id, user.id, `${l} (${user.name})`, 'sistema');
+      if (note) await addNote(env, id, user.id, note, 'nota');
     }
-    return json({ task: await env.DB.prepare(`${TASK_SELECT} WHERE t.id = ?`).bind(id).first() });
+    return json({ task: await getTask(env, sc, id) });
   }
 
   if (id && !seg[2] && method === 'DELETE') {
@@ -492,11 +609,14 @@ async function tasksApi(request, env, url, user, seg, method) {
       const { results } = await env.DB.prepare('SELECT r2_key FROM photos WHERE task_id = ? AND r2_key IS NOT NULL').bind(id).all();
       for (const r of results) await env.PHOTOS.delete(r.r2_key);
     }
-    await env.DB.batch([
+    const del = [
       env.DB.prepare('DELETE FROM photos WHERE task_id = ?').bind(id),
       env.DB.prepare('DELETE FROM task_notes WHERE task_id = ?').bind(id),
-      env.DB.prepare('DELETE FROM tasks WHERE id = ?').bind(id),
-    ]);
+    ];
+    if (sc.purchases) del.push(env.DB.prepare('DELETE FROM purchases WHERE task_id = ?').bind(id));
+    if (sc.pm) del.push(env.DB.prepare('UPDATE pm_schedules SET last_task_id = NULL WHERE last_task_id = ?').bind(id));
+    del.push(env.DB.prepare('DELETE FROM tasks WHERE id = ?').bind(id));
+    await env.DB.batch(del);
     return json({ ok: true });
   }
 
@@ -572,13 +692,18 @@ async function photosApi(request, env, user, seg, method) {
 }
 
 // ---------- equipment ----------
-const EQUIP_SELECT = `
-  SELECT e.*, a.name AS area_name, p.name AS provider_name, p.phone AS provider_phone,
+function equipSelect(sc) {
+  return `
+  SELECT e.*, a.name AS area_name, p.name AS provider_name, p.phone AS provider_phone, p.company AS provider_company,
     (SELECT MAX(completed_at) FROM tasks t WHERE t.equipment_id = e.id AND t.status = 'hecha') AS last_service,
-    (SELECT COUNT(*) FROM tasks t WHERE t.equipment_id = e.id AND t.status IN ('pendiente','en_proceso','en_espera')) AS open_count
+    (SELECT COUNT(*) FROM tasks t WHERE t.equipment_id = e.id AND t.status IN ${OPEN_SQL}) AS open_count,
+    (SELECT COUNT(*) FROM tasks t WHERE t.equipment_id = e.id AND t.kind = 'tarea'
+       AND t.created_at > datetime('now', '-90 days')) AS fails_90
+    ${sc.pm ? `, (SELECT MIN(next_due) FROM pm_schedules s WHERE s.equipment_id = e.id AND s.active = 1) AS next_service` : ', NULL AS next_service'}
   FROM equipment e
   LEFT JOIN areas a ON a.id = e.area_id
   LEFT JOIN providers p ON p.id = e.provider_id`;
+}
 
 function equipFields(b) {
   return {
@@ -590,13 +715,16 @@ function equipFields(b) {
     provider_id: int(b.provider_id),
     service_interval_days: int(b.service_interval_days),
     notes: str(b.notes, 4000),
+    warranty_until: isDate(b.warranty_until) ? b.warranty_until : null,
+    manual_url: /^https?:\/\//i.test(String(b.manual_url || '').trim()) ? str(b.manual_url, 500) : null,
   };
 }
 
 async function equipmentApi(request, env, url, user, seg, method) {
   const id = int(seg[1]);
+  const sc = await schema(env);
   if (!id && method === 'GET') {
-    const { results } = await env.DB.prepare(`${EQUIP_SELECT} WHERE e.active = 1 ORDER BY a.sort, e.name`).all();
+    const { results } = await env.DB.prepare(`${equipSelect(sc)} WHERE e.active = 1 ORDER BY a.sort, e.name`).all();
     return json({ equipment: results });
   }
   if (!id && method === 'POST') {
@@ -606,7 +734,11 @@ async function equipmentApi(request, env, url, user, seg, method) {
       `INSERT INTO equipment (name, area_id, location, brand_model, serial, provider_id, service_interval_days, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(f.name, f.area_id, f.location, f.brand_model, f.serial, f.provider_id, f.service_interval_days, f.notes).run();
-    return json({ id: r.meta.last_row_id }, 201);
+    const newId = r.meta.last_row_id;
+    if (sc.equipExtra) {
+      await env.DB.prepare('UPDATE equipment SET warranty_until = ?, manual_url = ? WHERE id = ?').bind(f.warranty_until, f.manual_url, newId).run();
+    }
+    return json({ id: newId }, 201);
   }
   if (id && seg[2] === 'photos' && method === 'POST') {
     const exists = await env.DB.prepare('SELECT id FROM equipment WHERE id = ?').bind(id).first();
@@ -614,15 +746,21 @@ async function equipmentApi(request, env, url, user, seg, method) {
     return json({ photo: await savePhoto(request, env, user, { equipment_id: id }) }, 201);
   }
   if (id && method === 'GET') {
-    const e = await env.DB.prepare(`${EQUIP_SELECT} WHERE e.id = ?`).bind(id).first();
+    const e = await env.DB.prepare(`${equipSelect(sc)} WHERE e.id = ?`).bind(id).first();
     if (!e) fail(404, 'Equipo no encontrado');
-    const [tasks, photos] = await env.DB.batch([
-      env.DB.prepare(`${TASK_SELECT} WHERE t.equipment_id = ?
-        ORDER BY CASE WHEN t.status IN ('pendiente','en_proceso','en_espera') THEN 0 ELSE 1 END,
-                 COALESCE(t.completed_at, t.created_at) DESC`).bind(id),
+    const q = [
+      env.DB.prepare(`${taskSelect(sc, { list: true })} WHERE t.equipment_id = ?
+        ORDER BY CASE WHEN t.status IN ${OPEN_SQL} THEN 0 ELSE 1 END,
+                 COALESCE(t.completed_at, t.created_at) DESC LIMIT 80`).bind(id),
       env.DB.prepare('SELECT id, user_id, created_at FROM photos WHERE equipment_id = ? ORDER BY id').bind(id),
-    ]);
-    return json({ equipment: e, tasks: tasks.results, photos: photos.results });
+      env.DB.prepare(`SELECT (SELECT COALESCE(SUM(t.cost), 0) FROM tasks t WHERE t.equipment_id = ?1
+          AND COALESCE(t.completed_at, t.created_at) >= date('now', 'start of year'))
+        ${sc.purchases ? `+ (SELECT COALESCE(SUM(pu.cost), 0) FROM purchases pu JOIN tasks t2 ON t2.id = pu.task_id
+          WHERE t2.equipment_id = ?1 AND pu.status != 'cancelado' AND pu.created_at >= date('now', 'start of year'))` : ''} AS total`).bind(id),
+    ];
+    if (sc.pm) q.push(env.DB.prepare('SELECT * FROM pm_schedules WHERE equipment_id = ? AND active = 1 ORDER BY next_due').bind(id));
+    const [tasks, photos, cost, pms] = await env.DB.batch(q);
+    return json({ equipment: e, tasks: tasks.results, photos: photos.results, year_cost: cost.results[0].total, pm: pms ? pms.results : [] });
   }
   if (id && method === 'PATCH') {
     const f = equipFields(await body(request));
@@ -631,6 +769,9 @@ async function equipmentApi(request, env, url, user, seg, method) {
       `UPDATE equipment SET name=?, area_id=?, location=?, brand_model=?, serial=?, provider_id=?,
        service_interval_days=?, notes=? WHERE id=?`
     ).bind(f.name, f.area_id, f.location, f.brand_model, f.serial, f.provider_id, f.service_interval_days, f.notes, id).run();
+    if (sc.equipExtra) {
+      await env.DB.prepare('UPDATE equipment SET warranty_until = ?, manual_url = ? WHERE id = ?').bind(f.warranty_until, f.manual_url, id).run();
+    }
     return json({ ok: true });
   }
   if (id && method === 'DELETE') {
@@ -808,4 +949,282 @@ async function usersApi(request, env, user, seg, method) {
     return json({ ok: true, provider_id: pid });
   }
   fail(404, 'No encontrado');
+}
+
+// ---------- preventive maintenance ----------
+const UNIT_LABEL = { day: ['día', 'días'], week: ['semana', 'semanas'], month: ['mes', 'meses'] };
+const everyText = (n, unit) => (unit === 'once' ? 'una sola vez' : `cada ${n > 1 ? n + ' ' : ''}${UNIT_LABEL[unit][n > 1 ? 1 : 0]}`);
+
+let PM_LAST = 0;
+// Creates the work orders whose date (minus lead days) has arrived. Idempotent: the schedule row is advanced
+// with a compare-and-set on next_due before the order is inserted, so cron + page loads never duplicate.
+async function runPM(env, force = false) {
+  const sc = await schema(env);
+  if (!sc.pm) return 0;
+  if (!force && Date.now() - PM_LAST < 5 * 60000) return 0;
+  PM_LAST = Date.now();
+  const today = mxToday();
+  const { results } = await env.DB.prepare(
+    `SELECT s.*, (SELECT status FROM tasks t WHERE t.id = s.last_task_id) AS last_status FROM pm_schedules s
+     WHERE s.active = 1 AND date(s.next_due, '-' || s.lead_days || ' days') <= ? LIMIT 50`).bind(today).all();
+  let made = 0;
+  for (const s of results) made += await generateFromPM(env, s, today);
+  return made;
+}
+
+async function generateFromPM(env, s, today, manual = false) {
+  // Don't pile up: while the previous order from this plan is still open, wait.
+  if (s.last_status && ['pendiente', 'en_proceso', 'en_espera'].includes(s.last_status)) return 0;
+  let next = advanceYmd(s.next_due, s.every_n, s.unit);
+  while (next && next < today) next = advanceYmd(next, s.every_n, s.unit); // catch up after long gaps
+  const upd = await env.DB.prepare('UPDATE pm_schedules SET next_due = ?, active = ? WHERE id = ? AND next_due = ? AND active = 1')
+    .bind(next || s.next_due, next ? 1 : 0, s.id, s.next_due).run();
+  if (!upd.meta.changes) return 0;
+  const due = s.next_due;
+  const r = await env.DB.prepare(
+    `INSERT INTO tasks (title, description, kind, area_id, equipment_id, priority, status, provider_id, due_date, created_by, pm_id)
+     VALUES (?, ?, 'preventivo', ?, ?, ?, 'pendiente', ?, ?, ?, ?)`
+  ).bind(s.title, s.description, s.area_id, s.equipment_id, s.priority || 3, s.provider_id, due, s.created_by, s.id).run();
+  const tid = r.meta.last_row_id;
+  await env.DB.prepare('UPDATE pm_schedules SET last_task_id = ? WHERE id = ?').bind(tid, s.id).run();
+  await addNote(env, tid, null, `Creada por el plan preventivo (${everyText(s.every_n, s.unit)})`, 'sistema');
+  return 1;
+}
+
+function pmFields(b) {
+  const unit = ['day', 'week', 'month', 'once'].includes(b.unit) ? b.unit : 'month';
+  const n = Math.min(365, Math.max(1, int(b.every_n) || 1));
+  return {
+    title: str(b.title, 200),
+    description: str(b.description, 4000),
+    area_id: int(b.area_id),
+    equipment_id: int(b.equipment_id),
+    provider_id: int(b.provider_id),
+    priority: [1, 2, 3, 4].includes(int(b.priority)) ? int(b.priority) : 3,
+    every_n: unit === 'once' ? null : n,
+    unit,
+    next_due: isDate(b.next_due) ? b.next_due : null,
+    lead_days: Math.min(60, Math.max(0, int(b.lead_days) ?? 3)),
+  };
+}
+
+const PM_SELECT = `SELECT s.*, a.name AS area_name, e.name AS equipment_name, p.name AS provider_name,
+  (SELECT status FROM tasks t WHERE t.id = s.last_task_id) AS last_status
+  FROM pm_schedules s LEFT JOIN areas a ON a.id = s.area_id LEFT JOIN equipment e ON e.id = s.equipment_id
+  LEFT JOIN providers p ON p.id = s.provider_id`;
+
+async function pmApi(request, env, url, user, seg, method) {
+  const sc = await schema(env);
+  needs(sc.pm);
+  const id = int(seg[1]);
+  if (!id && method === 'GET') {
+    await runPM(env);
+    const { results } = await env.DB.prepare(`${PM_SELECT} WHERE s.active = 1 ORDER BY s.next_due, s.title`).all();
+    return json({ pm: results, today: mxToday() });
+  }
+  if (!id && method === 'POST') {
+    const f = pmFields(await body(request));
+    if (!f.title) fail(400, 'Escribe qué hay que hacer');
+    if (!f.next_due) fail(400, 'Elige la próxima fecha');
+    if (!f.area_id && f.equipment_id) {
+      const eq = await env.DB.prepare('SELECT area_id FROM equipment WHERE id = ?').bind(f.equipment_id).first();
+      f.area_id = eq ? eq.area_id : null;
+    }
+    const r = await env.DB.prepare(
+      `INSERT INTO pm_schedules (title, description, area_id, equipment_id, provider_id, priority, every_n, unit, next_due, lead_days, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(f.title, f.description, f.area_id, f.equipment_id, f.provider_id, f.priority, f.every_n, f.unit, f.next_due, f.lead_days, user.id).run();
+    PM_LAST = 0;
+    await runPM(env, true);
+    return json({ id: r.meta.last_row_id }, 201);
+  }
+  if (id && seg[2] === 'run' && method === 'POST') {
+    const s = await env.DB.prepare(`${PM_SELECT} WHERE s.id = ?`).bind(id).first();
+    if (!s || !s.active) fail(404, 'Plan no encontrado');
+    if (s.last_status && OPEN_SQL.includes(`'${s.last_status}'`)) fail(400, 'Ya hay una orden abierta de este plan');
+    const made = await generateFromPM(env, s, mxToday(), true);
+    const t = await env.DB.prepare('SELECT last_task_id FROM pm_schedules WHERE id = ?').bind(id).first();
+    return json({ ok: !!made, task_id: t && t.last_task_id });
+  }
+  if (id && method === 'GET') {
+    const s = await env.DB.prepare(`${PM_SELECT} WHERE s.id = ?`).bind(id).first();
+    if (!s) fail(404, 'Plan no encontrado');
+    const { results } = await env.DB.prepare(`${taskSelect(sc, { list: true })} WHERE t.pm_id = ? ORDER BY t.id DESC LIMIT 20`).bind(id).all();
+    return json({ pm: s, tasks: results });
+  }
+  if (id && method === 'PATCH') {
+    const b = await body(request);
+    if ('active' in b && Object.keys(b).length === 1) {
+      await env.DB.prepare('UPDATE pm_schedules SET active = ? WHERE id = ?').bind(b.active ? 1 : 0, id).run();
+      return json({ ok: true });
+    }
+    const f = pmFields(b);
+    if (!f.title) fail(400, 'Escribe qué hay que hacer');
+    if (!f.next_due) fail(400, 'Elige la próxima fecha');
+    await env.DB.prepare(
+      `UPDATE pm_schedules SET title=?, description=?, area_id=?, equipment_id=?, provider_id=?, priority=?, every_n=?, unit=?,
+       next_due=?, lead_days=?, active=1 WHERE id=?`
+    ).bind(f.title, f.description, f.area_id, f.equipment_id, f.provider_id, f.priority, f.every_n, f.unit, f.next_due, f.lead_days, id).run();
+    PM_LAST = 0;
+    await runPM(env, true);
+    return json({ ok: true });
+  }
+  if (id && method === 'DELETE') {
+    await env.DB.prepare('UPDATE pm_schedules SET active = 0 WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
+  fail(404, 'No encontrado');
+}
+
+// ---------- purchases (pedir material) ----------
+const PURCHASE_SELECT = `SELECT pu.*, t.title AS task_title, t.status AS task_status, p.name AS provider_name, p.phone AS provider_phone,
+  u.name AS requested_by_name, a.name AS area_name
+  FROM purchases pu LEFT JOIN tasks t ON t.id = pu.task_id LEFT JOIN providers p ON p.id = pu.provider_id
+  LEFT JOIN users u ON u.id = pu.requested_by LEFT JOIN areas a ON a.id = t.area_id`;
+
+async function purchasesApi(request, env, url, user, seg, method) {
+  const sc = await schema(env);
+  needs(sc.purchases);
+  const id = int(seg[1]);
+  if (!id && method === 'GET') {
+    const st = url.searchParams.get('status');
+    const where = st === 'open' ? "pu.status IN ('pedido','comprado')"
+      : PURCHASE_STATUSES.includes(st) ? 'pu.status = ?' : '1=1';
+    const stmt = env.DB.prepare(`${PURCHASE_SELECT} WHERE ${where} ORDER BY CASE pu.status WHEN 'pedido' THEN 0 WHEN 'comprado' THEN 1 ELSE 2 END,
+      pu.updated_at DESC LIMIT 200`);
+    const { results } = await (PURCHASE_STATUSES.includes(st) ? stmt.bind(st) : stmt).all();
+    return json({ purchases: results });
+  }
+  if (!id && method === 'POST') {
+    const b = await body(request);
+    const item = str(b.item, 200);
+    if (!item) fail(400, 'Escribe qué material se necesita');
+    const taskId = int(b.task_id);
+    if (taskId && !(await env.DB.prepare('SELECT id FROM tasks WHERE id = ?').bind(taskId).first())) fail(404, 'Orden no encontrada');
+    const r = await env.DB.prepare(
+      'INSERT INTO purchases (task_id, item, qty, cost, provider_id, notes, requested_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(taskId, item, str(b.qty, 60), num(b.cost), int(b.provider_id), str(b.notes, 1000), user.id).run();
+    if (taskId) await addNote(env, taskId, user.id, `Material pedido: ${item}${str(b.qty, 60) ? ' (' + str(b.qty, 60) + ')' : ''} (${user.name})`, 'sistema');
+    return json({ id: r.meta.last_row_id }, 201);
+  }
+  if (id && method === 'PATCH') {
+    const pu = await env.DB.prepare('SELECT * FROM purchases WHERE id = ?').bind(id).first();
+    if (!pu) fail(404, 'Pedido no encontrado');
+    const b = await body(request);
+    const sets = [];
+    const params = [];
+    if ('status' in b) {
+      if (!PURCHASE_STATUSES.includes(b.status)) fail(400, 'Estado inválido');
+      if (b.status !== pu.status) {
+        sets.push('status = ?'); params.push(b.status);
+        if (b.status === 'comprado') sets.push("bought_at = COALESCE(bought_at, datetime('now'))");
+        if (b.status === 'recibido') sets.push("received_at = datetime('now')", "bought_at = COALESCE(bought_at, datetime('now'))");
+        if (b.status === 'pedido') sets.push('bought_at = NULL', 'received_at = NULL');
+        if (pu.task_id) await addNote(env, pu.task_id, user.id, `Material ${PURCHASE_LABEL[b.status].toLowerCase()}: ${pu.item} (${user.name})`, 'sistema');
+      }
+    }
+    for (const [k, f] of [['item', (v) => str(v, 200)], ['qty', (v) => str(v, 60)], ['cost', num], ['provider_id', int], ['notes', (v) => str(v, 1000)]]) {
+      if (k in b) {
+        const v = f(b[k]);
+        if (k === 'item' && !v) fail(400, 'Escribe qué material se necesita');
+        sets.push(`${k} = ?`); params.push(v);
+      }
+    }
+    if (sets.length) {
+      sets.push("updated_at = datetime('now')");
+      await env.DB.prepare(`UPDATE purchases SET ${sets.join(', ')} WHERE id = ?`).bind(...params, id).run();
+    }
+    return json({ purchase: await env.DB.prepare(`${PURCHASE_SELECT} WHERE pu.id = ?`).bind(id).first() });
+  }
+  if (id && method === 'DELETE') {
+    const pu = await env.DB.prepare('SELECT * FROM purchases WHERE id = ?').bind(id).first();
+    if (!pu) fail(404, 'Pedido no encontrado');
+    if (pu.requested_by !== user.id && user.role !== 'admin') fail(403, 'Solo quien lo pidió o un admin puede borrarlo');
+    await env.DB.prepare('DELETE FROM purchases WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
+  fail(404, 'No encontrado');
+}
+
+// ---------- summary (tiles + dashboard lists) ----------
+async function summaryApi(env, user) {
+  const sc = await schema(env);
+  const today = mxToday();
+  const week = addDaysYmd(today, 7);
+  const month = today.slice(0, 7) + '-01';
+  const q = [
+    env.DB.prepare(`SELECT
+        SUM(CASE WHEN status IN ${OPEN_SQL} THEN 1 ELSE 0 END) AS open,
+        SUM(CASE WHEN status IN ${OPEN_SQL} AND due_date < ?1 THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN status IN ${OPEN_SQL} AND due_date >= ?1 AND due_date <= ?2 THEN 1 ELSE 0 END) AS week,
+        SUM(CASE WHEN status = 'en_espera' THEN 1 ELSE 0 END) AS waiting,
+        SUM(CASE WHEN status IN ${OPEN_SQL} AND provider_id IS NULL THEN 1 ELSE 0 END) AS unassigned,
+        SUM(CASE WHEN status IN ${OPEN_SQL} AND priority = 1 THEN 1 ELSE 0 END) AS urgent,
+        SUM(CASE WHEN status = 'hecha' AND completed_at >= datetime(?1, '-7 days') THEN 1 ELSE 0 END) AS done_week,
+        SUM(CASE WHEN status = 'hecha' AND completed_at >= ?3 THEN COALESCE(cost, 0) ELSE 0 END) AS labor_month
+      FROM tasks`).bind(today, week, month),
+    env.DB.prepare(`SELECT e.id, e.name, a.name AS area_name, COUNT(*) AS n FROM tasks t JOIN equipment e ON e.id = t.equipment_id
+      LEFT JOIN areas a ON a.id = e.area_id
+      WHERE t.kind = 'tarea' AND t.created_at > datetime('now', '-90 days') GROUP BY e.id HAVING n >= 2 ORDER BY n DESC LIMIT 5`),
+  ];
+  if (sc.purchases) {
+    q.push(env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN status IN ('comprado','recibido') AND COALESCE(bought_at, created_at) >= ? THEN cost ELSE 0 END), 0) AS month,
+      SUM(CASE WHEN status = 'pedido' THEN 1 ELSE 0 END) AS pending, SUM(CASE WHEN status = 'comprado' THEN 1 ELSE 0 END) AS bought FROM purchases`).bind(month));
+  }
+  if (sc.pm) {
+    q.push(env.DB.prepare(`${PM_SELECT} WHERE s.active = 1 AND s.next_due <= ? ORDER BY s.next_due LIMIT 8`).bind(addDaysYmd(today, 21)));
+  }
+  const res = await env.DB.batch(q);
+  const t = res[0].results[0];
+  const pu = sc.purchases ? res[2].results[0] : { month: 0, pending: 0, bought: 0 };
+  return json({
+    today,
+    counts: { open: t.open || 0, overdue: t.overdue || 0, week: t.week || 0, waiting: t.waiting || 0, unassigned: t.unassigned || 0, urgent: t.urgent || 0, done_week: t.done_week || 0 },
+    cost_month: (t.labor_month || 0) + (pu.month || 0),
+    labor_month: t.labor_month || 0,
+    material_month: pu.month || 0,
+    purchases: { pending: pu.pending || 0, bought: pu.bought || 0 },
+    recurring: res[1].results,
+    pm_next: sc.pm ? res[sc.purchases ? 3 : 2].results : [],
+  });
+}
+
+// ---------- global search ----------
+async function searchApi(env, url) {
+  const raw = (url.searchParams.get('q') || '').trim().slice(0, 80);
+  if (raw.length < 2 && !/^#?\d+$/.test(raw)) return json({ tasks: [], equipment: [], providers: [] });
+  const sc = await schema(env);
+  const like = '%' + raw + '%';
+  const [tasks, equipment, providers] = await env.DB.batch([
+    env.DB.prepare(`${taskSelect(sc, { list: true })} WHERE t.title LIKE ?1 OR t.description LIKE ?1 OR CAST(t.id AS TEXT) = ?2
+      ORDER BY CASE WHEN t.status IN ${OPEN_SQL} THEN 0 ELSE 1 END, t.id DESC LIMIT 25`).bind(like, raw.replace(/^#/, '')),
+    env.DB.prepare(`SELECT e.id, e.name, e.location, e.brand_model, a.name AS area_name FROM equipment e LEFT JOIN areas a ON a.id = e.area_id
+      WHERE e.active = 1 AND (e.name LIKE ?1 OR e.location LIKE ?1 OR e.brand_model LIKE ?1 OR e.serial LIKE ?1) ORDER BY e.name LIMIT 15`).bind(like),
+    env.DB.prepare(`SELECT id, name, kind, company, specialty, phone FROM providers
+      WHERE active = 1 AND (name LIKE ?1 OR company LIKE ?1 OR specialty LIKE ?1) ORDER BY name LIMIT 10`).bind(like),
+  ]);
+  return json({ tasks: tasks.results, equipment: equipment.results, providers: providers.results });
+}
+
+// ---------- calendar (due dates + projected preventive) ----------
+async function calendarApi(env, url) {
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
+  if (!isDate(from) || !isDate(to) || to < from) fail(400, 'Rango inválido');
+  const sc = await schema(env);
+  const { results: tasks } = await env.DB.prepare(`${taskSelect(sc, { list: true })}
+    WHERE t.due_date >= ? AND t.due_date <= ? AND t.status != 'cancelada' ORDER BY t.due_date, t.priority LIMIT 400`).bind(from, to).all();
+  const planned = [];
+  if (sc.pm) {
+    const { results } = await env.DB.prepare(`${PM_SELECT} WHERE s.active = 1 AND s.next_due <= ?`).bind(to).all();
+    for (const s of results) {
+      let d = s.next_due;
+      let guard = 0;
+      while (d && d <= to && guard++ < 400) {
+        if (d >= from) planned.push({ pm_id: s.id, date: d, title: s.title, area_name: s.area_name, equipment_name: s.equipment_name, equipment_id: s.equipment_id, provider_name: s.provider_name });
+        d = advanceYmd(d, s.every_n, s.unit);
+      }
+    }
+  }
+  return json({ tasks, planned, today: mxToday() });
 }

@@ -18,6 +18,9 @@
     }
   ]
   ,"vars": { "MAIL_FROM": "mantenimiento@dosbuhos.com" }
+  // Daily at 06:00 San Miguel (12:00 UTC): creates the work orders due from the preventive plans.
+  // (They are also created whenever someone opens the app, so the cron is a safety net.)
+  ,"triggers": { "crons": ["0 12 * * *"] }
   // Email login: after onboarding dosbuhos.com in Cloudflare Email Service (Workers Paid), uncomment:
   // ,"send_email": [{ "name": "EMAIL" }]
   // Optional, once R2 is enabled in the Cloudflare dashboard (photos move there automatically):
