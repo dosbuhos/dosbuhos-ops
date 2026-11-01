@@ -30,9 +30,12 @@ const SUB_SQL = `SELECT s.*, m.name AS member_name, COALESCE(m.contact_email,m.e
   FROM subscriptions s JOIN members m ON m.id=s.member_id LEFT JOIN stripe_products p ON p.product_id=s.stripe_product_id`;
 
 // Everything needed to compute every member's schedule. ~6 small queries; fine for a club this size.
-export async function loadContext(env, { memberId = null } = {}) {
-  const subQ = memberId ? env.DB.prepare(SUB_SQL + ' WHERE s.member_id=?').bind(memberId) : env.DB.prepare(SUB_SQL);
-  const fulQ = memberId ? env.DB.prepare('SELECT f.* FROM fulfillments f JOIN subscriptions s ON s.id=f.subscription_id WHERE s.member_id=?').bind(memberId) : env.DB.prepare('SELECT * FROM fulfillments');
+// memberIds: one member plus a duplicate record that the return flow is about to absorb.
+export async function loadContext(env, { memberId = null, memberIds = null } = {}) {
+  const ids = JSON.stringify(memberIds || (memberId ? [memberId] : []));
+  const scoped = memberId || memberIds;
+  const subQ = scoped ? env.DB.prepare(SUB_SQL + ' WHERE s.member_id IN (SELECT value FROM json_each(?))').bind(ids) : env.DB.prepare(SUB_SQL);
+  const fulQ = scoped ? env.DB.prepare('SELECT f.* FROM fulfillments f JOIN subscriptions s ON s.id=f.subscription_id WHERE s.member_id IN (SELECT value FROM json_each(?))').bind(ids) : env.DB.prepare('SELECT * FROM fulfillments');
   const [clubs, cases, subs, fuls, pauses, settings, legacyMembers] = (await env.DB.batch([
     env.DB.prepare('SELECT * FROM clubs ORDER BY sort, id'),
     env.DB.prepare('SELECT * FROM club_cases'),

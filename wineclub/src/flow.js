@@ -36,7 +36,7 @@ export function fulfillPage({ env, user, ctx, o, como, error = null, form = {}, 
   const defDate = catchUp ? '' : today;
   const body = `<p><a href="${esc(backHref)}">← Volver</a></p>
   <h1>${COMO[como]}</h1>
-  ${billingWarning(ctx,s,{paid:!!f.paid_on})}
+  ${billingWarning(ctx,s,{paid:!!f.paid_on,user})}
   <div class="card small"><b>Pago de esta caja:</b> ${f.paid_on?`Pago asociado en Stripe el ${esc(exactDate(f.paid_on))}${f.paid_amount!=null?' · '+money(f.paid_amount,s.price_currency):''}`:'Sin pago asociado. Comprueba la factura del periodo en Stripe antes de entregar; esto no demuestra un impago.'}</div>
   ${error ? `<div class="banner red">${esc(error)}</div>` : ''}
   <div class="card">

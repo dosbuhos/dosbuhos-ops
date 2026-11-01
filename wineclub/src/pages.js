@@ -3,6 +3,7 @@ import { addDays, weekdayMon0, caseSlots, membershipYear, bottlesToText, totalBo
 import { allOccurrences, subOccurrences, subClub, subFlags, isIgnored } from './data.js';
 import { exactDate, joinedDate, dateFacts, scheduleRow, recordedPending, visibleStatus, paymentBadge, holdTerm,inboxReason, rejoinedDate, subEnded, subStart } from './visibility.js';
 import {billingIssues,billingIssue,billingWarning,billingSummary} from './billing.js';
+import { returnBanner, historyCard, RETURN_CSS } from './returning.js';
 import {membershipControls,paymentReviewWarning,paymentContact} from './membership.js';
 import {quickBenefit,quickBenefitScript} from './benefits.js';
 import { shipmentRow, TCSS } from './tracker.js';
@@ -278,7 +279,7 @@ export function membersPage({ env, user, ctx, members, url }) {
   return page({ title: 'Socios', body, user, env, tab: 'socios' });
 }
 
-export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
+export function memberPage({ env, user, ctx, member, benefits, uses, url, rs = null }) {
   member={...member,email:member.contact_email||member.email,phone:member.contact_phone||member.phone};
   const today = ctx.today;
   // Current stage first; an ended stage stays below as history.
@@ -288,7 +289,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   const staged = clubSubs.length > 1;
   const canRejoin = clubSubs.length > 0 && clubSubs.every(s => subEnded(s, today)) && !member.suspended_on;
   let rejoinHtml = '';
-  if (canRejoin) {
+  if (canRejoin && !rs?.ev) {
     const ends = clubSubs.map(s => s.ended_on).filter(Boolean).sort();
     const lastEnd = ends[ends.length - 1] || null;
     const lastClub = subClub(ctx, clubSubs[0]);
@@ -383,10 +384,12 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
   const addr = member.delivery_address || member.stripe_address;
   const joined = joinedDate(ctx, member.id);
   const body = `<p><a href="/socios">← Socios</a></p><h1>${esc(member.name)}</h1>
-  ${subs.map(s=>billingWarning(ctx,s)).join('')}
+  ${returnBanner(member, rs)}
+  ${[...new Set(subs.map(s=>billingWarning(ctx,s,{user})))].join('')}
   ${membershipControls(member,user,canRejoin)}${url.searchParams.has('reactivado')?'<div class="banner green">Membresía reactivada. Se aplicaron las decisiones revisadas; las cajas con pago pendiente siguen bloqueadas.</div>':''}
   <p class="mhead">${[...new Set((clubSubs.some(x => !subEnded(x, today)) ? clubSubs.filter(x => !subEnded(x, today)) : clubSubs).map(x => subClub(ctx, x).name))].map(esc).join(' · ') || 'Sin club'} · Alta <b>${joined ? esc(exactDate(joined)) : 'por confirmar'}</b>${rejoinedDate(ctx, member.id) ? ` · Regresó <b>${esc(exactDate(rejoinedDate(ctx, member.id)))}</b>` : ''}<br>${esc(prefLabel(member.delivery_pref))}${member.phone ? ` · <a href="tel:${esc(member.phone)}">${esc(member.phone)}</a>` : ''} · <a href="#contacto" onclick="document.getElementById('contacto').open=true">Contacto</a></p>
   ${member.staff_note ? `<div class="banner amber">${esc(member.staff_note)}</div>` : ''}
+  ${historyCard(member, rs, user)}
   ${url.searchParams.has('regreso') ? `<div class="banner green">Regreso registrado. La nueva etapa empieza el ${esc(exactDate(url.searchParams.get('regreso')))}.</div>` : ''}${rejoinHtml}
   <h2 id="calendario">Envíos</h2>${subCards || '<div class="card empty">Sin suscripciones.</div>'}
   <details class="more card" id="contacto"><summary>Contacto y forma de entrega</summary><dl class="kv">
@@ -406,7 +409,7 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url }) {
     <label>Nota para el equipo</label><textarea name="staff_note" rows="3">${esc(member.staff_note || '')}</textarea>
     <button class="btn sm" style="margin-top:10px">Guardar</button></form></details></details>
   <details class="more card" id="beneficios" ${url?.searchParams.has('beneficio') ? 'open' : ''}><summary>Beneficios y usos registrados</summary>${benefitsHtml}</details>`;
-  return page({ title: member.name, body: body + TCSS + '<style>.mhead{margin:-4px 0 12px;color:var(--muted);line-height:1.6}.mhead b{color:var(--ink)}</style>', user, env, tab: 'socios' });
+  return page({ title: member.name, body: body + TCSS + RETURN_CSS + '<style>.mhead{margin:-4px 0 12px;color:var(--muted);line-height:1.6}.mhead b{color:var(--ink)}</style>', user, env, tab: 'socios' });
 }
 const fmtQty = (n) => Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 });
 

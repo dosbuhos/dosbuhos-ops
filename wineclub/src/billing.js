@@ -26,13 +26,13 @@ export function billingSummary(ctx) {
   }).join('');
 }
 export const stripeLink=s=>'https://dashboard.stripe.com/subscriptions/'+encodeURIComponent(s.stripe_subscription_id);
-export function billingWarning(ctx,s,{paid=false}={}) {
-  if(s.suspended_on)return suspensionWarning(s);
+export function billingWarning(ctx,s,{paid=false,user=null}={}) {
+  if(s.suspended_on)return suspensionWarning(s,user);
   const issue=billingIssue(ctx,s);if(!issue)return '';
   return `<div class="banner ${issue.tone||'amber'}" role="status"><div><b>⚠ ${esc(issue.title)}</b><br>${esc(issue.detail)}
     ${s.payment_followup_on?`<p class="small">Seguimiento pendiente desde ${esc(s.payment_followup_on)} · Registrado por ${esc(s.payment_followup_by)}. Esto no registra que ya se haya contactado al socio.</p>`:''}
     <p class="small">${paid?'Esta caja tiene un pago asociado; el problema puede corresponder a otro periodo.':'El estado de la suscripción no identifica por sí solo qué caja está pagada.'} No se cambia ni se elimina una entrega por esta alerta.</p>
-    <a href="/alertas">Ver alertas de cobro</a> · <a href="${stripeLink(s)}" target="_blank" rel="noopener">Revisar en Stripe ↗</a></div></div>`;
+    <a href="/alertas">Ver alertas de cobro</a>${user?.isManager?` · <a href="${stripeLink(s)}" target="_blank" rel="noopener">Abrir en Stripe</a>`:''}</div></div>`;
 }
 export function billingPage({ctx,env,user}) {
   const issues=billingIssues(ctx);let sync;try{sync=JSON.parse(ctx.settings.last_sync||'null')}catch{}
@@ -42,7 +42,7 @@ export function billingPage({ctx,env,user}) {
     ${sync&&!sync.ok?'<div class="banner red">La última sincronización falló. La información puede estar desactualizada.</div>':''}
     ${issues.map(({sub:s,title,detail,tone})=>`<article class="card"><h2 style="margin-top:0"><a href="/socio/${s.member_id}">${esc(s.member_name)}</a></h2><b style="color:var(--${tone==='red'?'red':'amber'})">${esc(title)}</b><p>${esc(detail)}</p>
       <p class="small">${esc(subClub(ctx,s)?.name||s.product_name||'Club por confirmar')}${s.price_amount!=null?' · '+money(s.price_amount,s.price_currency):''}</p>
-      <div class="acts"><a class="btn quiet" href="/socio/${s.member_id}">Ver socio y entregas</a><a class="btn ghost" href="${stripeLink(s)}" target="_blank" rel="noopener">Revisar en Stripe ↗</a></div></article>`).join('')||'<div class="card">Sin alertas por estado de suscripción en los datos sincronizados.</div>'}
+      <div class="acts"><a class="btn quiet" href="/socio/${s.member_id}">Ver socio y entregas</a>${user.isManager?`<a class="btn ghost" href="${stripeLink(s)}" target="_blank" rel="noopener">Abrir en Stripe</a>`:''}</div></article>`).join('')||'<div class="card">Sin alertas por estado de suscripción en los datos sincronizados.</div>'}
     <p class="small muted">Estas alertas muestran estados de suscripción, no el motivo exacto de rechazo de una tarjeta ni todas las facturas abiertas. Para decidir si una caja está pagada, revisa su factura del periodo en Stripe. “Sin pago asociado” en la app requiere comprobarlo; no demuestra un impago.</p>
     ${user.isManager?'<p><a href="/ajustes">Sincronizar Stripe en Ajustes</a></p>':''}`});
 }

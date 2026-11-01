@@ -9,14 +9,18 @@
 import { localDate, nearestK, dueDate } from './schedule.js';
 import { setSetting, clubForSub } from './data.js';
 
+// Short per-isolate cache of the live history shown on member pages; any sync or webhook clears it.
+export const historyCache = new Map();
+export const clearHistoryCache = () => historyCache.clear();
+
 export const STRIPE_VERSION = '2025-03-31.basil';
 const base = (env) => env.STRIPE_API_BASE || 'https://api.stripe.com';
 export const tzOf = (env) => env.TIMEZONE || 'America/Mexico_City';
 
-async function stripeGet(env, path, params = []) {
+export async function stripeGet(env, path, params = [], { timeoutMs = 0 } = {}) {
   const url = new URL(base(env) + path);
   for (const [k, v] of params) url.searchParams.append(k, v);
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'Stripe-Version': STRIPE_VERSION } });
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'Stripe-Version': STRIPE_VERSION }, ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}) });
   let j = null; try { j = await r.json(); } catch { /* non-JSON */ }
   if (!r.ok) throw new Error(`Stripe ${r.status}: ${j?.error?.message || 'error'}`);
   return j;
@@ -63,15 +67,59 @@ async function ensureProduct(env, productId, name, clubs) {
     .bind(productId, name || null, club).run();
 }
 
+// ---------- the same person under a new Stripe customer ----------
+// Someone who left (or was suspended) and pays again often gets a NEW Stripe customer. Before creating a member
+// for an unknown customer we look for the person we already know, and remember the link so it never duplicates.
+export const normName = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+const normEmail = (s) => String(s || '').trim().toLowerCase();
+// candidates: [{id, name, email, contact_email, returning}] — `returning` = suspended, or no live club subscription
+// (or every live one is already set to cancel). An email match is enough. A name-only match must be unique and,
+// when both sides have different emails, only counts for someone who is actually returning: two different people
+// can share a name, and a wrong match would send wine to the wrong house.
+export function pickReturning(customer, candidates) {
+  const email = normEmail(customer?.email), name = normName(customer?.name || customer?.shipping?.name);
+  const emailsOf = (m) => [m.email, m.contact_email].map(normEmail).filter(Boolean);
+  if (email) {
+    const hits = candidates.filter(m => emailsOf(m).includes(email));
+    if (hits.length === 1) return { member: hits[0], by: 'email' };
+    if (hits.length > 1) return null;
+  }
+  if (!name) return null;
+  const hits = candidates.filter(m => normName(m.name) === name);
+  if (hits.length !== 1) return null;
+  const m = hits[0], conflict = email && emailsOf(m).length && !emailsOf(m).includes(email);
+  return conflict && !m.returning ? null : { member: m, by: 'name' };
+}
+
+async function findReturning(env, c) {
+  if (!c) return null;
+  const rows = (await env.DB.prepare(`SELECT m.id, m.name, m.email, m.contact_email, m.suspended_on,
+      (SELECT COUNT(*) FROM subscriptions s WHERE s.member_id=m.id AND s.status NOT IN ('canceled','manual_ended','incomplete_expired') AND (s.ended_on IS NULL OR s.ended_on > date('now')) AND s.cancel_at IS NULL) AS live
+    FROM members m WHERE m.merged_into IS NULL`).all()).results;
+  return pickReturning(c, rows.map(m => ({ ...m, returning: !!m.suspended_on || !m.live })));
+}
+
 async function upsertMember(env, customer, customerId) {
+  const linked = await env.DB.prepare('SELECT member_id FROM member_customers WHERE stripe_customer_id=?').bind(customerId).first();
+  if (linked) return linked.member_id; // a second customer of a known member: the member's own customer keeps its data
   if (!customer && env.STRIPE_SECRET_KEY) { try { customer = await stripeGet(env, `/v1/customers/${customerId}`); } catch { customer = null; } }
   const c = customer && !customer.deleted ? customer : null;
   const name = c?.name || c?.shipping?.name || c?.email || customerId;
-  const existing = await env.DB.prepare('SELECT id FROM members WHERE stripe_customer_id=?').bind(customerId).first();
+  const existing = await env.DB.prepare('SELECT id, merged_into FROM members WHERE stripe_customer_id=?').bind(customerId).first();
+  if (existing?.merged_into) return existing.merged_into;
   if (existing) {
     if (c) await env.DB.prepare(`UPDATE members SET name=?, email=?, phone=?, stripe_address=?, updated_at=datetime('now') WHERE id=?`)
       .bind(name, c.email || null, c.phone || c.shipping?.phone || null, addressOf(c), existing.id).run();
     return existing.id;
+  }
+  const match = await findReturning(env, c);
+  if (match) {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO member_customers (stripe_customer_id, member_id, matched_by, created_by) VALUES (?,?,?,'stripe') ON CONFLICT(stripe_customer_id) DO NOTHING`).bind(customerId, match.member.id, match.by),
+      env.DB.prepare(`INSERT INTO audit_log (who,action,entity,entity_id,before_json,after_json,note) VALUES ('stripe','socio reconocido en Stripe','member',?,NULL,?,?)`)
+        .bind(String(match.member.id), JSON.stringify({ stripe_customer_id: customerId, matched_by: match.by }), `Nuevo cliente de Stripe (${name}) unido a ${match.member.name} por ${match.by === 'email' ? 'correo' : 'nombre'}`),
+    ]);
+    return match.member.id;
   }
   const r = await env.DB.prepare(`INSERT INTO members (stripe_customer_id, name, email, phone, stripe_address) VALUES (?,?,?,?,?) RETURNING id`)
     .bind(customerId, name, c?.email || null, c?.phone || c?.shipping?.phone || null, addressOf(c)).first();
@@ -155,7 +203,8 @@ export async function syncStripe(env, who) {
     const productNames = new Map(products.map(p => [p.id, p.name]));
     for (const p of products) await ensureProduct(env, p.id, p.name, clubs);
 
-    const subs = await listAll(env, '/v1/subscriptions', [['status', 'all'], ['expand[]', 'data.customer']]);
+    // Oldest first, so a person's first customer exists before a later one is matched to them.
+    const subs = (await listAll(env, '/v1/subscriptions', [['status', 'all'], ['expand[]', 'data.customer']])).sort((a, b) => (a.created || 0) - (b.created || 0));
     const seen = [];
     for (const s of subs) { await upsertSubscription(env, s, { productNames, clubs }); seen.push(s.id); }
     // Subscriptions we know that Stripe no longer returns (deleted in Stripe) are flagged, never silently dropped.
@@ -171,6 +220,7 @@ export async function syncStripe(env, who) {
   } catch (e) {
     summary.error = String(e.message || e);
   }
+  clearHistoryCache();
   summary.finished = new Date().toISOString();
   await setSetting(env, 'last_sync', JSON.stringify(summary));
   return summary;
@@ -215,6 +265,7 @@ export async function handleWebhook(request, env) {
       const m = await env.DB.prepare('SELECT id FROM members WHERE stripe_customer_id=?').bind(obj.id).first();
       if (m) await upsertMember(env, obj, obj.id);
     } else if (evt.type === 'product.created' || evt.type === 'product.updated') await ensureProduct(env, obj.id, obj.name);
+    clearHistoryCache();
     await env.DB.prepare(`INSERT INTO stripe_events (id, type, api_version, processed_at) VALUES (?,?,?,datetime('now'))
       ON CONFLICT(id) DO UPDATE SET processed_at=excluded.processed_at, error=NULL`).bind(evt.id, evt.type, evt.api_version || null).run();
     await setSetting(env, 'last_webhook', JSON.stringify({ at: new Date().toISOString(), type: evt.type, api_version: evt.api_version || null }));

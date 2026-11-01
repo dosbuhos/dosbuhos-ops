@@ -51,7 +51,7 @@ async function runTool(env, name, args = {}) {
     }
     case 'find_members': {
       const q = norm(args.query);
-      const rows = (await env.DB.prepare('SELECT id, name, email, delivery_pref FROM members').all()).results.filter(m => norm(m.name + ' ' + m.email).includes(q)).slice(0, 10);
+      const rows = (await env.DB.prepare('SELECT id, name, email, delivery_pref FROM members WHERE merged_into IS NULL').all()).results.filter(m => norm(m.name + ' ' + m.email).includes(q)).slice(0, 10);
       return rows.map(m => ({ member_id: m.id, name: m.name, email: m.email, delivery: m.delivery_pref === 'envio' ? 'delivery' : 'pickup',
         subscriptions: ctx.subs.filter(s => s.member_id === m.id).map(s => ({ club: subClub(ctx, s)?.name || 'NO CLUB', status: s.status, start: s.anchor_override || s.start_date })) }));
     }

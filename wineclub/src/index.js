@@ -16,6 +16,7 @@ import { buildPlan, migrationPage, runImport } from './legacy.js';
 import {receiptPage,receiptSubmit} from './receipt.js';
 import {billingPage} from './billing.js';
 import {reactivationPage,reactivate} from './reactivation.js';
+import {returnState,planContext} from './returning.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -305,7 +306,7 @@ async function handle(request, env) {
   }
   if (m === 'GET' && p === '/socios/lista') {
     const ctx = await loadContext(env);
-    const members = (await env.DB.prepare('SELECT * FROM members ORDER BY name COLLATE NOCASE').all()).results;
+    const members = (await env.DB.prepare('SELECT * FROM members WHERE merged_into IS NULL ORDER BY name COLLATE NOCASE').all()).results;
     return P.membersPage({ env, user, ctx, members, url });
   }
   if (m === 'POST' && p === '/socios/nuevo') {
@@ -340,16 +341,30 @@ async function handle(request, env) {
       await audit(env, user.email, 'regreso al club', 'member', id, { ended_on: lastEnd || null }, { subscription_id: sub.id, club_id: club.id, start_date: start, note });
       return redirect(`/socio/${id}?regreso=${start}`);
     }
+    if (member.merged_into && m === 'GET') return redirect(`/socio/${member.merged_into}`);
     if(r[2]==='reactivar') {
-      if(!user.isManager)return forbidden(env,user);
-      if(m==='POST')return reactivate(env,user,member,await form(request));
-      if(m==='GET')return member.suspended_on?reactivationPage({env,user,member,ctx:await loadContext(env,{memberId:id})}):redirect(`/socio/${id}`);
+      // With live Stripe proof of a new, paid subscription any staff member can complete the return (re-checked
+      // here on every POST, never trusted from the form). Without that proof reactivation stays manager-only.
+      const rs=await returnState(env,member,{fresh:m==='POST'});
+      const ev=rs.ev&&{...rs.ev,verdict:rs.history?.verdict.t};
+      const noProof=()=>P.simplePage({env,user,title:'Sin pago nuevo en Stripe',status:user.isManager?409:403,html:`<h1>Sin pago nuevo en Stripe</h1><p>Stripe no muestra ahora una suscripción nueva, activa y pagada de este socio. ${user.isManager?'Revisa el cobro y usa la reactivación manual.':'Un administrador debe revisar el cobro y reactivarlo.'}</p><p><a href="/socio/${id}">Volver al socio</a></p>`});
+      if(m==='POST') {
+        const fm=await form(request);
+        if(fm.mode==='stripe')return ev&&ev.stripeId===fm.evidence?reactivate(env,user,member,fm,ev):noProof();
+        if(!user.isManager)return noProof();
+        return reactivate(env,user,member,fm);
+      }
+      if(m==='GET') {
+        if(ev)return reactivationPage({env,user,member,ev,ctx:await planContext(env,member,ev)});
+        if(!user.isManager)return noProof();
+        return member.suspended_on?reactivationPage({env,user,member,ctx:await loadContext(env,{memberId:id})}):redirect(`/socio/${id}`);
+      }
     }
     if (m === 'GET' && !r[2]) {
       const ctx = await loadContext(env, { memberId: id });
       const benefits = (await env.DB.prepare('SELECT * FROM club_benefits ORDER BY club_id, sort, id').all()).results;
       const uses = (await env.DB.prepare('SELECT * FROM benefit_uses WHERE member_id=? ORDER BY used_on DESC, id DESC').bind(id).all()).results;
-      return P.memberPage({ env, user, ctx, member, benefits, uses, url });
+      return P.memberPage({ env, user, ctx, member, benefits, uses, url, rs: await returnState(env, member) });
     }
     if (m === 'POST' && r[2] === 'membresia') {
       if(!user.isManager)return forbidden(env,user);

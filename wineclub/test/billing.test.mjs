@@ -30,9 +30,10 @@ test('a paid box retains its payment evidence when the subscription has a billin
   assert.match(billingWarning(ctx(),sub,{paid:true}),/Esta caja tiene un pago asociado/);
   assert.match(billingWarning(ctx(),sub),/no identifica por sí solo qué caja está pagada/);
 });
-test('billing page discloses freshness and routes to the member and Stripe',async()=>{
+test('billing page discloses freshness and routes to the member; only managers get the Stripe dashboard link',async()=>{
   const html=await billingPage({ctx:ctx(),env:{},user:{isManager:false}}).text();
-  assert.match(html,/Socio Prueba/);assert.match(html,/href="\/socio\/1"/);assert.match(html,/dashboard.stripe.com\/subscriptions\/sub_test/);
+  assert.match(html,/Socio Prueba/);assert.match(html,/href="\/socio\/1"/);assert.doesNotMatch(html,/dashboard.stripe.com/);
+  assert.match(await billingPage({ctx:ctx(),env:{},user:{isManager:true}}).text(),/dashboard.stripe.com\/subscriptions\/sub_test/);
   assert.match(html,/no es una comprobación en tiempo real/);assert.match(html,/no el motivo exacto/);
   assert.doesNotMatch(html,/Sincronizar Stripe en Ajustes/);
 });

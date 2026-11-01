@@ -29,11 +29,12 @@ const subscriptions = [
   sub('sub_F', cust('cus_F', 'Jorge Nuevo', null), P.plata, '2026-10-16'),
   sub('sub_G', cust('cus_G', 'Fallido Inicial', 'x@example.com'), P.bronce, '2026-10-01', { status: 'incomplete_expired' }),
 ];
-const inv = (id, s, periodStart, newShape) => ({
-  id, object: 'invoice', status: 'paid', amount_paid: s.items.data[0].price.unit_amount, created: at(periodStart),
+const inv = (id, s, periodStart, newShape, extra = {}) => ({
+  id, object: 'invoice', status: 'paid', customer: s.customer.id, attempted: true, attempt_count: 1, currency: 'mxn', amount_due: s.items.data[0].price.unit_amount, amount_paid: s.items.data[0].price.unit_amount, created: at(periodStart),
   status_transitions: { paid_at: at(periodStart) },
   lines: { data: [{ period: { start: at(periodStart), end: at(periodStart) + 86400 * 28 } }] },
   ...(newShape ? { parent: { type: 'subscription_details', subscription_details: { subscription: s.id } } } : { subscription: s.id }),
+  ...extra,
 });
 const invoices = [
   inv('in_A1', subscriptions[0], '2026-08-06', true), inv('in_A2', subscriptions[0], '2026-09-06', false), inv('in_A3', subscriptions[0], '2026-10-06', true),
@@ -41,16 +42,39 @@ const invoices = [
   inv('in_C1', subscriptions[2], '2026-02-12', false),
 ];
 
+// Members who left and came back under a NEW Stripe customer (like production: different case, trailing space).
+// Stage 1 (GET /__stage?n=1): their old, canceled subscriptions. Stage 2: the new paid ones.
+const stage1 = [
+  sub('sub_R1', cust('cus_R1', 'Rosa Regresó', 'rosa@example.com'), P.club, '2026-01-08', { status: 'canceled', canceled_at: at('2026-06-01'), ended_at: at('2026-07-08') }),
+  sub('sub_J1', cust('cus_J1', 'Joel Prueba Tapia', 'joel1@example.com'), P.club, '2026-02-03', { status: 'canceled', canceled_at: at('2026-05-20'), ended_at: at('2026-08-03') }),
+];
+const stage2 = [
+  sub('sub_R2', cust('cus_R2', 'rosa regreso ', null), P.club, '2026-10-10'),
+  sub('sub_J2', cust('cus_J2', 'joel prueba tapia ', 'joel.nuevo@example.com'), P.club, '2026-10-12'),
+];
+const stageInvoices = [
+  [inv('in_R1a', stage1[0], '2026-01-08', true), inv('in_R1f', stage1[0], '2026-04-08', true, { status: 'open', amount_paid: 0 }), inv('in_J1a', stage1[1], '2026-02-03', false)],
+  [inv('in_R2', stage2[0], '2026-10-10', true), inv('in_J2', stage2[1], '2026-10-12', true)],
+];
+let stage = 0, failing = false;
+
 const list = (data) => ({ object: 'list', data, has_more: false });
 export const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/__stage') { stage = Number(url.searchParams.get('n')) || 0; res.writeHead(200); return res.end('ok'); }
+  if (url.pathname === '/__fail') { failing = url.searchParams.get('on') === '1'; res.writeHead(200); return res.end('ok'); }
   if (req.headers.authorization !== 'Bearer sk_test_local_mock') { res.writeHead(401); return res.end(JSON.stringify({ error: { message: 'bad key' } })); }
   if (!req.headers['stripe-version']) { res.writeHead(400); return res.end(JSON.stringify({ error: { message: 'no version' } })); }
+  const allSubs = [...subscriptions, ...(stage >= 1 ? stage1 : []), ...(stage >= 2 ? stage2 : [])];
+  const allInvoices = [...invoices, ...(stage >= 1 ? stageInvoices[0] : []), ...(stage >= 2 ? stageInvoices[1] : [])];
+  const customer = url.searchParams.get('customer'), status = url.searchParams.get('status');
+  const custOf = (x) => typeof x.customer === 'string' ? x.customer : x.customer?.id;
+  if (failing && customer) { res.writeHead(500, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'mock outage' } })); }
   let body;
   if (url.pathname === '/v1/products') body = list(products);
-  else if (url.pathname === '/v1/subscriptions') body = list(subscriptions);
-  else if (url.pathname === '/v1/invoices') body = list(invoices);
-  else if (url.pathname.startsWith('/v1/customers/')) body = subscriptions.map(s => s.customer).find(c => c.id === url.pathname.split('/')[3]) || null;
+  else if (url.pathname === '/v1/subscriptions') body = list(allSubs.filter(s => !customer || custOf(s) === customer).map(s => customer ? { ...s, customer: custOf(s) } : s));
+  else if (url.pathname === '/v1/invoices') body = list(allInvoices.filter(i => (!customer || i.customer === customer) && (!status || i.status === status)));
+  else if (url.pathname.startsWith('/v1/customers/')) body = allSubs.map(s => s.customer).find(c => c.id === url.pathname.split('/')[3]) || null;
   else if (url.pathname.startsWith('/v1/products/')) body = products.find(p => p.id === url.pathname.split('/')[3]) || null;
   res.writeHead(body ? 200 : 404, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body || { error: { message: 'not found' } }));

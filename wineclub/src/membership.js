@@ -8,9 +8,9 @@ export function paymentReviewWarning(f) {
   return '';
 }
 
-export function suspensionWarning(s) {
+export function suspensionWarning(s,user=null) {
   if(!s?.suspended_on)return '';
-  return `<div class="banner red" role="status"><div><b>Suspendido por falta de pago</b><p>${esc(s.suspension_reason)}</p><p class="small">Desde ${esc(fdate(s.suspended_on))} · Registrado por ${esc(s.suspension_by)}. Preparación, entregas y beneficios bloqueados. El historial y el calendario original se conservan.</p><p class="small">Suspensión interna del club. No modifica los cobros ni los reintentos de Stripe.</p>${s.stripe_subscription_id?`<a href="https://dashboard.stripe.com/subscriptions/${encodeURIComponent(s.stripe_subscription_id)}" target="_blank" rel="noopener">Revisar suscripción en Stripe ↗</a>`:''}</div></div>`;
+  return `<div class="banner red" role="status"><div><b>Suspendido por falta de pago</b><p>${esc(s.suspension_reason)}</p><p class="small">Desde ${esc(fdate(s.suspended_on))} · Registrado por ${esc(s.suspension_by)}. Preparación, entregas y beneficios bloqueados. El historial y el calendario original se conservan.</p><p class="small">Suspensión interna del club. No modifica los cobros ni los reintentos de Stripe.</p>${s.stripe_subscription_id&&user?.isManager?`<a class="small" href="https://dashboard.stripe.com/subscriptions/${encodeURIComponent(s.stripe_subscription_id)}" target="_blank" rel="noopener">Abrir en Stripe</a>`:''}</div></div>`;
 }
 
 export function membershipControls(member,user,ended=false) {

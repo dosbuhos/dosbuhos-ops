@@ -502,6 +502,109 @@ try {
     assert.equal(r.status, 303); assert.equal(r.headers.get('location'), `/envio/${m[1]}/${m[2]}/entregar?como=handed&back=%2Fconfirmar`);
   });
 
+  // ---------- socio que regresó (new Stripe customer after suspension) ----------
+  const mock = (path) => fetch('http://127.0.0.1:8788' + path, { headers: { connection: 'close' } }).then(r => r.text());
+  const asStaff = { cookie: 'devuser=michael@dosbuhos.com' };
+  const getAs = async (path, headers = {}) => { const r = await fetch(B + path, { headers: { connection: 'close', ...headers }, redirect: 'manual' }); return { status: r.status, headers: r.headers, text: await r.text() }; };
+  const postAs = async (path, body, headers = {}) => { const r = await fetch(B + path, { method: 'POST', headers: { ...O, ...headers, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body), redirect: 'manual' }); return { status: r.status, headers: r.headers, text: await r.text() }; };
+  const returnForm = (html) => {
+    const fm = {};
+    for (const m of html.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)"/g)) fm[m[1]] = m[2].replace(/&amp;/g, '&');
+    for (const m of html.matchAll(/name="(choice_\d+_\d+)"[^>]*>\s*<option value="([^"]+)"/g)) fm[m[1]] = m[2];
+    for (const n of ['restart', 'deliver_on']) { const v = html.match(new RegExp(`name="${n}" value="([^"]*)"`)); if (v) fm[n] = v[1]; }
+    return fm;
+  };
+  let rosa, joel;
+  await check('a member who comes back under a new Stripe customer is attached, and the next sync does not recreate the duplicate', async () => {
+    await mock('/__stage?n=1'); await post('/sync', {});
+    rosa = q("SELECT id, membership_version FROM members WHERE stripe_customer_id='cus_R1'")[0];
+    joel = q("SELECT id, membership_version FROM members WHERE stripe_customer_id='cus_J1'")[0];
+    for (const m of [rosa, joel]) assert.equal((await post(`/socio/${m.id}/membresia`, { action: 'suspend', reason: 'Canceló y dejó de pagar', version: String(m.membership_version) })).status, 303);
+    q(`UPDATE members SET suspended_on='2026-10-01' WHERE id IN (${rosa.id},${joel.id})`);
+    // Joel's second record exists from before customer matching (like production #28).
+    q("INSERT INTO members (stripe_customer_id, name, email) VALUES ('cus_J2','joel prueba tapia ','joel.nuevo@example.com')");
+    const before = q('SELECT COUNT(*) n FROM members')[0].n;
+    await mock('/__stage?n=2'); await post('/sync', {});
+    assert.equal(q('SELECT COUNT(*) n FROM members')[0].n, before, 'no member created for the new customer');
+    assert.equal(q("SELECT member_id FROM subscriptions WHERE stripe_subscription_id='sub_R2'")[0].member_id, rosa.id);
+    assert.deepEqual(q("SELECT member_id, matched_by FROM member_customers WHERE stripe_customer_id='cus_R2'")[0], { member_id: rosa.id, matched_by: 'name' });
+    assert.equal(q(`SELECT COUNT(*) n FROM audit_log WHERE action='socio reconocido en Stripe' AND entity_id='${rosa.id}'`)[0].n, 1);
+    await post('/sync', {});
+    assert.equal(q('SELECT COUNT(*) n FROM members')[0].n, before, 'the next sync does not recreate it');
+    assert.equal(q("SELECT member_id FROM subscriptions WHERE stripe_subscription_id='sub_R2'")[0].member_id, rosa.id);
+    assert.equal(q('SELECT COUNT(*) n FROM member_customers')[0].n, 1);
+    assert.ok(q("SELECT f.paid_on FROM fulfillments f JOIN subscriptions s ON s.id=f.subscription_id WHERE s.stripe_subscription_id='sub_R2' AND f.k=1")[0].paid_on);
+  });
+
+  await check('the member page shows the return banner and a plain-words Stripe history; only managers get the dashboard link', async () => {
+    const page = (await getAs(`/socio/${rosa.id}`, asStaff)).text;
+    assert.match(page, /Volvió a suscribirse el 10 oct 2026 · pagado en Stripe/);
+    assert.match(page, /href="\/socio\/\d+\/reactivar">Reactivar y programar envíos/);
+    assert.match(page, /Historial en Stripe/); assert.match(page, /Al corriente · último pago 10 oct 2026 · \$3,170/);
+    for (const row of [/Se suscribió de nuevo/, /Pagó \$3,170/, /Pago falló/, /Suscripción anterior cancelada/]) assert.match(page, row);
+    assert.doesNotMatch(page, /dashboard\.stripe\.com\/(subscriptions|customers)/); assert.doesNotMatch(page, /Abrir en Stripe|Revisar suscripción en Stripe/);
+    assert.match(await get(`/socio/${rosa.id}`), /Abrir en Stripe/);
+  });
+
+  await check('staff complete an evidence-backed return on one screen; without Stripe proof they are refused', async () => {
+    const pedro = q("SELECT id, membership_version FROM members WHERE stripe_customer_id='cus_D'")[0];
+    assert.equal((await post(`/socio/${pedro.id}/membresia`, { action: 'suspend', reason: 'Sin pago', version: String(pedro.membership_version) })).status, 303);
+    assert.doesNotMatch((await getAs(`/socio/${pedro.id}`, asStaff)).text, /Volvió a suscribirse/);
+    assert.equal((await getAs(`/socio/${pedro.id}/reactivar`, asStaff)).status, 403);
+    const screen = await getAs(`/socio/${rosa.id}/reactivar`, asStaff);
+    assert.equal(screen.status, 200);
+    assert.match(screen.text, /name="restart" value="2026-10-10"/); assert.match(screen.text, /Próxima caja · Envío #1/); assert.match(screen.text, /Al corriente/);
+    assert.doesNotMatch(screen.text, /value="exception"/, 'exceptions stay with managers');
+    const fm = returnForm(screen.text);
+    assert.equal((await postAs(`/socio/${pedro.id}/reactivar`, { ...fm, version: String(pedro.membership_version + 1) }, asStaff)).status, 403, 'forged evidence is re-checked against Stripe');
+    assert.equal((await postAs(`/socio/${pedro.id}/reactivar`, { billing_reviewed: '1', reason: 'x', review: 'x', version: String(pedro.membership_version + 1) }, asStaff)).status, 403, 'manual reactivation stays manager-only');
+    assert.ok(q(`SELECT suspended_on FROM members WHERE id=${pedro.id}`)[0].suspended_on);
+    assert.equal((await postAs(`/socio/${rosa.id}/reactivar`, { ...fm, deliver_on: '2026-10-05' }, asStaff)).status, 400, 'box date before its due date');
+    const r = await postAs(`/socio/${rosa.id}/reactivar`, { ...fm, deliver_on: '2026-10-24' }, asStaff);
+    assert.equal(r.status, 303, r.text); assert.equal(r.headers.get('location'), `/socio/${rosa.id}?regreso=2026-10-10#calendario`);
+    assert.equal(q(`SELECT suspended_on FROM members WHERE id=${rosa.id}`)[0].suspended_on, null);
+    const f1 = q("SELECT f.* FROM fulfillments f JOIN subscriptions s ON s.id=f.subscription_id WHERE s.stripe_subscription_id='sub_R2' AND f.k=1")[0];
+    assert.equal(f1.delayed_until, '2026-10-24'); assert.ok(f1.paid_on); assert.equal(f1.updated_by, 'michael@dosbuhos.com');
+    const a = q(`SELECT who, after_json FROM audit_log WHERE entity='member' AND entity_id='${rosa.id}' AND action='reactivar membresía' ORDER BY id DESC LIMIT 1`)[0];
+    assert.equal(a.who, 'michael@dosbuhos.com'); assert.match(a.after_json, /"mode":"stripe"/); assert.match(a.after_json, /"stripe_subscription_id":"sub_R2"/); assert.match(a.after_json, /"by_role":"staff"/);
+    const after = (await getAs(r.headers.get("location").split("#")[0], asStaff)).text;
+    assert.match(after, /Regreso registrado/); assert.doesNotMatch(after, /Volvió a suscribirse el/); assert.doesNotMatch(after, /Suspendido por falta de pago/);
+    assert.equal((await postAs(`/socio/${rosa.id}/reactivar`, fm, asStaff)).status, 403, 'a second submit finds nothing to prove');
+  });
+
+  await check('the return flow absorbs an existing duplicate record softly and audits it', async () => {
+    const dup = q("SELECT id FROM members WHERE stripe_customer_id='cus_J2'")[0].id;
+    const page = (await getAs(`/socio/${joel.id}`, asStaff)).text;
+    assert.match(page, new RegExp(`href="/socio/${dup}">#${dup} joel prueba tapia</a> · Se une a esta ficha al reactivar`));
+    assert.match(page, /Volvió a suscribirse el 12 oct 2026 · pagado en Stripe/);
+    const screen = await getAs(`/socio/${joel.id}/reactivar`, asStaff);
+    assert.match(screen.text, /es este mismo socio/);
+    const r = await postAs(`/socio/${joel.id}/reactivar`, returnForm(screen.text), asStaff);
+    assert.equal(r.status, 303, r.text);
+    assert.equal(q("SELECT member_id FROM subscriptions WHERE stripe_subscription_id='sub_J2'")[0].member_id, joel.id);
+    assert.equal(q(`SELECT merged_into FROM members WHERE id=${dup}`)[0].merged_into, joel.id);
+    assert.equal(q("SELECT member_id FROM member_customers WHERE stripe_customer_id='cus_J2'")[0].member_id, joel.id);
+    assert.equal(q(`SELECT COUNT(*) n FROM audit_log WHERE action='unir registro duplicado' AND entity_id='${joel.id}' AND who='michael@dosbuhos.com'`)[0].n, 1);
+    assert.equal(q(`SELECT suspended_on FROM members WHERE id=${joel.id}`)[0].suspended_on, null);
+    const hidden = await getAs(`/socio/${dup}`, asStaff);
+    assert.equal(hidden.status, 303); assert.equal(hidden.headers.get('location'), `/socio/${joel.id}`);
+    assert.doesNotMatch(await get('/socios/lista'), new RegExp(`href="/socio/${dup}"`));
+    assert.match((await getAs(`/socio/${joel.id}`, asStaff)).text, /Etapa actual/);
+    const n = q('SELECT COUNT(*) n FROM members')[0].n; await post('/sync', {});
+    assert.equal(q('SELECT COUNT(*) n FROM members')[0].n, n);
+    assert.equal(q("SELECT member_id FROM subscriptions WHERE stripe_subscription_id='sub_J2'")[0].member_id, joel.id);
+  });
+
+  await check('the Stripe history falls back to synced data when Stripe errors', async () => {
+    await mock('/__fail?on=1');
+    try {
+      const lucia = q("SELECT id FROM members WHERE stripe_customer_id='cus_C'")[0].id;
+      const page = await get(`/socio/${lucia}`);
+      assert.match(page, /Historial en Stripe/); assert.match(page, /Datos de la última sincronización/);
+      assert.match(page, /Pagó \$3,170/); assert.match(page, /Al corriente · último pago 12 feb 2026/);
+    } finally { await mock('/__fail?on=0'); }
+  });
+
   console.log(`\n${passed} integration checks passed`);
 } catch (e) {
   console.error('FAILED:', e.stack, e.cause?.code || e.cause?.message || ''); process.exitCode = 1;
