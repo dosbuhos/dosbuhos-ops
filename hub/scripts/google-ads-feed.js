@@ -1,5 +1,5 @@
 // Dos Búhos — Google Ads → Hub "Anuncios" (/ads/). Paste into Google Ads → Tools → Bulk actions → Scripts
-// (script "Dashboard feed"), set TOKEN, authorize once, schedule Daily. Each run sends the last 90 days by campaign and
+// (script "Dashboard feed"), set TOKEN, authorize once, schedule Hourly. Each run sends the last 90 days by campaign and
 // day, plus each campaign's status, budget and search impression share lost to budget (last 7 days).
 // The token is made in the Hub (POST /ads/api/token, Hub admins) and is not kept in this public repo.
 var HUB = 'https://hub.dos-buhos.workers.dev/ads/api/ingest';
@@ -9,7 +9,7 @@ var DAYS = 90;
 function main() {
   var tz = AdsApp.currentAccount().getTimeZone();
   var fmt = function (d) { return Utilities.formatDate(d, tz, 'yyyy-MM-dd'); };
-  var end = new Date(Date.now() - 24 * 3600 * 1000);
+  var end = new Date(); // today included: runs hourly, so today's numbers fill in through the day
   var start = new Date(end.getTime() - (DAYS - 1) * 24 * 3600 * 1000);
 
   var daily = [];

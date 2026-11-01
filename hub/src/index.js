@@ -5,12 +5,17 @@ import { api, roleFor, J } from './api.js';
 import { proxy } from './proxy.js';
 import { isPublicThemePath, publicTheme } from './theme.js';
 import { adsRoute, ingest, isIngest } from './ads.js';
+import { syncMeta } from './ads-meta.js';
 
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
 const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads']);
 
 export default {
+  // Hourly (wrangler.jsonc triggers): pull Meta ads into Anuncios. Google pushes on its own from a Google Ads script.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(syncMeta(env).then(r => console.log('meta sync', JSON.stringify(r))));
+  },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }

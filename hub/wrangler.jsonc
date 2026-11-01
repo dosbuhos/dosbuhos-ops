@@ -4,6 +4,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Hourly: Anuncios pulls Meta ads (src/ads-meta.js).
+  "triggers": { "crons": ["17 * * * *"] },
   // Custom domain once dosbuhos.com's DNS is on Cloudflare (uncomment, push):
   // "routes": [{ "pattern": "apps.dosbuhos.com", "custom_domain": true }],
   // Every request goes through the Worker first: pages and the kit sit behind Google sign-in.

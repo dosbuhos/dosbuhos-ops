@@ -2,6 +2,7 @@
 // Who: anyone with a grant on the 'ads' app (Hub admins always). viewer reads; editor also edits pendientes;
 // admin also edits targets. The Google Ads script posts to /ads/api/ingest with a bearer token (hash in ads_config).
 import { audit } from './auth.js';
+import { syncMeta, checkMetaToken } from './ads-meta.js';
 
 const J = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,7 +70,7 @@ export async function adsRoute(request, env, url, user, role) {
       env.DB.prepare('SELECT platform, monthly_budget, target_roas, target_cpa, note, updated_by, updated_at FROM ads_targets').all(),
       env.DB.prepare('SELECT date, system, source, bookings, covers, value FROM ads_bookings WHERE date >= ? ORDER BY date').bind(since).all(),
       env.DB.prepare('SELECT id, task, area, owner, due, done, notes, created_by, created_at, done_at FROM ads_todos ORDER BY done, CASE WHEN due = \'\' THEN 1 ELSE 0 END, due, id').all(),
-      env.DB.prepare("SELECT key, value FROM ads_config WHERE key IN ('last_ingest', 'meta_updated', 'note')").all(),
+      env.DB.prepare("SELECT key, CASE WHEN key = 'meta_token' THEN '1' ELSE value END AS value FROM ads_config WHERE key IN ('last_ingest', 'meta_token', 'meta_last_sync', 'meta_last_error', 'meta_account_name', 'fx_usd_mxn')").all(),
     ]);
     // Freshness: the last day each platform has numbers for.
     const fresh = (await env.DB.prepare('SELECT platform, MAX(date(period_start, \'+\' || (days - 1) || \' days\')) AS through, MAX(updated_at) AS updated_at FROM ads_perf GROUP BY platform').all()).results;
@@ -126,6 +127,34 @@ export async function adsRoute(request, env, url, user, role) {
       .bind(gm[1], numOrNull(b.monthly_budget), numOrNull(b.target_roas), numOrNull(b.target_cpa), str(b.note, 300), user.email, Date.now()).run();
     await audit(env, user.email, 'ads.targets', gm[1], { monthly_budget: b.monthly_budget, target_roas: b.target_roas, target_cpa: b.target_cpa });
     return J({ ok: true });
+  }
+
+  // Meta: connect (admin pastes a token; checked against the ad account before it is kept), disconnect, sync now.
+  if (p === '/ads/api/meta/token' && (m === 'POST' || m === 'DELETE')) {
+    if (role !== 'admin') return J({ code: 'not_granted', message: 'Solo quien administra la app conecta Meta.' }, 403);
+    if (m === 'DELETE') {
+      await env.DB.prepare("DELETE FROM ads_config WHERE key = 'meta_token'").run();
+      await audit(env, user.email, 'ads.meta.disconnect', 'meta');
+      return J({ ok: true });
+    }
+    const b = await body();
+    const token = str(b.token, 1000).replace(/\s+/g, '');
+    const account = /^act_\d+$/.test(b.account || '') ? b.account : 'act_3735139310045103';
+    if (token.length < 20) return J({ code: 'bad_request', message: 'Pega el token completo.' }, 400);
+    let info;
+    try { info = await checkMetaToken(token, account); }
+    catch (e) { return J({ code: 'bad_request', message: 'Meta no aceptó el token: ' + String(e.message || e) }, 400); }
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO ads_config (key, value) VALUES ('meta_token', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(token),
+      env.DB.prepare("INSERT INTO ads_config (key, value) VALUES ('meta_account', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(account),
+    ]);
+    await audit(env, user.email, 'ads.meta.connect', account, { name: info.name, currency: info.currency });
+    const r = await syncMeta(env);
+    return J({ ok: true, account: info, sync: r });
+  }
+  if (p === '/ads/api/meta/sync' && m === 'POST') {
+    if (!canEdit) return J({ code: 'not_granted', message: 'Solo ver.' }, 403);
+    return J(await syncMeta(env));
   }
 
   // A new ingest token (admin only). Shown once; only its hash is kept.

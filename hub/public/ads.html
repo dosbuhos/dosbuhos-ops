@@ -25,6 +25,8 @@
 .controls .seg button { flex: 1; white-space: nowrap; }
 @media (min-width: 640px) { .controls .seg { flex: none; } }
 .block { margin: 0 0 22px; }
+.today { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius); background: var(--paper); border: var(--bw) solid var(--rule); border-left: 4px solid var(--ok); font-size: 14px; }
+.today b { width: 100%; font-family: var(--f-display); font-size: 17px; font-weight: var(--w-display); }
 .block > h2 { font-family: var(--f-display); font-size: 22px; font-weight: var(--w-display); margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .block > h2 .count, .block > h2 small { font-family: var(--f-body); font-size: 13px; font-weight: 400; color: var(--muted); }
 
@@ -131,7 +133,7 @@
 .targets { display: grid; gap: 10px; }
 @media (min-width: 720px) { .targets { grid-template-columns: 1fr 1fr; } }
 .targets form { display: grid; gap: 8px; }
-.targets .r3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.targets .r3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: end; }
 
 .howto { font-size: 13.5px; color: var(--muted); }
 .howto summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--ink); font-weight: 500; }
@@ -213,10 +215,12 @@ $('#plat').onclick = e => { const b = e.target.closest('button'); if (b) { state
 // ---------- numbers ----------
 // The window ends on the last day Google has numbers for (or today if there is no Google data), so a late feed
 // shows as "hasta el 25 oct", never as a week of zeros.
+// Windows end on the last complete day: yesterday, or the last day Google sent if it is behind. Today's partial
+// numbers get their own strip ("Hoy"), so a half-day never drags down a comparison.
 function endDay() {
   const g = D.fresh.find(f => f.platform === 'google');
-  const t = today();
-  return g && g.through && g.through < t ? g.through : addDays(t, -1);
+  const y = addDays(today(), -1);
+  return g && g.through && g.through < y ? g.through : y;
 }
 // Sum the rows in [a, b], prorating weekly Meta rows by the days that fall inside.
 function sum(a, b, filter = () => true) {
@@ -260,6 +264,7 @@ function render() {
   const canEdit = D.role === 'admin' || D.role === 'editor';
 
   const html = `
+    ${todayStrip()}
     <section class="block" aria-label="Resumen"><div class="tiles">${tiles(cur, prev, weeks)}</div>
       <p class="small muted" style="margin:6px 2px 0">${fmtDay(start)} – ${fmtDay(end)} · comparado con los ${state.w} días anteriores. “Reservas” y “valor” son lo que cada plataforma cuenta como conversión (Google: compras de Rezdy desde Analytics; Meta: compras con clic en 7 días).</p>
     </section>
@@ -269,9 +274,10 @@ function render() {
     <section class="block"><h2>Presupuesto del mes</h2>${pace(end)}</section>
     <section class="block" id="todos-block"><h2>Pendientes <span class="count" id="todo-count"></span></h2>${filters()}<div id="todos"></div>${canEdit ? todoForm() : ''}</section>
     ${D.role === 'admin' ? `<section class="block"><h2>Metas</h2>${targetsForm()}</section>` : ''}
+    ${canEdit ? `<section class="block" id="conns"><h2>Conexiones</h2>${connections()}</section>` : ''}
     <section class="block"><details class="howto"><summary>Cómo se actualiza</summary><ul>
-      <li><b>Google</b>: un script en Google Ads (Herramientas → Scripts → “Dashboard feed”) manda cada mañana los últimos 90 días y el estado de cada campaña. Si los datos se quedan atrás, ese script no corrió.</li>
-      <li><b>Meta</b>: Claude carga las cifras semanales del Administrador de anuncios (en dólares, convertidas a pesos al tipo de cambio de la semana).</li>
+      <li><b>Google</b>: un script en Google Ads (Herramientas → Scripts → “Dashboard feed”) manda cada hora los últimos 90 días, hoy incluido, y el estado de cada campaña. Si los datos se quedan atrás, ese script no corrió.</li>
+      <li><b>Meta</b>: el Hub le pide las cifras a Meta cada hora (en dólares, convertidas a pesos al tipo de cambio del día). Antes de conectarlo, eran cifras semanales cargadas a mano.</li>
       <li><b>Reservas de OpenTable y Rezdy</b>: se agregarán aquí cuando OpenTable reciba reservas en línea.</li>
       <li>Pídele cambios a Claude en el chat de “Dos Búhos Webpage and Ads”.</li></ul></details></section>`;
   $('#app').innerHTML = html;
@@ -279,18 +285,34 @@ function render() {
   renderTodos();
   wireTodoForm();
   wireTargets();
+  wireConnections();
 }
 
+function ago(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 2) return 'hace un momento';
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`;
+}
 function renderFresh() {
   const t = today(), bits = [];
   for (const p of ['google', 'meta']) {
     const f = D.fresh.find(x => x.platform === p);
     if (!f) { bits.push(`${PL[p]}: <span class="stale">sin datos</span>`); continue; }
     const lag = Math.round((dt(t) - dt(f.through)) / DAY);
-    const late = p === 'google' ? lag > 2 : lag > 9;
-    bits.push(`${PL[p]} hasta <b class="${late ? 'stale' : ''}">${fmtDay(f.through)}</b>`);
+    const late = lag > 2;
+    const when = p === 'google' ? +D.config.last_ingest || f.updated_at : +D.config.meta_last_sync || f.updated_at;
+    bits.push(`${PL[p]} <b class="${late ? 'stale' : ''}">${late ? 'hasta el ' + fmtDay(f.through) : 'actualizado ' + ago(when)}</b>`);
   }
   $('#fresh').innerHTML = bits.join(' · ');
+}
+
+// Today so far, from whatever each platform has sent this hour.
+function todayStrip() {
+  const t = today(), s = sum(t, t, r => platOk(r) && r.days === 1);
+  if (!s.spend && !s.clicks) return '';
+  return `<div class="today"><b>Hoy, hasta ahora</b><span class="num">${money(s.spend)} gastado</span><span class="num">${nf0.format(s.clicks)} clics</span><span class="num">${nf1.format(s.conversions)} reservas</span><span class="num">valor ${money(s.value)}</span></div>`;
 }
 
 function spark(series, k) {
@@ -335,7 +357,9 @@ function alerts(end) {
   const g = D.fresh.find(f => f.platform === 'google'), m = D.fresh.find(f => f.platform === 'meta');
   if (!g) add('warn', 'No hay datos de Google', 'El script de Google Ads todavía no ha mandado nada.');
   else if ((dt(t) - dt(g.through)) / DAY > 2) add('warn', `Los datos de Google llegan hasta el ${fmtDay(g.through)}`, 'El script diario de Google Ads no ha corrido. Si sigue así, hay que autorizarlo otra vez en Herramientas → Scripts.');
-  if (m && (dt(t) - dt(m.through)) / DAY > 9) add('info', `Las cifras de Meta llegan hasta el ${fmtDay(m.through)}`, 'Pídele a Claude que cargue las semanas que faltan.');
+  if (!D.config.meta_token) add('info', 'Meta todavía no está conectado', D.role === 'admin' ? 'Conéctalo abajo en “Conexiones” para que sus cifras lleguen cada hora.' : 'Sus cifras llegan a mano hasta que se conecte.');
+  else if (D.config.meta_last_error) add('warn', 'Meta no se pudo actualizar', D.config.meta_last_error);
+  else if (m && (dt(t) - dt(m.through)) / DAY > 2) add('warn', `Las cifras de Meta llegan hasta el ${fmtDay(m.through)}`, 'La conexión con Meta no ha traído datos recientes.');
   const w7 = addDays(end, -6);
   for (const c of D.campaigns) {
     if (state.p !== 'all' && c.platform !== state.p) continue;
@@ -525,6 +549,38 @@ function wireTodoForm() {
     const r = await send('/ads/api/todos', 'POST', b, 'No se agregó');
     if (r && r.id) { $('#addbox').open = false; D.todos.push({ id: r.id, task: b.task, owner: b.owner, area: b.area, due: b.due, notes: '', done: 0 }); f.reset(); state.todoFilter = 'open'; renderTodos(); toast('Agregado'); }
   };
+}
+
+// ---------- conexiones ----------
+function connections() {
+  const c = D.config, on = !!c.meta_token;
+  const state = !on ? '<span class="chip">Sin conectar</span>' : c.meta_last_error ? '<span class="chip bad">Con error</span>' : '<span class="chip ok">Conectado</span>';
+  const last = c.meta_last_sync ? `Última actualización ${ago(+c.meta_last_sync)}${c.fx_usd_mxn ? ` · 1 US$ = ${nf1.format(+c.fx_usd_mxn)} pesos` : ''}.` : 'Todavía no se ha actualizado.';
+  return `<div class="panel stack" style="gap:10px">
+    <div class="between"><b class="h-display" style="font-size:19px">Meta${c.meta_account_name ? ' · ' + esc(c.meta_account_name) : ''}</b>${state}</div>
+    ${on ? `<p class="small muted" style="margin:0">${last}${c.meta_last_error ? `<br><span style="color:var(--bad)">${esc(c.meta_last_error)}</span>` : ''}</p>
+      <div class="row"><button class="btn" type="button" id="meta-sync">Actualizar Meta ahora</button>${D.role === 'admin' ? '<button class="btn danger" type="button" id="meta-off">Desconectar</button>' : ''}</div>` : ''}
+    ${D.role === 'admin' ? `<details ${on ? '' : 'open'}><summary class="small" style="cursor:pointer;min-height:44px;display:flex;align-items:center">${on ? 'Cambiar el token' : 'Conectar Meta'}</summary>
+      <form id="meta-form" class="stack" style="gap:8px">
+        <ol class="small muted" style="margin:0;padding-left:18px">
+          <li>business.facebook.com → Configuración del negocio (portafolio “Bodega”) → Usuarios del sistema → Agregar (rol Empleado).</li>
+          <li>Asignar activos → Cuentas publicitarias → “Bodega Dos Buhos” → permiso “Ver rendimiento”.</li>
+          <li>Generar token → elige la app del negocio (o crea una en developers.facebook.com, tipo Negocio) → permisos <b>ads_read</b> → caducidad “Nunca”.</li>
+          <li>Pega el token aquí. El Hub lo prueba con la cuenta antes de guardarlo y nunca lo vuelve a mostrar.</li></ol>
+        <label class="field"><span>Token de Meta</span><input name="token" type="password" autocomplete="off" required></label>
+        <div><button class="btn primary" type="submit">Conectar y actualizar</button></div></form></details>` : ''}
+  </div>`;
+}
+function wireConnections() {
+  const f = $('#meta-form'), sy = $('#meta-sync'), off = $('#meta-off');
+  if (f) f.onsubmit = async e => {
+    e.preventDefault(); const b = f.querySelector('button'); b.disabled = true; b.textContent = 'Probando…';
+    const r = await send('/ads/api/meta/token', 'POST', Object.fromEntries(new FormData(f)), 'No se conectó');
+    b.disabled = false; b.textContent = 'Conectar y actualizar';
+    if (r) { toast(r.sync && r.sync.ok ? `Meta conectado: ${r.sync.rows} filas` : 'Meta conectado'); load(); }
+  };
+  if (sy) sy.onclick = async () => { sy.disabled = true; sy.textContent = 'Actualizando…'; const r = await send('/ads/api/meta/sync', 'POST', null, 'No se actualizó'); if (r) { toast(r.ok ? 'Meta actualizado' : r.message, !r.ok); load(); } };
+  if (off) off.onclick = async () => { if (!confirm('¿Desconectar Meta? Sus cifras dejarán de actualizarse.')) return; if (await send('/ads/api/meta/token', 'DELETE', null, 'No se desconectó')) load(); };
 }
 
 // ---------- metas (admin) ----------

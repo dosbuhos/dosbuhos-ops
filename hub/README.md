@@ -59,11 +59,12 @@ Google sign-in needs a real redirect URI, so for local work insert a `users` row
 Google and Meta ads in one page at `/ads/` (registry slug `ads`, mode `internal`). Viewers read; editors also tick and
 add pendientes; admins also set the monthly budget and targets.
 
-- **Google**: `scripts/google-ads-feed.js` runs daily inside Google Ads and POSTs the last 90 days + campaign state to
+- **Google**: `scripts/google-ads-feed.js` runs hourly inside Google Ads (today included) and POSTs the last 90 days + campaign state to
   `/ads/api/ingest` with a bearer token. A Hub admin makes the token with `POST /ads/api/token` (only its SHA-256 is
   stored, in `ads_config`); paste it into the script in Google Ads, never into this repo.
-- **Meta**: weekly rows (`days = 7`, Monday start) in USD converted to MXN at that week's rate (`spend_native`, `fx`
-  keep the original). Claude loads them from Ads Manager until there is an API feed.
+- **Meta**: the Hub's hourly cron (`triggers.crons`, `src/ads-meta.js`) reads the Marketing API with a system-user token a
+  Hub admin pastes in Anuncios → Conexiones (kept in `ads_config`, never returned to the page). Daily rows in USD are
+  stored in MXN at the day's rate (`spend_native`, `fx` keep the original); the hand-loaded weekly rows give way to them.
 - **Bookings** (`ads_bookings`): OpenTable / Rezdy by source, once OpenTable takes online bookings.
 - Money is MXN everywhere. Windows end on the last day Google has data, so a late feed shows as "hasta el …" plus an
   alert instead of a run of zeros.
