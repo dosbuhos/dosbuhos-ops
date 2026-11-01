@@ -179,16 +179,23 @@ const monday = s => { const d = dt(s); const w = (d.getUTCDay() + 6) % 7; return
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
 
 // Friendly names for the campaigns Tribalo named. Unknown names show as they are.
-const NAMES = {
-  'MOFU_Conversiones_Search_DB+Tribalo': 'Búsqueda en español',
-  'TOFU_Conversiones_PMAX_DB+Tribalo': 'Performance Max',
-  'EN - In San Miguel (tours & tastings)': 'Inglés · en San Miguel',
-  'BOFU Ventas Restaurante': 'Restaurante',
-  'BOFU Ventas Experiencias': 'Experiencias',
-  'TOFU Thruplay (video)': 'Video (alcance)',
-};
-// Campaigns whose results the platform can't see yet, so "0 reservas" means "not measured", not "not working".
-const UNTRACKED = { 'BOFU Ventas Restaurante': 'Las reservas del restaurante todavía no se miden; no juzgues esta campaña por sus reservas.', 'TOFU Thruplay (video)': 'Campaña de alcance: su trabajo son vistas de video, no reservas.' };
+// Friendly names for the campaigns Tribalo named (Meta's carry a date prefix and a version, so match by pattern).
+// Unknown names show as they are.
+const NAME_RULES = [
+  [/^MOFU_Conversiones_Search/, 'Búsqueda en español'],
+  [/^TOFU_Conversiones_PMAX/, 'Performance Max'],
+  [/^EN - In San Miguel/, 'Inglés · en San Miguel'],
+  [/BOFU_?\s*Ventas Restaurante/i, 'Restaurante'],
+  [/BOFU_?\s*Ventas Experiencias/i, 'Experiencias'],
+  [/Thruplay/i, 'Video (alcance)'],
+];
+const nameOf = c => { for (const [re, n] of NAME_RULES) if (re.test(c)) return n; return null; };
+// Campaigns whose results the platform can't fully see yet, so "0 reservas" means "not measured", not "not working".
+const UNTRACKED_RULES = [
+  [/Ventas Restaurante/i, 'Las reservas del restaurante (OpenTable) todavía no se miden; lo que cuenta Meta aquí son compras de tours.'],
+  [/Thruplay/i, 'Campaña de alcance: su trabajo son vistas de video, no reservas.'],
+];
+const untrackedOf = c => { for (const [re, t] of UNTRACKED_RULES) if (re.test(c)) return t; return null; };
 const STATUS = { ENABLED: ['Activa', 'ok'], PAUSED: ['En pausa', ''], REMOVED: ['Eliminada', 'bad'] };
 const PL = { google: 'Google', meta: 'Meta' };
 
@@ -365,8 +372,8 @@ function alerts(end) {
     if (state.p !== 'all' && c.platform !== state.p) continue;
     if (c.status !== 'ENABLED') continue;
     const s = sum(w7, end, r => r.platform === c.platform && r.campaign === c.campaign);
-    const nm = NAMES[c.campaign] || c.campaign;
-    if (s.spend >= 500 && s.conversions < 0.5 && !UNTRACKED[c.campaign]) add('bad', `${nm}: gasta sin reservas`, `${money(s.spend)} en 7 días y ninguna reserva. Revisa los términos de búsqueda y la página de destino.`);
+    const nm = nameOf(c.campaign) || c.campaign;
+    if (s.spend >= 500 && s.conversions < 0.5 && !untrackedOf(c.campaign)) add('bad', `${nm}: gasta sin reservas`, `${money(s.spend)} en 7 días y ninguna reserva. Revisa los términos de búsqueda y la página de destino.`);
     if (c.lost_is_budget >= 20) add('warn', `${nm}: le falta presupuesto`, `Perdió ${nf0.format(c.lost_is_budget)}% de las búsquedas por presupuesto en 7 días.`);
   }
   const tg = targetFor();
@@ -443,24 +450,24 @@ function campaigns(start, end) {
   }).sort((a, b) => (b.meta.status === 'ENABLED') - (a.meta.status === 'ENABLED') || b.spend - a.spend);
   if (!rows.length) return '<div class="empty"><b>Sin campañas en este periodo</b>Cambia el periodo o la plataforma.</div>';
   const flag = r => {
-    if (UNTRACKED[r.campaign]) return ['', UNTRACKED[r.campaign]];
+    if (untrackedOf(r.campaign)) return ['', untrackedOf(r.campaign)];
     if (r.meta.status === 'ENABLED' && r.spend >= 500 && r.conversions < .5) return ['bad', 'Gasta sin reservas en este periodo.'];
     if (r.meta.lost_is_budget >= 20) return ['', `Pierde ${nf0.format(r.meta.lost_is_budget)}% de búsquedas por presupuesto.`];
     return null;
   };
   const st = r => { const s = STATUS[r.meta.status]; return s ? `<span class="chip ${s[1]}">${s[0]}</span>` : ''; };
   // A campaign whose bookings aren't measured shows "—", not a misleading 0×.
-  const roasTxt = r => { const ro = roas(r); return ro == null || (UNTRACKED[r.campaign] && !r.value) ? '—' : nf1.format(ro) + '×'; };
+  const roasTxt = r => { const ro = roas(r); return ro == null || (untrackedOf(r.campaign) && !r.value) ? '—' : nf1.format(ro) + '×'; };
   const cards = rows.map(r => {
     const f = flag(r), c = cpa(r);
-    return `<article class="camp ${r.platform[0]}"><div class="name">${esc(NAMES[r.campaign] || r.campaign)}</div>${NAMES[r.campaign] ? `<div class="raw">${esc(r.campaign)}</div>` : ''}
+    return `<article class="camp ${r.platform[0]}"><div class="name">${esc(nameOf(r.campaign) || r.campaign)}</div>${nameOf(r.campaign) ? `<div class="raw">${esc(r.campaign)}</div>` : ''}
       <div class="chips"><span class="chip">${PL[r.platform]}</span>${st(r)}${r.meta.daily_budget ? `<span class="chip">${money(r.meta.daily_budget)}/día</span>` : ''}</div>
       <dl><div><dt>Gasto</dt><dd>${money(r.spend)}</dd></div><div><dt>Reservas</dt><dd>${nf1.format(r.conversions)}</dd></div><div><dt>Valor</dt><dd>${money(r.value)}</dd></div>
       <div><dt>ROAS</dt><dd>${roasTxt(r)}</dd></div><div><dt>Por reserva</dt><dd>${c == null ? '—' : money(c)}</dd></div><div><dt>Clics</dt><dd>${nf0.format(r.clicks)}</dd></div></dl>
       ${f ? `<div class="flag ${f[0]}">${esc(f[1])}</div>` : ''}</article>`;
   }).join('');
   const table = `<div class="table-wrap camp-table"><table class="t"><thead><tr><th>Campaña</th><th>Estado</th><th class="num">Presupuesto</th><th class="num">Gasto</th><th class="num">Reservas</th><th class="num">Valor</th><th class="num">ROAS</th><th class="num">Por reserva</th></tr></thead><tbody>
-    ${rows.map(r => { const f = flag(r), c = cpa(r); return `<tr><td class="n"><b><span class="dot" style="background:var(--${r.platform[0]})"></span>${esc(NAMES[r.campaign] || r.campaign)}</b><small>${PL[r.platform]}${f ? ' · ' + esc(f[1]) : ''}</small></td>
+    ${rows.map(r => { const f = flag(r), c = cpa(r); return `<tr><td class="n"><b><span class="dot" style="background:var(--${r.platform[0]})"></span>${esc(nameOf(r.campaign) || r.campaign)}</b><small>${PL[r.platform]}${f ? ' · ' + esc(f[1]) : ''}</small></td>
       <td>${st(r) || '<span class="muted">—</span>'}</td><td class="num">${r.meta.daily_budget ? money(r.meta.daily_budget) + '/día' : '—'}</td><td class="num">${money(r.spend)}</td><td class="num">${nf1.format(r.conversions)}</td><td class="num">${money(r.value)}</td><td class="num">${roasTxt(r)}</td><td class="num">${c == null ? '—' : money(c)}</td></tr>`; }).join('')}
     </tbody></table></div>`;
   return `<div class="camps">${cards}</div>${table}`;
