@@ -4,10 +4,11 @@ import { handleAuth, loginPage, currentUser } from './auth.js';
 import { api, roleFor, J } from './api.js';
 import { proxy } from './proxy.js';
 import { isPublicThemePath, publicTheme } from './theme.js';
+import { adsRoute, ingest, isIngest } from './ads.js';
 
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
-const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme']);
+const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads']);
 
 export default {
   async fetch(request, env, ctx) {
@@ -16,6 +17,8 @@ export default {
     if (OPEN.test(p)) return assets(request, env, 'public, max-age=3600');
     // The shared theme: apps on other origins load it, so no sign-in and CORS *. See THEME.md.
     if (isPublicThemePath(p)) return publicTheme(request, env, url);
+    // The Google Ads script posts here with its own token, not a Google sign-in.
+    if (isIngest(url, request)) return ingest(request, env);
 
     const user = await currentUser(request, env);
     const seg = p.split('/')[1] || '';
@@ -30,6 +33,15 @@ export default {
         if (user && !role && !app.public) return denied(app.name);
         return proxy(request, env, url, app, user, role);
       }
+    }
+
+    // Anuncios: an app that lives inside the Hub (src/ads.js, public/ads.html).
+    if (seg === 'ads') {
+      if (!user) return p.startsWith('/ads/api/') ? J({ code: 'revoked', message: 'Sign in again.' }, 401) : login(url);
+      const role = await roleFor(env, user, 'ads');
+      if (!role) return p.startsWith('/ads/api/') ? J({ code: 'not_granted', message: 'Sin acceso a Anuncios.' }, 403) : denied('Anuncios');
+      try { return await adsRoute(request, env, url, user, role); }
+      catch (e) { return J({ code: 'unavailable', message: String(e && e.message || e) }, 500); }
     }
 
     if (!user) {

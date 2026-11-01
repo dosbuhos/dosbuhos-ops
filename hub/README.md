@@ -7,6 +7,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 |---|---|
 | `/` | Launcher: the apps this person can open, grouped by section (Bodega, Huerta, Hospitalidad, Ventas, Marketing, Equipo, Administración). Hub admins see every app, including the *Próximamente* placeholders |
 | `/admin/` | People and access, the app registry, the audit log (Hub admins only) |
+| `/ads/` | **Anuncios**: Google + Meta spend, bookings, ROAS, alerts, campaigns, monthly pace and the ads to-do list. Lives inside the Hub (`src/ads.js`, `public/ads.html`, tables `ads_*`); access = a grant on the `ads` app. See [Anuncios](#anuncios) |
 | `/<slug>/…` | An app served through the Hub (registry `mode = proxy`): the request goes to that app's Worker over a service binding with a signed `X-DB-User` header |
 | `/auth/google`, `/auth/callback`, `/auth/salir` | Sign-in and sign-out |
 | `/api/…` | JSON for the pages above (`src/api.js`) |
@@ -18,7 +19,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 
 1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → `dosbuhos-ops`.
 2. Project name `hub` (must match `name` in wrangler.jsonc), root directory `hub`, build command empty, deploy command `npx wrangler deploy`.
-3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001 and 0002 are applied.
+3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001–0003 are applied.
 
 ## One-time setup
 
@@ -52,3 +53,17 @@ printf 'SESSION_SECRET=dev\nHUB_ADMIN_EMAILS=you@example.com\nGOOGLE_CLIENT_SECR
 npm run db:local && npm run dev
 ```
 Google sign-in needs a real redirect URI, so for local work insert a `users` row and a `sessions` row with `wrangler d1 execute hub --local` and set the `hub_session` cookie to `<session id>|<expiry seconds>|<HMAC>` (see `src/auth.js`).
+
+## Anuncios
+
+Google and Meta ads in one page at `/ads/` (registry slug `ads`, mode `internal`). Viewers read; editors also tick and
+add pendientes; admins also set the monthly budget and targets.
+
+- **Google**: `scripts/google-ads-feed.js` runs daily inside Google Ads and POSTs the last 90 days + campaign state to
+  `/ads/api/ingest` with a bearer token. A Hub admin makes the token with `POST /ads/api/token` (only its SHA-256 is
+  stored, in `ads_config`); paste it into the script in Google Ads, never into this repo.
+- **Meta**: weekly rows (`days = 7`, Monday start) in USD converted to MXN at that week's rate (`spend_native`, `fx`
+  keep the original). Claude loads them from Ads Manager until there is an API feed.
+- **Bookings** (`ads_bookings`): OpenTable / Rezdy by source, once OpenTable takes online bookings.
+- Money is MXN everywhere. Windows end on the last day Google has data, so a late feed shows as "hasta el …" plus an
+  alert instead of a run of zeros.

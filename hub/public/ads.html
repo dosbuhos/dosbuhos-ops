@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Anuncios · Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css?app=ads"><link rel="stylesheet" href="/kit/kit.css">
+<link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#141719" media="(prefers-color-scheme: dark)">
+<style>
+/* Anuncios. Phone first: one column, nothing scrolls sideways. ≥900px: two columns for the lower half. */
+:root { --g: #2d5c8a; --m: #5a4a8c; --val: var(--ok); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --g: #8db7e2; --m: #b9a8ec; } }
+:root[data-theme="dark"] { --g: #8db7e2; --m: #b9a8ec; }
+.page-head { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 12px; }
+.page-head h1 { font-family: var(--f-display); font-weight: var(--w-display); font-size: 32px; line-height: 1; }
+.fresh { font-size: 13px; color: var(--muted); }
+.fresh b { color: var(--ink); font-weight: 500; }
+.fresh .stale { color: var(--warn); font-weight: 500; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.controls .seg { flex: 1 1 auto; }
+.controls .seg button { flex: 1; white-space: nowrap; }
+@media (min-width: 640px) { .controls .seg { flex: none; } }
+.block { margin: 0 0 22px; }
+.block > h2 { font-family: var(--f-display); font-size: 22px; font-weight: var(--w-display); margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.block > h2 .count, .block > h2 small { font-family: var(--f-body); font-size: 13px; font-weight: 400; color: var(--muted); }
+
+/* tiles: 2 across on phones, 5 on desktop */
+.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 900px) { .tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.tile { min-width: 0; --k: var(--accent); }
+.tile .value { font-size: clamp(20px, 6vw, 26px); overflow-wrap: anywhere; }
+.tile .delta.good { color: var(--ok); } .tile .delta.bad { color: var(--bad); }
+.tile .target { font-size: 12px; color: var(--muted); }
+.tile.wide { grid-column: 1 / -1; }
+@media (min-width: 900px) { .tile.wide { grid-column: auto; } }
+
+/* alerts */
+.alerts { display: flex; flex-direction: column; gap: 8px; }
+.alert { position: relative; padding: 10px 12px 10px 16px; background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); }
+.alert::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 4px; border-radius: 0 3px 3px 0; background: var(--muted); }
+.alert.bad::before { background: var(--bad); } .alert.warn::before { background: var(--warn); } .alert.ok::before { background: var(--ok); } .alert.info::before { background: var(--g); }
+.alert b { display: block; font-weight: 600; }
+.alert span { font-size: 13.5px; color: var(--muted); }
+
+/* weekly chart */
+.chart { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); padding: 12px 12px 8px; }
+.chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+.chart .ax { font: 11px var(--f-mono); fill: var(--muted); }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .bar-g { fill: var(--g); } .chart .bar-m { fill: var(--m); }
+.chart .bar-v { fill: var(--val); }
+.chart .hit { fill: transparent; cursor: pointer; }
+.chart .sel { fill: var(--ink); opacity: .06; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend i.l { height: 3px; border-radius: 2px; vertical-align: 3px; }
+.readout { min-height: 40px; margin-top: 6px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--paper-2); font-size: 13px; display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.readout b { font-weight: 600; width: 100%; }
+.readout .num { white-space: nowrap; }
+
+/* pace */
+.pace { display: grid; gap: 12px; }
+@media (min-width: 720px) { .pace { grid-template-columns: 1fr 1fr; } }
+.pace .p { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); padding: 10px 12px; }
+.pace .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pace .top b { font-family: var(--f-display); font-size: 19px; font-weight: var(--w-display); }
+.pbar { position: relative; height: 12px; border-radius: 6px; background: var(--paper-2); border: var(--bw) solid var(--rule); margin: 8px 0 4px; overflow: hidden; }
+.pbar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; }
+.pbar i.proj { background: var(--k); opacity: .25; }
+.pbar i.spent { background: var(--k); }
+.pbar em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+.pace .small { color: var(--muted); }
+
+/* campaigns: cards on phones, a table from 720px */
+.camps { display: flex; flex-direction: column; gap: 8px; }
+.camp { position: relative; padding: 10px 12px 10px 16px; background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); }
+.camp::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 3px 3px 0; background: var(--k); }
+.camp.g { --k: var(--g); } .camp.m { --k: var(--m); }
+.camp .name { font-family: var(--f-display); font-size: 19px; font-weight: var(--w-display); line-height: 1.1; overflow-wrap: anywhere; }
+.camp .raw { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.camp .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.camp dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; margin: 6px 0 0; }
+.camp dt { font-size: 11.5px; color: var(--muted); }
+.camp dd { margin: 0; font-family: var(--f-mono); font-size: 15px; }
+.camp .flag { margin-top: 8px; font-size: 13px; color: var(--warn); }
+.camp .flag.bad { color: var(--bad); }
+.camp-table { display: none; }
+@media (min-width: 720px) {
+  .camps { display: none; }
+  .camp-table { display: block; }
+  .camp-table td.n { max-width: 280px; }
+  .camp-table td.n b { display: block; font-weight: 500; }
+  .camp-table td.n small { color: var(--muted); }
+  .camp-table .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+}
+
+/* pendientes */
+.todo-add { display: grid; gap: 8px; margin: 0 0 10px; }
+.todo-add .r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (min-width: 720px) { .todo-add { grid-template-columns: 1fr 140px 140px 150px auto; align-items: end; } .todo-add .r2 { display: contents; } }
+.todos { display: flex; flex-direction: column; gap: 6px; }
+.todo { display: grid; grid-template-columns: 44px 1fr; gap: 0 6px; align-items: start; padding: 4px 8px 4px 2px; background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); }
+.todo .chk { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; cursor: pointer; padding: 0; }
+.todo .chk span { width: 22px; height: 22px; border: 2px solid var(--field-rule); border-radius: 5px; display: grid; place-items: center; }
+.todo .chk[aria-pressed="true"] span { background: var(--ok); border-color: var(--ok); }
+.todo .chk[aria-pressed="true"] span::after { content: ""; width: 6px; height: 11px; border: solid var(--paper); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.todo .chk:disabled { cursor: default; }
+.todo .txt { padding: 10px 0 8px; min-width: 0; }
+.todo .task { font-weight: 500; overflow-wrap: anywhere; }
+.todo.done .task { color: var(--muted); text-decoration: line-through; }
+.todo .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; }
+.todo .notes { font-size: 13px; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
+.todo details summary { list-style: none; cursor: pointer; }
+.todo details summary::-webkit-details-marker { display: none; }
+.todo .acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.due.late { color: var(--bad); border-color: transparent; background: var(--bad-soft); }
+.filters { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 10px; width: 100%; }
+@media (min-width: 640px) { .filters { display: inline-grid; width: auto; grid-template-columns: repeat(4, auto); } }
+.addbox { margin-top: 10px; }
+.addbox summary { list-style: none; width: 100%; }
+.addbox summary::-webkit-details-marker { display: none; }
+@media (min-width: 640px) { .addbox summary { width: auto; } }
+.addbox[open] summary { display: none; }
+.addbox .todo-add { margin-top: 0; padding: 12px; background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); }
+
+/* targets */
+.targets { display: grid; gap: 10px; }
+@media (min-width: 720px) { .targets { grid-template-columns: 1fr 1fr; } }
+.targets form { display: grid; gap: 8px; }
+.targets .r3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+.howto { font-size: 13.5px; color: var(--muted); }
+.howto summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--ink); font-weight: 500; }
+.howto li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <a class="wordmark" href="/" aria-label="Dos Búhos, inicio del Hub"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <span class="crumb"><b>Anuncios</b></span>
+  <span class="spacer"></span>
+  <nav><a href="/">Hub</a></nav>
+</div></header>
+
+<main class="wrap">
+  <div class="page-head"><h1>Anuncios</h1><div class="fresh" id="fresh">Cargando…</div></div>
+  <div class="controls">
+    <div class="seg" id="win" role="group" aria-label="Periodo">
+      <button type="button" data-w="7">7 días</button><button type="button" data-w="28">28 días</button><button type="button" data-w="90">90 días</button>
+    </div>
+    <div class="seg" id="plat" role="group" aria-label="Plataforma">
+      <button type="button" data-p="all">Todo</button><button type="button" data-p="google">Google</button><button type="button" data-p="meta">Meta</button>
+    </div>
+  </div>
+
+  <div id="app"><div class="tiles"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const nf0 = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 });
+const money = n => '$' + nf0.format(Math.round(n || 0));
+const moneyK = n => Math.abs(n) >= 10000 ? '$' + nf1.format(n / 1000) + ' mil' : money(n);
+const DAY = 86400e3;
+const iso = d => d.toISOString().slice(0, 10);
+const dt = s => new Date(s + 'T00:00:00Z');
+const addDays = (s, n) => iso(new Date(dt(s).getTime() + n * DAY));
+const fmtDay = s => dt(s).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace('.', '');
+const monday = s => { const d = dt(s); const w = (d.getUTCDay() + 6) % 7; return iso(new Date(d.getTime() - w * DAY)); };
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+
+// Friendly names for the campaigns Tribalo named. Unknown names show as they are.
+const NAMES = {
+  'MOFU_Conversiones_Search_DB+Tribalo': 'Búsqueda en español',
+  'TOFU_Conversiones_PMAX_DB+Tribalo': 'Performance Max',
+  'EN - In San Miguel (tours & tastings)': 'Inglés · en San Miguel',
+  'BOFU Ventas Restaurante': 'Restaurante',
+  'BOFU Ventas Experiencias': 'Experiencias',
+  'TOFU Thruplay (video)': 'Video (alcance)',
+};
+// Campaigns whose results the platform can't see yet, so "0 reservas" means "not measured", not "not working".
+const UNTRACKED = { 'BOFU Ventas Restaurante': 'Las reservas del restaurante todavía no se miden; no juzgues esta campaña por sus reservas.', 'TOFU Thruplay (video)': 'Campaña de alcance: su trabajo son vistas de video, no reservas.' };
+const STATUS = { ENABLED: ['Activa', 'ok'], PAUSED: ['En pausa', ''], REMOVED: ['Eliminada', 'bad'] };
+const PL = { google: 'Google', meta: 'Meta' };
+
+let D, state = { w: 28, p: 'all', todoFilter: 'open' };
+try { Object.assign(state, JSON.parse(localStorage.getItem('ads:view') || '{}')); } catch {}
+const saveView = () => { try { localStorage.setItem('ads:view', JSON.stringify({ w: state.w, p: state.p })); } catch {} };
+
+load();
+async function load() {
+  try {
+    const r = await fetch('/ads/api/data');
+    if (r.status === 401) { location.href = '/?next=/ads/'; return; }
+    if (!r.ok) throw new Error((await r.json()).message || r.status);
+    D = await r.json();
+  } catch (e) {
+    $('#app').innerHTML = `<div class="empty"><b>No se pudo cargar</b>${esc(e.message || 'Revisa la señal y vuelve a abrir la página.')}</div>`; return;
+  }
+  render();
+}
+
+$('#win').onclick = e => { const b = e.target.closest('button'); if (b) { state.w = +b.dataset.w; saveView(); render(); } };
+$('#plat').onclick = e => { const b = e.target.closest('button'); if (b) { state.p = b.dataset.p; saveView(); render(); } };
+
+// ---------- numbers ----------
+// The window ends on the last day Google has numbers for (or today if there is no Google data), so a late feed
+// shows as "hasta el 25 oct", never as a week of zeros.
+function endDay() {
+  const g = D.fresh.find(f => f.platform === 'google');
+  const t = today();
+  return g && g.through && g.through < t ? g.through : addDays(t, -1);
+}
+// Sum the rows in [a, b], prorating weekly Meta rows by the days that fall inside.
+function sum(a, b, filter = () => true) {
+  const out = { spend: 0, clicks: 0, impressions: 0, conversions: 0, value: 0 };
+  for (const r of D.perf) {
+    if (!filter(r)) continue;
+    const s = r.start, e = addDays(r.start, r.days - 1);
+    if (e < a || s > b) continue;
+    const lo = s > a ? s : a, hi = e < b ? e : b;
+    const f = ((dt(hi) - dt(lo)) / DAY + 1) / r.days;
+    for (const k in out) out[k] += (r[k] || 0) * f;
+  }
+  return out;
+}
+const platOk = r => state.p === 'all' || r.platform === state.p;
+const roas = s => s.spend > 0 ? s.value / s.spend : null;
+const cpa = s => s.conversions >= 0.5 ? s.spend / s.conversions : null;
+function change(cur, prev) { if (cur == null || prev == null || prev === 0) return null; return (cur - prev) / Math.abs(prev); }
+
+function weekly(filter, weeks = 13) {
+  const end = endDay(), out = [];
+  let w = monday(end);
+  for (let i = 0; i < weeks; i++) { out.unshift(w); w = addDays(w, -7); }
+  return out.map(ws => {
+    const we = addDays(ws, 6) > end ? end : addDays(ws, 6);
+    const g = sum(ws, we, r => r.platform === 'google' && filter(r));
+    const m = sum(ws, we, r => r.platform === 'meta' && filter(r));
+    return { ws, we, partial: we < addDays(ws, 6), g, m, all: { spend: g.spend + m.spend, value: g.value + m.value, conversions: g.conversions + m.conversions, clicks: g.clicks + m.clicks } };
+  });
+}
+
+// ---------- render ----------
+function render() {
+  $$('#win button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.w === state.w));
+  $$('#plat button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === state.p));
+  renderFresh();
+  const end = endDay(), start = addDays(end, -(state.w - 1));
+  const pEnd = addDays(start, -1), pStart = addDays(pEnd, -(state.w - 1));
+  const cur = sum(start, end, platOk), prev = sum(pStart, pEnd, platOk);
+  const weeks = weekly(platOk, 13);
+  const canEdit = D.role === 'admin' || D.role === 'editor';
+
+  const html = `
+    <section class="block" aria-label="Resumen"><div class="tiles">${tiles(cur, prev, weeks)}</div>
+      <p class="small muted" style="margin:6px 2px 0">${fmtDay(start)} – ${fmtDay(end)} · comparado con los ${state.w} días anteriores. “Reservas” y “valor” son lo que cada plataforma cuenta como conversión (Google: compras de Rezdy desde Analytics; Meta: compras con clic en 7 días).</p>
+    </section>
+    <section class="block"><h2>Necesita atención</h2><div class="alerts">${alerts(end)}</div></section>
+    <section class="block"><h2>Semana a semana <small>últimas 13 semanas</small></h2>${chartBlock()}</section>
+    <section class="block"><h2>Campañas <small>${fmtDay(start)} – ${fmtDay(end)}</small></h2>${campaigns(start, end)}</section>
+    <section class="block"><h2>Presupuesto del mes</h2>${pace(end)}</section>
+    <section class="block" id="todos-block"><h2>Pendientes <span class="count" id="todo-count"></span></h2>${filters()}<div id="todos"></div>${canEdit ? todoForm() : ''}</section>
+    ${D.role === 'admin' ? `<section class="block"><h2>Metas</h2>${targetsForm()}</section>` : ''}
+    <section class="block"><details class="howto"><summary>Cómo se actualiza</summary><ul>
+      <li><b>Google</b>: un script en Google Ads (Herramientas → Scripts → “Dashboard feed”) manda cada mañana los últimos 90 días y el estado de cada campaña. Si los datos se quedan atrás, ese script no corrió.</li>
+      <li><b>Meta</b>: Claude carga las cifras semanales del Administrador de anuncios (en dólares, convertidas a pesos al tipo de cambio de la semana).</li>
+      <li><b>Reservas de OpenTable y Rezdy</b>: se agregarán aquí cuando OpenTable reciba reservas en línea.</li>
+      <li>Pídele cambios a Claude en el chat de “Dos Búhos Webpage and Ads”.</li></ul></details></section>`;
+  $('#app').innerHTML = html;
+  wireChart(weeks);
+  renderTodos();
+  wireTodoForm();
+  wireTargets();
+}
+
+function renderFresh() {
+  const t = today(), bits = [];
+  for (const p of ['google', 'meta']) {
+    const f = D.fresh.find(x => x.platform === p);
+    if (!f) { bits.push(`${PL[p]}: <span class="stale">sin datos</span>`); continue; }
+    const lag = Math.round((dt(t) - dt(f.through)) / DAY);
+    const late = p === 'google' ? lag > 2 : lag > 9;
+    bits.push(`${PL[p]} hasta <b class="${late ? 'stale' : ''}">${fmtDay(f.through)}</b>`);
+  }
+  $('#fresh').innerHTML = bits.join(' · ');
+}
+
+function spark(series, k) {
+  const w = 120, h = 28, pts = series.map(v => v || 0);
+  if (pts.length < 2 || pts.every(v => v === 0)) return '';
+  const hi = Math.max(...pts) || 1;
+  const xy = pts.map((v, i) => [i * w / (pts.length - 1), h - 2 - v / hi * (h - 4)]);
+  const d = 'M' + xy.map(p => p.map(n => n.toFixed(1)).join(' ')).join('L');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true" style="--k:${k}"><path class="area" d="${d}L${w} ${h}L0 ${h}Z"/><path d="${d}"/></svg>`;
+}
+function tiles(cur, prev, weeks) {
+  const t = targetFor();
+  const r = roas(cur), rp = roas(prev), c = cpa(cur), cp = cpa(prev);
+  const full = weeks.filter(w => !w.partial);
+  const ws = k => full.map(w => k(w.all));
+  const tile = (label, value, ch, better, series, k, extra = '') => {
+    // Spend going up is neither good nor bad by itself, so it gets no colour.
+    const good = ch == null ? null : (better === 'up' ? ch >= 0 : ch <= 0);
+    const cls = ch == null || better === 'neutral' || Math.abs(ch) < .005 ? '' : good ? 'good' : 'bad';
+    const d = ch == null ? '<span class="delta">sin periodo anterior</span>' : `<span class="delta ${cls}">${ch >= 0 ? '▲' : '▼'} ${nf0.format(Math.abs(ch * 100))}% vs antes</span>`;
+    return `<div class="tile"><span class="label">${label}</span><span class="value num">${value}</span>${d}${extra}${spark(series, k)}</div>`;
+  };
+  return [
+    tile('Gasto', moneyK(cur.spend), change(cur.spend, prev.spend), 'neutral', ws(s => s.spend), 'var(--g)'),
+    tile('Reservas', nf1.format(cur.conversions), change(cur.conversions, prev.conversions), 'up', ws(s => s.conversions), 'var(--val)'),
+    tile('Valor reservado', moneyK(cur.value), change(cur.value, prev.value), 'up', ws(s => s.value), 'var(--val)'),
+    tile('Retorno (ROAS)', r == null ? '—' : nf1.format(r) + '×', change(r, rp), 'up', ws(s => s.spend ? s.value / s.spend : 0), 'var(--val)', t.roas ? `<span class="target">meta ${nf1.format(t.roas)}×</span>` : ''),
+    tile('Costo por reserva', c == null ? '—' : money(c), change(c, cp), 'down', ws(s => s.conversions >= .5 ? s.spend / s.conversions : 0), 'var(--g)', t.cpa ? `<span class="target">meta ${money(t.cpa)}</span>` : ''),
+  ].join('');
+}
+function targetFor() {
+  const rows = D.targets.filter(t => state.p === 'all' || t.platform === state.p);
+  const budget = rows.reduce((a, t) => a + (t.monthly_budget || 0), 0);
+  const one = rows.length === 1 ? rows[0] : rows.find(t => t.platform === 'google');
+  return { budget, roas: one && one.target_roas, cpa: one && one.target_cpa };
+}
+
+// ---------- alerts ----------
+function alerts(end) {
+  const out = [], add = (lvl, title, detail) => out.push(`<div class="alert ${lvl}"><b>${esc(title)}</b><span>${esc(detail)}</span></div>`);
+  const t = today();
+  const g = D.fresh.find(f => f.platform === 'google'), m = D.fresh.find(f => f.platform === 'meta');
+  if (!g) add('warn', 'No hay datos de Google', 'El script de Google Ads todavía no ha mandado nada.');
+  else if ((dt(t) - dt(g.through)) / DAY > 2) add('warn', `Los datos de Google llegan hasta el ${fmtDay(g.through)}`, 'El script diario de Google Ads no ha corrido. Si sigue así, hay que autorizarlo otra vez en Herramientas → Scripts.');
+  if (m && (dt(t) - dt(m.through)) / DAY > 9) add('info', `Las cifras de Meta llegan hasta el ${fmtDay(m.through)}`, 'Pídele a Claude que cargue las semanas que faltan.');
+  const w7 = addDays(end, -6);
+  for (const c of D.campaigns) {
+    if (state.p !== 'all' && c.platform !== state.p) continue;
+    if (c.status !== 'ENABLED') continue;
+    const s = sum(w7, end, r => r.platform === c.platform && r.campaign === c.campaign);
+    const nm = NAMES[c.campaign] || c.campaign;
+    if (s.spend >= 500 && s.conversions < 0.5 && !UNTRACKED[c.campaign]) add('bad', `${nm}: gasta sin reservas`, `${money(s.spend)} en 7 días y ninguna reserva. Revisa los términos de búsqueda y la página de destino.`);
+    if (c.lost_is_budget >= 20) add('warn', `${nm}: le falta presupuesto`, `Perdió ${nf0.format(c.lost_is_budget)}% de las búsquedas por presupuesto en 7 días.`);
+  }
+  const tg = targetFor();
+  const cur = sum(addDays(end, -(state.w - 1)), end, platOk), r = roas(cur);
+  if (tg.roas && r != null && cur.spend > 300 && r < tg.roas) add('warn', `Retorno por debajo de la meta`, `${nf1.format(r)}× en ${state.w} días contra la meta de ${nf1.format(tg.roas)}×.`);
+  const pc = paceData(end).filter(p => state.p === 'all' || p.platform === state.p);
+  for (const p of pc) if (p.budget && p.proj > p.budget * 1.1) add('warn', `${PL[p.platform]} va a gastar de más este mes`, `Al ritmo actual cierra el mes en ${money(p.proj)} contra ${money(p.budget)} de presupuesto.`);
+  if (!D.bookings.length) add('info', 'Aún no hay reservas de OpenTable aquí', 'Cuando OpenTable tome reservas en línea, se verán junto a cada campaña.');
+  if (!out.length) add('ok', 'Todo en orden', 'Ninguna campaña gasta sin resultados ni está limitada por presupuesto.');
+  return out.join('');
+}
+
+// ---------- weekly chart ----------
+// Two small charts on one week axis: what we spent, and what came back. One shared y-axis would let a single big week
+// of bookings flatten the spend bars, so each gets its own scale.
+function chartBlock() {
+  const showG = state.p !== 'meta', showM = state.p !== 'google';
+  return `<div class="chart">
+    <div class="legend"><b class="h-display" style="font-size:16px;color:var(--ink);margin-right:4px">Gasto</b>${showG ? '<span><i style="background:var(--g)"></i>Google</span>' : ''}${showM ? '<span><i style="background:var(--m)"></i>Meta</span>' : ''}</div>
+    <div id="chart-spend"></div>
+    <div class="legend" style="margin-top:10px"><b class="h-display" style="font-size:16px;color:var(--ink);margin-right:4px">Valor reservado</b><span>lo que las plataformas atribuyen a los anuncios</span></div>
+    <div id="chart-value"></div>
+    <div class="readout" id="readout" aria-live="polite"></div></div>`;
+}
+const spOf = w => (state.p !== 'meta' ? w.g.spend : 0) + (state.p !== 'google' ? w.m.spend : 0);
+const vlOf = w => (state.p !== 'meta' ? w.g.value : 0) + (state.p !== 'google' ? w.m.value : 0);
+const cvOf = w => (state.p !== 'meta' ? w.g.conversions : 0) + (state.p !== 'google' ? w.m.conversions : 0);
+function wireChart(weeks) {
+  const a = $('#chart-spend'), b = $('#chart-value'); if (!a || !b) return;
+  const W = Math.max(300, Math.min(a.clientWidth || 340, 1100)), n = weeks.length, L = 44, R = 6;
+  const bw = (W - L - R) / n;
+  const draw = (box, H, bars, labels) => {
+    const T = 6, B = labels ? 20 : 4;
+    const hi = Math.max(1, ...bars.map(x => x.reduce((s, v) => s + v.v, 0))) * 1.1, step = niceStep(hi / 2.5);
+    const y = v => T + (H - T - B) * (1 - v / hi);
+    let g = '';
+    for (let v = 0; v <= hi; v += step) g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v >= 1000 ? nf1.format(v / 1000) + 'k' : nf0.format(v)}</text>`;
+    let r = '', hits = '';
+    bars.forEach((stack, i) => {
+      const x = L + i * bw + bw * 0.16, wd = bw * 0.68; let base = 0;
+      for (const seg of stack) { if (seg.v > 0) r += `<rect class="${seg.c}" x="${x.toFixed(1)}" y="${y(base + seg.v).toFixed(1)}" width="${wd.toFixed(1)}" height="${(y(base) - y(base + seg.v)).toFixed(1)}" rx="2"${weeks[i].partial ? ' opacity=".45"' : ''}/>`; base += seg.v; }
+      hits += `<rect class="hit" data-i="${i}" x="${L + i * bw}" y="0" width="${bw}" height="${H}"/>`;
+      // Every third week, counted back from the latest, so the newest label always shows and labels never collide.
+      if (labels && (n - 1 - i) % 3 === 0) g += `<text class="ax" x="${Math.min(W - R - 18, L + i * bw + bw / 2)}" y="${H - 5}" text-anchor="middle">${fmtDay(weeks[i].ws)}</text>`;
+    });
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${g}<rect class="sel selbar" x="0" y="0" width="0" height="${H - B}"/>${r}${hits}</svg>`;
+  };
+  draw(a, 120, weeks.map(w => [{ v: state.p !== 'meta' ? w.g.spend : 0, c: 'bar-g' }, { v: state.p !== 'google' ? w.m.spend : 0, c: 'bar-m' }]), false);
+  draw(b, 130, weeks.map(w => [{ v: vlOf(w), c: 'bar-v' }]), true);
+  $('svg', a).setAttribute('aria-label', 'Gasto por semana'); $('svg', b).setAttribute('aria-label', 'Valor reservado por semana');
+  const show = i => {
+    const w = weeks[i], sp = spOf(w), vl = vlOf(w);
+    for (const sel of $$('.selbar')) { sel.setAttribute('x', L + i * bw); sel.setAttribute('width', bw); }
+    $('#readout').innerHTML = `<b>Semana del ${fmtDay(w.ws)}${w.partial ? ` (hasta ${fmtDay(w.we)}, incompleta)` : ''}</b>
+      ${state.p !== 'meta' ? `<span class="num">Google ${money(w.g.spend)}</span>` : ''}${state.p !== 'google' ? `<span class="num">Meta ${money(w.m.spend)}</span>` : ''}
+      <span class="num">${nf1.format(cvOf(w))} reservas</span><span class="num">valor ${money(vl)}</span><span class="num">ROAS ${sp ? nf1.format(vl / sp) + '×' : '—'}</span>`;
+  };
+  for (const h of $$('.chart .hit')) { h.addEventListener('click', () => show(+h.dataset.i)); h.addEventListener('mouseenter', () => show(+h.dataset.i)); }
+  let last = n - 1; while (last > 0 && weeks[last].partial) last--;
+  show(last);
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x || 1))); const f = x / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => D && wireChart(weekly(platOk, 13)), 150); });
+
+// ---------- campaigns ----------
+function campaigns(start, end) {
+  const names = new Map();
+  for (const r of D.perf) if (platOk(r) && addDays(r.start, r.days - 1) >= start && r.start <= end) names.set(r.platform + '|' + r.campaign, { platform: r.platform, campaign: r.campaign });
+  for (const c of D.campaigns) if ((state.p === 'all' || c.platform === state.p) && c.status === 'ENABLED') names.set(c.platform + '|' + c.campaign, { platform: c.platform, campaign: c.campaign });
+  const rows = [...names.values()].map(x => {
+    const s = sum(start, end, r => r.platform === x.platform && r.campaign === x.campaign);
+    const meta = D.campaigns.find(c => c.platform === x.platform && c.campaign === x.campaign) || {};
+    return { ...x, ...s, meta };
+  }).sort((a, b) => (b.meta.status === 'ENABLED') - (a.meta.status === 'ENABLED') || b.spend - a.spend);
+  if (!rows.length) return '<div class="empty"><b>Sin campañas en este periodo</b>Cambia el periodo o la plataforma.</div>';
+  const flag = r => {
+    if (UNTRACKED[r.campaign]) return ['', UNTRACKED[r.campaign]];
+    if (r.meta.status === 'ENABLED' && r.spend >= 500 && r.conversions < .5) return ['bad', 'Gasta sin reservas en este periodo.'];
+    if (r.meta.lost_is_budget >= 20) return ['', `Pierde ${nf0.format(r.meta.lost_is_budget)}% de búsquedas por presupuesto.`];
+    return null;
+  };
+  const st = r => { const s = STATUS[r.meta.status]; return s ? `<span class="chip ${s[1]}">${s[0]}</span>` : ''; };
+  // A campaign whose bookings aren't measured shows "—", not a misleading 0×.
+  const roasTxt = r => { const ro = roas(r); return ro == null || (UNTRACKED[r.campaign] && !r.value) ? '—' : nf1.format(ro) + '×'; };
+  const cards = rows.map(r => {
+    const f = flag(r), c = cpa(r);
+    return `<article class="camp ${r.platform[0]}"><div class="name">${esc(NAMES[r.campaign] || r.campaign)}</div>${NAMES[r.campaign] ? `<div class="raw">${esc(r.campaign)}</div>` : ''}
+      <div class="chips"><span class="chip">${PL[r.platform]}</span>${st(r)}${r.meta.daily_budget ? `<span class="chip">${money(r.meta.daily_budget)}/día</span>` : ''}</div>
+      <dl><div><dt>Gasto</dt><dd>${money(r.spend)}</dd></div><div><dt>Reservas</dt><dd>${nf1.format(r.conversions)}</dd></div><div><dt>Valor</dt><dd>${money(r.value)}</dd></div>
+      <div><dt>ROAS</dt><dd>${roasTxt(r)}</dd></div><div><dt>Por reserva</dt><dd>${c == null ? '—' : money(c)}</dd></div><div><dt>Clics</dt><dd>${nf0.format(r.clicks)}</dd></div></dl>
+      ${f ? `<div class="flag ${f[0]}">${esc(f[1])}</div>` : ''}</article>`;
+  }).join('');
+  const table = `<div class="table-wrap camp-table"><table class="t"><thead><tr><th>Campaña</th><th>Estado</th><th class="num">Presupuesto</th><th class="num">Gasto</th><th class="num">Reservas</th><th class="num">Valor</th><th class="num">ROAS</th><th class="num">Por reserva</th></tr></thead><tbody>
+    ${rows.map(r => { const f = flag(r), c = cpa(r); return `<tr><td class="n"><b><span class="dot" style="background:var(--${r.platform[0]})"></span>${esc(NAMES[r.campaign] || r.campaign)}</b><small>${PL[r.platform]}${f ? ' · ' + esc(f[1]) : ''}</small></td>
+      <td>${st(r) || '<span class="muted">—</span>'}</td><td class="num">${r.meta.daily_budget ? money(r.meta.daily_budget) + '/día' : '—'}</td><td class="num">${money(r.spend)}</td><td class="num">${nf1.format(r.conversions)}</td><td class="num">${money(r.value)}</td><td class="num">${roasTxt(r)}</td><td class="num">${c == null ? '—' : money(c)}</td></tr>`; }).join('')}
+    </tbody></table></div>`;
+  return `<div class="camps">${cards}</div>${table}`;
+}
+
+// ---------- pace ----------
+function paceData(end) {
+  const mStart = end.slice(0, 8) + '01';
+  const dim = new Date(Date.UTC(+end.slice(0, 4), +end.slice(5, 7), 0)).getUTCDate();
+  const elapsed = +end.slice(8, 10);
+  return ['google', 'meta'].map(p => {
+    const s = sum(mStart, end, r => r.platform === p).spend;
+    const t = D.targets.find(x => x.platform === p) || {};
+    // Google: what the live daily budgets would spend in the rest of the month beats a straight-line projection.
+    const daily = p === 'google' ? D.campaigns.filter(c => c.platform === p && c.status === 'ENABLED').reduce((a, c) => a + (c.daily_budget || 0), 0) : 0;
+    const proj = elapsed ? (daily ? s + daily * (dim - elapsed) : s / elapsed * dim) : 0;
+    return { platform: p, spent: s, proj, budget: t.monthly_budget || 0, dim, elapsed, daily, month: mStart };
+  });
+}
+function pace(end) {
+  const list = paceData(end).filter(p => state.p === 'all' || p.platform === state.p);
+  const month = dt(end.slice(0, 8) + '01').toLocaleDateString('es-MX', { month: 'long', timeZone: 'UTC' });
+  return `<div class="pace">${list.map(p => {
+    const max = Math.max(p.budget, p.proj, 1);
+    const pct = v => Math.min(100, v / max * 100).toFixed(1);
+    return `<div class="p" style="--k:var(--${p.platform[0]})"><div class="top"><b>${PL[p.platform]}</b><span class="num">${money(p.spent)} de ${p.budget ? money(p.budget) : 'sin presupuesto'}</span></div>
+      <div class="pbar" aria-hidden="true"><i class="proj" style="width:${pct(p.proj)}%"></i><i class="spent" style="width:${pct(p.spent)}%"></i>${p.budget ? `<em style="left:calc(${pct(p.budget)}% - 1px)"></em>` : ''}</div>
+      <div class="small">Gastado en ${month} hasta el ${p.elapsed}. Cierre estimado ${money(p.proj)}${p.daily ? ` (presupuestos activos ${money(p.daily)}/día)` : ''}. La raya marca el presupuesto.</div></div>`;
+  }).join('')}</div>`;
+}
+
+// ---------- pendientes ----------
+function filters() {
+  return `<div class="filters seg" id="tfilter" role="group" aria-label="Mostrar"><button type="button" data-f="open">Abiertos</button><button type="button" data-f="Eric">De Eric</button><button type="button" data-f="Claude">De Claude</button><button type="button" data-f="done">Hechos</button></div>`;
+}
+function todoForm() {
+  return `<details class="addbox" id="addbox"><summary class="btn">+ Agregar pendiente</summary><form class="todo-add" id="todo-add" autocomplete="off">
+    <label class="field"><span>Nuevo pendiente</span><input name="task" required maxlength="300" placeholder="Qué hay que hacer"></label>
+    <div class="r2"><label class="field"><span>Quién</span><select name="owner"><option>Eric</option><option>Claude</option><option value="">Sin asignar</option></select></label>
+    <label class="field"><span>Área</span><select name="area"><option>Google Ads</option><option>Meta</option><option>Tracking</option><option>Website</option><option>Roadmap</option><option>Dashboard</option></select></label></div>
+    <label class="field"><span>Para cuándo</span><input name="due" type="date"></label>
+    <button class="btn primary" type="submit">Agregar</button></form></details>`;
+}
+function renderTodos() {
+  const box = $('#todos'); if (!box) return;
+  const canEdit = D.role === 'admin' || D.role === 'editor';
+  const open = D.todos.filter(t => !t.done);
+  $('#todo-count').textContent = `${open.length} abiertos`;
+  const f = state.todoFilter;
+  let list = f === 'done' ? D.todos.filter(t => t.done).sort((a, b) => (b.done_at || 0) - (a.done_at || 0)) : open.filter(t => f === 'open' || t.owner === f);
+  $$('#tfilter button').forEach(b => b.setAttribute('aria-pressed', b.dataset.f === f));
+  const t0 = today();
+  box.innerHTML = list.length ? `<div class="todos">${list.map(t => {
+    const late = !t.done && t.due && t.due < t0;
+    return `<div class="todo ${t.done ? 'done' : ''}" data-id="${t.id}">
+      <button class="chk" type="button" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Marcar como abierto' : 'Marcar como hecho'}" ${canEdit ? '' : 'disabled'}><span></span></button>
+      <div class="txt"><details><summary><div class="task">${esc(t.task)}</div>
+        <div class="meta">${t.owner ? `<span class="chip">${esc(t.owner)}</span>` : ''}${t.area ? `<span class="chip">${esc(t.area)}</span>` : ''}${t.due ? `<span class="chip due ${late ? 'late' : ''}">${late ? 'vencido · ' : ''}${fmtDay(t.due)}</span>` : ''}${t.notes ? '<span class="small muted">· notas</span>' : ''}</div></summary>
+        ${t.notes ? `<div class="notes">${esc(t.notes)}</div>` : ''}
+        ${canEdit ? `<div class="acts"><button class="btn sm" type="button" data-act="edit">Editar</button><button class="btn sm danger" type="button" data-act="del">Borrar</button></div>` : ''}</details></div></div>`;
+  }).join('')}</div>` : `<div class="empty"><b>${f === 'done' ? 'Nada marcado como hecho' : 'Sin pendientes'}</b>${f === 'done' ? '' : 'Todo al día.'}</div>`;
+  for (const el of $$('.todo', box)) {
+    const id = +el.dataset.id, t = D.todos.find(x => x.id === id);
+    $('.chk', el).onclick = async () => { if (!canEdit) return; t.done = t.done ? 0 : 1; t.done_at = t.done ? Date.now() : null; renderTodos(); await send(`/ads/api/todos/${id}`, 'PATCH', { done: !!t.done }, 'No se guardó'); };
+    const del = $('[data-act="del"]', el); if (del) del.onclick = async () => { if (!confirm('¿Borrar este pendiente?')) return; D.todos = D.todos.filter(x => x.id !== id); renderTodos(); await send(`/ads/api/todos/${id}`, 'DELETE', null, 'No se borró'); };
+    const ed = $('[data-act="edit"]', el); if (ed) ed.onclick = () => editTodo(el, t);
+  }
+}
+function editTodo(el, t) {
+  $('.txt', el).innerHTML = `<form class="stack" style="gap:8px;padding:6px 0">
+    <label class="field"><span>Pendiente</span><input name="task" value="${esc(t.task)}" maxlength="300" required></label>
+    <div class="row"><label class="field"><span>Quién</span><input name="owner" value="${esc(t.owner)}" maxlength="40"></label><label class="field"><span>Área</span><input name="area" value="${esc(t.area)}" maxlength="40"></label><label class="field"><span>Para cuándo</span><input name="due" type="date" value="${esc(t.due)}"></label></div>
+    <label class="field"><span>Notas</span><textarea name="notes" rows="3" maxlength="1000">${esc(t.notes)}</textarea></label>
+    <div class="acts"><button class="btn primary" type="submit">Guardar</button><button class="btn" type="button" data-x>Cancelar</button></div></form>`;
+  const f = $('form', el);
+  $('[data-x]', f).onclick = renderTodos;
+  f.onsubmit = async e => { e.preventDefault(); const b = Object.fromEntries(new FormData(f)); Object.assign(t, b); renderTodos(); await send(`/ads/api/todos/${t.id}`, 'PATCH', b, 'No se guardó'); };
+}
+function wireTodoForm() {
+  const f = $('#todo-add');
+  $$('#tfilter button').forEach(b => b.onclick = () => { state.todoFilter = b.dataset.f; renderTodos(); });
+  if (!f) return;
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const b = Object.fromEntries(new FormData(f));
+    const r = await send('/ads/api/todos', 'POST', b, 'No se agregó');
+    if (r && r.id) { $('#addbox').open = false; D.todos.push({ id: r.id, task: b.task, owner: b.owner, area: b.area, due: b.due, notes: '', done: 0 }); f.reset(); state.todoFilter = 'open'; renderTodos(); toast('Agregado'); }
+  };
+}
+
+// ---------- metas (admin) ----------
+function targetsForm() {
+  return `<div class="targets">${['google', 'meta'].map(p => { const t = D.targets.find(x => x.platform === p) || {}; return `
+    <form class="panel" data-p="${p}"><b class="h-display" style="font-size:19px">${PL[p]}</b>
+      <div class="r3"><label class="field"><span>Presupuesto al mes</span><input name="monthly_budget" inputmode="decimal" value="${t.monthly_budget ?? ''}"></label>
+      <label class="field"><span>ROAS meta</span><input name="target_roas" inputmode="decimal" value="${t.target_roas ?? ''}"></label>
+      <label class="field"><span>Costo por reserva meta</span><input name="target_cpa" inputmode="decimal" value="${t.target_cpa ?? ''}"></label></div>
+      <label class="field"><span>Nota</span><input name="note" maxlength="300" value="${esc(t.note || '')}"></label>
+      <div><button class="btn primary" type="submit">Guardar ${PL[p]}</button></div></form>`; }).join('')}</div>`;
+}
+function wireTargets() {
+  for (const f of $$('.targets form')) f.onsubmit = async e => {
+    e.preventDefault();
+    const b = Object.fromEntries(new FormData(f));
+    const r = await send(`/ads/api/targets/${f.dataset.p}`, 'PUT', b, 'No se guardó');
+    if (r) { const i = D.targets.findIndex(x => x.platform === f.dataset.p); const row = { platform: f.dataset.p, ...Object.fromEntries(Object.entries(b).map(([k, v]) => [k, k === 'note' ? v : (v === '' ? null : +v)])) }; if (i >= 0) D.targets[i] = row; else D.targets.push(row); toast('Metas guardadas'); render(); }
+  };
+}
+
+async function send(url, method, body, failMsg) {
+  try {
+    const r = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || r.status);
+    return j;
+  } catch (e) { toast(`${failMsg}: ${e.message}`, true); load(); return null; }
+}
+function toast(msg, bad) { const t = document.createElement('div'); t.className = 'toast' + (bad ? ' bad' : ''); t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2800); }
+</script>
+</body>
+</html>
