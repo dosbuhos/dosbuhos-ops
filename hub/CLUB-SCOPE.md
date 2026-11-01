@@ -4,15 +4,38 @@ The member app of Dos Búhos: who gets which benefits, how they get their card, 
 benefit, and how we track it. Separate from the shipment app (`wineclub/`), which keeps doing boxes and Stripe.
 
 ## Origin
-Consultants Adela Pereira and José Gallo proposed a consumption-based loyalty club (not only subscriptions) as an
-umbrella over the paid Círculos:
-- **Socios por consumo**: 3 levels by annual spend across channels (0–10,000 / 10,000–20,000 / >20,000 MXN). Entry from
-  the first purchase. Current Bronce subscribers land in level 2.
-- **Socios por invitación**: novios (members for life, retroactive), empleados (30% restaurant when present, less on
-  wine), familia y amigos (more on wine, less on restaurant), profesionales B2B (tour operators, wedding planners,
-  hotel concierges, distributors, restaurant clients) in 3 levels moved by hand according to the business they bring.
-- **Círculos de suscripción** (Bronce, Plata, Oro, Diamante, plus founding members) keep running in `wineclub/` and
-  appear here automatically.
+Strategy session with consultants Adela Pereira and José Gallo (Sep 28 2026). The transcript ends as benefits start,
+so levels are decided and benefits per level are still open.
+- **The club is an umbrella. The subscription is just one way of buying.** "No voy a cambiar mis clubes, nada más
+  estoy creando niveles de socios." Every purchase on every channel accumulates on one member profile and sets the
+  level:
+  - Círculo subscription
+  - Tienda / online
+  - restaurant
+  - experiences
+  - external points of sale, e.g. restaurants in San Miguel
+- **Socios por compras**: 3 levels by spend over 12 months:
+  - Nivel 1: 0–10,000 MXN, entered from the first purchase however small
+  - Nivel 2: 10,000–20,000 MXN
+  - Nivel 3: over 20,000 MXN
+
+  Current Círculo Bronce subscribers ($14,400/yr) land in Nivel 2, and Nivel 2 must give at least what Bronce gets
+  today: 15% wine (Tienda/online), 10% restaurant, 4 tours/tastings, 20% events. Levels get their own names, distinct
+  from the Círculos (names to be decided).
+- **Socios por invitación**: status doesn't depend on spend. Purchases are still tracked; the level changes only by hand.
+  - **Novios**: members for life, granted retroactively ("les mandamos su tarjetita").
+  - **Empleados** (and their families): 30% at the restaurant when present, less on wine.
+  - **Amigos y familia**: more on wine, less at the restaurant.
+  - **Profesionales** (B2B): tour operators, wedding planners, event organisers, hotel concierges, distributors, and
+    tourism distributors. 3 levels (placeholder "Aliados"). Moved up or down by hand according to the business they
+    bring, tracked through reservations. Milestones apply, e.g. at the 200th visitor they brought: a Magnum or a staff
+    meal.
+- Subscriptions: only Bronce (about 20 members) and one Diamante today. Eric may keep only Bronce and Plata. They keep
+  running in `wineclub/`; here they count as purchases.
+- Exclusive experiences per level (e.g. a vertical tasting) are a type of benefit, not only discounts.
+- Eric's additions (Nov 1 2026):
+  - Friends, family and industry get a QR that they show for the discount automatically.
+  - Receipts scanned to stack points.
 
 Eric's ask (Nov 1 2026): give friends, family and industry people a QR. They show it and automatically get their
 discount at the restaurant. The admin is a grid: programs in columns, benefits in rows, each one ticked on or off with
@@ -28,8 +51,12 @@ are here. We track usage, eventually against Parrot and OpenTable.
 | Michael (F&B) | Know who is in today; see the cost of benefits | `/club/` Hoy + Resumen |
 
 ## v1 (build now)
-1. **Programas × Beneficios grid.** Columns are programs: Familia y amigos, Industria (3 levels), Empleados, Novios,
-   Consumo (3 levels), and Círculo Bronce / Plata / Oro / Diamante / Fundadores (read from the wine club database).
+1. **Programas × Beneficios grid.** The columns are programs:
+   - Por compras: Nivel 1 / 2 / 3, automatic by 12-month spend; thresholds editable
+   - Por invitación: Novios, Empleados, Amigos y familia, Profesionales 1 / 2 / 3
+   - Fundadores: grandfathered Círculo terms
+
+   Círculo subscribers come from the wine club database. Their subscription spend counts toward their level.
    Rows come from a benefit catalogue. Each cell has an on/off switch, a value (percent, count per year, amount), and
    limits (guests, applies to, notes). The phone layout is vertical: pick a program, see its benefit list with
    toggles. Desktop shows the full grid. Every change is audited.
@@ -52,8 +79,15 @@ are here. We track usage, eventually against Parrot and OpenTable.
    and a "VIP aquí ahora" section. Copy-ready text for the shift group and for the OpenTable guest note.
 7. **Resumen.** Per program: members, active in the last 90 days, visits, spend, discount given, cost of benefits, top
    members. Per member: the history.
-8. **Consumo levels.** Spend comes from registered visits plus manual entries (Tienda receipts). The level updates
-   automatically over a rolling 12 months.
+8. **Levels by purchases.** Spend comes from three sources:
+   - registered visits
+   - manual entries with channel (Tienda, online, experiencias, punto externo) and an optional receipt photo
+   - Círculo subscription charges, read from the wine club database
+
+   The level updates automatically over a rolling 12 months. The card shows "Te faltan $X para Nivel 2".
+9. **Profesionales.** Each visit can record "lo trajo: <profesional>" and how many people. Resumen shows the business
+   each professional brought (visits, people, spend) and flags milestones (configurable, e.g. every 200 people).
+   Moving a professional between levels is a manager action, and it is audited.
 
 ## Integrations, honestly
 - **Parrot**: the public API appears read-only, so v1 doesn't push discounts. Staff apply the discount in Parrot and type

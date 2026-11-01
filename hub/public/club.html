@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>Club de beneficios · Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css?app=club"><link rel="stylesheet" href="/kit/kit.css">
+<link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#141719" media="(prefers-color-scheme: dark)">
+<style>
+/* Club de beneficios — staff + admin. Phone first: one column, nothing scrolls sideways, rows ≥ 44 px, steppers instead of
+   button grids, secondary things collapsed. Bottom tab bar on phones, tabs under the top bar from 720 px. The programs ×
+   benefits grid appears only from 900 px; below that it is a program picker and a list. */
+:root { --hoy-gap: 22px; }
+body { padding-bottom: calc(72px + var(--safe-b)); }
+@media (min-width: 720px) { body { padding-bottom: 0; } }
+.wrap { max-width: 860px; }
+.wrap.wide { max-width: 1280px; }
+h1.page { font-family: var(--f-display); font-weight: var(--w-display); font-size: 32px; line-height: 1; margin: 2px 0 4px; }
+.sub { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+.blk { margin: 0 0 var(--hoy-gap); }
+.blk > h2 { font-family: var(--f-display); font-size: 22px; font-weight: var(--w-display); margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.blk > h2 small { font: 400 13px var(--f-body); color: var(--muted); }
+.muted { color: var(--muted); }
+.hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+
+/* bottom tab bar (phone) → tabs (desktop) */
+.cnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; background: var(--paper); border-top: var(--bw) solid var(--rule); padding: 0 4px var(--safe-b); }
+.cnav a { flex: 1; min-width: 0; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: var(--muted); font-size: 11.5px; font-weight: 500; position: relative; }
+.cnav a svg { width: 22px; height: 22px; }
+.cnav a[aria-current="page"] { color: var(--accent); }
+.cnav a[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+.cnav .dot { position: absolute; top: 8px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+@media (min-width: 720px) {
+  .cnav { position: static; max-width: 1280px; margin: 0 auto; background: none; border: 0; border-bottom: var(--bw) solid var(--rule); padding: 0 16px; gap: 4px; }
+  .cnav a { flex: none; flex-direction: row; min-height: 46px; padding: 0 12px; font: var(--w-display) 18px var(--f-display); gap: 8px; }
+  .cnav a svg { width: 18px; height: 18px; }
+  .cnav a[aria-current="page"]::before { top: auto; bottom: -1px; left: 8px; right: 8px; border-radius: 3px 3px 0 0; }
+  .cnav .dot { position: static; }
+}
+
+/* program badge: the program colour, white text (colours are checked for 4.5:1 on save) */
+.pb { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: var(--c, var(--accent)); color: #fff; font-size: 12.5px; font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.pb.pending { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--c, var(--muted)); }
+.pbs { display: flex; flex-wrap: wrap; gap: 4px; }
+.vip { color: var(--hospitalidad); font-weight: 600; font-size: 12.5px; }
+.chip.conf { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+
+/* rows */
+.list { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+.r { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 9px 12px; border-bottom: var(--bw) solid var(--rule); text-decoration: none; color: inherit; width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; font: inherit; text-align: left; }
+.r:last-child { border-bottom: 0; }
+a.r:hover, button.r:hover { background: var(--paper-2); cursor: pointer; }
+.r .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.r .t { font-weight: 600; overflow-wrap: anywhere; }
+.r .s { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.r .end { flex: none; display: flex; gap: 6px; align-items: center; }
+.r .chev { color: var(--muted); font-size: 20px; flex: none; }
+.r.stack { flex-direction: column; align-items: stretch; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts .btn { flex: 1 1 auto; }
+.empty.sm { padding: 16px; text-align: left; }
+.empty.sm b { font-size: 17px; }
+
+/* person */
+.who { position: relative; border-radius: var(--radius); padding: 16px; background: var(--c, var(--accent)); color: #fff; }
+.who h1 { font-family: var(--f-display); font-weight: var(--w-display); font-size: clamp(30px, 9vw, 40px); line-height: 1; margin: 0 0 8px; overflow-wrap: anywhere; }
+.who .pb { background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 1px rgba(255,255,255,.55); }
+.who .pb.pending { box-shadow: inset 0 0 0 1px rgba(255,255,255,.8); }
+.who .meta { margin-top: 8px; font-size: 13.5px; opacity: .92; }
+.who .vipflag { position: absolute; top: 14px; right: 14px; font: 600 12px var(--f-body); letter-spacing: .08em; padding: 3px 8px; border-radius: 4px; background: #fff; color: var(--c, var(--accent)); }
+.snote { margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--now); border: var(--bw) solid var(--now-rule); color: var(--ink); font-size: 14px; }
+.snote b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+.ben { padding: 10px 12px; border-bottom: var(--bw) solid var(--rule); }
+.ben:last-child { border-bottom: 0; }
+.ben .h { font-weight: 600; font-size: 16px; }
+.ben .rule { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.ben .src { font-size: 12.5px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ben.off { opacity: .75; }
+.ben.off .h { text-decoration: line-through; font-weight: 500; }
+
+/* forms */
+.f { display: flex; flex-direction: column; gap: 12px; }
+.f .field input, .f .field select, .f .field textarea { font-size: 16px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.two > * { min-width: 0; }
+.stepper { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; border: var(--bw) solid var(--field-rule, var(--rule)); border-radius: var(--radius-sm); background: var(--paper); overflow: hidden; }
+.stepper button { min-height: 44px; border: 0; background: var(--paper-2); color: var(--ink); font: 600 22px var(--f-body); cursor: pointer; }
+.stepper output { text-align: center; font: 500 18px var(--f-mono); }
+.tick { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 12px; border-bottom: var(--bw) solid var(--rule); cursor: pointer; }
+.tick:last-child { border-bottom: 0; }
+.tick input[type=checkbox] { width: 22px; height: 22px; min-height: 0; flex: none; accent-color: var(--accent); margin: 0; }
+.tick .main { flex: 1; min-width: 0; }
+.tick .t { font-weight: 500; }
+.tick .s { font-size: 12.5px; color: var(--muted); }
+.tick .qty { margin-top: 6px; max-width: 200px; }
+.rulebox { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 14px; }
+.warnbox { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 500; }
+details.box { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); }
+details.box > summary { list-style: none; min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; cursor: pointer; font: var(--w-display) 19px var(--f-display); }
+details.box > summary::-webkit-details-marker { display: none; }
+details.box > summary::after { content: "›"; color: var(--muted); font: 400 24px var(--f-body); transform: rotate(90deg); transition: transform .15s; }
+details.box[open] > summary::after { transform: rotate(-90deg); }
+details.box > summary small { font: 400 13px var(--f-body); color: var(--muted); margin-left: auto; }
+details.box > .in { padding: 0 14px 14px; }
+details.box + details.box { margin-top: 10px; }
+.btn.block { width: 100%; }
+.btn.big { min-height: 52px; font-size: 16px; font-weight: 600; }
+.seg.two-up { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+.switch { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 14.5px; }
+.switch input { width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--accent); flex: none; }
+
+/* tiles + bars (Resumen) */
+.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 720px) { .tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.tile .value { font-size: clamp(20px, 6vw, 26px); overflow-wrap: anywhere; }
+.tile.wide { grid-column: 1 / -1; }
+@media (min-width: 720px) { .tile.wide { grid-column: auto; } }
+.prog { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); padding: 12px; border-left: 5px solid var(--c); }
+.prog + .prog { margin-top: 10px; }
+.prog .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.prog .top b { font: var(--w-display) 20px var(--f-display); }
+.metric { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; margin-top: 8px; font-size: 13.5px; }
+.metric .bar { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--paper-2); overflow: hidden; }
+.metric .bar i { display: block; height: 100%; background: var(--c, var(--accent)); border-radius: 4px; }
+.metric .num { font-family: var(--f-mono); }
+.milestone { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+
+/* programs × benefits */
+.picker { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.picker button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 999px; border: var(--bw) solid var(--rule); background: var(--paper); color: var(--ink); font: 500 14px var(--f-body); cursor: pointer; }
+.picker button i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.picker button[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: #fff; }
+.picker button[aria-pressed="true"] i { background: #fff; }
+.cellrow { padding: 10px 12px; border-bottom: var(--bw) solid var(--rule); }
+.cellrow:last-child { border-bottom: 0; }
+.cellrow .line { display: flex; align-items: center; gap: 10px; }
+.cellrow .line .switch { flex: 1; min-width: 0; font-weight: 500; }
+.cellrow .val { width: 92px; flex: none; }
+.cellrow .val.text { width: 100%; margin-top: 8px; }
+.cellrow .more { margin-top: 6px; }
+.cellrow .more summary { min-height: 44px; display: inline-flex; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+.gridwrap { overflow-x: auto; border: var(--bw) solid var(--rule); border-radius: var(--radius); background: var(--paper); }
+table.grid { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+table.grid th, table.grid td { border-bottom: var(--bw) solid var(--rule); border-right: var(--bw) solid var(--rule); padding: 6px; vertical-align: top; }
+table.grid thead th { position: sticky; top: 0; background: var(--paper-2); z-index: 1; font-weight: 600; text-align: left; }
+table.grid thead th button { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-height: 44px; justify-content: center; }
+table.grid thead th button:focus-visible { outline: 2px solid var(--accent); }
+table.grid thead th .bar { height: 4px; border-radius: 2px; background: var(--c); }
+table.grid thead th small { font-weight: 400; color: var(--muted); }
+table.grid tbody th { text-align: left; font-weight: 500; position: sticky; left: 0; background: var(--paper); z-index: 1; min-width: 160px; max-width: 220px; }
+table.grid tbody th small { display: block; color: var(--muted); font-weight: 400; }
+table.grid td.on { background: color-mix(in srgb, var(--c) 9%, var(--paper)); }
+table.grid td .c { display: flex; align-items: center; gap: 4px; }
+table.grid td input[type=checkbox] { width: 20px; height: 20px; min-height: 0; margin: 0; accent-color: var(--accent); flex: none; }
+table.grid td input.v { width: 54px; min-height: 36px; padding: 4px 6px; font: 13px var(--f-mono); }
+table.grid td input.v.t { width: 100%; min-width: 54px; font-family: var(--f-body); }
+table.grid td .x { display: block; width: 100%; min-height: 32px; margin-top: 2px; padding: 0 2px; border: 0; background: none; color: var(--muted); cursor: pointer; font: 11.5px var(--f-body); text-align: left; border-radius: 4px; }
+table.grid td .x:hover { background: var(--paper-2); }
+table.grid td .meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+table.grid td .pc { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+
+dialog { border: var(--bw) solid var(--rule); border-radius: var(--radius); padding: 0; width: min(480px, calc(100vw - 24px)); max-height: calc(100vh - 40px); background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
+dialog::backdrop { background: rgba(20, 15, 15, .45); }
+dialog .dh { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: var(--bw) solid var(--rule); }
+dialog .dh b { font: var(--w-display) 21px var(--f-display); }
+dialog .db { padding: 14px; }
+dialog img { display: block; max-width: 100%; border-radius: var(--radius-sm); margin: 0 auto 12px; }
+.toast { display: flex; align-items: center; gap: 12px; bottom: calc(80px + var(--safe-b)); }
+@media (min-width: 720px) { .toast { bottom: calc(18px + var(--safe-b)); } }
+.toast button { min-height: 36px; border: 0; background: none; color: inherit; font: 600 14px var(--f-body); text-decoration: underline; cursor: pointer; }
+.share { padding: 14px; border-radius: var(--radius); border: var(--bw) solid var(--rule); background: var(--paper); }
+.share pre { white-space: pre-wrap; font: 14px/1.45 var(--f-body); margin: 0 0 12px; padding: 10px 12px; background: var(--paper-2); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.scan { position: fixed; inset: 0; z-index: 60; background: #000; display: flex; flex-direction: column; }
+.scan video { flex: 1; width: 100%; object-fit: cover; }
+.scan .bar { display: flex; justify-content: center; padding: 14px 14px calc(14px + var(--safe-b)); background: #000; }
+.skel { height: 56px; border-radius: var(--radius); background: var(--paper-2); margin: 0 0 8px; }
+.hide { display: none !important; }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <a class="wordmark" href="/" aria-label="Dos Búhos, inicio del Hub"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <span class="crumb"><b>Club</b></span>
+  <span class="spacer"></span>
+  <nav><a href="/">Hub</a></nav>
+</div></header>
+<nav class="cnav" id="nav" aria-label="Secciones del club"></nav>
+<main class="wrap" id="app"><div class="skel"></div><div class="skel"></div><div class="skel"></div></main>
+<dialog id="dlg"><div class="dh"><b id="dlgT"></b><button class="btn sm" type="button" data-act="close">Cerrar</button></div><div class="db" id="dlgB"></div></dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+const money = n => '$' + nf.format(Math.round(n || 0));
+const num = v => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
+const dayWords = d => new Date(d + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const dayShort = d => new Date(d + 'T12:00:00Z').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace('.', '');
+const when = ms => new Date(ms).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City' }).replace('.', '');
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const S = { boot: null, hoy: null, person: null, back: '#hoy', progSel: null, lastInvite: null };
+const app = $('#app');
+
+async function api(method, path, body) {
+  const r = await fetch('/club/api/' + path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) { location.href = '/?next=' + encodeURIComponent(location.pathname + location.hash); throw new Error('Vuelve a entrar.'); }
+  const b = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(b.message || 'Algo salió mal. Intenta de nuevo.');
+  return b;
+}
+let toastT;
+function toast(msg, bad = false, action = null) {
+  $$('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast' + (bad ? ' bad' : ''); t.setAttribute('role', 'status');
+  t.innerHTML = `<span>${esc(msg)}</span>`;
+  if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = () => { t.remove(); action.run(); }; t.append(b); }
+  document.body.append(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), action ? 9000 : 3500);
+}
+async function copy(text, what = 'Copiado') {
+  try { await navigator.clipboard.writeText(text); toast(what); }
+  catch { const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(what); }
+}
+const badge = (p, pending) => `<span class="pb${pending ? ' pending' : ''}" style="--c:${esc(p.color || '')}">${esc(p.name)}${pending ? ' · por aprobar' : ''}</span>`;
+const badges = (ps = []) => ps.length ? `<span class="pbs">${ps.map(p => badge(p)).join('')}</span>` : '';
+const isAdmin = () => S.boot?.role === 'admin';
+const P = id => S.boot.programs.find(p => p.id === id);
+const stepper = (name, v, min, max) => `<div class="stepper" data-min="${min}" data-max="${max}"><button type="button" data-step="-1" aria-label="Menos">−</button><output>${v}</output><button type="button" data-step="1" aria-label="Más">+</button><input type="hidden" name="${name}" value="${v}"></div>`;
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('.stepper button'); if (!b) return;
+  const s = b.closest('.stepper'), i = $('input', s), o = $('output', s);
+  const v = Math.min(+s.dataset.max, Math.max(+s.dataset.min, +i.value + +b.dataset.step)); i.value = v; o.textContent = v;
+  i.dispatchEvent(new Event('change', { bubbles: true }));
+});
+const ICON = {
+  hoy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  buscar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  invitar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M19 8v6M16 11h6"/></svg>',
+  resumen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  programas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>',
+};
+function renderNav(active) {
+  const items = [['hoy', 'Hoy'], ['buscar', 'Buscar'], ...(isAdmin() ? [['invitar', 'Invitar']] : []), ['resumen', 'Resumen'], ...(isAdmin() ? [['programas', 'Programas']] : [])];
+  const pend = S.hoy ? S.hoy.receipts.length + S.hoy.resend.length + S.hoy.approvals.length : 0;
+  $('#nav').innerHTML = items.map(([k, t]) => `<a href="#${k}"${k === active ? ' aria-current="page"' : ''}>${ICON[k]}<span>${t}</span>${k === 'hoy' && pend ? `<span class="dot" aria-label="${pend} pendientes">${pend}</span>` : ''}</a>`).join('');
+}
+
+// ---------- router ----------
+async function route() {
+  const h = location.hash.replace(/^#/, '') || 'hoy';
+  const [view, arg] = h.split('/');
+  app.classList.toggle('wide', view === 'programas');
+  try {
+    if (view === 'hoy') { renderNav('hoy'); await viewHoy(); }
+    else if (view === 'buscar') { renderNav('buscar'); await viewBuscar(); }
+    else if (view === 'p') { renderNav(S.back.replace('#', '').split('/')[0]); await viewPerson(Number(arg)); }
+    else if (view === 'c') { renderNav('buscar'); const r = await api('GET', 'card/' + arg); location.replace('#p/' + r.id); }
+    else if (view === 'invitar' && isAdmin()) { renderNav('invitar'); await viewInvitar(); }
+    else if (view === 'novios' && isAdmin()) { renderNav('invitar'); await viewNovios(); }
+    else if (view === 'resumen') { renderNav('resumen'); await viewResumen(); }
+    else if (view === 'programas' && isAdmin()) { renderNav('programas'); await viewProgramas(); }
+    else location.replace('#hoy');
+  } catch (e) { app.innerHTML = `<div class="empty"><b>No se pudo abrir</b>${esc(e.message)}<p><a class="btn" href="#hoy">Volver a Hoy</a></p></div>`; }
+  window.scrollTo(0, 0);
+}
+addEventListener('hashchange', route);
+
+// ---------- Hoy ----------
+async function viewHoy() {
+  S.back = '#hoy';
+  S.hoy = await api('GET', 'hoy'); renderNav('hoy');
+  const h = S.hoy;
+  const pend = [];
+  if (h.approvals.length) pend.push(`<div class="blk"><h2>Solicitudes por aprobar <small>${h.approvals.length}</small></h2><div class="list">${h.approvals.map(a => `
+    <div class="r stack"><div class="main"><span class="t">${esc(a.name)}</span><span class="s">${esc(a.program)}${a.pro_type ? ' · ' + esc(a.pro_type) : ''} · ${esc(a.phone)} · ${when(a.created_at)}</span></div>
+      <div class="acts"><select aria-label="Aprobar como" data-appr-prog="${a.id}">${S.boot.programs.filter(p => !p.archived && p.kind !== 'compras').map(p => `<option value="${p.id}"${p.id === a.program_id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+      <button class="btn primary" data-act="approve" data-id="${a.id}">Aprobar</button><button class="btn" data-act="reject" data-id="${a.id}">Rechazar</button></div></div>`).join('')}</div></div>`);
+  if (h.receipts.length) pend.push(`<div class="blk"><h2>Compras por revisar <small>${h.receipts.length}</small></h2><div class="list">${h.receipts.map(r => `
+    <button class="r" data-act="receipt" data-id="${r.id}"><div class="main"><span class="t">${esc(r.name)} · ${money(r.amount)}</span><span class="s">${esc(r.channel_name)} · ${dayShort(r.day)} · subida ${when(r.created_at)}</span></div><span class="chev">›</span></button>`).join('')}</div></div>`);
+  if (h.resend.length) pend.push(`<div class="blk"><h2>Reenviar tarjeta <small>${h.resend.length}</small></h2><div class="list">${h.resend.map(r => `
+    <div class="r stack"><div class="main"><span class="t">Reenviar tarjeta a ${esc(r.name)}</span><span class="s">${esc(r.phone)} · ${r.reason === 'ya_registrado' ? 'intentó registrarse otra vez' : 'perdió su tarjeta'} · ${when(r.created_at)}</span></div>
+      <div class="acts"><a class="btn primary" href="${esc(r.wa)}" target="_blank" rel="noopener" data-act="sent" data-pid="${r.person_id}">WhatsApp</a><button class="btn" data-act="reqdone" data-id="${r.id}">Ya está</button></div></div>`).join('')}</div></div>`);
+  const ann = h.announced, chk = h.checkins;
+  app.innerHTML = `<h1 class="page">Hoy</h1><p class="sub">${cap(dayWords(h.day))}</p>
+  ${(ann.length || h.vip_now.length) ? `<p><button class="btn block" data-act="shift">Copiar para el grupo del turno</button></p>` : ''}
+  ${h.vip_now.length ? `<div class="blk"><h2>VIP aquí ahora</h2><div class="list">${h.vip_now.map(v => `<a class="r" href="#p/${v.person_id}"><div class="main"><span class="t">${esc(v.name)}</span><span class="s">${v.time} · ${v.party_size} pax${v.staff_note ? ' · ' + esc(v.staff_note) : ''}</span>${badges(v.programs)}</div><span class="chev">›</span></a>`).join('')}</div></div>` : ''}
+  ${pend.join('')}
+  <div class="blk"><h2>Avisaron que vienen <small>${ann.length || ''}</small></h2>
+  ${ann.length ? `<div class="list">${ann.map(a => `<div class="r stack"><a class="main" href="#p/${a.person_id}" style="text-decoration:none;color:inherit">
+      <span class="t">${a.time ? esc(a.time) + ' · ' : ''}${esc(a.name)} · ${a.party_size} pax${a.vip ? ' <span class="vip">VIP</span>' : ''}${a.here ? ' <span class="chip ok">Ya llegó</span>' : ''}</span>
+      <span class="s">${a.reservation_name ? 'OpenTable a nombre de ' + esc(a.reservation_name) : 'Sin nombre de reservación'}${a.staff_note ? ' · ' + esc(a.staff_note) : ''}</span>${badges(a.programs)}</a>
+      <div class="acts"><button class="btn sm" data-act="otnote" data-text="${esc(a.opentable)}">Nota para OpenTable</button><a class="btn sm" href="#p/${a.person_id}">Abrir</a></div></div>`).join('')}</div>`
+    : `<div class="empty sm"><b>Nadie ha avisado hoy</b>Los socios avisan desde su tarjeta con “Voy a ir”, o desde aquí al abrir a la persona.</div>`}</div>
+  <div class="blk"><h2>Llegaron hoy <small>${chk.length || ''}</small></h2>
+  ${chk.length ? `<div class="list">${chk.map(v => `<div class="r stack"><a class="main" href="#p/${v.person_id}" style="text-decoration:none;color:inherit">
+      <span class="t">${esc(v.time)} · ${esc(v.name)} · ${v.party_size} pax${v.vip ? ' <span class="vip">VIP</span>' : ''}</span>
+      <span class="s">${v.parrot_check ? 'Cuenta ' + esc(v.parrot_check) + ' · ' : ''}${v.check_total ? money(v.check_total) + ' · ' : ''}${v.discount_total ? 'desc. ' + money(v.discount_total) + ' · ' : ''}${v.brought_by_name ? 'lo trajo ' + esc(v.brought_by_name) + ' · ' : ''}${esc(v.created_by.split('@')[0])}</span>${badges(v.programs)}</a>
+      ${v.can_undo ? `<div class="acts"><button class="btn sm danger" data-act="undo" data-id="${v.id}">Deshacer</button></div>` : ''}</div>`).join('')}</div>`
+    : `<div class="empty sm"><b>Todavía no llega nadie del club</b>Escanea la tarjeta con la cámara o búscala por nombre o teléfono.</div>`}
+  <p><a class="btn block big" href="#buscar">Buscar o escanear una tarjeta</a></p></div>`;
+}
+function shiftText() {
+  const h = S.hoy, lines = [`Club Dos Búhos · ${dayWords(h.day)}`];
+  if (h.announced.length) { lines.push('', 'Avisaron que vienen:'); for (const a of h.announced) lines.push(`• ${a.time ? a.time + ' ' : ''}${a.name} (${a.programs.map(p => p.name).join(', ') || 'Club'}) · ${a.party_size} pax${a.reservation_name ? ' · OpenTable: ' + a.reservation_name : ''}${a.vip ? ' · VIP' : ''}`); }
+  if (h.vip_now.length) { lines.push('', 'VIP aquí ahora:'); for (const v of h.vip_now) lines.push(`• ${v.name} (${v.programs.map(p => p.name).join(', ')}) · ${v.party_size} pax`); }
+  return lines.join('\n');
+}
+
+// ---------- Buscar ----------
+async function viewBuscar() {
+  const canScan = 'BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia;
+  app.innerHTML = `<h1 class="page">Buscar</h1>
+  <label class="search" style="margin-bottom:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input id="q" type="search" placeholder="Nombre o teléfono" autocomplete="off" aria-label="Buscar por nombre o teléfono"></label>
+  ${canScan ? '<p><button class="btn block big" data-act="scan">Escanear tarjeta</button></p>' : '<p class="hint" style="margin:0 0 12px">Para escanear: abre la cámara del teléfono y apunta al código de la tarjeta. Se abre aquí, con lo que aplica.</p>'}
+  <div id="res"><div class="skel"></div></div>`;
+  const q = $('#q'); let t;
+  const run = async () => {
+    const r = await api('GET', 'search?q=' + encodeURIComponent(q.value.trim()));
+    $('#res').innerHTML = r.people.length ? `${q.value.trim() ? '' : '<p class="hint" style="margin:0 0 6px">Recientes</p>'}<div class="list">${r.people.map(p => `<a class="r" href="#p/${p.id}"><div class="main"><span class="t">${esc(p.name)}${p.vip ? ' <span class="vip">VIP</span>' : ''}${p.status !== 'active' ? ' <span class="chip bad">Bloqueada</span>' : ''}</span>
+      <span class="s">${esc(p.phone || 'Sin teléfono')}${p.pending ? ' · solicitud por aprobar' : ''}</span>${badges(p.programs)}</div><span class="chev">›</span></a>`).join('')}</div>`
+      : `<div class="empty sm"><b>${q.value.trim() ? 'Nadie con ese nombre o teléfono' : 'Todavía no hay socios'}</b>${q.value.trim() ? 'Prueba con el apellido o los últimos dígitos del teléfono.' : (isAdmin() ? 'Invita a los primeros desde Invitar.' : 'Cuando alguien se registre aparece aquí.')}</div>`;
+  };
+  q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 200); });
+  S.back = '#buscar';
+  await run(); q.focus({ preventScroll: true });
+}
+async function scan() {
+  const wrap = document.createElement('div'); wrap.className = 'scan';
+  wrap.innerHTML = '<video playsinline muted></video><div class="bar"><button class="btn" type="button">Cancelar</button></div>';
+  document.body.append(wrap);
+  let stream, stop = false;
+  const end = () => { stop = true; stream?.getTracks().forEach(t => t.stop()); wrap.remove(); };
+  $('button', wrap).onclick = end;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const v = $('video', wrap); v.srcObject = stream; await v.play();
+    const det = new BarcodeDetector({ formats: ['qr_code'] });
+    while (!stop) {
+      const codes = await det.detect(v).catch(() => []);
+      const m = codes.map(c => c.rawValue).join(' ').match(/\/c\/([A-Za-z0-9_-]{20,64})/);
+      if (m) { end(); location.hash = '#c/' + m[1]; return; }
+      await new Promise(r => setTimeout(r, 250));
+    }
+  } catch { end(); toast('No se pudo abrir la cámara. Usa la cámara del teléfono o busca por nombre.', true); }
+}
+
+// ---------- Persona ----------
+async function viewPerson(id) {
+  const d = S.person = await api('GET', 'person/' + id);
+  const p = d.person, main = d.programs[0];
+  const usable = d.benefits.filter(b => !(b.kind === 'count_per_year' && b.left <= 0));
+  const usedUp = d.benefits.filter(b => b.kind === 'count_per_year' && b.left <= 0);
+  const restau = d.benefits.find(b => b.applies_to === 'restaurante' && b.kind === 'percent');
+  const annToday = d.announcements.find(a => a.day === S.boot.day);
+  const pendingM = d.memberships.filter(m => m.status === 'pending');
+  const blocked = p.status !== 'active';
+  const pros = S.boot.pros.filter(x => x.id !== p.id);
+  const benLine = b => `<div class="ben"><div class="h">${esc(b.head)}${b.kind === 'percent' && b.applies_to !== 'restaurante' ? '' : ''}</div>
+    ${b.rule ? `<div class="rule">${esc(b.rule)}</div>` : ''}
+    <div class="src">de ${badge({ name: b.program, color: b.color })}${b.others.length ? `<span>también: ${b.others.map(o => esc(o.program) + (o.value != null ? ' ' + o.value + (b.kind === 'percent' ? '%' : '') : '')).join(', ')}</span>` : ''}${b.confirmed ? '' : '<span class="chip conf">por confirmar</span>'}</div></div>`;
+  app.innerHTML = `<p style="margin:0 0 10px"><a class="btn sm" href="${S.back}">‹ ${S.back === '#hoy' ? 'Hoy' : S.back === '#resumen' ? 'Resumen' : S.back === '#novios' ? 'Novios' : 'Buscar'}</a></p>
+  <div class="who" style="--c:${esc(main?.color || '#5d6568')}">${d.vip ? '<span class="vipflag">VIP</span>' : ''}
+    <h1>${esc(p.name)}</h1>
+    <div class="pbs">${d.programs.map(x => `<span class="pb">${esc(x.name)}</span>`).join('')}${pendingM.map(m => `<span class="pb pending">${esc(m.program)} · por aprobar</span>`).join('')}${!d.programs.length && !pendingM.length ? '<span class="pb">Sin programa</span>' : ''}</div>
+    <div class="meta">${esc(p.phone_fmt || 'Sin teléfono')}${p.pro_type_name ? ' · ' + esc(p.pro_type_name) : ''}${p.wedding_date ? ' · boda ' + dayShort(p.wedding_date) : ''}${d.level ? ` · ${money(d.spend)} en 12 meses` : ''}</div></div>
+  <div class="snote" id="noteBox"><b>Nota del equipo</b><span id="noteTxt">${p.staff_note ? esc(p.staff_note) : '<span class="muted">Sin nota. Alergias, mesa preferida, a quién avisar…</span>'}</span>
+    <div style="margin-top:6px"><button class="btn sm" data-act="note">Editar nota</button></div></div>
+  ${blocked ? '<div class="warnbox" style="margin-top:12px">Tarjeta bloqueada: no apliques beneficios.</div>' : ''}
+  ${pendingM.length && !d.programs.length ? '<div class="warnbox" style="margin-top:12px">Solicitud por aprobar: todavía no tiene beneficios.</div>' : ''}
+  ${annToday ? `<div class="rulebox" style="margin-top:12px">Avisó que viene hoy${annToday.time ? ' a las ' + esc(annToday.time) : ''} · ${annToday.party_size} pax${annToday.reservation_name ? ' · OpenTable: ' + esc(annToday.reservation_name) : ''}</div>` : ''}
+
+  <div class="blk" style="margin-top:18px"><h2>Aplica hoy</h2>
+    ${usable.length ? `<div class="list">${usable.map(benLine).join('')}</div>` : `<div class="empty sm"><b>Sin beneficios activos</b>${blocked ? 'La tarjeta está bloqueada.' : 'No hay beneficios encendidos para sus programas.'}</div>`}
+    ${usedUp.length ? `<p class="hint">Ya usado este año: ${usedUp.map(b => esc(b.name)).join(', ')}.</p>` : ''}</div>
+
+  ${blocked || !d.benefits.length ? '' : `<div class="blk"><h2>Registrar visita</h2>
+  <form class="f panel" id="visit">
+    ${d.visit_today ? '<div class="warnbox">Ya hay una visita registrada hoy. Una cuenta por visita.</div>' : ''}
+    <div class="field"><span>Personas en la mesa (con el socio)</span>${stepper('party_size', annToday?.party_size || 2, 1, 40)}</div>
+    <div class="field"><span>Beneficios que usó</span><div class="list" id="bens">${usable.map(b => `<label class="tick"><input type="checkbox" name="b" value="${b.benefit_id}"${restau && b.benefit_id === restau.benefit_id ? ' checked' : ''}><div class="main"><div class="t">${esc(b.head)}</div><div class="s">de ${esc(b.program)}</div>
+      ${b.kind === 'count_per_year' ? `<div class="qty hide" data-qty="${b.benefit_id}"><span class="s">¿Cuántas personas? (quedan ${b.left})</span>${stepper('q_' + b.benefit_id, Math.min(b.left, annToday?.party_size || 2), 1, b.left)}</div>` : ''}</div></label>`).join('')}</div></div>
+    ${restau ? `<div class="rulebox" id="rule"><b>${esc(restau.head)}</b><br>${esc(restau.rule)}</div><div class="warnbox hide" id="guestwarn"></div>` : ''}
+    <div class="field"><span>Cuenta de Parrot (número)</span><input name="parrot_check" inputmode="text" autocomplete="off" placeholder="Ej. 1042"></div>
+    <div class="two"><div class="field"><span>Total de la cuenta</span><input name="check_total" inputmode="decimal" placeholder="$0"></div>
+      <div class="field"><span>Descuento dado</span><input name="discount_total" inputmode="decimal" placeholder="$0"></div></div>
+    <p class="hint" id="sugg" style="margin-top:-4px"></p>
+    ${pros.length ? `<div class="field"><span>Lo trajo (opcional)</span><select name="brought_by"><option value="">Nadie</option>${pros.map(x => `<option value="${x.id}">${esc(x.name)}${x.pro_type ? ' · ' + esc(x.pro_type) : ''}</option>`).join('')}</select></div>` : ''}
+    <div class="field"><span>Nota (opcional)</span><input name="note" maxlength="300" autocomplete="off"></div>
+    <button class="btn primary block big" type="submit">Registrar visita</button>
+  </form></div>`}
+
+  <div class="blk"><div class="acts">
+    <button class="btn" data-act="otnote" data-text="${esc(d.opentable)}">Nota para OpenTable</button>
+    ${d.wa ? `<a class="btn" href="${esc(d.wa)}" target="_blank" rel="noopener" data-act="sent" data-pid="${p.id}">Mandar tarjeta por WhatsApp</a>` : `<button class="btn" data-act="copycard" data-text="${esc(d.card_text)}">Copiar mensaje con la tarjeta</button>`}
+  </div>${p.card_sent_at ? `<p class="hint">Tarjeta enviada ${when(p.card_sent_at)}.</p>` : ''}</div>
+
+  <details class="box"><summary>Avisar visita <small>Voy a ir</small></summary><div class="in"><form class="f" id="ann">
+    <div class="two"><div class="field"><span>Día</span><input type="date" name="day" value="${S.boot.day}" min="${S.boot.day}"></div><div class="field"><span>Hora</span><input type="time" name="time" step="900"></div></div>
+    <div class="field"><span>Personas</span>${stepper('party_size', 2, 1, 40)}</div>
+    <div class="field"><span>Reservación de OpenTable a nombre de</span><input name="reservation_name" value="${esc(p.name)}"></div>
+    <button class="btn primary block" type="submit">Guardar aviso</button></form></div></details>
+
+  <details class="box"><summary>Nivel y compras <small>${d.level ? esc(d.level.name) + ' · ' + money(d.spend) : 'sin compras'}</small></summary><div class="in">
+    <p style="margin:0 0 8px">${money(d.spend)} en los últimos 12 meses${d.spend_estimated ? ` (${money(d.spend_estimated)} de suscripción estimado)` : ''}.${d.level ? ` Nivel actual: <b>${esc(d.level.name)}</b>${d.manual_level ? ' (puesto a mano)' : d.by_subscription ? ` (por su suscripción: ${money(d.commitment)} al año)` : ''}.` : ''}${d.next ? ` Le faltan ${money(d.next.missing)} para ${esc(d.next.name)}.` : ''}</p>
+    ${[...d.purchases.map(x => ({ day: x.day, t: `${money(x.amount)} · ${S.boot.channels[x.channel] || x.channel}`, s: x.status === 'pending' ? 'por revisar' : x.status === 'approved' ? (x.source === 'guest' ? 'ticket aprobado' : 'registrada por el equipo') : 'rechazada' })),
+       ...d.charges.map(x => ({ day: x.day, t: `${money(x.amount)} · Suscripción`, s: x.estimated ? 'estimado' : 'cobro del Círculo' }))].sort((a, b) => b.day.localeCompare(a.day)).slice(0, 15)
+       .map(x => `<div class="r"><div class="main"><span class="t">${esc(x.t)}</span><span class="s">${dayShort(x.day)} · ${esc(x.s)}</span></div></div>`).join('') || '<p class="hint">Sin compras fuera de visitas.</p>'}
+    <form class="f" id="buy" style="margin-top:12px"><b>Sumar una compra</b>
+      <div class="two"><div class="field"><span>Monto</span><input name="amount" inputmode="decimal" placeholder="$0" required></div><div class="field"><span>Fecha</span><input type="date" name="day" value="${S.boot.day}" max="${S.boot.day}"></div></div>
+      <div class="field"><span>Dónde</span><select name="channel">${['tienda', 'en_linea', 'restaurante', 'experiencias', 'punto_externo'].map(k => `<option value="${k}">${esc(S.boot.channels[k])}</option>`).join('')}</select></div>
+      <div class="field"><span>Nota (número de ticket, lugar)</span><input name="note" maxlength="300"></div>
+      <button class="btn block" type="submit">Sumar compra</button></form></div></details>
+
+  <details class="box"><summary>Historial <small>${d.visits.filter(v => !v.undone_at).length} visitas</small></summary><div class="in">
+    ${d.brought ? `<p class="rulebox" style="margin:0 0 10px">Ha traído ${d.brought.people} personas en ${d.brought.visits} visitas · ${money(d.brought.spend)}.</p>` : ''}
+    ${d.visits.length ? d.visits.map(v => `<div class="r stack"><div class="main"><span class="t">${dayShort(v.day)} ${esc(v.time)} · ${v.party_size} pax${v.check_total ? ' · ' + money(v.check_total) : ''}${v.undone_at ? ' <span class="chip">deshecha</span>' : ''}</span>
+      <span class="s">${v.benefits.map(b => esc(b.name) + (b.qty > 1 ? ' ×' + b.qty : '')).join(', ') || 'Sin beneficios'}${v.discount_total ? ' · desc. ' + money(v.discount_total) : ''}${v.parrot_check ? ' · cuenta ' + esc(v.parrot_check) : ''}${v.brought_by_name ? ' · lo trajo ' + esc(v.brought_by_name) : ''}${v.note ? ' · ' + esc(v.note) : ''} · ${esc(v.created_by.split('@')[0])}</span></div>
+      ${v.can_undo ? `<div class="acts"><button class="btn sm danger" data-act="undo" data-id="${v.id}">Deshacer</button></div>` : ''}</div>`).join('') : '<p class="hint">Sin visitas registradas.</p>'}
+    ${d.moves.length ? `<p class="hint" style="margin-top:12px"><b>Cambios</b></p>${d.moves.map(x => `<div class="r"><div class="main"><span class="s">${when(x.at)} · ${esc(moveWords(x))}</span></div></div>`).join('')}` : ''}
+  </div></details>
+
+  ${isAdmin() ? adminPerson(d) : ''}
+  <p class="hint" style="margin-top:16px"><a href="${esc(p.card_url)}?invitado=1" target="_blank" rel="noopener">Ver la tarjeta como la ve el socio</a></p>`;
+  bindPerson(d);
+}
+function moveWords(x) {
+  const n = id => P(id)?.name || id, dt = x.detail || {};
+  if (x.action === 'person.move') return `${x.actor.split('@')[0]}: ${dt.from ? n(dt.from) : '—'} → ${dt.to ? n(dt.to) : 'fuera'} · ${dt.reason || ''}`;
+  if (x.action === 'membership.approve') return `${x.actor.split('@')[0]} aprobó ${n(dt.program)}`;
+  if (x.action === 'membership.reject') return `${x.actor.split('@')[0]} rechazó ${n(dt.asked)}`;
+  if (x.action === 'signup') return `Se registró en ${n(dt.program)}${dt.status === 'pending' ? ' (por aprobar)' : ''}`;
+  if (x.action === 'signup.existing') return `Intentó registrarse otra vez (${n(dt.program)})`;
+  if (x.action === 'card.newcode') return `${x.actor.split('@')[0]} cambió el código de la tarjeta`;
+  return x.action;
+}
+function adminPerson(d) {
+  const p = d.person, live = d.memberships;
+  const opts = S.boot.programs.filter(x => !x.archived);
+  return `<details class="box"><summary>Programas <small>administrar</small></summary><div class="in">
+    ${live.length ? live.map(m => `<div class="r"><div class="main"><span class="t">${badge({ name: m.program, color: m.color }, m.status === 'pending')}</span><span class="s">${m.source === 'wineclub' ? 'del club de vinos' : m.source === 'invite' ? 'por invitación' : m.source === 'novios' ? 'novios' : 'puesto a mano'}</span></div></div>`).join('') : '<p class="hint">Sin programas por invitación; su nivel sale de sus compras.</p>'}
+    <form class="f" id="move" style="margin-top:12px"><b>Mover de programa</b>
+      <div class="field"><span>Quitar de</span><select name="from_program"><option value="">— Nada (solo agregar) —</option>${live.map(m => `<option value="${m.program_id}">${esc(m.program)}</option>`).join('')}</select></div>
+      <div class="field"><span>Agregar a</span><select name="to_program"><option value="">— Nada (solo quitar) —</option>${opts.map(x => `<option value="${x.id}">${esc(x.name)}${x.kind === 'compras' ? ' (nivel mínimo a mano)' : ''}</option>`).join('')}</select></div>
+      <div class="field"><span>Motivo (queda registrado)</span><input name="reason" required maxlength="300" placeholder="Ej. Trajo 3 bodas en 2026"></div>
+      <button class="btn primary block" type="submit">Guardar cambio</button></form></div></details>
+  <details class="box"><summary>Datos <small>administrar</small></summary><div class="in"><form class="f" id="pdata">
+    <div class="field"><span>Nombre</span><input name="name" value="${esc(p.name)}" required></div>
+    <div class="two"><div class="field"><span>WhatsApp</span><input name="phone" type="tel" value="${esc(p.phone_fmt)}"></div><div class="field"><span>Correo</span><input name="email" type="email" value="${esc(p.email)}"></div></div>
+    <div class="two"><div class="field"><span>Se dedica a</span><select name="pro_type"><option value="">—</option>${Object.entries(S.boot.pro_types).map(([k, t]) => `<option value="${k}"${p.pro_type === k ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+      <div class="field"><span>Fecha de boda</span><input type="date" name="wedding_date" value="${esc(p.wedding_date)}"></div></div>
+    <label class="switch"><input type="checkbox" name="vip"${p.vip ? ' checked' : ''}> VIP (aparece en “VIP aquí ahora”)</label>
+    <label class="switch"><input type="checkbox" name="blocked"${p.status !== 'active' ? ' checked' : ''}> Tarjeta bloqueada</label>
+    <button class="btn primary block" type="submit">Guardar datos</button>
+    <button class="btn block danger" type="button" data-act="newcode">Cambiar el código de la tarjeta</button>
+    <p class="hint">Cambia el código si el enlace llegó a otra persona: el anterior deja de funcionar.</p></form></div></details>`;
+}
+function bindPerson(d) {
+  const p = d.person;
+  const vf = $('#visit');
+  if (vf) {
+    const restau = d.benefits.find(b => b.applies_to === 'restaurante' && b.kind === 'percent');
+    let touched = false;
+    const upd = () => {
+      for (const c of $$('input[name=b]', vf)) { const q = $(`[data-qty="${c.value}"]`, vf); if (q) q.classList.toggle('hide', !c.checked); }
+      const party = +vf.party_size.value, rOn = restau && $(`input[name=b][value="${restau.benefit_id}"]`, vf)?.checked;
+      const gw = $('#guestwarn');
+      if (gw) { const over = rOn && restau.max_guests != null && party > restau.max_guests + 1; gw.classList.toggle('hide', !over); gw.textContent = over ? `El descuento cubre al socio y hasta ${restau.max_guests} acompañantes (${restau.max_guests + 1} personas). Mesa de ${party}: pide cuenta aparte o aplica solo a su parte.` : ''; }
+      const total = num(vf.check_total.value);
+      const sug = rOn && total ? Math.round(restau.value * total) / 100 : 0;
+      $('#sugg').textContent = sug ? `Sugerido: ${money(sug)} (${restau.value}% de ${money(total)})` : '';
+      if (!touched) vf.discount_total.value = sug ? String(sug) : '';
+    };
+    vf.addEventListener('change', upd); vf.check_total.addEventListener('input', upd);
+    vf.discount_total.addEventListener('input', () => { touched = true; });
+    upd();
+    vf.addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const benefits = $$('input[name=b]:checked', vf).map(c => ({ benefit_id: c.value, qty: vf['q_' + c.value] ? +vf['q_' + c.value].value : undefined }));
+      const btn = $('button[type=submit]', vf); btn.disabled = true;
+      try {
+        const r = await api('POST', `person/${p.id}/visit`, { party_size: +vf.party_size.value, benefits, parrot_check: vf.parrot_check.value, check_total: num(vf.check_total.value), discount_total: num(vf.discount_total.value), brought_by: vf.brought_by?.value || null, note: vf.note.value });
+        await viewPerson(p.id);
+        toast('Visita registrada', false, { label: 'Deshacer', run: () => undo(r.id) });
+      } catch (e) { toast(e.message, true); btn.disabled = false; }
+    });
+  }
+  const af = $('#ann');
+  af?.addEventListener('submit', async ev => { ev.preventDefault(); try { await api('POST', `person/${p.id}/announce`, { day: af.day.value, time: af.time.value, party_size: +af.party_size.value, reservation_name: af.reservation_name.value }); toast('Aviso guardado: sale en Hoy'); viewPerson(p.id); } catch (e) { toast(e.message, true); } });
+  const bf = $('#buy');
+  bf?.addEventListener('submit', async ev => { ev.preventDefault(); try { await api('POST', `person/${p.id}/purchase`, { amount: num(bf.amount.value), day: bf.day.value, channel: bf.channel.value, note: bf.note.value }); toast('Compra sumada'); viewPerson(p.id); } catch (e) { toast(e.message, true); } });
+  const mf = $('#move');
+  mf?.addEventListener('submit', async ev => { ev.preventDefault(); try { await api('POST', `person/${p.id}/move`, { from_program: mf.from_program.value, to_program: mf.to_program.value, reason: mf.reason.value }); toast('Cambio guardado'); S.boot = await api('GET', 'boot'); viewPerson(p.id); } catch (e) { toast(e.message, true); } });
+  const df = $('#pdata');
+  df?.addEventListener('submit', async ev => { ev.preventDefault(); try { await api('PATCH', `person/${p.id}`, { name: df.name.value, phone: df.phone.value, email: df.email.value, pro_type: df.pro_type.value, wedding_date: df.wedding_date.value, vip: df.vip.checked, status: df.blocked.checked ? 'blocked' : 'active' }); toast('Datos guardados'); viewPerson(p.id); } catch (e) { toast(e.message, true); } });
+}
+async function undo(id) {
+  try { await api('POST', `visit/${id}/undo`); toast('Visita deshecha'); route(); } catch (e) { toast(e.message, true); }
+}
+
+// ---------- Invitar ----------
+async function viewInvitar() {
+  S.back = '#invitar';
+  const r = await api('GET', 'invites');
+  const progs = S.boot.programs.filter(p => !p.archived);
+  const groups = [['invitacion', 'Por invitación'], ['fundadores', 'Fundadores'], ['compras', 'Por compras']];
+  const sel = S.invProg || 'amigos';
+  app.innerHTML = `<h1 class="page">Invitar</h1><p class="sub">Una invitación personal (nombre y WhatsApp) o un enlace para varios. Se registran en un minuto y reciben su tarjeta.</p>
+  <form class="f panel" id="inv">
+    <div class="field"><span>Programa</span><select name="program_id">${groups.map(([k, t]) => `<optgroup label="${t}">${progs.filter(p => p.kind === k).map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select></div>
+    <div class="seg two-up" role="group" aria-label="Tipo de invitación"><button type="button" data-kind="personal" aria-pressed="${S.invKind !== 'link'}">Personal</button><button type="button" data-kind="link" aria-pressed="${S.invKind === 'link'}">Enlace para varios</button></div>
+    <div id="kPersonal" class="f${S.invKind === 'link' ? ' hide' : ''}">
+      <div class="field"><span>Nombre</span><input name="name" maxlength="80" autocomplete="off" placeholder="Ej. Tía Carmen"></div>
+      <div class="field"><span>WhatsApp</span><input name="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="415 123 4567"></div>
+      <div class="field"><span>Correo (opcional)</span><input name="email" type="email" autocomplete="off"></div></div>
+    <div id="kLink" class="f${S.invKind === 'link' ? '' : ' hide'}">
+      <div class="field"><span>Nombre del enlace (solo lo ves tú)</span><input name="label" maxlength="80" placeholder="Ej. Industria 2026"></div>
+      <div class="field"><span>¿Cuántas personas pueden usarlo? (vacío = sin límite)</span><input name="max_uses" inputmode="numeric" placeholder="Sin límite"></div></div>
+    <div class="field"><span>Vence</span><select name="expires_days"><option value="">Nunca</option><option value="7">En 7 días</option><option value="30">En 30 días</option><option value="90">En 90 días</option><option value="365">En un año</option></select></div>
+    <label class="switch"><input type="checkbox" name="requires_approval"${P(sel)?.requires_approval ? ' checked' : ''}> Requiere aprobación antes de dar beneficios</label>
+    <button class="btn primary block big" type="submit">Crear invitación</button>
+  </form>
+  <div id="shareBox">${S.lastInvite ? shareHtml(S.lastInvite) : ''}</div>
+  <p style="margin:14px 0 0"><a class="btn block" href="#novios">Agregar novios en lote</a></p>
+  <div class="blk" style="margin-top:20px"><h2>Invitaciones <small>${r.invites.length || ''}</small></h2>
+  ${r.invites.length ? `<div class="list">${r.invites.map(i => `<div class="r stack"><div class="main">
+      <span class="t">${badge({ name: i.program, color: P(i.program_id)?.color })} ${esc(i.kind === 'personal' ? i.name : (i.label || 'Enlace sin nombre'))}</span>
+      <span class="s">${i.kind === 'personal' ? 'Personal' + (i.phone ? ' · ' + esc(i.phone) : '') + (i.uses ? ' · ya se registró' : ' · sin usar') : 'Enlace · ' + i.uses + (i.max_uses ? ' de ' + i.max_uses : '') + (i.uses === 1 ? ' uso' : ' usos')}${i.expires_at ? ' · vence ' + when(i.expires_at) : ''}${i.requires_approval ? ' · con aprobación' : ''}${i.active ? '' : ' · <b>' + esc(i.revoked ? 'cancelada' : i.max_uses && i.uses >= i.max_uses ? 'usada' : 'vencida') + '</b>'}</span></div>
+      ${i.active ? `<div class="acts"><a class="btn sm" href="${esc(i.wa)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn sm" data-act="copy" data-text="${esc(i.url)}">Copiar</button><a class="btn sm" href="/club/print/${i.id}">QR</a><button class="btn sm danger" data-act="revoke" data-id="${i.id}">Cancelar</button></div>` : ''}</div>`).join('')}</div>`
+    : '<div class="empty sm"><b>Aún no hay invitaciones</b>Crea la primera arriba.</div>'}</div>`;
+  const f = $('#inv');
+  $$('[data-kind]', f).forEach(b => b.onclick = () => { S.invKind = b.dataset.kind; $$('[data-kind]', f).forEach(x => x.setAttribute('aria-pressed', x === b)); $('#kPersonal').classList.toggle('hide', S.invKind === 'link'); $('#kLink').classList.toggle('hide', S.invKind !== 'link'); });
+  f.program_id.onchange = () => { S.invProg = f.program_id.value; f.requires_approval.checked = !!P(f.program_id.value)?.requires_approval; };
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    const kind = S.invKind === 'link' ? 'link' : 'personal';
+    try {
+      const r = await api('POST', 'invites', { program_id: f.program_id.value, kind, name: f.name.value, phone: f.phone.value, email: f.email.value, label: f.label.value, max_uses: f.max_uses.value, expires_days: f.expires_days.value, requires_approval: f.requires_approval.checked });
+      S.invProg = f.program_id.value; S.lastInvite = r.invite;
+      await viewInvitar();
+      $('#shareBox').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } catch (e) { toast(e.message, true); }
+  };
+}
+function shareHtml(i) {
+  return `<div class="share" style="margin-top:14px"><b style="display:block;margin-bottom:8px">Listo: invitación ${i.kind === 'personal' ? 'para ' + esc(i.name) : esc(i.label || 'para varios')}</b>
+    <pre>${esc(i.text)}</pre>
+    <a class="btn primary block big" href="${esc(i.wa)}" target="_blank" rel="noopener">Mandar por WhatsApp</a>
+    <div class="acts" style="margin-top:8px"><a class="btn" href="${esc(i.mailto)}">Correo</a><button class="btn" data-act="copy" data-text="${esc(i.url)}">Copiar enlace</button><a class="btn" href="/club/print/${i.id}">QR para imprimir</a></div>
+    ${i.kind === 'personal' ? '<button class="btn block" style="margin-top:8px" data-act="nextinv">Invitar a otra persona</button>' : ''}</div>`;
+}
+
+// ---------- Novios ----------
+async function viewNovios() {
+  S.back = '#novios';
+  const r = await api('GET', 'novios');
+  const pending = r.people.filter(x => !x.card_sent_at).length;
+  app.innerHTML = `<p style="margin:0 0 10px"><a class="btn sm" href="#invitar">‹ Invitar</a></p><h1 class="page">Novios</h1><p class="sub">Socios de por vida. Pega las parejas que ya se casaron aquí y mándales su tarjeta.</p>
+  <details class="box"${r.people.length ? '' : ' open'}><summary>Agregar parejas <small>pegar lista</small></summary><div class="in"><form class="f" id="nv">
+    <div class="field"><span>Una pareja por renglón: nombre, teléfono, correo, fecha de boda</span><textarea name="text" rows="6" placeholder="Ana y Luis Pérez, 415 123 4567, ana@correo.com, 17/05/2025"></textarea></div>
+    <div id="nvprev"></div>
+    <div class="acts"><button class="btn" type="button" data-act="nvprev">Revisar</button><button class="btn primary" type="submit">Agregar</button></div></form></div></details>
+  <div class="blk" style="margin-top:18px"><h2>Mandar tarjetas <small>${pending ? pending + ' por mandar' : 'todas enviadas'}</small></h2>
+  ${r.people.length ? `<div class="list">${r.people.map(x => `<div class="r"><div class="main"><a class="t" href="#p/${x.id}" style="color:inherit">${esc(x.name)}</a><span class="s">${esc(x.phone_fmt || x.email || 'Sin contacto')}${x.wedding_date ? ' · boda ' + dayShort(x.wedding_date) : ''}${x.card_sent_at ? ' · enviada ' + when(x.card_sent_at) : ''}</span></div>
+      <div class="end">${x.wa ? `<a class="btn sm${x.card_sent_at ? '' : ' primary'}" href="${esc(x.wa)}" target="_blank" rel="noopener" data-act="sent" data-pid="${x.id}" data-reload="1">${x.card_sent_at ? 'Otra vez' : 'Mandar'}</a>` : `<button class="btn sm" data-act="copy" data-text="${esc(x.card_url)}">Copiar</button>`}</div></div>`).join('')}</div>`
+    : '<div class="empty sm"><b>Todavía no hay novios</b>Pega la lista arriba.</div>'}</div>`;
+  const f = $('#nv');
+  f.onsubmit = async ev => { ev.preventDefault(); try { const x = await api('POST', 'novios', { text: f.text.value }); toast(`${x.created} nuevas, ${x.existing} ya estaban${x.errors.length ? ', ' + x.errors.length + ' con error' : ''}`); viewNovios(); } catch (e) { toast(e.message, true); } };
+}
+
+// ---------- Resumen ----------
+async function viewResumen() {
+  S.back = '#resumen';
+  const r = await api('GET', 'resumen');
+  const t = r.totals, maxSpend = Math.max(1, ...r.programs.map(p => p.spend)), maxPeople = Math.max(1, ...r.programs.map(p => p.members));
+  app.innerHTML = `<h1 class="page">Resumen</h1><p class="sub">Últimos 12 meses (desde ${dayShort(r.since)}). Compras = visitas pagadas + tickets aprobados + suscripción.</p>
+  <div class="tiles blk">
+    <div class="tile"><span class="label">Socios</span><span class="value">${nf.format(t.people)}</span></div>
+    <div class="tile"><span class="label">Activos 90 días</span><span class="value">${nf.format(t.active90)}</span></div>
+    <div class="tile"><span class="label">Visitas</span><span class="value">${nf.format(t.visits)}</span></div>
+    <div class="tile"><span class="label">Compras</span><span class="value">${money(t.spend)}</span></div>
+    <div class="tile wide"><span class="label">Descuento dado (costo)</span><span class="value">${money(t.discount)}</span></div></div>
+  <div class="blk"><h2>Por programa</h2>${r.programs.map(p => `<div class="prog" style="--c:${esc(p.color)}">
+    <div class="top"><b>${esc(p.name)}</b><span class="muted">${p.members} ${p.members === 1 ? 'socio' : 'socios'} · ${p.active90} activos</span></div>
+    <div class="metric"><span>Socios</span><span class="num">${p.members}</span><span class="bar"><i style="width:${100 * p.members / maxPeople}%"></i></span></div>
+    <div class="metric"><span>Compras</span><span class="num">${money(p.spend)}</span><span class="bar"><i style="width:${100 * p.spend / maxSpend}%"></i></span></div>
+    <div class="metric"><span>Visitas · descuento dado</span><span class="num">${p.visits} · ${money(p.discount)}</span></div>
+    ${p.top.length ? `<details class="box" style="margin-top:10px"><summary>Principales socios</summary><div class="in" style="padding:0">${p.top.map(x => `<a class="r" href="#p/${x.id}"><div class="main"><span class="t">${esc(x.name)}</span><span class="s">${money(x.spend)} · ${x.visits} visitas</span></div><span class="chev">›</span></a>`).join('')}</div></details>` : ''}
+  </div>`).join('')}</div>
+  <div class="blk"><h2>Profesionales <small>hito cada ${r.milestone_every} personas</small></h2>
+  ${r.pros.length ? `<div class="list">${r.pros.map(x => `<a class="r" href="#p/${x.id}"><div class="main"><span class="t">${esc(x.name)} ${x.milestone.reached ? `<span class="chip milestone">Hito: ${x.milestone.last} personas</span>` : ''}</span>
+      <span class="s">${x.people} personas en ${x.visits} visitas · ${money(x.spend)} · faltan ${x.milestone.toNext} para ${x.milestone.next}${x.last12.people !== x.people ? ` · 12 meses: ${x.last12.people}` : ''}</span>
+      <div class="metric" style="margin-top:2px;--c:${esc(x.programs[0]?.color || '')}"><span class="bar"><i style="width:${Math.min(100, 100 * (x.people - x.milestone.last) / r.milestone_every)}%"></i></span></div>${badges(x.programs)}</div><span class="chev">›</span></a>`).join('')}</div>`
+    : '<div class="empty sm"><b>Sin profesionales todavía</b>Invítalos desde Invitar (Profesionales 1, 2 o 3). Al registrar una visita, elige “Lo trajo”.</div>'}</div>`;
+}
+
+// ---------- Programas (admin) ----------
+const desk = matchMedia('(min-width: 900px)');
+desk.addEventListener('change', () => { if (location.hash === '#programas') viewProgramas(); });
+const cellOf = (pid, bid) => S.boot.cells.find(c => c.program_id === pid && c.benefit_id === bid) || { program_id: pid, benefit_id: bid, enabled: 0, value: null, text_value: '', max_guests: null, note: '', confirmed: 0 };
+const kindWords = { percent: '%', count_per_year: 'al año', yes_no: 'sí / no', amount: '$', text: 'texto' };
+const whereWords = { restaurante: 'Restaurante', tienda: 'Tienda / en línea', experiencias: 'Experiencias', eventos: 'Eventos' };
+async function viewProgramas() {
+  S.boot = await api('GET', 'boot');
+  const progs = S.boot.programs.filter(p => !p.archived), bens = S.boot.benefits.filter(b => !b.archived);
+  if (!S.progSel || !P(S.progSel) || P(S.progSel).archived) S.progSel = progs[0]?.id;
+  const sync = S.boot.config.last_sync;
+  const unconf = S.boot.cells.filter(c => c.enabled && !c.confirmed).length;
+  const matrix = desk.matches ? `<div class="gridwrap"><table class="grid"><thead><tr><th>Beneficio</th>${progs.map(p => `<th style="--c:${esc(p.color)}"><button data-act="editprog" data-id="${p.id}"><span class="bar"></span>${esc(p.name)}<small>${p.kind === 'compras' ? 'desde ' + money(p.threshold_mxn) : p.kind === 'fundadores' ? 'Círculo' : 'invitación'}</small></button></th>`).join('')}</tr></thead>
+    <tbody>${bens.map(b => `<tr><th>${esc(b.name)}<small>${kindWords[b.kind]} · ${whereWords[b.applies_to]}</small></th>${progs.map(p => gridCell(p, b)).join('')}</tr>`).join('')}</tbody></table></div>`
+    : `<div class="picker" role="group" aria-label="Programa">${progs.map(p => `<button type="button" style="--c:${esc(p.color)}" data-act="pick" data-id="${p.id}" aria-pressed="${p.id === S.progSel}"><i></i>${esc(p.name)}</button>`).join('')}</div>
+    ${(() => { const p = P(S.progSel); return `<div class="between" style="margin:0 0 8px"><b style="font:var(--w-display) 22px var(--f-display)">${esc(p.name)}</b><button class="btn sm" data-act="editprog" data-id="${p.id}">Editar programa</button></div>
+      <p class="hint" style="margin:-4px 0 8px">${p.kind === 'compras' ? `Automático desde ${money(p.threshold_mxn)} en 12 meses` : p.kind === 'fundadores' ? 'Socios fundadores del Círculo (del club de vinos)' : 'Por invitación'}${p.requires_approval ? ' · requiere aprobación' : ''}${p.vip ? ' · VIP' : ''}</p>
+      <div class="list">${bens.map(b => listCell(p, b)).join('')}</div>`; })()}`;
+  app.innerHTML = `<h1 class="page">Programas y beneficios</h1><p class="sub">Programas en columnas, beneficios en renglones. Cada cambio queda registrado. ${unconf ? `<span class="chip conf">${unconf} por confirmar</span>` : ''}</p>
+  ${matrix}
+  <details class="box" style="margin-top:20px"><summary>Programas <small>${S.boot.programs.length}</small></summary><div class="in"><div class="list">${S.boot.programs.map(p => `<button class="r" data-act="editprog" data-id="${p.id}"><div class="main"><span class="t">${badge(p)}${p.archived ? ' <span class="chip">archivado</span>' : ''}</span><span class="s">${p.kind === 'compras' ? 'Por compras · desde ' + money(p.threshold_mxn) : p.kind === 'fundadores' ? 'Fundadores' : 'Por invitación'}${p.is_pro ? ' · profesionales' : ''}${p.vip ? ' · VIP' : ''}${p.requires_approval ? ' · con aprobación' : ''}</span></div><span class="chev">›</span></button>`).join('')}</div>
+    <details class="box" style="margin-top:10px"><summary>Nuevo programa</summary><div class="in"><form class="f" id="np">
+      <div class="field"><span>Nombre</span><input name="name" required maxlength="60"></div>
+      <div class="two"><div class="field"><span>Tipo</span><select name="kind"><option value="invitacion">Por invitación</option><option value="compras">Por compras</option></select></div><div class="field"><span>Color</span><input type="color" name="color" value="#6b2737"></div></div>
+      <div class="field"><span>Monto mínimo en 12 meses (solo por compras)</span><input name="threshold_mxn" inputmode="numeric"></div>
+      <label class="switch"><input type="checkbox" name="is_pro"> Es de profesionales (pueden traer gente)</label>
+      <label class="switch"><input type="checkbox" name="requires_approval"> Requiere aprobación</label>
+      <button class="btn primary block" type="submit">Crear programa</button></form></div></details></div></details>
+  <details class="box"><summary>Catálogo de beneficios <small>${S.boot.benefits.length}</small></summary><div class="in"><div class="list">${S.boot.benefits.map(b => `<button class="r" data-act="editben" data-id="${b.id}"><div class="main"><span class="t">${esc(b.name)}${b.archived ? ' <span class="chip">archivado</span>' : ''}</span><span class="s">${kindWords[b.kind]} · ${whereWords[b.applies_to]}${b.rules ? ' · ' + esc(b.rules.replace('{g}', 'N')) : ''}</span></div><span class="chev">›</span></button>`).join('')}</div>
+    <details class="box" style="margin-top:10px"><summary>Nuevo beneficio</summary><div class="in"><form class="f" id="nb">
+      <div class="field"><span>Nombre</span><input name="name" required maxlength="80"></div>
+      <div class="two"><div class="field"><span>Tipo</span><select name="kind">${Object.entries({ percent: 'Porcentaje', count_per_year: 'Veces al año', yes_no: 'Sí / no', amount: 'Monto $', text: 'Texto' }).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></div>
+        <div class="field"><span>Dónde aplica</span><select name="applies_to">${Object.entries(whereWords).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></div></div>
+      <div class="field"><span>Regla para el equipo</span><input name="rules" maxlength="300"></div>
+      <button class="btn primary block" type="submit">Crear beneficio</button></form></div></details></div></details>
+  <div class="blk" style="margin-top:20px"><h2>Ajustes</h2>
+    <form class="f panel" id="cfg"><div class="field"><span>Profesionales: un hito cada cuántas personas traídas</span><input name="milestone_every" inputmode="numeric" value="${S.boot.config.milestone_every}"></div><button class="btn block" type="submit">Guardar</button></form>
+    <div class="panel" style="margin-top:10px"><b>Club de vinos</b><p class="hint">${S.boot.wineclub ? (sync ? `Última sincronización ${when(sync.at)}: ${sync.members} socios del Círculo, ${sync.founders} fundadores, ${sync.charges} cobros${sync.estimated ? ` (${sync.estimated} estimados)` : ''}.` : 'Aún no se sincroniza. Corre cada hora.') : 'Sin conexión a la base del club de vinos.'}</p>
+      ${S.boot.wineclub ? '<button class="btn block" data-act="sync">Sincronizar ahora</button>' : ''}</div>
+    <details class="box" style="margin-top:10px"><summary>Actividad <small>últimos 100 cambios</small></summary><div class="in" id="audit"><button class="btn block" data-act="audit">Ver actividad</button></div></details></div>`;
+  bindProgramas();
+}
+function valInput(b, c, cls = '') {
+  if (b.kind === 'yes_no') return '';
+  if (b.kind === 'text') return `<input class="v t ${cls}" data-f="text_value" value="${esc(c.text_value)}" title="${esc(c.text_value)}" placeholder="Ej. Cata vertical" aria-label="${esc(b.name)}">`;
+  return `<input class="v ${cls}" data-f="value" inputmode="decimal" value="${c.value ?? ''}" placeholder="${b.kind === 'percent' ? '%' : b.kind === 'amount' ? '$' : '—'}" aria-label="${esc(b.name)} (${kindWords[b.kind]})">`;
+}
+function gridCell(p, b) {
+  const c = cellOf(p.id, b.id);
+  const meta = c.enabled ? `${!c.confirmed ? '<span class="pc"></span> por confirmar' : '✓ confirmado'}${c.max_guests != null ? ' · +' + c.max_guests : ''}${c.note ? ' · nota' : ''}` : 'opciones';
+  return `<td style="--c:${esc(p.color)}" class="${c.enabled ? 'on' : ''}" data-p="${p.id}" data-b="${b.id}"><div class="c"><input type="checkbox" data-f="enabled"${c.enabled ? ' checked' : ''} aria-label="${esc(p.name)}: ${esc(b.name)}">${valInput(b, c)}</div>
+    <button class="x" data-act="celldlg" title="Acompañantes, nota, confirmar">${meta}</button></td>`;
+}
+function listCell(p, b) {
+  const c = cellOf(p.id, b.id);
+  return `<div class="cellrow" data-p="${p.id}" data-b="${b.id}"><div class="line"><label class="switch"><input type="checkbox" data-f="enabled"${c.enabled ? ' checked' : ''}> ${esc(b.name)}</label>${b.kind !== 'text' ? valInput(b, c, 'val') : ''}</div>
+    ${b.kind === 'text' ? valInput(b, c, 'val text') : ''}
+    ${c.enabled ? `<div class="pbs" style="margin-top:4px">${c.confirmed ? '<span class="chip ok">confirmado</span>' : '<span class="chip conf">por confirmar</span>'}${c.max_guests != null ? `<span class="chip">hasta ${c.max_guests} acompañantes</span>` : ''}${c.note ? `<span class="chip">${esc(c.note)}</span>` : ''}</div>` : ''}
+    ${c.enabled ? '<button class="btn sm" style="margin-top:6px" data-act="celldlg">Detalles y confirmar</button>' : ''}</div>`;
+}
+async function saveCell(pid, bid, patch) {
+  try {
+    const r = await api('PUT', 'cell', { program_id: pid, benefit_id: bid, ...patch });
+    const i = S.boot.cells.findIndex(c => c.program_id === pid && c.benefit_id === bid);
+    if (i >= 0) S.boot.cells[i] = { ...S.boot.cells[i], ...r.cell }; else S.boot.cells.push(r.cell);
+    toast('Guardado'); return true;
+  } catch (e) { toast(e.message, true); return false; }
+}
+function bindProgramas() {
+  app.addEventListener('change', onCellChange);
+  const np = $('#np');
+  np.onsubmit = async ev => { ev.preventDefault(); try { const r = await api('POST', 'programs', { name: np.name.value, kind: np.kind.value, color: np.color.value, threshold_mxn: np.threshold_mxn.value, is_pro: np.is_pro.checked, requires_approval: np.requires_approval.checked }); S.progSel = r.id; toast('Programa creado'); viewProgramas(); } catch (e) { toast(e.message, true); } };
+  const nb = $('#nb');
+  nb.onsubmit = async ev => { ev.preventDefault(); try { await api('POST', 'benefits', { name: nb.name.value, kind: nb.kind.value, applies_to: nb.applies_to.value, rules: nb.rules.value }); toast('Beneficio creado'); viewProgramas(); } catch (e) { toast(e.message, true); } };
+  const cf = $('#cfg');
+  cf.onsubmit = async ev => { ev.preventDefault(); try { await api('PUT', 'config', { milestone_every: cf.milestone_every.value }); toast('Guardado'); } catch (e) { toast(e.message, true); } };
+}
+async function onCellChange(ev) {
+  const el = ev.target, holder = el.closest('[data-p][data-b]');
+  if (!holder || !el.dataset.f || location.hash !== '#programas') return;
+  const f = el.dataset.f, v = f === 'enabled' ? el.checked : el.value;
+  const patch = { [f]: f === 'value' ? (v === '' ? null : num(v)) : v };
+  if (f !== 'enabled' && !cellOf(holder.dataset.p, holder.dataset.b).enabled && v !== '') patch.enabled = true;
+  if (await saveCell(holder.dataset.p, holder.dataset.b, patch)) {
+    const p = P(holder.dataset.p), b = S.boot.benefits.find(x => x.id === holder.dataset.b);
+    const tmp = document.createElement('tbody'); tmp.innerHTML = desk.matches ? `<tr>${gridCell(p, b)}</tr>` : listCell(p, b);
+    holder.replaceWith(desk.matches ? tmp.querySelector('td') : tmp.firstElementChild);
+  }
+}
+function cellDialog(pid, bid) {
+  const p = P(pid), b = S.boot.benefits.find(x => x.id === bid), c = cellOf(pid, bid);
+  openDlg(`${p.name} · ${b.name}`, `<form class="f" id="cd">
+    <label class="switch"><input type="checkbox" name="enabled"${c.enabled ? ' checked' : ''}> Encendido para ${esc(p.name)}</label>
+    ${b.kind === 'yes_no' ? '' : b.kind === 'text' ? `<div class="field"><span>Texto</span><input name="text_value" value="${esc(c.text_value)}"></div>` : `<div class="field"><span>Valor (${kindWords[b.kind]})</span><input name="value" inputmode="decimal" value="${c.value ?? ''}"></div>`}
+    <div class="field"><span>Acompañantes cubiertos (vacío = no aplica)</span><input name="max_guests" inputmode="numeric" value="${c.max_guests ?? ''}"></div>
+    <div class="field"><span>Nota para este programa</span><input name="note" value="${esc(c.note)}" maxlength="200"></div>
+    <label class="switch"><input type="checkbox" name="confirmed"${c.confirmed ? ' checked' : ''}> Confirmado (quita “por confirmar”)</label>
+    <p class="hint">Regla general: ${esc((b.rules || '—').replace('{g}', c.max_guests ?? 'N'))}</p>
+    <button class="btn primary block" type="submit">Guardar</button></form>`);
+  const f = $('#cd');
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    const patch = { enabled: f.enabled.checked, max_guests: f.max_guests.value === '' ? null : num(f.max_guests.value), note: f.note.value, confirmed: f.confirmed.checked };
+    if (f.value) patch.value = f.value.value === '' ? null : num(f.value.value);
+    if (f.text_value) patch.text_value = f.text_value.value;
+    if (await saveCell(pid, bid, patch)) { closeDlg(); viewProgramas(); }
+  };
+}
+function progDialog(id) {
+  const p = P(id), n = S.boot.cells.filter(c => c.program_id === id && c.enabled && !c.confirmed).length;
+  openDlg(p.name, `<form class="f" id="pd">
+    <div class="field"><span>Nombre</span><input name="name" value="${esc(p.name)}" required maxlength="60"></div>
+    <div class="two"><div class="field"><span>Nombre corto (OpenTable)</span><input name="short_label" value="${esc(p.short_label)}" maxlength="30"></div><div class="field"><span>Color</span><input type="color" name="color" value="${esc(p.color)}"></div></div>
+    ${p.kind === 'compras' ? `<div class="field"><span>Desde (MXN en 12 meses)</span><input name="threshold_mxn" inputmode="numeric" value="${p.threshold_mxn ?? 0}"></div>` : ''}
+    <label class="switch"><input type="checkbox" name="vip"${p.vip ? ' checked' : ''}> VIP: sale en “VIP aquí ahora”</label>
+    ${p.kind !== 'compras' ? `<label class="switch"><input type="checkbox" name="requires_approval"${p.requires_approval ? ' checked' : ''}> Las invitaciones nuevas requieren aprobación</label>
+    <label class="switch"><input type="checkbox" name="is_pro"${p.is_pro ? ' checked' : ''}> Profesionales (pueden traer gente)</label>` : ''}
+    <button class="btn primary block" type="submit">Guardar</button>
+    ${n ? `<button class="btn block" type="button" data-act="confirmall" data-id="${p.id}">Confirmar los ${n} valores de ${esc(p.name)}</button>` : ''}
+    <button class="btn block danger" type="button" data-act="archive" data-id="${p.id}">${p.archived ? 'Volver a activar' : 'Archivar programa'}</button>
+    <p class="hint">Archivar lo quita de las tarjetas y de las invitaciones nuevas; no borra a nadie.</p></form>`);
+  const f = $('#pd');
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    const body = { name: f.name.value, short_label: f.short_label.value, color: f.color.value, vip: f.vip.checked };
+    if (f.threshold_mxn) body.threshold_mxn = num(f.threshold_mxn.value);
+    if (f.requires_approval) { body.requires_approval = f.requires_approval.checked; body.is_pro = f.is_pro.checked; }
+    try { await api('PATCH', 'programs/' + id, body); closeDlg(); toast('Programa guardado'); viewProgramas(); } catch (e) { toast(e.message, true); }
+  };
+}
+function benDialog(id) {
+  const b = S.boot.benefits.find(x => x.id === id);
+  openDlg(b.name, `<form class="f" id="bd">
+    <div class="field"><span>Nombre</span><input name="name" value="${esc(b.name)}" required></div>
+    <div class="field"><span>Dónde aplica</span><select name="applies_to">${Object.entries(whereWords).map(([k, t]) => `<option value="${k}"${k === b.applies_to ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+    <div class="field"><span>Regla para el equipo ({g} = acompañantes)</span><textarea name="rules" rows="3">${esc(b.rules)}</textarea></div>
+    <div class="field"><span>Lo que lee el socio ({v} = valor${b.kind === 'text' ? ', {t} = texto' : ''})</span><input name="phrase" value="${esc(b.phrase)}"></div>
+    <p class="hint">Tipo: ${kindWords[b.kind]} (no se cambia).</p>
+    <button class="btn primary block" type="submit">Guardar</button>
+    <button class="btn block danger" type="button" data-act="archiveben" data-id="${b.id}">${b.archived ? 'Volver a activar' : 'Archivar beneficio'}</button></form>`);
+  const f = $('#bd');
+  f.onsubmit = async ev => { ev.preventDefault(); try { await api('PATCH', 'benefits/' + id, { name: f.name.value, applies_to: f.applies_to.value, rules: f.rules.value, phrase: f.phrase.value }); closeDlg(); toast('Beneficio guardado'); viewProgramas(); } catch (e) { toast(e.message, true); } };
+}
+function openDlg(title, html) { $('#dlgT').textContent = title; $('#dlgB').innerHTML = html; $('#dlg').showModal(); }
+function closeDlg() { $('#dlg').close(); }
+
+// ---------- receipts ----------
+function receiptDialog(id) {
+  const r = S.hoy.receipts.find(x => x.id === id);
+  openDlg('Compra por revisar', `<img src="/club/api/photo/${r.id}" alt="Ticket de ${esc(r.name)}">
+    <p style="margin:0 0 10px"><b>${esc(r.name)}</b> · ${esc(r.channel_name)} · ${dayShort(r.day)}</p>
+    <form class="f" id="rd"><div class="field"><span>Monto que se suma (corrígelo si el ticket dice otro)</span><input name="amount" inputmode="decimal" value="${r.amount}"></div>
+    <button class="btn primary block big" type="submit">Aprobar y sumar</button>
+    <div class="field"><span>Si lo rechazas, ¿por qué? (lo ve el socio como “pregunta al equipo”)</span><input name="reason" maxlength="200" placeholder="Ej. ticket ilegible"></div>
+    <button class="btn block danger" type="button" data-act="rejreceipt" data-id="${r.id}">Rechazar</button></form>`);
+  const f = $('#rd');
+  f.onsubmit = async ev => { ev.preventDefault(); try { await api('POST', `purchase/${id}/decide`, { approve: true, amount: num(f.amount.value) }); closeDlg(); toast('Compra sumada'); viewHoy(); } catch (e) { toast(e.message, true); } };
+}
+
+// ---------- actions ----------
+document.addEventListener('click', async ev => {
+  const a = ev.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act, id = Number(a.dataset.id) || a.dataset.id;
+  try {
+    if (act === 'close') return closeDlg();
+    if (act === 'shift') return copy(shiftText(), 'Copiado: pégalo en el grupo del turno');
+    if (act === 'otnote') return copy(a.dataset.text, 'Nota para OpenTable copiada');
+    if (act === 'copy') return copy(a.dataset.text, 'Enlace copiado');
+    if (act === 'copycard') return copy(a.dataset.text, 'Mensaje copiado');
+    if (act === 'scan') return scan();
+    if (act === 'sent') { api('POST', `person/${a.dataset.pid}/sent`).then(() => { if (a.dataset.reload || location.hash === '#hoy' || location.hash === '') setTimeout(route, 600); }).catch(() => {}); return; }
+    if (act === 'undo') return undo(id);
+    if (act === 'approve' || act === 'reject') { const prog = $(`[data-appr-prog="${id}"]`)?.value; await api('POST', `membership/${id}/decide`, { approve: act === 'approve', program_id: prog }); toast(act === 'approve' ? 'Aprobado: ya tiene sus beneficios' : 'Rechazada'); return viewHoy(); }
+    if (act === 'receipt') return receiptDialog(id);
+    if (act === 'rejreceipt') { await api('POST', `purchase/${id}/decide`, { approve: false, reason: $('#rd')?.reason.value }); closeDlg(); toast('Compra rechazada'); return viewHoy(); }
+    if (act === 'reqdone') { await api('POST', `request/${id}/done`); return viewHoy(); }
+    if (act === 'note') {
+      const p = S.person.person;
+      $('#noteBox').innerHTML = `<b>Nota del equipo</b><form class="f" id="nf" style="gap:8px"><textarea name="n" rows="3" maxlength="1000">${esc(p.staff_note)}</textarea><div class="acts"><button class="btn primary" type="submit">Guardar nota</button><button class="btn" type="button" data-act="cancelnote">Cancelar</button></div></form>`;
+      const f = $('#nf'); f.n.focus();
+      f.onsubmit = async e => { e.preventDefault(); try { await api('PATCH', 'person/' + p.id, { staff_note: f.n.value }); toast('Nota guardada'); viewPerson(p.id); } catch (x) { toast(x.message, true); } };
+      return;
+    }
+    if (act === 'cancelnote') return viewPerson(S.person.person.id);
+    if (act === 'newcode') { if (!confirm('¿Cambiar el código? El enlace anterior deja de funcionar y hay que mandarle la tarjeta nueva.')) return; await api('POST', `person/${S.person.person.id}/newcode`); toast('Código cambiado: manda la tarjeta nueva'); return viewPerson(S.person.person.id); }
+    if (act === 'revoke') { if (!confirm('¿Cancelar esta invitación? El enlace deja de funcionar; quienes ya se registraron se quedan.')) return; await api('POST', `invites/${id}/revoke`); S.lastInvite = null; return viewInvitar(); }
+    if (act === 'nextinv') { S.lastInvite = null; await viewInvitar(); $('#inv').name.focus(); return; }
+    if (act === 'nvprev') { const r = await api('POST', 'novios', { text: $('#nv').text.value, preview: true }); $('#nvprev').innerHTML = `<p class="hint">${r.rows.length} parejas listas${r.errors.length ? ':' : '.'}</p>${r.errors.map(e => `<p class="hint" style="color:var(--bad)">${esc(e)}</p>`).join('')}${r.rows.slice(0, 30).map(x => `<div class="r"><div class="main"><span class="t">${esc(x.name)}</span><span class="s">${esc(x.phone ? '+' + x.phone : '')} ${esc(x.email)} ${x.wedding ? '· boda ' + dayShort(x.wedding) : ''}</span></div></div>`).join('')}`; return; }
+    if (act === 'pick') { S.progSel = a.dataset.id; return viewProgramas(); }
+    if (act === 'celldlg') { const h = a.closest('[data-p][data-b]'); return cellDialog(h.dataset.p, h.dataset.b); }
+    if (act === 'editprog') return progDialog(a.dataset.id);
+    if (act === 'editben') return benDialog(a.dataset.id);
+    if (act === 'archive') { const p = P(a.dataset.id); if (!p.archived && !confirm(`¿Archivar ${p.name}?`)) return; await api('PATCH', 'programs/' + p.id, { archived: !p.archived }); closeDlg(); return viewProgramas(); }
+    if (act === 'archiveben') { const b = S.boot.benefits.find(x => x.id === a.dataset.id); await api('PATCH', 'benefits/' + b.id, { archived: !b.archived }); closeDlg(); return viewProgramas(); }
+    if (act === 'confirmall') { const cs = S.boot.cells.filter(c => c.program_id === a.dataset.id && c.enabled && !c.confirmed); for (const c of cs) await api('PUT', 'cell', { program_id: c.program_id, benefit_id: c.benefit_id, confirmed: true }); closeDlg(); toast(`${cs.length} confirmados`); return viewProgramas(); }
+    if (act === 'sync') { a.disabled = true; const r = await api('POST', 'sync'); toast(r.skipped ? r.message : `Listo: ${r.members} socios, ${r.created} nuevos`); return viewProgramas(); }
+    if (act === 'audit') { const r = await api('GET', 'audit'); $('#audit').innerHTML = r.audit.map(x => `<div class="r"><div class="main"><span class="t">${esc(x.action)} · ${esc(x.entity_id)}</span><span class="s">${when(x.at)} · ${esc(x.actor)}</span></div></div>`).join('') || '<p class="hint">Sin cambios.</p>'; return; }
+  } catch (e) { toast(e.message, true); }
+});
+
+(async () => {
+  try { S.boot = await api('GET', 'boot'); }
+  catch (e) { app.innerHTML = `<div class="empty"><b>No se pudo cargar el club</b>${esc(e.message)}</div>`; return; }
+  route();
+})();
+</script>
+</body>
+</html>

@@ -6,15 +6,20 @@ import { proxy } from './proxy.js';
 import { isPublicThemePath, publicTheme } from './theme.js';
 import { adsRoute, ingest, isIngest } from './ads.js';
 import { syncMeta } from './ads-meta.js';
+import { clubRoute, clubRole } from './club.js';
+import { clubPublic } from './club-public.js';
+import { syncWineclub } from './club-wineclub.js';
 
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
-const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads']);
+const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads', 'club', 'c']);
 
 export default {
-  // Hourly (wrangler.jsonc triggers): pull Meta ads into Anuncios. Google pushes on its own from a Google Ads script.
+  // Hourly (wrangler.jsonc triggers): pull Meta ads into Anuncios (Google pushes on its own from a Google Ads script) and
+  // copy Círculo subscribers and their charges into the Club de beneficios.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(syncMeta(env).then(r => console.log('meta sync', JSON.stringify(r))));
+    ctx.waitUntil(syncWineclub(env).then(r => console.log('club wineclub sync', JSON.stringify(r))).catch(e => console.log('club wineclub sync failed', String(e && e.message || e))));
   },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
@@ -46,6 +51,20 @@ export default {
       const role = await roleFor(env, user, 'ads');
       if (!role) return p.startsWith('/ads/api/') ? J({ code: 'not_granted', message: 'Sin acceso a Anuncios.' }, 403) : denied('Anuncios');
       try { return await adsRoute(request, env, url, user, role); }
+      catch (e) { return J({ code: 'unavailable', message: String(e && e.message || e) }, 500); }
+    }
+
+    // Club de beneficios: guest pages without sign-in (/c/…); staff + admin inside the Hub (/club/).
+    if (seg === 'c') {
+      const role = user ? clubRole(await roleFor(env, user, 'club')) : null;
+      try { return await clubPublic(request, env, url, role); }
+      catch (e) { console.log('club public error', String(e && e.stack || e)); return new Response('Algo salió mal. Intenta de nuevo en un momento.', { status: 500, headers: { 'content-type': 'text/plain; charset=utf-8' } }); }
+    }
+    if (seg === 'club') {
+      if (!user) return p.startsWith('/club/api/') ? J({ code: 'revoked', message: 'Vuelve a entrar.' }, 401) : login(url);
+      const role = clubRole(await roleFor(env, user, 'club'));
+      if (!role) return p.startsWith('/club/api/') ? J({ code: 'not_granted', message: 'Sin acceso al Club de beneficios.' }, 403) : denied('el Club de beneficios');
+      try { return await clubRoute(request, env, url, user, role); }
       catch (e) { return J({ code: 'unavailable', message: String(e && e.message || e) }, 500); }
     }
 

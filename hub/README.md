@@ -68,3 +68,25 @@ add pendientes; admins also set the monthly budget and targets.
 - **Bookings** (`ads_bookings`): OpenTable / Rezdy by source, once OpenTable takes online bookings.
 - Money is MXN everywhere. Windows end on the last day Google has data, so a late feed shows as "hasta el …" plus an
   alert instead of a run of zeros.
+
+## Club de beneficios
+
+Who gets which benefits, their card, and what staff apply. Scope: [CLUB-SCOPE.md](CLUB-SCOPE.md). Code: `src/club-core.js`
+(rules, no I/O), `src/club-data.js`, `src/club.js` (staff/admin API), `src/club-public.js` (guest pages),
+`src/club-wineclub.js` (Círculo sync), `src/qr.js` (server-side QR SVG), `public/club.html`. Tables `club_*` (migration 0004).
+
+- `/club/` (registry slug `club`, Hospitalidad): grant role **admin** = club admin (programs × benefits grid, invitations,
+  Novios, moves between programs, approvals); **editor/viewer** = staff (Hoy, scan/search, register visits, receipts,
+  card resends, Resumen). Staff never edit programs. Every change goes to `club_audit` with the Hub user's email.
+- `/c/<code>`: the guest card, no sign-in. The code is a 144-bit random token and the only credential (noindex,
+  no-referrer, private cache + service worker for offline). Signed-in staff with a club grant are sent to the staff view
+  (`?invitado=1` shows the guest view). `/c/i/<token>` sign-up, `/c/` lost card (neutral answer), `/c/terminos`.
+- Levels by purchases (Nivel 1/2/3, thresholds editable) come from rolling-12-month spend: registered visits (check −
+  discount), approved receipts and Círculo subscription charges. Per benefit the best value across a person's programs
+  applies; no stacking.
+- Wine club: binding `WINECLUB_DB` (database `wineclub-production`, read-only use). The hourly cron and Programas →
+  "Sincronizar ahora" copy live subscribers (matched by email or phone; merged members skipped), their paid charges of
+  the last 12 months (amount missing → subscription price, flagged "estimado") and founders (→ Fundadores).
+- Parrot and OpenTable: no integration yet; staff type the check number and total, and copy the OpenTable note.
+- Deploy: apply `migrations/0004_club.sql` (`npm run db:remote`) before pushing. It also removes the "Club de lealtad"
+  placeholder app. Optional var `PUBLIC_ORIGIN` sets the host used in card and invite links (defaults to the request's).

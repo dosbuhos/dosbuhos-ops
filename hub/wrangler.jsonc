@@ -11,7 +11,10 @@
   // Every request goes through the Worker first: pages and the kit sit behind Google sign-in.
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none", "not_found_handling": "none" },
   "d1_databases": [
-    { "binding": "DB", "database_name": "hub", "database_id": "1a971736-3a72-4e2c-9db8-2e6d746444cc", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "hub", "database_id": "1a971736-3a72-4e2c-9db8-2e6d746444cc", "migrations_dir": "migrations" },
+    // Club de beneficios reads Círculo members, subscriptions and paid shipments from the wine club's database. Read-only
+    // use (src/club-wineclub.js only SELECTs); its migrations stay in wineclub/. Without it the club still works.
+    { "binding": "WINECLUB_DB", "database_name": "wineclub-production", "database_id": "4c77e154-a12c-47c2-992e-43977abffc78" }
   ],
   // The apps the Hub can proxy to (/<slug>/… → that Worker, with a signed X-DB-User header). An app's row in the
   // registry says which binding it uses (apps.binding) and whether it is proxied yet (apps.mode = 'proxy').
