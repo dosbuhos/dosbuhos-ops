@@ -34,6 +34,28 @@
     const tabs = [...seen.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     return `<option value="">Elige el vino / lote…</option>` + tabs.map(t => `<option value="${esc(t)}"${t === sel ? ' selected' : ''}>${esc(seen.get(t))} · ${esc(t)}</option>`).join('');
   }
+  // Quick lot picker: search box + big buttons, recently used first.
+  const GC = { red: '#7a1f2b', rose: '#e0849a', white: '#d8b43c', orange: '#d9822b', sparkling: '#7fa7b8' };
+  const RECENT_K = 'cellar.notelots';
+  const recentTabs = () => { try { return JSON.parse(localStorage.getItem(RECENT_K) || '[]'); } catch (e) { return []; } };
+  const rememberTab = t => { try { localStorage.setItem(RECENT_K, JSON.stringify([t].concat(recentTabs().filter(x => x !== t)).slice(0, 6))); } catch (e) {} };
+  function lotTabs() {
+    const m = new Map();
+    for (const l of E.lots) for (const s of (l.sheet || [])) {
+      if (!s.tab) continue; const cur = m.get(s.tab);
+      const name = l.id === 'all' ? 'Bodega (todos)' : l.name;
+      if (cur) cur.name += ' / ' + name; else m.set(s.tab, { tab: s.tab, name, group: l.group || '', ubi: l.ubi || '' });
+    }
+    return [...m.values()].sort((a, b) => a.tab.localeCompare(b.tab, undefined, { numeric: true }));
+  }
+  function lotPicker(sel) {
+    const all = lotTabs(), rec = recentTabs().filter(t => all.some(x => x.tab === t));
+    const btn = x => `<button type="button" class="en-lot" data-lt="${esc(x.tab)}" aria-pressed="${x.tab === sel}" style="--c:${GC[x.group] || '#9aa5b1'}"><b>${esc(x.name)}</b><small>${esc(x.tab)}</small></button>`;
+    return `<input type="hidden" id="enTab" value="${esc(sel || '')}">
+      <input type="search" class="en-lotq" placeholder="Buscar: chenin, L21, tanque 6…" aria-label="Buscar vino o lote" autocomplete="off">
+      ${rec.length ? `<div class="en-lotlab">Recientes</div><div class="en-lots en-rec">${rec.map(t => btn(all.find(x => x.tab === t))).join('')}</div><div class="en-lotlab">Todos</div>` : ''}
+      <div class="en-lots en-all">${all.map(btn).join('')}</div>`;
+  }
   const tabOfLot = id => { const l = E.lots.find(x => x.id === id); return l && (l.sheet || [])[0] ? l.sheet[0].tab : ''; };
   // Signer chips: who did the work. Pre-picked from the login (P/J → both).
   function signerTag(s) { const a = (s.aliases || []).find(x => String(x).length <= 2); return String(a || s.tag || s.name).toUpperCase(); }
@@ -64,7 +86,7 @@
     ov.innerHTML = `<form class="sheet en-form" novalidate>
       <h2>${o ? 'Anotar resultados y notas' : 'Agregar nota'}</h2>
       ${o ? `<div class="xo-where"><b>${esc(o.wine || o.tab)}</b> · ${esc(o.tab)} · fila ${esc(o.row)}</div><div class="rs-task en-order">${esc(o.note)}</div>`
-        : `<div class="field"><label for="enTab">Vino / lote</label><select id="enTab" required>${tabOptions(ctx.tab || tabOfLot(ctx.lot) || '')}</select><small class="en-hint">Lo de toda la bodega va en «Bodega (todos) · L00 - Winery».</small></div>`}
+        : `<div class="field en-lotf"><label>Vino / lote <span class="ed-hint">obligatorio · lo de toda la bodega va en «Bodega (todos)»</span></label>${lotPicker(ctx.tab || tabOfLot(ctx.lot) || '')}</div>`}
       <div class="field"><label for="enUbi">Vasija(s) <span class="ed-hint">tanque, barrica… (si es por barrica, anota cuál)</span></label><input id="enUbi" value="${esc(o ? o.ubi || '' : '')}" placeholder="BBL 101, VC-05…" autocomplete="off"></div>
       <div class="field"><label>¿Quién lo hizo? <span class="ed-hint">obligatorio · toca una o más personas</span></label><div class="en-sig">${signerChips(pre)}</div></div>
       <div class="field"><label for="enNote">Notas / cata <span class="ed-hint">olor, sabor, lo que se vio, decisiones</span></label><textarea id="enNote" rows="4" maxlength="1500" placeholder="Ej.: TAMBO 01 LIMPIO, CÍTRICO. TAMBO 02 LIGERA CEBOLLA → NO TRASEGAR"></textarea></div>
@@ -84,6 +106,12 @@
     document.documentElement.classList.add('m-modal');
     const form = $('form', ov);
     form.addEventListener('click', e => {
+      const lt = e.target.closest('[data-lt]'); if (lt) {
+        $('#enTab').value = lt.dataset.lt;
+        $$('[data-lt]', form).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lt === lt.dataset.lt)));
+        const x = lotTabs().find(t => t.tab === lt.dataset.lt); if (x && x.ubi) $('#enUbi').placeholder = x.ubi;
+        return;
+      }
       const c = e.target.closest('.en-chip'); if (c) { c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')); return; }
       if (e.target.closest('[data-oadd]')) { $('.en-others', form).insertAdjacentHTML('beforeend', otherRow()); $('.en-others .en-other:last-child input', form).focus(); return; }
       const d = e.target.closest('[data-odel]'); if (d) { d.parentElement.remove(); return; }
@@ -100,7 +128,9 @@
     });
     form.addEventListener('click', e => { const r = e.target.closest('[data-readlab]'); if (r) { const h = r.dataset.readlab; closeForm(); openLab({ hash: h }); } });
     form.addEventListener('submit', e => { e.preventDefault(); saveForm(form); });
-    setTimeout(() => { const f = o ? $('#enNote') : $('#enTab'); if (f) f.focus(); }, 30);
+    const lq = $('.en-lotq', form);
+    if (lq) lq.addEventListener('input', () => { const q = lq.value.trim().toLowerCase(); $$('.en-all [data-lt]', form).forEach(b => { b.hidden = !!q && !b.textContent.toLowerCase().includes(q); }); const r = $('.en-rec', form); if (r) { r.hidden = !!q; r.previousElementSibling.hidden = !!q; } });
+    setTimeout(() => { const f = o ? $('#enNote') : null; if (f) f.focus(); }, 30);
   }
   function closeForm() { const ov = $('#enSheet'); if (ov) ov.hidden = true; F = null; document.documentElement.classList.remove('m-modal'); }
   async function saveForm(form) {
@@ -125,6 +155,7 @@
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
       const r = await post('/api/entries', { kind: o ? 'result' : 'note', tab, lot: o ? o.lot : '', ubi: $('#enUbi').value.trim(), values, others, note, signer, pdf: F.pdf ? 'app:' + F.pdf.slice(0, 12) : '', order: o ? { tab: o.tab, row: o.row, note: o.note } : null });
+      if (!o) rememberTab(tab);
       if (o && done) window.dispatchEvent(new CustomEvent('cellar:orderdone', { detail: { key: o.key, ini: signer } }));
       E.entriesAt = 0; closeForm();
       toast('Guardado en ' + r.tab + ', fila ' + r.row + (o && done ? ' · orden hecha' : ''));

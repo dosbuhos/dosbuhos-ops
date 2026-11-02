@@ -429,3 +429,6 @@
   #asgView .asg-group { background: transparent; border: 0; box-shadow: none; padding: 0; }
   #asgView .asg-row { background: #fff; }
 }
+
+/* Cellar mode has its own search and filters (cellar-room.js): hide the Production filter bar */
+html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }

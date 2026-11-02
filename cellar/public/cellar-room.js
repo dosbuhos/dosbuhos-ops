@@ -13,12 +13,16 @@
   };
   const GCOL = { red: '#7a1f2b', rose: '#e0849a', white: '#d8b43c', orange: '#d9822b', sparkling: '#7fa7b8' };
   const FILL = { full: 'Llena', partial: 'Parcial', empty: 'Vacía' };
+  const SPEC_KEYS = ['size', 'cooperage', 'wood', 'toast', 'year'];
   const WOOD = ['', 'Francesa', 'Americana', 'Húngara', 'Otra'];
   const fmtD = iso => iso ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + 'T12:00' : iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
   const codeOf = v => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  // Small barrel drawn in the wine's color (the old square badge read like a calendar date).
+  const BARREL_SVG = '<svg class="cr-ico" viewBox="0 0 40 44" aria-hidden="true"><path d="M8 3h24c4 6 5 12 5 19s-1 13-5 19H8C4 35 3 29 3 22S4 9 8 3z" fill="var(--c)"/><path d="M5.2 12h29.6M3.4 22h33.2M5.2 32h29.6" stroke="#1f1d1b" stroke-opacity=".55" stroke-width="2.4" fill="none"/><path d="M8 3h24c4 6 5 12 5 19s-1 13-5 19H8C4 35 3 29 3 22S4 9 8 3z" fill="none" stroke="#1f1d1b" stroke-opacity=".35" stroke-width="1.2"/><path d="M14 4c-2 6-3 12-3 18s1 12 3 18M26 4c2 6 3 12 3 18s-1 12-3 18" stroke="#fff" stroke-opacity=".28" stroke-width="1.2" fill="none"/></svg>';
+  const specLine = b => [b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year ? 'hecha en ' + b.year : ''].filter(Boolean).join(' · ');
   const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 2 }, { id: '2', name: 'Fila 2', slots: 8, levels: 2 }, { id: '3', name: 'Fila 3', slots: 8, levels: 2 }] }] };
 
-  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'wines', vint: 'all', q: '', filter: 'all', me: '', loaded: false, group: 'loc', sheetTabs: {} };
+  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'loc', sheetTabs: {} };
 
   // ---------- data ----------
   async function load() {
@@ -54,16 +58,15 @@
     if (!C.loaded) { C.root.innerHTML = '<div class="cr-empty">Cargando bodega…</div>'; return; }
     const vints = [...new Set(C.all.map(l => C.vintageOf(l)))].sort((a, b) => b - a);
     const chips = [['all', 'Todas']].concat(vints.filter(v => v >= C.vintage - 2).map(v => [String(v), String(v)])).concat(vints.some(v => v < C.vintage - 2) ? [['old', 'Anteriores']] : []);
-    const nB = C.barrels.length, nL = C.lots.length;
+    const nB = C.barrels.length; if (C.tab === 'wines') C.tab = 'barrels';
     C.root.innerHTML = `<div class="cr">
       <div class="cr-tabs" role="tablist">
-        <button type="button" role="tab" data-ct="wines" aria-selected="${C.tab === 'wines'}">Por vino <small>${nL}</small></button>
         <button type="button" role="tab" data-ct="barrels" aria-selected="${C.tab === 'barrels'}">Barricas <small>${nB}</small></button>
         <button type="button" role="tab" data-ct="map" aria-selected="${C.tab === 'map'}">Mapa</button>
       </div>
       <div class="cr-bar">
         <div class="seg cr-vint" role="group" aria-label="Añada">${chips.map(([k, l]) => `<button type="button" data-cv="${k}" aria-pressed="${C.vint === k}">${l}</button>`).join('')}</div>
-        <input type="search" class="search cr-q" placeholder="${C.tab === 'wines' ? 'Buscar vino, lote o barrica' : 'Buscar barrica, vino, ubicación'}" value="${esc(C.q)}" aria-label="Buscar">
+        <input type="search" class="search cr-q" placeholder="Buscar barrica, vino, tonelería, ubicación" value="${esc(C.q)}" aria-label="Buscar">
         <div class="cr-acts">
           ${C.canWrite ? `<button type="button" class="btn primary" data-ca="new">+ Barrica</button><button type="button" class="btn" data-ca="import">Importar</button>` : ''}
           <button type="button" class="btn" data-ca="labels">Etiquetas QR</button>
@@ -73,36 +76,13 @@
       <div class="cr-body" id="crBody"></div>
     </div>`;
     const body = $('#crBody', C.root);
-    body.innerHTML = C.tab === 'wines' ? renderWines() : C.tab === 'barrels' ? renderBarrels() : renderMap();
-  }
-
-  // ---------- Por vino ----------
-  function renderWines() {
-    const q = C.q.trim().toLowerCase();
-    const lots = C.lots.filter(vintOK).filter(l => !q || (l.name + ' ' + (l.code || '') + ' ' + (l.ubi || '') + ' ' + barrelsOf(l).map(b => b.code).join(' ')).toLowerCase().includes(q));
-    if (!lots.length) return `<div class="cr-empty"><strong>No hay vinos en la cava${C.vint !== 'all' ? ' de esa añada' : ''}.</strong>Abre la ficha de un vino en Production y toca «→ Cellar» cuando esté en barrica o en botella.</div>`;
-    const groups = [['red', 'Tintos'], ['rose', 'Rosados'], ['white', 'Blancos'], ['orange', 'Naranjas y piel'], ['sparkling', 'Espumosos']];
-    let h = '';
-    for (const [g, gl] of groups) {
-      const ls = lots.filter(l => l.group === g); if (!ls.length) continue;
-      h += `<h3 class="cr-gh" style="--c:${GCOL[g]}">${gl} <small>${ls.length}</small></h3><div class="cr-cards">` + ls.map(l => {
-        const bs = barrelsOf(l), litros = bs.reduce((s, b) => s + (+b.vol || 0), 0);
-        return `<article class="cr-wine" style="--c:${GCOL[l.group] || '#999'}" data-lot="${esc(l.id)}">
-          <header><b>${esc(l.name)}</b><span class="cr-vt">${C.vintageOf(l)}</span></header>
-          <div class="cr-sub">${esc([l.code, l.ubi].filter(Boolean).join(' · '))}</div>
-          <div class="cr-bbls">${bs.length ? bs.map(b => `<button type="button" class="cr-chip" data-bb="${esc(b.id)}" style="--c:${GCOL[l.group] || '#999'}"><b>${esc(b.code)}</b>${b.loc ? `<small>${esc(b.loc)}</small>` : ''}${b.fill === 'partial' ? '<i title="Parcial">½</i>' : ''}</button>`).join('') : `<span class="cr-none">Sin barricas registradas</span>`}</div>
-          <div class="cr-meta">${bs.length ? `${bs.length} barrica${bs.length > 1 ? 's' : ''}${litros ? ' · ' + litros.toLocaleString('es-MX') + ' L' : ''}` : ''}</div>
-          <div class="cr-row"><button type="button" class="btn sm" data-open="${esc(l.id)}">Ficha del vino</button>${C.canWrite ? `<button type="button" class="btn sm" data-ca="new" data-lot="${esc(l.id)}">+ Barrica</button><button type="button" class="btn sm ghost" data-phase="prod" data-lot="${esc(l.id)}">→ Production</button>` : ''}</div>
-        </article>`;
-      }).join('') + '</div>';
-    }
-    return h;
+    body.innerHTML = C.tab === 'map' ? renderMap() : renderBarrels();
   }
 
   // ---------- Barricas ----------
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
-    let bs = C.barrels.filter(b => !q || (b.code + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
+    let bs = C.barrels.filter(b => !q || (b.code + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
     if (C.vint !== 'all') bs = bs.filter(b => { const l = lotById(b.lot); return l ? vintOK(l) : false; });
     if (C.filter === 'confirm') bs = bs.filter(needsConfirm);
     else if (C.filter !== 'all') bs = bs.filter(b => C.filter === 'noloc' ? !b.loc : !needsConfirm(b) && (b.fill || (b.lot ? 'full' : 'empty')) === C.filter);
@@ -116,13 +96,13 @@
       bs.map(b => `<article class="cr-cfm-row" data-bb="${esc(b.id)}"><div><b>BBL ${esc(b.code)}</b><span>${esc(paperLine(b) || 'Sin registro')}</span>${b.flag ? `<em>⚠ ${esc(b.flag)}</em>` : ''}</div>${C.canWrite ? `<div class="cr-cfm-a"><button type="button" class="btn sm" data-cfm="same" data-id="${esc(b.id)}">Sigue con ${esc((b.paper && b.paper.last) || 'este vino')}</button><button type="button" class="btn sm" data-cfm="empty" data-id="${esc(b.id)}">Embotellada / vacía</button><button type="button" class="btn sm" data-cfm="other" data-id="${esc(b.id)}">Otro vino…</button></div>` : ''}</article>`).join('') + `</div>`;
     const card = b => {
       const g = lotGroup(b.lot), fill = b.fill || (b.lot ? 'full' : 'empty');
-      return `<article class="cr-bbl ${fill}" data-bb="${esc(b.id)}" style="--c:${GCOL[g] || '#9aa5b1'}">
-        <div class="cr-code"><small>BBL</small><b>${esc(b.code)}</b></div>
+      return `<article class="cr-bbl f-${fill}" data-bb="${esc(b.id)}" style="--c:${GCOL[g] || '#9aa5b1'}">
+        <div class="cr-code">${BARREL_SVG}<b>${esc(b.code)}</b></div>
         <div class="cr-bmain"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>
           ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
           <div class="cr-sub">${[b.vol ? b.vol + ' L' : '', b.size ? b.size + ' L' : '', FILL[fill]].filter(Boolean).join(' · ')}${b.lot && lotById(b.lot) ? ' · ' + C.vintageOf(lotById(b.lot)) : ''}</div>
           <div class="cr-sub">${b.loc ? '<span class="cr-loc">' + esc(b.loc) + '</span> ' + esc(locLabel(b.loc)) : '<span class="cr-none">Sin ubicación</span>'}</div>
-          ${b.cooperage || b.year ? `<div class="cr-sub cr-dim">${esc([b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year].filter(Boolean).join(' · '))}</div>` : ''}
+          <div class="cr-sub cr-spec">${specLine(b) ? esc(specLine(b)) : '<span class="cr-none">Sin tonelería / año / tostado</span>'}</div>
         </div></article>`;
     };
     if (C.group === 'none') return h + `<div class="cr-cards">${bs.map(card).join('')}</div>`;
@@ -174,16 +154,18 @@
   function openBarrel(id, preset) {
     const b = id ? C.barrels.find(x => x.id === id) : Object.assign({ code: '', size: 225, fill: 'full', lot: '', vol: '', loc: '', cooperage: '', wood: '', toast: '', year: '', notes: '' }, preset || {});
     if (!b) return;
-    const isNew = !id, ro = !C.canWrite;
+    const isNew = !id, ro = !C.canWrite && !C.crew, specOnly = C.crew && !isNew;
+    if (isNew && C.crew) return;
     const lotOpts = `<option value="">— Vacía / sin vino —</option>` + ['red', 'rose', 'white', 'orange', 'sparkling'].map(g => { const ls = C.all.filter(l => l.group === g); return ls.length ? `<optgroup label="${{ red: 'Tintos', rose: 'Rosados', white: 'Blancos', orange: 'Naranjas', sparkling: 'Espumosos' }[g]}">${ls.map(l => `<option value="${esc(l.id)}"${l.id === b.lot ? ' selected' : ''}>${esc(l.name)} (${C.vintageOf(l)}${l.code ? ' · ' + esc(l.code) : ''})</option>`).join('')}</optgroup>` : ''; }).join('');
     const d = sheet(`<form method="dialog" class="cr-form">
       <div class="cr-sh"><h3>${isNew ? 'Nueva barrica' : 'Barrica ' + esc(b.code)}</h3>${!isNew ? `<nav class="cr-stabs"><button type="button" data-st="form" aria-selected="true">Datos</button><button type="button" data-st="hist" aria-selected="false">Historial</button><button type="button" data-st="tag" aria-selected="false">Etiqueta</button></nav>` : ''}</div>
       <div class="cr-pane" data-pane="form">
         <div class="g3"><label>Nº barrica<input name="code" inputmode="numeric" required value="${esc(b.code)}" ${isNew ? '' : 'readonly'} placeholder="101"></label><label>Tamaño (L)<input name="size" inputmode="numeric" value="${esc(b.size)}"></label><label>Llenado<select name="fill">${Object.entries(FILL).map(([k, l]) => `<option value="${k}"${(b.fill || 'full') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>
         <label>Vino<select name="lot">${lotOpts}</select></label>
-        <div class="g2"><label>Litros en la barrica<input name="vol" inputmode="decimal" value="${esc(b.vol)}" placeholder="225"></label><label>Año de la barrica<input name="year" inputmode="numeric" value="${esc(b.year)}" placeholder="2022"></label></div>
+        <div class="g2"><label>Litros en la barrica<input name="vol" inputmode="decimal" value="${esc(b.vol)}" placeholder="225"></label><label>Año en que se hizo<input name="year" inputmode="numeric" maxlength="4" value="${esc(b.year)}" placeholder="2022"></label></div>
         <label>Ubicación ${b.loc ? `<span class="cr-loc">${esc(b.loc)}</span>` : ''}${locSelects(b.loc)}</label>
-        <div class="g3"><label>Tonelería<input name="cooperage" value="${esc(b.cooperage)}" placeholder="Seguin Moreau"></label><label>Madera<select name="wood">${WOOD.map(w => `<option${w === (b.wood || '') ? ' selected' : ''}>${w}</option>`).join('')}</select></label><label>Tostado<input name="toast" value="${esc(b.toast)}" placeholder="M+"></label></div>
+        <div class="g3"><label>Tonelería<input name="cooperage" value="${esc(b.cooperage)}" placeholder="Seguin Moreau"></label><label>Madera<select name="wood">${WOOD.map(w => `<option${w === (b.wood || '') ? ' selected' : ''}>${w}</option>`).join('')}</select></label><label>Tostado<input name="toast" value="${esc(b.toast)}" placeholder="M+" list="crToasts"></label></div><datalist id="crToasts"><option>Ligero (L)</option><option>Medio (M)</option><option>Medio+ (M+)</option><option>Fuerte (H)</option></datalist>
+        ${specOnly ? '<p class="cr-help">Puedes anotar tonelería, madera, tostado, año y tamaño. Lo demás lo cambian Eric o Diane.</p>' : ''}
         <label>Notas<textarea name="notes" rows="2">${esc(b.notes)}</textarea></label>
         <div class="cr-err" id="crErr"></div>
       </div>
@@ -191,6 +173,7 @@
       <div class="cr-actions">${!isNew && !ro ? `<button type="button" class="btn danger" data-del>Borrar</button>` : ''}<button type="button" class="btn" data-cancel>Cerrar</button>${ro ? '' : `<button type="submit" class="btn primary">Guardar</button>`}</div>
     </form>`);
     const f = $('form', d);
+    if (specOnly) f.querySelectorAll('[data-pane="form"] input, [data-pane="form"] select, [data-pane="form"] textarea').forEach(el => { if (!SPEC_KEYS.includes(el.name)) el.disabled = true; });
     f.querySelector('[data-cancel]').onclick = () => d.close();
     f.addEventListener('change', e => { if (e.target.name === 'z' || e.target.name === 'r') { const z = f.z.value, r = e.target.name === 'z' ? '' : f.r.value; const tmp = locSelects(z ? `${z}-${r || ((C.map || DEFAULT_MAP).zones.find(x => x.id === z) || { rows: [{}] }).rows[0].id}-1-1` : ''); f.querySelector('.cr-locsel').outerHTML = tmp; } });
     if (!isNew) {
@@ -199,7 +182,12 @@
     }
     f.onsubmit = async e => {
       e.preventDefault(); if (ro) return;
-      const fd = new FormData(f), code = codeOf(fd.get('code'));
+      const fd = new FormData(f), code = codeOf(fd.get('code') || b.code);
+      if (specOnly) {
+        const patch = { size: +fd.get('size') || '', cooperage: String(fd.get('cooperage') || '').trim(), wood: fd.get('wood') || '', toast: String(fd.get('toast') || '').trim(), year: String(fd.get('year') || '').trim(), by: C.me, at: new Date().toISOString() };
+        try { await api('barrels/' + encodeURIComponent(b.id), 'PATCH', patch); await logEvent(b.code, 'spec', 'Datos de la barrica: ' + (specLine(patch) || '—')); d.close(); await refresh(); } catch (err) { $('#crErr', f).textContent = err.message; }
+        return;
+      }
       if (!code) { $('#crErr', f).textContent = 'Falta el número de barrica.'; return; }
       const z = fd.get('z'), loc = z ? [z, fd.get('r'), fd.get('s'), fd.get('l')].join('-') : '';
       const next = { code, size: +fd.get('size') || '', fill: fd.get('fill'), lot: fd.get('lot') || '', vol: fd.get('vol') ? +String(fd.get('vol')).replace(',', '.') : '', loc, cooperage: String(fd.get('cooperage')).trim(), wood: fd.get('wood'), toast: String(fd.get('toast')).trim(), year: String(fd.get('year')).trim(), notes: String(fd.get('notes')).trim(), by: C.me, at: new Date().toISOString() };
@@ -371,13 +359,13 @@
     if (t.dataset.open) { window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: t.dataset.open } })); return; }
     if (t.dataset.phase) { window.dispatchEvent(new CustomEvent('cellar:phase', { detail: { lot: t.dataset.lot, phase: t.dataset.phase } })); return; }
   });
-  document.addEventListener('input', e => { if (C.root && C.root.contains(e.target) && e.target.classList.contains('cr-q')) { C.q = e.target.value; const body = $('#crBody', C.root); if (body) body.innerHTML = C.tab === 'wines' ? renderWines() : C.tab === 'barrels' ? renderBarrels() : renderMap(); } });
+  document.addEventListener('input', e => { if (C.root && C.root.contains(e.target) && e.target.classList.contains('cr-q')) { C.q = e.target.value; const body = $('#crBody', C.root); if (body) body.innerHTML = C.tab === 'map' ? renderMap() : renderBarrels(); } });
   document.addEventListener('change', e => { if (C.root && C.root.contains(e.target) && e.target.matches('[data-cg]')) { C.group = e.target.value; render(); } });
 
   let loading = null;
   window.addEventListener('cellar:render', async e => {
     const d = e.detail || {};
-    C.root = document.getElementById('cellarView'); C.lots = d.lots || []; C.all = d.all || []; C.canWrite = !!d.canWrite; C.vintage = d.vintage || 2026;
+    C.root = document.getElementById('cellarView'); C.lots = d.lots || []; C.all = d.all || []; C.canWrite = !!d.canWrite; C.crew = !!d.crew; C.vintage = d.vintage || 2026;
     if (d.vintageOf) C.vintageOf = d.vintageOf; if (d.phaseOf) C.phaseOf = d.phaseOf;
     if (!C.loaded) { if (!loading) loading = load().catch(() => { C.loaded = true; }); render(); await loading; }
     render();

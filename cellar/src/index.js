@@ -139,6 +139,8 @@ export default {
 const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purchases', 'barrel_log', 'trials']);
 // Crew follow the orders Eric and Diane give: they mark tasks done (and the order link that goes with it), nothing else.
 const CREW_TASK_KEYS = new Set(['done', 'wo']);
+// Barrels: crew may fill in the barrel's own data (cooper, wood, toast, year made, size), not what it holds or where it sits.
+const CREW_BARREL_KEYS = new Set(['size', 'cooperage', 'wood', 'toast', 'year', 'by', 'at']);
 async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);
@@ -156,7 +158,8 @@ async function dbRoute(request, env, p, canWrite, ctx, crew) {
   if (!canWrite) return J({ code: 'not_granted', message: 'Read-only access.' }, 403);
   const now = Date.now();
   const planOnly = () => J({ code: 'not_granted', message: 'Solo Eric o Diane pueden cambiar el plan, los vinos, los protocolos o los ajustes.' }, 403);
-  if (crew && !CREW_COLLS.has(coll) && coll !== 'tasks') return planOnly();
+  if (crew && !CREW_COLLS.has(coll) && coll !== 'tasks' && coll !== 'barrels') return planOnly();
+  if (crew && coll === 'barrels' && m !== 'PATCH') return planOnly();
   if (crew && coll === 'tasks' && m !== 'PATCH') return planOnly();
   if (m === 'DELETE') { await env.DB.prepare('DELETE FROM docs WHERE coll = ? AND id = ?').bind(coll, id).run(); if (coll === 'purchases') ctx.waitUntil(pushPurchase(env, id, null)); return J({ ok: true }); }
   const body = await request.json();
@@ -169,6 +172,7 @@ async function dbRoute(request, env, p, canWrite, ctx, crew) {
   }
   if (m === 'PATCH') {
     if (crew && coll === 'tasks' && !Object.keys(body).every(k => CREW_TASK_KEYS.has(k))) return planOnly();
+    if (crew && coll === 'barrels' && !Object.keys(body).every(k => CREW_BARREL_KEYS.has(k))) return planOnly();
     // Shallow merge, like the artifact database's update(). json_patch merges objects; nulls delete keys, so do it in JS.
     const cur = await env.DB.prepare('SELECT data FROM docs WHERE coll = ? AND id = ?').bind(coll, id).first();
     if (!cur) return J({ code: 'not_found' }, 404);

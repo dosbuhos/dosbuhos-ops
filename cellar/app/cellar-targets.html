@@ -4122,7 +4122,7 @@ Return ONLY JSON with this shape:
     $("groups").hidden = cellar; $("wineCtl").hidden = cellar || S.view !== "wines";
     document.documentElement.classList.toggle("w-cellar", cellar && S.view === "wines");
     if (cellar) {
-      window.dispatchEvent(new CustomEvent("cellar:render", { detail: { lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db), vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
+      window.dispatchEvent(new CustomEvent("cellar:render", { detail: { lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db && !S.isCrew), crew: !!S.isCrew, vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
       return;
     }
     const all = productionLots();
