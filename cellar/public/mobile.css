@@ -415,7 +415,12 @@
 
 /* v1.1 */
 @media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
-  .add-menu.m-sheet { position: fixed; left: 12px; right: 12px; top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); min-width: 0; z-index: 90; border-radius: 16px; border: 1px solid var(--rule); padding: 6px; }
+  .add-menu.m-sheet { position: fixed; left: 12px; right: 12px; top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); min-width: 0; z-index: 90; border-radius: 16px; border: 2px solid #5c1f33; padding: 6px; background: #fff; box-shadow: 0 10px 34px rgba(0,0,0,.35); }
+  .add-menu.m-sheet button + button { border-top: 1px solid #eee3e6; }
+  .add-scrim { position: fixed; inset: 0; z-index: 89; background: rgba(28, 20, 24, .55); }
+  .add-scrim[hidden] { display: none; }
+  html.m-addopen .mnav { z-index: 95; } /* the bar (and its +) stays above the dim layer, so + closes the sheet too */
+  html.m-addopen .mnav .m-add-c { box-shadow: 0 0 0 2px #5c1f33, 0 0 0 4px #fff; }
   .add-menu.m-sheet button { padding: 14px 14px; font-size: 16px; border-radius: 10px; }
   .m-more-menu .aud-badge { margin-left: auto; }
   .m-more-menu .m-fresh { display: block; width: 100%; text-align: left; padding: 10px 14px; color: var(--muted); font-size: 13px; }

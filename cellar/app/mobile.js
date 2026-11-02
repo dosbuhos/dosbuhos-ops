@@ -52,7 +52,11 @@
   window.addEventListener('cellar:audcount', e => { const d = bar.querySelector('.aud-dot') || (() => { const x = document.createElement('i'); x.className = 'aud-dot'; bar.querySelector('[data-m="more"]').appendChild(x); return x; })(); d.hidden = !(e.detail && e.detail.n); });
   document.addEventListener('click', e => { if (!mm.hidden && !e.target.closest('.m-more-menu, [data-m="more"]')) mm.hidden = true; }, true);
   // The + Agregar menu opens as a bottom sheet on phones (the desktop header is hidden here).
-  { const am = document.getElementById('addMenu'); if (am) { am.classList.add('m-sheet'); document.body.appendChild(am); } }
+  { const am = document.getElementById('addMenu'); if (am) { am.classList.add('m-sheet'); document.body.appendChild(am);
+    // Dim everything behind the Agregar sheet so it reads as a popup; tapping the dim area closes it (and doesn't hit what's underneath).
+    const sc = document.createElement('div'); sc.className = 'add-scrim'; sc.hidden = true; document.body.insertBefore(sc, am);
+    sc.addEventListener('click', e => { e.stopPropagation(); am.hidden = true; const b = document.getElementById('addBtn'); if (b) b.setAttribute('aria-expanded', 'false'); sc.hidden = true; });
+    new MutationObserver(() => { sc.hidden = am.hidden; html.classList.toggle('m-addopen', !am.hidden); }).observe(am, { attributes: true, attributeFilter: ['hidden'] }); } }
   const page = document.querySelector('.page') || document.body;
   page.insertBefore(bar, page.firstChild);
   if (!mq.matches) bar.style.display = 'none';

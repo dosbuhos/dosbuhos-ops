@@ -4727,7 +4727,7 @@ Return ONLY JSON with this shape:
     const lot = S.open || "";
     window.dispatchEvent(new CustomEvent(b.dataset.addk === "note" ? "cellar:note" : "cellar:lab", { detail: { lot } }));
   });
-  window.addEventListener("cellar:add", () => toggleAdd(true));
+  window.addEventListener("cellar:add", () => toggleAdd()); // phone +: tap once to open, again to close
   // "+ Work order": a blank work order (any wine, or winery-wide in L00), straight into Excellovint.
   $("newWoBtn").addEventListener("click", () => {
     if (!S.db || S.canWrite === false) { toast("You can't add work orders in this view."); return; }
