@@ -151,10 +151,15 @@
     const lb = nav.querySelector('[data-view="labs"]');
     if (lb) { const mi = lb.querySelector('.mi'); if (mi) mi.innerHTML = I.trials; lb.lastChild.textContent = 'L + T'; lb.setAttribute('aria-label', 'Labs y trials'); }
     const add = document.createElement('button'); add.type = 'button'; add.className = 'm-add'; add.setAttribute('aria-label', 'Agregar');
-    add.innerHTML = `<span class="m-add-c">${I.plusBig}</span>`;
+    add.innerHTML = `<span class="m-add-c">${I.plusBig}</span><span class="m-lbl">Agregar</span>`;
+    // Chat lives in the bar (left) instead of the floating bubble that covered text; + Agregar sits at the right end.
+    const chat = document.createElement('button'); chat.type = 'button'; chat.className = 'm-chat'; chat.setAttribute('aria-label', 'Chat');
+    chat.innerHTML = `<span class="m-chat-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg></span><span class="m-lbl">Chat</span>`;
+    chat.addEventListener('click', e => { e.stopPropagation(); const f = document.querySelector('.cc-fab'); if (f) f.click(); });
+    nav.insertBefore(chat, nav.firstChild);
     // + = the same "+ Agregar" menu as on desktop (Orden de trabajo for Eric and Diane · Nota · Subir lab), as a bottom sheet.
     add.addEventListener('click', e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('cellar:add')); });
-    if (lb) nav.insertBefore(add, lb); else nav.appendChild(add);
+    nav.appendChild(add);
   }
   if (nav) new MutationObserver(syncBar).observe(nav, { attributes: true, subtree: true, attributeFilter: ['aria-current'] });
   document.querySelectorAll('.vynav [role="tab"]').forEach(t => t.addEventListener('click', () => setTimeout(syncBar, 0)));

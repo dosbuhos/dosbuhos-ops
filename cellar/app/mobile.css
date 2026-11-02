@@ -453,3 +453,17 @@ html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }
   #asgView .wo-pin .seg.wo-type { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; }
   .m-oseg { padding: 6px 12px; }
 }
+
+/* Bottom bar: Chat · Órdenes · Wines · L+T · Protocols · Agregar (symmetrical; no floating chat bubble on phones) */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  .mnav { grid-template-columns: repeat(6, 1fr) !important; }
+  .cc-fab { display: none !important; }
+  .mnav .m-add, .mnav .m-chat { border: 0; background: transparent !important; color: #e3c9d3; font: 500 11px/1.2 var(--f-body); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 4px; min-height: 54px; }
+  .mnav .m-add-c, .mnav .m-chat-c { width: 34px; height: 30px; margin: 0; border-radius: 15px; display: flex; align-items: center; justify-content: center; box-shadow: none; }
+  .mnav .m-add-c { background: #fff; color: #5c1f33; border: 0; }
+  .mnav .m-chat-c { border: 1.5px solid #e3c9d3; color: #fff; }
+  .mnav .m-add-c svg { width: 20px; height: 20px; } .mnav .m-chat-c svg { width: 18px; height: 18px; }
+  .mnav button .mi { width: 48px; }
+  .mnav .m-lbl { font: 500 11px/1.2 var(--f-body) !important; color: #e3c9d3; }
+  .mnav .m-add-c { width: 30px; height: 30px; border-radius: 50%; }
+}
