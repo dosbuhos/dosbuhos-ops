@@ -479,3 +479,34 @@ html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }
   .pp-card .chip .txt { flex: 1 1 calc(100% - 40px); overflow-wrap: break-word; word-break: normal; }
   .pp-card .chip .wo { margin: 6px 0 0 auto; }
 }
+
+/* Wine cards on phones (v1.3.9): readings fill the whole width in an even grid, tinted by wine type, big readable numbers */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  .wt tr.w { border-left: 5px solid var(--gc) !important; gap: 6px !important; }
+  .wt tr.w td.num, .wt tr.w td.mlc, .wt tr.w td.lab-c {
+    flex: 1 1 calc(33.333% - 6px) !important; min-width: 88px !important; box-sizing: border-box;
+    background: color-mix(in srgb, var(--gc) 9%, #fbfaf8) !important; border: 1px solid color-mix(in srgb, var(--gc) 22%, #ece7e1);
+    padding: 8px 10px 9px !important; border-radius: 12px !important; justify-content: flex-start;
+    font: 600 19px/1.15 var(--f-mono, ui-monospace, monospace) !important; color: var(--ink);
+  }
+  .wt tr.w td[data-l]::before { font: 600 10px/1.2 var(--f-body) !important; letter-spacing: .08em !important; color: color-mix(in srgb, var(--gc) 55%, #6b645d) !important; text-transform: uppercase; margin-bottom: 4px !important; }
+  .wt tr.w td.num small, .wt tr.w td.lab-c small { font: 500 11.5px/1.3 var(--f-body) !important; color: var(--muted); margin-top: 3px !important; }
+  /* the two readings with a bar get a wider tile */
+  .wt tr.w td.mlc, .wt tr.w td[data-l="Total SO₂"] { flex-basis: calc(50% - 6px) !important; }
+  .wt tr.w td.mlc > span { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .wt tr.w td.mlc .mlb { width: 100% !important; height: 8px; border-radius: 4px; }
+  .wt tr.w td.mlc .mlb i { background: var(--gc); border-radius: 4px; }
+  .wt tr.w td.mlc .mll { font: 600 15px var(--f-body); }
+  .wt tr.w td[data-l="Total SO₂"] .budget, .wt tr.w td[data-l="Total SO₂"] [class*="bud"] { width: 100% !important; margin: 6px 0 2px; }
+  .wt tr.w td.num .warn, .wt tr.w td.num .bad { padding: 0 4px; border-radius: 4px; }
+  .wt tr.w td.na-c, .wt tr.w td.log-c { border-top: 1px solid var(--rule); padding-top: 10px !important; }
+  /* the number itself: big */
+  .wt tr.w td.num > span:first-of-type, .wt tr.w td.lab-c > span:first-of-type { font: 650 20px/1.1 var(--f-mono, ui-monospace, monospace) !important; letter-spacing: -.01em; }
+  /* nothing measured yet: quiet tile, small grey text, no heavy colour */
+  .wt tr.w td:has(> .none:first-child), .wt tr.w td:has(> .stale:only-child), .wt tr.w td.mlc:has(.mlb.dash) { background: #f7f5f2 !important; border-color: #ece7e1 !important; }
+  .wt tr.w td > .none:first-child, .wt tr.w td > .stale:only-child, .wt tr.w td.mlc .mll.none { font: 500 13px/1.3 var(--f-body) !important; color: #8c857d !important; background: none !important; }
+  .wt tr.w td.mlc .mlb.dash { border: 0; background: #e8e3dc; }
+  .wt tr.w td.lab-c > span.stale:only-child, .wt tr.w td.num > span.none:first-of-type { font: 500 13.5px/1.3 var(--f-body) !important; color: #8c857d !important; }
+  /* no reading at all → no tile (the "Last lab" tile already says "No lab yet") */
+  .wt tr.w td.mlc:has(.mlb.dash), .wt tr.w td[data-l="Total SO₂"]:has(> .none:first-child) { display: none !important; }
+}

@@ -35,7 +35,7 @@
   const specLine = b => [b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year ? 'hecha en ' + b.year : ''].filter(Boolean).join(' · ');
   const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 4 }, { id: '2', name: 'Fila 2', slots: 8, levels: 4 }, { id: '3', name: 'Fila 3', slots: 8, levels: 4 }] }] };
 
-  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vessels: [], vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'loc', sheetTabs: {} };
+  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vessels: [], vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'wine', sheetTabs: {} };
 
   // ---------- data ----------
   async function load() {
@@ -70,48 +70,79 @@
   }
 
   // ---------- shell ----------
+  // Layout (v1.3.9): tabs · one toolbar row (search, Filtros n, + Barrica, ⋯ more) · one status row · chips only when a filter is on.
+  // Vintage, barrel type, "sin ubicación" and grouping live in the Filtros sheet; Importar / Etiquetas QR / Configurar mapa in ⋯.
+  C.panel = false; C.more = false; C.noloc = false;
+  const ICON_F = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>';
+  const ICON_S = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+  function nFilters() { return (C.vint !== 'all' ? 1 : 0) + (C.use ? 1 : 0) + (C.noloc ? 1 : 0); }
+  function vintChips() {
+    const vints = [...new Set(C.all.map(l => C.vintageOf(l)))].sort((a, b) => b - a);
+    return [['all', 'Todas']].concat(vints.filter(v => v >= C.vintage - 2).map(v => [String(v), String(v)])).concat(vints.some(v => v < C.vintage - 2) ? [['old', 'Anteriores']] : []);
+  }
   function render() {
     if (!C.root) return;
     if (!C.loaded) { C.root.innerHTML = '<div class="cr-empty">Cargando bodega…</div>'; return; }
-    const vints = [...new Set(C.all.map(l => C.vintageOf(l)))].sort((a, b) => b - a);
-    const chips = [['all', 'Todas']].concat(vints.filter(v => v >= C.vintage - 2).map(v => [String(v), String(v)])).concat(vints.some(v => v < C.vintage - 2) ? [['old', 'Anteriores']] : []);
-    const nB = C.barrels.length; if (C.tab === 'wines') C.tab = 'barrels';
-    C.root.innerHTML = `<div class="cr">
-      <div class="cr-tabs" role="tablist">
-        <button type="button" role="tab" data-ct="barrels" aria-selected="${C.tab === 'barrels'}">Barricas <small>${nB}</small></button>
-        <button type="button" role="tab" data-ct="tanks" aria-selected="${C.tab === 'tanks'}">Tanques <small>${tankList().filter(v => tankContents(v).length).length}</small></button>
+    if (C.tab === 'wines') C.tab = 'barrels';
+    const tabs = C.tab === 'tanks' ? '' : `<div class="cr-view" role="tablist" aria-label="Vista">
+        <button type="button" role="tab" data-ct="barrels" aria-selected="${C.tab === 'barrels'}">Lista</button>
         <button type="button" role="tab" data-ct="map" aria-selected="${C.tab === 'map'}">Mapa</button>
-      </div>
-      <div class="cr-bar"${C.tab === 'tanks' ? ' hidden' : ''}>
-        <div class="seg cr-vint" role="group" aria-label="Añada">${chips.map(([k, l]) => `<button type="button" data-cv="${k}" aria-pressed="${C.vint === k}">${l}</button>`).join('')}</div>
-        <input type="search" class="search cr-q" placeholder="Buscar barrica, vino, tonelería, ubicación" value="${esc(C.q)}" aria-label="Buscar">
-        <div class="cr-acts">
-          ${C.canWrite ? `<button type="button" class="btn primary" data-ca="new">+ Barrica</button><button type="button" class="btn" data-ca="import">Importar</button>` : ''}
-          <button type="button" class="btn" data-ca="labels">Etiquetas QR</button>
-          ${C.canWrite ? `<button type="button" class="btn" data-ca="mapcfg" title="Zonas, filas y posiciones">Configurar mapa</button>` : ''}
-        </div>
-      </div>
-      <div class="cr-body" id="crBody"></div>
-    </div>`;
+      </div>`;
+    let tool = '';
+    if (C.tab === 'barrels') {
+      const n = nFilters();
+      tool = `<div class="cr-tool">
+        <label class="cr-search">${ICON_S}<input type="search" class="cr-q" placeholder="Buscar" value="${esc(C.q)}" aria-label="Buscar barrica"></label>
+        <button type="button" class="cr-fbtn${n ? ' on' : ''}" data-cpanel aria-expanded="${C.panel}">${ICON_F}<span>Filtros</span>${n ? `<b>${n}</b>` : ''}</button>
+        ${C.canWrite ? `<button type="button" class="cr-add" data-ca="new" aria-label="Nueva barrica" title="Nueva barrica">+</button>` : ''}
+        <span class="cr-morew"><button type="button" class="cr-more" data-cmore aria-expanded="${C.more}" aria-label="Más opciones">⋯</button>${C.more ? `<div class="cr-menu" role="menu">
+          ${C.canWrite ? `<button type="button" role="menuitem" data-ca="import">Importar inventario</button>` : ''}
+          <button type="button" role="menuitem" data-ca="labels">Imprimir etiquetas QR</button>
+          ${C.canWrite ? `<button type="button" role="menuitem" data-ca="mapcfg">Configurar mapa</button>` : ''}</div>` : ''}</span>
+      </div>`;
+    } else if (C.tab === 'map' && C.canWrite) {
+      tool = `<div class="cr-tool cr-tool-r"><button type="button" class="btn sm" data-ca="mapcfg">Configurar mapa</button></div>`;
+    }
+    C.root.innerHTML = `<div class="cr">${tabs}${tool}<div class="cr-body" id="crBody"></div></div>`;
     const body = $('#crBody', C.root);
     body.innerHTML = C.tab === 'map' ? renderMap() : C.tab === 'tanks' ? renderTanks() : renderBarrels();
   }
-
+  // Filtros sheet (bottom sheet on phones, centered card on desktop).
+  function filterPanel() {
+    const uses = [['', 'Todas'], ['white', 'Blanco'], ['red', 'Tinto'], ['orange', 'Naranja'], ['rose', 'Rosado'], ['none', 'Sin tipo']];
+    const seg = (attr, list, cur) => `<div class="cr-pseg">${list.map(([k, l, dot]) => `<button type="button" ${attr}="${k}" aria-pressed="${cur === k}">${dot ? `<i style="background:${dot}"></i>` : ''}${l}</button>`).join('')}</div>`;
+    return `<div class="cr-panel" data-cpanelbg><div class="cr-pin" role="dialog" aria-label="Filtros">
+      <div class="cr-ph"><b>Filtros</b><button type="button" class="cr-px" data-cpanel aria-label="Cerrar">×</button></div>
+      <div class="cr-plbl">Tipo de barrica</div>${seg('data-cu', uses.map(([k, l]) => [k, l, USE_C[k]]), C.use || '')}
+      <div class="cr-plbl">Añada del vino</div>${seg('data-cv', vintChips(), C.vint)}
+      <div class="cr-plbl">Ubicación</div>${seg('data-cl', [['', 'Todas'], ['1', 'Sin ubicación']], C.noloc ? '1' : '')}
+      <div class="cr-plbl">Agrupar la lista</div>${seg('data-cg2', [['loc', 'Por ubicación'], ['wine', 'Por vino'], ['none', 'Sin agrupar']], C.group)}
+      <div class="cr-pfoot">${nFilters() ? `<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button>` : '<span></span>'}<button type="button" class="btn primary" data-cpanel>Listo</button></div>
+    </div></div>`;
+  }
   // ---------- Barricas ----------
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
     let bs = C.barrels.filter(b => !q || (b.code + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
     if (C.vint !== 'all') bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; }); // empties have no vintage: always shown
     if (C.use) bs = bs.filter(b => useOf(b) === C.use || (C.use === 'none' && !useOf(b)));
+    if (C.noloc) bs = bs.filter(b => !b.loc);
+    if (C.filter === 'noloc') C.filter = 'all';
     const base = bs;
-    const counts = { all: base.length, noloc: base.filter(b => !b.loc).length };
+    const counts = { all: base.length };
     for (const k of ['confirm', 'full', 'partial', 'empty']) counts[k] = base.filter(b => stateOf(b) === k).length;
-    if (C.filter === 'noloc') bs = bs.filter(b => !b.loc); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
-    const fchips = [['all', 'Todas']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []).concat([['full', 'Llenas'], ['partial', 'Parciales'], ['empty', 'Vacías'], ['noloc', 'Sin ubicación']]).map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}">${l} <small>${counts[k]}</small></button>`).join('');
-    const gsel = `<label class="cr-group">Agrupar <select data-cg><option value="loc"${C.group === 'loc' ? ' selected' : ''}>por ubicación</option><option value="wine"${C.group === 'wine' ? ' selected' : ''}>por vino</option><option value="none"${C.group === 'none' ? ' selected' : ''}>sin agrupar</option></select></label>`;
-    const uses = [['', 'Todas'], ['white', 'Blanco'], ['red', 'Tinto'], ['orange', 'Naranja'], ['rose', 'Rosado'], ['none', 'Sin tipo']];
-    const uchips = `<div class="seg cr-use" role="group" aria-label="Tipo de barrica"><span class="cr-ul">Tipo de barrica</span>${uses.map(([k, l]) => `<button type="button" data-cu="${k}" aria-pressed="${(C.use || '') === k}">${k && k !== 'none' ? `<i style="background:${USE_C[k]}"></i>` : ''}${l}</button>`).join('')}</div>`;
-    let h = `<div class="seg cr-f">${fchips}</div>${uchips}<div class="cr-grouprow">${gsel}</div>`;
+    counts.full += counts.partial; // "Con vino" = full + partial
+    if (C.filter === 'full') bs = bs.filter(b => ['full', 'partial'].includes(stateOf(b))); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
+    // One status row (the question people actually ask: what's full, what's free, what needs checking).
+    const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías']].concat(counts.confirm ? [['confirm', 'Revisar']] : []);
+    const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"${k === 'confirm' ? ' title="Por confirmar: vino viejo en papel"' : ''}><span>${l}</span><small>${counts[k]}</small></button>`).join('');
+    const chips = [];
+    if (C.use) chips.push(['use', 'Tipo: ' + (C.use === 'none' ? 'Sin tipo' : USE[C.use])]);
+    if (C.vint !== 'all') chips.push(['vint', 'Añada: ' + (C.vint === 'old' ? 'Anteriores' : C.vint)]);
+    if (C.noloc) chips.push(['loc', 'Sin ubicación']);
+    let h = `<div class="cr-status" role="group" aria-label="Estado">${fchips}</div>` +
+      (chips.length ? `<div class="cr-chips2">${chips.map(([k, l]) => `<button type="button" class="cr-fchip" data-cclear="${k}" aria-label="Quitar ${esc(l)}">${esc(l)} <b aria-hidden="true">×</b></button>`).join('')}<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button></div>` : '') +
+      (C.panel ? filterPanel() : '');
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» para pegar el inventario de barricas desde Excel, o «+ Barrica» para capturar una por una.</div>`;
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
     if (C.filter === 'confirm') return h + `<p class="cr-help">Estas barricas tenían vino de años anteriores en los registros de SO₂ en papel (nov/25 y may/26). Confirma qué tienen hoy; lo de 2026 en Excellovint no se toca.</p><div class="cr-cfm">` +
@@ -120,11 +151,12 @@
       const g = lotGroup(b.lot), st = stateOf(b), fill = st === 'confirm' ? 'empty' : st, u = useOf(b);
       return `<article class="cr-bbl f-${fill}" data-bb="${esc(b.id)}" style="--c:${GCOL[g] || '#9aa5b1'}">
         <div class="cr-code">${BARREL_SVG}<b>${esc(b.code)}</b></div>
-        <div class="cr-bmain"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>
+        <div class="cr-bmain">
+          <div class="cr-bh"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
           ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
-          <div class="cr-sub">${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span> ` : ''}${[b.vol ? b.vol + ' L' : '', b.size ? b.size + ' L' : '', FILL[fill]].filter(Boolean).join(' · ')}${b.lot && lotById(b.lot) ? ' · ' + C.vintageOf(lotById(b.lot)) : ''}</div>
-          <div class="cr-sub">${b.loc ? '<span class="cr-loc">' + esc(b.loc) + '</span> ' + esc(locLabel(b.loc)) : '<span class="cr-none">Sin ubicación</span>'}</div>
-          <div class="cr-sub cr-spec">${specLine(b) ? esc(specLine(b)) : '<span class="cr-none">Sin tonelería / año / tostado</span>'}</div>
+          <div class="cr-sub">${esc([st === 'confirm' || !b.lot ? '' : FILL[fill], b.vol && b.size && +b.vol < +b.size ? b.vol + ' / ' + b.size + ' L' : (b.size || b.vol ? (b.size || b.vol) + ' L' : ''), b.lot && lotById(b.lot) ? C.vintageOf(lotById(b.lot)) : ''].filter(Boolean).join(' · '))}</div>
+          ${specLine(b) ? `<div class="cr-sub cr-spec">${esc(specLine(b))}</div>` : ''}
+          ${b.loc ? `<div class="cr-sub"><span class="cr-loc">${esc(b.loc)}</span> ${esc(locLabel(b.loc))}</div>` : ''}
         </div></article>`;
     };
     if (C.group === 'none') return h + `<div class="cr-cards">${bs.map(card).join('')}</div>`;
@@ -444,8 +476,14 @@
 
   async function refresh() { await load(); render(); showCount(); }
   // The "Cellar" switch shows how many barrels hold wine (full or partial), not how many wines were moved to Cellar.
-  function showCount() { const n = C.barrels.filter(b => ['full', 'partial'].includes(stateOf(b))).length; window.cellarFullBarrels = n; const el = document.getElementById('wmCellarN'); if (el) { el.textContent = n || ''; el.title = n + ' barricas con vino'; } }
-  fetch('/api/db/barrels').then(r => r.ok ? r.json() : { rows: [] }).then(j => { if (!C.loaded) C.barrels = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); showCount(); setTimeout(showCount, 4000); }).catch(() => {});
+  function showCount() {
+    const n = C.barrels.filter(b => ['full', 'partial'].includes(stateOf(b))).length; window.cellarFullBarrels = n; const el = document.getElementById('wmCellarN'); if (el) { el.textContent = n || ''; el.title = n + ' barricas con vino'; }
+    if (C.vessels.length && C.all.length) { const t = tankList().filter(v => tankContents(v).length).length; window.cellarFullTanks = t; const e2 = document.getElementById('wmTankN'); if (e2) { e2.textContent = t || ''; e2.title = t + ' tanques con vino'; } }
+  }
+  Promise.all([fetch('/api/db/barrels').then(r => r.ok ? r.json() : { rows: [] }), fetch('/api/db/vessels').then(r => r.ok ? r.json() : { rows: [] }), fetch('/api/db/lots').then(r => r.ok ? r.json() : { rows: [] })]).then(([j, v, l]) => {
+    if (!C.loaded) { C.barrels = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); C.vessels = (v.rows || []).map(r => Object.assign({ id: r.id }, r.data)); if (!C.all.length) C.all = (l.rows || []).map(r => Object.assign({ id: r.id }, r.data)).filter(x => x.group !== 'routine' && !x.archived); }
+    showCount(); setTimeout(showCount, 4000);
+  }).catch(() => {});
   // One tap from the "Por confirmar" list: what does this barrel hold today?
   async function confirmBarrel(id, how) {
     const b = C.barrels.find(x => x.id === id); if (!b || !C.canWrite) return;
@@ -461,7 +499,15 @@
   document.addEventListener('click', e => {
     if (!C.root || !C.root.contains(e.target)) return;
     const cf = e.target.closest('[data-cfm]'); if (cf) { confirmBarrel(cf.dataset.id, cf.dataset.cfm); return; }
-    const t = e.target.closest('[data-ct],[data-tk],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) return;
+    if (e.target.matches && e.target.matches('[data-cpanelbg]')) { C.panel = false; render(); return; }
+    const pn = e.target.closest('[data-cpanel]'); if (pn) { C.panel = !C.panel; C.more = false; render(); return; }
+    const mo = e.target.closest('[data-cmore]'); if (mo) { C.more = !C.more; render(); return; }
+    const cl = e.target.closest('[data-cclear]'); if (cl) { const k = cl.dataset.cclear; if (k === 'use' || k === 'all') C.use = ''; if (k === 'vint' || k === 'all') C.vint = 'all'; if (k === 'loc' || k === 'all') C.noloc = false; render(); return; }
+    const lc = e.target.closest('[data-cl]'); if (lc) { C.noloc = lc.dataset.cl === '1'; render(); return; }
+    const g2 = e.target.closest('[data-cg2]'); if (g2) { C.group = g2.dataset.cg2; render(); return; }
+    if (C.more && !e.target.closest('.cr-morew')) { C.more = false; }
+    const t = e.target.closest('[data-ct],[data-tk],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) { if (!C.more && C.root.querySelector('.cr-menu')) render(); return; }
+    if (t.dataset.ca) C.more = false;
     if (t.dataset.ct) { C.tab = t.dataset.ct; C.q = ''; render(); return; }
     if (t.dataset.cv) { C.vint = t.dataset.cv; render(); return; }
     if (t.dataset.cf) { C.filter = t.dataset.cf; render(); return; }
@@ -482,6 +528,7 @@
   let loading = null;
   window.addEventListener('cellar:render', async e => {
     const d = e.detail || {};
+    if (d.tab === 'tanks') C.tab = 'tanks'; else if (C.tab === 'tanks') C.tab = 'barrels';
     C.root = document.getElementById('cellarView'); C.lots = d.lots || []; C.all = d.all || []; C.canWrite = !!d.canWrite; C.crew = !!d.crew; C.vintage = d.vintage || 2026;
     if (d.vintageOf) C.vintageOf = d.vintageOf; if (d.phaseOf) C.phaseOf = d.phaseOf;
     if (!C.loaded) { if (!loading) loading = load().catch(() => { C.loaded = true; }); render(); await loading; }

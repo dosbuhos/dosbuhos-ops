@@ -1284,9 +1284,10 @@ body { background-image: none !important; font-family: var(--f-body); }
   <div class="diag-back" id="diagSheet" hidden><div class="diag" role="dialog" aria-modal="true" aria-labelledby="diagTitle"><h2 id="diagTitle">Access check</h2><div id="diagBody"></div><div class="diag-btns"><button type="button" class="btn" id="diagClose">Close</button></div></div></div>
 
   <section class="wines" id="winesView" role="tabpanel" aria-labelledby="tabWines">
-    <div class="wmode" id="wmode" role="tablist" aria-label="Production or cellar">
-      <button type="button" role="tab" data-wm="prod" aria-selected="true">Production <small id="wmProdN"></small></button>
-      <button type="button" role="tab" data-wm="cellar" aria-selected="false">Cellar <small id="wmCellarN"></small></button>
+    <div class="wmode" id="wmode" role="tablist" aria-label="Vinos, tanques o barricas">
+      <button type="button" role="tab" data-wm="prod" aria-selected="true">Vinos <small id="wmProdN"></small></button>
+      <button type="button" role="tab" data-wm="tanks" aria-selected="false">Tanques <small id="wmTankN"></small></button>
+      <button type="button" role="tab" data-wm="cellar" aria-selected="false">Barricas <small id="wmCellarN"></small></button>
     </div>
     <div id="cellarView" hidden></div>
     <div class="stats" id="stats"></div>
@@ -1820,7 +1821,7 @@ var SheetParse = (function () {
     sheet: { mode: "none", at: 0, msg: "", gids: {}, live: null, missing: [], cache: {}, cacheAt: "", retried: false },
     wmode: "prod"
   };
-  S.wmode = recall("wmode", "prod") === "cellar" ? "cellar" : "prod";
+  S.wmode = ["cellar", "tanks"].includes(recall("wmode", "prod")) ? recall("wmode", "prod") : "prod";
   if (location.hash === "#cellar") S.wmode = "cellar";
 
   const $ = id => document.getElementById(id);
@@ -4185,7 +4186,8 @@ Return ONLY JSON with this shape:
     const sheetless = !hasSheet(l);
     const dash = sheetless ? `<span class="none" title="Not in the 2026 Excellovint">n/a</span>` : `<span class="none">—</span>`;
     const v = (k, cls) => (s ? val(L[k], k, cls) : dash);
-    let h = `<tr class="w${s ? "" : " nodata"}" data-open="${esc(l.id)}">`;
+    const GC = { red: "#7a1f2b", rose: "#e0849a", white: "#d8b43c", orange: "#d9822b", sparkling: "#7fa7b8" };
+    let h = `<tr class="w${s ? "" : " nodata"}" data-open="${esc(l.id)}" style="--gc:${GC[l.group] || "#9aa5b1"}">`;
     h += `<td class="wine"><button type="button" class="wn" data-open="${esc(l.id)}">${esc(l.name)}</button>` +
       `<div class="wc">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}</div>` +
       (tempFmt(tempRaw(l, curWeek)) ? `<div class="lot-temp">Target: ${esc(tempFmt(tempRaw(l, curWeek)).text)}</div>` : "") + `</td>`;
@@ -4237,16 +4239,17 @@ Return ONLY JSON with this shape:
     const body = $("wtBody");
     if (!S.gotLots || !S.gotTasks) return;
     // Production | Cellar switch. Cellar mode hands the view to cellar-room.js (barrels, map, tags).
-    const cellar = S.wmode === "cellar";
+    const cellar = S.wmode === "cellar" || S.wmode === "tanks";
     $("wmProdN").textContent = productionLots().length || "";
     $("wmCellarN").textContent = window.cellarFullBarrels != null ? window.cellarFullBarrels : ""; // barrels holding wine (cellar-room.js)
-    document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", (b.dataset.wm === "cellar") === cellar));
+    $("wmTankN").textContent = window.cellarFullTanks != null ? window.cellarFullTanks : "";
+    document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.wm === S.wmode)));
     $("cellarView").hidden = !cellar;
     $("stats").hidden = cellar; $("src").hidden = cellar; document.querySelector("#winesView .tbl-wrap").hidden = cellar;
     $("groups").hidden = cellar; $("wineCtl").hidden = cellar || S.view !== "wines";
     document.documentElement.classList.toggle("w-cellar", cellar && S.view === "wines");
     if (cellar) {
-      window.dispatchEvent(new CustomEvent("cellar:render", { detail: { lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db && !S.isCrew), crew: !!S.isCrew, vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
+      window.dispatchEvent(new CustomEvent("cellar:render", { detail: { tab: S.wmode === "tanks" ? "tanks" : "barrels", lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db && !S.isCrew), crew: !!S.isCrew, vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
       return;
     }
     if (showArch()) {
