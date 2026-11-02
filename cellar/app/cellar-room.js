@@ -20,7 +20,7 @@
   // Small barrel drawn in the wine's color (the old square badge read like a calendar date).
   const BARREL_SVG = '<svg class="cr-ico" viewBox="0 0 40 44" aria-hidden="true"><path d="M8 3h24c4 6 5 12 5 19s-1 13-5 19H8C4 35 3 29 3 22S4 9 8 3z" fill="var(--c)"/><path d="M5.2 12h29.6M3.4 22h33.2M5.2 32h29.6" stroke="#1f1d1b" stroke-opacity=".55" stroke-width="2.4" fill="none"/><path d="M8 3h24c4 6 5 12 5 19s-1 13-5 19H8C4 35 3 29 3 22S4 9 8 3z" fill="none" stroke="#1f1d1b" stroke-opacity=".35" stroke-width="1.2"/><path d="M14 4c-2 6-3 12-3 18s1 12 3 18M26 4c2 6 3 12 3 18s-1 12-3 18" stroke="#fff" stroke-opacity=".28" stroke-width="1.2" fill="none"/></svg>';
   const specLine = b => [b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year ? 'hecha en ' + b.year : ''].filter(Boolean).join(' · ');
-  const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 2 }, { id: '2', name: 'Fila 2', slots: 8, levels: 2 }, { id: '3', name: 'Fila 3', slots: 8, levels: 2 }] }] };
+  const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 4 }, { id: '2', name: 'Fila 2', slots: 8, levels: 4 }, { id: '3', name: 'Fila 3', slots: 8, levels: 4 }] }] };
 
   const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'loc', sheetTabs: {} };
 
@@ -36,11 +36,14 @@
   const lotGroup = id => { const l = lotById(id); return l ? l.group : ''; };
   const barrelsOf = lot => C.barrels.filter(b => b.lot === lot.id);
   const vintOK = l => C.vint === 'all' || (C.vint === 'old' ? C.vintageOf(l) < C.vintage - 2 : C.vintageOf(l) === +C.vint);
+  // Barrels stack up to 4 high: level 1 = on the floor, 4 = top.
+  const MAX_LEVELS = 4;
+  const lvName = lv => +lv === 1 ? 'piso' : 'nivel ' + lv;
   const locLabel = loc => {
     if (!loc) return '';
     const [z, r, s, lv] = String(loc).split('-'); const zone = (C.map || DEFAULT_MAP).zones.find(x => x.id === z);
     const row = zone && (zone.rows || []).find(x => x.id === r);
-    return (zone ? zone.name : 'Zona ' + z) + ' · ' + (row ? row.name : 'Fila ' + r) + ' · Pos ' + s + (lv ? (lv === '1' ? ' · abajo' : lv === '2' ? ' · arriba' : ' · nivel ' + lv) : '');
+    return (zone ? zone.name : 'Zona ' + z) + ' · ' + (row ? row.name : 'Fila ' + r) + ' · Pos ' + s + (lv ? ' · ' + lvName(lv) : '');
   };
   const atLoc = loc => C.barrels.find(b => b.loc === loc);
   // Imported from the paper SO2 records (Barricas_registro_2025-2026.xlsx): barrels that held older wine on paper and
@@ -126,7 +129,7 @@
         for (let lv = levels; lv >= 1; lv--) for (let s = 1; s <= slots; s++) {
           const loc = `${z.id}-${r.id}-${s}-${lv}`, b = atLoc(loc);
           if (b) { const g = lotGroup(b.lot); h += `<button type="button" class="cr-cell has ${b.fill === 'partial' ? 'half' : ''}" data-bb="${esc(b.id)}" style="--c:${b.lot ? (GCOL[g] || '#999') : '#c9ced3'}" title="${esc(b.code + ' · ' + (lotName(b.lot) || 'vacía') + ' · ' + locLabel(loc))}"><b>${esc(b.code)}</b><small>${esc((lotName(b.lot) || 'vacía').slice(0, 14))}</small></button>`; }
-          else h += `<button type="button" class="cr-cell free" data-loc="${loc}" title="${esc(locLabel(loc))}"${C.canWrite ? '' : ' disabled'}><small>${s}${levels > 1 ? (lv === 1 ? '↓' : '↑') : ''}</small></button>`;
+          else h += `<button type="button" class="cr-cell free" data-loc="${loc}" title="${esc(locLabel(loc))}"${C.canWrite ? '' : ' disabled'}><small>${s}${levels > 1 ? '·' + lv : ''}</small></button>`;
         }
         h += `</div></div>`;
       }
@@ -148,7 +151,7 @@
     const zs = `<select name="z"><option value="">—</option>${map.zones.map(z => `<option value="${esc(z.id)}"${loc && z.id === z0 ? ' selected' : ''}>${esc(z.name || z.id)}</option>`).join('')}</select>`;
     const rs = `<select name="r">${(zone ? zone.rows : []).map(r => `<option value="${esc(r.id)}"${loc && r.id === r0 ? ' selected' : ''}>${esc(r.name || r.id)}</option>`).join('')}</select>`;
     const ss = `<select name="s">${Array.from({ length: row ? +row.slots || 1 : 1 }, (_, i) => `<option${String(i + 1) === s0 ? ' selected' : ''}>${i + 1}</option>`).join('')}</select>`;
-    const ls = `<select name="l">${Array.from({ length: row ? +row.levels || 1 : 1 }, (_, i) => `<option value="${i + 1}"${String(i + 1) === (l0 || '1') ? ' selected' : ''}>${i + 1 === 1 ? 'Abajo' : i + 1 === 2 ? 'Arriba' : 'Nivel ' + (i + 1)}</option>`).join('')}</select>`;
+    const ls = `<select name="l">${Array.from({ length: row ? +row.levels || 1 : 1 }, (_, i) => `<option value="${i + 1}"${String(i + 1) === (l0 || '1') ? ' selected' : ''}>${i + 1 === 1 ? '1 · piso' : (i + 1) + (i + 1 === (+row.levels || 1) ? ' · arriba' : '')}</option>`).join('')}</select>`;
     return `<div class="cr-locsel"><label>Zona${zs}</label><label>Fila${rs}</label><label>Pos.${ss}</label><label>Nivel${ls}</label></div>`;
   };
   function openBarrel(id, preset) {
@@ -297,19 +300,19 @@
     const map = JSON.parse(JSON.stringify(C.map || DEFAULT_MAP));
     const draw = () => {
       $('#crZones', d).innerHTML = map.zones.map((z, zi) => `<fieldset class="cr-zcfg"><legend><input value="${esc(z.name || '')}" data-zn="${zi}" placeholder="Nombre de la zona"> <span class="cr-dim">código ${esc(z.id)}</span> <button type="button" class="x" data-zdel="${zi}" title="Quitar zona">×</button></legend>
-        ${z.rows.map((r, ri) => `<div class="cr-rcfg"><input value="${esc(r.name || '')}" data-rn="${zi}.${ri}" placeholder="Fila"><label>Posiciones <input type="number" min="1" max="40" value="${r.slots}" data-rs="${zi}.${ri}"></label><label>Niveles <input type="number" min="1" max="4" value="${r.levels}" data-rl="${zi}.${ri}"></label><button type="button" class="x" data-rdel="${zi}.${ri}" title="Quitar fila">×</button></div>`).join('')}
+        ${z.rows.map((r, ri) => `<div class="cr-rcfg"><input value="${esc(r.name || '')}" data-rn="${zi}.${ri}" placeholder="Fila"><label>Posiciones <input type="number" min="1" max="40" value="${r.slots}" data-rs="${zi}.${ri}"></label><label>Niveles (alto) <input type="number" min="1" max="${MAX_LEVELS}" value="${r.levels}" data-rl="${zi}.${ri}"></label><button type="button" class="x" data-rdel="${zi}.${ri}" title="Quitar fila">×</button></div>`).join('')}
         <button type="button" class="btn sm" data-radd="${zi}">+ Fila</button></fieldset>`).join('');
     };
     const d = sheet(`<form method="dialog" class="cr-form"><div class="cr-sh"><h3>Mapa de la cava</h3></div>
-      <p class="cr-help">Ubicación estándar = <b>Zona-Fila-Posición-Nivel</b> (p. ej. <code>A-2-5-1</code> = zona A, fila 2, posición 5, abajo). Define aquí las zonas y filas reales de la bodega; las etiquetas usan estos códigos.</p>
+      <p class="cr-help">Ubicación estándar = <b>Zona-Fila-Posición-Nivel</b> (hasta 4 de alto: 1 = piso, 4 = arriba) (p. ej. <code>A-2-5-1</code> = zona A, fila 2, posición 5, nivel 1 = piso). Define aquí las zonas y filas reales de la bodega; las etiquetas usan estos códigos.</p>
       <div id="crZones"></div><button type="button" class="btn sm" data-zadd>+ Zona</button>
       <div class="cr-actions"><button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn primary">Guardar mapa</button></div></form>`);
     draw();
     d.addEventListener('input', e => { const t = e.target; if (t.dataset.zn != null) map.zones[+t.dataset.zn].name = t.value; if (t.dataset.rn) { const [z, r] = t.dataset.rn.split('.'); map.zones[z].rows[r].name = t.value; } if (t.dataset.rs) { const [z, r] = t.dataset.rs.split('.'); map.zones[z].rows[r].slots = +t.value || 1; } if (t.dataset.rl) { const [z, r] = t.dataset.rl.split('.'); map.zones[z].rows[r].levels = +t.value || 1; } });
     d.addEventListener('click', e => {
       const t = e.target.closest('button'); if (!t) return;
-      if (t.dataset.zadd != null) { const id = String.fromCharCode(65 + map.zones.length); map.zones.push({ id, name: 'Zona ' + id, rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 2 }] }); draw(); }
-      if (t.dataset.radd != null) { const z = map.zones[+t.dataset.radd]; z.rows.push({ id: String(z.rows.length + 1), name: 'Fila ' + (z.rows.length + 1), slots: 8, levels: 2 }); draw(); }
+      if (t.dataset.zadd != null) { const id = String.fromCharCode(65 + map.zones.length); map.zones.push({ id, name: 'Zona ' + id, rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 4 }] }); draw(); }
+      if (t.dataset.radd != null) { const z = map.zones[+t.dataset.radd]; z.rows.push({ id: String(z.rows.length + 1), name: 'Fila ' + (z.rows.length + 1), slots: 8, levels: 4 }); draw(); }
       if (t.dataset.zdel != null && confirm('¿Quitar la zona? Las barricas ubicadas ahí quedan sin ubicación.')) { map.zones.splice(+t.dataset.zdel, 1); draw(); }
       if (t.dataset.rdel) { const [z, r] = t.dataset.rdel.split('.'); map.zones[z].rows.splice(+r, 1); draw(); }
       if (t.dataset.cancel != null) d.close();

@@ -1139,6 +1139,13 @@ h1, .top h1 { font-family: "Lustria", Georgia, "Times New Roman", serif; font-we
 .aud-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: #c62828; color: #fff; font: 700 11px/18px var(--f-body); text-align: center; vertical-align: 1px; }
 .aud-badge.hi { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #c62828; }
 .app-ver { font: 11px var(--f-mono); color: var(--muted); margin-left: auto; }
+/* v1.2 header: one compact app bar. Small mark · divider · product name, actions on the right; no tagline. */
+.top { flex-wrap: nowrap; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.top .titles { flex-wrap: nowrap; align-items: center; gap: 12px; }
+.brand-logo { height: 22px; opacity: .9; }
+.top .brand-logo + h1 { padding-left: 12px; border-left: 1px solid var(--rule); }
+.top h1 { font-size: 19px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top .sub { display: none; }
 /* Work orders: the pencil lives in a fixed actions column at the far right, same spot on every row. */
 .asg-row { grid-template-columns: 70px 150px minmax(0, 1fr) 84px 96px 150px 40px; }
 .asg-row .asg-act { display: flex; justify-content: center; align-items: flex-start; align-self: start; padding-top: 2px; }
