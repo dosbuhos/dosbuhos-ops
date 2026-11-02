@@ -764,6 +764,20 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 .asg-day .dn-btn:disabled { opacity: .3; cursor: default; }
 .asg-day .dn-lbl { min-width: 92px; text-align: center; font: 700 17px var(--f-display); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
 .asg-day .dn-lbl small { display: none; }
+/* v1.3.4 work-order filters */
+.v-asg #groups { display: none !important; }
+.wo-fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 8px; }
+.wo-type button { min-height: 36px; }
+.wo-wine { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--f-body); color: var(--muted); }
+.wo-wine select { min-height: 36px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font: 14px var(--f-body); max-width: 280px; }
+.wo-wine.on select { border-color: var(--accent); background: #f8eef1; font-weight: 600; }
+.wo-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 8px; }
+.wo-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 999px; background: #f8eef1; color: var(--accent); font: 600 13.5px var(--f-body); cursor: pointer; }
+.wo-chip b { font-size: 17px; line-height: 1; }
+.wo-clearall { min-height: 34px; border: 0; background: none; color: var(--accent); font: 600 13.5px var(--f-body); text-decoration: underline; cursor: pointer; }
+.wo-fnote { border: 0; background: #f8eef1; color: var(--accent); font: 700 inherit; font-weight: 700; padding: 1px 6px; border-radius: 4px; cursor: pointer; }
+.wo-fnote span { font-weight: 400; text-decoration: underline; }
+@media (max-width: 760px) { .wo-fbar { gap: 6px; } .wo-type { display: flex; width: 100%; gap: 4px; } .wo-type button { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 13.5px; } .wo-wine { width: 100%; } .wo-wine select { flex: 1; max-width: none; min-height: 40px; } }
 .asg-day .dn-wine { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--f-body); color: var(--muted); }
 .asg-day .dn-wine select { min-height: 36px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font: 14px var(--f-body); max-width: 260px; }
 .asg-day .dn-wine.on select { border-color: var(--accent); background: #f8eef1; font-weight: 600; }
@@ -3186,7 +3200,7 @@ Return ONLY JSON with this shape:
     }
     const d = iso(addDays(parse(todayISO), S.asgOff)), dd = parse(d);
     const label = dd.getDate() + "/" + (dd.getMonth() + 1);   // day/month, e.g. 29/10
-    return `<div class="asg-day"><button type="button" class="dn-btn" data-asgday="-1" aria-label="Día anterior">‹</button><span class="dn-lbl">${esc(label)}${S.asgOff ? `<small>${esc(dd.getDate() + " " + MONTHS[dd.getMonth()])}</small>` : ""}</span><button type="button" class="dn-btn" data-asgday="1" aria-label="Día siguiente"${S.asgOff >= 0 ? " disabled" : ""}>›</button>${S.asgOff ? `<button type="button" class="dn-today" data-asgday="0">Volver a hoy</button>` : ""}${wineSelect()}</div>`;
+    return `<div class="asg-day"><button type="button" class="dn-btn" data-asgday="-1" aria-label="Día anterior">‹</button><span class="dn-lbl">${esc(label)}${S.asgOff ? `<small>${esc(dd.getDate() + " " + MONTHS[dd.getMonth()])}</small>` : ""}</span><button type="button" class="dn-btn" data-asgday="1" aria-label="Día siguiente"${S.asgOff >= 0 ? " disabled" : ""}>›</button>${S.asgOff ? `<button type="button" class="dn-today" data-asgday="0">Volver a hoy</button>` : ""}</div>`;
   }
   async function loadPast(d) {
     if (S.asgPast[d]) return;
@@ -3204,7 +3218,7 @@ Return ONLY JSON with this shape:
     const WC = { red: "#7a1f2b", rose: "#e0849a", white: "#d8b43c", orange: "#d9822b", sparkling: "#7fa7b8", routine: "#9aa5b1" };
     const card = (r, cls, st) => `<div class="pd-row ${cls}" style="--wc:${WC[tabGroups(r.tab)[0]] || "#9aa5b1"}"><div class="pd-h"><b>${esc(wineOf(r.tab))}</b><span>${esc(st)}</span></div><div class="pd-s">${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</div><div class="pd-t">${esc(r.note)}</div></div>`;
     const sec = (title, list, cls, st) => list.length ? `<h3 class="pd-g">${title} <small>${list.length}</small></h3>` + list.map(r => card(r, cls, st(r))).join("") : "";
-    el.innerHTML = dayNav() + `<p class="pd-sum">${done.length} hechas · ${open.length} sin cerrar${xx.length ? " · " + xx.length + " canceladas" : ""}${notes.length ? " · " + notes.length + " notas" : ""}</p>` +
+    el.innerHTML = dayNav() + woFilterBar(false) + `<p class="pd-sum">${woFilterNote(false)}${done.length} hechas · ${open.length} sin cerrar${xx.length ? " · " + xx.length + " canceladas" : ""}${notes.length ? " · " + notes.length + " notas" : ""}</p>` +
       (rows.length ? sec("Hechas", done, "done", r => "✓ " + r.ini) + sec("Sin cerrar ese día", open, "open", r => r.asig) + sec("Canceladas", xx, "xx", () => "XX") + sec("Notas", notes, "note", () => "")
         : `<div class="empty"><strong>Nada registrado ese día.</strong>${P.err ? esc(P.err) : ""}</div>`);
   }
@@ -3221,30 +3235,54 @@ Return ONLY JSON with this shape:
   // Phone week view: Mon → Sun, each day's calendar tasks (tick / edit as everywhere), then the week's tasks with no fixed day.
   // Wine-type chips (Orange, Reds, Every lot…) also filter the work-order lists. A row belongs to every app lot that
   // reads its tab (L00 = "Every lot"); with no chip picked (All wines) nothing is filtered.
-  function asgGroupSet() { if (typeof PHONE_MQ !== "undefined" && PHONE_MQ.matches) return []; return listOf(S.group).filter(x => x !== "all" && x !== "archived"); } // phones hide the chips, so never filter there
+  // ---- Work-order filters: their own state (never the Wines chips), always visible, every active one shown as a chip with ×. ----
+  const WO_TYPES = [["", "Todos"], ["red", "Tintos"], ["white", "Blancos"], ["rose", "Rosados"], ["orange", "Naranjas"]];
+  try { localStorage.removeItem("tc.asgWine"); } catch (e) {}
+  S.woType = recall("woType", ""); if (!WO_TYPES.some(t => t[0] === S.woType)) S.woType = "";
+  S.asgWine = recall("woWine", "");
   function tabGroups(tab) { const gs = S.lots.filter(l => !l.archived && (l.sheet || []).some(x => x.tab === tab && !x.archived)).map(l => l.group || "routine"); return gs.length ? gs : (/^L00/i.test(tab) ? ["routine"] : []); }
-  // Work orders (desktop): "Vino" picker next to the day arrows: a wine type or one wine. Phones don't show it, so it never filters there.
-  S.asgWine = recall("asgWine", "");
   function asgWineOK(tab) {
-    const w = (typeof PHONE_MQ !== "undefined" && PHONE_MQ.matches) ? "" : S.asgWine;
-    if (!w) return true;
+    const w = S.asgWine; if (!w) return true;
     if (w.startsWith("g:")) return tabGroups(tab).includes(w.slice(2));
     const l = S.lots.find(x => x.id === w.slice(2)); return !!l && (l.sheet || []).some(x => x.tab === tab);
   }
+  function asgGroupOK(tab) { return asgWineOK(tab) && (!S.woType || tabGroups(tab).includes(S.woType)); }
+  function lotGroupOK(lotId) {
+    const l = S.lots.find(x => x.id === lotId), g = l ? (l.group || "routine") : "routine";
+    if (S.woType && g !== S.woType) return false;
+    if (S.asgWine && S.asgWine.startsWith("l:")) return lotId === S.asgWine.slice(2);
+    if (S.asgWine && S.asgWine.startsWith("g:")) return g === S.asgWine.slice(2);
+    return true;
+  }
+  const wineLabel = w => { if (!w) return ""; if (w.startsWith("g:")) { const g = w.slice(2); return g === "routine" ? "Bodega (L00)" : (GROUPS.find(x => x[0] === g) || [g, g])[1]; } const l = S.lots.find(x => x.id === w.slice(2)); return l ? l.name : w.slice(2); };
   function wineSelect() {
-    const types = GROUPS.map(([k, l]) => `<option value="g:${k}"${S.asgWine === "g:" + k ? " selected" : ""}>${esc(k === "routine" ? "Bodega (L00)" : l)}</option>`).join("");
     const wines = S.lots.filter(l => !l.archived && l.id !== "all" && (l.sheet || []).length).sort((a, b) => String((a.sheet[0] || {}).tab).localeCompare(String((b.sheet[0] || {}).tab), undefined, { numeric: true }))
       .map(l => `<option value="l:${esc(l.id)}"${S.asgWine === "l:" + l.id ? " selected" : ""}>${esc(((l.sheet[0] || {}).tab || "").split(/\s*-\s*|\s+/)[0] + " · " + l.name)}</option>`).join("");
-    return `<label class="dn-wine${S.asgWine ? " on" : ""}">Vino <select data-asgwine><option value="">Todos</option><optgroup label="Tipo">${types}</optgroup><optgroup label="Vino">${wines}</optgroup></select></label>`;
+    return `<label class="wo-wine${S.asgWine ? " on" : ""}"><span>Vino</span><select data-asgwine aria-label="Vino o lote"><option value="">Todos los vinos</option><option value="g:routine"${S.asgWine === "g:routine" ? " selected" : ""}>Bodega (L00)</option>${wines}</select></label>`;
   }
-  function asgGroupOK(tab) { const want = asgGroupSet(); return asgWineOK(tab) && (!want.length || tabGroups(tab).some(g => want.includes(g))); }
-  function lotGroupOK(lotId) { const want = asgGroupSet(); if (!want.length) return true; const l = S.lots.find(x => x.id === lotId); return want.includes(l ? (l.group || "routine") : "routine"); }
+  // Filter bar: type segmented control + wine/lot picker, then one chip per active filter (person included) + "Quitar filtros".
+  function woFilterBar(withWho) {
+    const chips = [];
+    if (withWho && S.asgWho) chips.push(["who", "Persona: " + (S.asgWho === "—" ? "Sin asignar" : crewName(S.asgWho))]);
+    if (S.woType) chips.push(["type", "Tipo: " + WO_TYPES.find(t => t[0] === S.woType)[1]]);
+    if (S.asgWine) chips.push(["wine", "Vino: " + wineLabel(S.asgWine)]);
+    return `<div class="wo-fbar"><span class="seg wo-type" role="group" aria-label="Tipo de vino">${WO_TYPES.map(([k, l]) => `<button type="button" data-wotype="${k}" aria-pressed="${S.woType === k}">${l}</button>`).join("")}</span>${wineSelect()}</div>` +
+      (chips.length ? `<div class="wo-chips">${chips.map(([k, l]) => `<button type="button" class="wo-chip" data-woclear="${k}" aria-label="Quitar ${esc(l)}">${esc(l)} <b aria-hidden="true">×</b></button>`).join("")}<button type="button" class="wo-clearall" data-woclear="all">Quitar filtros</button></div>` : "");
+  }
+  // Summary text of every filter in effect (person included); tapping it clears them all.
+  function woFilterNote(withWho) {
+    const f = [];
+    if (withWho && S.asgWho) f.push(S.asgWho === "—" ? "Sin asignar" : crewName(S.asgWho));
+    if (S.woType) f.push(WO_TYPES.find(t => t[0] === S.woType)[1]);
+    if (S.asgWine) f.push(wineLabel(S.asgWine));
+    return f.length ? `<button type="button" class="wo-fnote" data-woclear="all" title="Toca para quitar los filtros">Filtro: ${esc(f.join(" · "))} <span>× quitar</span></button> · ` : "";
+  }
   function renderAsgWeek(el) {
     const mon = iso(addDays(mondayOf(parse(todayISO)), 7 * S.asgWeekOff));
     const lotName = id => { const l = S.lots.find(x => x.id === id); return l ? (l.id === "all" ? "Bodega (todos)" : l.name) : ""; };
     const card = t => `<div class="wk-item"><span class="wk-lot">${esc(lotName(t.lot))}</span>${chip(t, t.week)}</div>`;
     const DN = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-    let h = dayNav(), total = 0;
+    let h = dayNav() + woFilterBar(false), total = 0;
     for (let i = 0; i < 7; i++) {
       const d = iso(addDays(parse(mon), i)), ts = S.tasks.filter(t => t.day === d && lotGroupOK(t.lot)).sort(byTask); total += ts.length;
       h += `<section class="wk-day${d === todayISO ? " is-today" : ""}"><h3>${DN[i]} ${dm(d)}${d === todayISO ? " · hoy" : ""} <small>${ts.length ? ts.filter(t => !t.done).length + " abiertas" : ""}</small></h3>${ts.length ? ts.map(card).join("") : `<p class="wk-none">—</p>`}</section>`;
@@ -3273,11 +3311,11 @@ Return ONLY JSON with this shape:
     const tm = team(), dis = (S.mcp || S.db) && S.canWrite !== false ? "" : " disabled";
     const queued = (S.woQueue || []).filter(q => q.status === "pending").length;
     const open = all.filter(r => !closed(r)).length;
-    let h = dayNav() + `<div class="asg-top"><span class="seg who" role="group" aria-label="Who">` +
+    let h = dayNav() + woFilterBar(true) + `<div class="asg-top"><span class="seg who" role="group" aria-label="Who">` +
       [["", "Everyone"]].concat(people.map(p => [p, p === "—" ? "Unassigned" : crewName(p)])).map(([k, l]) => `<button type="button" class="ghost" data-asgwho="${esc(k)}" aria-pressed="${S.asgWho === k}">${esc(l)}</button>`).join("") +
       `</span>` +
       `<button type="button" class="fresh" data-sheet="refresh" title="Toca para actualizar"></button></div>` +
-      `<p class="asg-note">${asgGroupSet().length ? `<b>Filtro: ${esc(asgGroupSet().map(g => (GROUPS.find(x => x[0] === g) || [g, g])[1]).join(", "))}</b> · ` : ""}${open} open · same rows as Today's Work Orders (today + open backlog, never future). ${fromCache
+      `<p class="asg-note">${woFilterNote(true)}${open} open · same rows as Today's Work Orders (today + open backlog, never future). ${fromCache
         ? `Saved copy from ${esc(S.woCache.at ? stamp(Date.parse(S.woCache.at)) : "earlier")}.`
         : ""}${queued ? ` <b>${queued} change${queued > 1 ? "s" : ""} waiting to sync.</b>` : ""}</p>`;
     if (!rows.length) h += `<div class="empty"><strong>Nothing open</strong>${S.asgWho ? "No open work orders for " + esc(S.asgWho) + "." : "No open work orders."}</div>`;
@@ -3550,13 +3588,17 @@ Return ONLY JSON with this shape:
   $("asgView").addEventListener("click", async e => {
     const w = e.target.closest("[data-asgwho]");
     if (w) { S.asgWho = w.dataset.asgwho; render(); return; }
+    const wt = e.target.closest("[data-wotype]");
+    if (wt) { S.woType = wt.dataset.wotype; store("woType", S.woType); $("asgView").__html = null; render(); return; }
+    const wc = e.target.closest("[data-woclear]");
+    if (wc) { const k = wc.dataset.woclear; if (k === "who" || k === "all") S.asgWho = ""; if (k === "type" || k === "all") { S.woType = ""; store("woType", ""); } if (k === "wine" || k === "all") { S.asgWine = ""; store("woWine", ""); } $("asgView").__html = null; render(); return; }
     const rs = e.target.closest("[data-asgres]"); if (rs) { openRs(rs.dataset.asgres); return; }
     const ed = e.target.closest("[data-asgedit]"); if (ed) { openXo(ed.dataset.asgedit, ed.dataset.focus); return; }
     const dy = e.target.closest("[data-asgday]"); if (dy) { const v = +dy.dataset.asgday; if (S.asgMode === "week") S.asgWeekOff = v === 0 ? 0 : S.asgWeekOff + v; else S.asgOff = v === 0 ? 0 : Math.min(0, S.asgOff + v); render(); window.scrollTo(0, 0); return; }
 
   });
   $("asgView").addEventListener("change", async e => {
-    if (e.target.matches("[data-asgwine]")) { S.asgWine = e.target.value; store("asgWine", S.asgWine); $("asgView").__html = null; render(); return; }
+    if (e.target.matches("[data-asgwine]")) { S.asgWine = e.target.value; store("woWine", S.asgWine); $("asgView").__html = null; render(); return; }
     const rowEl = e.target.closest("[data-asgkey]"); if (!rowEl) return;
     const key = rowEl.dataset.asgkey;
     const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;

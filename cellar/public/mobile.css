@@ -132,6 +132,7 @@
   .asg-top .seg.who button { font-size: 14px; padding: 0 14px; }
   #asgRefresh { display: none; }
   .asg-note { display: none; }
+  .asg-note:has(.wo-fnote) { display: block; font-size: 13px; margin: 0 0 8px; } /* a filter is on: always say so */
   .asg-group { margin: 0 0 14px; }
   .asg-group h3 { position: static; display: flex; align-items: baseline; gap: 8px; margin: 14px 0 4px; padding: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: none; }
   .asg-group h3 small { font-size: 12px; text-transform: none; letter-spacing: 0; }
@@ -443,3 +444,6 @@ html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }
   .m-oseg button[aria-pressed="true"] { background: var(--m-wine, #5c1f33); border-color: var(--m-wine, #5c1f33); color: #fff; }
   .m-oseg button[aria-pressed="true"] small { color: #f1dce4; }
 }
+
+/* work-order type filter: all five fit on a 390 px phone */
+@media (max-width: 760px) { #asgView .wo-type.seg { display: flex !important; flex-wrap: nowrap; width: 100%; gap: 4px; overflow: visible; } #asgView .wo-type.seg button { flex: 1 1 0 !important; min-width: 0 !important; padding: 6px 2px !important; font-size: 13.5px !important; } }
