@@ -26,6 +26,24 @@
 .en-close { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border: 1px solid var(--rule); border-radius: 50%; background: var(--paper); color: var(--ink); font: 400 26px/1 var(--f-body); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; }
 .en-close:hover { background: var(--bg); }
 #enSheet .en-close, #mvSheet .en-close, .en-lab .en-close { position: absolute !important; top: 12px; right: 12px; width: 44px !important; height: 44px; min-width: 0; padding: 0; margin: 0; }
+/* lab reports */
+.rp-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.rp-q { flex: 1 1 240px; min-height: 40px; padding: 6px 12px; border: 1px solid var(--rule); border-radius: 8px; font: 14.5px var(--f-body); background: var(--paper); color: var(--ink); }
+.rp-list { display: flex; flex-direction: column; gap: 8px; }
+.rp-card { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: #fff; }
+.rp-ico { display: block; padding-top: 2px; } .en-pdf { width: 30px; height: 36px; display: block; }
+.rp-h { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 15px; } .rp-h span { font: 600 13.5px var(--f-mono, monospace); color: var(--ink); }
+.rp-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; } .rp-sub a { color: inherit; }
+.rp-lots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.rp-lot { font: 600 11.5px var(--f-mono, monospace); padding: 2px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); }
+.rp-lot.hit, .rp-tbl tr.hit td { background: #fff3c4; }
+.rp-det { margin-top: 6px; } .rp-det summary { cursor: pointer; font: 600 13px var(--f-body); color: #2d5c8a; padding: 4px 0; }
+.rp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 4px; }
+.rp-tbl th, .rp-tbl td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rule); vertical-align: top; } .rp-tbl th { font-weight: 600; color: var(--muted); } .rp-tbl small { color: var(--muted); }
+.rp-mini { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; margin-bottom: 8px; }
+.rp-mini a { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); text-decoration: none; border: 1px solid var(--rule); border-radius: 6px; padding: 3px 8px 3px 4px; background: #fff; }
+.rp-mini .en-pdf { width: 16px; height: 19px; }
+@media (max-width: 760px) { .rp-tbl thead { display: none; } .rp-tbl tr { display: block; padding: 4px 0; border-bottom: 1px solid var(--rule); } .rp-tbl td { display: inline; border: 0; padding: 0 8px 0 0; } }
 /* quick lot picker */
 .en-lotq { width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; font: 15px var(--f-body); background: var(--paper); color: var(--ink); margin-bottom: 8px; }
 .en-lotlab { font: 600 11.5px var(--f-body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 4px 0; }

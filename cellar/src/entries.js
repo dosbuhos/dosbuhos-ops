@@ -232,6 +232,12 @@ export async function entriesRoute(request, env, p, url, user) {
           await put(env, 'labs', id, rec);
           out.push({ id, tab: s.tab, row: w.row, label: s.label });
         }
+        // Index on the file itself, so the Reportes list shows lab, date and which lots/rows came from it.
+        const prevS = (f.report && f.report.samples) || [];
+        const add = out.filter(o => o.tab).map(o => ({ label: cell(o.label), tab: o.tab, row: o.row, ubi: cell(((b.samples || []).find(s => s.label === o.label) || {}).ubi).toUpperCase() }));
+        f.report = { lab: labName, report_date: cell(b.report_date) || (f.report && f.report.report_date) || '', in_excellovint: true,
+          samples: prevS.concat(add.filter(a => !prevS.some(x => x.label === a.label && x.tab === a.tab))) };
+        await put(env, 'labfiles', b.hash, f);
         return J({ ok: true, saved: out });
       }
     }

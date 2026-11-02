@@ -399,16 +399,48 @@
     try { E.labs = await api('/api/labs'); E.labsAt = Date.now(); } catch (e) { E.labs = E.labs || { labs: [], files: [], enabled: false }; }
     return E.labs;
   }
+  // Reportes: one card per lab file (PDF icon · lab · date · how many samples) with the lots it covers as chips;
+  // "Ver muestras" lists each sample → lot tab · vessel · Excellovint row. Filter by lab and search by lot.
+  const PDF_ICO = '<svg class="en-pdf" viewBox="0 0 28 34" aria-hidden="true"><path d="M3 1h15l8 8v23a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" fill="#fff" stroke="#b3261e" stroke-width="1.6"/><path d="M18 1v8h8" fill="none" stroke="#b3261e" stroke-width="1.6"/><rect x="0" y="17" width="22" height="10" rx="1.5" fill="#b3261e"/><text x="11" y="25" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff" font-family="Arial,sans-serif">PDF</text></svg>';
+  const fmtLong = iso => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso || '')) return ''; const d = new Date(iso.slice(0, 10) + 'T12:00'); return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }); };
+  const lotCode = tab => (String(tab).match(/^L\s*\d+/i) || [tab])[0].replace(/\s+/g, '').toUpperCase();
+  const RP = { q: '', lab: '' };
+  function reportInfo(f, labsRecs) {
+    const r = f.report || {}, ex = f.extracted || {};
+    const recs = labsRecs.filter(x => x.hash === f.id);
+    const samples = (r.samples && r.samples.length ? r.samples : recs.map(x => ({ label: x.label, tab: x.tab, ubi: x.ubi, row: x.row })));
+    return { lab: r.lab || ex.lab || (recs[0] && recs[0].lab) || '', date: r.report_date || ex.report_date || (recs[0] && recs[0].report_date) || String(f.at || '').slice(0, 10), samples, pending: !samples.length };
+  }
   async function renderReports() {
     const el = $('#labReports'); if (!el) return;
     await load().catch(() => {});
     const d = await labs();
-    const files = (d.files || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
-    const h = `<section class="en-reports"><div class="en-rh"><h3>Reportes de laboratorio</h3><button type="button" class="btn primary" data-labup>Subir lab</button></div>` +
-      (!E.labsOn ? `<p class="en-hint">Subida de laboratorio aún no activada.</p>` : !files.length ? `<p class="en-hint">Todavía no hay reportes. Sube el PDF de Uva y Vino y Claude lo separa por muestra.</p>` :
-        `<ul class="en-files">${files.slice(0, 12).map(f => { const n = (d.labs || []).filter(x => x.hash === f.id).length; return `<li><a href="/api/labs/file?h=${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a><small>${esc((f.extracted && f.extracted.lab) || '')} ${esc(dm((f.extracted && f.extracted.report_date) || String(f.at).slice(0, 10)))} · ${n} muestra${n === 1 ? '' : 's'} guardada${n === 1 ? '' : 's'} · ${esc(f.by || '')}</small>${n ? '' : ` <button type="button" class="btn sm" data-readlab="${esc(f.id)}">Leer y guardar</button>`}</li>`; }).join('')}</ul>`) + `</section>`;
-    if (el.__h !== h) { el.__h = h; el.innerHTML = h; }
+    const all = (d.files || []).map(f => Object.assign({ f }, reportInfo(f, d.labs || []))).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const labsList = [...new Set(all.map(x => x.lab).filter(Boolean))];
+    const q = RP.q.trim().toLowerCase();
+    const shown = all.filter(x => (!RP.lab || x.lab === RP.lab) && (!q || (x.lab + ' ' + x.f.name + ' ' + x.samples.map(s => s.label + ' ' + s.tab + ' ' + s.ubi).join(' ')).toLowerCase().includes(q)));
+    const wineOf = tab => { const l = E.lots.find(l => (l.sheet || []).some(s => s.tab === tab)); return l ? (l.id === 'all' ? 'Bodega' : l.name) : ''; };
+    const card = x => {
+      const lots = [...new Set(x.samples.map(s => s.tab))];
+      const hit = s => q && (s.label + ' ' + s.tab + ' ' + s.ubi).toLowerCase().includes(q);
+      return `<article class="rp-card">
+        <a class="rp-ico" href="/api/labs/file?h=${esc(x.f.id)}" target="_blank" rel="noopener" aria-label="Abrir PDF">${PDF_ICO}</a>
+        <div class="rp-main">
+          <div class="rp-h"><b>${esc(x.lab || 'Laboratorio')}</b><span>${esc(fmtLong(x.date))}</span></div>
+          <div class="rp-sub">${x.pending ? 'Sin leer todavía' : `${x.samples.length} muestra${x.samples.length === 1 ? '' : 's'} · ${lots.length} lote${lots.length === 1 ? '' : 's'}`} · <a href="/api/labs/file?h=${esc(x.f.id)}" target="_blank" rel="noopener">${esc(x.f.name)}</a></div>
+          ${lots.length ? `<div class="rp-lots">${lots.map(t => `<span class="rp-lot${x.samples.some(s => s.tab === t && hit(s)) ? ' hit' : ''}" title="${esc(wineOf(t) + ' · ' + t)}">${esc(lotCode(t))}</span>`).join('')}</div>` : ''}
+          ${x.samples.length ? `<details class="rp-det"${q && x.samples.some(hit) ? ' open' : ''}><summary>Ver muestras</summary><table class="rp-tbl"><thead><tr><th>Muestra en el PDF</th><th>Lote</th><th>Vasija</th><th>Fila</th></tr></thead><tbody>${(q && x.samples.some(hit) ? x.samples.filter(hit) : x.samples).map(s => `<tr${hit(s) ? ' class="hit"' : ''}><td>${esc(s.label)}</td><td>${esc(lotCode(s.tab))} <small>${esc(wineOf(s.tab))}</small></td><td>${esc(s.ubi || '')}</td><td>${s.row ? 'fila ' + esc(s.row) : ''}</td></tr>`).join('')}</tbody></table></details>` : ''}
+          ${x.pending && E.labsOn ? `<button type="button" class="btn sm" data-readlab="${esc(x.f.id)}">Leer con Claude y guardar</button>` : ''}
+        </div></article>`;
+    };
+    const h = `<section class="en-reports"><div class="en-rh"><h3>Reportes de laboratorio <small>${all.length}</small></h3><button type="button" class="btn primary" data-labup>Subir lab</button></div>` +
+      (!E.labsOn ? `<p class="en-hint">Subida de laboratorio aún no activada.</p>` : !all.length ? `<p class="en-hint">Todavía no hay reportes. Sube el PDF de Uva y Vino y Claude lo separa por muestra.</p>` :
+        `<div class="rp-bar"><input type="search" class="rp-q" placeholder="Buscar lote o muestra: L11, chenin, BBL 115…" value="${esc(RP.q)}" aria-label="Buscar en reportes">${labsList.length > 1 ? `<div class="seg rp-labs">${[['', 'Todos']].concat(labsList.map(l => [l, l])).map(([k, l]) => `<button type="button" data-rplab="${esc(k)}" aria-pressed="${RP.lab === k}">${esc(l)}</button>`).join('')}</div>` : ''}</div>` +
+        (shown.length ? `<div class="rp-list">${shown.map(card).join('')}</div>` : `<p class="en-hint">Ningún reporte coincide.</p>`)) + `</section>`;
+    if (el.__h !== h) { const foc = document.activeElement && document.activeElement.classList.contains('rp-q'); el.__h = h; el.innerHTML = h; if (foc) { const i = $('.rp-q', el); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
   }
+  document.addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('rp-q')) { RP.q = e.target.value; renderReports(); } });
+  document.addEventListener('click', e => { const b = e.target.closest('[data-rplab]'); if (b) { RP.lab = b.dataset.rplab; renderReports(); } });
 
   // ---------- lot page: lab history + recent notes ----------
   function spark(points) {
@@ -423,8 +455,10 @@
     const [d, ents] = await Promise.all([labs(), entries()]);
     const recs = (d.labs || []).filter(x => tabs.includes(x.tab)).sort((a, b) => String(b.report_date || b.at).localeCompare(String(a.report_date || a.at)));
     const notes = ents.filter(r => tabs.includes(r.tab) && r.kind !== 'lab').slice(0, 8);
+    const reps = (d.files || []).map(f => Object.assign({ f }, reportInfo(f, d.labs || []))).filter(x => x.samples.some(s => tabs.includes(s.tab))).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const repHtml = reps.length ? `<div class="rp-mini"><small>Reportes:</small> ${reps.map(x => `<a href="/api/labs/file?h=${esc(x.f.id)}" target="_blank" rel="noopener" title="${esc(x.samples.filter(s => tabs.includes(s.tab)).map(s => s.label).join(' · '))}">${PDF_ICO}${esc(x.lab)} ${esc(dm(x.date))}</a>`).join('')}</div>` : '';
     const keys = E.params.map(p => p.k).filter(k => recs.some(r => r.values && r.values[k] != null));
-    let h = '';
+    let h = repHtml ? `<h3>Laboratorio</h3>${repHtml}` : '';
     if (recs.length) {
       const trend = ['aa', 'am', 'sl'].map(k => { const pts = recs.filter(r => r.values && r.values[k] != null && !isNaN(parseFloat(r.values[k]))).map(r => [r.report_date || r.sampled || r.at.slice(0, 10), parseFloat(r.values[k])]).reverse(); return pts.length > 1 ? `<span class="en-tr"><small>${esc(label(k))}</small>${spark(pts)}<b>${esc(pts[pts.length - 1][1])}</b></span>` : ''; }).join('');
       h += `<h3>Historial de laboratorio</h3>${trend ? `<div class="en-trends">${trend}</div>` : ''}<div class="en-tw"><table class="en-hist"><thead><tr><th>Fecha</th><th>Vasija</th>${keys.map(k => `<th>${esc(label(k))}</th>`).join('')}<th>Otros</th><th></th></tr></thead><tbody>` +
