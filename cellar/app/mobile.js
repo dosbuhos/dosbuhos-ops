@@ -85,6 +85,7 @@
     q.hidden = !SEARCH[view];
     if (!SEARCH[view]) { html.classList.remove('m-q'); q.setAttribute('aria-pressed', 'false'); }
     if (view !== 'protocols') html.classList.remove('m-doc');
+    syncOseg();
   }
   // Today: the date lives in the app bar title as ‹ Hoy ›, driven by the page's own day buttons (.asg-day, hidden on phones).
   function dayTitle() {
@@ -97,6 +98,14 @@
     const bd = $('#board'), lbl = (bd && bd.dataset.ppLabel) || 'Semana';
     $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mwk="-1" aria-label="Semana anterior">${I.back}</button><button type="button" class="m-dlbl m-wlbl" aria-haspopup="menu">${lbl}<i aria-hidden="true">▾</i></button><button type="button" class="m-day nx" data-mwk="1" aria-label="Semana siguiente">${I.back}</button>`;
   }
+  // Órdenes has two views; a visible switch under the app bar (the ▾ menu alone was too hidden for the team).
+  const oseg = document.createElement('nav'); oseg.className = 'm-oseg'; oseg.setAttribute('aria-label', 'Vista de órdenes'); oseg.hidden = true;
+  oseg.innerHTML = '<button type="button" data-oseg="day">Órdenes del día<small>por persona</small></button><button type="button" data-oseg="plan">Plan semanal<small>por vino</small></button>';
+  bar.after(oseg);
+  oseg.addEventListener('click', e => { const b = e.target.closest('[data-oseg]'); if (!b) return; if (b.dataset.oseg === 'plan') window.dispatchEvent(new CustomEvent('cellar:plan')); else window.dispatchEvent(new CustomEvent('cellar:asgmode', { detail: { mode: 'day' } })); setTimeout(syncBar, 0); window.scrollTo(0, 0); });
+  let osegCls = '';
+  new MutationObserver(() => { const k = html.classList.contains('v-asg') ? 'a' : 'p'; if (k !== osegCls) { osegCls = k; syncOseg(); } }).observe(html, { attributes: true, attributeFilter: ['class'] });
+  function syncOseg() { const on = view === 'weeks'; oseg.hidden = !on; if (!on) return; const plan = !html.classList.contains('v-asg'); oseg.querySelectorAll('[data-oseg]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.oseg === (plan ? 'plan' : 'day')))); }
   window.addEventListener('cellar:planrendered', () => { if (currentView() === 'weeks' && !html.classList.contains('v-asg')) weekTitle(); });
   // Date menu: Día · Semana · Ir a hoy
   const vm = document.createElement('div'); vm.className = 'm-vmenu'; vm.hidden = true;

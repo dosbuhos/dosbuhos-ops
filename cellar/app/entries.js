@@ -11,18 +11,25 @@
   const dm = iso => { const [, m, d] = String(iso || '').split('-').map(Number); return d && m ? d + '/' + m : ''; };
   const api = async (path, opts) => { const r = await fetch(path, Object.assign({ credentials: 'same-origin' }, opts || {})); const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.message || 'Error ' + r.status), { status: r.status, code: j.code }); return j; };
   const post = (path, body) => api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  const E = { params: [], labsOn: false, me: {}, lots: [], staff: [], ready: null, entries: null, entriesAt: 0, labs: null, labsAt: 0 };
+  const E = { params: [], labsOn: false, me: {}, lots: [], staff: [], ready: null, moves: [], barrels: [], entries: null, entriesAt: 0, labs: null, labsAt: 0 };
 
   function toast(msg) {
     let t = $('#enToast'); if (!t) { t = document.createElement('div'); t.id = 'enToast'; t.className = 'en-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
     t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 3800);
   }
+  // Racking / blending orders (moves): the open ones are matched to their work-order row.
+  async function loadMoves() { try { E.moves = (await api('/api/moves')).rows || []; } catch (e) { E.moves = []; } }
+  const normT = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  function moveFor(o) { if (!o) return null; return E.moves.find(m => m.status === 'open' && m.tab === o.tab && (m.row === +o.row || normT(m.note) === normT(o.note))) || null; }
+  window.cellarMoveFor = moveFor;
+  loadMoves();
   function load() {
     if (E.ready) return E.ready;
     E.ready = Promise.all([
       api('/api/params').then(j => { E.params = j.params || []; E.labsOn = !!j.labs; }),
       api('/api/me').then(j => { E.me = j || {}; }).catch(() => {}),
       api('/api/db/lots').then(j => { E.lots = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); }).catch(() => {}),
+      loadMoves(),
       api('/api/db/staff').then(j => { E.staff = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)).filter(s => s.active !== false); }).catch(() => {}),
     ]).catch(e => { E.ready = null; throw e; });
     return E.ready;
@@ -42,7 +49,7 @@
   function lotTabs() {
     const m = new Map();
     for (const l of E.lots) for (const s of (l.sheet || [])) {
-      if (!s.tab) continue; const cur = m.get(s.tab);
+      if (!s.tab || l.archived || s.archived) continue; const cur = m.get(s.tab);
       const name = l.id === 'all' ? 'Bodega (todos)' : l.name;
       if (cur) cur.name += ' / ' + name; else m.set(s.tab, { tab: s.tab, name, group: l.group || '', ubi: l.ubi || '' });
     }
@@ -79,15 +86,18 @@
     try { await load(); } catch (e) { toast('No se pudo abrir: ' + e.message); return; }
     F = ctx;
     const o = ctx.order;
+    if (o) await loadMoves();
+    const MV = moveFor(o); F.move = MV;
     let ov = $('#enSheet');
-    if (!ov) { ov = document.createElement('div'); ov.className = 'overlay en-ov'; ov.id = 'enSheet'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) closeForm(); }); }
+    if (!ov) { ov = document.createElement('div'); ov.className = 'overlay en-ov'; ov.id = 'enSheet'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) guardClose($('form', ov), closeForm); }); }
     const core = E.params.filter(p => p.core), more = E.params.filter(p => !p.core);
     const pre = (E.me && E.me.initials) || '';
     ov.innerHTML = `<form class="sheet en-form" novalidate>
-      <h2>${o ? 'Anotar resultados y notas' : 'Agregar nota'}</h2>
+      <h2>${o ? 'Anotar resultados y notas' : 'Agregar nota'}</h2>${XBTN}
       ${o ? `<div class="xo-where"><b>${esc(o.wine || o.tab)}</b> · ${esc(o.tab)} · fila ${esc(o.row)}</div><div class="rs-task en-order">${esc(o.note)}</div>`
         : `<div class="field en-lotf"><label>Vino / lote <span class="ed-hint">obligatorio · lo de toda la bodega va en «Bodega (todos)»</span></label>${lotPicker(ctx.tab || tabOfLot(ctx.lot) || '')}</div>`}
-      <div class="field"><label for="enUbi">Vasija(s) <span class="ed-hint">tanque, barrica… (si es por barrica, anota cuál)</span></label><input id="enUbi" value="${esc(o ? o.ubi || '' : '')}" placeholder="BBL 101, VC-05…" autocomplete="off"></div>
+      ${MV ? moveSection(MV) : ''}
+      <div class="field"${MV ? ' hidden' : ''}><label for="enUbi">Vasija(s) <span class="ed-hint">tanque, barrica… (si es por barrica, anota cuál)</span></label><input id="enUbi" value="${esc(o ? o.ubi || '' : '')}" placeholder="BBL 101, VC-05…" autocomplete="off"></div>
       <div class="field"><label>¿Quién lo hizo? <span class="ed-hint">obligatorio · toca una o más personas</span></label><div class="en-sig">${signerChips(pre)}</div></div>
       <div class="field"><label for="enNote">Notas / cata <span class="ed-hint">olor, sabor, lo que se vio, decisiones</span></label><textarea id="enNote" rows="4" maxlength="1500" placeholder="Ej.: TAMBO 01 LIMPIO, CÍTRICO. TAMBO 02 LIGERA CEBOLLA → NO TRASEGAR"></textarea></div>
       <div class="rs-lbl">Mediciones <span class="ed-hint">solo lo que se midió</span></div>
@@ -116,7 +126,10 @@
       if (e.target.closest('[data-oadd]')) { $('.en-others', form).insertAdjacentHTML('beforeend', otherRow()); $('.en-others .en-other:last-child input', form).focus(); return; }
       const d = e.target.closest('[data-odel]'); if (d) { d.parentElement.remove(); return; }
       if (e.target.closest('[data-cancel]')) closeForm();
+      if (e.target.closest('[data-dadd]')) { $('.mv-dest', form).insertAdjacentHTML('beforeend', destRow('', '')); $('.mv-dest .mv-d:last-child input', form).focus(); return; }
+      const dd = e.target.closest('[data-ddel]'); if (dd) { dd.parentElement.remove(); return; }
     });
+    form.addEventListener('change', e => { if (e.target.name === 'mvsrc') $('.mv-left', form).hidden = e.target.value !== 'left'; });
     const fup = $('[data-fup]', form);
     if (fup) fup.addEventListener('change', async () => {
       const f = fup.files[0]; if (!f) return;
@@ -132,6 +145,128 @@
     if (lq) lq.addEventListener('input', () => { const q = lq.value.trim().toLowerCase(); $$('.en-all [data-lt]', form).forEach(b => { b.hidden = !!q && !b.textContent.toLowerCase().includes(q); }); const r = $('.en-rec', form); if (r) { r.hidden = !!q; r.previousElementSibling.hidden = !!q; } });
     setTimeout(() => { const f = o ? $('#enNote') : null; if (f) f.focus(); }, 30);
   }
+  function destRow(v, l) { return `<div class="mv-d"><input data-dv placeholder="BBL 60 / TANQUE 6" value="${esc(v)}" autocomplete="off" aria-label="Vasija"><input data-dl inputmode="decimal" placeholder="Litros" value="${esc(l)}" aria-label="Litros"><button type="button" class="en-x" data-ddel aria-label="Quitar">×</button></div>`; }
+  // "BBL 60, 61 Y TANQUE 6" → ["BBL 60", "BBL 61", "TANQUE 6"]
+  function splitVessels(t) {
+    let pre = ''; return String(t || '').toUpperCase().split(/\s*(?:,|\+|\bY\b|&|;)\s*/).map(x => x.trim()).filter(Boolean).map(x => {
+      const m = x.match(/^(BBLS?|BARRICAS?|TANQUES?|TK|VC)[\s-]*(.*)$/); if (m) { pre = m[1].replace(/S$/, '') === 'BBL' || /^BARRICA/.test(m[1]) ? 'BBL ' : ''; return x; }
+      return /^\d{1,3}$/.test(x) && pre ? pre + x : x;
+    });
+  }
+  function moveSection(mv) {
+    const kind = mv.kind === 'blend' ? 'mezcla' : 'trasiego';
+    const dests = splitVessels(mv.to);
+    return `<div class="mv-box"><b>Es una ${kind}.</b> Para cerrarla anota dónde quedó el vino: cada vasija con sus litros reales.${mv.kind === 'blend' ? ` Al cerrar, ${esc((mv.parents || []).map(p => p.tab).join(', '))} se archiva y sigue en ${esc(mv.tab)}.` : ''}
+      <div class="mv-lbl">Vasijas de destino</div><div class="mv-dest">${(dests.length ? dests : ['']).map(v => destRow(v, '')).join('')}</div>
+      <button type="button" class="btn sm" data-dadd>+ vasija</button>
+      <div class="mv-lbl">¿Cómo quedó el origen (${esc(mv.from || (mv.parents || []).map(p => p.vessels).join(', ') || '—')})?</div>
+      <label class="mv-r"><input type="radio" name="mvsrc" value="empty" checked> Vacío</label>
+      <label class="mv-r"><input type="radio" name="mvsrc" value="left"> Quedó vino</label>
+      <label class="mv-left" hidden>Litros que quedaron <input data-left inputmode="decimal" placeholder="L"></label></div>`;
+  }
+  async function saveMove(form, x) {
+    const err = $('#enErr'), btn = $('#enSave'), mv = F.move;
+    const dest = $$('.mv-d', form).map(r => ({ vessel: $('[data-dv]', r).value.trim(), liters: $('[data-dl]', r).value.trim().replace(',', '.') })).filter(d => d.vessel || d.liters);
+    if (!dest.length || dest.some(d => !d.vessel || !(+d.liters > 0))) { err.textContent = 'Anota cada vasija de destino con sus litros (o quita las filas vacías).'; return; }
+    const src = (form.querySelector('[name="mvsrc"]:checked') || {}).value || 'empty', left = ($('[data-left]', form) || {}).value || '';
+    if (src === 'left' && !(+String(left).replace(',', '.') > 0)) { err.textContent = 'Anota cuántos litros quedaron en el origen.'; return; }
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const r = await post('/api/moves/complete', { id: mv.id, signer: x.signer, dest, source: src, left, note: x.note });
+      // Extra measurements typed in the same form go in their own signed row.
+      if (Object.keys(x.values).length || x.others.length) { try { await post('/api/entries', { kind: 'result', tab: mv.tab, lot: mv.lot, ubi: dest.map(d => d.vessel).join(', '), values: x.values, others: x.others, note: '', signer: x.signer, order: { tab: mv.tab, row: mv.row, note: mv.note } }); } catch (e) {} }
+      await loadMoves(); E.entriesAt = 0; closeForm();
+      toast((mv.kind === 'blend' ? 'Mezcla cerrada' : 'Trasiego cerrado') + ' · ' + r.total + ' L' + (r.archived && r.archived.length ? ' · archivado: ' + r.archived.join(', ') : '') + (r.barrels && r.barrels.length ? ' · barricas: ' + r.barrels.join(', ') : ''));
+      window.dispatchEvent(new CustomEvent('cellar:refresh')); window.dispatchEvent(new CustomEvent('cellar:lotschanged'));
+      setTimeout(decorateOrders, 400); refreshLotPanels();
+    } catch (e) { err.textContent = e.message; } finally { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+
+  // ---------- new racking / blending order (Eric and Diane) ----------
+  const tabShort = t => String(t || '').toUpperCase().replace(/\s*-\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  const ubiOnly = u => String(u || '').split(/\s+[·→]\s+/)[0];
+  async function openMove() {
+    try { await load(); } catch (e) { toast('No se pudo abrir: ' + e.message); return; }
+    try { E.barrels = ((await api('/api/db/barrels')).rows || []).map(r => Object.assign({ id: r.id }, r.data)); } catch (e) { E.barrels = []; }
+    const lots = E.lots.filter(l => !l.archived && l.group !== 'routine' && (l.sheet || []).some(s => s.tab && !s.archived))
+      .sort((a, b) => String(a.sheet[0].tab).localeCompare(String(b.sheet[0].tab), undefined, { numeric: true }));
+    const M = { kind: 'rack', sel: [], master: '', name: '', nameEdited: false };
+    let ov = $('#mvSheet');
+    if (!ov) { ov = document.createElement('div'); ov.className = 'overlay en-ov'; ov.id = 'mvSheet'; document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) guardClose($('form', ov), () => { ov.hidden = true; document.documentElement.classList.remove('m-modal'); }); }); }
+    const close = () => { ov.hidden = true; document.documentElement.classList.remove('m-modal'); };
+    const tabOf = l => l.sheet.find(s => !s.archived).tab;
+    const empties = E.barrels.filter(b => !b.lot && b.fill !== 'full' && b.status !== 'confirm').sort((a, b) => (+a.code || 0) - (+b.code || 0)).slice(0, 24);
+    const staffChips = E.staff.slice().sort((a, b) => (a.role === 'receiver' ? 0 : 1) - (b.role === 'receiver' ? 0 : 1) || (a.order || 0) - (b.order || 0))
+      .map(s => `<button type="button" class="en-chip" data-mas="${esc(signerTag(s))}" aria-pressed="${['P', 'J'].includes(signerTag(s))}">${esc(s.name)}</button>`).join('');
+    const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
+    ov.innerHTML = `<form class="sheet en-form mv-form" novalidate>
+      <h2>Trasiego / mezcla</h2>${XBTN}
+      <div class="en-sig" role="group" aria-label="Tipo"><button type="button" class="en-chip" data-mk="rack" aria-pressed="true">Trasiego<small> · un vino a otra vasija</small></button><button type="button" class="en-chip" data-mk="blend" aria-pressed="false">Mezcla<small> · juntar lotes</small></button></div>
+      <div class="field"><label>Vino(s) <span class="ed-hint mv-hint">toca el vino que se mueve</span></label>
+        <input type="search" class="en-lotq" placeholder="Buscar: rosé, L15…" autocomplete="off">
+        <div class="en-lots en-all">${lots.map(l => `<button type="button" class="en-lot" data-ml="${esc(l.id)}" aria-pressed="false" style="--c:${GC[l.group] || '#9aa5b1'}"><b>${esc(l.name)}</b><small>${esc(tabOf(l))}${l.ubi ? ' · ' + esc(ubiOnly(l.ubi)) : ''}</small></button>`).join('')}</div></div>
+      <div class="mv-sel"></div>
+      <div class="field mv-namef" hidden><label for="mvName">Nombre del lote mezclado <span class="ed-hint">se propone solo; puedes cambiarlo</span></label><input id="mvName" autocomplete="off"></div>
+      <div class="field"><label for="mvTo">¿A dónde va? <span class="ed-hint">vasijas de destino</span></label><input id="mvTo" placeholder="BBL 60, 61 · TANQUE 6" autocomplete="off">
+        ${empties.length ? `<div class="mv-empties"><small class="en-hint">Barricas vacías:</small> ${empties.map(b => `<button type="button" class="cr-chipmini" data-eb="${esc(b.code)}">${esc(b.code)}</button>`).join('')}</div>` : ''}</div>
+      <div class="en-row2"><label>Fecha<input type="date" id="mvDate" value="${today}"></label><label>Prioridad<select id="mvPri"><option>URGENT</option><option selected>HIGH</option><option>NORMAL</option><option>LOW</option></select></label></div>
+      <div class="field"><label>Asignar a</label><div class="en-sig">${staffChips}</div></div>
+      <div class="field"><label for="mvExtra">Indicaciones extra <span class="ed-hint">opcional</span></label><textarea id="mvExtra" rows="2" maxlength="400"></textarea></div>
+      <div class="err" id="mvErr" role="alert"></div>
+      <div class="actions"><span></span><div class="right"><button type="button" class="btn" data-mvc>Cancelar</button><button type="submit" class="btn primary" id="mvSave">Crear orden</button></div></div>
+    </form>`;
+    ov.hidden = false; document.documentElement.classList.add('m-modal');
+    const f = $('form', ov);
+    const lotById = id => lots.find(l => l.id === id);
+    const autoName = () => { const ms = lotById(M.master); if (!ms) return ''; return [tabShort(tabOf(ms))].concat(M.sel.filter(id => id !== M.master).map(id => tabShort(tabOf(lotById(id))))).join(' + '); };
+    const drawSel = () => {
+      $$('[data-ml]', f).forEach(b => b.setAttribute('aria-pressed', String(M.sel.includes(b.dataset.ml))));
+      if (M.sel.length && !M.sel.includes(M.master)) M.master = M.sel[0];
+      const keep = {}; $$('.mv-row', f).forEach(r => { keep[r.dataset.lot] = { v: $('[data-fv]', r).value, l: $('[data-fl]', r).value }; });
+      $('.mv-sel', f).innerHTML = M.sel.map(id => { const l = lotById(id), k = keep[id] || { v: ubiOnly(l.ubi), l: l.vol || '' };
+        return `<div class="mv-row" data-lot="${esc(id)}"><div class="mv-rh"><b>${esc(l.name)}</b> <small>${esc(tabOf(l))}</small>${M.kind === 'blend' ? `<label class="mv-r"><input type="radio" name="mvm" value="${esc(id)}"${id === M.master ? ' checked' : ''}> Maestro</label>` : ''}</div>
+          <div class="en-row2"><label>Desde (vasijas)<input data-fv value="${esc(k.v)}" placeholder="BBL 44, 48"></label><label>Litros aprox.<input data-fl inputmode="decimal" value="${esc(k.l)}"></label></div></div>`; }).join('');
+      $('.mv-namef', f).hidden = M.kind !== 'blend';
+      if (M.kind === 'blend' && !M.nameEdited) $('#mvName', f).value = autoName();
+      $('.mv-hint', f).textContent = M.kind === 'blend' ? 'toca dos o más vinos; elige cuál es el maestro (se queda con su pestaña)' : 'toca el vino que se mueve';
+    };
+    f.addEventListener('click', e => {
+      const k = e.target.closest('[data-mk]'); if (k) { M.kind = k.dataset.mk; $$('[data-mk]', f).forEach(b => b.setAttribute('aria-pressed', String(b === k))); if (M.kind === 'rack') M.sel = M.sel.slice(0, 1); drawSel(); return; }
+      const l = e.target.closest('[data-ml]'); if (l) { const id = l.dataset.ml; if (M.kind === 'rack') M.sel = M.sel[0] === id ? [] : [id]; else M.sel = M.sel.includes(id) ? M.sel.filter(x => x !== id) : M.sel.concat(id); drawSel(); return; }
+      const eb = e.target.closest('[data-eb]'); if (eb) { const t = $('#mvTo', f); const cur = t.value.trim(); t.value = cur ? cur + ', ' + (/BBL/i.test(cur) ? '' : 'BBL ') + eb.dataset.eb : 'BBL ' + eb.dataset.eb; eb.disabled = true; return; }
+      const a = e.target.closest('[data-mas]'); if (a) { a.setAttribute('aria-pressed', String(a.getAttribute('aria-pressed') !== 'true')); return; }
+      if (e.target.closest('[data-mvc]')) close();
+    });
+    f.addEventListener('change', e => { if (e.target.name === 'mvm') { M.master = e.target.value; drawSel(); } });
+    f.addEventListener('input', e => { if (e.target.id === 'mvName') M.nameEdited = true; if (e.target.classList.contains('en-lotq')) { const q = e.target.value.trim().toLowerCase(); $$('[data-ml]', f).forEach(b => { b.hidden = !!q && !b.textContent.toLowerCase().includes(q); }); } });
+    f.addEventListener('submit', async e => {
+      e.preventDefault(); const err = $('#mvErr', f), btn = $('#mvSave', f); err.textContent = '';
+      if (!M.sel.length) { err.textContent = 'Elige el vino.'; return; }
+      if (M.kind === 'blend' && M.sel.length < 2) { err.textContent = 'Para una mezcla elige dos o más vinos.'; return; }
+      const to = $('#mvTo', f).value.trim(); if (!to) { err.textContent = 'Falta a dónde va el vino.'; return; }
+      const asig = $$('[data-mas][aria-pressed="true"]', f).map(b => b.dataset.mas).join('/'); if (!asig) { err.textContent = 'Asigna a alguien.'; return; }
+      const row = id => { const r = $(`.mv-row[data-lot="${CSS.escape(id)}"]`, f); return { v: $('[data-fv]', r).value.trim(), l: $('[data-fl]', r).value.trim() }; };
+      const ms = lotById(M.master), mr = row(M.master);
+      const body = { kind: M.kind, lot: ms.id, masterTab: tabOf(ms), from: mr.v, liters: mr.l, to, date: $('#mvDate', f).value, pri: $('#mvPri', f).value, asig, extra: $('#mvExtra', f).value.trim(),
+        name: M.kind === 'blend' ? $('#mvName', f).value.trim() : '', parents: M.kind === 'blend' ? M.sel.filter(id => id !== M.master).map(id => { const r = row(id); return { lot: id, tab: tabOf(lotById(id)), vessels: r.v, liters: r.l }; }) : [] };
+      btn.disabled = true; btn.textContent = 'Creando…';
+      try { const r = await post('/api/moves', body); await loadMoves(); close(); toast('Orden creada en ' + r.tab + ', fila ' + r.row); window.dispatchEvent(new CustomEvent('cellar:refresh')); }
+      catch (x) { err.textContent = x.message; } finally { btn.disabled = false; btn.textContent = 'Crear orden'; }
+    });
+    drawSel();
+  }
+  window.addEventListener('cellar:move', openMove);
+
+  // × in the top-right of every sheet; asks before throwing away typed work.
+  const XBTN = '<button type="button" class="en-close" data-xclose aria-label="Cerrar">×</button>';
+  function dirty(form) { return !!form && form.dataset.dirty === '1'; }
+  function guardClose(form, close) { if (!dirty(form) || confirm('¿Salir sin guardar? Lo que escribiste se pierde.')) close(); }
+  document.addEventListener('input', e => { const f = e.target.closest && e.target.closest('.en-form'); if (f && !e.target.classList.contains('en-lotq')) f.dataset.dirty = '1'; }, true);
+  document.addEventListener('click', e => {
+    const x = e.target.closest('[data-xclose]'); if (!x) return;
+    const ov = x.closest('.overlay'); const f = x.closest('form');
+    guardClose(f, () => { if (ov && ov.id === 'enSheet') closeForm(); else if (ov) { ov.hidden = true; document.documentElement.classList.remove('m-modal'); } });
+  });
   function closeForm() { const ov = $('#enSheet'); if (ov) ov.hidden = true; F = null; document.documentElement.classList.remove('m-modal'); }
   async function saveForm(form) {
     const err = $('#enErr'), btn = $('#enSave');
@@ -142,6 +277,7 @@
     err.textContent = '';
     if (!tab) { err.textContent = 'Elige el vino / lote.'; return; }
     if (!signer) { err.textContent = 'Falta «¿Quién lo hizo?».'; return; }
+    if (F.move && done) return saveMove(form, { values, others, note, signer });
     if (!note && !Object.keys(values).length && !others.length) {
       if (o && done) { // nothing to record: just mark it done
         if (/ANOTAR|LITROS|GRAMOS/i.test(o.note || '') && !form.dataset.warned) { form.dataset.warned = '1'; err.textContent = 'La orden pide anotar un valor (litros, gramos, resultado…). Toca Guardar otra vez para marcarla hecha sin valor.'; return; }
@@ -152,6 +288,7 @@
     if (o && done && /ANOTAR|LITROS|GRAMOS/i.test(o.note || '') && !Object.keys(values).length && !form.dataset.warned) {
       form.dataset.warned = '1'; err.textContent = 'Aviso: la orden pide anotar un valor y no hay ninguno. Toca Guardar otra vez para guardar así.'; return;
     }
+    if (F.move && done) return saveMove(form, { values, others, note, signer });
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
       const r = await post('/api/entries', { kind: o ? 'result' : 'note', tab, lot: o ? o.lot : '', ubi: $('#enUbi').value.trim(), values, others, note, signer, pdf: F.pdf ? 'app:' + F.pdf.slice(0, 12) : '', order: o ? { tab: o.tab, row: o.row, note: o.note } : null });
@@ -201,7 +338,7 @@
     ov.hidden = false; document.documentElement.classList.add('m-modal');
     if (!E.labsOn) { ov.innerHTML = `<div class="sheet"><h2>Subir lab</h2><p>Subida de laboratorio aún no activada.</p><div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cerrar</button></div></div></div>`; $('[data-lclose]', ov).onclick = closeLab; return; }
     if (L.hash) return readLab(ov);
-    ov.innerHTML = `<div class="sheet en-lab"><h2>Subir lab</h2>
+    ov.innerHTML = `<div class="sheet en-lab"><h2>Subir lab</h2>${XBTN}
       <p class="en-hint">PDF de Uva y Vino o San Lucas, o una foto clara de la hoja. Claude lee cada muestra y tú confirmas antes de guardar.</p>
       <label class="btn primary en-pick">Elegir PDF o foto<input type="file" accept="application/pdf,image/*" hidden id="labFile"></label>
       <div class="err" id="labErr" role="alert"></div>
@@ -216,7 +353,7 @@
   }
   function closeLab() { const ov = $('#labSheet'); if (ov) ov.hidden = true; L = null; document.documentElement.classList.remove('m-modal'); }
   async function readLab(ov) {
-    ov.innerHTML = `<div class="sheet en-lab"><h2>Subir lab</h2><div class="en-reading"><span class="en-spin" aria-hidden="true"></span>Leyendo el reporte con Claude… (30–60 s)</div></div>`;
+    ov.innerHTML = `<div class="sheet en-lab"><h2>Subir lab</h2>${XBTN}<div class="en-reading"><span class="en-spin" aria-hidden="true"></span>Leyendo el reporte con Claude… (30–60 s)</div></div>`;
     let x;
     try { x = await post('/api/labs/extract', { hash: L.hash }); }
     catch (e) { ov.innerHTML = `<div class="sheet"><h2>Subir lab</h2><div class="err">${esc(e.message)}</div><div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cerrar</button></div></div></div>`; $('[data-lclose]', ov).onclick = closeLab; return; }
@@ -231,7 +368,7 @@
         ${(s.extras || []).map((o, j) => `<tr class="ex"><th>${esc(o.name)} <small>otro</small></th><td><input data-x="${j}" value="${esc(o.value)}"></td><td class="u">${esc(o.unit)}</td></tr>`).join('')}</tbody></table>
       </article>`;
     };
-    ov.innerHTML = `<form class="sheet en-lab" novalidate><h2>Confirmar resultados</h2>
+    ov.innerHTML = `<form class="sheet en-lab en-form" data-dirty="1" novalidate><h2>Confirmar resultados</h2>${XBTN}
       <div class="en-row2"><label>Laboratorio<input id="labName" value="${esc(x.lab || 'Uva y Vino')}"></label><label>Fecha del reporte<input id="labDate" type="date" value="${esc(x.report_date || '')}"></label></div>
       <p class="en-hint">${x.samples.length} muestra${x.samples.length === 1 ? '' : 's'}. Revisa el lote y la vasija de cada una; las que dejes en «no guardar» no se guardan. Los parámetros que no conocemos se guardan como «otro».</p>
       ${x.samples.map(card).join('')}

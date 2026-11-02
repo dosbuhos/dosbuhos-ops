@@ -1133,6 +1133,14 @@ h1, .top h1 { font-family: "Lustria", Georgia, "Times New Roman", serif; font-we
 .top .brand-logo + h1 { padding-left: 12px; border-left: 1px solid var(--rule); }
 .top h1 { font-size: 19px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top .sub { display: none; }
+/* v1.3: merged / archived lots */
+.d-merge { margin-top: 6px; font-size: 13px; color: var(--ink); background: #f3eef0; border-left: 3px solid #5c1f33; padding: 5px 8px; }
+.d-merge.arch { background: #1f1d1b; color: #fff; border-left-color: #1f1d1b; }
+.d-merge .lnk { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
+.d-merge .lnk small { font-weight: 400; opacity: .75; }
+.arch-row td { padding: 6px 0; }
+.arch-c { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--rule); border-left: 4px solid #1f1d1b; background: var(--paper); font-size: 14px; }
+.arch-c small { color: var(--muted); }
 /* Work orders: the pencil lives in a fixed actions column at the far right, same spot on every row. */
 .asg-row { grid-template-columns: 70px 150px minmax(0, 1fr) 84px 96px 150px 40px; }
 .asg-row .asg-act { display: flex; justify-content: center; align-items: flex-start; align-self: start; padding-top: 2px; }
@@ -1171,7 +1179,7 @@ body { background-image: none !important; font-family: var(--f-body); }
       <p class="sub" id="sub">Every wine on one page.</p>
     </div>
     <div class="top-btns"><a class="btn sync" href="/settings" title="Settings: house notes, chat log, sign out" aria-label="Settings" style="flex:0 0 auto;text-decoration:none;color:inherit">&#9881;&#xFE0E;</a><a class="btn sync" href="/purchases" title="Compras: things to buy, ranked high / medium / low" style="flex:0 0 auto;text-decoration:none;color:inherit">&#128722;&#xFE0E; Compras · Inventario</a><span class="add-wrap"><button type="button" class="btn sync primary" id="addBtn" aria-haspopup="menu" aria-expanded="false">+ Agregar</button>
-<div class="add-menu" id="addMenu" role="menu" hidden><button type="button" role="menuitem" data-addk="wo" class="ed-only">Orden de trabajo<small>Solo Eric y Diane</small></button><button type="button" role="menuitem" data-addk="note">Nota<small>Cata, observación, medición, relleno…</small></button><button type="button" role="menuitem" data-addk="lab">Subir lab<small>PDF o foto de Uva y Vino / San Lucas</small></button></div></span>
+<div class="add-menu" id="addMenu" role="menu" hidden><button type="button" role="menuitem" data-addk="wo" class="ed-only">Orden de trabajo<small>Solo Eric y Diane</small></button><button type="button" role="menuitem" data-addk="move" class="ed-only">Trasiego / mezcla<small>Mover o juntar lotes · actualiza ubicaciones</small></button><button type="button" role="menuitem" data-addk="note">Nota<small>Cata, observación, medición, relleno…</small></button><button type="button" role="menuitem" data-addk="lab">Subir lab<small>PDF o foto de Uva y Vino / San Lucas</small></button></div></span>
 <button type="button" id="newWoBtn" hidden></button><button type="button" class="fresh" id="freshBtn" data-sheet="refresh" title="Toca para actualizar">Actualizando…</button></div>
   </header>
 
@@ -1883,7 +1891,10 @@ var SheetParse = (function () {
     sumMemo.set(l.id, { rows, sum });
     return sum;
   }
-  function wineLots() { return S.lots.filter(l => l.group !== "routine"); }
+  function wineLots() { return S.lots.filter(l => l.group !== "routine" && !l.archived); }
+  // Lots merged into another one (Trasiego / mezcla): hidden from every list; the "Archivados" chip shows them.
+  function archivedLots() { return S.lots.filter(l => l.archived); }
+  const showArch = () => listOf(S.group).includes("archived");
   // Production vs cellar. A lot's own `phase` wins; otherwise anything older than the current vintage is in the cellar.
   const CUR_VINTAGE = 2026;
   function vintageOf(l) {
@@ -1961,7 +1972,7 @@ var SheetParse = (function () {
     }
     const groups = wines ? WGROUPS : GROUPS;
     const gl = listOf(S.group).filter(x => !(wines && x === "routine"));
-    $("groups").innerHTML = [["all", "All wines"]].concat(groups).map(([k, l]) =>
+    $("groups").innerHTML = [["all", "All wines"]].concat(groups).concat(wines && archivedLots().length ? [["archived", "Archivados · " + archivedLots().length]] : []).map(([k, l]) =>
       `<button type="button" data-group="${k}" aria-pressed="${k === "all" ? (!gl.length || gl.includes("all")) : gl.includes(k)}">${esc(l)}</button>`).join("");
     if (wines) {
       $("sortSel").innerHTML = SORTS.map(([k, l]) => `<option value="${k}"${S.sort.key === k ? " selected" : ""}>${esc(l)}${S.sort.key === k && S.sort.dir === -1 ? " (reversed)" : ""}</option>`).join("");
@@ -3135,7 +3146,7 @@ Return ONLY JSON with this shape:
     return rows.filter(r => r.date <= todayISO && !isEntryRow(r));
   }
   // Rows the app writes as signed records (results, notes, lab results) aren't work orders.
-  const ENTRY_RE = /^(RESULTADO \(ORDEN|NOTA(:|$)|RESULTADOS (UVA Y VINO|SAN LUCAS|LABORATORIO|INTERNO|[A-Z ]+ \d{1,2}\/\d{1,2}))/;
+  const ENTRY_RE = /^(■ ARCHIVADO|RESULTADO \(ORDEN|NOTA(:|$)|RESULTADOS (UVA Y VINO|SAN LUCAS|LABORATORIO|INTERNO|[A-Z ]+ \d{1,2}\/\d{1,2}))/;
   function isEntryRow(r) { return ENTRY_RE.test(String(r.note || "").trim().toUpperCase()); }
   function asgRowsLive() {
     const vals = S.sheet.values || {}, out = [];
@@ -3539,6 +3550,7 @@ Return ONLY JSON with this shape:
       const v = e.target.value;
       if (/^p\d+$/.test(v)) { if (r.ini) await asgWrite(key, { ini: "" }); await setProg(r, +v.slice(1)); toast(v.slice(1) + "% · " + r.tab); return; }
       if (v === "open") { if (r.ini) { await asgWrite(key, { ini: "" }); toast("Reopened in " + r.tab); } await setProg(r, 0); return; }
+      else if (v === "done" && window.cellarMoveFor && window.cellarMoveFor(r)) { e.target.value = r.ini ? "done" : "open"; openRs(key); toast("Es un trasiego / mezcla: anota dónde quedó el vino para cerrarla."); return; }
       else if (v === "done") { setProg(r, 0); const ini = (r.asig || recall("woBy", "EM") || "OK").toUpperCase(); await asgWrite(key, { ini }); toast("Done · initialed " + ini + " in " + r.tab); }
       else if (v === "xx") { await asgWrite(key, { ini: "XX" }); toast("Canceled (XX) in " + r.tab); }
       else if (v === "roll") { const d = sheetDate(iso(addDays(parse(todayISO), 1))); await asgWrite(key, { date: d, ini: "" }); toast("Moved to tomorrow in " + r.tab); }
@@ -4132,6 +4144,12 @@ Return ONLY JSON with this shape:
       window.dispatchEvent(new CustomEvent("cellar:render", { detail: { lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db && !S.isCrew), crew: !!S.isCrew, vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
       return;
     }
+    if (showArch()) {
+      const ar = archivedLots().filter(matchQ).sort((a, b) => String(b.mergedAt || "").localeCompare(String(a.mergedAt || "")));
+      body.innerHTML = ar.length ? ar.map(l => `<tr class="arch-row"><td colspan="15"><div class="arch-c"><div><b>${esc(l.name)}</b> <small>${esc(((l.archivedSheet || [])[0] || {}).tab || l.code || "")}</small><br><span>Archivado ${esc(l.mergedAt ? l.mergedAt.slice(8, 10) + "/" + +l.mergedAt.slice(5, 7) : "")}: mezclado en <b>${esc(l.mergedIntoName || l.mergedInto || "")}</b>. Su historia sigue en ese lote.</span></div>${l.mergedInto && S.lots.some(x => x.id === l.mergedInto) ? `<button type="button" class="btn sm" data-archopen="${esc(l.mergedInto)}">Abrir ${esc(l.mergedIntoName || "lote")}</button>` : ""}</div></td></tr>`).join("")
+        : `<tr class="empty-row"><td colspan="15"><strong>No hay lotes archivados.</strong></td></tr>`;
+      renderStats([]); return;
+    }
     const all = productionLots();
     renderStats(all);
     if (!all.length) { body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines yet.</strong><br>Claude adds the cellar's lots here.</td></tr>`; return; }
@@ -4396,7 +4414,9 @@ Return ONLY JSON with this shape:
       : (tabs.length ? `<a href="https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit" target="_blank" rel="noopener">Open Excellovint</a>` : "");
     const nowLine = s && (s.vessel || s.vol) ? `Excellovint: last vessel ${esc(s.vessel || "—")}${s.vol ? " · " + esc(Math.round(s.vol).toLocaleString("en-US")) + " L" : ""}` : "";
     let h = `<div class="d-head"><div><div class="eyebrow">${esc(grp)}</div><h2 id="dTitle">${esc(l.name)}</h2>` +
-      `<div class="d-meta">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}${tabs.length ? "<br>Tab: " + esc(tabs.join(" + ")) : ""}${nowLine ? "<br>" + nowLine : ""}</div></div>` +
+      `<div class="d-meta">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}${tabs.length ? "<br>Tab: " + esc(tabs.join(" + ")) : ""}${nowLine ? "<br>" + nowLine : ""}</div>` +
+      ((l.mergedFrom || []).length ? `<div class="d-merge">Viene de: ${l.mergedFrom.map(m => `<button type="button" class="lnk" data-archopen="${esc(S.lots.some(x => x.id === m.lot) ? m.lot : "")}">${esc(m.name)} <small>${esc(m.tab)}${m.liters ? " · " + esc(m.liters) + " L" : ""} · ${esc(m.date ? m.date.slice(8, 10) + "/" + +m.date.slice(5, 7) : "")}</small></button>`).join(", ")}${l.nameBefore ? `<br><small>Antes se llamaba «${esc(l.nameBefore)}».</small>` : ""}</div>` : "") +
+      (l.archived ? `<div class="d-merge arch">Archivado${l.mergedAt ? " el " + esc(l.mergedAt.slice(8, 10) + "/" + +l.mergedAt.slice(5, 7)) : ""}: mezclado en ${l.mergedInto ? `<button type="button" class="lnk" data-archopen="${esc(l.mergedInto)}">${esc(l.mergedIntoName || l.mergedInto)}</button>` : ""}. La historia (pestaña ${esc(((l.archivedSheet || [])[0] || {}).tab || "")}) sigue en ese lote.</div>` : "") + `</div>` +
       (S.canWrite && S.db ? `<button type="button" class="x ph" data-phase="${phaseOf(l) === "cellar" ? "prod" : "cellar"}" data-phase-lot="${esc(l.id)}" title="${phaseOf(l) === "cellar" ? "Back to Production (still fermenting / in tank)" : "Barreled down or bottle-aging: move to the Cellar section"}">${phaseOf(l) === "cellar" ? "→ Production" : "→ Cellar"}</button>` : "") +
       `<button type="button" class="x" data-close="1">Close</button></div>`;
 
@@ -4483,7 +4503,9 @@ Return ONLY JSON with this shape:
     if (e.target === $("drawer")) { closeDrawer(); return; }
     const n = e.target.closest("[data-xmore]"); if (n) n.classList.toggle("clamp"); // long log entries: tap to show all / less
     const ph = e.target.closest("[data-phase]"); if (ph) { setPhase(ph.dataset.phaseLot, ph.dataset.phase); closeDrawer(); }
+    const ao = e.target.closest("[data-archopen]"); if (ao && ao.dataset.archopen) { openDrawer(ao.dataset.archopen); }
   });
+  document.addEventListener("click", e => { const ao = e.target.closest("#winesView [data-archopen]"); if (ao && ao.dataset.archopen) openDrawer(ao.dataset.archopen, ao); });
 
   // ---------- Toasts and writes ----------
   let toastTimer = 0;
@@ -4595,6 +4617,7 @@ Return ONLY JSON with this shape:
   $("addMenu").addEventListener("click", e => {
     const b = e.target.closest("[data-addk]"); if (!b) return; toggleAdd(false);
     if (b.dataset.addk === "wo") { if (S.isCrew) { toast("Solo Eric o Diane crean órdenes de trabajo."); return; } $("newWoBtn").click(); return; }
+    if (b.dataset.addk === "move") { if (S.isCrew) { toast("Solo Eric o Diane crean órdenes de trabajo."); return; } window.dispatchEvent(new CustomEvent("cellar:move")); return; }
     const lot = S.open || "";
     window.dispatchEvent(new CustomEvent(b.dataset.addk === "note" ? "cellar:note" : "cellar:lab", { detail: { lot } }));
   });
@@ -5120,7 +5143,7 @@ Return ONLY JSON with this shape:
         const spec = (l.sheet || []).filter(x => x && values[x.tab]);
         if (!spec.length) continue;
         let rows = [];
-        spec.forEach((x, i) => { rows = rows.concat(SheetParse.parseTab(values[x.tab], x.match, spec.length > 1 ? i : null)); });
+        spec.forEach((x, i) => { rows = rows.concat(SheetParse.parseTab(values[x.tab], x.match, spec.length > 1 ? i : null).filter(r => !/^■ ARCHIVADO/.test(String(r.n || '')))); }); // the black band row of a merged lot isn't a reading
         live[l.id] = rows;
       }
       if (values.Equipo) {
@@ -5219,7 +5242,7 @@ Return ONLY JSON with this shape:
       try { history.replaceState(null, "", "#" + S.view); } catch (err) {}
       render(); return;
     }
-    if (b.dataset.group) { S.group = toggleIn(S.group, b.dataset.group, "all"); store("group", S.group); render(); return; }
+    if (b.dataset.group) { S.group = b.dataset.group === "archived" ? (showArch() ? "all" : "archived") : toggleIn(String(S.group).replace(/(^|,)archived(,|$)/, "$1$2").replace(/^,|,$/g, "") || "all", b.dataset.group, "all"); store("group", S.group); render(); return; }
     if (b.dataset.quick) { S.quick = toggleIn(S.quick, b.dataset.quick, ""); render(); return; }
     if (b.dataset.sort) {
       const k = b.dataset.sort;

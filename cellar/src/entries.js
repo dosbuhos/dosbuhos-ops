@@ -17,16 +17,16 @@ const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 const fail = (msg, status = 400) => Object.assign(new Error(msg), { status });
 const BY_K = Object.fromEntries(PARAMS.map(p => [p.k, p]));
 
-async function gs(env, path, init = {}) {
+export async function gs(env, path, init = {}) {
   const r = await fetch(sheetsBase(env) + env.SHEET_ID + path,
     Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error((j.error && j.error.message) || 'Google Sheets error ' + r.status), { status: r.status === 429 ? 429 : 502 });
   return j;
 }
-const put = (env, coll, id, data) => env.DB.prepare('INSERT INTO docs (coll, id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at').bind(coll, id, JSON.stringify(data), Date.now()).run();
-async function get(env, coll, id) { const r = await env.DB.prepare('SELECT data FROM docs WHERE coll = ? AND id = ?').bind(coll, id).first(); return r ? JSON.parse(r.data) : null; }
-async function list(env, coll) { const { results } = await env.DB.prepare('SELECT id, data FROM docs WHERE coll = ?').bind(coll).all(); return results.map(r => Object.assign({ id: r.id }, JSON.parse(r.data))); }
+export const put = (env, coll, id, data) => env.DB.prepare('INSERT INTO docs (coll, id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at').bind(coll, id, JSON.stringify(data), Date.now()).run();
+export async function get(env, coll, id) { const r = await env.DB.prepare('SELECT data FROM docs WHERE coll = ? AND id = ?').bind(coll, id).first(); return r ? JSON.parse(r.data) : null; }
+export async function list(env, coll) { const { results } = await env.DB.prepare('SELECT id, data FROM docs WHERE coll = ?').bind(coll).all(); return results.map(r => Object.assign({ id: r.id }, JSON.parse(r.data))); }
 
 // Clean a value from a form or a lab report: numbers keep their decimal point; text params stay text.
 function cleanVal(k, v) {

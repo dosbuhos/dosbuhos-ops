@@ -8,6 +8,7 @@ import { pushPurchase, pullPurchases } from './compras.js';
 import { readInventory, addMovement, saveItem } from './inventario.js';
 import { mcpRoute } from './mcp.js';
 import { entriesRoute } from './entries.js';
+import { movesRoute } from './moves.js';
 import { VERSION_LABEL, APP_NAME, APP_SHORT } from './version.js';
 import { crewSheetsGuard, staffName, staffTags } from './guard.js';
 
@@ -66,6 +67,10 @@ export default {
       if (p === '/api/params' || p === '/api/entries' || p.startsWith('/api/labs')) {
         const r = await entriesRoute(request, env, p, url, { initials, canWrite, crew, email });
         if (r) return r.raw || J(r.body, r.status);
+      }
+      if (p === '/api/moves' || p === '/api/moves/complete') {
+        const r = await movesRoute(request, env, p, { initials, canWrite, crew, email });
+        return J(r.body, r.status);
       }
       if (crew && (p === '/api/xl/create' || p === '/api/xl/import')) return J({ message: 'Solo Eric o Diane crean órdenes de trabajo.' }, 403);
       if (crew && p === '/api/xl/update') {
@@ -145,7 +150,7 @@ async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);
   // entries / labs / labfiles are written only through /api/entries and /api/labs (signed rows + Excellovint).
-  if (request.method !== 'GET' && /^(entries|labs|labfiles|users)$/.test(coll)) return J({ code: 'not_granted', message: 'Use the app forms.' }, 403);
+  if (request.method !== 'GET' && /^(entries|labs|labfiles|users|moves)$/.test(coll)) return J({ code: 'not_granted', message: 'Use the app forms.' }, 403);
   const m = request.method;
   if (m === 'GET' && !id) {
     const v = await env.DB.prepare('SELECT COUNT(*) n, MAX(updated_at) u FROM docs WHERE coll = ?').bind(coll).first();
