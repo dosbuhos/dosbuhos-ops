@@ -2,10 +2,9 @@
 // and "Inventarios - Movimientos" (a ledger: FECHA, PRODUCTO, TIPO ENTRADA/SALIDA/CONTEO, CANTIDAD, UNIDAD, LOTE / USO, QUIÉN, NOTAS).
 // Stock = last CONTEO + ENTRADAS − SALIDAS after it (formula in the sheet, so the sheet works on its own too).
 // The app never writes the formula columns (Inventarios E, G, H, I; Movimientos E).
-import { accessToken } from './sheets.js';
+import { accessToken, sheetsBase } from './sheets.js';
 
 const CAT = 'Inventarios', MOV = 'Inventarios - Movimientos';
-const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets/';
 const cell = (v) => String(v == null ? '' : v).trim();
 const q = (t) => "'" + t.replace(/'/g, "''") + "'";
 const toSheetDate = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return +m[2] + '/' + +m[3] + '/' + m[1]; const d = new Date(); return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear(); };
@@ -14,7 +13,7 @@ const num = (s) => { const n = parseFloat(cell(s).replace(/,/g, '')); return isN
 const TIPOS = ['ENTRADA', 'SALIDA', 'CONTEO'];
 
 async function gs(env, path, init = {}) {
-  const r = await fetch(SHEETS + env.SHEET_ID + path, Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
+  const r = await fetch(sheetsBase(env) + env.SHEET_ID + path, Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Google Sheets error ' + r.status);
   return j;

@@ -8,6 +8,8 @@
   "triggers": { "crons": ["*/5 * * * *"] },
   // Every request goes through the Worker first so the page itself sits behind Google sign-in.
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  // Lab reports (PDF/photos) and the Dos Búhos logos.
+  "r2_buckets": [{ "binding": "LABS", "bucket_name": "cellar-labs" }],
   "d1_databases": [
     { "binding": "DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42", "migrations_dir": "migrations" }
   ],

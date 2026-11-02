@@ -6,12 +6,16 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#5c1f33">
 <meta name="color-scheme" content="light">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Cellar Tracker">
+<meta name="application-name" content="Cellar Tracker">
 <script src="/web-shim.js"></script>
-<title>Cellar Target Calendar</title>
+<title>Cellar &amp; Production Tracker</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lustria&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Atkinson+Hyperlegible+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* Layout: a cellar planning board on dotted lab paper. Two views share one header: All wines (one row per wine, latest lab numbers + next target) and Weeks (wines down, weeks across). */
 :root {
@@ -1113,17 +1117,68 @@ h4.pd-h { font-size: 16px; }
   body { font-size: 15px; }
   .clamp { font-size: 13.5px; }
 }
+
+/* ---- v1.1: Cellar & Production Tracker ---- */
+h1, .top h1 { font-family: "Lustria", Georgia, "Times New Roman", serif; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.brand-logo { height: 30px; width: auto; align-self: center; display: block; }
+.titles { align-items: center; }
+.top-btns .btn.primary, .add-menu, #addBtn { border-radius: 0; }
+.top-btns .btn.primary { background: #1f1d1b; border-color: #1f1d1b; color: #fff; }
+.add-wrap { position: relative; display: inline-flex; }
+.add-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 250px; background: var(--paper); border: 1px solid var(--ink); box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column; }
+.add-menu[hidden] { display: none; }
+.add-menu button { text-align: left; border: 0; background: none; padding: 10px 12px; font: 600 14px var(--f-body); color: var(--ink); cursor: pointer; }
+.add-menu button small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.add-menu button:hover, .add-menu button:focus-visible { background: var(--bg); }
+.fresh { align-self: center; border: 0; background: none; color: var(--muted); font: 12px var(--f-body); cursor: pointer; padding: 4px 2px; text-decoration: underline dotted; text-underline-offset: 3px; white-space: nowrap; }
+.fresh:disabled { cursor: default; text-decoration: none; }
+/* Fixed width so 'ahora' → 'hace 12 min' never re-wraps the header (that was the periodic wiggle). */
+.top-btns .fresh { width: 12em; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.top .titles { min-width: 0; }
+.top .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.aud-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: #c62828; color: #fff; font: 700 11px/18px var(--f-body); text-align: center; vertical-align: 1px; }
+.aud-badge.hi { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #c62828; }
+.app-ver { font: 11px var(--f-mono); color: var(--muted); margin-left: auto; }
+/* Work orders: the pencil lives in a fixed actions column at the far right, same spot on every row. */
+.asg-row { grid-template-columns: 70px 150px minmax(0, 1fr) 84px 96px 150px 40px; }
+.asg-row .asg-act { display: flex; justify-content: center; align-items: flex-start; align-self: start; padding-top: 2px; }
+.asg-row .asg-act .asg-edit { margin-top: 0; }
+.asg-results:empty { display: none; }
+.d-notes .d-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  .brand-logo { display: none; }
+  .fresh { display: none; }
+  .asg-row .asg-act { display: contents; }
+  .app-ver { margin: 6px 0 0; width: 100%; text-align: center; }
+}
+@media (max-width: 1000px) and (min-width: 761px) { .asg-row { grid-template-columns: 1fr 1fr 40px; } .asg-row .asg-txt-cell { grid-column: 1 / -1; order: -1; } }
+
+/* Readability (Nov 2): one highly legible typeface everywhere (Atkinson Hyperlegible, designed for low vision), Lustria only for the title;
+   no dotted paper behind text; work orders on solid white cards. */
+:root { --f-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+        --f-mono: "Atkinson Hyperlegible Mono", "Atkinson Hyperlegible Next", ui-monospace, Menlo, monospace;
+        --f-display: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif; --muted: #4a5154; }
+body { background-image: none !important; font-family: var(--f-body); }
+#asgView .asg-group { background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 6px 14px 10px; margin: 0 0 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+#asgView .asg-group h3 { font: 700 17px var(--f-body); margin: 6px 0 4px; }
+#asgView .asg-row { font-size: 14.5px; }
+#asgView .asg-txt { font-size: 15px; line-height: 1.45; color: #111; }
+#asgView .asg-wine b { font-size: 13.5px; }
+#asgView .asg-wine span, #asgView .asg-date { font-size: 13px; }
+.asg-head { font: 600 12px var(--f-body) !important; letter-spacing: .02em !important; text-transform: none !important; color: var(--muted); }
+.asg-row select.asg-pri { font: 700 12.5px var(--f-body); letter-spacing: 0; }
 </style>
 
 <div class="page">
   <header class="top">
     <div class="titles">
-      <div class="eyebrow">Bodega Dos Búhos · Cellar &amp; lab</div>
-      <h1>Cellar Target Calendar</h1>
+      <img class="brand-logo" src="/brand/logo-dark.webp" alt="Dos Búhos" width="120" height="40">
+      <h1>Cellar &amp; Production Tracker</h1>
       <p class="sub" id="sub">Every wine on one page.</p>
     </div>
-    <div class="top-btns"><a class="btn sync" href="/settings" title="Settings: house notes, chat log, sign out" aria-label="Settings" style="flex:0 0 auto;text-decoration:none;color:inherit">&#9881;&#xFE0E;</a><a class="btn sync" href="/purchases" title="Compras: things to buy, ranked high / medium / low" style="flex:0 0 auto;text-decoration:none;color:inherit">&#128722;&#xFE0E; Compras · Inventario</a><button type="button" class="btn sync primary" id="newWoBtn" title="Write a new work order into Excellovint">+ Work order</button>
-<button type="button" class="btn sync" id="syncBtn" data-sheet="refresh" title="Read Excellovint now">&#8635; Sync</button></div>
+    <div class="top-btns"><a class="btn sync" href="/settings" title="Settings: house notes, chat log, sign out" aria-label="Settings" style="flex:0 0 auto;text-decoration:none;color:inherit">&#9881;&#xFE0E;</a><a class="btn sync" href="/purchases" title="Compras: things to buy, ranked high / medium / low" style="flex:0 0 auto;text-decoration:none;color:inherit">&#128722;&#xFE0E; Compras · Inventario</a><span class="add-wrap"><button type="button" class="btn sync primary" id="addBtn" aria-haspopup="menu" aria-expanded="false">+ Agregar</button>
+<div class="add-menu" id="addMenu" role="menu" hidden><button type="button" role="menuitem" data-addk="wo" class="ed-only">Orden de trabajo<small>Solo Eric y Diane</small></button><button type="button" role="menuitem" data-addk="note">Nota<small>Cata, observación, medición, relleno…</small></button><button type="button" role="menuitem" data-addk="lab">Subir lab<small>PDF o foto de Uva y Vino / San Lucas</small></button></div></span>
+<button type="button" id="newWoBtn" hidden></button><button type="button" class="fresh" id="freshBtn" data-sheet="refresh" title="Toca para actualizar">Actualizando…</button></div>
   </header>
 
   <nav class="vynav" role="tablist" aria-label="Vineyard">
@@ -1137,12 +1192,13 @@ h4.pd-h { font-size: 16px; }
   </nav>
   <nav class="vynav winenav" role="tablist" aria-label="Winery">
     <span class="vylabel">Winery</span>
+    <button type="button" role="tab" id="tabOrders" data-view="orders" aria-selected="false" aria-controls="weeksView">Work orders</button>
     <button type="button" role="tab" id="tabWines" data-view="wines" aria-selected="true" aria-controls="winesView">Wines</button>
     <button type="button" role="tab" id="tabWeeks" data-view="weeks" aria-selected="false" aria-controls="weeksView">Calendar</button>
     <button type="button" role="tab" id="tabLabs" data-view="labs" aria-selected="false" aria-controls="labsView">Labs</button>
     <button type="button" role="tab" id="tabBlends" data-view="blends" aria-selected="false" aria-controls="blendsView">Trials</button>
     <button type="button" role="tab" id="tabProto" data-view="protocols" aria-selected="false" aria-controls="protoView">Protocols</button>
-    <button type="button" role="tab" id="tabAudit" data-view="audit" aria-selected="false" aria-controls="auditView">Audit</button>
+    <button type="button" role="tab" id="tabAudit" data-view="audit" aria-selected="false" aria-controls="auditView">Audit <b class="aud-badge" id="audBadge" hidden></b></button>
   </nav>
 
   <div class="toolbar">
@@ -1156,7 +1212,7 @@ h4.pd-h { font-size: 16px; }
       <span class="seg" role="group" aria-label="Group labs"><button type="button" id="lmWine" class="ghost">By wine</button><button type="button" id="lmTest" class="ghost">By test</button></span>
       <label class="sortsel" id="labTestWrap" hidden>Test <select id="labTest"></select></label>
       <label class="hide-done"><input type="checkbox" id="labSug"> Show suggested labs</label>
-      <button class="ghost" id="labPrint" type="button" title="Print preview, or a PDF if this view blocks printing">Print pull sheet</button><button class="ghost" id="labWa" type="button" title="Send the pull sheet on WhatsApp">WhatsApp</button>
+      <button class="ghost" id="labPrint" type="button" title="Print preview, or a PDF if this view blocks printing">Print pull sheet</button>
     </div>
     <div class="controls" id="weekCtl" hidden>
       <span class="seg" role="group" aria-label="Week or day view"><button type="button" id="spWeek" class="ghost">Week</button><button type="button" id="spDay" class="ghost">Day</button><button type="button" id="spAsg" class="ghost">Assigned</button></span>
@@ -1169,7 +1225,7 @@ h4.pd-h { font-size: 16px; }
   </div>
 
   <nav class="mnav" id="mnav" aria-label="Sections">
-    <button type="button" data-mtoday="1"><span aria-hidden="true">✓</span>Calendar</button>
+    <button type="button" data-mtoday="1"><span aria-hidden="true">✓</span>Órdenes</button>
     <button type="button" data-view="wines"><span aria-hidden="true">🍷</span>Wines</button>
     <button type="button" data-view="labs"><span aria-hidden="true">⚗</span>Labs</button>
     <button type="button" data-view="protocols"><span aria-hidden="true">📋</span>Protocols</button>
@@ -1233,6 +1289,7 @@ h4.pd-h { font-size: 16px; }
   <section id="auditView" role="tabpanel" aria-labelledby="tabAudit" hidden><div id="audit"></div></section>
 
   <section id="labsView" role="tabpanel" aria-labelledby="tabLabs" hidden>
+    <div id="labReports"></div>
     <div class="labs-sum" id="labsSum"></div>
     <div class="labs" id="labs"></div>
   </section>
@@ -1240,6 +1297,7 @@ h4.pd-h { font-size: 16px; }
   <div class="foot">
     <div class="legend" id="legend"></div>
     <div id="mode"></div>
+    <div class="app-ver">Cellar &amp; Production Tracker · __APP_VERSION__</div>
   </div>
 </div>
 
@@ -1732,7 +1790,7 @@ var SheetParse = (function () {
   S.asgWho = ""; S.asgDone = false;
   S.doff = 0;
   S.dayN = 14; S.wkMore = 0;   // grow as you scroll right (or left)
-  const VIEWS = ["weeks", "labs", "blends", "protocols", "learn", "audit", "vy-season", "vy-harvest", "vy-prune", "vy-blocks", "vy-treat"];
+  const VIEWS = ["orders", "weeks", "labs", "blends", "protocols", "learn", "audit", "vy-season", "vy-harvest", "vy-prune", "vy-blocks", "vy-treat"];
   S.view = VIEWS.includes(recall("view", "wines")) ? recall("view", "wines") : "wines";
   S.vy = {};
   if (VIEWS.includes(location.hash.slice(1))) S.view = location.hash.slice(1);
@@ -1747,6 +1805,10 @@ var SheetParse = (function () {
   if (location.hash === "#cellar") { S.view = "wines"; S.wmode = "cellar"; }
   // Phones open on Today (the assigned work orders) the first time.
   try { if (window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)").matches && recall("view", null) == null && !location.hash) { S.view = "weeks"; S.span = "asg"; } } catch (e) {}
+  // The work-orders list (same component everywhere): the Work orders tab, Calendar → Assigned, and the phone's Órdenes.
+  const isAsgView = () => S.view === "orders" || (S.view === "weeks" && S.span === "asg");
+  // Phones have no Work orders tab: the bottom nav's Órdenes is the same list.
+  try { if (S.view === "orders" && window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)").matches) { S.view = "weeks"; S.span = "asg"; } } catch (e) {}
   const savedSort = recall("sort", null);
   if (savedSort && SORTS.some(s => s[0] === savedSort.key)) S.sort = { key: savedSort.key, dir: savedSort.dir === -1 ? -1 : 1 };
   S.showTemps = recall("showTemps", true) !== false;
@@ -1761,7 +1823,7 @@ var SheetParse = (function () {
   const todayISO = iso(new Date());
   const curWeek = iso(mondayOf(new Date()));
   const CREW_CSS = document.createElement("style");
-  CREW_CSS.textContent = `.role-crew .cell .add, .role-crew .tmp.add-t, .role-crew [data-grip], .role-crew a[href="/settings"], .role-crew [data-phase] { display: none !important; }`;
+  CREW_CSS.textContent = `.role-crew .ed-only, .role-crew .asg-edit, .role-crew .cell .add, .role-crew .tmp.add-t, .role-crew [data-grip], .role-crew a[href="/settings"], .role-crew [data-phase] { display: none !important; }`;
   document.head.appendChild(CREW_CSS);
   const PHONE_MQ = window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)");
   const weekEnd = iso(addDays(parse(curWeek), 6));
@@ -1864,12 +1926,15 @@ var SheetParse = (function () {
     $("tabAudit").setAttribute("aria-selected", av);
     $("auditView").hidden = !av;
     const vyv = S.view.startsWith("vy-");
-    document.querySelector(".toolbar").hidden = bl || vyv || pv || lv || av;
+    const ov = S.view === "orders";
+    $("tabOrders").setAttribute("aria-selected", ov);
+    document.querySelector(".toolbar").hidden = bl || vyv || pv || lv || av || ov;
     $("vyView").hidden = !vyv;
     document.querySelectorAll(".vynav [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === S.view));
-    const isAsg = S.view === "weeks" && S.span === "asg";
+    const isAsg = isAsgView();
     document.documentElement.classList.toggle("v-asg", isAsg);
     document.documentElement.classList.toggle("v-plan", S.view === "weeks" && S.span !== "asg");
+    document.documentElement.classList.toggle("v-orders", ov);
     document.querySelectorAll(".mnav button").forEach(b => b.setAttribute("aria-current", (b.dataset.mtoday ? S.view === "weeks" : b.dataset.view === S.view || (b.dataset.view === "labs" && S.view === "blends")) ? "page" : "false"));
     if (vyv) {
       $("sub").textContent = "The vineyard year: milestones, what we picked vs. the plan, pruning order and the blocks. Cellar sections are in the ribbon below.";
@@ -1879,7 +1944,7 @@ var SheetParse = (function () {
     $("tabWeeks").setAttribute("aria-selected", wk);
     $("tabLabs").setAttribute("aria-selected", labs);
     $("winesView").hidden = !wines;
-    $("weeksView").hidden = !wk;
+    $("weeksView").hidden = !(wk || ov);
     $("labsView").hidden = !labs;
     $("wineCtl").hidden = !wines;
     $("weekCtl").hidden = !wk;
@@ -1888,8 +1953,10 @@ var SheetParse = (function () {
       ? "Every wine on one page: latest numbers from Excellovint and the next target from the calendar. Tap a wine for its full card."
       : pv ? "Our cellar protocols and best practices in one place. A living library: we keep adding to it from our own trials and the books."
       : bl ? "Every blending trial: what we tasted, what each person thought, what's decided and what's next. Write feedback right on a trial; Claude reads it."
-      : labs ? "The lab samples to pull this week, wine by wine, and why: the lab tasks on the calendar plus what the numbers say is due."
-      : "Every wine, week by week. Tick a task when it's done, tap it to edit, and copy a week into Excellovint as work orders.";
+      : labs ? "Lab reports uploaded, and the samples to pull this week, wine by wine, and why."
+      : av ? "Data questions and things that need a winemaker's attention."
+      : ov ? "Who does what today: every open work order, overdue first. Tap «Anotar resultados y notas» to sign what you did."
+      : "Every wine, week by week. Tick a task when it's done, or tap it to edit.";
     if (labs) {
       $("labNow").disabled = S.off === 0;
       $("labNow").textContent = S.off === 0 ? "This week" : (S.off < 0 ? S.off : "+" + S.off) + " wk · back to this week";
@@ -2682,7 +2749,8 @@ Return ONLY JSON with this shape:
   function render() {
     renderControls();
     renderVyNext();
-    if (S.view === "wines") renderWines(); else if (S.view === "labs") renderLabs(); else if (S.view === "blends") renderBlends(); else if (S.view === "protocols" || S.view === "learn") renderProto(); else if (S.view === "audit") renderAudit(); else if (S.view.startsWith("vy-")) renderVineyard(); else renderBoard();
+    if (S.view === "wines") renderWines(); else if (S.view === "labs") renderLabs(); else if (S.view === "blends") renderBlends(); else if (S.view === "protocols" || S.view === "learn") renderProto(); else if (S.view === "audit") renderAudit(); else if (S.view.startsWith("vy-")) renderVineyard(); else if (S.view === "orders") { $("wrap").hidden = true; $("asgView").hidden = false; renderAsg(); } else renderBoard();
+    renderAudBadge(); renderFresh();
     if (S.open) renderDrawer();
     try {
       micSyncLang();
@@ -2842,7 +2910,19 @@ Return ONLY JSON with this shape:
     const tg = e.target.closest("[data-pptog]"); if (tg) { const k = tg.dataset.pptog; if (S.ppAllOpen) { S.ppAllOpen = false; S.ppOpen = new Set(S.lots.map(l => l.id).concat("_none")); } S.ppOpen.has(k) ? S.ppOpen.delete(k) : S.ppOpen.add(k); renderBoard(); }
   });
   // Crew login (Paris & Jimena): work orders and progress yes; plan, wines, protocols and settings no (the server enforces it too).
-  fetch("/api/me").then(r => r.ok ? r.json() : {}).then(j => { if (j && j.role === "crew") { S.crew = true; document.documentElement.classList.add("role-crew"); render(); } }).catch(() => {});
+  fetch("/api/me").then(r => r.ok ? r.json() : {}).then(j => {
+    if (!j) return;
+    S.me = j; S.myIni = j.initials || S.myIni;
+    if (j.role === "crew") {
+      S.isCrew = true; document.documentElement.classList.add("role-crew");
+      // Crew land on the work orders, with their own name picked (shared P/J login: everyone).
+      if (!location.hash) {
+        if (PHONE_MQ.matches) { S.view = "weeks"; S.span = "asg"; } else S.view = "orders";
+        S.asgWhoWant = /[\/+,&]/.test(j.initials || "") ? "" : (j.initials || "");
+      }
+    }
+    render();
+  }).catch(() => {});
   window.addEventListener("cellar:plan", () => { S.view = "weeks"; S.span = "week"; S.ppOff = 0; render(); window.scrollTo(0, 0); });
 
   // ---------- Access check: walks a viewer through everything Excellovint needs ----------
@@ -2924,7 +3004,7 @@ Return ONLY JSON with this shape:
     let h = `<div class="aud-top"><span class="seg" role="group" aria-label="Audit type">` +
       `<button type="button" class="ghost" data-audmode="data" aria-pressed="${mode === "data"}">Data audit <span class="aud-n">${openD}</span></button>` +
       `<button type="button" class="ghost" data-audmode="attention" aria-pressed="${mode === "attention"}"><span class="aud-tri" aria-hidden="true">▲</span> Needs attention <span class="aud-n">${openA}</span></button></span>` +
-      `<span class="seg" role="group" aria-label="Show">${[["open", "Open"], ["answered", mode === "data" ? "Answered" : "Explained"], ["ignored", "Ignored"]].map(([k, l]) => `<button type="button" class="ghost" data-audshow="${k}" aria-pressed="${S.audShow === k}">${l} (${n(k)})</button>`).join("")}</span>` +
+      `<span class="seg" role="group" aria-label="Show">${[["open", "Abiertas"], ["answered", "Respondidas"], ["ignored", "Ignoradas"]].map(([k, l]) => `<button type="button" class="ghost" data-audshow="${k}" aria-pressed="${S.audShow === k}">${l} (${n(k)})</button>`).join("")}</span>` +
       `<button type="button" class="ghost" id="audPrint">Print ${mode === "data" ? "question list" : "attention list"}</button></div>` +
       `<p class="aud-note">${mode === "data"
         ? "Things Excellovint doesn't make clear: where a wine is, how much there is, what a note means. Answer here (or print, fill in by hand, and type the answers back to Claude). Claude then fixes the sheet."
@@ -3058,8 +3138,11 @@ Return ONLY JSON with this shape:
       if ("date" in c) { const d = SheetParse.parseDate(c.date); if (d) r.date = d; }
       r.pending = true;
     }
-    return rows.filter(r => r.date <= todayISO);
+    return rows.filter(r => r.date <= todayISO && !isEntryRow(r));
   }
+  // Rows the app writes as signed records (results, notes, lab results) aren't work orders.
+  const ENTRY_RE = /^(RESULTADO \(ORDEN|NOTA(:|$)|RESULTADOS (UVA Y VINO|SAN LUCAS|LABORATORIO|INTERNO|[A-Z ]+ \d{1,2}\/\d{1,2}))/;
+  function isEntryRow(r) { return ENTRY_RE.test(String(r.note || "").trim().toUpperCase()); }
   function asgRowsLive() {
     const vals = S.sheet.values || {}, out = [];
     const startKey = iso(addDays(parse(todayISO), -ASG_LOOKBACK));
@@ -3072,7 +3155,7 @@ Return ONLY JSON with this shape:
       for (const r of [0, 1, 2]) for (const c of (v[r] || [])) { const mt = String(c || "").match(/VINO\s*:\s*(.+)/i); if (mt && !wine) wine = mt[1].trim(); }
       if (!wine && /^L00/i.test(tab)) wine = "Bodega (todos)";
       for (let r = hm.row + 1; r < v.length; r++) {
-        const note = cell(r, "note"); if (!note) continue;
+        const note = cell(r, "note"); if (!note || isEntryRow({ note })) continue;
         const date = SheetParse.parseDate(cell(r, "date")); if (!date || date > todayISO) continue;
         const ini = cell(r, "ini"), asig = cell(r, "asig");
         const iniEff = /^UNDO$/i.test(ini) ? "" : ini;
@@ -3143,14 +3226,15 @@ Return ONLY JSON with this shape:
   }
   function renderAsg() {
     const el = $("asgView");
-    if (S.asgMode === "week") { renderAsgWeek(el); return; }
-    if (S.asgOff < 0) { renderPastDay(el); return; }
+    if (S.asgMode === "week") { el.__html = null; renderAsgWeek(el); return; }
+    if (S.asgOff < 0) { el.__html = null; renderPastDay(el); return; }
     const fromCache = !S.sheet.values;
-    if (fromCache && !(S.woCache && Array.isArray(S.woCache.rows))) { el.innerHTML = `<div class="empty"><strong>${S.mcp && S.sheet.mode === "loading" ? "Reading Excellovint…" : "Google Sheets isn't connected for you yet"}</strong>The assigned work orders come straight from Excellovint, using your own Google account.<br><button type="button" class="btn primary" data-sheet="diag" style="margin-top:10px">Fix access</button></div>`; return; }
+    if (fromCache && !(S.woCache && Array.isArray(S.woCache.rows))) { el.__html = null; el.innerHTML = `<div class="empty"><strong>${S.mcp && S.sheet.mode === "loading" ? "Reading Excellovint…" : "Google Sheets isn't connected for you yet"}</strong>The assigned work orders come straight from Excellovint, using your own Google account.<br><button type="button" class="btn primary" data-sheet="diag" style="margin-top:10px">Fix access</button></div>`; return; }
     const all = asgRows();
     const closed = r => !!r.ini;
     const toks = r => { const t = asigTokens(r.asig).map(canonTag); return t.length ? t : ["—"]; };
     const people = [...new Set(all.flatMap(toks))].sort((a, b) => a === "—" ? 1 : b === "—" ? -1 : crewName(a).localeCompare(crewName(b)));
+    if (S.asgWhoWant != null && crewList().length) { const t = S.asgWhoWant ? canonTag(S.asgWhoWant) : ""; S.asgWhoWant = null; if (!t || people.includes(t)) S.asgWho = t; }
     if (S.asgWho && !people.includes(S.asgWho)) S.asgWho = "";
     const mine = r => !S.asgWho || toks(r).includes(S.asgWho);
     const rows = all.filter(r => mine(r) && !closed(r));
@@ -3162,10 +3246,10 @@ Return ONLY JSON with this shape:
     let h = dayNav() + `<div class="asg-top"><span class="seg who" role="group" aria-label="Who">` +
       [["", "Everyone"]].concat(people.map(p => [p, p === "—" ? "Unassigned" : crewName(p)])).map(([k, l]) => `<button type="button" class="ghost" data-asgwho="${esc(k)}" aria-pressed="${S.asgWho === k}">${esc(l)}</button>`).join("") +
       `</span>` +
-      `<button type="button" class="ghost" id="asgRefresh">Refresh from Excellovint</button></div>` +
+      `<button type="button" class="fresh" data-sheet="refresh" title="Toca para actualizar"></button></div>` +
       `<p class="asg-note">${open} open · same rows as Today's Work Orders (today + open backlog, never future). ${fromCache
-        ? `Saved copy from ${esc(S.woCache.at ? stamp(Date.parse(S.woCache.at)) : "earlier")}. Your changes save here right away and reach Excellovint the next time Eric's side syncs (within the hour).`
-        : "Changes write to the lot tab and the print sheet updates on its own."}${queued ? ` <b>${queued} change${queued > 1 ? "s" : ""} waiting to sync.</b>` : ""}</p>`;
+        ? `Saved copy from ${esc(S.woCache.at ? stamp(Date.parse(S.woCache.at)) : "earlier")}.`
+        : ""}${queued ? ` <b>${queued} change${queued > 1 ? "s" : ""} waiting to sync.</b>` : ""}</p>`;
     if (!rows.length) h += `<div class="empty"><strong>Nothing open</strong>${S.asgWho ? "No open work orders for " + esc(S.asgWho) + "." : "No open work orders."}</div>`;
     const rowHtml = r => {
       let h = "";
@@ -3174,14 +3258,16 @@ Return ONLY JSON with this shape:
         const asigOpts = tm.map(([i]) => i); if (r.asig && !asigOpts.includes(r.asig)) asigOpts.unshift(r.asig);
         const pg = progOf(r);
         const st = !r.ini ? (pg ? "p" + pg : "open") : /^XX$/i.test(r.ini) ? "xx" : "done";
-        const statusOpts = [["open", "Open"], ["p25", "25%"], ["p50", "50%"], ["p75", "75%"], ["done", st === "done" ? "Done (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")], ["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]];
+        const statusOpts = [["open", "Open"], ["p25", "25%"], ["p50", "50%"], ["p75", "75%"], ["done", st === "done" ? "Done (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")]].concat(S.isCrew ? (st === "xx" ? [["xx", "Cancelada (XX)"]] : []) : [["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]]);
+        const lock = dis || (S.isCrew ? " disabled" : "");   // crew: priority, assignment and wording are Eric's and Diane's
         h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
           `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
-          `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}${dis ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Edit work order" title="Edit this work order">${EDIT_ICON}</button>`}</span>` +
-          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${dis}>${esc(r.note)}</textarea>${dis ? "" : `<button type="button" class="asg-res" data-asgres="${esc(key)}"><span>${RES_ICON}Resultados y notas</span>${resSummary(r)}</button>`}</span>` +
-          `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${dis}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
-          `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${dis ? " disabled" : ""}>${esc(asigLabel(r.asig) || "—")}</button>` +
+          `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
+          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${lock}${S.isCrew ? " readonly" : ""}>${esc(r.note)}</textarea>${dis ? "" : `<button type="button" class="asg-res" data-asgres="${esc(key)}"><span>${RES_ICON}Anotar resultados y notas</span></button>`}<span class="asg-results" data-results="${esc(key)}"></span></span>` +
+          `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${lock}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
+          `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${lock}>${esc(asigLabel(r.asig) || "—")}</button>` +
           `<select class="asg-st st-${st}" data-asgst="1" aria-label="Status"${dis}>${statusOpts.map(([k, l]) => `<option value="${k}"${k === st ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>` +
+          `<span class="asg-act">${dis || S.isCrew ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Editar orden de trabajo" title="Editar esta orden de trabajo">${EDIT_ICON}</button>`}</span>` +
           `</div>`;
             return h;
     };
@@ -3193,18 +3279,22 @@ Return ONLY JSON with this shape:
       const g = groups[p]; if (!g) continue;
       g.sort((a, b) => (closed(a) - closed(b)) || priRank(a.pri) - priRank(b.pri) || a.tab.localeCompare(b.tab, undefined, { numeric: true }) || a.row - b.row);
       h += `<div class="asg-group"><h3>${esc(p === "—" ? "Not assigned" : asigLabel(p))} <small>${g.filter(r => !closed(r)).length} open</small></h3>` +
-        `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span></div>`;
+        `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span><span></span></div>`;
       for (const r of g) h += rowHtml(r);
       h += `</div>`;
     }
     if (closedToday.length) {
       closedToday.sort((a, b) => (a.asig || "~").localeCompare(b.asig || "~") || a.tab.localeCompare(b.tab, undefined, { numeric: true }) || a.row - b.row);
       h += `<div class="asg-group asg-closed"><h3>Closed today <small>${closedToday.length} · check they're really done; set Status back to Open to revisit</small></h3>` +
-        `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span></div>` +
+        `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span><span></span></div>` +
         closedToday.map(rowHtml).join("") + `</div>`;
     }
+    // Same list as last time (a timer, a poll, another collection changing): leave the rows alone so nothing moves.
+    if (el.__html === h && el.firstChild) return;
+    el.__html = h;
     el.innerHTML = h;
-    fitAsgText();
+    fitAsgText(); renderFresh();
+    window.dispatchEvent(new CustomEvent("cellar:asgrendered"));
   }
   // Task text boxes size to their text; re-measure when the screen size changes (rotation, window resize).
   function fitAsgText() { document.querySelectorAll("#asgView .asg-txt").forEach(t => { t.style.height = "auto"; t.style.height = Math.max(30, t.scrollHeight + 2) + "px"; }); }
@@ -3342,6 +3432,9 @@ Return ONLY JSON with this shape:
   S.rs = null;
   function openRs(key) {
     const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
+    const lot = S.lots.find(l => (l.sheet || []).some(x => x.tab === r.tab));
+    window.dispatchEvent(new CustomEvent("cellar:results", { detail: { order: { key, tab: r.tab, row: r.row, note: r.note, ubi: r.ubi, wine: r.wine, asig: r.asig, ini: r.ini, lot: lot ? lot.id : "" } } }));
+    return;
     S.rs = { key, r };
     $("rsWhere").innerHTML = `<b>${esc(r.wine || r.tab)}</b> · ${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}`;
     $("rsTask").textContent = r.note || "";
@@ -3368,12 +3461,19 @@ Return ONLY JSON with this shape:
       if (ok !== undefined || !S.mcp) { Object.assign(r, ch); closeRs(); toast("Guardado en " + r.tab + (done ? " · hecha" : "")); render(); }
     } finally { $("rsSave").disabled = false; }
   });
-  fetch("/api/me").then(x => x.ok ? x.json() : {}).then(j => { if (j && j.initials) S.myIni = j.initials; }).catch(() => {});
+  // From the results form (entries.js): mark the order done after its results row is saved; re-read after a save.
+  window.addEventListener("cellar:orderdone", async e => {
+    const d = e.detail || {}; if (!d.key || !d.ini) return;
+    const r = asgRows().find(x => x.tab + "|" + x.row === d.key); if (r) setProg(r, 0);
+    await asgWrite(d.key, { ini: d.ini });
+  });
+  window.addEventListener("cellar:refresh", () => { try { loadLive(true); } catch (err) {} });
 
   // ---- Work-order editor: every field of an Excellovint row, saved as cell changes on that row. ----
   const EDIT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
   S.xo = null;
   function openXo(key, focus) {
+    if (S.isCrew) { toast("Solo Eric o Diane editan órdenes. Usa «Anotar resultados y notas»."); return; }
     const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
     S.xo = { key, r };
     $("xoTitle").textContent = "Work order";
@@ -3423,7 +3523,7 @@ Return ONLY JSON with this shape:
     const rs = e.target.closest("[data-asgres]"); if (rs) { openRs(rs.dataset.asgres); return; }
     const ed = e.target.closest("[data-asgedit]"); if (ed) { openXo(ed.dataset.asgedit, ed.dataset.focus); return; }
     const dy = e.target.closest("[data-asgday]"); if (dy) { const v = +dy.dataset.asgday; if (S.asgMode === "week") S.asgWeekOff = v === 0 ? 0 : S.asgWeekOff + v; else S.asgOff = v === 0 ? 0 : Math.min(0, S.asgOff + v); render(); window.scrollTo(0, 0); return; }
-    if (e.target.id === "asgRefresh") { loadLive(true); toast("Reading Excellovint…"); return; }
+
   });
   $("asgView").addEventListener("change", async e => {
     const rowEl = e.target.closest("[data-asgkey]"); if (!rowEl) return;
@@ -3561,7 +3661,7 @@ Return ONLY JSON with this shape:
     }
     if (!docs.length) side += `<div class="pl-cat">No matches</div>`;
     const main = sel === "__so2" ? so2Html() : sel === "__ref" ? refHtml() : cur ? `<article class="pd">` +
-      `<div class="pd-top"><button type="button" class="btn pd-print" id="protoPrint" title="Opens print preview; if this view blocks printing, saves a PDF instead">Print / PDF</button><button type="button" class="btn pd-print" id="protoWa" title="Send this on WhatsApp">WhatsApp</button>${edu ? "" : `<span class="st st-${esc((cur.status || "draft").toLowerCase().replace(/\s+/g, "-"))}">${esc(cur.status || "Draft")}</span>`}${cur.updated ? `<span class="pd-up">Updated ${esc(shortDate(cur.updated))}</span>` : ""}</div>` +
+      `<div class="pd-top"><button type="button" class="btn pd-print" id="protoPrint" title="Opens print preview; if this view blocks printing, saves a PDF instead">Print / PDF</button>${edu ? "" : `<span class="st st-${esc((cur.status || "draft").toLowerCase().replace(/\s+/g, "-"))}">${esc(cur.status || "Draft")}</span>`}${cur.updated ? `<span class="pd-up">Updated ${esc(shortDate(cur.updated))}</span>` : ""}</div>` +
       `<h2 class="pd-title">${esc(cur.title)}</h2>` + (cur.summary ? `<p class="pd-sum">${mdInline(cur.summary)}</p>` : "") +
       md(cur.md) +
       (edu ? quizHtml(cur) + tutorHtml(cur) : "") +
@@ -3941,14 +4041,29 @@ Return ONLY JSON with this shape:
     }
     el.className = "src " + cls;
     el.innerHTML = `<span class="msg"><span class="dot" aria-hidden="true"></span>${msg}</span>${btn}`;
-    const sb = $("syncBtn");
-    if (sb) {
-      const busy = sh.mode === "loading";
-      sb.disabled = busy || !S.mcp && sh.mode !== "ask";
-      sb.dataset.sheet = sh.mode === "ask" ? "load" : "refresh";
-      sb.innerHTML = busy ? "&#8635; Syncing…" : "&#8635; Sync";
-      sb.title = !S.mcp && sh.mode !== "ask" ? "Needs Google Sheets connected in Claude" : sh.at ? "Last read " + stamp(sh.at) + ". Read Excellovint now." : "Read Excellovint now";
-    }
+    renderFresh();
+  }
+  // "Actualizado hace 2 min": how old the data on screen is. Tap it to read again.
+  function freshText() {
+    const sh = S.sheet;
+    if (sh.mode === "loading") return "Actualizando…";
+    const at = sh.at || (S.woCache && S.woCache.at ? Date.parse(S.woCache.at) : 0) || (sh.cacheAt ? Date.parse(sh.cacheAt) : 0);
+    if (!at) return "Toca para actualizar";
+    const min = Math.max(0, Math.round((Date.now() - at) / 60000));
+    return "Actualizado " + (min < 1 ? "ahora" : min < 60 ? "hace " + min + " min" : "hace " + Math.round(min / 60) + " h");
+  }
+  function renderFresh() {
+    const t = freshText();
+    document.querySelectorAll(".fresh").forEach(b => { if (b.textContent !== t) b.textContent = t; b.dataset.sheet = S.sheet.mode === "ask" ? "load" : "refresh"; b.disabled = S.sheet.mode === "loading"; });
+  }
+  setInterval(renderFresh, 30000);
+  // Audit button: red badge = open items that need an answer (bolder when one is high severity).
+  function renderAudBadge() {
+    const open = (S.audit || []).filter(x => (x.status || "open") === "open");
+    const hi = open.some(x => x.sev === "high");
+    document.querySelectorAll(".aud-badge").forEach(b => { b.textContent = open.length > 99 ? "99+" : open.length; b.hidden = !open.length; b.classList.toggle("hi", hi); });
+    window.__audOpen = open.length;
+    window.dispatchEvent(new CustomEvent("cellar:audcount", { detail: { n: open.length, hi } }));
   }
 
   function cellNum(key, label, inner) { return `<td class="num" data-l="${esc(label)}">${inner}</td>`; }
@@ -4303,6 +4418,8 @@ Return ONLY JSON with this shape:
       h += `<div class="tiles">${tile(s, "ph", "")}${tile(s, "at", "g/L")}${tile(s, "am", "g/L")}${mlTile}${tile(s, "sl", "mg/L", mol)}${so2Tile(s)}${tile(s, "aa", "g/L")}${tile(s, "alc", "%")}${tile(s, "rs", "g/L")}${tile(s, "heat", "NTU")}${rackTile(s)}</div>`;
     }
     h += `</section>`;
+    h += `<section class="d-sec d-notes"><div class="d-acts">${S.canWrite !== false ? `<button type="button" class="btn primary" data-addnote="${esc(l.id)}">+ Agregar nota</button>` : ""}</div>` +
+      `<div class="lot-labs" data-lotlabs="${esc(l.id)}" data-tabs="${esc(tabs.join("|"))}"></div></section>`;
 
     // path to bottle
     h += pathSection(l, s);
@@ -4477,6 +4594,17 @@ Return ONLY JSON with this shape:
     setTimeout(() => $("edText").focus(), 0);
   }
   function closeEditor() { $("editor").hidden = true; S.editing = null; }
+  // "+ Agregar": Orden de trabajo (Eric and Diane) · Nota · Subir lab.
+  function toggleAdd(open) { const m = $("addMenu"); m.hidden = open == null ? !m.hidden : !open; $("addBtn").setAttribute("aria-expanded", String(!m.hidden)); }
+  $("addBtn").addEventListener("click", e => { e.stopPropagation(); toggleAdd(); });
+  document.addEventListener("click", e => { if (!$("addMenu").hidden && !e.target.closest(".add-wrap, .add-menu")) toggleAdd(false); });
+  $("addMenu").addEventListener("click", e => {
+    const b = e.target.closest("[data-addk]"); if (!b) return; toggleAdd(false);
+    if (b.dataset.addk === "wo") { if (S.isCrew) { toast("Solo Eric o Diane crean órdenes de trabajo."); return; } $("newWoBtn").click(); return; }
+    const lot = S.open || "";
+    window.dispatchEvent(new CustomEvent(b.dataset.addk === "note" ? "cellar:note" : "cellar:lab", { detail: { lot } }));
+  });
+  window.addEventListener("cellar:add", () => toggleAdd(true));
   // "+ Work order": a blank work order (any wine, or winery-wide in L00), straight into Excellovint.
   $("newWoBtn").addEventListener("click", () => {
     if (!S.db || S.canWrite === false) { toast("You can't add work orders in this view."); return; }
@@ -5123,7 +5251,7 @@ Return ONLY JSON with this shape:
       if (S.kinds.has(k) && S.kinds.size > 1) S.kinds.delete(k); else S.kinds.add(k);
       store("kinds", [...S.kinds]); render(); return;
     }
-    if (S.crew && (b.dataset.temp || b.dataset.add || b.dataset.edit || b.dataset.phase)) { toast("Solo Eric o Diane cambian el plan. Usa la orden de trabajo para anotar."); return; }
+    if (S.isCrew && (b.dataset.temp || b.dataset.add || b.dataset.edit || b.dataset.phase)) { toast("Solo Eric o Diane cambian el plan. Usa la orden de trabajo para anotar."); return; }
     if (b.dataset.wo) { openWo(b.dataset.wo); return; }
     if (b.dataset.temp) { if (S.canWrite && S.db) { const [lt, wk] = b.dataset.temp.split("|"); openTemp(lt, wk); } return; }
     if (b.dataset.tick) {
@@ -5237,9 +5365,9 @@ Return ONLY JSON with this shape:
     db.collection("staff").onSnapshot(s => { S.staff = s.docs.map(d => Object.assign({ id: d.id }, d.data())); render(); }, () => {});
     db.collection("vineyard").onSnapshot(s => { S.vy = {}; s.docs.forEach(d => { S.vy[d.id] = d.data(); }); render(); }, onErr);
     db.collection("protocols").onSnapshot(s => { S.protos = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotProtos = true; if (S.view === "protocols" || S.view === "learn") renderProto(); }, onErr);
-    db.collection("wocache").onSnapshot(s => { const d = s.docs.find(x => x.id === "current"); S.woCache = d ? d.data() : null; if (S.view === "weeks" && S.span === "asg") render(); }, () => {});
-    db.collection("woqueue").onSnapshot(s => { S.woQueue = s.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.view === "weeks" && S.span === "asg") render(); drainQueue(); }, () => {});
-    db.collection("audit").onSnapshot(s => { S.audit = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotAudit = true; if (S.view === "audit") renderAudit(); }, onErr);
+    db.collection("wocache").onSnapshot(s => { const d = s.docs.find(x => x.id === "current"); S.woCache = d ? d.data() : null; if (isAsgView()) render(); }, () => {});
+    db.collection("woqueue").onSnapshot(s => { S.woQueue = s.docs.map(d => Object.assign({ id: d.id }, d.data())); if (isAsgView()) render(); drainQueue(); }, () => {});
+    db.collection("audit").onSnapshot(s => { S.audit = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotAudit = true; renderAudBadge(); if (S.view === "audit") renderAudit(); }, onErr);
     db.collection("trials").onSnapshot(s => { S.trials = s.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.view === "blends") renderBlends(); }, onErr);
     db.collection("tasks").onSnapshot(s => { S.tasks = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotTasks = true; render(); reconcile(); }, onErr);
     db.collection("settings").onSnapshot(s => {
@@ -5259,7 +5387,9 @@ Return ONLY JSON with this shape:
 
 <link rel="stylesheet" href="/cellar-room.css">
 <link rel="stylesheet" href="/mobile.css">
+<link rel="stylesheet" href="/entries.css">
 <script src="/cellar-room.js" defer></script>
 <script src="/mobile.js" defer></script>
 <script src="/chat-ui.js" defer></script>
+<script src="/entries.js" defer></script>
 </html>

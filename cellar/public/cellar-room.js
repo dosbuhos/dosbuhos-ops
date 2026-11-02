@@ -14,7 +14,7 @@
   const GCOL = { red: '#7a1f2b', rose: '#e0849a', white: '#d8b43c', orange: '#d9822b', sparkling: '#7fa7b8' };
   const FILL = { full: 'Llena', partial: 'Parcial', empty: 'Vacía' };
   const WOOD = ['', 'Francesa', 'Americana', 'Húngara', 'Otra'];
-  const fmtD = iso => iso ? new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+  const fmtD = iso => iso ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + 'T12:00' : iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
   const codeOf = v => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
   const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 2 }, { id: '2', name: 'Fila 2', slots: 8, levels: 2 }, { id: '3', name: 'Fila 3', slots: 8, levels: 2 }] }] };
 
@@ -39,6 +39,10 @@
     return (zone ? zone.name : 'Zona ' + z) + ' · ' + (row ? row.name : 'Fila ' + r) + ' · Pos ' + s + (lv ? (lv === '1' ? ' · abajo' : lv === '2' ? ' · arriba' : ' · nivel ' + lv) : '');
   };
   const atLoc = loc => C.barrels.find(b => b.loc === loc);
+  // Imported from the paper SO2 records (Barricas_registro_2025-2026.xlsx): barrels that held older wine on paper and
+  // nobody knows if it's still there. Diane confirms each with one tap.
+  const needsConfirm = b => b.status === 'confirm' && !b.confirmed;
+  const paperLine = b => b.paper && b.paper.last ? 'Papel: ' + b.paper.last + (b.paper.date ? ' · ' + fmtD(b.paper.date) : '') : '';
   async function logEvent(code, kind, text) {
     const at = new Date().toISOString();
     await api('barrel_log/' + encodeURIComponent('b' + code + '-' + Date.now().toString(36)), 'PUT', { code: String(code), at, by: C.me, kind, text }).catch(() => {});
@@ -100,18 +104,22 @@
     const q = C.q.trim().toLowerCase();
     let bs = C.barrels.filter(b => !q || (b.code + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
     if (C.vint !== 'all') bs = bs.filter(b => { const l = lotById(b.lot); return l ? vintOK(l) : false; });
-    if (C.filter !== 'all') bs = bs.filter(b => C.filter === 'noloc' ? !b.loc : (b.fill || (b.lot ? 'full' : 'empty')) === C.filter);
-    const counts = { all: C.barrels.length, full: C.barrels.filter(b => (b.fill || (b.lot ? 'full' : 'empty')) === 'full').length, partial: C.barrels.filter(b => b.fill === 'partial').length, empty: C.barrels.filter(b => (b.fill || (b.lot ? 'full' : 'empty')) === 'empty').length, noloc: C.barrels.filter(b => !b.loc).length };
-    const fchips = [['all', 'Todas'], ['full', 'Llenas'], ['partial', 'Parciales'], ['empty', 'Vacías'], ['noloc', 'Sin ubicación']].map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}">${l} <small>${counts[k]}</small></button>`).join('');
+    if (C.filter === 'confirm') bs = bs.filter(needsConfirm);
+    else if (C.filter !== 'all') bs = bs.filter(b => C.filter === 'noloc' ? !b.loc : !needsConfirm(b) && (b.fill || (b.lot ? 'full' : 'empty')) === C.filter);
+    const counts = { confirm: C.barrels.filter(needsConfirm).length, all: C.barrels.length, full: C.barrels.filter(b => (b.fill || (b.lot ? 'full' : 'empty')) === 'full').length, partial: C.barrels.filter(b => b.fill === 'partial').length, empty: C.barrels.filter(b => (b.fill || (b.lot ? 'full' : 'empty')) === 'empty').length, noloc: C.barrels.filter(b => !b.loc).length };
+    const fchips = [['all', 'Todas']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []).concat([['full', 'Llenas'], ['partial', 'Parciales'], ['empty', 'Vacías'], ['noloc', 'Sin ubicación']]).map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}">${l} <small>${counts[k]}</small></button>`).join('');
     const gsel = `<label class="cr-group">Agrupar <select data-cg><option value="loc"${C.group === 'loc' ? ' selected' : ''}>por ubicación</option><option value="wine"${C.group === 'wine' ? ' selected' : ''}>por vino</option><option value="none"${C.group === 'none' ? ' selected' : ''}>sin agrupar</option></select></label>`;
     let h = `<div class="seg cr-f">${fchips}</div><div class="cr-grouprow">${gsel}</div>`;
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» para pegar el inventario de barricas desde Excel, o «+ Barrica» para capturar una por una.</div>`;
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
+    if (C.filter === 'confirm') return h + `<p class="cr-help">Estas barricas tenían vino de años anteriores en los registros de SO₂ en papel (nov/25 y may/26). Confirma qué tienen hoy; lo de 2026 en Excellovint no se toca.</p><div class="cr-cfm">` +
+      bs.map(b => `<article class="cr-cfm-row" data-bb="${esc(b.id)}"><div><b>BBL ${esc(b.code)}</b><span>${esc(paperLine(b) || 'Sin registro')}</span>${b.flag ? `<em>⚠ ${esc(b.flag)}</em>` : ''}</div>${C.canWrite ? `<div class="cr-cfm-a"><button type="button" class="btn sm" data-cfm="same" data-id="${esc(b.id)}">Sigue con ${esc((b.paper && b.paper.last) || 'este vino')}</button><button type="button" class="btn sm" data-cfm="empty" data-id="${esc(b.id)}">Embotellada / vacía</button><button type="button" class="btn sm" data-cfm="other" data-id="${esc(b.id)}">Otro vino…</button></div>` : ''}</article>`).join('') + `</div>`;
     const card = b => {
       const g = lotGroup(b.lot), fill = b.fill || (b.lot ? 'full' : 'empty');
       return `<article class="cr-bbl ${fill}" data-bb="${esc(b.id)}" style="--c:${GCOL[g] || '#9aa5b1'}">
         <div class="cr-code"><small>BBL</small><b>${esc(b.code)}</b></div>
-        <div class="cr-bmain"><b>${b.lot ? esc(lotName(b.lot)) : '<span class="cr-none">Vacía</span>'}</b>
+        <div class="cr-bmain"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>
+          ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
           <div class="cr-sub">${[b.vol ? b.vol + ' L' : '', b.size ? b.size + ' L' : '', FILL[fill]].filter(Boolean).join(' · ')}${b.lot && lotById(b.lot) ? ' · ' + C.vintageOf(lotById(b.lot)) : ''}</div>
           <div class="cr-sub">${b.loc ? '<span class="cr-loc">' + esc(b.loc) + '</span> ' + esc(locLabel(b.loc)) : '<span class="cr-none">Sin ubicación</span>'}</div>
           ${b.cooperage || b.year ? `<div class="cr-sub cr-dim">${esc([b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year].filter(Boolean).join(' · '))}</div>` : ''}
@@ -218,7 +226,10 @@
       const mine = (lg.rows || []).map(r => r.data).filter(r => String(r.code) === String(b.code)).sort((x, y) => String(y.at).localeCompare(String(x.at)));
       const xrows = (xl.rows || []);
       const RK = [['volf', 'Vol'], ['ph', 'pH'], ['at', 'AT'], ['am', 'Málico'], ['sl', 'SO₂ L'], ['st', 'SO₂ T'], ['aa', 'AV']];
-      pane.innerHTML = `<h4>Movimientos en la app <small>${mine.length}</small></h4>` + (mine.length ? `<ul class="cr-log">${mine.map(r => `<li><span class="cr-ld">${fmtD(r.at)}</span><span class="cr-lk ${esc(r.kind)}">${esc(r.kind)}</span>${esc(r.text)}<small>${esc(r.by || '')}</small></li>`).join('')}</ul>` : '<p class="cr-none">Nada todavía.</p>') +
+      const ph = (b.history || []);
+      const paper = (b.flag ? `<p class="cr-flag">⚠ ${esc(b.flag)}</p>` : '') + (b.confirmed ? `<p class="cr-help">Confirmado por ${esc(b.confirmed.by || '')} ${fmtD(b.confirmed.at)}: ${esc(b.confirmed.state === 'same' ? 'sigue con ' + (b.confirmed.wine || '') : b.confirmed.state === 'empty' ? 'embotellada / vacía' : b.confirmed.wine || '')}</p>` : '') +
+        `<h4>Registros en papel (SO₂) <small>${ph.length}</small></h4>` + (ph.length ? `<ul class="cr-log">${ph.map(r => `<li><span class="cr-ld">${fmtD(r.date)}</span><span class="cr-lk">${esc(r.wine || '')}</span>${[r.ph != null ? 'pH ' + r.ph : '', r.fso2 != null ? 'SO₂L ' + r.fso2 : '', r.kmbs_g != null ? 'KMBS ' + r.kmbs_g + ' g' : '', r.skipped ? 'omitido (ya en meta)' : r.applied ? 'añadido' : ''].filter(Boolean).map(esc).join(' · ')}${r.note && !/^(Añadido|OMITIR)/.test(r.note) ? ' · ' + esc(r.note) : ''}<small>${esc(r.src || '')}</small></li>`).join('')}</ul>` : '<p class="cr-none">Sin registros en papel.</p>');
+      pane.innerHTML = paper + `<h4>Movimientos en la app <small>${mine.length}</small></h4>` + (mine.length ? `<ul class="cr-log">${mine.map(r => `<li><span class="cr-ld">${fmtD(r.at)}</span><span class="cr-lk ${esc(r.kind)}">${esc(r.kind)}</span>${esc(r.text)}<small>${esc(r.by || '')}</small></li>`).join('')}</ul>` : '<p class="cr-none">Nada todavía.</p>') +
         `<h4>En Excellovint <small>${xrows.length}</small></h4>` + (xrows.length ? `<div class="xlog">${xrows.map(r => `<article class="xe${r.ini ? ' is-done' : r.asig ? ' is-open' : ''}"><div class="xe-h"><span class="xe-d">${esc(r.date ? fmtD(r.date) : r.date_raw || '')}</span><span class="xe-u">${esc(r.tab)}${r.ubi ? ' · ' + esc(r.ubi) : ''}</span>${r.ini ? `<span class="xe-st done">Hecha · ${esc(r.ini)}</span>` : r.asig ? `<span class="xe-st open">Abierta · ${esc(r.asig)}</span>` : ''}</div><div class="xe-b">${RK.some(([k]) => r[k]) ? `<div class="xe-r">${RK.filter(([k]) => r[k]).map(([k, l]) => `<span><i>${l}</i>${esc(r[k])}</span>`).join('')}</div>` : ''}${r.note ? `<p class="xe-n">${esc(r.note)}</p>` : ''}</div></article>`).join('')}</div>` : '<p class="cr-none">Ninguna línea de Excellovint menciona esta barrica (busca «BBL ' + esc(b.code) + '»).</p>');
     } catch (e) { pane.innerHTML = '<p class="cr-none">No se pudo cargar: ' + esc(e.message) + '</p>'; }
   }
@@ -332,10 +343,21 @@
   }
 
   async function refresh() { await load(); render(); }
+  // One tap from the "Por confirmar" list: what does this barrel hold today?
+  async function confirmBarrel(id, how) {
+    const b = C.barrels.find(x => x.id === id); if (!b || !C.canWrite) return;
+    let wine = (b.paper && b.paper.last) || '';
+    if (how === 'other') { wine = (prompt('¿Qué vino tiene la barrica ' + b.code + '?', '') || '').trim(); if (!wine) return; }
+    const patch = { confirmed: { state: how, wine: how === 'empty' ? '' : wine, by: C.me, at: new Date().toISOString() }, status: how === 'empty' ? 'empty' : 'confirmed', by: C.me, at: new Date().toISOString() };
+    if (how === 'empty') { patch.fill = 'empty'; patch.lot = ''; } else { patch.fill = 'full'; patch.notes = [b.notes, 'Contiene ' + wine + ' (confirmado ' + new Date().toLocaleDateString('es-MX') + ')'].filter(Boolean).join(' · '); }
+    try { await api('barrels/' + encodeURIComponent(id), 'PATCH', patch); await logEvent(b.code, how === 'empty' ? 'empty' : 'fill', how === 'empty' ? 'Confirmada: embotellada / vacía' : 'Confirmada: sigue con ' + wine); await refresh(); }
+    catch (err) { alert('No se pudo guardar: ' + err.message); }
+  }
 
   // ---------- events ----------
   document.addEventListener('click', e => {
     if (!C.root || !C.root.contains(e.target)) return;
+    const cf = e.target.closest('[data-cfm]'); if (cf) { confirmBarrel(cf.dataset.id, cf.dataset.cfm); return; }
     const t = e.target.closest('[data-ct],[data-cv],[data-cf],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) return;
     if (t.dataset.ct) { C.tab = t.dataset.ct; C.q = ''; render(); return; }
     if (t.dataset.cv) { C.vint = t.dataset.cv; render(); return; }

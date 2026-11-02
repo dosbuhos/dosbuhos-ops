@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
-<title>Settings</title>
+<title>Ajustes · Cellar Tracker</title>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f4f3ef;--paper:#fffefb;--ink:#1f2426;--muted:#5d6568;--rule:#dcd9d1;--wine:#5c1f33;--wine-soft:#f2e5e8}
@@ -45,7 +47,7 @@ summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space
 </style>
 </head>
 <body>
-<header><h1>Settings</h1><a href="/">← Calendar</a></header>
+<header><h1>Settings</h1><a href="/">← Cellar Tracker</a></header>
 <main>
   <section>
     <h2>House notes</h2>
@@ -146,5 +148,6 @@ summary small{color:var(--muted);font:12px "IBM Plex Mono",monospace;white-space
   document.addEventListener('click', async e => { const d = e.target.closest('[data-udel]'); if (d) { users = users.filter(u => u.email !== d.dataset.udel); await saveUsers(); } });
 })();
 </script>
+<div style="text-align:center;color:#8a8580;font:11px ui-monospace,Menlo,monospace;padding:18px 0 90px">Cellar &amp; Production Tracker · __APP_VERSION__</div>
 </body>
 </html>

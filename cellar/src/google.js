@@ -1,3 +1,4 @@
+import { VERSION_LABEL, APP_NAME } from './version.js';
 // Google sign-in (OAuth 2.0 / OpenID Connect), used instead of Cloudflare Access when GOOGLE_CLIENT_ID is set.
 // Only emails in ALLOWED_EMAILS, ADMIN_EMAILS or VIEWER_EMAILS (read-only) get in. Session = signed cookie, 30 days.
 // Needs: var GOOGLE_CLIENT_ID, secret GOOGLE_CLIENT_SECRET; redirect URI https://<host>/auth/callback in Google Cloud.
@@ -44,14 +45,14 @@ export async function sessionEmail(request, env) {
 export function loginPage(env, url, message = '') {
   const next = url.searchParams.get('next') || '/';
   return new Response(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>Entrar · Bodega Dos Búhos</title><style>
+<meta name="robots" content="noindex"><title>Entrar · ${APP_NAME}</title><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Lustria&display=swap" rel="stylesheet"><style>
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f4ef;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1f1d1b}
 .box{background:#fff;border:1px solid #e6e0d8;border-radius:16px;padding:28px 22px;width:min(360px,92vw);text-align:center}
-h1{font-family:Georgia,serif;font-weight:400;color:#6b2737;margin:0 0 6px}p{color:#6b6560;margin:0 0 22px}
-a.g{display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border:1px solid #cfc6bb;border-radius:12px;text-decoration:none;color:#1f1d1b;font-weight:700}
-.err{color:#b42318;margin-top:16px;font-weight:600}</style></head><body><div class="box"><h1>Bodega Dos Búhos</h1><p>Calendario de bodega · acceso para el equipo</p>
+h1{font-family:Lustria,Georgia,serif;font-weight:400;color:#1f1d1b;margin:0 0 6px;font-size:26px}.logo{display:block;height:56px;margin:0 auto 14px}.ver{color:#9a938b;font-size:12px;margin-top:18px}p{color:#6b6560;margin:0 0 22px}
+a.g{display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border:1px solid #1f1d1b;border-radius:0;text-decoration:none;color:#fff;background:#1f1d1b;font-weight:700}a.g svg{background:#fff;border-radius:2px;padding:2px}
+.err{color:#b42318;margin-top:16px;font-weight:600}</style></head><body><div class="box"><img class="logo" src="/brand/logo-dark.webp" alt="Dos Búhos"><h1>${APP_NAME}</h1><p>Bodega Dos Búhos · acceso para el equipo</p>
 <a class="g" href="/auth/google?next=${encodeURIComponent(next)}"><svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.8-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Entrar con Google</a>
-${message ? `<div class="err">${message}</div>` : ''}</div></body></html>`, { status: message ? 403 : 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+${message ? `<div class="err">${message}</div>` : ''}<div class="ver">${VERSION_LABEL}</div></div></body></html>`, { status: message ? 403 : 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 export async function handleAuth(request, env, url) {

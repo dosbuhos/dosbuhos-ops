@@ -2,10 +2,13 @@
 // Share the Excellovint sheet with the service account's email as Editor. Only SHEET_ID is reachable.
 
 let tok = null; // { access, exp }
+// Base URL of the Sheets API. Local tests point SHEETS_API at a mock server and set SHEETS_MOCK=1 (no Google sign-in).
+export const sheetsBase = (env) => env.SHEETS_API || 'https://sheets.googleapis.com/v4/spreadsheets/';
 const b64u = (s) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const b64uBuf = (buf) => b64u(String.fromCharCode(...new Uint8Array(buf)));
 
 export async function accessToken(env) {
+  if (env.SHEETS_MOCK === '1') return 'mock';
   if (tok && tok.exp > Date.now() + 60000) return tok.access;
   const sa = JSON.parse(env.GOOGLE_SA_JSON);
   const now = Math.floor(Date.now() / 1000);
@@ -25,10 +28,10 @@ export async function accessToken(env) {
 
 // Same tool names and arguments as the Google Sheets connector the artifact used.
 export async function sheetsTool(env, tool, a) {
-  if (!env.GOOGLE_SA_JSON) return { status: 503, body: { code: 'tool_error', message: 'Google Sheets is not set up on the server yet (GOOGLE_SA_JSON).' } };
+  if (!env.GOOGLE_SA_JSON && env.SHEETS_MOCK !== '1') return { status: 503, body: { code: 'tool_error', message: 'Google Sheets is not set up on the server yet (GOOGLE_SA_JSON).' } };
   const id = a.spreadsheetId;
   if (id !== env.SHEET_ID) return { status: 403, body: { code: 'tool_error', message: 'Only the Excellovint sheet is allowed.' } };
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(id);
+  const base = sheetsBase(env) + encodeURIComponent(id);
   let url, init = {};
   if (tool === 'get_values') url = base + '/values/' + encodeURIComponent(a.range);
   else if (tool === 'update_values') {

@@ -2,7 +2,7 @@
 // - Pull: every 5 minutes (cron) and after every write, changed rows in the sheet are copied into D1 (hash per row).
 // - Write: the app writes to Excellovint FIRST (it stays the master and the backup), then re-reads that tab into D1.
 // - Conflict check: an update says what text it expected; if the crew changed that row in the sheet meanwhile, it's refused.
-import { accessToken } from './sheets.js';
+import { accessToken, sheetsBase } from './sheets.js';
 
 const FIELDS = ['date_raw', 'ubi', 'voli', 'volf', 'ph', 'bx', 'tp', 'at', 'am', 'sl', 'st', 'aa', 'note', 'pri', 'by_', 'asig', 'ini'];
 const EDITABLE = ['date_raw', 'ubi', 'voli', 'volf', 'ph', 'bx', 'tp', 'at', 'am', 'sl', 'st', 'aa', 'note', 'pri', 'asig', 'ini'];
@@ -53,7 +53,7 @@ function labelAfter(values, upto, label) {
 }
 
 async function gs(env, path, init = {}) {
-  const r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + env.SHEET_ID + path,
+  const r = await fetch(sheetsBase(env) + env.SHEET_ID + path,
     Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error((j.error && j.error.message) || 'Google Sheets error ' + r.status), { status: r.status });
@@ -66,6 +66,7 @@ async function lotTabs(env) {
 
 // Pull: copy changed rows from the sheet into D1. tabs = null → every lot tab.
 export async function sync(env, tabs) {
+  if (!env.GOOGLE_SA_JSON && env.SHEETS_MOCK !== '1') return { tabs: 0, changed: 0 };
   const full = !tabs;
   if (full) tabs = await lotTabs(env);
   if (!tabs.length) return { tabs: 0, changed: 0 };

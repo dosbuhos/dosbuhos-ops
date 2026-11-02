@@ -2,10 +2,9 @@
 // App → sheet: every add/change/delete in the app upserts its row (matched by the ID column L).
 // Sheet → app: pullPurchases() (cron every 5 min, and on "Sincronizar") reads the tab; rows without an ID
 // are new purchases from the crew (an ID is written back), rows whose cells changed update the app's record.
-import { accessToken } from './sheets.js';
+import { accessToken, sheetsBase } from './sheets.js';
 
 const TAB = 'Compras';
-const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets/';
 const PRI = { ALTA: 'high', MEDIA: 'medium', BAJA: 'low' }, PRI_ES = { high: 'ALTA', medium: 'MEDIA', low: 'BAJA' };
 const ST = { PENDIENTE: 'open', PEDIDA: 'ordered', RECIBIDA: 'received' }, ST_ES = { open: 'PENDIENTE', ordered: 'PEDIDA', received: 'RECIBIDA' };
 const cell = (v) => String(v == null ? '' : v).trim();
@@ -13,7 +12,7 @@ const toSheetDate = (iso) => { if (!iso) return ''; const d = new Date(iso); ret
 const fromSheetDate = (s) => { const m = cell(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return new Date(Date.UTC(+m[3], +m[1] - 1, +m[2], 12)).toISOString(); const d = new Date(cell(s)); return isNaN(d) ? '' : d.toISOString(); };
 
 async function gs(env, path, init = {}) {
-  const r = await fetch(SHEETS + env.SHEET_ID + path, Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
+  const r = await fetch(sheetsBase(env) + env.SHEET_ID + path, Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Google Sheets error ' + r.status);
   return j;

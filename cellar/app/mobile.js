@@ -32,7 +32,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
   [400, 1200, 3000].forEach(ms => setTimeout(recheck, ms));
   if (!mq.matches) return; // desktop / tablet: leave the page as it is
-  const TITLES = { weeks: 'Calendar', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
+  const TITLES = { weeks: 'Órdenes', orders: 'Órdenes', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
   const SEARCH = { protocols: '.pl-q' }; // Wines and Trials have their own search + Filtros bar (below)
   const html = document.documentElement;
 
@@ -44,10 +44,15 @@
     <button type="button" class="ib more" data-m="more" aria-label="Menú" aria-haspopup="menu">${I.menu}<b class="m-badge" hidden></b></button>`;
   // Secondary actions live in the ☰ menu; + (new work order) sits in the middle of the bottom nav.
   const mm = document.createElement('div'); mm.className = 'm-vmenu m-more-menu'; mm.hidden = true;
-  mm.innerHTML = `<button type="button" data-mm="sync">${I.sync}<span>Sincronizar con Excellovint</span></button><a href="/purchases">${I.cart}<span>Compras e inventario</span><b class="m-badge in" hidden></b></a><a href="/settings">${I.gear}<span>Ajustes</span></a>`;
+  const AUD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>';
+  mm.innerHTML = `<button type="button" data-mm="audit">${AUD}<span>Audit</span><b class="aud-badge" hidden></b></button><a href="/purchases">${I.cart}<span>Compras e inventario</span><b class="m-badge in" hidden></b></a><a href="/settings" class="ed-only">${I.gear}<span>Ajustes</span></a><button type="button" class="m-fresh fresh" data-sheet="refresh">Actualizando…</button><div class="m-ver">${((document.querySelector('.app-ver') || {}).textContent || '').replace(/^.*· (v)/, '$1')}</div>`;
   document.body.appendChild(mm);
-  mm.addEventListener('click', e => { const b = e.target.closest('[data-mm]'); if (!b) return; mm.hidden = true; const sb = $('#syncBtn'); if (sb) sb.click(); });
+  mm.addEventListener('click', e => { const b = e.target.closest('[data-mm]'); if (!b) return; mm.hidden = true; if (b.dataset.mm === 'audit') { const t = document.querySelector('#tabAudit'); if (t) t.click(); setTimeout(syncBar, 0); } });
+  // Red dot on ☰ while the Audit has open items.
+  window.addEventListener('cellar:audcount', e => { const d = bar.querySelector('.aud-dot') || (() => { const x = document.createElement('i'); x.className = 'aud-dot'; bar.querySelector('[data-m="more"]').appendChild(x); return x; })(); d.hidden = !(e.detail && e.detail.n); });
   document.addEventListener('click', e => { if (!mm.hidden && !e.target.closest('.m-more-menu, [data-m="more"]')) mm.hidden = true; }, true);
+  // The + Agregar menu opens as a bottom sheet on phones (the desktop header is hidden here).
+  { const am = document.getElementById('addMenu'); if (am) { am.classList.add('m-sheet'); document.body.appendChild(am); } }
   const page = document.querySelector('.page') || document.body;
   page.insertBefore(bar, page.firstChild);
   if (!mq.matches) bar.style.display = 'none';
@@ -110,7 +115,7 @@
     if (sg) { const t = document.querySelector(`.mnav [data-view="${sg.dataset.mseg}"]`); if (t) t.click(); setTimeout(syncBar, 0); return; }
     const b = e.target.closest('[data-m]'); if (!b) return;
     const a = b.dataset.m;
-    if (a === 'add') { const n = $('#newWoBtn'); if (n) n.click(); }
+    if (a === 'add') window.dispatchEvent(new CustomEvent('cellar:add'));
     if (a === 'more') { mm.hidden = !mm.hidden; return; }
     if (a === 'sync') { const s = $('#syncBtn'); if (s) s.click(); b.classList.add('spin'); setTimeout(() => b.classList.remove('spin'), 2500); }
     if (a === 'search') {
@@ -136,9 +141,10 @@
     const tr = nav.querySelector('[data-view="blends"]'); if (tr) tr.classList.add('m-hide');
     const lb = nav.querySelector('[data-view="labs"]');
     if (lb) { const mi = lb.querySelector('.mi'); if (mi) mi.innerHTML = I.trials; lb.lastChild.textContent = 'L + T'; lb.setAttribute('aria-label', 'Labs y trials'); }
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'm-add'; add.setAttribute('aria-label', 'Nueva orden de trabajo');
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'm-add'; add.setAttribute('aria-label', 'Agregar');
     add.innerHTML = `<span class="m-add-c">${I.plusBig}</span>`;
-    add.addEventListener('click', () => { const n = $('#newWoBtn'); if (n) n.click(); });
+    // + = the same "+ Agregar" menu as on desktop (Orden de trabajo for Eric and Diane · Nota · Subir lab), as a bottom sheet.
+    add.addEventListener('click', e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('cellar:add')); });
     if (lb) nav.insertBefore(add, lb); else nav.appendChild(add);
   }
   if (nav) new MutationObserver(syncBar).observe(nav, { attributes: true, subtree: true, attributeFilter: ['aria-current'] });

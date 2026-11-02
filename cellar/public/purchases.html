@@ -6,7 +6,9 @@
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#5c1f33">
-<title>Compras e inventario</title>
+<title>Compras e inventario · Cellar Tracker</title>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -356,5 +358,6 @@ body.inv .tabs{display:none}
   load(true).catch(err => { $('#list').innerHTML = `<div class="empty">No se pudo cargar: ${esc(err.message)}</div>`; });
 })();
 </script>
+<div style="text-align:center;color:#8a8580;font:11px ui-monospace,Menlo,monospace;padding:18px 0 90px">Cellar &amp; Production Tracker · __APP_VERSION__</div>
 </body>
 </html>

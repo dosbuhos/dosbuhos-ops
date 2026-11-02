@@ -2,8 +2,9 @@
 // Connector URL: https://<host>/mcp. Sign-in is OAuth 2.1 (dynamic client registration + PKCE) on top of the app's
 // Google login, so only people in the app's user list get in, with their own initials and role.
 // Everything is stored in D1 (coll mcp_clients / mcp_codes / mcp_tokens); tokens are stored only as SHA-256 hashes.
-import { sessionEmail, allowedEmails, initialsFor, isViewer } from './google.js';
-import { TOOLS, runTool, houseNotes } from './chat.js';
+import { sessionEmail, allowedEmails, initialsFor, isViewer, isCrew } from './google.js';
+import { staffName, staffTags } from './guard.js';
+import { TOOLS, runTool, houseNotes, toolsFor } from './chat.js';
 
 const enc = new TextEncoder();
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -76,8 +77,8 @@ async function bearerUser(request, env) {
   const t = await get(env, 'mcp_tokens', 'a_' + await sha(m[1]));
   if (!t || t.exp < Date.now() / 1000) return null;
   if (!allowedEmails(env).includes(t.email)) return null; // removed from the app's users = locked out here too
-  const initials = initialsFor(env, t.email);
-  return { email: t.email, initials, canWrite: !isViewer(env, t.email), name: initials === 'EM' ? 'Eric' : initials === 'D' ? 'Diane' : initials === 'P/J' ? 'Paris y Jimena' : t.email };
+  const initials = initialsFor(env, t.email), crew = isCrew(env, t.email);
+  return { email: t.email, initials, crew, tags: await staffTags(env, initials), canWrite: !isViewer(env, t.email), name: await staffName(env, initials, t.email) };
 }
 
 // ---------- OAuth: authorize (needs the app's Google session) ----------
@@ -173,12 +174,12 @@ async function rpc(env, user, m) {
       return ok({ protocolVersion: v, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'bodega-dos-buhos', title: 'Bodega Dos Búhos', version: '1.0.0' }, instructions: await instructions(env, user) });
     }
     case 'ping': return ok({});
-    case 'tools/list': return ok({ tools: TOOLS.filter(t => user.canWrite || READ_TOOLS.has(t.name)).map(t => ({ name: t.name, description: t.description, inputSchema: t.input_schema, annotations: { readOnlyHint: READ_TOOLS.has(t.name) } })) });
+    case 'tools/list': return ok({ tools: toolsFor(user.crew).filter(t => user.canWrite || READ_TOOLS.has(t.name)).map(t => ({ name: t.name, description: t.description, inputSchema: t.input_schema, annotations: { readOnlyHint: READ_TOOLS.has(t.name) } })) });
     case 'tools/call': {
       const name = String(params.name || ''), tool = TOOLS.find(t => t.name === name);
       if (!tool) return fail(-32602, 'Unknown tool ' + name);
       if (!user.canWrite && !READ_TOOLS.has(name)) return ok({ content: [{ type: 'text', text: 'Read-only access.' }], isError: true });
-      const ctx = { initials: user.initials, name: user.name, changed: false, actions: [] };
+      const ctx = { initials: user.initials, name: user.name, crew: !!user.crew, tags: user.tags || [], changed: false, actions: [] };
       try {
         const out = await runTool(env, ctx, name, params.arguments || {});
         const isErr = !!(out && out.error);

@@ -7,6 +7,9 @@ import { xlRoute, sync } from './xl.js';
 import { pushPurchase, pullPurchases } from './compras.js';
 import { readInventory, addMovement, saveItem } from './inventario.js';
 import { mcpRoute } from './mcp.js';
+import { entriesRoute } from './entries.js';
+import { VERSION_LABEL, APP_NAME, APP_SHORT } from './version.js';
+import { crewSheetsGuard, staffName, staffTags } from './guard.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -19,6 +22,11 @@ export default {
     const url = new URL(request.url), p = url.pathname;
     // App-managed users (Settings → Users), alongside the ALLOWED_EMAILS secret.
     try { const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = 'users'").all(); env.__users = results.map(r => Object.assign({ email: r.id }, JSON.parse(r.data))); } catch (e) { env.__users = []; }
+    if (p === '/manifest.webmanifest') return new Response(JSON.stringify({ name: APP_NAME, short_name: APP_SHORT, start_url: '/', display: 'standalone', background_color: '#ffffff', theme_color: '#5c1f33',
+      icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] }),
+      { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=3600' } });
+    if (p.startsWith('/icons/')) return env.ASSETS.fetch(request); // public: home-screen icons
+    if (p.startsWith('/brand/')) return brandAsset(env, p);             // public: the Dos Búhos logos (login page + header)
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     // Remote MCP server for people's own Claude apps (/mcp + its OAuth endpoints); see src/mcp.js.
     if (p === '/mcp' || p.startsWith('/oauth/') || p.startsWith('/.well-known/oauth') || p.startsWith('/.well-known/openid')) { const r = await mcpRoute(request, env, url, ctx); if (r) return r; }
@@ -35,7 +43,8 @@ export default {
       const admin = open || isAdmin(env, email);
       const crew = !open && !admin && isCrew(env, email);
       if (crew && /^\/settings(\.html)?\/?$/.test(p)) return Response.redirect(url.origin + '/', 302);
-      if (p === '/api/me') return J({ email, canWrite, initials, admin, role: crew ? 'crew' : admin ? 'admin' : canWrite ? 'editor' : 'viewer' });
+      if (p === '/api/me') return J({ email, canWrite, initials, admin, name: await staffName(env, initials, email), role: crew ? 'crew' : admin ? 'admin' : canWrite ? 'editor' : 'viewer', version: VERSION_LABEL });
+      if (p === '/api/version') return J({ version: VERSION_LABEL });
       if (p === '/api/users') {
         if (!admin) return J({ message: 'Only an admin can manage users.' }, 403);
         if (request.method === 'GET') return J({ users: env.__users, fromSecret: String(env.ALLOWED_EMAILS || '').split(',').map(x => x.split('=')[0].trim()).filter(Boolean) });
@@ -50,10 +59,19 @@ export default {
       }
       if (p === '/api/chat' && request.method === 'POST') {
         if (!canWrite) return J({ message: 'Read-only access.' }, 403);
-        const r = await chat(request, env, { email, initials, name: initials === 'EM' ? 'Eric' : initials === 'D' ? 'Diane' : initials === 'P/J' ? 'Paris y Jimena' : email });
+        const r = await chat(request, env, { email, initials, crew, tags: await staffTags(env, initials), name: await staffName(env, initials, email) });
         return J(r.body, r.status);
       }
       if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, { initials }) });
+      if (p === '/api/params' || p === '/api/entries' || p.startsWith('/api/labs')) {
+        const r = await entriesRoute(request, env, p, url, { initials, canWrite, crew, email });
+        if (r) return r.raw || J(r.body, r.status);
+      }
+      if (crew && (p === '/api/xl/create' || p === '/api/xl/import')) return J({ message: 'Solo Eric o Diane crean órdenes de trabajo.' }, 403);
+      if (crew && p === '/api/xl/update') {
+        const b = await request.clone().json().catch(() => ({}));
+        if (Object.keys(b.set || {}).some(k => k !== 'ini') || /^XX$/i.test(String((b.set || {}).ini || ''))) return J({ message: 'El equipo solo marca órdenes como hechas (o las reabre). Para notas y valores usa «Anotar resultados y notas».' }, 403);
+      }
       if (p.startsWith('/api/xl/')) {
         const r = await xlRoute(request, env, p, url, { initials, canWrite });
         if (p === '/api/xl/import' && r.status === 200) { try { r.body.compras = await pullPurchases(env); } catch (e) { r.body.compras = { error: String(e && e.message) }; } }
@@ -83,6 +101,7 @@ export default {
       if (p === '/api/sheets' && request.method === 'POST') {
         const { tool, args } = await request.json();
         if (!canWrite && !/^get_/.test(tool)) return J({ code: 'tool_error', message: 'Read-only access.' }, 403);
+        if (crew && !/^get_/.test(tool)) { const no = await crewSheetsGuard(env, tool, args || {}); if (no) return J({ code: 'tool_error', message: no }, 403); }
         const r = await sheetsTool(env, tool, args || {});
         // A write from the calendar page: mirror that tab into the app's records right away.
         if (r.status === 200 && tool === 'update_values' && args && args.range) {
@@ -91,7 +110,11 @@ export default {
         }
         return J(r.body, r.status);
       }
-      if (p === '/api/ai' && request.method === 'POST') return await ai(request, env);
+      if (p === '/api/ai' && request.method === 'POST') {
+        if (!canWrite) return J({ code: 'not_granted', message: 'Read-only access.' }, 403);
+        if (crew) { const b = await request.clone().json().catch(() => ({})); if (!b.json || b.stream || (b.messages || []).length > 4) return J({ code: 'not_granted', message: 'Esta función es solo para Eric y Diane.' }, 403); }
+        return await ai(request, env);
+      }
       if (p.startsWith('/api/')) return J({ code: 'not_found' }, 404);
     } catch (e) {
       return J({ code: 'unavailable', message: String(e && e.message || e) }, 500);
@@ -101,6 +124,12 @@ export default {
     if (bm) return Response.redirect(url.origin + '/?b=' + bm[1] + '#cellar', 302);
     const res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers); h.set('cache-control', 'no-store'); h.set('x-robots-tag', 'noindex');
+    if ((h.get('content-type') || '').includes('text/html')) {
+      // One version, stored in src/version.js, stamped into every page's footer.
+      const html = (await res.text()).split('__APP_VERSION__').join(VERSION_LABEL);
+      h.delete('content-length');
+      return new Response(html, { status: res.status, headers: h });
+    }
     return new Response(res.body, { status: res.status, headers: h });
   },
 };
@@ -108,10 +137,13 @@ export default {
 // ---------- db: collections of JSON docs in D1 (same shape as the artifact's shared database) ----------
 // What the crew role may write. Tasks: only the fields that follow a work order (done, the order itself, its assignee/priority/date).
 const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purchases', 'barrel_log', 'trials']);
-const CREW_TASK_KEYS = new Set(['done', 'wo', 'asig', 'pri', 'day', 'week']);
+// Crew follow the orders Eric and Diane give: they mark tasks done (and the order link that goes with it), nothing else.
+const CREW_TASK_KEYS = new Set(['done', 'wo']);
 async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);
+  // entries / labs / labfiles are written only through /api/entries and /api/labs (signed rows + Excellovint).
+  if (request.method !== 'GET' && /^(entries|labs|labfiles|users)$/.test(coll)) return J({ code: 'not_granted', message: 'Use the app forms.' }, 403);
   const m = request.method;
   if (m === 'GET' && !id) {
     const v = await env.DB.prepare('SELECT COUNT(*) n, MAX(updated_at) u FROM docs WHERE coll = ?').bind(coll).first();
@@ -163,4 +195,20 @@ async function ai(request, env) {
   if (stream) return new Response(r.body, { headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' } });
   const j = await r.json();
   return J({ text: (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('') });
+}
+
+// ---------- brand: the Dos Búhos logos, copied once from dosbuhos.com into R2 and served from here (no hotlinking) ----------
+const BRAND = {
+  '/brand/logo-dark.webp': 'https://dosbuhos.com/wp-content/uploads/2025/10/cropped-logo-cabecera.webp',   // dark logo, light backgrounds
+  '/brand/logo-white.webp': 'https://dosbuhos.com/wp-content/uploads/2022/10/dos-buhos-logo-blanco.webp',  // white logo, dark backgrounds
+};
+async function brandAsset(env, p) {
+  const src = BRAND[p]; if (!src) return new Response('not found', { status: 404 });
+  const key = 'brand' + p.slice(6), headers = { 'content-type': 'image/webp', 'cache-control': 'public, max-age=86400' };
+  if (env.LABS) { const o = await env.LABS.get(key); if (o) return new Response(o.body, { headers }); }
+  let r; try { r = await fetch(src, { cf: { cacheTtl: 86400 } }); } catch (e) { r = null; }
+  if (!r || !r.ok) return new Response('logo unavailable', { status: 502 });
+  const buf = await r.arrayBuffer();
+  if (env.LABS) { try { await env.LABS.put(key, buf, { httpMetadata: { contentType: 'image/webp' } }); } catch (e) {} }
+  return new Response(buf, { headers });
 }

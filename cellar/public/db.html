@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Registros de bodega</title>
+<title>Registros de bodega · Cellar Tracker</title>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -190,7 +192,7 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
 </head>
 <body>
 <header>
-  <div class="hrow"><h1>Registros de bodega</h1><a href="/">← Calendario</a></div>
+  <div class="hrow"><h1>Registros de bodega</h1><a href="/">← Cellar Tracker</a></div>
   <nav class="tabs" role="tablist">
     <button role="tab" data-t="lotes" aria-selected="true">Lotes</button>
     <button role="tab" data-t="ordenes" aria-selected="false">Órdenes de hoy</button>
@@ -465,5 +467,6 @@ dialog .err{color:var(--red);font-size:13px;min-height:1em}
   load().catch(err => { $('#main').innerHTML = `<div class="empty">No se pudo cargar: ${esc(err.message)}</div>`; });
 })();
 </script>
+<div style="text-align:center;color:#8a8580;font:11px ui-monospace,Menlo,monospace;padding:18px 0 90px">Cellar &amp; Production Tracker · __APP_VERSION__</div>
 </body>
 </html>

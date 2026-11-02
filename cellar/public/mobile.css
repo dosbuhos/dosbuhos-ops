@@ -412,3 +412,20 @@
 @media (max-width: 760px) { .mbar .m-dlbl { min-height: 40px; } .wn { min-height: 40px; padding-block: 9px; } }
 /* Narrow phones: wine card title gets the full width; its buttons drop under it. */
 @media (max-width: 380px) { .d-head { flex-wrap: wrap; } .d-head > div:first-child { flex: 1 1 100%; min-width: 0; } .d-meta { overflow-wrap: anywhere; } }
+
+/* v1.1 */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  .add-menu.m-sheet { position: fixed; left: 12px; right: 12px; top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); min-width: 0; z-index: 90; border-radius: 16px; border: 1px solid var(--rule); padding: 6px; }
+  .add-menu.m-sheet button { padding: 14px 14px; font-size: 16px; border-radius: 10px; }
+  .m-more-menu .aud-badge { margin-left: auto; }
+  .m-more-menu .m-fresh { display: block; width: 100%; text-align: left; padding: 10px 14px; color: var(--muted); font-size: 13px; }
+  .m-more-menu .m-ver { padding: 2px 14px 8px; font: 11px var(--f-mono); color: var(--muted); }
+  .mbar [data-m="more"] { position: relative; }
+  .mbar .aud-dot { position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: #c62828; }
+  .mbar .aud-dot[hidden] { display: none; }
+  .asg-results { display: block; }
+}
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  #asgView .asg-group { background: transparent; border: 0; box-shadow: none; padding: 0; }
+  #asgView .asg-row { background: #fff; }
+}

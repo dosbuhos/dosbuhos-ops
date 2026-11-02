@@ -1,10 +1,11 @@
 // In-app chat: Claude with tools over Excellovint (Google Sheets) and the app database (D1).
 // Every message is saved in D1 (coll "chatlog"); standing rules live in coll "housenotes", doc "main".
-import { accessToken } from './sheets.js';
+import { accessToken, sheetsBase } from './sheets.js';
 import { sync } from './xl.js';
 import { pushPurchase } from './compras.js';
+import { writeEntry } from './entries.js';
+import { PARAMS } from './params.js';
 
-const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets/';
 const q = (tab) => "'" + String(tab).replace(/'/g, "''") + "'";
 const colLetter = (i) => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
 const colIndex = (L) => String(L).toUpperCase().split('').reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
@@ -13,7 +14,7 @@ const sheetDate = (iso) => { const [y, m, d] = iso.split('-').map(Number); retur
 const cell = (v) => String(v == null ? '' : v).trim();
 
 async function gs(env, path, init = {}) {
-  const r = await fetch(SHEETS + env.SHEET_ID + path, Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
+  const r = await fetch(sheetsBase(env) + env.SHEET_ID + path, Object.assign({}, init, { headers: { authorization: 'Bearer ' + await accessToken(env), 'content-type': 'application/json' } }));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Google Sheets error ' + r.status);
   return j;
@@ -60,6 +61,8 @@ export const TOOLS = [
   { name: 'open_work_orders', description: 'Every open work order across all lot tabs: rows with ASIG set and INI empty, optionally only those dated on/before a date or assigned to someone.', input_schema: { type: 'object', properties: { asig: { type: 'string', description: 'Filter, e.g. "P", "J", "P/J", "D"' }, through: { type: 'string', description: 'YYYY-MM-DD; only rows dated on or before this' } } } },
   { name: 'create_work_order', description: 'Append a work order row to a lot tab in Excellovint. Write the ACCION text in Spanish, in capitals, clear for the crew. The row appears in Excellovint immediately.', input_schema: { type: 'object', properties: { tab: { type: 'string' }, date: { type: 'string', description: 'YYYY-MM-DD, default today' }, ubi: { type: 'string', description: 'Vessel, e.g. VC-02, BBL 101' }, vol: { type: 'string', description: 'Volume in liters if known' }, text: { type: 'string' }, asig: { type: 'string', description: 'Crew initials: P, J, P/J, D, EM, EM/D…' }, pri: { type: 'string', enum: ['URGENT', 'HIGH', 'NORMAL', ''] } }, required: ['tab', 'text', 'asig'] } },
   { name: 'update_row', description: 'Change cells in an existing row of a lot tab (e.g. mark done with initials in ini, cancel with XX, change date, priority, assignee, text, or record a lab value). Only the fields given are changed. Read the row first.', input_schema: { type: 'object', properties: { tab: { type: 'string' }, row: { type: 'integer' }, set: { type: 'object', description: 'Field → value, using the read_tab field names (date as YYYY-MM-DD).', additionalProperties: { type: 'string' } } }, required: ['tab', 'row', 'set'] } },
+  { name: 'record_results', description: 'Record the results of a work order (what was done, tasting notes, measurements) as a NEW signed row in the lot tab, linked to the order. The order text is never changed. Optionally mark the order done.', input_schema: { type: 'object', properties: { order_tab: { type: 'string' }, order_row: { type: 'integer' }, ubi: { type: 'string', description: 'Vessel(s) measured, e.g. BBL 101' }, note: { type: 'string', description: 'Notes / tasting, in Spanish' }, values: { type: 'object', description: 'Measurements by key: ' + PARAMS.map(p => p.k + ' (' + p.label + (p.unit ? ', ' + p.unit : '') + ')').join(', '), additionalProperties: { type: 'string' } }, signer: { type: 'string', description: 'Initials of who did the work (default: the person talking)' }, mark_done: { type: 'boolean' } }, required: ['order_tab', 'order_row'] } },
+  { name: 'add_note', description: 'Add a signed note or measurements for a lot that is not tied to a work order (tasting, sensory, observation, routine measurement, topping/addition record) as a new row in the lot tab. Winery-wide notes go to "L00 - Winery".', input_schema: { type: 'object', properties: { tab: { type: 'string' }, ubi: { type: 'string' }, note: { type: 'string' }, values: { type: 'object', additionalProperties: { type: 'string' } }, signer: { type: 'string' } }, required: ['tab'] } },
   { name: 'calendar_tasks', description: 'Tasks on the app calendar (not Excellovint), optionally for one wine id and/or one week (Monday YYYY-MM-DD).', input_schema: { type: 'object', properties: { lot: { type: 'string' }, week: { type: 'string' }, open_only: { type: 'boolean' } } } },
   { name: 'protocols', description: 'List protocol/lesson ids and titles, or get one protocol\'s full text by id.', input_schema: { type: 'object', properties: { id: { type: 'string' } } } },
   { name: 'add_house_note', description: 'Save a standing rule or decision the user wants remembered (always loaded into this chat). Only when the user asks to remember something or states a lasting rule.', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
@@ -69,7 +72,42 @@ export const TOOLS = [
   { name: 'update_purchase', description: 'Change a purchase: status (open/ordered/received), priority, assignee, notes, or delete it.', input_schema: { type: 'object', properties: { id: { type: 'string' }, set: { type: 'object', description: 'Fields to change: item, qty, pri, asig, where, notes, status' }, delete: { type: 'boolean' } }, required: ['id'] } },
 ];
 
+// Crew (Paris, Jimena, …) can read everything, record results and notes, and add purchases. No new orders,
+// no rewording, no priority/assignment changes, no house notes, no purchase deletes.
+export const CREW_TOOLS = new Set(['list_wines', 'read_tab', 'open_work_orders', 'calendar_tasks', 'protocols', 'search_chats', 'list_purchases', 'add_purchase', 'record_results', 'add_note', 'update_row']);
+export const toolsFor = (crew) => crew ? TOOLS.filter(t => CREW_TOOLS.has(t.name)) : TOOLS;
 export async function runTool(env, ctx, name, a) {
+  if (ctx.crew && !CREW_TOOLS.has(name)) return { error: 'Not allowed for the crew: only Eric or Diane can do this.' };
+  if (name === 'record_results' || name === 'add_note') {
+    const user = { initials: ctx.initials, canWrite: true };
+    let order = null;
+    if (name === 'record_results') {
+      const v = await tabValues(env, a.order_tab), hm = headerMap(v);
+      if (!hm) return { error: 'No header row in ' + a.order_tab };
+      const r = v[(+a.order_row || 0) - 1] || [];
+      order = { tab: a.order_tab, row: +a.order_row, note: hm.map.note != null ? cell(r[hm.map.note]) : '' };
+      if (!order.note) return { error: 'Row ' + a.order_row + ' in ' + a.order_tab + ' is not a work order.' };
+    }
+    const out = await writeEntry(env, { kind: name === 'record_results' ? 'result' : 'note', tab: name === 'record_results' ? a.order_tab : a.tab, ubi: a.ubi, note: a.note, values: a.values || {}, signer: a.signer || ctx.initials, order }, user);
+    ctx.changed = true;
+    if (name === 'record_results' && a.mark_done) {
+      const v = await tabValues(env, a.order_tab), hm = headerMap(v);
+      if (hm && hm.map.ini != null) {
+        await gs(env, '/values/' + encodeURIComponent(q(a.order_tab) + '!' + colLetter(hm.map.ini) + a.order_row) + '?valueInputOption=USER_ENTERED', { method: 'PUT', body: JSON.stringify({ values: [[String(a.signer || ctx.initials).toUpperCase()]] }) });
+        try { await sync(env, [a.order_tab]); } catch (e) {}
+      }
+    }
+    return { ok: true, tab: out.tab, row: out.row, marked_done: !!a.mark_done };
+  }
+  if (name === 'update_row' && ctx.crew) {
+    const keys = Object.keys(a.set || {});
+    if (keys.some(k => k !== 'ini') || /^XX$/i.test(String((a.set || {}).ini || ''))) return { error: 'The crew can only mark an order done (ini) or reopen it. Use record_results for notes and values.' };
+    const v = await tabValues(env, a.tab), hm = headerMap(v);
+    const r = v[(+a.row || 0) - 1] || [], asig = hm && hm.map.asig != null ? cell(r[hm.map.asig]).toUpperCase() : '';
+    const mine = String(ctx.initials || '').toUpperCase().split(/\s*[\/+,&]\s*/), theirs = asig.split(/\s*[\/+,&]\s*/);
+    const nameTags = (ctx.tags || []).map(t => t.toUpperCase());
+    if (!asig || !theirs.some(t => mine.includes(t) || nameTags.includes(t))) return { error: 'That order is not assigned to you.' };
+  }
   if (name === 'list_wines') {
     return (await dbList(env, 'lots')).map(l => ({ id: l.id, name: l.name, line: l.ubi, tabs: (l.sheet || []).map(x => x.tab), group: l.group }));
   }
@@ -188,7 +226,7 @@ async function houseNotes(env) {
 }
 
 function system(notes, ctx) {
-  return `You are the cellar assistant inside Bodega Dos Búhos' Cellar Target Calendar (certified organic winery, San Miguel de Allende, ~2,000 m). You are talking with ${ctx.name} (${ctx.initials}). Today is ${todayMX()} (America/Mexico_City).
+  return (ctx.crew ? `IMPORTANT: ${ctx.name} is CREW. They can read everything, record results and notes (record_results, add_note), mark their own orders done and add purchases. They cannot create work orders, reword them, change priority, assignment or dates, cancel orders, change house notes or delete purchases. If they ask for one of those, say Eric or Diane has to do it, and offer to write a note instead.\n\n` : '') + `You are the cellar assistant inside Bodega Dos Búhos' Cellar Target Calendar (certified organic winery, San Miguel de Allende, ~2,000 m). You are talking with ${ctx.name} (${ctx.initials}). Today is ${todayMX()} (America/Mexico_City).
 
 Excellovint is the Google Sheet the crew works from: one tab per lot ("L08 - SE" …) plus "L00 - Winery" for winery-wide jobs. Work order columns: FECHA, UBI, VOL I/F, PH, BX, TP, AT, AM (malic), SL (free SO2), ST (total SO2), AA (VA), ACCION, PRI (URGENT/HIGH/NORMAL), ASSGN BY, ASIG (who), INI (initials when done; XX = cancelled).
 Crew: Diane (head winemaker) and Eric (owner) give work orders. Orders go to Paris, Jimena, Eduvijes ("Vijes"), Margaro or Jaime, and can also go to Eric or Diane themselves. In ASIG write the first-name tag in capitals (PARIS, JIMENA, EDUVIJES, MARGARO, JAIME, ERIC, DIANE); for two people join with a slash, e.g. PARIS/JIMENA. Older rows use initials (P = Paris, J = Jimena, P/J = both, D = Diane, EM = Eric). Ángel helps with bottling. Voice-to-text garbles names ("Barisan Jimena" = P/J, "Uvai Vino" = Uva y Vino).
@@ -211,7 +249,7 @@ export async function chat(request, env, user) {
   const { text } = await request.json();
   if (!String(text || '').trim()) return { status: 400, body: { message: 'bad request' } };
   const conv = 'u-' + String(user.initials || 'x').replace(/[^\w]/g, '_'); // one running thread per person
-  const ctx = { initials: user.initials, name: user.name, changed: false, actions: [] };
+  const ctx = { initials: user.initials, name: user.name, crew: !!user.crew, tags: user.tags || [], changed: false, actions: [] };
   const now = Date.now();
   const save = (role, t) => dbPut(env, 'chatlog', conv + '-' + Date.now() + '-' + role, { conv, role, who: role === 'user' ? user.initials : 'claude', text: t, at: new Date().toISOString() });
 
@@ -228,7 +266,7 @@ export async function chat(request, env, user) {
   for (let step = 0; step < 10; step++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
       headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 3000, system: sys, tools: TOOLS, messages }) });
+      body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 3000, system: sys, tools: toolsFor(ctx.crew), messages }) });
     if (!r.ok) { const t = await r.text(); return { status: r.status === 429 ? 429 : 502, body: { message: t.slice(0, 400) } }; }
     const j = await r.json();
     messages.push({ role: 'assistant', content: j.content });
@@ -239,7 +277,7 @@ export async function chat(request, env, user) {
     for (const u of uses) {
       let out;
       try { out = await runTool(env, ctx, u.name, u.input || {}); } catch (e) { out = { error: String(e && e.message || e) }; }
-      if (/^(create_work_order|update_row|add_house_note)$/.test(u.name) && out && out.ok) ctx.actions.push({ tool: u.name, input: u.input, result: out });
+      if (/^(create_work_order|update_row|add_house_note|record_results|add_note)$/.test(u.name) && out && out.ok) ctx.actions.push({ tool: u.name, input: u.input, result: out });
       results2.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out).slice(0, 60000) });
     }
     messages.push({ role: 'user', content: results2 });
