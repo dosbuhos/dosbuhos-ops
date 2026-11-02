@@ -145,3 +145,9 @@
 .cr-cfm-a { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .cr-cfm-a .btn { min-height: 40px; }
 .cr-flag { color: #8f6200; background: #faefd3; padding: 8px 10px; margin: 0 0 10px; }
+
+/* barrel type (Blanco / Tinto / Naranja / Rosado) */
+.cr-use { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 8px 0; }
+.cr-use .cr-ul { font: 600 12px var(--f-body); color: var(--muted); margin-right: 6px; }
+.cr-use button i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.cr-use-t { display: inline-block; font: 600 11px var(--f-body); padding: 0 6px; border-radius: 3px; border: 1px solid var(--u); color: var(--ink); background: color-mix(in srgb, var(--u) 14%, white); }

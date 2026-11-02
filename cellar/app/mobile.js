@@ -89,7 +89,7 @@
   }
   // Today: the date lives in the app bar title as ‹ Hoy ›, driven by the page's own day buttons (.asg-day, hidden on phones).
   function dayTitle() {
-    const lbl = document.querySelector('#asgView .ad-lbl'), next = document.querySelector('#asgView [data-asgday="1"]');
+    const lbl = document.querySelector('#asgView .dn-lbl'), next = document.querySelector('#asgView [data-asgday="1"]');
     const txt = lbl ? (lbl.firstChild ? lbl.firstChild.textContent : lbl.textContent).trim() : 'Hoy';
     $('#mbarTitle').innerHTML = `<button type="button" class="m-day" data-mday="-1" aria-label="Anterior">${I.back}</button><button type="button" class="m-dlbl" aria-haspopup="menu">${txt}<i aria-hidden="true">▾</i></button><button type="button" class="m-day nx" data-mday="1" aria-label="Día siguiente"${next && next.disabled ? ' disabled' : ''}>${I.back}</button>`;
   }

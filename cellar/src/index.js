@@ -145,7 +145,7 @@ const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purch
 // Crew follow the orders Eric and Diane give: they mark tasks done (and the order link that goes with it), nothing else.
 const CREW_TASK_KEYS = new Set(['done', 'wo']);
 // Barrels: crew may fill in the barrel's own data (cooper, wood, toast, year made, size), not what it holds or where it sits.
-const CREW_BARREL_KEYS = new Set(['size', 'cooperage', 'wood', 'toast', 'year', 'by', 'at']);
+const CREW_BARREL_KEYS = new Set(['size', 'cooperage', 'wood', 'toast', 'year', 'use', 'by', 'at']);
 async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);

@@ -13,7 +13,20 @@
   };
   const GCOL = { red: '#7a1f2b', rose: '#e0849a', white: '#d8b43c', orange: '#d9822b', sparkling: '#7fa7b8' };
   const FILL = { full: 'Llena', partial: 'Parcial', empty: 'Vacía' };
-  const SPEC_KEYS = ['size', 'cooperage', 'wood', 'toast', 'year'];
+  const SPEC_KEYS = ['size', 'cooperage', 'wood', 'toast', 'year', 'use'];
+  // What kind of wine a barrel is for (a red barrel stays a red barrel). Set by hand; otherwise from the wine in it,
+  // otherwise from the old paper code (CF24, SY24, AN24 = naranja…).
+  const USE = { white: 'Blanco', red: 'Tinto', orange: 'Naranja', rose: 'Rosado' };
+  const USE_C = { white: '#d8b43c', red: '#7a1f2b', orange: '#d9822b', rose: '#e0849a' };
+  const PAPER_USE = [[/^(L\d+-)?(CFRO|RO|ROS)/i, 'rose'], [/^(L\d+-)?(AN|OR|NAR)/i, 'orange'], [/^(L\d+-)?(SB|CB|CH|SE|MG|BL)/i, 'white'], [/^(L\d+-)?(CF|CS|SY|TE|GR|AG|MO|ME|MA|PS|MO|CFCM|MPCM)/i, 'red']];
+  function useOf(b) {
+    if (b.use && USE[b.use]) return b.use;
+    const g = lotGroup(b.lot); if (USE[g]) return g;
+    const p = String((b.paper && b.paper.last) || '').trim(); for (const [re, u] of PAPER_USE) if (re.test(p)) return u;
+    return '';
+  }
+  // One state per barrel so the chip counts and the lists always agree.
+  const stateOf = b => needsConfirm(b) ? 'confirm' : (b.lot || (b.fill && b.fill !== 'empty') ? (b.fill === 'partial' ? 'partial' : 'full') : 'empty');
   const WOOD = ['', 'Francesa', 'Americana', 'Húngara', 'Otra'];
   const fmtD = iso => iso ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + 'T12:00' : iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
   const codeOf = v => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
@@ -86,24 +99,28 @@
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
     let bs = C.barrels.filter(b => !q || (b.code + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
-    if (C.vint !== 'all') bs = bs.filter(b => { const l = lotById(b.lot); return l ? vintOK(l) : false; });
-    if (C.filter === 'confirm') bs = bs.filter(needsConfirm);
-    else if (C.filter !== 'all') bs = bs.filter(b => C.filter === 'noloc' ? !b.loc : !needsConfirm(b) && (b.fill || (b.lot ? 'full' : 'empty')) === C.filter);
-    const counts = { confirm: C.barrels.filter(needsConfirm).length, all: C.barrels.length, full: C.barrels.filter(b => (b.fill || (b.lot ? 'full' : 'empty')) === 'full').length, partial: C.barrels.filter(b => b.fill === 'partial').length, empty: C.barrels.filter(b => (b.fill || (b.lot ? 'full' : 'empty')) === 'empty').length, noloc: C.barrels.filter(b => !b.loc).length };
+    if (C.vint !== 'all') bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; }); // empties have no vintage: always shown
+    if (C.use) bs = bs.filter(b => useOf(b) === C.use || (C.use === 'none' && !useOf(b)));
+    const base = bs;
+    const counts = { all: base.length, noloc: base.filter(b => !b.loc).length };
+    for (const k of ['confirm', 'full', 'partial', 'empty']) counts[k] = base.filter(b => stateOf(b) === k).length;
+    if (C.filter === 'noloc') bs = bs.filter(b => !b.loc); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
     const fchips = [['all', 'Todas']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []).concat([['full', 'Llenas'], ['partial', 'Parciales'], ['empty', 'Vacías'], ['noloc', 'Sin ubicación']]).map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}">${l} <small>${counts[k]}</small></button>`).join('');
     const gsel = `<label class="cr-group">Agrupar <select data-cg><option value="loc"${C.group === 'loc' ? ' selected' : ''}>por ubicación</option><option value="wine"${C.group === 'wine' ? ' selected' : ''}>por vino</option><option value="none"${C.group === 'none' ? ' selected' : ''}>sin agrupar</option></select></label>`;
-    let h = `<div class="seg cr-f">${fchips}</div><div class="cr-grouprow">${gsel}</div>`;
+    const uses = [['', 'Todas'], ['white', 'Blanco'], ['red', 'Tinto'], ['orange', 'Naranja'], ['rose', 'Rosado'], ['none', 'Sin tipo']];
+    const uchips = `<div class="seg cr-use" role="group" aria-label="Tipo de barrica"><span class="cr-ul">Tipo de barrica</span>${uses.map(([k, l]) => `<button type="button" data-cu="${k}" aria-pressed="${(C.use || '') === k}">${k && k !== 'none' ? `<i style="background:${USE_C[k]}"></i>` : ''}${l}</button>`).join('')}</div>`;
+    let h = `<div class="seg cr-f">${fchips}</div>${uchips}<div class="cr-grouprow">${gsel}</div>`;
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» para pegar el inventario de barricas desde Excel, o «+ Barrica» para capturar una por una.</div>`;
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
     if (C.filter === 'confirm') return h + `<p class="cr-help">Estas barricas tenían vino de años anteriores en los registros de SO₂ en papel (nov/25 y may/26). Confirma qué tienen hoy; lo de 2026 en Excellovint no se toca.</p><div class="cr-cfm">` +
       bs.map(b => `<article class="cr-cfm-row" data-bb="${esc(b.id)}"><div><b>BBL ${esc(b.code)}</b><span>${esc(paperLine(b) || 'Sin registro')}</span>${b.flag ? `<em>⚠ ${esc(b.flag)}</em>` : ''}</div>${C.canWrite ? `<div class="cr-cfm-a"><button type="button" class="btn sm" data-cfm="same" data-id="${esc(b.id)}">Sigue con ${esc((b.paper && b.paper.last) || 'este vino')}</button><button type="button" class="btn sm" data-cfm="empty" data-id="${esc(b.id)}">Embotellada / vacía</button><button type="button" class="btn sm" data-cfm="other" data-id="${esc(b.id)}">Otro vino…</button></div>` : ''}</article>`).join('') + `</div>`;
     const card = b => {
-      const g = lotGroup(b.lot), fill = b.fill || (b.lot ? 'full' : 'empty');
+      const g = lotGroup(b.lot), st = stateOf(b), fill = st === 'confirm' ? 'empty' : st, u = useOf(b);
       return `<article class="cr-bbl f-${fill}" data-bb="${esc(b.id)}" style="--c:${GCOL[g] || '#9aa5b1'}">
         <div class="cr-code">${BARREL_SVG}<b>${esc(b.code)}</b></div>
         <div class="cr-bmain"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>
           ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
-          <div class="cr-sub">${[b.vol ? b.vol + ' L' : '', b.size ? b.size + ' L' : '', FILL[fill]].filter(Boolean).join(' · ')}${b.lot && lotById(b.lot) ? ' · ' + C.vintageOf(lotById(b.lot)) : ''}</div>
+          <div class="cr-sub">${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span> ` : ''}${[b.vol ? b.vol + ' L' : '', b.size ? b.size + ' L' : '', FILL[fill]].filter(Boolean).join(' · ')}${b.lot && lotById(b.lot) ? ' · ' + C.vintageOf(lotById(b.lot)) : ''}</div>
           <div class="cr-sub">${b.loc ? '<span class="cr-loc">' + esc(b.loc) + '</span> ' + esc(locLabel(b.loc)) : '<span class="cr-none">Sin ubicación</span>'}</div>
           <div class="cr-sub cr-spec">${specLine(b) ? esc(specLine(b)) : '<span class="cr-none">Sin tonelería / año / tostado</span>'}</div>
         </div></article>`;
@@ -167,7 +184,7 @@
         <label>Vino<select name="lot">${lotOpts}</select></label>
         <div class="g2"><label>Litros en la barrica<input name="vol" inputmode="decimal" value="${esc(b.vol)}" placeholder="225"></label><label>Año en que se hizo<input name="year" inputmode="numeric" maxlength="4" value="${esc(b.year)}" placeholder="2022"></label></div>
         <label>Ubicación ${b.loc ? `<span class="cr-loc">${esc(b.loc)}</span>` : ''}${locSelects(b.loc)}</label>
-        <div class="g3"><label>Tonelería<input name="cooperage" value="${esc(b.cooperage)}" placeholder="Seguin Moreau"></label><label>Madera<select name="wood">${WOOD.map(w => `<option${w === (b.wood || '') ? ' selected' : ''}>${w}</option>`).join('')}</select></label><label>Tostado<input name="toast" value="${esc(b.toast)}" placeholder="M+" list="crToasts"></label></div><datalist id="crToasts"><option>Ligero (L)</option><option>Medio (M)</option><option>Medio+ (M+)</option><option>Fuerte (H)</option></datalist>
+        <div class="g3"><label>Tonelería<input name="cooperage" value="${esc(b.cooperage)}" placeholder="Seguin Moreau"></label><label>Madera<select name="wood">${WOOD.map(w => `<option${w === (b.wood || '') ? ' selected' : ''}>${w}</option>`).join('')}</select></label><label>Tipo<select name="use"><option value="">—</option>${Object.entries(USE).map(([k, l]) => `<option value="${k}"${(b.use || useOf(b)) === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label><label>Tostado<input name="toast" value="${esc(b.toast)}" placeholder="M+" list="crToasts"></label></div><datalist id="crToasts"><option>Ligero (L)</option><option>Medio (M)</option><option>Medio+ (M+)</option><option>Fuerte (H)</option></datalist>
         ${specOnly ? '<p class="cr-help">Puedes anotar tonelería, madera, tostado, año y tamaño. Lo demás lo cambian Eric o Diane.</p>' : ''}
         <label>Notas<textarea name="notes" rows="2">${esc(b.notes)}</textarea></label>
         <div class="cr-err" id="crErr"></div>
@@ -187,13 +204,13 @@
       e.preventDefault(); if (ro) return;
       const fd = new FormData(f), code = codeOf(fd.get('code') || b.code);
       if (specOnly) {
-        const patch = { size: +fd.get('size') || '', cooperage: String(fd.get('cooperage') || '').trim(), wood: fd.get('wood') || '', toast: String(fd.get('toast') || '').trim(), year: String(fd.get('year') || '').trim(), by: C.me, at: new Date().toISOString() };
+        const patch = { use: fd.get('use') || '', size: +fd.get('size') || '', cooperage: String(fd.get('cooperage') || '').trim(), wood: fd.get('wood') || '', toast: String(fd.get('toast') || '').trim(), year: String(fd.get('year') || '').trim(), by: C.me, at: new Date().toISOString() };
         try { await api('barrels/' + encodeURIComponent(b.id), 'PATCH', patch); await logEvent(b.code, 'spec', 'Datos de la barrica: ' + (specLine(patch) || '—')); d.close(); await refresh(); } catch (err) { $('#crErr', f).textContent = err.message; }
         return;
       }
       if (!code) { $('#crErr', f).textContent = 'Falta el número de barrica.'; return; }
       const z = fd.get('z'), loc = z ? [z, fd.get('r'), fd.get('s'), fd.get('l')].join('-') : '';
-      const next = { code, size: +fd.get('size') || '', fill: fd.get('fill'), lot: fd.get('lot') || '', vol: fd.get('vol') ? +String(fd.get('vol')).replace(',', '.') : '', loc, cooperage: String(fd.get('cooperage')).trim(), wood: fd.get('wood'), toast: String(fd.get('toast')).trim(), year: String(fd.get('year')).trim(), notes: String(fd.get('notes')).trim(), by: C.me, at: new Date().toISOString() };
+      const next = { code, use: fd.get('use') || '', size: +fd.get('size') || '', fill: fd.get('fill'), lot: fd.get('lot') || '', vol: fd.get('vol') ? +String(fd.get('vol')).replace(',', '.') : '', loc, cooperage: String(fd.get('cooperage')).trim(), wood: fd.get('wood'), toast: String(fd.get('toast')).trim(), year: String(fd.get('year')).trim(), notes: String(fd.get('notes')).trim(), by: C.me, at: new Date().toISOString() };
       if (!next.lot) next.fill = 'empty';
       const other = loc && C.barrels.find(x => x.loc === loc && x.id !== (isNew ? code : b.id));
       if (other && !confirm('En ' + loc + ' ya está la barrica ' + other.code + '. ¿Poner las dos ahí?')) return;
@@ -333,7 +350,10 @@
     d.querySelector('[data-al]').onclick = async e => { const c = e.target.closest('[data-pick]'); if (!c) return; const b = C.barrels.find(x => x.id === c.dataset.pick); if (!b) return; const from = b.loc; await api('barrels/' + encodeURIComponent(b.id), 'PATCH', { loc, by: C.me, at: new Date().toISOString() }); await logEvent(b.code, 'move', (from || 'sin ubicación') + ' → ' + loc); d.close(); await refresh(); };
   }
 
-  async function refresh() { await load(); render(); }
+  async function refresh() { await load(); render(); showCount(); }
+  // The "Cellar" switch shows how many barrels hold wine (full or partial), not how many wines were moved to Cellar.
+  function showCount() { const n = C.barrels.filter(b => ['full', 'partial'].includes(stateOf(b))).length; window.cellarFullBarrels = n; const el = document.getElementById('wmCellarN'); if (el) { el.textContent = n || ''; el.title = n + ' barricas con vino'; } }
+  fetch('/api/db/barrels').then(r => r.ok ? r.json() : { rows: [] }).then(j => { if (!C.loaded) C.barrels = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); showCount(); setTimeout(showCount, 4000); }).catch(() => {});
   // One tap from the "Por confirmar" list: what does this barrel hold today?
   async function confirmBarrel(id, how) {
     const b = C.barrels.find(x => x.id === id); if (!b || !C.canWrite) return;
@@ -349,10 +369,11 @@
   document.addEventListener('click', e => {
     if (!C.root || !C.root.contains(e.target)) return;
     const cf = e.target.closest('[data-cfm]'); if (cf) { confirmBarrel(cf.dataset.id, cf.dataset.cfm); return; }
-    const t = e.target.closest('[data-ct],[data-cv],[data-cf],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) return;
+    const t = e.target.closest('[data-ct],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) return;
     if (t.dataset.ct) { C.tab = t.dataset.ct; C.q = ''; render(); return; }
     if (t.dataset.cv) { C.vint = t.dataset.cv; render(); return; }
     if (t.dataset.cf) { C.filter = t.dataset.cf; render(); return; }
+    if (t.dataset.cu != null) { C.use = t.dataset.cu; render(); return; }
     if (t.dataset.ca === 'new') { openBarrel(null, t.dataset.lot ? { lot: t.dataset.lot } : null); return; }
     if (t.dataset.ca === 'import') { openImport(); return; }
     if (t.dataset.ca === 'labels') { printLabels(null); return; }

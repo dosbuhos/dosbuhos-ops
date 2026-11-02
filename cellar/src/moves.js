@@ -48,7 +48,7 @@ async function blackBand(env, tab, rowNum, lastCol) {
   await gs(env, ':batchUpdate', { method: 'POST', body: JSON.stringify({ requests: [{ repeatCell: {
     range: { sheetId: sh.properties.sheetId, startRowIndex: rowNum - 1, endRowIndex: rowNum, startColumnIndex: 0, endColumnIndex: lastCol + 1 },
     cell: { userEnteredFormat: { backgroundColor: { red: 0, green: 0, blue: 0 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true } } },
-    fields: 'userEnteredFormat(backgroundColor,textFormat)' } }] }) });
+    fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat' } }] }) });
 }
 
 // ---------- order text (Spanish, caps; "free run" stays English) ----------
