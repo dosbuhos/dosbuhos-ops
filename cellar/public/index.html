@@ -985,7 +985,7 @@ html.w-cellar .toolbar { display: none; }
 .stat b { font-size: 18px !important; }
 .stat span { font-size: 11.5px; }
 .src { font-size: 12px; }
-.chip .txt { white-space: normal; overflow-wrap: break-word; }
+.chip .txt { white-space: normal; overflow-wrap: break-word; word-break: normal; hyphens: manual; } /* break between words only (the badges are followed by a real space) */
 .chip .wo { margin-left: auto; }
 .ed-hint { font-weight: 400; color: var(--muted); font-size: 11px; text-transform: none; letter-spacing: 0; margin-left: 6px; }
 .btn.ok { background: var(--cellar); border-color: var(--cellar); color: #fff; font-weight: 600; }
@@ -2073,7 +2073,7 @@ var SheetParse = (function () {
     const dis = S.canWrite ? "" : " disabled";
     return `<div class="chip k-${esc(t.kind || "cellar")}${leftBehind ? " is-left" : ""}${carryHere ? " is-carry" : ""}${t.done ? " is-done" : ""}${today ? " is-today" : ""}${t.pri === "urgent" && !t.done ? " p-urgent" : ""}" title="About ${esc(fmtH(est(t)))}${typeof t.hrs === "number" ? "" : " (estimate)"}">` +
       `<button type="button" class="tick" data-tick="${esc(t.id)}" aria-pressed="${!!t.done}" aria-label="${t.done ? "Mark not done" : "Mark done"}: ${esc(t.text)}"${dis}></button>` +
-      `<button type="button" class="txt" data-edit="${esc(t.id)}"${dis}>${pr}${dl}${esc(t.text)}<span class="hrs">${esc(fmtH(est(t)))}</span></button>${woBtn(t)}</div>`;
+      `<button type="button" class="txt" data-edit="${esc(t.id)}"${dis}>${pr}${pr ? " " : ""}${dl}${dl ? " " : ""}${esc(t.text)} <span class="hrs">${esc(fmtH(est(t)))}</span></button>${woBtn(t)}</div>`;
   }
   function woBtn(t) {
     if (!S.db) return "";
@@ -4521,6 +4521,7 @@ Return ONLY JSON with this shape:
     let h = `<div class="d-head"><div><div class="eyebrow">${esc(grp)}</div><h2 id="dTitle">${esc(l.name)}</h2>` +
       `<div class="d-meta">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}${tabs.length ? "<br>Tab: " + esc(tabs.join(" + ")) : ""}${nowLine ? "<br>" + nowLine : ""}</div>` +
       ((l.mergedFrom || []).length ? `<div class="d-merge">Viene de: ${l.mergedFrom.map(m => `<button type="button" class="lnk" data-archopen="${esc(S.lots.some(x => x.id === m.lot) ? m.lot : "")}">${esc(m.name)} <small>${esc(m.tab)}${m.liters ? " · " + esc(m.liters) + " L" : ""} · ${esc(m.date ? m.date.slice(8, 10) + "/" + +m.date.slice(5, 7) : "")}</small></button>`).join(", ")}${l.nameBefore ? `<br><small>Antes se llamaba «${esc(l.nameBefore)}».</small>` : ""}</div>` : "") +
+      (window.cellarTanksFor ? window.cellarTanksFor(l.id) : "") +
       (l.archived ? `<div class="d-merge arch">Archivado${l.mergedAt ? " el " + esc(l.mergedAt.slice(8, 10) + "/" + +l.mergedAt.slice(5, 7)) : ""}: mezclado en ${l.mergedInto ? `<button type="button" class="lnk" data-archopen="${esc(l.mergedInto)}">${esc(l.mergedIntoName || l.mergedInto)}</button>` : ""}. La historia (pestaña ${esc(((l.archivedSheet || [])[0] || {}).tab || "")}) sigue en ese lote.</div>` : "") + `</div>` +
       (S.canWrite && S.db ? `<button type="button" class="x ph" data-phase="${phaseOf(l) === "cellar" ? "prod" : "cellar"}" data-phase-lot="${esc(l.id)}" title="${phaseOf(l) === "cellar" ? "Back to Production (still fermenting / in tank)" : "Barreled down or bottle-aging: move to the Cellar section"}">${phaseOf(l) === "cellar" ? "→ Production" : "→ Cellar"}</button>` : "") +
       `<button type="button" class="x" data-close="1">Close</button></div>`;

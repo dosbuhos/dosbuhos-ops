@@ -467,3 +467,10 @@ html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }
   .mnav .m-lbl { font: 500 11px/1.2 var(--f-body) !important; color: #e3c9d3; }
   .mnav .m-add-c { width: 30px; height: 30px; border-radius: 50%; }
 }
+
+/* Plan semanal cards on phones: text gets the full width; the OT / assign pill sits on its own line, right-aligned */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  .pp-card .chip { flex-wrap: wrap; align-items: flex-start; }
+  .pp-card .chip .txt { flex: 1 1 calc(100% - 40px); overflow-wrap: break-word; word-break: normal; }
+  .pp-card .chip .wo { margin: 6px 0 0 auto; }
+}

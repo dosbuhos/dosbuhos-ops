@@ -35,11 +35,12 @@
   const specLine = b => [b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year ? 'hecha en ' + b.year : ''].filter(Boolean).join(' · ');
   const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 4 }, { id: '2', name: 'Fila 2', slots: 8, levels: 4 }, { id: '3', name: 'Fila 3', slots: 8, levels: 4 }] }] };
 
-  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'loc', sheetTabs: {} };
+  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vessels: [], vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'loc', sheetTabs: {} };
 
   // ---------- data ----------
   async function load() {
-    const [b, m, me] = await Promise.all([api('barrels'), api('barrel_map').catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({}))]);
+    const [b, m, me, vs] = await Promise.all([api('barrels'), api('barrel_map').catch(() => ({ rows: [] })), fetch('/api/me').then(r => r.json()).catch(() => ({})), api('vessels').catch(() => ({ rows: [] }))]);
+    C.vessels = (vs.rows || []).map(r => Object.assign({ id: r.id }, r.data));
     C.barrels = (b.rows || []).map(r => Object.assign({ id: r.id }, r.data)).sort((x, y) => (+x.code || 0) - (+y.code || 0));
     const md = (m.rows || []).find(r => r.id === 'main'); C.map = md ? md.data : null;
     C.me = me.initials || ''; C.loaded = true;
@@ -78,9 +79,10 @@
     C.root.innerHTML = `<div class="cr">
       <div class="cr-tabs" role="tablist">
         <button type="button" role="tab" data-ct="barrels" aria-selected="${C.tab === 'barrels'}">Barricas <small>${nB}</small></button>
+        <button type="button" role="tab" data-ct="tanks" aria-selected="${C.tab === 'tanks'}">Tanques <small>${tankList().filter(v => tankContents(v).length).length}</small></button>
         <button type="button" role="tab" data-ct="map" aria-selected="${C.tab === 'map'}">Mapa</button>
       </div>
-      <div class="cr-bar">
+      <div class="cr-bar"${C.tab === 'tanks' ? ' hidden' : ''}>
         <div class="seg cr-vint" role="group" aria-label="Añada">${chips.map(([k, l]) => `<button type="button" data-cv="${k}" aria-pressed="${C.vint === k}">${l}</button>`).join('')}</div>
         <input type="search" class="search cr-q" placeholder="Buscar barrica, vino, tonelería, ubicación" value="${esc(C.q)}" aria-label="Buscar">
         <div class="cr-acts">
@@ -92,7 +94,7 @@
       <div class="cr-body" id="crBody"></div>
     </div>`;
     const body = $('#crBody', C.root);
-    body.innerHTML = C.tab === 'map' ? renderMap() : renderBarrels();
+    body.innerHTML = C.tab === 'map' ? renderMap() : C.tab === 'tanks' ? renderTanks() : renderBarrels();
   }
 
   // ---------- Barricas ----------
@@ -156,6 +158,96 @@
     if (unplaced.length) h += `<h3 class="cr-gh">Sin ubicación <small>${unplaced.length}</small></h3><div class="cr-chips">${unplaced.map(b => `<button type="button" class="cr-chip" data-bb="${esc(b.id)}" style="--c:${GCOL[lotGroup(b.lot)] || '#999'}"><b>${esc(b.code)}</b><small>${esc(lotName(b.lot) || 'vacía')}</small></button>`).join('')}</div>`;
     return h;
   }
+
+  // ---------- Tanques: every tank / amphora / puncheon from the vessel registry (coll "vessels") with the wine in it ----------
+  // What's in a tank: set by hand on the tank (contents), otherwise read from each wine's location text (ubi) by the
+  // tank's name and aliases ("TANQUE 6" → VC-06J). Auto readings are marked so someone confirms them.
+  const ROOMS = [['front', 'Sala del frente'], ['back', 'Sala de atrás'], ['', 'Otras vasijas']];
+  const tankList = () => C.vessels.filter(v => v.main !== false && v.kind !== 'ibc' && v.kind !== 'plastic_fermenter');
+  const normV = s => String(s || '').toUpperCase().replace(/[\s_]+/g, ' ').replace(/\s*-\s*/g, '-').trim();
+  const vNames = v => [v.name, v.id].concat(v.aliases || []).map(normV).filter(Boolean);
+  function autoContents(v) {
+    const out = [], names = vNames(v);
+    for (const l of C.all) {
+      if (l.archived || !l.ubi) continue;
+      const parts = String(l.ubi).split(/\s*·\s*|\s*;\s*/);
+      // Text after "→" is a plan, not where the wine is now ("TK-01 → TK-13").
+      const nowTxt = normV(String(l.ubi).split('→')[0]);
+      const segs = String(l.ubi).split('→')[0].split(/\s*[·,;+]\s*(?=[A-Za-z])/);
+      const hit = names.find(n => new RegExp('(^|[^A-Z0-9])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![0-9])', 'i').test(nowTxt));
+      if (!hit) continue;
+      let liters = null;
+      const seg = segs.find(x => normV(x).includes(hit)) || '';
+      const m = (seg + ' ' + (parts.length === 1 ? '' : '')).match(/([\d.,]+)\s*L\b/i) || (segs.length === 1 && String(l.ubi).split('→')[0].match(/([\d.,]+)\s*L\b/i));
+      if (m) liters = +String(m[1]).replace(/,/g, '');
+      else if (l.vol && segs.length === 1) liters = +l.vol;
+      out.push({ lot: l.id, liters, auto: true });
+    }
+    return out;
+  }
+  const tankContents = v => (v.contents && Array.isArray(v.contents.items)) ? v.contents.items.filter(x => x.lot) : autoContents(v);
+  const fmtL = n => n == null || isNaN(n) ? '' : Math.round(n).toLocaleString('es-MX') + ' L';
+  function tankSvg(v, items) {
+    const cap = +v.cap || 1, tot = items.reduce((s, x) => s + (+x.liters || 0), 0), known = items.some(x => x.liters != null);
+    const frac = items.length ? (known ? Math.min(1, tot / cap) : 0.5) : 0, col = items.length ? (GCOL[lotGroup(items[0].lot)] || '#9aa5b1') : '#e6e2dc';
+    const H = 92, W = 58, top = 8, bodyH = H - top - 6, fillH = Math.round(bodyH * frac);
+    const shape = v.kind === 'amphora' ? `<path d="M18 6h22l-2 8c10 8 14 20 14 34s-6 30-22 40h-2C12 78 6 62 6 48s4-26 14-34z" fill="#fff" stroke="#8a8178" stroke-width="1.6"/>` : `<rect x="6" y="${top}" width="${W - 12}" height="${bodyH}" rx="8" fill="#fff" stroke="#8a8178" stroke-width="1.6"/>`;
+    const clip = v.kind === 'amphora' ? `<clipPath id="tc-${esc(v.id)}"><path d="M18 6h22l-2 8c10 8 14 20 14 34s-6 30-22 40h-2C12 78 6 62 6 48s4-26 14-34z"/></clipPath>` : `<clipPath id="tc-${esc(v.id)}"><rect x="6" y="${top}" width="${W - 12}" height="${bodyH}" rx="8"/></clipPath>`;
+    return `<svg class="tk-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><defs>${clip}</defs>${shape}<rect clip-path="url(#tc-${esc(v.id)})" x="0" y="${top + bodyH - fillH}" width="${W}" height="${fillH}" fill="${col}" opacity="${known ? 1 : .45}"/>${v.jacket ? `<g stroke="#2d5c8a" stroke-width="1.2" opacity=".55"><line x1="6" y1="${top + 18}" x2="${W - 6}" y2="${top + 18}"/><line x1="6" y1="${top + 26}" x2="${W - 6}" y2="${top + 26}"/></g>` : ''}${v.capacity === 'variable' ? `<line x1="10" y1="${top + bodyH - fillH - 2}" x2="${W - 10}" y2="${top + bodyH - fillH - 2}" stroke="#3a3530" stroke-width="2.4" stroke-linecap="round"${items.length ? '' : ' opacity=".25"'}/>` : ''}</svg>`;
+  }
+  function renderTanks() {
+    const ts = tankList(); if (!ts.length) return `<div class="cr-empty">No hay tanques registrados.</div>`;
+    const card = v => {
+      const items = tankContents(v), tot = items.reduce((s, x) => s + (+x.liters || 0), 0);
+      const pct = items.length && tot ? Math.round(100 * tot / (+v.cap || 1)) : null;
+      return `<button type="button" class="tk-card${items.length ? '' : ' empty'}" data-tk="${esc(v.id)}" style="--c:${items.length ? (GCOL[lotGroup(items[0].lot)] || '#9aa5b1') : '#d9d4cc'}">
+        ${tankSvg(v, items)}
+        <span class="tk-info"><b class="tk-name">${esc(v.name)}</b><small>${esc((v.aliases || [])[0] || '')}${v.jacket ? ' · ❄︎' : ''}</small>
+          ${items.length ? items.map(x => `<span class="tk-wine">${esc(lotName(x.lot))}</span>`).join('') : '<span class="tk-none">Vacío</span>'}
+          <span class="tk-l">${items.length ? (tot ? fmtL(tot) + ' / ' : '¿? / ') : ''}${fmtL(+v.cap)}${pct != null ? ` · ${pct}%` : ''}</span>
+          ${items.some(x => x.auto) ? '<span class="tk-auto">según la ficha del vino · confirmar</span>' : ''}</span></button>`;
+    };
+    let h = `<p class="cr-help">Qué hay en cada tanque. Toca un tanque para ver el vino o corregirlo. ❄︎ = con chaqueta; la raya negra = tapa flotante.</p>`;
+    for (const [k, l] of ROOMS) {
+      const list = ts.filter(v => (v.room || '') === k).sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+      if (!list.length) continue;
+      const full = list.filter(v => tankContents(v).length).length;
+      h += `<h3 class="cr-gh">${l} <small>${full} con vino · ${list.length} vasijas</small></h3><div class="tk-grid">${list.map(card).join('')}</div>`;
+    }
+    return h;
+  }
+  function openTank(id) {
+    const v = C.vessels.find(x => x.id === id); if (!v) return;
+    const items = tankContents(v), ro = !C.canWrite;
+    const lotOpts = sel => `<option value="">— Vacío —</option>` + C.all.filter(l => !l.archived && l.group !== 'routine').map(l => `<option value="${esc(l.id)}"${l.id === sel ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
+    const rows = (items.length ? items : [{ lot: '', liters: null }]);
+    const d = sheet(`<form method="dialog" class="cr-form">
+      <div class="cr-sh"><h3>${esc(v.name)} <small class="cr-dim">${esc((v.aliases || []).slice(0, 3).join(' · '))}</small></h3></div>
+      <p class="cr-help">${fmtL(+v.cap)} · ${esc({ tank: 'tanque', amphora: 'ánfora', puncheon: 'puncheon' }[v.kind] || v.kind || '')}${v.capacity === 'variable' ? ' · tapa flotante' : ''}${v.jacket ? ' · con chaqueta' : ''}${v.maker ? ' · ' + esc(v.maker) : ''}${v.note ? '<br>' + esc(v.note) : ''}</p>
+      ${items.some(x => x.auto) ? `<p class="cr-help"><b>Leído de la ficha del vino</b> (no confirmado). Guarda para confirmarlo o corrígelo.</p>` : ''}
+      <div class="tk-rows">${rows.map(x => `<div class="tk-row"><label>Vino<select name="lot"${ro ? ' disabled' : ''}>${lotOpts(x.lot)}</select></label><label>Litros<input name="liters" inputmode="decimal" value="${x.liters != null ? esc(x.liters) : ''}"${ro ? ' disabled' : ''}></label></div>`).join('')}</div>
+      ${items.length ? `<div class="cr-row">${items.map(x => `<button type="button" class="btn sm" data-open="${esc(x.lot)}">Ficha: ${esc(lotName(x.lot))}</button>`).join('')}</div>` : ''}
+      ${v.contents && v.contents.by ? `<p class="cr-help cr-dim">Última actualización: ${esc(v.contents.by)} · ${esc(fmtD(v.contents.at))}</p>` : ''}
+      <div class="cr-err" id="crErr"></div>
+      <div class="cr-actions"><button type="button" class="btn" data-cancel>Cerrar</button>${ro ? '' : `<button type="button" class="btn" data-tkempty>Vacío</button><button type="submit" class="btn primary">Guardar</button>`}</div>
+    </form>`);
+    const f = $('form', d);
+    f.querySelector('[data-cancel]').onclick = () => d.close();
+    f.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) { d.close(); window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: o.dataset.open } })); } });
+    const save = async items2 => {
+      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { contents: { items: items2, by: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
+      catch (err) { $('#crErr', f).textContent = err.message; }
+    };
+    const emp = f.querySelector('[data-tkempty]'); if (emp) emp.onclick = () => save([]);
+    f.onsubmit = e => { e.preventDefault(); if (ro) return; const lot = f.querySelector('[name="lot"]').value, lit = f.querySelector('[name="liters"]').value; save(lot ? [{ lot, liters: lit ? +String(lit).replace(',', '.') : null }] : []); };
+  }
+  // Wine page (drawer): small tank tiles for the tanks this wine is in.
+  window.cellarTanksFor = lotId => {
+    if (!C.loaded) return '';
+    const hits = tankList().map(v => ({ v, x: tankContents(v).find(i => i.lot === lotId) })).filter(o => o.x);
+    if (!hits.length) return '';
+    return `<div class="tk-mini">${hits.map(({ v, x }) => `<span class="tk-mchip" style="--c:${GCOL[lotGroup(lotId)] || '#9aa5b1'}"><i style="height:${x.liters ? Math.min(100, Math.round(100 * x.liters / (+v.cap || 1))) : 50}%"></i><b>${esc(v.name)}</b> ${x.liters ? fmtL(x.liters) + ' / ' : ''}${fmtL(+v.cap)}${x.auto ? ' <em>¿?</em>' : ''}</span>`).join('')}</div>`;
+  };
 
   // ---------- Barrel sheet ----------
   function sheet(html, cls) {
@@ -369,7 +461,7 @@
   document.addEventListener('click', e => {
     if (!C.root || !C.root.contains(e.target)) return;
     const cf = e.target.closest('[data-cfm]'); if (cf) { confirmBarrel(cf.dataset.id, cf.dataset.cfm); return; }
-    const t = e.target.closest('[data-ct],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) return;
+    const t = e.target.closest('[data-ct],[data-tk],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) return;
     if (t.dataset.ct) { C.tab = t.dataset.ct; C.q = ''; render(); return; }
     if (t.dataset.cv) { C.vint = t.dataset.cv; render(); return; }
     if (t.dataset.cf) { C.filter = t.dataset.cf; render(); return; }
@@ -379,11 +471,12 @@
     if (t.dataset.ca === 'labels') { printLabels(null); return; }
     if (t.dataset.ca === 'mapcfg') { openMapCfg(); return; }
     if (t.dataset.bb) { openBarrel(t.dataset.bb); return; }
+    if (t.dataset.tk) { openTank(t.dataset.tk); return; }
     if (t.dataset.loc) { if (C.canWrite) openAssign(t.dataset.loc); return; }
     if (t.dataset.open) { window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: t.dataset.open } })); return; }
     if (t.dataset.phase) { window.dispatchEvent(new CustomEvent('cellar:phase', { detail: { lot: t.dataset.lot, phase: t.dataset.phase } })); return; }
   });
-  document.addEventListener('input', e => { if (C.root && C.root.contains(e.target) && e.target.classList.contains('cr-q')) { C.q = e.target.value; const body = $('#crBody', C.root); if (body) body.innerHTML = C.tab === 'map' ? renderMap() : renderBarrels(); } });
+  document.addEventListener('input', e => { if (C.root && C.root.contains(e.target) && e.target.classList.contains('cr-q')) { C.q = e.target.value; const body = $('#crBody', C.root); if (body) body.innerHTML = C.tab === 'map' ? renderMap() : C.tab === 'tanks' ? renderTanks() : renderBarrels(); } });
   document.addEventListener('change', e => { if (C.root && C.root.contains(e.target) && e.target.matches('[data-cg]')) { C.group = e.target.value; render(); } });
 
   let loading = null;
