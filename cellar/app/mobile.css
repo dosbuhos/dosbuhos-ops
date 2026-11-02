@@ -132,7 +132,6 @@
   .asg-top .seg.who button { font-size: 14px; padding: 0 14px; }
   #asgRefresh { display: none; }
   .asg-note { display: none; }
-  .asg-note:has(.wo-fnote) { display: block; font-size: 13px; margin: 0 0 8px; } /* a filter is on: always say so */
   .asg-group { margin: 0 0 14px; }
   .asg-group h3 { position: static; display: flex; align-items: baseline; gap: 8px; margin: 14px 0 4px; padding: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: none; }
   .asg-group h3 small { font-size: 12px; text-transform: none; letter-spacing: 0; }
@@ -439,11 +438,18 @@ html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }
 @media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
   .m-oseg { position: sticky; top: var(--m-bar); z-index: 24; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 -12px; padding: 8px 12px; background: var(--bg, #f3f1ee); border-bottom: 1px solid var(--rule); }
   .m-oseg[hidden] { display: none; }
-  .m-oseg button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 48px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); color: var(--ink); font: 600 15px var(--f-body); cursor: pointer; }
-  .m-oseg button small { font: 400 11.5px var(--f-body); color: var(--muted); }
+  .m-oseg button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-height: 40px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); color: var(--ink); font: 600 15px var(--f-body); cursor: pointer; }
+  .m-oseg button small { display: none; }
   .m-oseg button[aria-pressed="true"] { background: var(--m-wine, #5c1f33); border-color: var(--m-wine, #5c1f33); color: #fff; }
   .m-oseg button[aria-pressed="true"] small { color: #f1dce4; }
 }
 
-/* work-order type filter: all five fit on a 390 px phone */
-@media (max-width: 760px) { #asgView .wo-type.seg { display: flex !important; flex-wrap: nowrap; width: 100%; gap: 4px; overflow: visible; } #asgView .wo-type.seg button { flex: 1 1 0 !important; min-width: 0 !important; padding: 6px 2px !important; font-size: 13.5px !important; } }
+
+/* Órdenes top on phones: Día/Plan · one row (Filtros + people) · chips only when a filter is on */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  #asgView .asg-top { display: flex; flex-wrap: wrap; row-gap: 6px; align-items: center; margin: 4px 0 8px; }
+  #asgView .wo-bar .seg.who { margin: 0; padding: 2px 0; }
+  #asgView .wo-bar .seg.who button { min-height: 36px; padding: 0 12px; }
+  #asgView .wo-pin .seg.wo-type { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; }
+  .m-oseg { padding: 6px 12px; }
+}
