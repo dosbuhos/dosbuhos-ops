@@ -153,8 +153,9 @@ async function dbRoute(request, env, p, canWrite, ctx, crew) {
   if (request.method !== 'GET' && /^(entries|labs|labfiles|users|moves)$/.test(coll)) return J({ code: 'not_granted', message: 'Use the app forms.' }, 403);
   const m = request.method;
   if (m === 'GET' && !id) {
-    const v = await env.DB.prepare('SELECT COUNT(*) n, MAX(updated_at) u FROM docs WHERE coll = ?').bind(coll).first();
-    const etag = `"${coll}-${v.n}-${v.u || 0}"`;
+    // coll_ver is bumped by D1 triggers on every docs insert/update/delete: the freshness check reads 1 row, not the whole collection.
+    const v = await env.DB.prepare('SELECT v FROM coll_ver WHERE coll = ?').bind(coll).first();
+    const etag = `"${coll}-v${v ? v.v : 0}"`;
     if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: { etag } });
     const { results } = await env.DB.prepare('SELECT id, data FROM docs WHERE coll = ?').bind(coll).all();
     return J({ rows: results.map(r => ({ id: r.id, data: JSON.parse(r.data) })) }, 200, { etag });

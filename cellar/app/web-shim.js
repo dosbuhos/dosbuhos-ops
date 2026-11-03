@@ -30,7 +30,7 @@
           const s = subs[coll] || (subs[coll] = { cbs: new Set(), etag: null, rows: null });
           const c = { ok, err }; s.cbs.add(c);
           if (s.rows) ok(snap(s.rows)); else pull(coll, true);
-          if (!s.timer) s.timer = setInterval(() => { if (document.visibilityState === 'visible') pull(coll); }, 15000);
+          if (!s.timer) s.timer = setInterval(() => { if (document.visibilityState === 'visible') pull(coll); }, 30000);
           return () => { s.cbs.delete(c); if (!s.cbs.size) { clearInterval(s.timer); delete subs[coll]; } };
         },
         async add(data) { const id = newId(); await call(base + '/' + encodeURIComponent(id), data, 'PUT'); touch(coll); return { id }; },
