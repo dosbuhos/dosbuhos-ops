@@ -28,8 +28,8 @@ export const TYPES = [
   ['topping', 'Rellenado', 'topup', 'k-huerta', 'Rellenar el depósito para reducir el espacio de cabeza y la oxidación.'],
   ['bulk_sale', 'Venta a granel', 'sale', 'k-admin', 'Salida de vino a granel: reduce las existencias del depósito sin crear un lote nuevo.'],
 ];
-export const TYPE_LABEL = { ...Object.fromEntries(TYPES.map((t) => [t[0], t[1]])), blend: 'Coupage', bottling: 'Embotellado' };
-export const TYPE_ICON = { ...Object.fromEntries(TYPES.map((t) => [t[0], t[2]])), blend: 'blend', bottling: 'bottle' };
+export const TYPE_LABEL = { ...Object.fromEntries(TYPES.map((t) => [t[0], t[1]])), blend: 'Coupage', bottling: 'Embotellado', adjustment: 'Conciliación de volumen' };
+export const TYPE_ICON = { ...Object.fromEntries(TYPES.map((t) => [t[0], t[2]])), blend: 'blend', bottling: 'bottle', adjustment: 'balances' };
 export const WINE = { tinto: 'Tinto', blanco: 'Blanco', rosado: 'Rosado', espumoso: 'Espumoso', base_blanco: 'Vino base blanco', base_rosado: 'Vino base rosado', naranja: 'Naranja', piquette: 'Piquette' };
 export const WINE_COLOR = { tinto: '#7a1f2b', blanco: '#e3c24a', rosado: '#ec7fa8', espumoso: '#d6d3b0', base_blanco: '#e3c24a', base_rosado: '#ec7fa8', naranja: '#e8832a', piquette: '#cf8fb3' };
 export const PHASE = { recepcion: 'Recepción', fermentacion: 'Fermentación', posfermentacion: 'Posfermentación', fml: 'Fermentación maloláctica', crianza: 'Crianza', preembotellado: 'Preembotellado' };
@@ -175,25 +175,29 @@ export function vcard(v, delta) {
     <div class="kv"><span>Tras la operación</span><span class="after ${over || under ? 'bad' : ''}">${fmtL(after, unit)}${cap && unit !== 'kg' ? ` (${fmtN(Math.max(0, cap - after))} L libres)` : ''}${over ? ' · no cabe' : ''}${under ? ' · no alcanza' : ''}</span></div></div>`;
 }
 
-// ---------------------------------------------------------------- ilustraciones de recipientes
+// ---------------------------------------------------------------- ilustraciones de recipientes (barricas tumbadas, fudres de frente con puerta, depósitos con patas, ánforas y huevos con su forma)
+const SHAPES = {
+  tank: { w: 72, h: 120, body: 'M14 14 Q14 6 36 6 Q58 6 58 14 V88 L46 104 H26 L14 88 Z', extra: '<path d="M20 104v10M52 104v10M36 104v8" stroke="#6b7378" stroke-width="3.5" stroke-linecap="round"/><path d="M14 30h44M14 72h44" stroke="rgba(0,0,0,.12)" stroke-width="1.5"/><rect x="31" y="2" width="10" height="6" rx="2" fill="#8a9398"/>', fill: 'url(#g-steel)', top: 6, bottom: 104, label: 52 },
+  barrel: { w: 100, h: 62, body: 'M10 14 Q50 2 90 14 Q96 31 90 48 Q50 60 10 48 Q4 31 10 14 Z', extra: '<path d="M26 6.5v49M74 6.5v49M50 4v54" stroke="rgba(60,30,10,.45)" stroke-width="3"/><ellipse cx="50" cy="31" rx="5" ry="5" fill="none" stroke="rgba(60,30,10,.45)" stroke-width="2"/>', fill: 'url(#g-wood)', top: 4, bottom: 58, label: 35 },
+  foudre: { w: 90, h: 90, body: 'M45 6 Q84 6 84 45 Q84 84 45 84 Q6 84 6 45 Q6 6 45 6 Z', extra: '<circle cx="45" cy="45" r="39" fill="none" stroke="rgba(60,30,10,.4)" stroke-width="3"/><rect x="36" y="56" width="18" height="22" rx="3" fill="rgba(60,30,10,.35)" stroke="rgba(60,30,10,.6)" stroke-width="1.5"/><circle cx="45" cy="30" r="4" fill="rgba(60,30,10,.4)"/><path d="M6 45h78" stroke="rgba(60,30,10,.25)" stroke-width="2"/>', fill: 'url(#g-wood)', top: 6, bottom: 84, label: 45 },
+  amphora: { w: 72, h: 100, body: 'M26 6 h20 v8 q16 4 16 30 q0 30 -26 44 q-26 -14 -26 -44 q0 -26 16 -30 z', extra: '<path d="M26 14h20" stroke="rgba(0,0,0,.25)" stroke-width="2"/><ellipse cx="36" cy="92" rx="12" ry="4" fill="rgba(0,0,0,.25)"/>', fill: 'url(#g-clay)', top: 6, bottom: 88, label: 50 },
+  egg: { w: 72, h: 100, body: 'M36 6 q26 4 26 40 q0 36 -26 46 q-26 -10 -26 -46 q0 -36 26 -40 z', extra: '<path d="M18 94h36" stroke="rgba(0,0,0,.3)" stroke-width="3" stroke-linecap="round"/>', fill: 'url(#g-clay)', top: 6, bottom: 92, label: 52 },
+  carboy: { w: 72, h: 100, body: 'M28 6 h16 v12 l10 8 v62 a5 5 0 0 1 -5 5 h-26 a5 5 0 0 1 -5 -5 v-62 l10 -8 z', extra: '<rect x="27" y="2" width="18" height="6" rx="2" fill="#8a9398"/>', fill: 'url(#g-glass)', top: 6, bottom: 93, label: 56 },
+  press: { w: 100, h: 90, body: 'M10 30 h80 v36 a10 10 0 0 1 -10 10 h-60 a10 10 0 0 1 -10 -10 z', extra: '<rect x="44" y="6" width="12" height="24" rx="3" fill="#8a9398"/><path d="M20 76v10M80 76v10" stroke="#6b7378" stroke-width="4" stroke-linecap="round"/><path d="M10 48h80" stroke="rgba(0,0,0,.15)" stroke-width="2"/>', fill: 'url(#g-steel)', top: 30, bottom: 76, label: 52 },
+};
+SHAPES.bin = { ...SHAPES.press, body: 'M14 20 h72 l-6 60 a6 6 0 0 1 -6 6 h-48 a6 6 0 0 1 -6 -6 z', extra: '<path d="M14 20h72" stroke="rgba(0,0,0,.2)" stroke-width="2"/>', top: 20, bottom: 86, label: 54, fill: 'url(#g-steel)' };
+SHAPES.keg = { ...SHAPES.tank, w: 72, h: 100, body: 'M16 10 a20 6 0 0 1 40 0 v70 a20 6 0 0 1 -40 0 z', extra: '<path d="M16 30h40M16 60h40" stroke="rgba(0,0,0,.18)" stroke-width="2"/><path d="M24 86v8M48 86v8" stroke="#6b7378" stroke-width="3.5" stroke-linecap="round"/>', top: 4, bottom: 86, label: 48 };
+SHAPES.tirage_cage = { ...SHAPES.bin, fill: 'url(#g-steel)' };
 export function vesselSvg(v, pct, color) {
-  const fill = color || '#9a9a9a', id = 'c' + v.id, k = v.kind;
-  let shape;
-  if (k === 'barrel' || k === 'foudre') shape = 'M14 10 Q5 42 14 74 L58 74 Q67 42 58 10 Z';
-  else if (k === 'amphora') shape = 'M27 5 h18 v6 q13 6 11 30 q-2 22 -20 27 q-18 -5 -20 -27 q-2 -24 11 -30 z';
-  else if (k === 'egg') shape = 'M36 5 q23 4 23 38 q0 32 -23 35 q-23 -3 -23 -35 q0 -34 23 -38 z';
-  else if (k === 'carboy' || k === 'keg' || k === 'bin') shape = 'M27 5 h18 v10 l8 6 v48 a4 4 0 0 1 -4 4 h-26 a4 4 0 0 1 -4 -4 v-48 l8 -6 z';
-  else if (k === 'press') shape = 'M8 20 h56 v38 a8 8 0 0 1 -8 8 h-40 a8 8 0 0 1 -8 -8 z M30 6 h12 v14 h-12 z';
-  else shape = 'M15 5 h42 a7 7 0 0 1 7 7 v56 a7 7 0 0 1 -7 7 h-42 a7 7 0 0 1 -7 -7 v-56 a7 7 0 0 1 7 -7 z';
-  const y = 80 - (74 * (pct || 0)) / 100;
-  const hoops = k === 'barrel' || k === 'foudre' ? '<path d="M8.5 24h55M7 42h58M8.5 60h55" stroke="rgba(0,0,0,.28)" stroke-width="2.4" fill="none"/>' : k === 'tank' ? '<path d="M8 20h56M8 62h56" stroke="rgba(0,0,0,.12)" stroke-width="1.5" fill="none"/><rect x="31" y="66" width="10" height="8" rx="2" fill="rgba(0,0,0,.18)"/>' : '';
-  const bodyFill = k === 'barrel' || k === 'foudre' ? 'url(#g-wood)' : k === 'amphora' || k === 'egg' ? 'url(#g-clay)' : 'url(#g-steel)';
-  return `<svg class="vs" viewBox="0 0 72 84"><defs><clipPath id="${id}"><path d="${shape}"/></clipPath></defs><path d="${shape}" fill="${bodyFill}" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>${hoops}<g clip-path="url(#${id})"><rect x="0" y="${y}" width="72" height="${84 - y}" fill="${fill}" opacity=".9"/><rect x="0" y="${y}" width="72" height="2.5" fill="rgba(255,255,255,.45)"/><rect x="12" y="4" width="8" height="78" fill="rgba(255,255,255,.22)" rx="4"/></g><text x="36" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="${pct > 55 && k !== 'barrel' && k !== 'foudre' ? '#fff' : pct > 55 ? '#fff' : '#1f2426'}" style="font-family:var(--f-mono);paint-order:stroke;stroke:rgba(255,255,255,.55);stroke-width:2px">${esc(v.code)}</text></svg>`;
+  const sh = SHAPES[v.kind] || SHAPES.tank; const id = 'c' + v.id; const fill = color || '#9a9a9a';
+  const y = sh.bottom - ((sh.bottom - sh.top) * Math.min(100, pct || 0)) / 100;
+  return `<svg class="vs vs-${v.kind}" viewBox="0 0 ${sh.w} ${sh.h}"><defs><clipPath id="${id}"><path d="${sh.body}"/></clipPath></defs><path d="${sh.body}" fill="${sh.fill}" stroke="rgba(0,0,0,.4)" stroke-width="1.5"/><g clip-path="url(#${id})">${pct > 0 ? `<rect x="0" y="${y}" width="${sh.w}" height="${sh.h - y}" fill="${fill}" opacity=".92"/><rect x="0" y="${y}" width="${sh.w}" height="2" fill="rgba(255,255,255,.5)"/>` : ''}<rect x="${sh.w * 0.16}" y="0" width="${sh.w * 0.1}" height="${sh.h}" fill="rgba(255,255,255,.22)" rx="4"/></g>${sh.extra}<text x="${sh.w / 2}" y="${sh.label}" text-anchor="middle" font-size="${sh.w >= 90 ? 12 : 11}" font-weight="700" fill="#1f2426" style="font-family:var(--f-mono);paint-order:stroke;stroke:rgba(255,255,255,.75);stroke-width:3px">${esc(v.code)}</text></svg>`;
 }
 export const SVG_DEFS = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="g-steel" x1="0" x2="1"><stop offset="0" stop-color="#9aa3a8"/><stop offset=".35" stop-color="#e9edef"/><stop offset=".6" stop-color="#c3cacd"/><stop offset="1" stop-color="#8a9398"/></linearGradient>
   <linearGradient id="g-wood" x1="0" x2="1"><stop offset="0" stop-color="#8a5a2b"/><stop offset=".4" stop-color="#c58a4c"/><stop offset=".7" stop-color="#a86f36"/><stop offset="1" stop-color="#7a4b22"/></linearGradient>
   <linearGradient id="g-clay" x1="0" x2="1"><stop offset="0" stop-color="#a86f52"/><stop offset=".45" stop-color="#d9a98a"/><stop offset="1" stop-color="#9b5f43"/></linearGradient>
+  <linearGradient id="g-glass" x1="0" x2="1"><stop offset="0" stop-color="#b9d6cf"/><stop offset=".4" stop-color="#eef7f4"/><stop offset="1" stop-color="#9fbfb7"/></linearGradient>
 </defs></svg>`;
 
 // ---------------------------------------------------------------- gráficos SVG (sin dependencias)

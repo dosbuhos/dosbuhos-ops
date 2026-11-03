@@ -1,6 +1,7 @@
 // Vendimia: recepción de uva (crea los lotes de maceración o de mosto) y seguimiento de fermentaciones.
 import { fail, json, num, int, str, dateOk, seasonOf, mxToday, mxNow, all, one, run } from './lib.js';
 import { vesselsWithStays, newLotCode, lotAndStayStmts, occupiedCodes } from './core.js';
+import { alertSettings } from './extra.js';
 
 export async function route({ m, p, env, body, q }) {
   let r;
@@ -87,9 +88,13 @@ async function fermentations(env) {
   const ids = [...new Set(rows.map((r) => r.lot_id))];
   const readings = ids.length ? await all(env, `SELECT fr.* FROM ferment_readings fr WHERE fr.lot_id IN (${ids.map(() => '?').join(',')}) ORDER BY fr.read_at`, ...ids) : [];
   const byLot = {}; for (const r of readings) (byLot[r.lot_id] ||= []).push(r);
-  const today = mxToday();
-  return { today, rows: rows.map((r) => { const rs = byLot[r.lot_id] || []; const last = rs[rs.length - 1] || null; const first = rs[0] || null; const prev = rs[rs.length - 2] || null;
-    return { ...r, readings: rs.length, last, first, rate: last && prev ? Math.round(((prev.sugar - last.sugar) / Math.max(0.2, (Date.parse(last.read_at.replace(' ', 'T')) - Date.parse(prev.read_at.replace(' ', 'T'))) / 864e5)) * 100) / 100 : null, stale: !last || (Date.parse(today) - Date.parse(last.read_at.slice(0, 10))) / 864e5 > 2 }; }) };
+  const today = mxToday(); const AL = await alertSettings(env);
+  return { today, alerts: AL, rows: rows.map((r) => { const rs = byLot[r.lot_id] || []; const last = rs[rs.length - 1] || null; const first = rs[0] || null; const prev = rs[rs.length - 2] || null;
+    const rate = last && prev ? Math.round(((prev.sugar - last.sugar) / Math.max(0.2, (Date.parse(last.read_at.replace(' ', 'T')) - Date.parse(prev.read_at.replace(' ', 'T'))) / 864e5)) * 100) / 100 : null;
+    const consumed = first && last && first.sugar > 0 ? Math.round(((first.sugar - last.sugar) / first.sugar) * 100) : null;
+    const flags = [];
+    if (AL.ferment_enabled) { if (last?.temp != null && (last.temp < AL.temp_min || last.temp > AL.temp_max)) flags.push('temp'); if (rate != null && rate < AL.brix_drop_min && last && last.sugar > 2) flags.push('slow'); if (consumed != null && consumed >= AL.nutrient_open_pct && consumed <= AL.nutrient_close_pct) flags.push('nutrients'); if (first && first.sugar >= AL.high_sugar_brix) flags.push('high_sugar'); }
+    return { ...r, readings: rs.length, last, first, rate, consumed, flags, stale: !last || (Date.parse(today) - Date.parse(last.read_at.slice(0, 10))) / 864e5 > AL.stale_days }; }) };
 }
 async function createReading(env, b) {
   const lot_id = int(b.lot_id); if (!lot_id) fail(400, 'Indica el lote');

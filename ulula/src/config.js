@@ -8,6 +8,7 @@ export async function route({ m, p, env, body, q }) {
   if (m === 'GET' && p === '/users') return json({ users: await all(env, 'SELECT * FROM users ORDER BY active DESC, role, name') });
   if (m === 'POST' && p === '/users') return json(await saveUser(env, null, await body()));
   if ((r = p.match(/^\/users\/(\d+)$/)) && m === 'PUT') return json(await saveUser(env, +r[1], await body()));
+  if ((r = p.match(/^\/users\/(\d+)\/seen$/)) && m === 'POST') { await run(env, 'UPDATE users SET last_seen = ? WHERE id = ?', mxToday(), +r[1]); return json({ ok: true }); }
   if (m === 'GET' && p === '/locations') return json({ locations: await locations(env) });
   if (m === 'POST' && p === '/locations') return json(await saveLocation(env, null, await body()));
   if ((r = p.match(/^\/locations\/(\d+)$/)) && m === 'PUT') return json(await saveLocation(env, +r[1], await body()));
@@ -22,18 +23,18 @@ export async function company(env) {
 }
 async function saveCompany(env, b) {
   const cur = await company(env);
-  const f = { ...cur, ...Object.fromEntries(Object.entries(b).filter(([k]) => k in cur || ['name', 'appearance', 'profile', 'sugar_unit', 'production_mode', 'address', 'city', 'region', 'postal_code', 'tax_id', 'phone', 'email', 'vineyard_ha', 'lot_numbering', 'lot_pattern', 'advanced_modules'].includes(k))) };
-  await run(env, 'INSERT INTO company (id, name, appearance, profile, sugar_unit, production_mode, address, city, region, postal_code, tax_id, phone, email, vineyard_ha, lot_numbering, lot_pattern, advanced_modules) VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, appearance = excluded.appearance, profile = excluded.profile, sugar_unit = excluded.sugar_unit, production_mode = excluded.production_mode, address = excluded.address, city = excluded.city, region = excluded.region, postal_code = excluded.postal_code, tax_id = excluded.tax_id, phone = excluded.phone, email = excluded.email, vineyard_ha = excluded.vineyard_ha, lot_numbering = excluded.lot_numbering, lot_pattern = excluded.lot_pattern, advanced_modules = excluded.advanced_modules',
-    str(f.name) || 'Dos Búhos', ['light', 'dark', 'system'].includes(f.appearance) ? f.appearance : 'system', ['full', 'vineyard', 'winery'].includes(f.profile) ? f.profile : 'full', ['baume', 'brix', 'density'].includes(f.sugar_unit) ? f.sugar_unit : 'brix', str(f.production_mode), str(f.address), str(f.city), str(f.region), str(f.postal_code), str(f.tax_id), str(f.phone), str(f.email), num(f.vineyard_ha), f.lot_numbering === 'custom' ? 'custom' : 'standard', str(f.lot_pattern), bool(f.advanced_modules, 0));
+  const f = { ...cur, ...Object.fromEntries(Object.entries(b).filter(([k]) => k in cur || ['name', 'appearance', 'profile', 'sugar_unit', 'production_mode', 'address', 'city', 'region', 'postal_code', 'tax_id', 'phone', 'email', 'vineyard_ha', 'lot_numbering', 'lot_pattern', 'advanced_modules', 'country', 'cleaning_four_eyes'].includes(k))) };
+  await run(env, 'INSERT INTO company (id, name, appearance, profile, sugar_unit, production_mode, address, city, region, postal_code, tax_id, phone, email, vineyard_ha, lot_numbering, lot_pattern, advanced_modules, country, cleaning_four_eyes) VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, appearance = excluded.appearance, profile = excluded.profile, sugar_unit = excluded.sugar_unit, production_mode = excluded.production_mode, address = excluded.address, city = excluded.city, region = excluded.region, postal_code = excluded.postal_code, tax_id = excluded.tax_id, phone = excluded.phone, email = excluded.email, vineyard_ha = excluded.vineyard_ha, lot_numbering = excluded.lot_numbering, lot_pattern = excluded.lot_pattern, advanced_modules = excluded.advanced_modules, country = excluded.country, cleaning_four_eyes = excluded.cleaning_four_eyes',
+    str(f.name) || 'Dos Búhos', ['light', 'dark', 'system'].includes(f.appearance) ? f.appearance : 'system', ['full', 'vineyard', 'winery'].includes(f.profile) ? f.profile : 'full', ['baume', 'brix', 'density'].includes(f.sugar_unit) ? f.sugar_unit : 'brix', str(f.production_mode), str(f.address), str(f.city), str(f.region), str(f.postal_code), str(f.tax_id), str(f.phone), str(f.email), num(f.vineyard_ha), f.lot_numbering === 'custom' ? 'custom' : 'standard', str(f.lot_pattern), bool(f.advanced_modules, 0), str(f.country) || 'MX', bool(f.cleaning_four_eyes, 0));
   return { ok: true };
 }
 async function saveUser(env, id, b) {
   const name = str(b.name) || str(b.email); if (!name) fail(400, 'Falta el nombre o el correo');
   const role = ['admin', 'technician', 'operator'].includes(b.role) ? b.role : 'operator';
   const area = ['company', 'vineyard', 'winery', 'both'].includes(b.area) ? b.area : 'company';
-  const args = [name, str(b.initials) || name.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 3), role, bool(b.active, 1), str(b.email), area];
-  if (id) { await run(env, 'UPDATE users SET name = ?, initials = ?, role = ?, active = ?, email = ?, area = ? WHERE id = ?', ...args, id); return { ok: true, id }; }
-  const r = await run(env, 'INSERT INTO users (name, initials, role, active, email, area) VALUES (?,?,?,?,?,?)', ...args);
+  const args = [name, str(b.initials) || name.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 3), role, bool(b.active, 1), str(b.email), area, str(b.applicator_cert), str(b.cert_expires), bool(b.login, 1)];
+  if (id) { await run(env, 'UPDATE users SET name = ?, initials = ?, role = ?, active = ?, email = ?, area = ?, applicator_cert = ?, cert_expires = ?, login = ? WHERE id = ?', ...args, id); return { ok: true, id }; }
+  const r = await run(env, 'INSERT INTO users (name, initials, role, active, email, area, applicator_cert, cert_expires, login) VALUES (?,?,?,?,?,?,?,?,?)', ...args);
   return { ok: true, id: r.meta.last_row_id };
 }
 export async function locations(env) {

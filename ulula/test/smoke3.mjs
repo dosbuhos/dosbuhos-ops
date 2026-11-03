@@ -1,0 +1,38 @@
+// Módulos avanzados: alertas, conciliación, limpieza, parcelas compradas, equipos, materiales, operarios, claves de API y /api/v1.
+const BASE = process.env.BASE || 'http://localhost:8787';
+let n = 0;
+async function api(p, opts = {}) { const r = await fetch(BASE + '/api' + p, { headers: { 'content-type': 'application/json', ...(opts.headers || {}) }, method: opts.method || 'GET', body: opts.body ? JSON.stringify(opts.body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok && !opts.allowFail) throw new Error(`${p}: ${j.error}`); return { status: r.status, ...j }; }
+const ok = (c, m) => { n++; if (!c) throw new Error('FALLO: ' + m); console.log('✓', m); };
+let al = await api('/alerts'); await api('/alerts', { method: 'PUT', body: al.defaults }); al = await api('/alerts'); ok(al.alerts.analysis_days === 30, 'alertas por defecto');
+await api('/alerts', { method: 'PUT', body: { analysis_days: 45, stale_days: 3 } }); ok((await api('/alerts')).alerts.analysis_days === 45, 'alertas guardadas');
+const boot = await api('/bootstrap'); const v = boot.vessels.find((x) => x.stay_id && x.stay_unit === 'L'); ok(v, 'hay un recipiente con vino');
+await api('/reconciliations/settings', { method: 'PUT', body: { tolerance_pct: 1, self_approve: false } });
+const small = await api('/reconciliations', { method: 'POST', body: { rows: [{ vessel_id: v.id, measured_l: v.stay_volume - 1 }], measured_by: 'Paris', role: 'operator' } }); ok(small.results[0].status === 'applied', 'medición dentro de tolerancia se aplica');
+const big = await api('/reconciliations', { method: 'POST', body: { rows: [{ vessel_id: v.id, measured_l: v.stay_volume - 1 - Math.max(5, v.stay_volume * 0.1) }], measured_by: 'Paris', role: 'operator' } }); ok(big.results[0].status === 'pending', 'medición fuera de tolerancia queda pendiente');
+const rc = await api('/reconciliations'); ok(rc.pending.length === 1 && rc.history.length >= 1, 'listado pendientes/historial');
+await api(`/reconciliations/${big.results[0].id}/reject`, { method: 'POST', body: { by_name: 'Eric' } }); ok((await api('/reconciliations')).pending.length === 0, 'rechazo');
+const v2 = (await api('/bootstrap')).vessels.find((x) => x.id === v.id); ok(Math.abs(v2.stay_volume - (v.stay_volume - 1)) < 0.01, 'el volumen del sistema cambió con la medición aplicada');
+const ops = await api('/operations?type=adjustment'); ok(ops.operations.length >= 1 && ops.operations[0].type === 'adjustment', 'operación de ajuste creada');
+await api(`/operations/${ops.operations[0].id}/revert`, { method: 'POST' }); ok(Math.abs((await api('/bootstrap')).vessels.find((x) => x.id === v.id).stay_volume - v.stay_volume) < 0.01, 'revertir el ajuste restaura el volumen');
+await api('/company', { method: 'PUT', body: { cleaning_four_eyes: 1 } });
+const cb = await api('/cleanings/batch', { method: 'POST', body: { vessel_ids: [v.id], cleaned_at: '2026-11-03', protocol: 'disinfection', by_name: 'Jaime' } }); ok(cb.count === 1, 'limpieza por lotes');
+const cl = await api('/cleanings?status=pending'); ok(cl.records.length >= 1 && cl.records[0].protocol === 'disinfection', 'limpieza pendiente (cuatro ojos)');
+await api(`/cleanings/${cl.records[0].id}/verify`, { method: 'POST', body: { by_name: 'Diane' } }); ok((await api('/cleanings?status=verified')).records.length >= 1, 'verificación');
+await api('/company', { method: 'PUT', body: { cleaning_four_eyes: 0 } });
+const sb = await api('/supplier-blocks', { method: 'POST', body: { name: 'Rancho Los Pinos', supplier: 'Don Chuy', variety: 'Syrah', area_ha: 2.5, wine_type: 'tinto' } }); ok(sb.id, 'parcela comprada');
+await api(`/supplier-blocks/${sb.id}`, { method: 'PUT', body: { name: 'Rancho Los Pinos', supplier: 'Don Chuy', variety: 'Syrah', area_ha: 3, wine_type: 'tinto' } }); ok((await api('/supplier-blocks')).blocks.find((x) => x.id === sb.id).area_ha === 3, 'parcela comprada editada');
+const eq = await api('/equipment', { method: 'POST', body: { code: 'PR-01', name: 'Prensa neumática', kind: 'press' } }); ok(eq.id, 'equipo creado');
+ok((await api('/equipment', { method: 'POST', body: { code: 'PR-01', name: 'dup' }, allowFail: true })).status === 409, 'equipo duplicado rechazado');
+const svg = await fetch(`${BASE}/api/equipment/${eq.id}/qr.svg`).then((r) => r.text()); ok(svg.includes('<svg'), 'QR de equipo');
+const mt = await api('/packaging', { method: 'POST', body: { code: 'BOT-750', name: 'Botella bordelesa 750', category: 'bottle', unit: 'unidad', min_stock: 1000 } }); ok(mt.id, 'material creado');
+await api('/packaging/moves', { method: 'POST', body: { material_id: mt.id, qty: 5000, reason: 'receipt', supplier_lot: 'V-1' } }); await api('/packaging/moves', { method: 'POST', body: { material_id: mt.id, qty: 1200, reason: 'consumption' } });
+ok((await api('/packaging')).materials.find((x) => x.id === mt.id).stock === 3800, 'existencias de material = entradas − consumos');
+const im = await api('/packaging/import', { method: 'POST', body: { rows: [{ code: 'COR-01', name: 'Corcho natural', category: 'cork' }, { code: 'BOT-750', name: 'dup' }] } }); ok(im.created === 1 && im.skipped === 1, 'importación de materiales');
+const op = await api('/operators', { method: 'POST', body: { name: 'Temporero Uno', applicator_cert: 'C-123', cert_expires: '2027-01-01' } }); ok(op.id, 'operario sin acceso');
+const us = await api('/users'); ok(us.users.find((u) => u.id === op.id).login === 0, 'operario con login=0');
+const key = await api('/api-keys', { method: 'POST', body: { name: 'Prueba' } }); ok(key.key.startsWith('ulk_'), 'clave de API');
+const v1 = await fetch(`${BASE}/api/v1`); ok(v1.status === 401, 'v1 sin clave → 401');
+const v1b = await fetch(`${BASE}/api/v1/vessels`, { headers: { authorization: 'Bearer ' + key.key } }).then((r) => r.json()); ok(v1b.vessels.length === boot.vessels.length, 'v1 vessels con clave');
+await api(`/api-keys/${key.id}`, { method: 'DELETE' }); ok((await fetch(`${BASE}/api/v1`, { headers: { authorization: 'Bearer ' + key.key } })).status === 401, 'clave revocada');
+await api('/alerts', { method: 'PUT', body: al.defaults });
+console.log(`\nTodo OK (${n} comprobaciones)`);

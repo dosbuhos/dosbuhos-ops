@@ -1,6 +1,7 @@
 // Panel: volumen total por tipo, primeros pasos, HOY (alertas), capacidad por tipo de recipiente, viñedo (campaña, fenología, restricciones).
 import { mxToday, all, one } from './lib.js';
 import { restrictions } from './vinedo.js';
+import { alertSettings } from './extra.js';
 
 const KIND_GROUP = { tank: 'tanks', press: 'tanks', foudre: 'foudres', amphora: 'amphorae', egg: 'amphorae', barrel: 'barrels', bin: 'other', keg: 'other', carboy: 'other', tirage_cage: 'other' };
 
@@ -20,10 +21,11 @@ export async function panel(env, board) {
     one(env, 'SELECT season, COUNT(*) AS n, SUM(weight_kg) AS kg FROM harvest_receptions GROUP BY season ORDER BY season DESC LIMIT 1'),
     all(env, "SELECT o.id, o.type, o.op_date, o.operator_name FROM operations o WHERE o.status = 'confirmed' ORDER BY o.op_date DESC, o.id DESC LIMIT 6"),
   ]);
-  const stale = staleFerm.filter((l) => !l.last_read || (Date.parse(today) - Date.parse(l.last_read.slice(0, 10))) / 864e5 > 2);
+  const AL = await alertSettings(env);
+  const stale = AL.ferment_enabled ? staleFerm.filter((l) => !l.last_read || (Date.parse(today) - Date.parse(l.last_read.slice(0, 10))) / 864e5 > AL.stale_days) : [];
   const alerts = [];
   const topUp = vs.filter((v) => v.flags.includes('rellenar')); if (topUp.length) alerts.push({ kind: 'rellenar', n: topUp.length, text: `${topUp.length} depósitos sin rellenar por completo`, items: topUp.map((v) => v.code) });
-  const noLab = vs.filter((v) => v.flags.includes('analisis')); if (noLab.length) alerts.push({ kind: 'analisis', n: noLab.length, text: `${noLab.length} lotes sin análisis desde hace más de 30 días`, items: [...new Set(noLab.map((v) => v.lot_code))] });
+  const noLab = vs.filter((v) => v.flags.includes('analisis')); if (noLab.length) alerts.push({ kind: 'analisis', n: noLab.length, text: `${noLab.length} lotes sin análisis desde hace más de ${AL.analysis_days} días`, items: [...new Set(noLab.map((v) => v.lot_code))] });
   const dirty = vs.filter((v) => v.flags.includes('limpiar')); if (dirty.length) alerts.push({ kind: 'limpiar', n: dirty.length, text: `${dirty.length} depósito${dirty.length > 1 ? 's' : ''} sin limpiar tras el trasiego`, items: dirty.map((v) => v.code) });
   if (stale.length) alerts.push({ kind: 'fermentacion', n: stale.length, text: `${stale.length} fermentaciones sin lectura reciente`, items: stale.map((l) => l.code) });
   const restr = await restrictions(env);

@@ -12,6 +12,7 @@ import * as vendimia from './vendimia.js';
 import * as embotellado from './embotellado.js';
 import * as inventario from './inventario.js';
 import * as config from './config.js';
+import * as extra from './extra.js';
 import { panel } from './panel.js';
 
 const TYPES = ['pressing', 'bleeding', 'racking', 'barrel_transfer', 'filtration', 'decantation', 'addition', 'topping', 'bulk_sale', 'blend'];
@@ -39,6 +40,7 @@ export default {
 async function api(request, env, url) {
   const m = request.method;
   const p = url.pathname.replace(/^\/api/, '');
+  if (p.startsWith('/v1')) return extra.v1(request, env, p.slice(3));
   const body = async () => { try { return await request.json(); } catch { fail(400, 'JSON inválido'); } };
   const q = (k) => url.searchParams.get(k);
   let r;
@@ -79,7 +81,7 @@ async function api(request, env, url) {
   if (m === 'GET' && p === '/panel') return json(await panel(env, board));
 
   const ctx = { m, p, env, body, q, request };
-  for (const mod of [vinedo, vendimia, embotellado, inventario, config]) { const res = await mod.route(ctx); if (res) return res; }
+  for (const mod of [vinedo, vendimia, embotellado, inventario, config, extra]) { const res = await mod.route(ctx); if (res) return res; }
   fail(404, 'Ruta no encontrada');
 }
 
@@ -119,6 +121,7 @@ async function board(env) {
   const op = idx(lastOps, 'vessel_id', 'last_op'), an = idx(lastAn, 'lot_id', 'last_an'), cl = idx(lastClean, 'vessel_id', 'last_clean'), em = idx(emptied, 'vessel_id', 'emptied_at');
   const today = mxToday();
   const daysAgo = (d) => (d ? Math.round((Date.parse(today) - Date.parse(d)) / 864e5) : null);
+  const AL = await extra.alertSettings(env);
   let occupied = 0, liters = 0, kg = 0, capacity = 0, attention = 0;
   const out = vessels.map((v) => {
     const r = { ...v, last_op: op[v.id] || null, last_analysis: v.lot_id ? an[v.lot_id] || null : null, last_cleaning: cl[v.id] || null, emptied_at: em[v.id] || null, flags: [] };
@@ -127,9 +130,9 @@ async function board(env) {
       occupied++;
       if (v.stay_unit === 'kg') kg += v.stay_volume; else liters += v.stay_volume;
       const head = v.capacity_l - v.stay_volume;
-      if (!v.always_full && v.stay_unit !== 'kg' && head > Math.max(5, v.capacity_l * 0.02)) r.flags.push('rellenar');
+      if (!v.always_full && v.stay_unit !== 'kg' && head > Math.max(5, v.capacity_l * (1 - AL.min_fill_pct / 100))) r.flags.push('rellenar');
       const d = daysAgo(r.last_analysis);
-      if (d == null || d > 30) r.flags.push('analisis');
+      if (d == null || d > AL.analysis_days) r.flags.push('analisis');
     } else if (r.emptied_at && (!r.last_cleaning || r.last_cleaning < r.emptied_at)) {
       r.flags.push('limpiar');
     }
@@ -721,6 +724,8 @@ async function createTasting(env, b) {
 }
 async function createCleaning(env, b) {
   const vessel_id = int(b.vessel_id); if (!vessel_id) fail(400, 'Indica el recipiente');
-  const r = await env.DB.prepare('INSERT INTO cleaning_records (vessel_id, cleaned_at, by_name, method, notes) VALUES (?,?,?,?,?)').bind(vessel_id, str(b.cleaned_at) || mxToday(), str(b.by_name), str(b.method), str(b.notes)).run();
+  const c = await env.DB.prepare('SELECT cleaning_four_eyes FROM company WHERE id = 1').first().catch(() => null);
+  const protocol = ['cleaning', 'disinfection', 'rinse', 'full'].includes(b.protocol) ? b.protocol : 'cleaning';
+  const r = await env.DB.prepare('INSERT INTO cleaning_records (vessel_id, cleaned_at, by_name, method, notes, protocol, status, equipment_id, products) VALUES (?,?,?,?,?,?,?,?,?)').bind(vessel_id, str(b.cleaned_at) || mxToday(), str(b.by_name), str(b.method), str(b.notes), protocol, c?.cleaning_four_eyes ? 'pending' : 'registered', int(b.equipment_id), str(b.products)).run();
   return { ok: true, id: r.meta.last_row_id };
 }
