@@ -256,7 +256,12 @@
     const d = sheet(`<form method="dialog" class="cr-form">
       <div class="cr-sh"><h3>${esc(v.name)} <small class="cr-dim">${esc((v.aliases || []).slice(0, 3).join(' · '))}</small></h3></div>
       <p class="cr-help">${fmtL(+v.cap)} · ${esc({ tank: 'tanque', amphora: 'ánfora', puncheon: 'puncheon' }[v.kind] || v.kind || '')}${v.capacity === 'variable' ? ' · tapa flotante' : ''}${v.jacket ? ' · con chaqueta' : ''}${v.maker ? ' · ' + esc(v.maker) : ''}${v.note ? '<br>' + esc(v.note) : ''}</p>
-      <label class="tk-model">Modelo (placa del tanque)<input name="model" id="tkModel" value="${esc(v.model || '')}" placeholder="Ej. PZPK 1900 H11"${ro ? ' disabled' : ''}></label>
+      <fieldset class="tk-spec"><legend>Ficha técnica</legend>
+        <label>Modelo (placa del tanque)<input name="model" id="tkModel" value="${esc(v.model || '')}" placeholder="Ej. PZPK 1900 H11"${ro ? ' disabled' : ''}></label>
+        <div class="tk-spec2"><label>Pasa-hombre<select name="manway" id="tkManway"${ro ? ' disabled' : ''}>${[['', '—'], ['none', 'No tiene'], ['top', 'Arriba'], ['side', 'Lateral'], ['both', 'Arriba y lateral']].map(([k, l]) => `<option value="${k}"${(v.manway || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label>Medida pasa-hombre<input name="manwaySize" id="tkManwaySize" value="${esc(v.manwaySize || '')}" placeholder="Ej. 560 × 440 mm"${ro ? ' disabled' : ''}></label>
+        <label>Tri-clamp válvulas<select name="triclamp" id="tkTri"${ro ? ' disabled' : ''}>${['', '1"', '1.5"', '2"', '2.5"', '3"', 'Mixto'].map(k => `<option value="${esc(k)}"${(v.triclamp || '') === k ? ' selected' : ''}>${k || '—'}</option>`).join('')}</select></label></div>
+      </fieldset>
       ${items.some(x => x.auto) ? `<p class="cr-help"><b>Leído de la ficha del vino</b> (no confirmado). Guarda para confirmarlo o corrígelo.</p>` : ''}
       <div class="tk-rows">${rows.map(x => `<div class="tk-row"><label>Vino<select name="lot"${ro ? ' disabled' : ''}>${lotOpts(x.lot)}</select></label><label>Litros<input name="liters" inputmode="decimal" value="${x.liters != null ? esc(x.liters) : ''}"${ro ? ' disabled' : ''}></label></div>`).join('')}</div>
       ${items.length ? `<div class="cr-row">${items.map(x => `<button type="button" class="btn sm" data-open="${esc(x.lot)}">Ficha: ${esc(lotName(x.lot))}</button>`).join('')}</div>` : ''}
@@ -268,7 +273,7 @@
     f.querySelector('[data-cancel]').onclick = () => d.close();
     f.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) { d.close(); window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: o.dataset.open } })); } });
     const save = async items2 => {
-      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { model: (f.querySelector('[name="model"]').value || '').trim(), contents: { items: items2, by: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
+      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { model: (f.querySelector('[name="model"]').value || '').trim(), manway: f.querySelector('[name="manway"]').value, manwaySize: (f.querySelector('[name="manwaySize"]').value || '').trim(), triclamp: f.querySelector('[name="triclamp"]').value, contents: { items: items2, by: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
       catch (err) { $('#crErr', f).textContent = err.message; }
     };
     const emp = f.querySelector('[data-tkempty]'); if (emp) emp.onclick = () => save([]);

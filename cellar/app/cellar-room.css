@@ -223,5 +223,8 @@
 .cr-view button[aria-selected="true"] { background: #1f1d1b; color: #fff; }
 @media (min-width: 761px) { .cr-search { max-width: 460px; } }
 
-.tk-model{display:flex;flex-direction:column;gap:4px;margin:6px 0 8px;font-size:13px}
-.tk-model input{font:inherit;padding:8px 10px}
+.tk-spec{border:1px solid var(--line,#d5d9d6);border-radius:8px;padding:8px 10px 10px;margin:6px 0 10px;display:flex;flex-direction:column;gap:8px}
+.tk-spec legend{font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:0 4px;opacity:.7}
+.tk-spec label{display:flex;flex-direction:column;gap:4px;font-size:13px;min-width:0}
+.tk-spec input,.tk-spec select{font:inherit;padding:7px 9px}
+.tk-spec2{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
