@@ -222,3 +222,6 @@
 .cr-view button { border: 0; background: transparent; padding: 6px 16px; border-radius: 999px; font: 600 13.5px var(--f-body); color: var(--muted); cursor: pointer; }
 .cr-view button[aria-selected="true"] { background: #1f1d1b; color: #fff; }
 @media (min-width: 761px) { .cr-search { max-width: 460px; } }
+
+.tk-model{display:flex;flex-direction:column;gap:4px;margin:6px 0 8px;font-size:13px}
+.tk-model input{font:inherit;padding:8px 10px}
