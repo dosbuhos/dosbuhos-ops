@@ -4,23 +4,20 @@
 // Regla central: los formularios eligen recipientes, nunca lotes. El lote es lo que hay en el recipiente,
 // y cada operación reescribe esa relación por medio de "estancias" (stays): lote × recipiente × fechas × volumen.
 
-const VERSION = '0.1.0';
+import { VERSION, mxToday, HttpError, fail, json, num, int, str, bool, round1, all, one, biodynamicDay } from './lib.js';
+import { qrSvg } from './qr.js';
+import { vesselsWithStays, lotsWithVolume, nextLotCode, newLotCode, lotAndStayStmts, occupiedCodes } from './core.js';
+import * as vinedo from './vinedo.js';
+import * as vendimia from './vendimia.js';
+import * as embotellado from './embotellado.js';
+import * as inventario from './inventario.js';
+import * as config from './config.js';
+import { panel } from './panel.js';
 
 const TYPES = ['pressing', 'bleeding', 'racking', 'barrel_transfer', 'filtration', 'decantation', 'addition', 'topping', 'bulk_sale', 'blend'];
-const MOVE_TYPES = new Set(['racking', 'filtration', 'decantation']);
 const WINE_ABBR = { tinto: 'TI', blanco: 'BL', rosado: 'RO', espumoso: 'ES', base_blanco: 'BB', base_rosado: 'BR', naranja: 'NA', piquette: 'PQ' };
 const FRACTION_SUFFIX = { free_run: 'FR', press_1: 'P1', press_2: 'P2', press_3: 'P3', combined: 'C', pomace: 'OR' };
 const BARREL_KINDS = new Set(['barrel', 'foudre']);
-const MX_OFFSET_H = 6; // San Miguel: UTC-6 todo el año
-const mxToday = () => new Date(Date.now() - MX_OFFSET_H * 3600000).toISOString().slice(0, 10);
-
-class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
-const fail = (status, message) => { throw new HttpError(status, message); };
-const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
-const num = (v) => { if (v === '' || v == null) return null; const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
-const int = (v) => { const n = num(v); return n == null ? null : Math.round(n); };
-const str = (v) => (v == null ? null : String(v).trim() || null);
-const round1 = (n) => Math.round(n * 10) / 10;
 
 export default {
   async fetch(request, env) {
@@ -58,8 +55,7 @@ async function api(request, env, url) {
   if (m === 'POST' && p === '/vessels/import') return json(await importVessels(env, await body()));
   if ((r = p.match(/^\/vessels\/(\d+)$/)) && m === 'PUT') return json(await updateVessel(env, +r[1], await body()));
   if ((r = p.match(/^\/vessels\/(\d+)$/)) && m === 'GET') return json(await vesselDetail(env, +r[1]));
-  if (m === 'POST' && p === '/locations') return json(await createLocation(env, await body()));
-  if ((r = p.match(/^\/locations\/(\d+)$/)) && m === 'PUT') return json(await updateLocation(env, +r[1], await body()));
+  if ((r = p.match(/^\/vessels\/(\d+)\/qr\.svg$/)) && m === 'GET') return qrResponse(env, +r[1], url);
 
   if (m === 'POST' && p === '/opening-balances') return json(await openingBalances(env, await body()));
   if (m === 'GET' && p === '/lots') return json({ lots: await lotsWithVolume(env) });
@@ -80,45 +76,35 @@ async function api(request, env, url) {
   if (m === 'GET' && p === '/products') return json({ products: (await env.DB.prepare('SELECT * FROM products ORDER BY category, name').all()).results });
   if (m === 'POST' && p === '/products') return json(await createProduct(env, await body()));
   if ((r = p.match(/^\/products\/(\d+)$/)) && m === 'PUT') return json(await updateProduct(env, +r[1], await body()));
-  if (m === 'POST' && p === '/users') return json(await createUser(env, await body()));
+  if (m === 'GET' && p === '/panel') return json(await panel(env, board));
 
+  const ctx = { m, p, env, body, q, request };
+  for (const mod of [vinedo, vendimia, embotellado, inventario, config]) { const res = await mod.route(ctx); if (res) return res; }
   fail(404, 'Ruta no encontrada');
 }
 
 // ---------------------------------------------------------------- reads
-async function vesselsWithStays(env) {
-  const sql = `
-    SELECT v.*, l.name AS location_name, l.room AS location_room,
-           s.id AS stay_id, s.volume AS stay_volume, s.unit AS stay_unit, s.entered_at AS stay_entered_at,
-           lo.id AS lot_id, lo.code AS lot_code, lo.wine_type, lo.vintage, lo.varieties, lo.phase, lo.fermentation_done
-    FROM vessels v
-    LEFT JOIN locations l ON l.id = v.location_id
-    LEFT JOIN stays s ON s.vessel_id = v.id AND s.left_at IS NULL
-    LEFT JOIN lots lo ON lo.id = s.lot_id
-    ORDER BY v.code`;
-  return (await env.DB.prepare(sql).all()).results;
+async function qrResponse(env, id, url) {
+  const v = await env.DB.prepare('SELECT code FROM vessels WHERE id = ?').bind(id).first();
+  if (!v) fail(404, 'Recipiente no encontrado');
+  const target = `${url.origin}/#/recipiente/${id}`;
+  return new Response(qrSvg(target, { label: `QR ${v.code}` }), { headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=86400' } });
 }
 
-async function lotsWithVolume(env) {
-  const sql = `
-    SELECT lo.*, COALESCE(SUM(s.volume), 0) AS volume,
-           GROUP_CONCAT(v.code, ', ') AS vessel_codes, COUNT(s.id) AS vessel_count
-    FROM lots lo
-    LEFT JOIN stays s ON s.lot_id = lo.id AND s.left_at IS NULL
-    LEFT JOIN vessels v ON v.id = s.vessel_id
-    GROUP BY lo.id ORDER BY lo.status, lo.code`;
-  return (await env.DB.prepare(sql).all()).results;
-}
+
 
 async function bootstrap(env) {
-  const [vessels, lots, locations, users, products, drafts] = await Promise.all([
+  const [vessels, lots, locations, users, products, drafts, companyRow, finished, parcels] = await Promise.all([
     vesselsWithStays(env), lotsWithVolume(env),
-    env.DB.prepare('SELECT * FROM locations ORDER BY sort, name').all().then((r) => r.results),
+    config.locations(env),
     env.DB.prepare('SELECT * FROM users WHERE active = 1 ORDER BY role, name').all().then((r) => r.results),
     env.DB.prepare('SELECT * FROM products ORDER BY category, name').all().then((r) => r.results),
     env.DB.prepare("SELECT COUNT(*) AS n FROM operations WHERE status = 'draft'").first(),
+    config.company(env),
+    env.DB.prepare('SELECT * FROM finished_products WHERE is_active = 1 ORDER BY name').all().then((r) => r.results),
+    env.DB.prepare('SELECT id, code, vineyard, variety, area_ha, wine_type FROM parcels WHERE is_active = 1 ORDER BY vineyard, code').all().then((r) => r.results),
   ]);
-  return { version: VERSION, today: mxToday(), vessels, lots, locations, users, products, drafts: drafts.n };
+  return { version: VERSION, today: mxToday(), vessels, lots, locations, users, products, drafts: drafts.n, company: companyRow, finished, parcels };
 }
 
 async function board(env) {
@@ -163,7 +149,10 @@ async function vesselDetail(env, id) {
   const analyses = stay ? (await env.DB.prepare('SELECT * FROM analyses WHERE lot_id = ? ORDER BY analysed_at DESC LIMIT 10').bind(stay.lot_id).all()).results : [];
   const tastings = stay ? (await env.DB.prepare('SELECT * FROM tastings WHERE lot_id = ? ORDER BY tasted_at DESC LIMIT 10').bind(stay.lot_id).all()).results : [];
   const cleanings = (await env.DB.prepare('SELECT * FROM cleaning_records WHERE vessel_id = ? ORDER BY cleaned_at DESC LIMIT 5').bind(id).all()).results;
-  return { vessel: v, stay, operations: ops, analyses, tastings, cleanings };
+  const corrections = stay ? (await env.DB.prepare(`SELECT o.id, o.op_date, o.operator_name, ol.product_name, ol.qty, ol.unit, ol.line_note FROM operation_lines ol JOIN operations o ON o.id = ol.operation_id WHERE ol.side = 'product' AND ol.lot_id = ? AND o.status = 'confirmed' ORDER BY o.op_date DESC, o.id DESC LIMIT 20`).bind(stay.lot_id).all()).results : [];
+  const readings = stay ? (await env.DB.prepare('SELECT * FROM ferment_readings WHERE lot_id = ? ORDER BY read_at DESC LIMIT 20').bind(stay.lot_id).all()).results : [];
+  const notes = (await env.DB.prepare('SELECT * FROM vessel_notes WHERE vessel_id = ? ORDER BY noted_at DESC, id DESC LIMIT 20').bind(id).all()).results;
+  return { vessel: v, stay, operations: ops, analyses, tastings, cleanings, corrections, readings, notes };
 }
 
 async function listSimple(env, table, dateCol, lot) {
@@ -174,11 +163,12 @@ async function listSimple(env, table, dateCol, lot) {
 
 async function search(env, qs) {
   const like = `%${qs}%`;
-  const [lots, vessels] = await Promise.all([
+  const [lots, vessels, bottlings] = await Promise.all([
     env.DB.prepare(`SELECT lo.id, lo.code, lo.wine_type, lo.vintage, lo.varieties, lo.status FROM lots lo WHERE lo.code LIKE ? OR lo.varieties LIKE ? ORDER BY lo.status, lo.code LIMIT 20`).bind(like, like).all().then((r) => r.results),
     env.DB.prepare(`SELECT v.id, v.code, v.kind, v.capacity_l, lo.code AS lot_code FROM vessels v LEFT JOIN stays s ON s.vessel_id = v.id AND s.left_at IS NULL LEFT JOIN lots lo ON lo.id = s.lot_id WHERE v.code LIKE ? ORDER BY v.code LIMIT 20`).bind(like).all().then((r) => r.results),
+    env.DB.prepare(`SELECT bs.id, bs.lot_code, bs.bottled_at, bs.bottles, bs.source_lot_id, fp.name AS product_name FROM bottling_sessions bs JOIN finished_products fp ON fp.id = bs.product_id WHERE bs.lot_code LIKE ? OR fp.name LIKE ? ORDER BY bs.bottled_at DESC LIMIT 10`).bind(like, like).all().then((r) => r.results).catch(() => []),
   ]);
-  return { lots, vessels };
+  return { lots, vessels, bottlings };
 }
 
 async function listOperations(env, f) {
@@ -195,7 +185,7 @@ async function listOperations(env, f) {
   const lines = (await env.DB.prepare(`SELECT ol.*, v.code AS vessel_code, lo.code AS lot_code, lo.wine_type FROM operation_lines ol LEFT JOIN vessels v ON v.id = ol.vessel_id LEFT JOIN lots lo ON lo.id = ol.lot_id WHERE ol.operation_id IN (${ids.map(() => '?').join(',')}) ORDER BY ol.sort, ol.id`).bind(...ids).all()).results;
   const byOp = {};
   for (const l of lines) (byOp[l.operation_id] ||= []).push(l);
-  return { operations: ops.map((o) => ({ ...o, payload: o.payload ? JSON.parse(o.payload) : null, undo: undefined, lines: byOp[o.id] || [] })) };
+  return { operations: ops.map((o) => ({ ...o, payload: o.payload ? JSON.parse(o.payload) : null, undo: undefined, biodynamic: biodynamicDay(o.op_date), lines: byOp[o.id] || [] })) };
 }
 
 async function getOperation(env, id) {
@@ -218,7 +208,13 @@ async function activity(env) {
     board(env),
   ]);
   const toClean = b.vessels.filter((v) => v.flags.includes('limpiar')).length;
-  return { today, ops30: ops30.n, drafts: drafts.n, toClean, byType, byMonth, lotsByType, kpi: b.kpi };
+  const batches = await inventario.batches(env);
+  const active = batches.filter((x) => x.status === 'active' && x.qty_available > 0);
+  const expiring = active.filter((x) => x.expiry_state === 'soon30' || x.expiry_state === 'soon90');
+  const expired = batches.filter((x) => x.expiry_state === 'expired' && x.status === 'active');
+  const bottlingByMonth = (await env.DB.prepare("SELECT substr(bottled_at, 1, 7) AS month, SUM(bottles) AS n FROM bottling_sessions WHERE bottled_at >= ? GROUP BY month ORDER BY month").bind(since12).all()).results;
+  const bottledL = (await env.DB.prepare('SELECT COALESCE(SUM(bottles_available * bottle_ml / 1000.0), 0) AS l FROM bottling_sessions').first()).l;
+  return { today, ops30: ops30.n, drafts: drafts.n, toClean, byType, byMonth, lotsByType, kpi: b.kpi, stock: { active: active.length, expiring: expiring.length, expired: expired.length, expiringList: expiring.slice(0, 10) }, bottlingByMonth, bulkVsBottled: { bulk_l: Math.round(b.kpi.liters), bottled_l: Math.round(bottledL) } };
 }
 
 async function trace(env, { lot, vessel }) {
@@ -248,7 +244,10 @@ async function trace(env, { lot, vessel }) {
     const lines = (await env.DB.prepare(`SELECT ol.side, ol.volume, ol.unit, v.code AS vessel_code, lo2.code AS lot_code, lo2.id AS lot_id FROM operation_lines ol LEFT JOIN vessels v ON v.id = ol.vessel_id LEFT JOIN lots lo2 ON lo2.id = ol.lot_id WHERE ol.operation_id = ? AND ol.side = 'origin'`).bind(lo.created_by_op).all()).results;
     origin = { ...o, origins: lines };
   }
-  return { lot: lo, stays, operations: ops, analyses, tastings, cleanings, origin };
+  const bottlings = (await env.DB.prepare('SELECT bs.*, fp.name AS product_name FROM bottling_sessions bs JOIN finished_products fp ON fp.id = bs.product_id WHERE bs.source_lot_id = ? ORDER BY bs.bottled_at').bind(lotId).all()).results;
+  const children = (await env.DB.prepare('SELECT id, code, creation_method, created_at FROM lots WHERE parent_lot_id = ? ORDER BY id').bind(lotId).all()).results;
+  const readings = (await env.DB.prepare('SELECT * FROM ferment_readings WHERE lot_id = ? ORDER BY read_at').bind(lotId).all()).results;
+  return { lot: lo, stays, operations: ops, analyses, tastings, cleanings, origin, bottlings, children, readings };
 }
 
 // ---------------------------------------------------------------- master data
@@ -256,7 +255,6 @@ const TYPE_MAP = { fermentation: 'fermentation', fermentación: 'fermentation', 
 const MATERIAL_MAP = { stainless_steel: 'stainless_steel', inox: 'stainless_steel', acero: 'stainless_steel', 'acero inoxidable': 'stainless_steel', concrete: 'concrete', hormigón: 'concrete', hormigon: 'concrete', betão: 'concrete', oak: 'oak', roble: 'oak', 'roble / madera': 'oak', madera: 'oak', madeira: 'oak', fiberglass: 'fiberglass', 'fibra de vidrio': 'fiberglass', fibra: 'fiberglass', clay: 'clay', barro: 'clay', chestnut: 'chestnut', castaño: 'chestnut', acacia: 'acacia', ceramic: 'ceramic', 'gres / cerámica': 'ceramic', gres: 'ceramic', cerámica: 'ceramic', glass: 'glass', vidrio: 'glass', terracotta: 'terracotta', terracota: 'terracotta', plastic: 'plastic', plástico: 'plastic', plastico: 'plastic' };
 const KIND_MAP = { tank: 'tank', depósito: 'tank', deposito: 'tank', 'depósito / cuba': 'tank', cuba: 'tank', tanque: 'tank', foudre: 'foudre', 'foudre / tino': 'foudre', tino: 'foudre', puncheon: 'foudre', barrel: 'barrel', barrica: 'barrel', barril: 'barrel', bin: 'bin', keg: 'keg', amphora: 'amphora', ánfora: 'amphora', anfora: 'amphora', egg: 'egg', huevo: 'egg', ovo: 'egg', tirage_cage: 'tirage_cage', 'jaula de tiraje': 'tirage_cage', press: 'press', prensa: 'press', carboy: 'carboy', garrafón: 'carboy', garrafon: 'carboy', damajuana: 'carboy' };
 const norm = (map, v, dflt) => { if (v == null || v === '') return dflt; const k = String(v).trim().toLowerCase(); return map[k] || (Object.values(map).includes(k) ? k : fail(400, `Valor no reconocido: ${v}`)); };
-const bool = (v, dflt) => { if (v == null || v === '') return dflt; if (typeof v === 'boolean') return v ? 1 : 0; const s = String(v).trim().toLowerCase(); return ['1', 'si', 'sí', 'sim', 'yes', 'true', 'y'].includes(s) ? 1 : 0; };
 
 function vesselFields(b) {
   const code = str(b.code); if (!code) fail(400, 'Falta el código del recipiente');
@@ -266,9 +264,10 @@ function vesselFields(b) {
     vessel_type: norm(TYPE_MAP, b.vessel_type, 'storage'), material: norm(MATERIAL_MAP, b.material, 'stainless_steel'), kind: norm(KIND_MAP, b.kind, 'tank'),
     location_id: int(b.location_id), is_active: bool(b.is_active, 1), always_full: bool(b.always_full, 0),
     cooperage: str(b.cooperage), wood_origin: str(b.wood_origin), toast_level: str(b.toast_level), barrel_format: str(b.barrel_format), acquisition_date: str(b.acquisition_date), notes: str(b.notes),
+    grain: str(b.grain), barrel_status: str(b.barrel_status), barrel_notes: str(b.barrel_notes),
   };
 }
-const VESSEL_COLS = ['code', 'capacity_l', 'vessel_type', 'material', 'kind', 'location_id', 'is_active', 'always_full', 'cooperage', 'wood_origin', 'toast_level', 'barrel_format', 'acquisition_date', 'notes'];
+const VESSEL_COLS = ['code', 'capacity_l', 'vessel_type', 'material', 'kind', 'location_id', 'is_active', 'always_full', 'cooperage', 'wood_origin', 'toast_level', 'barrel_format', 'acquisition_date', 'notes', 'grain', 'barrel_status', 'barrel_notes'];
 const insertVesselStmt = (env, f) => env.DB.prepare(`INSERT INTO vessels (${VESSEL_COLS.join(',')}) VALUES (${VESSEL_COLS.map(() => '?').join(',')})`).bind(...VESSEL_COLS.map((c) => f[c]));
 
 async function createVessel(env, b) {
@@ -309,15 +308,6 @@ async function updateVessel(env, id, b) {
   await env.DB.prepare(`UPDATE vessels SET ${VESSEL_COLS.map((c) => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`).bind(...VESSEL_COLS.map((c) => f[c]), id).run();
   return { ok: true };
 }
-async function createLocation(env, b) {
-  const name = str(b.name); if (!name) fail(400, 'Falta el nombre');
-  const r = await env.DB.prepare('INSERT INTO locations (name, room, sort) VALUES (?, ?, ?)').bind(name, str(b.room), int(b.sort) || 0).run();
-  return { ok: true, id: r.meta.last_row_id };
-}
-async function updateLocation(env, id, b) {
-  await env.DB.prepare('UPDATE locations SET name = COALESCE(?, name), room = ?, sort = COALESCE(?, sort) WHERE id = ?').bind(str(b.name), str(b.room), int(b.sort), id).run();
-  return { ok: true };
-}
 async function createProduct(env, b) {
   const name = str(b.name); if (!name) fail(400, 'Falta el nombre del producto');
   const r = await env.DB.prepare('INSERT INTO products (code, category, name, unit, supplier, min_stock, concentration_gl, apparent_vol_mlg, allergen, notes) VALUES (?,?,?,?,?,?,?,?,?,?)')
@@ -328,11 +318,6 @@ async function updateProduct(env, id, b) {
   await env.DB.prepare('UPDATE products SET code = ?, category = ?, name = ?, unit = ?, supplier = ?, min_stock = ?, concentration_gl = ?, apparent_vol_mlg = ?, allergen = ?, notes = ? WHERE id = ?')
     .bind(str(b.code), str(b.category) || 'other', str(b.name), str(b.unit) || 'g', str(b.supplier), num(b.min_stock), num(b.concentration_gl), num(b.apparent_vol_mlg), bool(b.allergen, 0), str(b.notes), id).run();
   return { ok: true };
-}
-async function createUser(env, b) {
-  const name = str(b.name); if (!name) fail(400, 'Falta el nombre');
-  const r = await env.DB.prepare('INSERT INTO users (name, initials, role) VALUES (?, ?, ?)').bind(name, str(b.initials), b.role === 'admin' ? 'admin' : 'crew').run();
-  return { ok: true, id: r.meta.last_row_id };
 }
 async function updateLot(env, id, b) {
   const cur = await env.DB.prepare('SELECT * FROM lots WHERE id = ?').bind(id).first();
@@ -345,14 +330,6 @@ async function updateLot(env, id, b) {
   return { ok: true };
 }
 
-async function nextLotCode(env, wineType, vintage) {
-  const y = String((vintage || new Date().getFullYear()) % 100).padStart(2, '0');
-  const prefix = `${y}-${WINE_ABBR[wineType] || 'LT'}-`;
-  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM lots WHERE code LIKE ?').bind(prefix + '%').first();
-  let n = (r.n || 0) + 1, code;
-  do { code = prefix + String(n).padStart(3, '0'); n++; } while (await env.DB.prepare('SELECT 1 FROM lots WHERE code = ?').bind(code).first());
-  return code;
-}
 
 // Saldos de apertura: una fila por recipiente con vino → crea el lote y su estancia.
 async function openingBalances(env, b) {
@@ -624,7 +601,17 @@ async function confirm(env, id, p) {
       if (!p.products.length) fail(400, 'Añade al menos un producto');
       touched.add(o.vessel_id);
       addLine('origin', { vessel_id: o.vessel_id, lot_id: s.lot_id, volume: null });
-      for (const x of p.products) addLine('product', { vessel_id: o.vessel_id, lot_id: s.lot_id, product_id: x.product_id, product_name: x.product_name, qty: x.qty, unit: x.unit, note: x.note });
+      for (const x of p.products) {
+        let batchNote = null;
+        if (x.product_id && x.qty) {
+          const f = await inventario.fefoConsume(env, x.product_id, x.qty, id, p.op_date);
+          stmts.push(...f.stmts);
+          if (f.used.length) batchNote = 'Lotes: ' + f.used.map((u) => `${u.supplier_lot} (${u.qty})`).join(', ') + (f.short ? ` · faltan ${f.short} sin lote` : '');
+          undo.batches = (undo.batches || []).concat(f.used.map((u) => ({ batch_id: u.batch_id, qty: u.qty })));
+          x._batch_id = f.used[0]?.batch_id || null;
+        }
+        addLine('product', { vessel_id: o.vessel_id, lot_id: s.lot_id, product_id: x.product_id, product_name: x.product_name, qty: x.qty, unit: x.unit, note: [x.note, batchNote].filter(Boolean).join(' · ') || null, batch_id: x._batch_id || null });
+      }
       break;
     }
     case 'topping': {
@@ -682,8 +669,8 @@ async function confirm(env, id, p) {
   // Líneas, estado y deshacer
   stmts.push(env.DB.prepare('DELETE FROM operation_lines WHERE operation_id = ?').bind(id));
   for (const l of lines) {
-    stmts.push(env.DB.prepare('INSERT INTO operation_lines (operation_id, side, vessel_id, lot_id, volume, fraction, new_lot_code, product_id, product_name, qty, unit, line_note, sort) VALUES (?,?,?,' + (l.lot_id ? '?' : '(SELECT id FROM lots WHERE code = ?)') + ',?,?,?,?,?,?,?,?,?)')
-      .bind(id, l.side, l.vessel_id || null, l.lot_id || l.lot_code || null, l.volume ?? null, l.fraction || null, l.new_lot_code || null, l.product_id || null, l.product_name || null, l.qty ?? null, l.unit || null, l.note || null, l.sort));
+    stmts.push(env.DB.prepare('INSERT INTO operation_lines (operation_id, side, vessel_id, lot_id, volume, fraction, new_lot_code, product_id, product_name, qty, unit, line_note, sort, batch_id) VALUES (?,?,?,' + (l.lot_id ? '?' : '(SELECT id FROM lots WHERE code = ?)') + ',?,?,?,?,?,?,?,?,?,?)')
+      .bind(id, l.side, l.vessel_id || null, l.lot_id || l.lot_code || null, l.volume ?? null, l.fraction || null, l.new_lot_code || null, l.product_id || null, l.product_name || null, l.qty ?? null, l.unit || null, l.note || null, l.sort, l.batch_id || null));
   }
   stmts.push(env.DB.prepare("UPDATE operations SET status = 'confirmed', confirmed_at = datetime('now'), payload = ?, undo = ? WHERE id = ?").bind(JSON.stringify(p), JSON.stringify(undo), id));
   await env.DB.batch(stmts);
@@ -703,6 +690,7 @@ async function revertOperation(env, id) {
   const stmts = [env.DB.prepare('DELETE FROM stays WHERE opened_by_op = ?').bind(id)];
   for (const s of undo.stays) stmts.push(env.DB.prepare('UPDATE stays SET volume = ?, left_at = ?, volume_out = ?, closed_by_op = ? WHERE id = ?').bind(s.volume, s.left_at, s.volume_out, s.closed_by_op, s.id));
   for (const v of undo.fills || []) stmts.push(env.DB.prepare('UPDATE vessels SET fill_count = MAX(0, fill_count - 1) WHERE id = ?').bind(v));
+  for (const bt of undo.batches || []) { stmts.push(env.DB.prepare("UPDATE product_batches SET qty_available = qty_available + ?, status = CASE WHEN status = 'depleted' THEN 'active' ELSE status END WHERE id = ?").bind(bt.qty, bt.batch_id)); stmts.push(env.DB.prepare("INSERT INTO product_movements (batch_id, moved_at, qty, reason, operation_id, notes) VALUES (?, ?, ?, 'adjustment', ?, 'Operación revertida')").bind(bt.batch_id, op.op_date, bt.qty, id)); }
   for (const code of undo.lots || []) stmts.push(env.DB.prepare('DELETE FROM lots WHERE code = ? AND created_by_op = ? AND NOT EXISTS (SELECT 1 FROM stays WHERE stays.lot_id = lots.id) AND NOT EXISTS (SELECT 1 FROM analyses WHERE analyses.lot_id = lots.id) AND NOT EXISTS (SELECT 1 FROM tastings WHERE tastings.lot_id = lots.id) AND NOT EXISTS (SELECT 1 FROM lots c WHERE c.parent_lot_id = lots.id)').bind(code, id));
   stmts.push(env.DB.prepare("UPDATE operations SET status = 'reverted', reverted_at = datetime('now') WHERE id = ?").bind(id));
   await env.DB.batch(stmts);

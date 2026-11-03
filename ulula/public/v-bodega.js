@@ -1,0 +1,520 @@
+// Bodega: tablero, recipiente, operaciones (formulario de 9 tipos + coupage), trazabilidad, análisis, calculadora, catas, inventario, actividad.
+import { S, $, $$, esc, fmtN, fmtL, fmtD, fmtDT, today, nowLocal, daysBetween, ico, api, reload, toast, go, me, vessel, lot, activeLots, qs, crumbs, head, empty, kpi, tabs, bioPill, lotPill, modal, closeModal, showError, formModal, confirmDialog, vesselPicker, barrelPickerModal, vcard, vesselSvg, barChart, lineChart, hbars, ring, withWine, isEmpty, isMaceration, isPress, inWine, isBarrel, opts, formValues, yearsOf, TYPES, TYPE_LABEL, TYPE_ICON, WINE, WINE_COLOR, PHASE, KIND, MATERIAL, VTYPE, FRACTION, CATEGORY, TASTING_PHASE, BATCH_STATUS, BOTTLE_STAGE, SUGAR_UNIT } from './core.js';
+
+const FLAG = { rellenar: 'Rellenar', analisis: 'Análisis', limpiar: 'Limpiar' };
+const route = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+// ================================================================ TABLERO
+function cellHtml(v, pict) {
+  const occ = !!v.stay_id;
+  const badges = v.flags.map((f) => `<span class="badge ${f}">${FLAG[f]}</span>`).join('') + (occ && !v.fermentation_done ? '<span class="badge fa">FA en curso</span>' : '');
+  const desc = occ ? `${esc(v.varieties || '')}${v.varieties ? ' · ' : ''}${WINE[v.wine_type] || ''}${v.vintage ? ' · ' + v.vintage : ''}` : (v.last_cleaning ? `Limpio ${fmtD(v.last_cleaning)}` : 'Sin limpiezas registradas');
+  const wc = occ ? WINE_COLOR[v.wine_type] : null;
+  if (pict) return `<a class="cell p" href="#/recipiente/${v.id}">${vesselSvg(v, v.pct, wc)}<div class="vol">${occ ? fmtL(v.stay_volume, v.stay_unit) : '<span class="muted">Libre</span>'}</div>${occ ? `<div class="lot">${esc(v.lot_code)}</div>` : `<div class="desc">${fmtN(v.capacity_l)} L</div>`}<div class="desc">${desc}</div><div class="badges">${badges}</div></a>`;
+  return `<a class="cell ${occ ? '' : 'free'}" href="#/recipiente/${v.id}" style="${wc ? `--wc:${wc}` : ''}"><div class="top"><span class="vol">${occ ? fmtL(v.stay_volume, v.stay_unit) : 'Libre'}</span><span class="d">${v.last_op ? fmtD(v.last_op) : ''}</span></div><div class="code">${esc(v.code)}</div><div class="cap">Cap. ${fmtN(v.capacity_l)} L · ${KIND[v.kind] || v.kind}</div>${occ ? `<div class="lot">${esc(v.lot_code)}</div>` : ''}<div class="desc">${desc}</div>${occ ? `<div class="fillbar"><i style="width:${v.pct}%"></i></div>` : ''}<div class="badges">${badges}</div></a>`;
+}
+export async function viewBoard(page) {
+  crumbs('Bodega', 'Tablero de bodega');
+  const b = await api('/board'); S.board = b; const k = b.kpi;
+  page.innerHTML = head({ title: 'Tablero de bodega', icon: 'board', k: 'k-bodega', eyebrow: 'Bodega', sub: 'Una celda por recipiente: lo que contiene y lo que necesita.', actions: `<a class="btn" href="#/depositos">${ico('tank')} Depósitos</a><button class="btn primary" id="newop">${ico('plus')} Nueva operación</button>` }) +
+    `<div class="kpi-row">${kpi('Recipientes', k.vessels, `${k.occupied} ocupados · ${k.free} libres`, 'k-bodega')}${kpi('Vino en bodega', fmtN(k.liters), `Capacidad instalada: ${fmtN(k.capacity)} L`, 'k-ventas', ' L')}${kpi('Uva en maceración', fmtN(k.kg), '', 'k-huerta', ' kg')}${kpi('Requieren atención', k.attention, k.attention ? 'rellenar · análisis · limpiar' : 'todo en orden', k.attention ? 'warn' : 'k-equipo')}</div>
+    <div class="board-tools"><label class="search">${ico('search')}<input id="bq" placeholder="Código, lote, variedad o ubicación…" value="${esc(S.q)}" autocomplete="off"></label>
+      <div class="seg" role="group" aria-label="Vista"><button data-v="cards" aria-pressed="${S.view === 'cards'}">${ico('grid')}Tablero</button><button data-v="pict" aria-pressed="${S.view === 'pict'}">${ico('cellar')}Bodega</button></div>
+      <select class="inline" id="bgroup"><option value="kind" ${S.group === 'kind' ? 'selected' : ''}>Agrupar: tipo de recipiente</option><option value="location" ${S.group === 'location' ? 'selected' : ''}>Agrupar: ubicación</option><option value="wine" ${S.group === 'wine' ? 'selected' : ''}>Agrupar: tipo de vino</option><option value="none" ${S.group === 'none' ? 'selected' : ''}>Sin agrupar</option></select></div>
+    <div class="chips" id="bchips">${[['todos', 'Todos'], ['ocupados', 'Solo ocupados'], ['libres', 'Solo libres'], ['atencion', 'Requieren atención'], ['fa', 'En fermentación']].map(([v, l]) => `<button data-f="${v}" aria-pressed="${S.filter === v}">${l}</button>`).join('')}</div>
+    <div id="cells"></div>
+    <div class="nlbar"><div class="in"><div>${ico('sparkle', 'spark')}<input id="nl" placeholder="Escribe lo que has hecho: «trasiego de TK-13 a SS-600, 1 200 L, merma 5»" autocomplete="off"></div><button class="btn primary" id="nlgo">${ico('sparkle')} Interpretar</button></div><div class="help">Reconoce trasiegos, filtraciones, rellenados, sangrados, prensados, adiciones, ventas y barricas; abre el formulario ya rellenado para que lo confirmes.</div></div>`;
+  const draw = () => {
+    const q = S.q.trim().toLowerCase();
+    let vs = b.vessels.filter((v) => v.is_active);
+    if (q) vs = vs.filter((v) => [v.code, v.lot_code, v.varieties, v.location_name].some((x) => (x || '').toLowerCase().includes(q)));
+    if (S.filter === 'ocupados') vs = vs.filter((v) => v.stay_id); if (S.filter === 'libres') vs = vs.filter((v) => !v.stay_id);
+    if (S.filter === 'atencion') vs = vs.filter((v) => v.flags.length); if (S.filter === 'fa') vs = vs.filter((v) => v.stay_id && !v.fermentation_done);
+    const groups = {}, meta = {};
+    for (const v of vs) { const g = S.group === 'kind' ? (KIND[v.kind] || v.kind) : S.group === 'location' ? (v.location_name || 'Sin ubicación') : S.group === 'wine' ? (v.stay_id ? WINE[v.wine_type] || v.wine_type : 'Libres') : ''; (groups[g] ||= []).push(v); meta[g] = { l: 0, cap: 0 }; }
+    for (const g in groups) for (const v of groups[g]) { meta[g].cap += v.capacity_l; if (v.stay_unit === 'L') meta[g].l += v.stay_volume; }
+    const order = Object.keys(groups).sort((a, c) => (a === 'Sin ubicación' || a === 'Libres') - (c === 'Sin ubicación' || c === 'Libres') || a.localeCompare(c));
+    $('#cells').innerHTML = !b.vessels.length ? empty('Aún no hay recipientes registrados', 'Registra tus depósitos, tinas y barricas y el tablero se completa solo.', '<a class="btn primary" href="#/depositos">Ir a Depósitos</a>', 'tank') : vs.length ? order.map((g) => `${g ? `<div class="group-head">${S.group === 'location' ? ico('map') : ''}${esc(g)} <small>${groups[g].length} recipientes · ${fmtN(meta[g].l)} L de ${fmtN(meta[g].cap)} L</small></div>` : ''}<div class="cells ${S.view === 'pict' ? 'pict' : ''}">${groups[g].map((v) => cellHtml(v, S.view === 'pict')).join('')}</div>`).join('') : empty('Nada que mostrar', 'Ningún recipiente coincide con el filtro.', '', 'search');
+  };
+  draw();
+  $('#bq').oninput = (e) => { S.q = e.target.value; draw(); };
+  $$('.seg button', page).forEach((bt) => bt.onclick = () => { S.view = bt.dataset.v; localStorage.setItem('ulula.view', S.view); $$('.seg button', page).forEach((x) => x.setAttribute('aria-pressed', x === bt)); draw(); });
+  $('#bgroup').onchange = (e) => { S.group = e.target.value; localStorage.setItem('ulula.group', S.group); draw(); };
+  $$('#bchips button').forEach((bt) => bt.onclick = () => { S.filter = bt.dataset.f; $$('#bchips button').forEach((x) => x.setAttribute('aria-pressed', x === bt)); draw(); });
+  $('#newop').onclick = () => openOperation({});
+  const interpret = () => { const text = $('#nl').value.trim(); if (!text) return; const r = parseNL(text); if (!r.type) return toast('No he reconocido la operación; usa «Nueva operación».', true); openOperation({ prefill: r, note: text }); };
+  $('#nlgo').onclick = interpret; $('#nl').onkeydown = (e) => { if (e.key === 'Enter') interpret(); };
+}
+// Intérprete de lenguaje natural (reglas): tipo, recipientes por código, litros/kg, merma, lías, producto y cantidad.
+export function parseNL(text) {
+  const t = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const type = /barric/.test(t) && /(llen|pas|a barric|meter)/.test(t) ? 'barrel_transfer' : /barric/.test(t) && /(vaci|sacar|salir)/.test(t) ? 'barrel_transfer_empty' : /(filtr)/.test(t) ? 'filtration' : /(desfang|decant)/.test(t) ? 'decantation' : /(rellen|top)/.test(t) ? 'topping' : /(sangr|saign)/.test(t) ? 'bleeding' : /(prens)/.test(t) ? 'pressing' : /(vent|vendid|granel)/.test(t) ? 'bulk_sale' : /(adici|anad|corrig|sulfit|so2|bentonit|nutrient|levadur|acido|tanin|enzim)/.test(t) ? 'addition' : /(coupage|mezcl|ensambl)/.test(t) ? 'blend' : /(trasieg|traseg|pasar|mover|de .+ a )/.test(t) ? 'racking' : null;
+  const codes = S.boot.vessels.filter((v) => new RegExp('(^|[^a-z0-9])' + v.code.toLowerCase().replace(/[-]/g, '[- ]?') + '([^a-z0-9]|$)').test(t)).sort((a, c) => t.indexOf(a.code.toLowerCase().replace('-', '')) - t.indexOf(c.code.toLowerCase().replace('-', '')));
+  const ordered = codes.map((v) => ({ v, i: t.search(new RegExp(v.code.toLowerCase().replace(/[-]/g, '[- ]?'))) })).sort((a, c) => a.i - c.i).map((x) => x.v);
+  const num = (re) => { const m = t.replace(/(\d)[ .](\d{3})/g, '$1$2').match(re); return m ? +m[1].replace(',', '.') : null; };
+  const vol = num(/(\d+(?:[.,]\d+)?)\s*(?:l\b|litros?)/) ?? num(/(\d{3,6})(?!\s*(?:kg|g\b|ml|%))/);
+  const kg = num(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilos?)/);
+  const loss = num(/merma\D{0,6}(\d+(?:[.,]\d+)?)/) ?? num(/(\d+(?:[.,]\d+)?)\s*(?:l\s*)?(?:de\s*)?merma/);
+  const lees = num(/l[ií]as\D{0,6}(\d+(?:[.,]\d+)?)/) ?? num(/(\d+(?:[.,]\d+)?)\s*(?:l\s*)?(?:de\s*)?l[ií]as/);
+  const prod = S.boot.products.find((p) => t.includes(p.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')) || (p.code && t.includes(p.code.toLowerCase())));
+  const qty = num(/(\d+(?:[.,]\d+)?)\s*(?:g\b|gramos|mg|ml|kg)/);
+  const r = { type: type === 'barrel_transfer_empty' ? 'barrel_transfer' : type, mode: type === 'barrel_transfer_empty' ? 'empty' : 'fill', origins: [], destinations: [], volume_l: vol, loss_l: loss, lees_l: lees, products: prod ? [{ product_id: prod.id, product_name: prod.name, unit: prod.unit, qty }] : [] };
+  const barrels = ordered.filter(isBarrel), tanks = ordered.filter((v) => !isBarrel(v));
+  if (r.type === 'barrel_transfer') { if (r.mode === 'fill') { r.origins = tanks.slice(0, 1).map((v) => ({ vessel_id: v.id })); r.destinations = barrels.map((v) => ({ vessel_id: v.id })); } else { r.origins = barrels.map((v) => ({ vessel_id: v.id })); r.destinations = tanks.slice(0, 1).map((v) => ({ vessel_id: v.id })); } }
+  else if (['racking', 'filtration', 'decantation', 'bleeding'].includes(r.type)) { const src = ordered.find((v) => v.stay_id) || ordered[0]; const dst = ordered.find((v) => v !== src); if (src) r.origins = [{ vessel_id: src.id }]; if (dst) r.destinations = [{ vessel_id: dst.id, volume: vol ?? '' }]; }
+  else if (r.type === 'topping') { const d = ordered[0]; if (d) r.destinations = [{ vessel_id: d.id }]; if (ordered[1]) r.origins = [{ vessel_id: ordered[1].id }]; }
+  else if (r.type === 'blend') { r.origins = ordered.filter((v) => v.stay_id).map((v) => ({ vessel_id: v.id })); const d = ordered.find((v) => !v.stay_id); if (d) r.destinations = [{ vessel_id: d.id }]; }
+  else if (ordered[0]) r.origins = [{ vessel_id: ordered[0].id }];
+  if (r.type === 'pressing' && kg) r.volume_l = null;
+  return r;
+}
+
+// ================================================================ RECIPIENTE
+export async function viewVessel(page, id) {
+  const d = await api(`/vessels/${id}`); const v = d.vessel, s = d.stay;
+  crumbs('Bodega', '<a href="#/tablero">Tablero</a>', esc(v.code));
+  const pct = s ? Math.round((s.volume / v.capacity_l) * 100) : 0;
+  const ferm = s && !s.fermentation_done;
+  page.innerHTML = `<a class="btn ghost sm" href="#/tablero" style="margin:-6px 0 10px -8px">${ico('back')} Volver al tablero</a>
+    <div class="vhead"><div><div class="eyebrow">${KIND[v.kind] || 'Recipiente'} · ${VTYPE[v.vessel_type] || ''}</div><h1>${esc(v.code)}</h1><div class="sub">${MATERIAL[v.material] || ''} · ${fmtN(v.capacity_l)} L${v.location_name ? ' · ' + esc(v.location_name) : ''}${v.always_full ? ' · tapa flotante' : ''}${v.fill_count ? ` · ${v.fill_count} llenados` : ''}</div></div><div class="actions"><button class="btn" id="q-qr">${ico('qr')} QR</button><button class="btn" id="q-edit">${ico('edit')} Editar</button></div></div>
+    <div class="grid2">
+      <div class="stack">
+        <div class="card k-bodega"><div class="between"><span class="eyebrow">Contenido actual</span>${s ? `<span class="pill ok">${pct}% lleno</span>` : '<span class="pill">Vacío</span>'}</div>
+          ${s ? `<div class="big" style="margin:8px 0 4px">${fmtN(s.volume, 1)}<small> ${s.unit}</small></div><div><a href="#/traza?lot=${s.lot_id}">${lotPill(s.lot_code)}</a> <span class="muted">${esc(s.varieties || '')} · ${WINE[s.wine_type] || ''}${s.vintage ? ' · ' + s.vintage : ''} · ${PHASE[s.phase] || ''}</span></div><div class="small muted" style="margin-top:6px">Desde el ${fmtD(s.entered_at)} · ${daysBetween(s.entered_at)} días</div><div class="progress" style="margin-top:10px"><i style="width:${pct}%"></i></div><div style="margin-top:10px"><a href="#/traza?lot=${s.lot_id}">Ver trazabilidad completa ›</a></div>` : `<div class="muted" style="margin-top:8px">Libre${d.cleanings[0] ? ` · limpio el ${fmtD(d.cleanings[0].cleaned_at)}` : ' · sin limpiezas registradas'}</div>`}
+        </div>
+        ${ferm ? `<button class="cta" id="fa-read"><span><small>Lote en fermentación</small>Nueva lectura de fermentación</span>${ico('thermo')}</button><button class="btn lg" id="fadone">${ico('check')} Marcar fermentación como terminada</button>` : ''}
+        <div class="card"><h3>${ico('ops')}Acciones rápidas</h3><div class="quick">
+          <button class="btn" id="q-op">${ico('ops')} Nueva operación</button>
+          ${s ? `<button class="btn" id="q-an">${ico('lab')} Análisis</button><button class="btn" id="q-cata">${ico('glass')} Nota de cata</button>` : `<button class="btn" id="q-clean">${ico('clean')} Registrar limpieza</button>`}
+          <button class="btn" id="q-note">${ico('note')} Nota</button></div></div>
+        <div class="card"><h3>${ico('history')}Últimas correcciones</h3>${d.corrections.length ? `<div class="subtle-list">${d.corrections.map((c) => `<div><span><b>${esc(c.product_name || '')}</b> ${fmtN(c.qty, 2)} ${esc(c.unit || '')}${c.line_note ? ` <span class="muted small">· ${esc(c.line_note)}</span>` : ''}</span><span class="muted num small">${fmtD(c.op_date)}</span></div>`).join('')}</div>` : '<div class="muted">Sin adiciones ni correcciones en este lote.</div>'}</div>
+        ${s ? `<div class="card k-marketing"><h3>${ico('thermo')}Lecturas de fermentación</h3>${d.readings.length ? lineChart([{ name: 'Azúcar', points: d.readings.slice().reverse().map((r) => ({ t: Date.parse(r.read_at.replace(' ', 'T')), y: r.sugar, x: fmtDT(r.read_at) })), color: '#c2410c' }], { h: 160, xLabel: (p) => p.x }) + `<div class="subtle-list" style="margin-top:8px">${d.readings.slice(0, 6).map((r) => `<div><span class="num">${fmtDT(r.read_at)}</span><span><b class="num">${r.sugar}</b> ${SUGAR_UNIT[r.sugar_unit] || r.sugar_unit}${r.temp != null ? ` · ${r.temp} °C` : ''} <span class="muted small">· ${esc(r.recorded_by || '')}</span></span></div>`).join('')}</div>` : '<div class="muted">Sin lecturas registradas.</div>'}</div>` : ''}
+      </div>
+      <div class="stack">
+        <div class="card"><h3>${ico('ops')}Últimos movimientos</h3>${d.operations.length ? `<div class="rowlist">${d.operations.map((o) => `<div class="item"><div class="body"><div class="t">${TYPE_LABEL[o.type] || o.type} <span class="pill ${o.status === 'draft' ? 'draft' : 'type'}">${o.status === 'draft' ? 'Borrador' : o.side === 'origin' ? 'Sale' : o.side === 'destination' ? 'Entra' : o.side === 'product' ? 'Adición' : o.side}</span></div><div class="m">${fmtD(o.op_date)} · ${o.volume != null ? fmtL(o.volume, o.unit || 'L') : o.product_name ? `${esc(o.product_name)} ${fmtN(o.qty, 2)} ${esc(o.unit || '')}` : ''} ${o.operator_name ? '· ' + esc(o.operator_name) : ''}</div></div></div>`).join('')}</div>` : '<div class="muted">No hay operaciones registradas para este recipiente.</div>'}</div>
+        <div class="card"><h3>${ico('lab')}Análisis</h3>${d.analyses.length ? analysesTable(d.analyses) : '<div class="muted">No hay análisis registrados para este lote.</div>'}</div>
+        <div class="card"><h3>${ico('glass')}Notas de cata</h3>${d.tastings.length ? tastingsList(d.tastings) : '<div class="muted">Sin catas registradas.</div>'}</div>
+        <div class="card"><h3>${ico('note')}Notas y mantenimiento</h3>${d.notes.length ? `<div class="subtle-list">${d.notes.map((n) => `<div><span>${esc(n.text)}${n.kind !== 'note' ? ` <span class="pill">${{ maintenance: 'Mantenimiento', fill: 'Llenado' }[n.kind] || n.kind}</span>` : ''}${n.by_name ? ` <span class="muted small">· ${esc(n.by_name)}</span>` : ''}</span><span class="muted num small">${fmtD(n.noted_at)}</span></div>`).join('')}</div>` : '<div class="muted">Sin notas.</div>'}${d.cleanings.length ? `<div class="sec-title">Limpiezas</div><div class="subtle-list">${d.cleanings.map((c) => `<div><span>${esc(c.method || 'Limpieza')}${c.by_name ? ` <span class="muted small">· ${esc(c.by_name)}</span>` : ''}</span><span class="muted num small">${fmtD(c.cleaned_at)}</span></div>`).join('')}</div>` : ''}</div>
+      </div>
+    </div>`;
+  $('#q-op').onclick = () => openOperation({ prefillVessel: vessel(v.id) });
+  if ($('#q-an')) $('#q-an').onclick = () => openAnalysis({ vessel_id: v.id });
+  if ($('#q-cata')) $('#q-cata').onclick = () => openTasting({ vessel_id: v.id });
+  if ($('#q-clean')) $('#q-clean').onclick = () => openCleaning(v);
+  $('#q-note').onclick = () => formModal({ title: `Nota en ${v.code}`, eyebrow: 'Recipiente', narrow: true, body: `<label class="field req"><span>Nota</span><textarea name="text" rows="3" placeholder="Observación, incidencia, mantenimiento…"></textarea></label><label class="field" style="margin-top:12px"><span>Quién</span><input name="by_name" value="${esc(me()?.name || '')}"></label>`, onSave: async (b) => { await api('/vessels/bulk', { method: 'POST', body: { ids: [v.id], action: 'note', ...b } }); closeModal(); toast('Nota guardada'); route(); } });
+  $('#q-edit').onclick = async () => { const cfg = await import('./v-config.js'); cfg.openVesselForm(vessel(v.id)); };
+  $('#q-qr').onclick = () => openQr(v);
+  if ($('#fa-read')) $('#fa-read').onclick = () => openReading({ lot_id: s.lot_id, vessel_id: v.id, lot_code: s.lot_code });
+  if ($('#fadone')) $('#fadone').onclick = async () => { if (!(await confirmDialog('Terminar fermentación', `¿Marcar la fermentación de <b>${esc(s.lot_code)}</b> como terminada? El lote pasa a posfermentación.`, 'Marcar como terminada'))) return; try { await api(`/fermentations/${s.lot_id}/done`, { method: 'POST' }); toast('Fermentación marcada como terminada'); await reload(); route(); } catch (e) { toast(e.message, true); } };
+}
+export async function openQr(v) {
+  const svg = await fetch(`/api/vessels/${v.id}/qr.svg`).then((r) => r.text());
+  const m = modal(`Código QR · ${v.code}`, `<div class="qr-box">${svg}<div><b>${esc(v.code)}</b><div class="small muted">${KIND[v.kind] || ''} · ${fmtN(v.capacity_l)} L${v.location_name ? ' · ' + esc(v.location_name) : ''}</div><div class="small muted">Escanéalo con el móvil para abrir la ficha del recipiente.</div></div></div>`, `<button class="btn" data-x="cancel">Cerrar</button><a class="btn" href="/api/vessels/${v.id}/qr.svg" download="${esc(v.code)}.svg">${ico('download')} Descargar SVG</a><button class="btn primary" data-x="print">${ico('print')} Imprimir</button>`, { eyebrow: 'Recipiente', narrow: true });
+  $('[data-x=print]', m).onclick = () => window.print();
+}
+export function openReading({ lot_id, vessel_id, lot_code }) {
+  const unit = S.boot.company?.sugar_unit || 'brix';
+  formModal({ title: `Lectura de fermentación · ${lot_code || ''}`, eyebrow: 'Vendimia', okLabel: 'Guardar lectura', body: `<div class="row"><label class="field req"><span>Fecha y hora</span><input type="datetime-local" name="read_at" value="${nowLocal()}"></label><label class="field"><span>Turno</span><select name="shift"><option value="">—</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option></select></label></div>
+    <div class="row" style="margin-top:12px"><label class="field req"><span>Azúcar (${SUGAR_UNIT[unit]})</span><input type="number" step="0.1" name="sugar" inputmode="decimal" placeholder="${unit === 'density' ? '1.040' : '12.5'}"></label><label class="field"><span>Temperatura (°C)</span><input type="number" step="0.1" name="temp" inputmode="decimal" placeholder="24"></label></div>
+    <div class="row" style="margin-top:12px"><label class="field req"><span>Registrado por</span><select name="recorded_by">${S.boot.users.map((u) => `<option ${u.id === me()?.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label></div><label class="field" style="margin-top:12px"><span>Notas</span><textarea name="notes" rows="2" placeholder="Remontado, bazuqueo, olor…"></textarea></label>`,
+    onSave: async (b) => { await api('/fermentations/readings', { method: 'POST', body: { ...b, lot_id, vessel_id, sugar_unit: unit, read_at: b.read_at.replace('T', ' ') } }); closeModal(); toast('Lectura guardada'); route(); } });
+}
+
+// ================================================================ OPERACIONES
+export async function viewOperations(page) {
+  crumbs('Bodega', 'Operaciones de bodega');
+  const q = S.route.q;
+  const r = await api(`/operations${qs(q)}`); const ops = r.operations;
+  const lotOpts = activeLots().map((l) => `<option value="${l.id}" ${String(l.id) === q.lot ? 'selected' : ''}>${esc(l.code)}</option>`).join('');
+  const vOpts = S.boot.vessels.map((v) => `<option value="${v.id}" ${String(v.id) === q.vessel ? 'selected' : ''}>${esc(v.code)}</option>`).join('');
+  const years = yearsOf(ops, 'op_date');
+  page.innerHTML = head({ title: 'Operaciones de bodega', icon: 'ops', k: 'k-bodega', eyebrow: 'Bodega', sub: `${ops.length} ${ops.length === 1 ? 'operación' : 'operaciones'}${S.boot.drafts ? ` · <span class="pill draft">${S.boot.drafts} borrador${S.boot.drafts > 1 ? 'es' : ''}</span>` : ''}`, actions: `<a class="btn" href="#/actividad">${ico('chart')} Actividad</a><a class="btn" href="#/coupage">${ico('blend')} Coupage</a><button class="btn primary" id="newop">${ico('plus')} Nueva operación</button>` }) +
+    `<div class="filters"><select class="inline" data-f="lot"><option value="">Todos los lotes</option>${lotOpts}</select><select class="inline" data-f="vessel"><option value="">Todos los recipientes</option>${vOpts}</select><select class="inline" data-f="color">${opts(WINE, q.color, 'Todos los colores')}</select><select class="inline" data-f="type">${opts(TYPE_LABEL, q.type, 'Todos los tipos')}</select><select class="inline" data-f="year"><option value="">Todos los años</option>${years.map((y) => `<option ${y === q.year ? 'selected' : ''}>${y}</option>`).join('')}</select><select class="inline" data-f="status"><option value="">Todos los estados</option><option value="confirmed" ${q.status === 'confirmed' ? 'selected' : ''}>Confirmadas</option><option value="draft" ${q.status === 'draft' ? 'selected' : ''}>Borradores</option><option value="reverted" ${q.status === 'reverted' ? 'selected' : ''}>Revertidas</option></select></div>` +
+    (ops.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Fecha</th><th>Tipo</th><th>Lote</th><th class="num">Cantidad</th><th>Origen</th><th>Destino</th><th>Operario</th><th></th></tr></thead><tbody>${ops.map(opRow).join('')}</tbody></table></div>`
+      : empty('Aún no hay operaciones', 'Trasiegos, coupages, prensados y adiciones se registran aquí para la trazabilidad.', `<button class="btn primary" id="newop2">Nueva operación</button>`, 'ops'));
+  $$('.filters select', page).forEach((s) => s.onchange = () => go('#/operaciones' + qs({ ...q, [s.dataset.f]: s.value })));
+  const nw = () => openOperation({}); $('#newop').onclick = nw; if ($('#newop2')) $('#newop2').onclick = nw;
+  $$('[data-act]', page).forEach((b) => b.onclick = async () => {
+    const id = +b.dataset.id, op = ops.find((o) => o.id === id);
+    if (b.dataset.act === 'edit') return openOperation({ edit: op });
+    if (b.dataset.act === 'products') return showProducts(op);
+    if (b.dataset.act === 'revert') { if (!(await confirmDialog('Revertir operación', `¿Revertir la operación <b>#${id}</b>? Las estancias y los lotes vuelven a su estado anterior.`, 'Revertir', true))) return; try { await api(`/operations/${id}/revert`, { method: 'POST' }); toast('Operación revertida'); await reload(); route(); } catch (e) { toast(e.message, true); } }
+    if (b.dataset.act === 'delete') { if (!(await confirmDialog('Eliminar borrador', '¿Eliminar este borrador? No afecta a las existencias.', 'Eliminar', true))) return; try { await api(`/operations/${id}`, { method: 'DELETE' }); await reload(); route(); } catch (e) { toast(e.message, true); } }
+  });
+}
+function opRow(o) {
+  const origins = o.lines.filter((l) => l.side === 'origin'), dests = o.lines.filter((l) => l.side === 'destination'), prods = o.lines.filter((l) => l.side === 'product');
+  const lots = [...new Set(o.lines.map((l) => l.lot_code).filter(Boolean))];
+  const qty = o.type === 'addition' ? prods.map((p) => `${esc(p.product_name || '')} ${fmtN(p.qty, 2)} ${esc(p.unit || '')}`).join(', ') : fmtL(dests.reduce((a, l) => a + (l.volume || 0), 0) || origins.reduce((a, l) => a + (l.volume || 0), 0) || o.volume_l, origins[0]?.unit || dests[0]?.unit || 'L');
+  const st = o.status === 'draft' ? '<span class="pill draft">Borrador</span>' : o.status === 'reverted' ? '<span class="pill reverted">Revertida</span>' : '';
+  return `<tr><td data-l="Fecha"><span class="num">${fmtD(o.op_date)}</span> ${bioPill(o.biodynamic)} ${st}</td><td data-l="Tipo"><span class="pill type">${ico(TYPE_ICON[o.type] || 'ops')}${TYPE_LABEL[o.type] || o.type}</span></td><td data-l="Lote">${lots.map(lotPill).join(' ') || '—'}</td><td data-l="Cantidad" class="num">${qty}</td><td data-l="Origen">${origins.map((l) => esc(l.vessel_code)).join(', ') || '—'}</td><td data-l="Destino">${dests.map((l) => esc(l.vessel_code)).join(', ') || (o.lines.find((l) => l.side === 'lees') ? 'lías → ' + esc(o.lines.find((l) => l.side === 'lees').vessel_code) : o.type === 'bulk_sale' ? esc(o.buyer || 'venta') : '—')}</td><td data-l="Operario">${esc(o.operator_name || '—')}</td><td class="acts" style="white-space:nowrap">${prods.length ? `<button class="icon-btn" title="Productos" data-act="products" data-id="${o.id}">${ico('lab')}</button> ` : ''}${o.status === 'draft' ? `<button class="icon-btn" title="Editar borrador" data-act="edit" data-id="${o.id}">${ico('edit')}</button> <button class="icon-btn" title="Eliminar borrador" data-act="delete" data-id="${o.id}">${ico('trash')}</button>` : o.status === 'confirmed' ? `<button class="icon-btn" title="Editar fecha, operario o notas" data-act="edit" data-id="${o.id}">${ico('edit')}</button> <button class="icon-btn" title="Revertir" data-act="revert" data-id="${o.id}">${ico('undo')}</button>` : ''}</td></tr>`;
+}
+function showProducts(op) {
+  const prods = op.lines.filter((l) => l.side === 'product');
+  modal(`Productos · operación #${op.id}`, `<div class="small muted" style="margin-bottom:8px">${fmtD(op.op_date)} · ${esc(op.operator_name || '')}</div><div class="table-wrap"><table class="t"><thead><tr><th>Producto</th><th class="num">Cantidad</th><th>Lote físico / nota</th></tr></thead><tbody>${prods.map((p) => `<tr><td>${esc(p.product_name || '')}</td><td class="num">${fmtN(p.qty, 2)} ${esc(p.unit || '')}</td><td class="small muted">${esc(p.line_note || '—')}</td></tr>`).join('')}</tbody></table></div>`, `<button class="btn" data-x="cancel">Cerrar</button>`, { eyebrow: 'Adiciones', narrow: true });
+}
+
+// ================================================================ COUPAGE (página propia)
+export async function viewCoupage(page) {
+  crumbs('Bodega', 'Coupage');
+  const r = await api('/operations?type=blend'); const ops = r.operations;
+  page.innerHTML = head({ title: 'Coupage', icon: 'blend', k: 'k-bodega', eyebrow: 'Bodega', sub: 'Mezclar varios lotes en un lote nuevo. Elige los depósitos de origen, define el lote resultante y los depósitos de destino.', actions: `<button class="btn primary" id="newblend">${ico('blend')} Nuevo coupage</button>` }) +
+    (ops.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Fecha</th><th>Lote resultante</th><th class="num">Volumen</th><th>Orígenes</th><th>Destino</th><th>Operario</th><th></th></tr></thead><tbody>${ops.map((o) => { const d = o.lines.filter((l) => l.side === 'destination'), og = o.lines.filter((l) => l.side === 'origin'); return `<tr><td data-l="Fecha"><span class="num">${fmtD(o.op_date)}</span> ${bioPill(o.biodynamic)} ${o.status === 'reverted' ? '<span class="pill reverted">Revertida</span>' : o.status === 'draft' ? '<span class="pill draft">Borrador</span>' : ''}</td><td data-l="Lote">${lotPill(d[0]?.lot_code)}</td><td data-l="Volumen" class="num">${fmtL(d.reduce((a, l) => a + (l.volume || 0), 0))}</td><td data-l="Orígenes">${og.map((l) => `${esc(l.vessel_code)} <span class="muted small">${esc(l.lot_code || '')} ${fmtL(l.volume)}</span>`).join('<br>')}</td><td data-l="Destino">${d.map((l) => esc(l.vessel_code)).join(', ')}</td><td data-l="Operario">${esc(o.operator_name || '—')}</td><td class="acts">${o.status === 'confirmed' ? `<button class="icon-btn" title="Revertir" data-rv="${o.id}">${ico('undo')}</button>` : o.status === 'draft' ? `<button class="icon-btn" title="Editar" data-ed="${o.id}">${ico('edit')}</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>`
+      : empty('Aún no hay coupages', 'El coupage cierra las estancias de origen y abre la del lote nuevo; en Trazabilidad el lote nuevo apunta a sus orígenes.', `<button class="btn primary" id="newblend2">Nuevo coupage</button>`, 'blend'));
+  const nw = () => openOperation({ type: 'blend' }); $('#newblend').onclick = nw; if ($('#newblend2')) $('#newblend2').onclick = nw;
+  $$('[data-rv]', page).forEach((b) => b.onclick = async () => { if (!(await confirmDialog('Revertir coupage', '¿Revertir este coupage? Los lotes de origen vuelven a sus depósitos.', 'Revertir', true))) return; try { await api(`/operations/${b.dataset.rv}/revert`, { method: 'POST' }); toast('Coupage revertido'); await reload(); route(); } catch (e) { toast(e.message, true); } });
+  $$('[data-ed]', page).forEach((b) => b.onclick = () => openOperation({ edit: ops.find((o) => o.id === +b.dataset.ed) }));
+}
+
+// ================================================================ FORMULARIO DE OPERACIÓN
+const FORM = { type: 'racking', op_date: '', operator_id: '', notes: '', mode: 'fill', origins: [], destinations: [], products: [], loss_l: '', lees_l: '', lees_vessel_id: '', lees_lot_code: '', volume_l: '', buyer: '', press_vessel_id: '', topping_lot: '', new_lot: { create: false, code: '', wine_type: '', vintage: '', varieties: '', phase: '' } };
+let F = null, FID = null, FSTATUS = null;
+export function openOperation({ type, edit, prefillVessel, prefill, note }) {
+  F = JSON.parse(JSON.stringify(FORM)); F.op_date = today(); F.operator_id = me()?.id || ''; FID = null; FSTATUS = null;
+  if (edit) {
+    FID = edit.id; FSTATUS = edit.status; const p = edit.payload || {};
+    Object.assign(F, { type: edit.type, op_date: edit.op_date, operator_id: edit.operator_id || '', notes: edit.notes || '', mode: edit.mode || 'fill', loss_l: p.loss_l || '', lees_l: p.lees_l || '', lees_vessel_id: p.lees_vessel_id || '', lees_lot_code: p.lees_lot_code || '', volume_l: p.volume_l ?? '', buyer: p.buyer || '', press_vessel_id: p.press_vessel_id || '' });
+    F.origins = (p.origins || []).map((o) => ({ vessel_id: o.vessel_id, volume: o.volume ?? '' }));
+    F.destinations = (p.destinations || []).map((d) => ({ vessel_id: d.vessel_id, volume: d.volume ?? '', new_lot_code: d.new_lot_code || '', fraction: d.fraction || 'free_run' }));
+    F.products = (p.products || []).map((x) => ({ product_id: x.product_id || '', product_name: x.product_name || '', qty: x.qty ?? '', unit: x.unit || '', note: x.note || '' }));
+    if (p.new_lot) F.new_lot = { ...F.new_lot, ...p.new_lot };
+    if (F.type === 'topping' && F.destinations[0]) { const v = vessel(F.destinations[0].vessel_id); if (v) F.topping_lot = v.lot_id; }
+  } else if (type) F.type = type;
+  if (prefill) { Object.assign(F, { type: prefill.type, mode: prefill.mode || 'fill', volume_l: prefill.volume_l ?? '', loss_l: prefill.loss_l ?? '', lees_l: prefill.lees_l ?? '', notes: note || '' }); F.origins = (prefill.origins || []).map((o) => ({ vessel_id: o.vessel_id, volume: o.volume ?? '' })); F.destinations = (prefill.destinations || []).map((d) => ({ vessel_id: d.vessel_id, volume: d.volume ?? '', new_lot_code: '', fraction: 'free_run' })); F.products = (prefill.products || []).map((x) => ({ product_id: x.product_id || '', product_name: x.product_name || '', qty: x.qty ?? '', unit: x.unit || '', note: '' })); if (F.type === 'topping' && F.destinations[0]) { const v = vessel(F.destinations[0].vessel_id); if (v) F.topping_lot = v.lot_id; } if (F.type === 'blend') F.new_lot.create = true; }
+  if (prefillVessel && !edit) { if (prefillVessel.stay_id) F.origins = [{ vessel_id: prefillVessel.id, volume: '' }]; else F.destinations = [{ vessel_id: prefillVessel.id, volume: '', new_lot_code: '', fraction: 'free_run' }]; }
+  if (F.type === 'blend') F.new_lot.create = true;
+  renderOpModal(!!prefill);
+}
+function renderOpModal(interpreted = false) {
+  const t = F.type, confirmed = FSTATUS === 'confirmed', isBlend = t === 'blend';
+  const typeInfo = TYPES.find((x) => x[0] === t);
+  const users = S.boot.users.map((u) => `<option value="${u.id}" ${String(u.id) === String(F.operator_id) ? 'selected' : ''}>${esc(u.name)}</option>`).join('');
+  const typeGrid = isBlend ? '' : `<div class="field"><span>Tipo de operación *</span><div class="type-grid">${TYPES.map((x) => `<label class="${x[3]}"><input type="radio" name="optype" value="${x[0]}" ${x[0] === t ? 'checked' : ''} ${confirmed ? 'disabled' : ''}><span class="tile">${ico(x[2])}</span>${esc(x[1])}</label>`).join('')}</div><div class="help">${esc(typeInfo?.[4] || '')}</div></div>`;
+  const common = `<div class="row" style="margin-top:14px"><label class="field req" style="flex:1"><span>Fecha</span><input type="date" name="op_date" value="${esc(F.op_date)}"></label><label class="field req" style="flex:1"><span>Operario</span><select name="operator_id"><option value="">— Sin operario —</option>${users}</select></label></div>`;
+  const notes = `<label class="field" style="margin-top:12px"><span>Notas</span><textarea name="notes" rows="2" placeholder="Notas adicionales…">${esc(F.notes)}</textarea></label>`;
+  let body;
+  if (confirmed) body = `<div class="alert info">${ico('info')}<span>Operación confirmada: solo cambian fecha, operario y notas. Para cambiar volúmenes, reviértela y vuelve a crearla.</span></div>${common}${notes}`;
+  else body = (interpreted ? `<div class="alert ok">${ico('sparkle')}<span>Formulario rellenado a partir de tu frase. Revisa los recipientes y volúmenes antes de confirmar.</span></div>` : '') + typeGrid + common + typeBody(t) + notes;
+  const foot = confirmed ? `<button class="btn" data-x="cancel">Cancelar</button><button class="btn primary" data-x="save">Guardar cambios</button>`
+    : `<button class="btn" data-x="cancel">Cancelar</button><button class="btn amber" data-x="draft">${ico('note')} Guardar borrador</button><button class="btn primary" data-x="confirm">${ico('check')} ${FID ? 'Confirmar operación' : isBlend ? 'Crear coupage' : 'Crear operación'}</button>`;
+  const m = modal(FID ? (confirmed ? `Operación #${FID}` : `Borrador #${FID}`) : isBlend ? 'Nuevo coupage' : 'Nueva operación', body, foot, { eyebrow: isBlend ? 'Coupage' : 'Operaciones de bodega' });
+  bindOpModal(m);
+}
+const hasOrigin = (i = 0) => F.origins[i] && vessel(F.origins[i].vessel_id);
+const err = (msg) => `<div class="err" style="margin-top:6px">${msg}</div>`;
+function typeBody(t) {
+  const O = F.origins[0] || {}, D = F.destinations[0] || {};
+  const od = (left, right) => `<div class="od"><div class="pane"><h4>Origen</h4>${left}</div>${ico('arrow', 'arrow')}<div class="pane"><h4>Destino</h4>${right}</div></div>`;
+  const originPicker = (filter, ph, msg) => vesselPicker({ id: 'o0', value: O.vessel_id, filter, placeholder: ph, onPick: (id) => { F.origins = [{ vessel_id: id, volume: O.volume || '' }]; renderOpModal(); } }) + (hasOrigin() ? vcard(hasOrigin(), -originOut()) : err(msg || 'Selecciona el depósito de origen.'));
+  const destRows = (filter, { single = false, label = 'Depósito…' } = {}) => {
+    if (!F.destinations.length) F.destinations = [{ vessel_id: '', volume: '', new_lot_code: '', fraction: 'free_run' }];
+    return F.destinations.map((d, i) => `<div class="dest-row">${F.destinations.length > 1 ? `<div class="dest-n">Destino ${i + 1}</div>` : ''}${vesselPicker({ id: 'd' + i, value: d.vessel_id, filter, placeholder: label, onPick: (id) => { F.destinations[i].vessel_id = id; renderOpModal(); } })}<input type="number" step="0.1" min="0" inputmode="decimal" placeholder="litros" value="${esc(d.volume)}" data-dvol="${i}" ${single ? 'style="display:none"' : ''}>${!single && F.destinations.length > 1 ? `<button type="button" class="icon-btn" data-ddel="${i}">${ico('x')}</button>` : '<span></span>'}</div>${d.vessel_id ? vcard(vessel(d.vessel_id), +d.volume || destShare(i)) : err('Selecciona el depósito de destino.')}`).join('') + (single ? '' : `<button type="button" class="btn sm" data-dadd>${ico('plus')} Añadir destino</button>`);
+  };
+  if (['racking', 'filtration', 'decantation'].includes(t)) {
+    return od(originPicker(inWine, 'Seleccione el depósito de origen…'), destRows((v) => !O.vessel_id || v.id !== +O.vessel_id)) +
+      `<div class="sub-box blue"><label class="toggle"><input type="checkbox" name="newlot" ${F.new_lot.create ? 'checked' : ''}> Crear nuevo lote en el destino</label>${F.new_lot.create ? `<input name="newlotcode" placeholder="Código del lote nuevo (vacío = automático)" value="${esc(F.new_lot.code)}" style="margin-top:6px">` : ''}</div>
+      <div class="sub-box"><h5>Merma y lías (opcional)</h5><div class="row"><label class="field"><span>Merma (L)</span><input type="number" step="0.1" min="0" inputmode="decimal" name="loss_l" value="${esc(F.loss_l)}" placeholder="0"></label><label class="field"><span>Lías (L)</span><input type="number" step="0.1" min="0" inputmode="decimal" name="lees_l" value="${esc(F.lees_l)}" placeholder="0"></label></div>
+      ${+F.lees_l > 0 ? `<div class="row" style="margin-top:8px"><div class="field req" style="flex:1"><span>Depósito de lías</span>${vesselPicker({ id: 'lees', value: F.lees_vessel_id, filter: (v) => v.id !== +O.vessel_id, onPick: (id) => { F.lees_vessel_id = id; renderOpModal(); } })}${F.lees_vessel_id ? '' : err('Las lías necesitan un depósito.')}</div><label class="field" style="flex:1"><span>Código del lote de lías</span><input name="lees_lot_code" value="${esc(F.lees_lot_code)}" placeholder="vacío = automático"></label></div>` : ''}
+      <div class="help">Sale del origen: <b id="outtotal">${fmtN(originOut(), 1)} L</b> (destinos + merma + lías)</div></div>
+      <label class="field" style="margin-top:12px"><span>Volumen a trasegar (L)</span><input type="number" step="0.1" inputmode="decimal" name="volume_l" value="${esc(F.volume_l)}" placeholder="p. ej. 1000"><div class="help">Déjalo vacío para trasegar todo el volumen de origen (o deja un destino en blanco).</div></label>`;
+  }
+  if (t === 'barrel_transfer') {
+    const fill = F.mode !== 'empty';
+    const modeBtns = `<div class="mode"><button type="button" data-mode="fill" aria-pressed="${fill}">${ico('download')} Llenar barricas</button><button type="button" data-mode="empty" aria-pressed="${!fill}">${ico('upload')} Vaciar barricas</button></div>`;
+    const barrelFilter = (e) => (v) => isBarrel(v) && (e ? !v.stay_id : !!v.stay_id);
+    if (fill) {
+      const picked = F.destinations.map((d) => d.vessel_id).filter(Boolean);
+      const right = `<button type="button" class="btn" data-bm style="width:100%">${ico('barrel')} ${picked.length ? `${picked.length} barricas seleccionadas · cambiar` : 'Seleccionar barricas vacías…'}</button>
+        ${picked.length ? `<div class="rowlist" style="margin-top:8px">${F.destinations.map((d, i) => { const v = vessel(d.vessel_id); return `<div class="dest-row"><span><b>${esc(v.code)}</b> <small class="muted">${fmtN(v.capacity_l)} L${v.location_name ? ' · ' + esc(v.location_name) : ''}</small></span><input type="number" step="0.1" inputmode="decimal" data-dvol="${i}" value="${esc(d.volume)}" placeholder="${fmtN(v.capacity_l - (v.stay_volume || 0))}"><button type="button" class="icon-btn" data-ddel="${i}">${ico('x')}</button></div>`; }).join('')}</div>` : err('Selecciona al menos una barrica vacía.')}`;
+      return modeBtns + od(originPicker(inWine, 'Seleccione el depósito de origen…'), right) + `<div class="help" style="margin-top:8px">Total a las barricas: <b>${fmtN(barrelTotal(), 1)} L</b> (cada barrica en blanco se llena a su capacidad).</div><div class="sub-box"><h5>Merma (opcional)</h5><label class="field"><span>Merma (L)</span><input type="number" step="0.1" min="0" inputmode="decimal" name="loss_l" value="${esc(F.loss_l)}" placeholder="0"></label></div>`;
+    }
+    const picked = F.origins.map((o) => o.vessel_id).filter(Boolean);
+    const left = `<button type="button" class="btn" data-bm style="width:100%">${ico('barrel')} ${picked.length ? `${picked.length} barricas seleccionadas · cambiar` : 'Seleccionar barricas llenas…'}</button>
+      ${picked.length ? `<div class="rowlist" style="margin-top:8px">${F.origins.map((o, i) => { const v = vessel(o.vessel_id); return `<div class="dest-row"><span><b>${esc(v.code)}</b> <small class="muted">${esc(v.lot_code)} · ${fmtL(v.stay_volume)}</small></span><input type="number" step="0.1" inputmode="decimal" data-ovol="${i}" value="${esc(o.volume)}" placeholder="${fmtN(v.stay_volume, 1)}"><button type="button" class="icon-btn" data-odel="${i}">${ico('x')}</button></div>`; }).join('')}</div>` : err('Selecciona al menos una barrica llena.')}`;
+    return modeBtns + od(left, destRows((v) => !v.stay_id || v.lot_code === (hasOrigin() ? hasOrigin().lot_code : ''), { single: true })) + `<div class="help" style="margin-top:8px">Total de las barricas: <b>${fmtN(barrelTotal(), 1)} L</b>.</div>`;
+  }
+  if (t === 'bleeding') {
+    return od(originPicker(isMaceration, 'Depósito de maceración…', 'Un sangrado necesita un depósito con uva en maceración (lote en kg).') + '<div class="help">Los hollejos siguen macerando, pero el depósito baja 1 kg por cada litro sangrado.</div>', destRows((v) => !v.stay_id || v.lot_code === (hasOrigin()?.lot_code), { single: true })) +
+      `<label class="field req" style="margin-top:12px"><span>Mosto a sangrar (L)</span><input type="number" step="0.1" inputmode="decimal" name="volume_l" value="${esc(F.volume_l)}" placeholder="p. ej. 300"></label>`;
+  }
+  if (t === 'pressing') {
+    const presses = S.boot.vessels.filter(isPress);
+    return `<div class="field req" style="margin-top:12px"><span>Depósito de maceración</span>${vesselPicker({ id: 'o0', value: O.vessel_id, filter: isMaceration, placeholder: 'Depósito de maceración…', onPick: (id) => { F.origins = [{ vessel_id: id, volume: '' }]; renderOpModal(); } })}${hasOrigin() ? vcard(hasOrigin(), -(hasOrigin().stay_volume || 0)) : err('Un prensado necesita un depósito con uva en maceración (lote en kg).')}</div>
+      <label class="field" style="margin-top:12px"><span>Prensa utilizada</span><select name="press_vessel_id"><option value="">—</option>${presses.map((p) => `<option value="${p.id}" ${String(p.id) === String(F.press_vessel_id) ? 'selected' : ''}>${esc(p.code)}</option>`).join('')}</select></label>
+      <div class="field" style="margin-top:12px"><span>Fracciones de prensado</span>${F.destinations.length ? F.destinations.map((d, i) => `<div class="frac-row"><label class="field"><span>Fracción</span><select data-dfrac="${i}">${opts(FRACTION, d.fraction || 'free_run')}</select></label><label class="field req"><span>Volumen (L)</span><input type="number" step="0.1" inputmode="decimal" data-dvol="${i}" value="${esc(d.volume)}" placeholder="500"></label><div class="field req w2"><span>Depósito de destino</span>${vesselPicker({ id: 'd' + i, value: d.vessel_id, filter: isEmpty, onPick: (id) => { F.destinations[i].vessel_id = id; renderOpModal(); } })}${d.vessel_id ? '' : err('Elige un depósito vacío.')}</div><label class="field w2"><span>Lote</span><input data-dcode="${i}" value="${esc(d.new_lot_code)}" placeholder="Automático (dejar vacío) o escribir manualmente"></label><div class="w2" style="text-align:right"><button type="button" class="btn sm" data-ddel="${i}">Quitar</button></div></div>`).join('') : err('Ninguna fracción: haz clic en «Añadir fracción».')}<button type="button" class="btn sm" data-dadd>${ico('plus')} Añadir fracción</button></div>`;
+  }
+  if (t === 'addition') {
+    const prods = S.boot.products;
+    return `<div class="field req" style="margin-top:12px"><span>Depósito de vino</span>${vesselPicker({ id: 'o0', value: O.vessel_id, filter: withWine, placeholder: 'Depósito con vino…', onPick: (id) => { F.origins = [{ vessel_id: id, volume: '' }]; renderOpModal(); } })}${hasOrigin() ? vcard(hasOrigin(), 0) : err('Selecciona el depósito que recibe la adición.')}</div>
+      <div class="field" style="margin-top:12px"><span>Productos utilizados</span>${F.products.length ? F.products.map((x, i) => `<div class="prod-row"><select data-pid="${i}" class="pn"><option value="">Seleccionar…</option>${prods.map((p) => `<option value="${p.id}" ${String(p.id) === String(x.product_id) ? 'selected' : ''}>${esc(p.name)} (${esc(p.unit)})</option>`).join('')}<option value="_free" ${!x.product_id && (x.product_name || x._free) ? 'selected' : ''}>Otro (escribir)…</option></select>${!x.product_id && (x.product_name || x._free) ? `<input data-pname="${i}" class="pn" placeholder="Nombre del producto" value="${esc(x.product_name)}">` : ''}<input type="number" step="0.01" inputmode="decimal" data-pqty="${i}" value="${esc(x.qty)}" placeholder="Cant. ${esc(x.unit || '')}"><input data-pnote="${i}" value="${esc(x.note)}" placeholder="Observaciones…"><button type="button" class="icon-btn" data-pdel="${i}">${ico('x')}</button></div>`).join('') : err('No se ha añadido ningún producto.')}<button type="button" class="btn sm" data-padd>${ico('plus')} Añadir producto</button>${prods.length ? '<div class="help">Las existencias se descuentan del lote físico con caducidad más próxima (FEFO).</div>' : ' <span class="help">No hay productos en el catálogo: puedes escribirlos o crearlos en Configuración › Productos.</span>'}</div>`;
+  }
+  if (t === 'topping') {
+    const lots = activeLots().filter((l) => (l.liters || 0) > 0 || S.boot.vessels.some((v) => v.lot_id === l.id && v.stay_unit === 'L'));
+    const lotVessels = (v) => inWine(v) && (!F.topping_lot || v.lot_id === +F.topping_lot);
+    return `<label class="field req" style="margin-top:12px"><span>Lote</span><select name="topping_lot"><option value="">Seleccione el lote…</option>${lots.map((l) => `<option value="${l.id}" ${String(l.id) === String(F.topping_lot) ? 'selected' : ''}>${esc(l.code)} · ${esc(l.varieties || '')} ${WINE[l.wine_type] || ''}</option>`).join('')}</select>${F.topping_lot ? '' : err('Elige primero el lote; después el depósito.')}</label>
+      <div class="field req" style="margin-top:12px"><span>Depósito a rellenar</span>${vesselPicker({ id: 'd0', value: D.vessel_id, filter: lotVessels, placeholder: F.topping_lot ? 'Depósito del lote…' : 'Elige antes el lote', disabled: !F.topping_lot, onPick: (id) => { F.destinations = [{ vessel_id: id, volume: '', new_lot_code: '', fraction: '' }]; renderOpModal(); } })}${D.vessel_id ? vcard(vessel(D.vessel_id), +F.volume_l || 0) : F.topping_lot ? err('Selecciona el depósito del lote.') : ''}</div>
+      <label class="field req" style="margin-top:12px"><span>Volumen (L)</span><input type="number" step="0.1" inputmode="decimal" name="volume_l" value="${esc(F.volume_l)}" placeholder="p. ej. 5"></label>
+      <div class="field" style="margin-top:12px"><span>Origen del vino de rellenado (opcional)</span>${vesselPicker({ id: 'o0', value: O.vessel_id, filter: (v) => inWine(v) && v.id !== +D.vessel_id, placeholder: 'Botellas, garrafón u otro depósito…', onPick: (id) => { F.origins = [{ vessel_id: id, volume: '' }]; renderOpModal(); } })}${O.vessel_id ? `${vcard(hasOrigin(), -(+F.volume_l || 0))}<button type="button" class="linkish" data-oclear>Quitar origen</button>` : '<div class="help">Si rellenas de botellas, déjalo vacío.</div>'}</div>`;
+  }
+  if (t === 'bulk_sale') {
+    return `<div class="field req" style="margin-top:12px"><span>Depósito de vino</span>${vesselPicker({ id: 'o0', value: O.vessel_id, filter: inWine, placeholder: 'Depósito con vino…', onPick: (id) => { F.origins = [{ vessel_id: id, volume: '' }]; renderOpModal(); } })}${hasOrigin() ? vcard(hasOrigin(), -(+F.volume_l || 0)) : err('Selecciona el depósito del que sale el vino.')}<div class="help">El vino sale de la bodega; las existencias del lote se reducen en el volumen vendido.</div></div>
+      <div class="row" style="margin-top:12px"><label class="field req"><span>Volumen (L)</span><input type="number" step="0.1" inputmode="decimal" name="volume_l" value="${esc(F.volume_l)}" placeholder="p. ej. 1000"></label><label class="field"><span>Comprador / Cliente</span><input name="buyer" value="${esc(F.buyer)}" placeholder="Nombre (opcional)"></label></div>`;
+  }
+  if (t === 'blend') {
+    if (!F.origins.length) F.origins = [{ vessel_id: '', volume: '' }, { vessel_id: '', volume: '' }];
+    const rows = F.origins.map((o, i) => { const v = vessel(o.vessel_id); return `<div class="dest-row">${vesselPicker({ id: 'o' + i, value: o.vessel_id, filter: inWine, placeholder: 'Depósito…', onPick: (id) => { F.origins[i].vessel_id = id; renderOpModal(); } })}<input type="number" step="0.1" inputmode="decimal" data-ovol="${i}" value="${esc(o.volume)}" placeholder="${v ? fmtN(v.stay_volume, 1) : 'todo'}"><button type="button" class="icon-btn" data-odel="${i}">${ico('x')}</button></div>${v ? `<div class="small muted" style="margin:-2px 0 6px 2px">${lotPill(v.lot_code)} ${esc(v.varieties || '')} · ${WINE[v.wine_type] || ''}</div>` : ''}`; }).join('');
+    const total = blendTotal(); const nl = F.new_lot;
+    const valid = F.origins.filter((o) => o.vessel_id).length;
+    return `<div class="od"><div class="pane"><h4>Lotes de origen</h4>${rows}${valid < 2 ? err('Un coupage necesita al menos dos orígenes.') : ''}<div class="row" style="margin-top:6px"><button type="button" class="btn sm" data-oadd>${ico('plus')} Añadir origen</button><button type="button" class="btn sm" data-bm-blend>${ico('barrel')} Varias barricas…</button></div><div class="help">Total: <b>${fmtN(total, 1)} L</b></div></div>${ico('arrow', 'arrow')}<div class="pane"><h4>Nuevo lote resultante</h4>
+      <label class="field"><span>Código del lote</span><input name="nl_code" value="${esc(nl.code)}" placeholder="vacío = automático"></label>
+      <div class="row" style="margin-top:8px"><label class="field"><span>Tipo de vino</span><select name="nl_type">${opts(WINE, nl.wine_type, '— del primer origen —')}</select></label><label class="field"><span>Añada</span><input type="number" name="nl_vintage" value="${esc(nl.vintage)}" placeholder="${today().slice(0, 4)}"></label></div>
+      <label class="field" style="margin-top:8px"><span>Variedad(es)</span><input name="nl_var" value="${esc(nl.varieties)}" placeholder="vacío = suma de los orígenes"></label>
+      <label class="field" style="margin-top:8px"><span>Fase</span><select name="nl_phase">${opts(PHASE, nl.phase, '— del primer origen —')}</select></label>
+      <h4 style="margin-top:12px">Depósitos de destino</h4>${destRows((v) => !v.stay_id || F.origins.some((o) => +o.vessel_id === v.id))}
+      <div class="sub-box" style="margin-top:8px"><label class="field"><span>Merma (L)</span><input type="number" step="0.1" min="0" inputmode="decimal" name="loss_l" value="${esc(F.loss_l)}" placeholder="0"></label></div></div></div>`;
+  }
+  return '';
+}
+function originOut() {
+  const o = hasOrigin(); if (!o) return 0; const t = F.type;
+  if (['racking', 'filtration', 'decantation'].includes(t)) {
+    const ds = F.destinations.filter((d) => d.vessel_id); const fixed = ds.reduce((a, d) => a + (+d.volume || 0), 0); const blank = ds.some((d) => d.volume === '' || d.volume == null);
+    if (F.volume_l) return +F.volume_l + (+F.loss_l || 0) + (+F.lees_l || 0);
+    if (!ds.length || blank) return o.stay_volume || 0;
+    return fixed + (+F.loss_l || 0) + (+F.lees_l || 0);
+  }
+  if (t === 'barrel_transfer') return barrelTotal() + (+F.loss_l || 0);
+  if (t === 'bulk_sale' || t === 'bleeding' || t === 'topping') return +F.volume_l || 0;
+  if (t === 'pressing') return o.stay_volume || 0;
+  return 0;
+}
+function destShare(i) {
+  if (!['racking', 'filtration', 'decantation', 'blend'].includes(F.type)) return F.type === 'barrel_transfer' && F.mode === 'empty' ? barrelTotal() - (+F.loss_l || 0) : F.type === 'bleeding' ? +F.volume_l || 0 : 0;
+  const d = F.destinations[i]; if (!d || d.volume !== '') return 0;
+  const blanks = F.destinations.filter((x) => x.volume === '').length; if (blanks > 1) return 0;
+  const fixed = F.destinations.reduce((a, x) => a + (+x.volume || 0), 0);
+  const total = F.type === 'blend' ? blendTotal() - (+F.loss_l || 0) : (F.volume_l ? +F.volume_l : (hasOrigin()?.stay_volume || 0) - (+F.loss_l || 0) - (+F.lees_l || 0));
+  return Math.max(0, Math.round((total - fixed) * 10) / 10);
+}
+function barrelTotal() {
+  if (F.mode === 'empty') return F.origins.reduce((a, o) => { const v = vessel(o.vessel_id); return a + (o.volume !== '' ? +o.volume : (v?.stay_volume || 0)); }, 0);
+  return F.destinations.reduce((a, d) => { const v = vessel(d.vessel_id); return a + (d.volume !== '' ? +d.volume : v ? Math.max(0, v.capacity_l - (v.stay_volume || 0)) : 0); }, 0);
+}
+function blendTotal() { return F.origins.reduce((a, o) => { const v = vessel(o.vessel_id); return a + (o.volume !== '' ? +o.volume : (v?.stay_volume || 0)); }, 0); }
+function bindOpModal(m) {
+  const re = () => renderOpModal();
+  $$('input[name=optype]', m).forEach((r) => r.onchange = () => { F.type = r.value; F.origins = []; F.destinations = []; F.products = []; F.volume_l = ''; F.topping_lot = ''; re(); });
+  const bindF = (name, key = name) => { const el = $(`[name=${name}]`, m); if (el) el.oninput = () => { F[key] = el.value; if (name === 'operator_id') localStorage.setItem('ulula.operator', el.value); }; };
+  ['op_date', 'operator_id', 'notes', 'buyer', 'press_vessel_id', 'lees_lot_code'].forEach((n) => bindF(n));
+  const live = (name) => { const el = $(`[name=${name}]`, m); if (el) { el.oninput = () => { F[name] = el.value; refreshPreview(m); }; el.onchange = () => { F[name] = el.value; if (name === 'lees_l') re(); }; } };
+  live('volume_l'); live('loss_l'); live('lees_l');
+  const tl = $('[name=topping_lot]', m); if (tl) tl.onchange = () => { F.topping_lot = tl.value; F.destinations = []; const vs = S.boot.vessels.filter((v) => inWine(v) && v.lot_id === +tl.value); if (vs.length === 1) F.destinations = [{ vessel_id: vs[0].id, volume: '', new_lot_code: '', fraction: '' }]; re(); };
+  const nlc = $('[name=newlot]', m); if (nlc) nlc.onchange = () => { F.new_lot.create = nlc.checked; re(); };
+  const nlcode = $('[name=newlotcode]', m); if (nlcode) nlcode.oninput = () => { F.new_lot.code = nlcode.value; };
+  [['nl_code', 'code'], ['nl_type', 'wine_type'], ['nl_vintage', 'vintage'], ['nl_var', 'varieties'], ['nl_phase', 'phase']].forEach(([n, k]) => { const el = $(`[name=${n}]`, m); if (el) el.oninput = () => { F.new_lot[k] = el.value; }; });
+  $$('[data-dvol]', m).forEach((el) => { el.oninput = () => { F.destinations[+el.dataset.dvol].volume = el.value; refreshPreview(m); }; });
+  $$('[data-ovol]', m).forEach((el) => { el.oninput = () => { F.origins[+el.dataset.ovol].volume = el.value; refreshPreview(m); }; });
+  $$('[data-dcode]', m).forEach((el) => el.oninput = () => { F.destinations[+el.dataset.dcode].new_lot_code = el.value; });
+  $$('[data-dfrac]', m).forEach((el) => el.onchange = () => { F.destinations[+el.dataset.dfrac].fraction = el.value; });
+  $$('[data-ddel]', m).forEach((el) => el.onclick = () => { F.destinations.splice(+el.dataset.ddel, 1); re(); });
+  $$('[data-odel]', m).forEach((el) => el.onclick = () => { F.origins.splice(+el.dataset.odel, 1); re(); });
+  const dadd = $('[data-dadd]', m); if (dadd) dadd.onclick = () => { F.destinations.push({ vessel_id: '', volume: '', new_lot_code: '', fraction: 'free_run' }); re(); };
+  const oadd = $('[data-oadd]', m); if (oadd) oadd.onclick = () => { F.origins.push({ vessel_id: '', volume: '' }); re(); };
+  const oclear = $('[data-oclear]', m); if (oclear) oclear.onclick = () => { F.origins = []; re(); };
+  $$('[data-mode]', m).forEach((b) => b.onclick = () => { F.mode = b.dataset.mode; F.origins = []; F.destinations = []; re(); });
+  const bm = $('[data-bm]', m); if (bm) bm.onclick = () => { const fill = F.mode !== 'empty'; barrelPickerModal({ title: fill ? 'Barricas vacías' : 'Barricas llenas', filter: (v) => isBarrel(v) && (fill ? !v.stay_id : !!v.stay_id), selected: (fill ? F.destinations : F.origins).map((x) => x.vessel_id).filter(Boolean), onPick: (ids) => { if (fill) F.destinations = ids.map((id) => ({ vessel_id: id, volume: '', new_lot_code: '', fraction: '' })); else F.origins = ids.map((id) => ({ vessel_id: id, volume: '' })); re(); } }); };
+  const bmb = $('[data-bm-blend]', m); if (bmb) bmb.onclick = () => barrelPickerModal({ title: 'Barricas con vino', filter: (v) => inWine(v) && isBarrel(v), selected: F.origins.map((o) => o.vessel_id).filter(Boolean), onPick: (ids) => { F.origins = F.origins.filter((o) => o.vessel_id && !isBarrel(vessel(o.vessel_id))).concat(ids.map((id) => ({ vessel_id: id, volume: '' }))); re(); } });
+  $$('[data-pid]', m).forEach((el) => el.onchange = () => { const i = +el.dataset.pid; if (el.value === '_free') { F.products[i].product_id = ''; F.products[i]._free = true; F.products[i].product_name = F.products[i].product_name || ''; } else { const p = S.boot.products.find((x) => String(x.id) === el.value); F.products[i].product_id = el.value; F.products[i].product_name = p ? p.name : ''; F.products[i].unit = p ? p.unit : ''; F.products[i]._free = false; } re(); });
+  $$('[data-pname]', m).forEach((el) => el.oninput = () => { F.products[+el.dataset.pname].product_name = el.value; });
+  $$('[data-pqty]', m).forEach((el) => el.oninput = () => { F.products[+el.dataset.pqty].qty = el.value; });
+  $$('[data-pnote]', m).forEach((el) => el.oninput = () => { F.products[+el.dataset.pnote].note = el.value; });
+  $$('[data-pdel]', m).forEach((el) => el.onclick = () => { F.products.splice(+el.dataset.pdel, 1); re(); });
+  const padd = $('[data-padd]', m); if (padd) padd.onclick = () => { F.products.push({ product_id: '', product_name: '', qty: '', unit: '', note: '' }); re(); };
+  const save = async (status) => {
+    const body = payloadFromForm(status); const btns = $$('.modal-foot .btn', m); btns.forEach((b) => b.disabled = true);
+    try { const r = await api(FID ? `/operations/${FID}` : '/operations', { method: FID ? 'PUT' : 'POST', body }); closeModal(); toast(status === 'draft' ? 'Borrador guardado' : status === 'confirmed' ? `Operación #${r.id} creada` : 'Cambios guardados'); await reload(); route(); }
+    catch (e) { btns.forEach((b) => b.disabled = false); showError(m, e.message); }
+  };
+  const d = $('[data-x=draft]', m); if (d) d.onclick = () => save('draft');
+  const c = $('[data-x=confirm]', m); if (c) c.onclick = () => save('confirmed');
+  const s = $('[data-x=save]', m); if (s) s.onclick = () => save('confirmed');
+}
+function refreshPreview(m) {
+  const cards = $$('.vcard', m); const tmp = document.createElement('div'); tmp.innerHTML = typeBody(F.type); const nc = $$('.vcard', tmp);
+  cards.forEach((c, i) => { if (nc[i]) c.outerHTML = nc[i].outerHTML; });
+  const ot = $('#outtotal', m); if (ot) ot.textContent = `${fmtN(originOut(), 1)} L`;
+  $$('.vp .drop', m).forEach((d) => d.remove());
+}
+function payloadFromForm(status) {
+  const nl = F.new_lot;
+  return { status, type: F.type, op_date: F.op_date, operator_id: F.operator_id || null, notes: F.notes, mode: F.mode, press_vessel_id: F.press_vessel_id || null, buyer: F.buyer,
+    volume_l: F.volume_l === '' ? null : +F.volume_l, loss_l: +F.loss_l || 0, lees_l: +F.lees_l || 0, lees_vessel_id: F.lees_vessel_id || null, lees_lot_code: F.lees_lot_code || null,
+    new_lot: (F.type === 'blend' || nl.create) ? { create: true, code: nl.code || null, wine_type: nl.wine_type || null, vintage: nl.vintage || null, varieties: nl.varieties || null, phase: nl.phase || null } : null,
+    origins: F.origins.filter((o) => o.vessel_id).map((o) => ({ vessel_id: +o.vessel_id, volume: o.volume === '' ? null : +o.volume })),
+    destinations: F.destinations.filter((d) => d.vessel_id).map((d) => ({ vessel_id: +d.vessel_id, volume: d.volume === '' ? null : +d.volume, new_lot_code: d.new_lot_code || null, fraction: d.fraction || null })),
+    products: F.products.filter((x) => x.product_id || x.product_name).map((x) => ({ product_id: x.product_id || null, product_name: x.product_name || null, qty: x.qty === '' ? null : +x.qty, unit: x.unit || null, note: x.note || null })) };
+}
+
+// ================================================================ TRAZABILIDAD
+export async function viewTrace(page) {
+  crumbs('Bodega', 'Trazabilidad');
+  const q = S.route.q;
+  page.innerHTML = head({ title: 'Trazabilidad', icon: 'trace', k: 'k-bodega', eyebrow: 'Bodega', sub: 'Extracto del lote: estancias en recipientes, eventos, origen y embotellados.' }) +
+    `<label class="search">${ico('search')}<input id="tq" placeholder="Buscar lote, depósito o embotellado…" autocomplete="off"></label><div id="tres"></div><div id="tbody" style="margin-top:14px"></div>`;
+  const tq = $('#tq');
+  tq.oninput = async () => { const v = tq.value.trim(); if (!v) { $('#tres').innerHTML = ''; return; } const r = await api('/search?q=' + encodeURIComponent(v)); $('#tres').innerHTML = `<div class="card" style="margin-top:10px">${r.lots.length ? `<div class="eyebrow">Lotes</div>${r.lots.map((l) => `<div style="padding:4px 0"><a href="#/traza?lot=${l.id}"><b>${esc(l.code)}</b></a> <span class="muted small">${esc(l.varieties || '')} · ${WINE[l.wine_type] || ''}${l.vintage ? ' · ' + l.vintage : ''}${l.status !== 'active' ? ' · cerrado' : ''}</span></div>`).join('')}` : ''}${r.vessels.length ? `<div class="eyebrow" style="margin-top:8px">Depósitos</div>${r.vessels.map((v) => `<div style="padding:4px 0"><a href="#/traza?vessel=${v.id}"><b>${esc(v.code)}</b></a> <span class="muted small">${v.lot_code ? esc(v.lot_code) : 'vacío'}</span></div>`).join('')}` : ''}${r.bottlings?.length ? `<div class="eyebrow" style="margin-top:8px">Embotellados</div>${r.bottlings.map((b) => `<div style="padding:4px 0"><a href="#/traza?lot=${b.source_lot_id}"><b>${esc(b.lot_code)}</b></a> <span class="muted small">${esc(b.product_name)} · ${fmtD(b.bottled_at)} · ${fmtN(b.bottles)} botellas</span></div>`).join('')}` : ''}${!r.lots.length && !r.vessels.length && !r.bottlings?.length ? '<span class="muted">Sin resultados</span>' : ''}</div>`; };
+  if (!q.lot && !q.vessel) { $('#tbody').innerHTML = empty('Selecciona un punto de partida', 'Elige un depósito o un lote para visualizar su procedencia.', `<div class="chips">${activeLots().slice(0, 12).map((l) => `<a href="#/traza?lot=${l.id}">${esc(l.code)}</a>`).join('')}</div>`, 'trace'); return; }
+  const t = await api(`/trace?${q.lot ? 'lot=' + q.lot : 'vessel=' + q.vessel}`); const lo = t.lot; const cur = t.stays.filter((s) => !s.left_at);
+  const prevStay = (s) => t.stays.find((x) => x.left_at && x.left_at <= s.entered_at && x.id !== s.id);
+  const events = (s) => {
+    const inRange = (d) => d >= s.entered_at && (!s.left_at || d <= s.left_at); const ev = [];
+    for (const o of t.operations) if (o.vessel_id === s.vessel_id && inRange(o.op_date)) ev.push({ d: o.op_date, k: o.type === 'addition' ? 'k-add' : o.type === 'pressing' ? 'k-press' : o.type === 'bottling' ? 'k-bottle' : 'k-op', html: `${TYPE_LABEL[o.type] || o.type}${o.side === 'origin' ? ` — salen ${fmtL(o.volume, o.unit || 'L')}` : o.side === 'destination' ? ` — ${fmtL(o.volume, o.unit || 'L')} recibidos${o.fraction ? ' (' + (FRACTION[o.fraction] || o.fraction) + ')' : ''}` : o.side === 'product' ? ` — ${esc(o.product_name || '')} ${fmtN(o.qty, 2)} ${esc(o.unit || '')}` : ''}${o.operator_name ? ` · ${esc(o.operator_name)}` : ''}` });
+    for (const a of t.analyses) if ((a.vessel_id === s.vessel_id || !a.vessel_id) && inRange(a.analysed_at)) ev.push({ d: a.analysed_at, k: 'k-an', html: `Análisis${a.analysed_by ? ' · ' + esc(a.analysed_by) : ''} — ${['ph', 'so2_free', 'so2_total', 'va', 'malic', 'alcohol'].filter((k) => a[k] != null).map((k) => `${{ ph: 'pH', so2_free: 'SO₂ libre', so2_total: 'SO₂ total', va: 'AV', malic: 'málico', alcohol: 'alc.' }[k]} ${a[k]}`).join(' · ')}` });
+    for (const c of t.tastings) if ((c.vessel_id === s.vessel_id || !c.vessel_id) && inRange(c.tasted_at)) ev.push({ d: c.tasted_at, k: 'k-cata', html: `Cata${c.taster ? ' · ' + esc(c.taster) : ''}${c.score != null ? ` — ${c.score}/10` : ''}${c.overall ? ` — ${esc(c.overall)}` : ''}` });
+    for (const c of t.cleanings) if (c.vessel_id === s.vessel_id && inRange(c.cleaned_at)) ev.push({ d: c.cleaned_at, k: 'k-clean', html: `Limpieza${c.method ? ' · ' + esc(c.method) : ''}` });
+    for (const r of t.readings) if ((r.vessel_id === s.vessel_id || !r.vessel_id) && inRange(r.read_at.slice(0, 10))) ev.push({ d: r.read_at.slice(0, 10), k: 'k-ferm', html: `Lectura — ${r.sugar} ${SUGAR_UNIT[r.sugar_unit] || ''}${r.temp != null ? ` · ${r.temp} °C` : ''} · ${esc(r.recorded_by || '')}` });
+    const cleanBefore = t.cleanings.some((c) => c.vessel_id === s.vessel_id && c.cleaned_at <= s.entered_at);
+    ev.sort((a, b) => a.d.localeCompare(b.d));
+    const prev = prevStay(s);
+    return (cleanBefore ? '' : `<div class="ev k-clean"><span class="dt"></span><i></i><span class="warn">Sin registro de limpieza antes del llenado</span>${prev ? `<a class="prev" href="#/recipiente/${prev.vessel_id}">Estancia anterior: ${esc(prev.vessel_code)} ›</a>` : ''}</div>`) + (cleanBefore && prev ? `<div class="ev k-op"><span class="dt">${fmtD(s.entered_at)}</span><i></i><span>Llega de ${esc(prev.vessel_code)}</span><a class="prev" href="#/recipiente/${prev.vessel_id}">Estancia anterior ›</a></div>` : '') + ev.map((e) => `<div class="ev ${e.k}"><span class="dt">${fmtD(e.d)}</span><i></i><span>${e.html}</span></div>`).join('');
+  };
+  $('#tbody').innerHTML = `<div class="legend"><span class="k-op"><i></i>Trasiego / coupage</span><span class="k-press"><i></i>Prensado</span><span class="k-add"><i></i>Adición</span><span class="k-ferm"><i></i>Lectura FA</span><span class="k-an"><i></i>Análisis</span><span class="k-cata"><i></i>Cata</span><span class="k-clean"><i></i>Limpieza</span><span class="k-origin"><i></i>Origen</span><span class="k-bottle"><i></i>Embotellado</span></div>
+    <div class="kpi-row">${kpi('Lote', `<span style="font-size:22px">${esc(lo.code)}</span>`, `${esc(lo.varieties || '')} · ${WINE[lo.wine_type] || ''}${lo.vintage ? ' · ' + lo.vintage : ''}`, 'k-bodega')}${kpi('Ubicación actual', `<span style="font-size:20px">${cur.length ? cur.map((s) => `<a href="#/recipiente/${s.vessel_id}">${esc(s.vessel_code)}</a> ${fmtL(s.volume, s.unit)}`).join('<br>') : '<span class="muted">—</span>'}</span>`, `${PHASE[lo.phase] || ''}${lo.status !== 'active' ? ' · cerrado' : ''}`, 'k-ventas')}${kpi('Estancias', t.stays.length, '', 'k-equipo')}${kpi('Eventos', t.operations.length + t.analyses.length + t.tastings.length + t.readings.length, '', 'k-marketing')}</div>
+    ${t.origin ? `<div class="stay"><div class="sh k-origin"><span class="code" style="color:var(--huerta)">${ico('grape')}Origen</span><span>${TYPE_LABEL[t.origin.type] || t.origin.type} del ${fmtD(t.origin.op_date)}${t.origin.origins.length ? ' de ' + t.origin.origins.map((o) => `<a href="#/traza?lot=${o.lot_id}">${esc(o.lot_code || '?')}</a> (${esc(o.vessel_code)}${o.volume ? ', ' + fmtL(o.volume, o.unit || 'L') : ''})`).join(' + ') : ''}</span></div></div>` : lo.parent_code ? `<div class="stay"><div class="sh k-origin"><span class="code" style="color:var(--huerta)">${ico('grape')}Origen</span><span>Deriva del lote <a href="#/traza?lot=${lo.parent_lot_id}">${esc(lo.parent_code)}</a></span></div></div>` : lo.reception_id ? `<div class="stay"><div class="sh k-origin"><span class="code" style="color:var(--huerta)">${ico('grape')}Origen</span><span>Recepción de uva${lo.creation_method ? ' · ' + esc(lo.creation_method) : ''} — <a href="#/recepcion">ver vendimia</a></span></div></div>` : (lo.creation_method === 'manual' ? `<div class="help" style="margin-bottom:10px">Lote cargado como saldo de apertura (sin origen registrado).</div>` : '')}
+    ${t.stays.map((s) => `<div class="stay"><div class="sh"><a class="code" href="#/recipiente/${s.vessel_id}" style="text-decoration:none">${ico('tank')}${esc(s.vessel_code)}</a>${lotPill(lo.code)}${!s.left_at ? '<span class="pill ok">ACTUAL</span>' : ''}<span class="vol">${fmtL(s.left_at ? s.volume_out : s.volume, s.unit)}</span><span class="range">${fmtD(s.entered_at)} → ${s.left_at ? fmtD(s.left_at) : 'hoy'} · ${daysBetween(s.entered_at, s.left_at)} días · ${KIND[s.kind] || ''} ${fmtN(s.capacity_l)} L</span></div>${events(s)}</div>`).join('')}
+    ${t.children?.length ? `<div class="card"><h3>${ico('layers')}Lotes derivados</h3><div class="lot-tree">${t.children.map((c) => `<a href="#/traza?lot=${c.id}">${lotPill(c.code)}</a>`).join('')}</div></div>` : ''}
+    ${t.bottlings?.length ? `<div class="card k-ventas" style="margin-top:14px"><h3>${ico('bottle')}Embotellados</h3><div class="table-wrap"><table class="t cards"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote de botella</th><th class="num">Volumen</th><th class="num">Botellas</th><th>Etapa</th></tr></thead><tbody>${t.bottlings.map((b) => `<tr><td data-l="Fecha" class="num">${fmtD(b.bottled_at)}</td><td data-l="Producto">${esc(b.product_name)}</td><td data-l="Lote">${lotPill(b.lot_code)}</td><td data-l="Volumen" class="num">${fmtL(b.volume_l)}</td><td data-l="Botellas" class="num">${fmtN(b.bottles)} × ${b.bottle_ml} ml</td><td data-l="Etapa"><span class="pill ${b.stage === 'packed' ? 'ok' : ''}">${BOTTLE_STAGE[b.stage]}</span></td></tr>`).join('')}</tbody></table></div></div>` : ''}`;
+}
+
+// ================================================================ ANÁLISIS
+const PARAMS = [['alcohol', 'Alcohol (% vol)', '13.5'], ['va', 'Acidez volátil (g/L)', '0.45'], ['ta', 'Acidez total (g/L)', '6.5'], ['ph', 'pH', '3.40'], ['so2_free', 'SO₂ libre (mg/L)', '25'], ['so2_bound', 'SO₂ combinado (mg/L)', '—'], ['so2_total', 'SO₂ total (mg/L)', '80'], ['so2_molecular', 'SO₂ molecular (mg/L)', '—'], ['malic', 'Ácido málico (g/L)', '1.50'], ['lactic', 'Ácido láctico (g/L)', '0.20'], ['rs', 'Azúcar residual (g/L)', '2.0'], ['brix', 'Brix (°Bx)', '—'], ['temp', 'Temperatura (°C)', '—']];
+export function analysesTable(rows) {
+  const cols = [['analysed_at', 'Fecha'], ['vessel_code', 'Depósito'], ['lot_code', 'Lote'], ['alcohol', 'Alc %'], ['ph', 'pH'], ['ta', 'AT'], ['va', 'AV'], ['so2_free', 'SO₂ L'], ['so2_total', 'SO₂ T'], ['malic', 'Málico'], ['lactic', 'Láctico'], ['rs', 'Azúcar'], ['temp', '°C'], ['analysed_by', 'Por']];
+  return `<div class="table-wrap"><table class="t cards"><thead><tr>${cols.map((c) => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${rows.map((a) => `<tr>${cols.map((c) => `<td data-l="${c[1]}" class="${typeof a[c[0]] === 'number' ? 'num' : ''}">${c[0] === 'analysed_at' ? fmtD(a[c[0]]) : c[0] === 'lot_code' ? lotPill(a[c[0]]) : esc(a[c[0]] ?? '—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+export function tastingsList(rows) { return `<div class="rowlist">${rows.map((c) => `<div class="item k-hospitalidad k">${ico('glass', 'lead')}<div class="body"><div class="t">${fmtD(c.tasted_at)} · ${esc(c.vessel_code || '')} ${lotPill(c.lot_code)} ${c.score != null ? `<span class="pill ok">${c.score}/10</span>` : ''} ${c.blind ? '<span class="pill">a ciegas</span>' : ''}</div><div class="m">${[c.phase, c.taster].filter(Boolean).map(esc).join(' · ')}${c.overall ? ' — ' + esc(c.overall) : ''}${c.nose ? ` · Nariz: ${esc(c.nose)}` : ''}${c.palate ? ` · Boca: ${esc(c.palate)}` : ''}</div></div></div>`).join('')}</div>`; }
+export async function viewAnalyses(page) {
+  crumbs('Bodega', 'Análisis de vino y mosto');
+  const q = S.route.q; const tab = q.tab || '';
+  const r = await api('/analyses' + (q.lot ? '?lot=' + q.lot : '')); let rows = r.analyses;
+  const years = yearsOf(rows, 'analysed_at'); if (q.year) rows = rows.filter((a) => a.analysed_at.startsWith(q.year));
+  page.innerHTML = head({ title: 'Análisis de laboratorio', icon: 'lab', k: 'k-bodega', eyebrow: 'Bodega', sub: `${rows.length} análisis registrados`, actions: `<button class="btn primary" id="newan">${ico('plus')} Nuevo análisis</button>` }) +
+    tabs([['', 'Registros', 'list'], ['tendencias', 'Tendencias', 'chart']], tab, '#/analisis') +
+    `<div class="filters"><select class="inline" data-f="lot"><option value="">Todos los lotes</option>${S.boot.lots.map((l) => `<option value="${l.id}" ${String(l.id) === q.lot ? 'selected' : ''}>${esc(l.code)}</option>`).join('')}</select><select class="inline" data-f="year"><option value="">Todos los años</option>${years.map((y) => `<option ${y === q.year ? 'selected' : ''}>${y}</option>`).join('')}</select></div>` +
+    (tab === 'tendencias' ? trends(rows, q) : rows.length ? analysesTable(rows) : empty('Aún no hay análisis', 'Los análisis siguen la evolución de cada lote en su depósito.', '<button class="btn primary" id="newan2">Registrar análisis</button>', 'lab'));
+  $$('.filters select', page).forEach((s) => s.onchange = () => go('#/analisis' + qs({ ...q, [s.dataset.f]: s.value })));
+  const f = () => openAnalysis({}); $('#newan').onclick = f; if ($('#newan2')) $('#newan2').onclick = f;
+}
+function trends(rows, q) {
+  if (!q.lot) return `<div class="alert info">${ico('info')}<span>Elige un lote en el filtro para ver la evolución de sus parámetros.</span></div>`;
+  if (!rows.length) return empty('Sin análisis para este lote', 'Registra análisis para ver tendencias.', '', 'chart');
+  const series = (k) => [{ name: k, points: rows.filter((a) => a[k] != null).map((a) => ({ t: Date.parse(a.analysed_at), y: a[k], x: fmtD(a.analysed_at) })) }];
+  const charts = [['so2_free', 'SO₂ libre (mg/L)', '#2d5c8a'], ['ph', 'pH', '#5a4a8c'], ['va', 'Acidez volátil (g/L)', '#b42318'], ['malic', 'Ácido málico (g/L)', '#3d6a38'], ['alcohol', 'Alcohol (% vol)', '#8f6200'], ['rs', 'Azúcar residual (g/L)', '#1f7a74']].filter(([k]) => rows.some((a) => a[k] != null));
+  return `<div class="grid2">${charts.map(([k, l, c]) => `<div class="card" style="--k:${c}"><h3>${l}</h3>${lineChart(series(k).map((s) => ({ ...s, color: c })), { h: 170, xLabel: (p) => p.x })}</div>`).join('')}</div>`;
+}
+export function openAnalysis({ vessel_id }) {
+  let vid = vessel_id || '';
+  const pick = () => vesselPicker({ id: 'an', value: vid, filter: withWine, placeholder: 'Depósito con vino…', onPick: (id) => { vid = id; $('#anv').innerHTML = pick(); } });
+  formModal({ title: 'Nuevo análisis', eyebrow: 'Laboratorio', okLabel: 'Crear análisis', body: `<div class="row"><label class="field req" style="flex:1"><span>Fecha</span><input type="date" name="analysed_at" value="${today()}"></label><label class="field" style="flex:1"><span>Analizado por</span><input name="analysed_by" placeholder="Sentia, Uva y Vino, San Lucas…"></label></div>
+    <div class="field req" style="margin-top:12px"><span>Depósito con vino</span><div id="anv">${pick()}</div></div>
+    <div class="sec-title">Parámetros analíticos</div><div class="row">${PARAMS.map((p) => `<label class="field" style="flex:1 1 140px"><span>${p[1]}</span><input type="number" step="0.01" inputmode="decimal" name="${p[0]}" placeholder="${p[2]}"></label>`).join('')}</div>
+    <label class="field" style="margin-top:12px"><span>Notas</span><textarea name="notes" rows="2"></textarea></label>`, onSave: async (b) => { await api('/analyses', { method: 'POST', body: { ...b, vessel_id: vid } }); closeModal(); toast('Análisis guardado'); route(); } });
+}
+
+// ================================================================ CALCULADORA DE ADICIONES
+export async function viewCalculator(page) {
+  crumbs('Bodega', 'Calculadora de adiciones');
+  const tab = S.route.q.tab || 'so2';
+  page.innerHTML = head({ title: 'Calculadora de adiciones', icon: 'calc', k: 'k-bodega', eyebrow: 'Bodega', sub: 'Dosis de productos a partir del volumen del depósito. No registra nada: copia el resultado en una operación de Adiciones.' }) +
+    tabs([['so2', 'SO₂', 'drop'], ['acido', 'Acidez', 'lab'], ['azucar', 'Chaptalización', 'sparkle'], ['mezcla', 'Cuadrado de Pearson', 'blend']], tab, '#/calculadora') + `<div class="card" id="calc"></div>`;
+  let vid = '', vol = '';
+  const volField = () => `<div class="row"><div class="field" style="flex:2"><span>Depósito (toma el volumen)</span>${vesselPicker({ id: 'cv', value: vid, filter: inWine, placeholder: 'Depósito con vino…', onPick: (id) => { vid = id; vol = vessel(id).stay_volume; draw(); } })}</div><label class="field req" style="flex:1"><span>Volumen (L)</span><input type="number" step="1" inputmode="decimal" name="vol" value="${esc(vol)}" placeholder="p. ej. 1000"></label></div>`;
+  const out = (items) => `<div class="calc-out">${items.map(([l, v, s]) => `<div class="kpi k-bodega"><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`).join('')}</div>`;
+  const draw = () => {
+    const c = $('#calc');
+    if (tab === 'so2') c.innerHTML = `<h3>${ico('drop')}Sulfitado</h3>${volField()}<div class="row" style="margin-top:12px"><label class="field"><span>SO₂ libre actual (mg/L)</span><input type="number" step="1" inputmode="decimal" name="cur" placeholder="12"></label><label class="field"><span>SO₂ libre objetivo (mg/L)</span><input type="number" step="1" inputmode="decimal" name="target" placeholder="30"></label><label class="field"><span>pH (para SO₂ molecular)</span><input type="number" step="0.01" inputmode="decimal" name="ph" placeholder="3.45"></label><label class="field"><span>Producto</span><select name="prod"><option value="0.57">Metabisulfito de potasio (57 % SO₂)</option><option value="0.5">Metabisulfito de sodio (50 %)</option><option value="0.1">Solución SO₂ al 10 %</option><option value="0.05">Solución SO₂ al 5 %</option><option value="1">SO₂ gas / líquido (100 %)</option></select></label></div><div id="res"></div>`;
+    if (tab === 'acido') c.innerHTML = `<h3>${ico('lab')}Corrección de acidez</h3>${volField()}<div class="row" style="margin-top:12px"><label class="field"><span>Acidez total actual (g/L tartárico)</span><input type="number" step="0.1" inputmode="decimal" name="cur" placeholder="5.2"></label><label class="field"><span>Objetivo (g/L)</span><input type="number" step="0.1" inputmode="decimal" name="target" placeholder="6.0"></label><label class="field"><span>Producto</span><select name="prod"><option value="tart">Ácido tartárico (sube 1 g/L por g/L)</option><option value="k2co3">Carbonato de potasio (baja ≈ 1 g/L por 0,65 g/L)</option><option value="caco3">Carbonato de calcio (baja ≈ 1 g/L por 0,67 g/L)</option></select></label></div><div id="res"></div>`;
+    if (tab === 'azucar') c.innerHTML = `<h3>${ico('sparkle')}Chaptalización</h3>${volField()}<div class="row" style="margin-top:12px"><label class="field"><span>Alcohol potencial actual (% vol)</span><input type="number" step="0.1" inputmode="decimal" name="cur" placeholder="11.5"></label><label class="field"><span>Objetivo (% vol)</span><input type="number" step="0.1" inputmode="decimal" name="target" placeholder="12.5"></label><label class="field"><span>g de azúcar por L y % vol</span><input type="number" step="0.1" inputmode="decimal" name="factor" value="17"></label></div><div id="res"></div>`;
+    if (tab === 'mezcla') c.innerHTML = `<h3>${ico('blend')}Cuadrado de Pearson</h3><div class="help" style="margin-bottom:10px">Proporción de dos lotes para alcanzar un valor objetivo (alcohol, acidez, azúcar…).</div><div class="row"><label class="field"><span>Valor del lote A</span><input type="number" step="0.01" inputmode="decimal" name="a" placeholder="14.2"></label><label class="field"><span>Valor del lote B</span><input type="number" step="0.01" inputmode="decimal" name="b" placeholder="11.8"></label><label class="field"><span>Objetivo</span><input type="number" step="0.01" inputmode="decimal" name="target" placeholder="13.0"></label><label class="field"><span>Volumen final (L)</span><input type="number" step="1" inputmode="decimal" name="vol" placeholder="1000"></label></div><div id="res"></div>`;
+    const calc = () => {
+      const v = Object.fromEntries($$('input,select', c).filter((i) => i.name).map((i) => [i.name, i.value])); const V = +v.vol || 0; const res = $('#res', c);
+      if (tab === 'so2') { const need = Math.max(0, (+v.target || 0) - (+v.cur || 0)); const g = (need * V) / 1000 / (+v.prod || 1); const mol = v.ph ? (+v.target || 0) / (1 + Math.pow(10, +v.ph - 1.81)) : null; res.innerHTML = out([['SO₂ a añadir', `${fmtN(need * V / 1000, 1)}<small> g</small>`, `${need} mg/L × ${fmtN(V)} L`], ['Producto', `${fmtN(g, 1)}<small> g</small>`, 'según la riqueza elegida'], mol != null ? ['SO₂ molecular al objetivo', `${fmtN(mol, 2)}<small> mg/L</small>`, mol >= 0.8 ? 'protección microbiana (≥ 0,8)' : mol >= 0.5 ? 'antioxidante (0,5–0,8)' : 'insuficiente (< 0,5)'] : ['SO₂ molecular', '—', 'indica el pH']]); }
+      if (tab === 'acido') { const diff = (+v.target || 0) - (+v.cur || 0); const f = v.prod === 'tart' ? 1 : v.prod === 'k2co3' ? 0.65 : 0.67; const g = v.prod === 'tart' ? Math.max(0, diff) * V : Math.max(0, -diff) * f * V; res.innerHTML = out([['Diferencia', `${fmtN(diff, 2)}<small> g/L</small>`, diff > 0 ? 'hay que acidificar' : diff < 0 ? 'hay que desacidificar' : '—'], ['Producto', `${fmtN(g / 1000, 2)}<small> kg</small>`, `${fmtN(g)} g para ${fmtN(V)} L`], ['Advertencia', v.prod === 'tart' && diff < 0 ? 'Elige un carbonato' : v.prod !== 'tart' && diff > 0 ? 'Elige ácido tartárico' : 'Ensaya en laboratorio antes', '']]); }
+      if (tab === 'azucar') { const diff = Math.max(0, (+v.target || 0) - (+v.cur || 0)); const g = diff * (+v.factor || 17) * V; res.innerHTML = out([['Azúcar', `${fmtN(g / 1000, 1)}<small> kg</small>`, `${fmtN(diff, 1)} % vol × ${v.factor} g/L × ${fmtN(V)} L`], ['Mosto concentrado (≈ 60 %)', `${fmtN(g / 0.6 / 1000, 1)}<small> kg</small>`, 'orientativo']]); }
+      if (tab === 'mezcla') { const a = +v.a, b = +v.b, t = +v.target; if (!(a && b) || a === b || t < Math.min(a, b) || t > Math.max(a, b)) { res.innerHTML = `<div class="err" style="margin-top:10px">El objetivo debe estar entre los valores de A y B.</div>`; return; } const pa = Math.abs(t - b) / Math.abs(a - b); res.innerHTML = out([['Lote A', `${fmtN(pa * 100, 1)}<small> %</small>`, V ? `${fmtN(pa * V)} L` : ''], ['Lote B', `${fmtN((1 - pa) * 100, 1)}<small> %</small>`, V ? `${fmtN((1 - pa) * V)} L` : '']]); }
+    };
+    $$('input,select', c).forEach((i) => { i.oninput = calc; i.onchange = calc; }); calc();
+  };
+  draw();
+}
+
+// ================================================================ CATAS
+export async function viewTastings(page) {
+  crumbs('Bodega', 'Notas de cata');
+  const r = await api('/tastings');
+  page.innerHTML = head({ title: 'Notas de cata', icon: 'glass', k: 'k-bodega', eyebrow: 'Bodega', sub: `${r.tastings.length} notas registradas`, actions: `<button class="btn primary" id="newc">${ico('plus')} Nueva nota de cata</button>` }) + (r.tastings.length ? tastingsList(r.tastings) : empty('Aún no hay catas', 'Registra notas de cata para seguir la evolución sensorial de los lotes.', '<button class="btn primary" id="newc2">Registrar cata</button>', 'glass'));
+  const f = () => openTasting({}); $('#newc').onclick = f; if ($('#newc2')) $('#newc2').onclick = f;
+}
+export function openTasting({ vessel_id }) {
+  let vid = vessel_id || '';
+  const pick = () => vesselPicker({ id: 'ct', value: vid, filter: withWine, placeholder: 'Depósito con vino…', onPick: (id) => { vid = id; $('#ctv').innerHTML = pick(); } });
+  formModal({ title: 'Nueva nota de cata', eyebrow: 'Catas', okLabel: 'Crear nota', body: `<div class="row"><label class="field req" style="flex:1"><span>Fecha</span><input type="date" name="tasted_at" value="${today()}"></label><label class="field req" style="flex:1"><span>Catador</span><input name="taster" value="${esc(me()?.name || '')}"></label></div>
+    <div class="field req" style="margin-top:12px"><span>Depósito con vino</span><div id="ctv">${pick()}</div></div>
+    <div class="row" style="margin-top:12px"><label class="field" style="flex:1"><span>Fase</span><select name="phase">${TASTING_PHASE.map((p) => `<option>${p}</option>`).join('')}</select></label><label class="field" style="flex:1"><span>Puntuación (0–10)</span><input type="number" step="0.5" min="0" max="10" inputmode="decimal" name="score"></label><label class="toggle" style="flex:1"><input type="checkbox" name="blind"> Cata a ciegas</label></div>
+    <div class="sec-title">Descriptores organolépticos</div>${[['appearance', 'Aspecto / Color'], ['nose', 'Aroma'], ['palate', 'Boca'], ['finish', 'Final'], ['overall', 'Apreciación global']].map((f) => `<label class="field" style="margin-top:8px"><span>${f[1]}</span><input name="${f[0]}"></label>`).join('')}
+    <label class="field" style="margin-top:8px"><span>Notas adicionales</span><textarea name="notes" rows="2"></textarea></label>`, onSave: async (b) => { await api('/tastings', { method: 'POST', body: { ...b, vessel_id: vid } }); closeModal(); toast('Nota de cata guardada'); route(); } });
+}
+export function openCleaning(v) {
+  formModal({ title: `Limpieza de ${v.code}`, eyebrow: 'Recipiente', narrow: true, okLabel: 'Registrar limpieza', body: `<div class="row"><label class="field req" style="flex:1"><span>Fecha</span><input type="date" name="cleaned_at" value="${today()}"></label><label class="field" style="flex:1"><span>Quién</span><input name="by_name" value="${esc(me()?.name || '')}"></label></div><label class="field" style="margin-top:12px"><span>Método</span><input name="method" placeholder="Agua caliente, sosa, ozono, azufre…"></label><label class="field" style="margin-top:12px"><span>Notas</span><textarea name="notes" rows="2"></textarea></label>`, onSave: async (b) => { await api('/cleanings', { method: 'POST', body: { ...b, vessel_id: v.id } }); closeModal(); toast('Limpieza registrada'); await reload(); route(); } });
+}
+
+// ================================================================ INVENTARIO
+export async function viewInventory(page) {
+  crumbs('Bodega', 'Inventario');
+  const q = S.route.q; const tab = q.tab || '';
+  const inv = await api('/inventory'); const k = inv.kpi;
+  page.innerHTML = head({ title: 'Inventario', icon: 'inventory', k: 'k-bodega', eyebrow: 'Bodega', sub: 'Existencias de vino a granel, botellas y consumibles enológicos.', actions: tab === 'lotes' ? `<button class="btn primary" id="recv">${ico('plus')} Nueva entrada</button>` : '' }) +
+    tabs([['', 'Resumen', 'grid'], ['lotes', 'Lotes físicos', 'box'], ['productos', 'Productos', 'lab']], tab, '#/inventario') +
+    `<div class="kpi-row">${kpi('Granel', fmtN(k.bulk_l), `${k.bulk_lots} lotes activos`, 'k-bodega', ' L')}${kpi('Por etiquetar / embalar', fmtN(k.prepack_bottles), `≈ ${fmtN(k.prepack_l)} L`, 'k-hospitalidad', ' bot.')}${kpi('Producto terminado', fmtN(k.finished_bottles), `${k.skus} referencias`, 'k-ventas', ' bot.')}${kpi('Consumibles', k.consumables, k.low_stock ? `${k.low_stock} bajo mínimo` : 'existencias correctas', k.low_stock ? 'warn' : 'k-equipo')}</div><div id="inv"></div>`;
+  const c = $('#inv');
+  if (!tab) {
+    const sub = q.sub || 'granel';
+    c.innerHTML = `<div class="chips soft" style="margin-bottom:12px">${[['granel', 'Granel'], ['embotellado', 'Embotellado'], ['consumibles', 'Consumibles']].map(([v, l]) => `<a href="#/inventario?sub=${v}" aria-current="${sub === v ? 'page' : 'false'}">${l}</a>`).join('')}</div>` +
+      (sub === 'granel' ? (inv.bulk.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Lote</th><th>Vino</th><th>Fase</th><th>Recipientes</th><th class="num">Litros</th><th class="num">kg</th></tr></thead><tbody>${inv.bulk.map((l) => `<tr><td data-l="Lote"><a href="#/traza?lot=${l.id}">${esc(l.code)}</a></td><td data-l="Vino">${esc(l.varieties || '')} · ${WINE[l.wine_type] || ''}${l.vintage ? ' · ' + l.vintage : ''}</td><td data-l="Fase">${PHASE[l.phase] || ''}</td><td data-l="Recipientes">${esc(l.vessels || '')}</td><td data-l="Litros" class="num">${fmtN(l.liters, 1)}</td><td data-l="kg" class="num">${l.kg ? fmtN(l.kg) : '—'}</td></tr>`).join('')}</tbody></table></div>` : empty('Sin vino a granel', 'Carga saldos de apertura o recibe uva.', '', 'tank'))
+        : sub === 'embotellado' ? (inv.bottled.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Producto</th><th>Categoría</th><th class="num">Añada</th><th class="num">Botellas</th><th class="num">Sesiones</th><th>Último embotellado</th></tr></thead><tbody>${inv.bottled.map((p) => `<tr><td data-l="Producto"><b>${esc(p.name)}</b> <span class="muted small">${esc(p.code)}</span></td><td data-l="Categoría">${esc(p.category || '—')}</td><td data-l="Añada" class="num">${p.vintage || '—'}</td><td data-l="Botellas" class="num">${fmtN(p.bottles)}</td><td data-l="Sesiones" class="num">${p.sessions}</td><td data-l="Último">${fmtD(p.last_bottled)}</td></tr>`).join('')}</tbody></table></div>` + `<div class="card" style="margin-top:12px"><h3>${ico('bottle')}Por etapa</h3>${hbars(inv.stages.map((s) => ({ ...s, n: s.bottles })), (s) => BOTTLE_STAGE[s.stage] || s.stage, 'n', 'k-ventas')}</div>` : empty('Sin botellas', 'Registra sesiones de embotellado.', '', 'bottle'))
+        : (inv.consumables.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Producto</th><th>Tipo</th><th class="num">Existencias</th><th class="num">Mínimo</th><th class="num">Lotes</th><th></th></tr></thead><tbody>${inv.consumables.map((p) => `<tr><td data-l="Producto"><b>${esc(p.name)}</b> <span class="muted small">${esc(p.code || '')}</span></td><td data-l="Tipo">${CATEGORY[p.category] || p.category}</td><td data-l="Existencias" class="num ${p.min_stock != null && p.stock < p.min_stock ? 'err' : ''}">${fmtN(p.stock, 2)} ${esc(p.unit)}</td><td data-l="Mínimo" class="num">${p.min_stock ?? '—'}</td><td data-l="Lotes" class="num">${p.batches}</td><td class="acts"><button class="btn sm" data-recv="${p.id}">${ico('download')} Entrada</button></td></tr>`).join('')}</tbody></table></div>` : empty('Sin consumibles', 'Crea el catálogo de productos enológicos.', '<a class="btn primary" href="#/productos">Productos enológicos</a>', 'lab')));
+  }
+  if (tab === 'lotes') {
+    const b = await api('/product-batches'); let rows = b.batches; const sub = q.sub || 'fefo';
+    if (sub === 'fefo') rows = rows.filter((x) => x.status === 'active');
+    c.innerHTML = `<div class="chips soft" style="margin-bottom:12px">${[['fefo', 'FEFO activos'], ['todos', 'Todos'], ['recuento', 'Recuento'], ['auditoria', 'Auditoría FEFO']].map(([v, l]) => `<a href="#/inventario?tab=lotes&sub=${v}" aria-current="${sub === v ? 'page' : 'false'}">${l}</a>`).join('')}</div>` +
+      (sub === 'auditoria' ? await audit() : rows.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Producto</th><th>Lote proveedor</th><th>Recibido</th><th>Caduca</th><th class="num">Disponible</th><th>Estado</th><th></th></tr></thead><tbody>${rows.map((x) => `<tr><td data-l="Producto"><b>${esc(x.product_name)}</b></td><td data-l="Lote" class="num">${esc(x.supplier_lot)}${x.supplier ? ` <span class="muted small">${esc(x.supplier)}</span>` : ''}</td><td data-l="Recibido" class="num">${fmtD(x.received_at)}</td><td data-l="Caduca"><span class="pill ${x.expiry_state === 'expired' ? 'bad' : x.expiry_state === 'soon30' ? 'warn' : x.expiry_state === 'soon90' ? '' : 'ok'}">${x.expires_at ? fmtD(x.expires_at) + (x.days_to_expiry != null ? ` · ${x.days_to_expiry} d` : '') : 'sin caducidad'}</span></td><td data-l="Disponible" class="num">${fmtN(x.qty_available, 2)} / ${fmtN(x.qty_initial, 2)} ${esc(x.unit)}</td><td data-l="Estado"><span class="pill ${x.status === 'active' ? 'ok' : x.status === 'quarantine' ? 'warn' : ''}">${BATCH_STATUS[x.status]}</span></td><td class="acts">${sub === 'recuento' ? `<button class="btn sm" data-count="${x.id}">${ico('edit')} Contar</button>` : `<select class="inline" data-st="${x.id}">${opts(BATCH_STATUS, x.status)}</select>`}</td></tr>`).join('')}</tbody></table></div>` : empty('Sin lotes físicos', 'Registra la entrada de productos con lote del proveedor y caducidad.', '<button class="btn primary" id="recv2">Nueva entrada</button>', 'box'));
+    $$('[data-st]', c).forEach((s) => s.onchange = async () => { try { await api(`/product-batches/${s.dataset.st}/status`, { method: 'POST', body: { status: s.value } }); toast('Estado actualizado'); route(); } catch (e) { toast(e.message, true); } });
+    $$('[data-count]', c).forEach((bt) => bt.onclick = () => { const x = rows.find((r) => r.id === +bt.dataset.count); formModal({ title: `Recuento · ${x.product_name}`, eyebrow: 'Inventario', narrow: true, okLabel: 'Guardar recuento', body: `<div class="help" style="margin-bottom:10px">Lote ${esc(x.supplier_lot)} · sistema: <b>${fmtN(x.qty_available, 2)} ${esc(x.unit)}</b></div><label class="field req"><span>Cantidad contada (${esc(x.unit)})</span><input type="number" step="0.001" inputmode="decimal" name="qty" value="${x.qty_available}"></label><label class="field" style="margin-top:12px"><span>Notas</span><input name="notes"></label>`, onSave: async (bd) => { await api(`/product-batches/${x.id}/count`, { method: 'POST', body: bd }); closeModal(); toast('Recuento guardado'); route(); } }); });
+    if ($('#recv2')) $('#recv2').onclick = () => openReceive();
+  }
+  if (tab === 'productos') {
+    const ps = inv.consumables;
+    c.innerHTML = `<div class="between" style="margin-bottom:10px"><span class="muted small">${ps.length} productos en catálogo</span><a class="btn sm" href="#/productos">${ico('settings')} Gestionar catálogo</a></div>` + (ps.length ? `<div class="rowlist">${ps.map((p) => `<div class="item"><div class="body"><div class="t">${esc(p.name)} <span class="pill">${CATEGORY[p.category] || p.category}</span></div><div class="m">${esc(p.code || '')} · existencias <b class="num">${fmtN(p.stock, 2)} ${esc(p.unit)}</b> en ${p.batches} lote${p.batches === 1 ? '' : 's'}${p.supplier ? ' · ' + esc(p.supplier) : ''}</div></div><button class="btn sm" data-recv="${p.id}">${ico('download')} Entradas</button></div>`).join('')}</div>` : empty('Sin productos', 'Crea el catálogo para que las adiciones elijan de una lista.', '<a class="btn primary" href="#/productos">Crear productos</a>', 'lab'));
+  }
+  $$('[data-recv]', c).forEach((bt) => bt.onclick = () => openReceive(+bt.dataset.recv));
+  if ($('#recv')) $('#recv').onclick = () => openReceive();
+}
+async function audit() { const a = await api('/product-batches/fefo-audit'); return `<div class="card"><h3>${ico('shield')}Auditoría FEFO</h3><p class="muted small" style="margin-bottom:10px">${a.movements} consumos revisados. Se marca cada adición que usó un lote con caducidad posterior a otro disponible.</p>${a.issues.length ? `<div class="table-wrap"><table class="t cards"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote usado</th><th>Debió usar</th></tr></thead><tbody>${a.issues.map((i) => `<tr><td data-l="Fecha" class="num">${fmtD(i.moved_at)}</td><td data-l="Producto">${esc(i.product_name)}</td><td data-l="Usado">${esc(i.supplier_lot)}</td><td data-l="Debió usar" class="err">${esc(i.should_have)}</td></tr>`).join('')}</tbody></table></div>` : `<div class="alert ok">${ico('check')}<span>Sin desviaciones: todas las adiciones consumieron el lote con caducidad más próxima.</span></div>`}</div>`; }
+export function openReceive(product_id) {
+  formModal({ title: 'Entrada de producto', eyebrow: 'Inventario', okLabel: 'Registrar entrada', body: `<label class="field req"><span>Producto</span><select name="product_id"><option value="">Seleccionar…</option>${S.boot.products.map((p) => `<option value="${p.id}" ${p.id === product_id ? 'selected' : ''}>${esc(p.name)} (${esc(p.unit)})</option>`).join('')}</select></label>
+    <div class="row" style="margin-top:12px"><label class="field req"><span>Lote del proveedor</span><input name="supplier_lot" placeholder="p. ej. L2409-77"></label><label class="field"><span>Proveedor</span><input name="supplier"></label></div>
+    <div class="row" style="margin-top:12px"><label class="field req"><span>Recibido</span><input type="date" name="received_at" value="${today()}"></label><label class="field"><span>Caducidad</span><input type="date" name="expires_at"></label><label class="field req"><span>Cantidad</span><input type="number" step="0.001" inputmode="decimal" name="qty"></label></div>
+    <div class="row" style="margin-top:12px"><label class="field"><span>Coste unitario</span><input type="number" step="0.01" inputmode="decimal" name="unit_cost"></label><label class="field"><span>Nº factura</span><input name="invoice_no"></label></div><label class="field" style="margin-top:12px"><span>Notas</span><input name="notes"></label>`, onSave: async (b) => { await api('/product-batches', { method: 'POST', body: b }); closeModal(); toast('Entrada registrada'); go('#/inventario?tab=lotes'); } });
+}
+
+// ================================================================ ACTIVIDAD
+export async function viewActivity(page) {
+  crumbs('Bodega', '<a href="#/operaciones">Operaciones</a>', 'Actividad');
+  const a = await api('/activity');
+  page.innerHTML = head({ title: 'Actividad y existencias', icon: 'chart', k: 'k-bodega', eyebrow: 'Bodega', sub: 'Volumen de operaciones, vino en bodega, embotellado y caducidades.' }) +
+    `<div class="kpi-row">${kpi('Operaciones (30 días)', a.ops30, '', 'k-ventas')}${kpi('Borradores pendientes', a.drafts, '', a.drafts ? 'warn' : 'k-equipo')}${kpi('Recipientes por limpiar', a.toClean, '', a.toClean ? 'warn' : 'k-equipo')}${kpi('Vino en bodega', fmtN(a.kpi.liters), `${a.kpi.occupied} recipientes ocupados`, 'k-bodega', ' L')}${kpi('Lotes físicos activos', a.stock.active, `${a.stock.expiring} caducan pronto · ${a.stock.expired} caducados`, a.stock.expired ? 'bad' : a.stock.expiring ? 'warn' : 'k-huerta')}</div>
+    <div class="grid2"><div class="card k-ventas"><h3>${ico('ops')}Operaciones por mes</h3>${barChart(a.byMonth, { label: (r) => r.month.slice(2), value: (r) => r.n })}</div><div class="card k-bodega"><h3>${ico('layers')}Operaciones por tipo (12 meses)</h3>${hbars(a.byType, (r) => TYPE_LABEL[r.type] || r.type)}</div><div class="card k-hospitalidad"><h3>${ico('glass')}Litros por tipo de vino</h3>${hbars(a.lotsByType, (r) => `${WINE[r.wine_type] || r.wine_type} (${r.lots})`, 'liters')}</div><div class="card k-marketing"><h3>${ico('bottle')}Botellas por mes</h3>${barChart(a.bottlingByMonth, { label: (r) => r.month.slice(2), value: (r) => r.n })}</div>
+    <div class="card k-equipo"><h3>${ico('inventory')}Granel vs embotellado</h3><div class="dots"><div><i style="background:var(--bodega)"></i><div><b>${fmtN(a.bulkVsBottled.bulk_l)} L</b><small>a granel</small></div></div><div><i style="background:var(--ventas)"></i><div><b>${fmtN(a.bulkVsBottled.bottled_l)} L</b><small>en botella</small></div></div></div><div class="progress" style="margin-top:12px;--k:var(--bodega)"><i style="width:${a.bulkVsBottled.bulk_l + a.bulkVsBottled.bottled_l ? Math.round((a.bulkVsBottled.bulk_l / (a.bulkVsBottled.bulk_l + a.bulkVsBottled.bottled_l)) * 100) : 0}%"></i></div></div>
+    <div class="card k-warn"><h3>${ico('clock')}Caducidades próximas</h3>${a.stock.expiringList.length ? `<div class="subtle-list">${a.stock.expiringList.map((x) => `<div><span><b>${esc(x.product_name)}</b> · ${esc(x.supplier_lot)}</span><span class="num ${x.expiry_state === 'soon30' ? 'err' : 'muted'}">${fmtD(x.expires_at)} · ${x.days_to_expiry} d</span></div>`).join('')}</div>` : '<div class="muted">Nada caduca en los próximos 90 días.</div>'}</div></div>`;
+}
