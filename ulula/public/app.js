@@ -144,7 +144,7 @@ async function viewBoard(page) {
     const groups = {};
     for (const v of vs) { const g = S.group === 'kind' ? (KIND[v.kind] || v.kind) : S.group === 'location' ? (v.location_name || 'Sin ubicación') : ''; (groups[g] ||= []).push(v); }
     const order = Object.keys(groups).sort((a, b2) => (a === 'Sin ubicación') - (b2 === 'Sin ubicación') || a.localeCompare(b2));
-    $('#cells').innerHTML = vs.length ? order.map((g) => `${g ? `<div class="group-head">${esc(g)} <small>${groups[g].length} de ${b.vessels.length}</small></div>` : ''}<div class="cells ${S.view === 'pict' ? 'pict' : ''}">${groups[g].map((v) => cellHtml(v, S.view === 'pict')).join('')}</div>`).join('') : empty('Nada que mostrar', 'Ningún recipiente coincide con el filtro.');
+    $('#cells').innerHTML = !b.vessels.length ? empty('Aún no hay recipientes registrados', 'Registra tus depósitos, tinas y barricas y el tablero se completa solo.', '<a class="btn primary" href="#/depositos">Ir a Depósitos</a>') : vs.length ? order.map((g) => `${g ? `<div class="group-head">${esc(g)} <small>${groups[g].length} de ${b.vessels.length}</small></div>` : ''}<div class="cells ${S.view === 'pict' ? 'pict' : ''}">${groups[g].map((v) => cellHtml(v, S.view === 'pict')).join('')}</div>`).join('') : empty('Nada que mostrar', 'Ningún recipiente coincide con el filtro.');
   };
   draw();
   $('#bq').addEventListener('input', (e) => { S.q = e.target.value; draw(); });

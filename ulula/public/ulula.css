@@ -42,6 +42,12 @@ main.main { min-width: 0; padding: 0 0 calc(24px + var(--safe-b)); }
   .topbar-in { padding: 8px 14px; }
 }
 
+/* ---------- iconos ---------- */
+svg[aria-hidden="true"] { width: 18px; height: 18px; flex: none; }
+.btn svg { width: 17px; height: 17px; }
+.tabbar a svg { width: 22px; height: 22px; }
+.cell.p svg { width: 72px; height: 84px; }
+
 /* ---------- common bits ---------- */
 .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
 .filters select.inline, .filters input { width: auto; min-width: 150px; }
