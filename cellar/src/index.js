@@ -22,7 +22,8 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
     // App-managed users (Settings → Users), alongside the ALLOWED_EMAILS secret.
-    try { const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = 'users'").all(); env.__users = results.map(r => Object.assign({ email: r.id }, JSON.parse(r.data))); } catch (e) { env.__users = []; }
+    // App users change rarely: read them from D1 at most once a minute per Worker instance, not on every request.
+    env.__users = await appUserList(env);
     if (p === '/manifest.webmanifest') return new Response(JSON.stringify({ name: APP_NAME, short_name: APP_SHORT, start_url: '/', display: 'standalone', background_color: '#ffffff', theme_color: '#5c1f33',
       icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] }),
       { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'public, max-age=3600' } });
@@ -55,6 +56,7 @@ export default {
           const stmts = [env.DB.prepare("DELETE FROM docs WHERE coll = 'users'")];
           for (const u of users) stmts.push(env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('users', ?, ?, ?)").bind(u.email, JSON.stringify({ initials: u.initials, role: u.role }), Date.now()));
           await env.DB.batch(stmts);
+          USERS_CACHE.at = 0; // next request re-reads the list
           return J({ ok: true, users });
         }
       }
@@ -102,6 +104,12 @@ export default {
         await env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('housenotes', 'main', ?, ?) ON CONFLICT(coll, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(JSON.stringify({ lines }), Date.now()).run();
         return J({ ok: true });
       }
+      // One cheap call for every collection's version: the page polls this, then pulls only what changed.
+      if (p === '/api/dbver' && request.method === 'GET') {
+        const { results } = await env.DB.prepare('SELECT coll, v FROM coll_ver').all();
+        const etags = {}; for (const r of results) etags[r.coll] = `"${r.coll}-v${r.v}"`;
+        return J({ etags });
+      }
       if (p.startsWith('/api/db/')) return await dbRoute(request, env, p, canWrite, ctx, crew);
       if (p === '/api/sheets' && request.method === 'POST') {
         const { tool, args } = await request.json();
@@ -139,6 +147,18 @@ export default {
   },
 };
 
+// ---------- app users (Settings → Users), cached per Worker instance ----------
+const USERS_CACHE = { at: 0, list: [] };
+async function appUserList(env) {
+  if (Date.now() - USERS_CACHE.at < 60000) return USERS_CACHE.list;
+  try {
+    const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = 'users'").all();
+    USERS_CACHE.list = results.map(r => Object.assign({ email: r.id }, JSON.parse(r.data)));
+    USERS_CACHE.at = Date.now();
+  } catch (e) { if (!USERS_CACHE.at) USERS_CACHE.list = []; }
+  return USERS_CACHE.list;
+}
+
 // ---------- db: collections of JSON docs in D1 (same shape as the artifact's shared database) ----------
 // What the crew role may write. Tasks: only the fields that follow a work order (done, the order itself, its assignee/priority/date).
 const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purchases', 'barrel_log', 'trials']);
@@ -156,7 +176,8 @@ async function dbRoute(request, env, p, canWrite, ctx, crew) {
     // coll_ver is bumped by D1 triggers on every docs insert/update/delete: the freshness check reads 1 row, not the whole collection.
     const v = await env.DB.prepare('SELECT v FROM coll_ver WHERE coll = ?').bind(coll).first();
     const etag = `"${coll}-v${v ? v.v : 0}"`;
-    if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: { etag } });
+    // Cloudflare may weaken the ETag (W/"…") when it compresses the response; compare without the W/ prefix.
+    if ((request.headers.get('if-none-match') || '').replace(/^W\//, '') === etag) return new Response(null, { status: 304, headers: { etag } });
     const { results } = await env.DB.prepare('SELECT id, data FROM docs WHERE coll = ?').bind(coll).all();
     return J({ rows: results.map(r => ({ id: r.id, data: JSON.parse(r.data) })) }, 200, { etag });
   }

@@ -5,7 +5,7 @@
   const json = async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign({ code: j.code || (r.status === 401 ? 'revoked' : 'unavailable') }, j); return j; };
   const call = (path, body, method) => fetch(path, { method: method || 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: body === undefined ? undefined : JSON.stringify(body) }).then(json);
 
-  // ---------- db: Firestore-like collections over D1, kept fresh by polling with ETags ----------
+  // ---------- db: Firestore-like collections over D1, kept fresh by one version check for all collections (see checkAll) ----------
   const subs = {}; // coll -> { cbs:Set, etag, rows, timer }
   const snap = (rows) => ({ docs: rows.map(d => ({ id: d.id, data: () => d.data })), size: rows.length, empty: !rows.length });
   async function pull(coll, force) {
@@ -15,12 +15,35 @@
       if (r.status === 304) return;
       if (r.status === 401) { s.cbs.forEach(c => c.err && c.err({ code: 'revoked' })); return; }
       const j = await json(r);
-      s.etag = r.headers.get('etag'); s.rows = j.rows || [];
+      s.etag = (r.headers.get('etag') || '').replace(/^W\//, '') || null; s.rows = j.rows || [];
       s.cbs.forEach(c => { try { c.ok(snap(s.rows)); } catch (e) { console.error(e); } });
     } catch (e) { s.cbs.forEach(c => c.err && c.err(e)); }
   }
   const touch = (coll) => setTimeout(() => pull(coll), 50);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') Object.keys(subs).forEach(c => pull(c)); });
+  // Freshness: ONE request asks for every collection's version (/api/dbver); only collections whose version
+  // changed are re-downloaded. Every 30 s while the tab is visible and someone is using it; every 5 min when the
+  // page has sat untouched for 15 min (a screen left open); nothing while the tab is hidden.
+  let lastUse = Date.now(), ticks = 0, checking = false;
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(ev => window.addEventListener(ev, () => { lastUse = Date.now(); }, { passive: true, capture: true }));
+  async function checkAll() {
+    const colls = Object.keys(subs); if (!colls.length || checking) return;
+    checking = true;
+    try {
+      const r = await fetch('/api/dbver', { credentials: 'same-origin' });
+      if (r.status === 401) { colls.forEach(c => pull(c)); return; } // let pull() report the expired session
+      const { etags } = await json(r);
+      // A collection with no version row yet is "<coll>-v0" on the server too.
+      colls.forEach(c => { const s = subs[c]; if (s && (!s.etag || ((etags || {})[c] || `"${c}-v0"`) !== s.etag)) pull(c); });
+    } catch (e) { /* offline or a blip: try again on the next tick */ }
+    finally { checking = false; }
+  }
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    ticks++;
+    if (Date.now() - lastUse > 15 * 60000 && ticks % 10) return;
+    checkAll();
+  }, 30000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { lastUse = Date.now(); checkAll(); } });
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   const db = {
     collection(coll) {
@@ -30,8 +53,7 @@
           const s = subs[coll] || (subs[coll] = { cbs: new Set(), etag: null, rows: null });
           const c = { ok, err }; s.cbs.add(c);
           if (s.rows) ok(snap(s.rows)); else pull(coll, true);
-          if (!s.timer) s.timer = setInterval(() => { if (document.visibilityState === 'visible') pull(coll); }, 15000);
-          return () => { s.cbs.delete(c); if (!s.cbs.size) { clearInterval(s.timer); delete subs[coll]; } };
+          return () => { s.cbs.delete(c); if (!s.cbs.size) delete subs[coll]; };
         },
         async add(data) { const id = newId(); await call(base + '/' + encodeURIComponent(id), data, 'PUT'); touch(coll); return { id }; },
         doc(id) {

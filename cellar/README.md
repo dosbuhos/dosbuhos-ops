@@ -5,7 +5,7 @@ The Claude artifact, running on Cloudflare Workers. `app/cellar-targets.html` is
 
 | Artifact capability | Here |
 |---|---|
-| `db` (lots, tasks, protocols, trials, audit, vineyard, settings, woqueue, wocache, labcache) | D1 `cellar`, table `docs`: `/api/db/:collection[/:id]`, polled every 15 s with ETags |
+| `db` (lots, tasks, protocols, trials, audit, vineyard, settings, woqueue, wocache, labcache) | D1 `cellar`, table `docs`: `/api/db/:collection[/:id]`, kept fresh by one `/api/dbver` version check every 30 s (5 min when idle, none when hidden) |
 | `mcp` Google Sheets (Excellovint) | `/api/sheets` → Sheets API with a service account; only `SHEET_ID` |
 | `sample` (Learn tutor, blend-trial tidy-up) | `/api/ai` → Claude API (`ANTHROPIC_API_KEY`) |
 | `user` | Google sign-in; `VIEWER_EMAILS` are read-only |
