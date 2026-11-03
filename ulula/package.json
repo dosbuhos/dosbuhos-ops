@@ -1,0 +1,12 @@
+{
+  "name": "dosbuhos-ulula",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply ulula --local",
+    "db:remote": "wrangler d1 migrations apply ulula --remote",
+    "deploy": "wrangler d1 migrations apply ulula --remote && wrangler deploy"
+  },
+  "devDependencies": { "wrangler": "^4.40.0" }
+}

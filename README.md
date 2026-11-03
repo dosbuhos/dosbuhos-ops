@@ -9,6 +9,7 @@ Internal apps and tools for Bodega Dos Búhos.
 | `mantenimiento/` | Mantenimiento: tareas por área/prioridad para Adrián, carpinteros y proveedores externos; fotos, notas, equipos e historial de servicio. Worker `dosbuhos-mantenimiento`, D1 `mantenimiento`, login con nombre + PIN |
 | `wineclub/` | Club Dos Búhos: agenda de envíos del club de vinos (atrasados, hoy, próximos), historial por socio y uso de beneficios. Worker `wineclub` (+ `wineclub-staging`), D1, Cloudflare Access |
 | `cellar/` | Calendario de bodega (Cellar Target Calendar): vinos, labs, órdenes de trabajo de Excellovint, protocolos y Learn. Worker `cellar`, D1 `cellar`, Google sign-in; lee y escribe Excellovint con una cuenta de servicio. Fuente = el artifact de Claude; se arma con `python3 cellar/app/build.py` |
+| `ulula/` | Ulula: bodega por recipientes (clon del módulo Bodega de GrapeFlow para compararlo con el Cellar Tracker). Tablero por recipiente, operaciones con estancias de lotes, trazabilidad, análisis, catas. Worker `ulula`, D1 `ulula`, sin login por ahora |
 | `zoho-inventory/` | Zoho Inventory tracking and automation. First app: sample-bottle tracking for sales reps (Cloudflare Worker) |
 
 Add each new app or tool as its own folder.
