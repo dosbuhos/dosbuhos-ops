@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Biblioteca · Dos Búhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css?app=biblioteca"><link rel="stylesheet" href="/kit/kit.css">
+<link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#141719" media="(prefers-color-scheme: dark)">
+<style>
+/* Biblioteca. Phone first: one column, nothing scrolls sideways. */
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin: 4px 0 12px; flex-wrap: wrap; }
+.page-head h1 { font-family: var(--f-display); font-weight: var(--w-display); font-size: 32px; line-height: 1; }
+.page-head .sub { font-size: 13px; color: var(--muted); width: 100%; }
+.search { width: 100%; margin: 0 0 10px; }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+.cats button { min-height: 36px; padding: 0 12px; border-radius: 999px; border: var(--bw) solid var(--rule); background: var(--paper); color: var(--muted); font: 500 13px var(--f-body); cursor: pointer; }
+.cats button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.cats button small { opacity: .7; margin-left: 3px; }
+.group { margin: 0 0 20px; }
+.group > h2 { font-family: var(--f-display); font-size: 21px; font-weight: var(--w-display); margin: 0 0 8px; }
+.docs { display: flex; flex-direction: column; gap: 8px; }
+.doc { background: var(--paper); border: var(--bw) solid var(--rule); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
+.doc:hover { border-color: var(--muted); }
+.doc .t { font-weight: 600; font-size: 15.5px; line-height: 1.3; }
+.doc .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.doc .sum { font-size: 13.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.files { display: flex; flex-wrap: wrap; gap: 6px; }
+.file { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: var(--radius-sm); border: var(--bw) solid var(--rule); background: var(--paper-2); color: var(--ink); text-decoration: none; font-size: 13px; font-weight: 500; max-width: 100%; }
+.file b { font-family: var(--f-mono); font-size: 11px; padding: 1px 5px; border-radius: 3px; background: var(--ink); color: var(--paper); }
+.file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file:hover { border-color: var(--muted); }
+dialog { width: min(620px, calc(100vw - 16px)); }
+dialog .db { display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 140px); overflow-y: auto; }
+.vers { display: flex; flex-direction: column; gap: 10px; }
+.ver { border-left: 3px solid var(--rule); padding: 2px 0 2px 10px; }
+.ver.cur { border-left-color: var(--accent); }
+.ver .vh { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; font-size: 13px; color: var(--muted); }
+.ver .vh b { font-family: var(--f-mono); color: var(--ink); font-size: 14px; }
+.ver p { font-size: 13.5px; margin: 4px 0 6px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.drop { border: var(--bw) dashed var(--rule); border-radius: var(--radius); padding: 14px; text-align: center; color: var(--muted); font-size: 13.5px; }
+.drop.on { border-color: var(--accent); color: var(--ink); }
+.picked { font-size: 13px; color: var(--ink); margin-top: 6px; }
+.msg { font-size: 13px; color: var(--bad); min-height: 1em; }
+textarea { min-height: 70px; }
+.field input, .field select, .field textarea { width: 100%; }
+.st-borrador { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.st-archivado { opacity: .7; }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <a class="wordmark" href="/" aria-label="Dos Búhos, inicio del Hub"><img class="wordmark-img" src="/logo-word.png" alt="dos búhos" width="730" height="160"></a>
+  <span class="crumb"><b>Biblioteca</b></span>
+  <span class="spacer"></span>
+  <nav><a href="/">Hub</a></nav>
+</div></header>
+
+<main class="wrap">
+  <div class="page-head">
+    <h1>Biblioteca</h1>
+    <button class="btn primary" id="add" hidden>+ Nuevo documento</button>
+    <div class="sub" id="sub">Cargando…</div>
+  </div>
+  <input class="search" id="q" type="search" placeholder="Buscar por título, etiqueta o descripción" autocomplete="off">
+  <div class="cats" id="cats" role="group" aria-label="Categoría"></div>
+  <div class="seg" id="stf" role="group" aria-label="Estado" style="margin:0 0 16px">
+    <button type="button" data-s="activos" aria-pressed="true">Vigentes y borradores</button><button type="button" data-s="archivado" aria-pressed="false">Archivados</button>
+  </div>
+  <div id="list"></div>
+</main>
+
+<dialog id="dlg"><div class="dh"><b id="dt"></b><button class="btn sm" data-close>Cerrar</button></div><div class="db" id="dbody"></div></dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtDate = ms => ms ? new Date(ms).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+const ext = f => (f.filename.split('.').pop() || '').toUpperCase().slice(0, 4);
+const fileLink = f => `<a class="file" href="/biblioteca/f/${f.id}/${encodeURIComponent(f.filename)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><b>${esc(ext(f))}</b><span>${esc(f.filename)}</span></a>`;
+let S = { docs: [], cats: [], role: 'viewer', cat: '', st: 'activos', q: '' };
+const catName = k => (S.cats.find(c => c[0] === k) || [k, k])[1];
+const canEdit = () => S.role === 'admin' || S.role === 'editor';
+
+async function api(path, opt = {}) {
+  const r = await fetch('/biblioteca/api' + path, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.message || 'Error ' + r.status);
+  return j;
+}
+const send = (path, method, body) => api(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+async function load() {
+  try {
+    const j = await api('/docs');
+    S.docs = j.docs; S.cats = j.categories; S.role = j.role;
+    $('#add').hidden = !canEdit();
+    render();
+  } catch (e) { $('#sub').textContent = e.message; }
+}
+
+function visible() {
+  const q = S.q.toLowerCase();
+  return S.docs.filter(d => (S.st === 'archivado' ? d.status === 'archivado' : d.status !== 'archivado')
+    && (!S.cat || d.category === S.cat)
+    && (!q || [d.title, d.summary, d.tags, d.audience].join(' ').toLowerCase().includes(q)));
+}
+
+function render() {
+  const live = S.docs.filter(d => d.status !== 'archivado');
+  $('#sub').textContent = `${live.length} documento${live.length === 1 ? '' : 's'} · toca uno para ver versiones`;
+  const counts = {}; for (const d of live) counts[d.category] = (counts[d.category] || 0) + 1;
+  $('#cats').innerHTML = `<button type="button" data-c="" aria-pressed="${!S.cat}">Todos</button>` +
+    S.cats.filter(c => counts[c[0]]).map(c => `<button type="button" data-c="${c[0]}" aria-pressed="${S.cat === c[0]}">${esc(c[1])}<small>${counts[c[0]]}</small></button>`).join('');
+  const docs = visible();
+  if (!docs.length) {
+    $('#list').innerHTML = S.docs.length ? '<div class="empty"><b>Nada aquí</b>Prueba otra búsqueda o categoría.</div>'
+      : `<div class="empty"><b>La biblioteca está vacía</b>${canEdit() ? 'Sube el primer documento con “+ Nuevo documento”.' : 'Todavía no hay documentos.'}</div>`;
+    return;
+  }
+  const groups = S.cats.map(c => [c, docs.filter(d => d.category === c[0])]).filter(g => g[1].length);
+  $('#list').innerHTML = groups.map(([c, ds]) => `<section class="group"><h2>${esc(c[1])}</h2><div class="docs">${ds.map(card).join('')}</div></section>`).join('');
+}
+
+function card(d) {
+  return `<button type="button" class="doc" data-id="${d.id}">
+    <span class="t">${esc(d.title)}</span>
+    <span class="meta">${d.version ? `<span class="chip ok">v${esc(d.version)}</span>` : ''}${d.status !== 'vigente' ? `<span class="chip st-${d.status}">${esc(d.status)}</span>` : ''}
+      <span>${fmtDate(d.v_at || d.updated_at)}</span>${d.n_versions > 1 ? `<span>· ${d.n_versions} versiones</span>` : ''}${d.audience ? `<span>· ${esc(d.audience)}</span>` : ''}</span>
+    ${d.summary ? `<span class="sum">${esc(d.summary)}</span>` : ''}
+    ${d.files.length || d.link ? `<span class="files">${d.files.map(fileLink).join('')}${d.link ? `<a class="file" href="${esc(d.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><b>LINK</b><span>Abrir enlace</span></a>` : ''}</span>` : ''}
+  </button>`;
+}
+
+// ---- dialog
+const dlg = $('#dlg');
+dlg.addEventListener('click', e => { if (e.target.matches('[data-close]') || e.target === dlg) dlg.close(); });
+function open(title, html) { $('#dt').textContent = title; $('#dbody').innerHTML = html; dlg.showModal(); }
+
+function nextVersion(v) {
+  const m = String(v || '').match(/^(\d+)(?:\.(\d+))?/);
+  return m ? `${m[1]}.${(Number(m[2] || 0) + 1)}` : '1.0';
+}
+
+function catOptions(sel) { return S.cats.map(c => `<option value="${c[0]}"${c[0] === sel ? ' selected' : ''}>${esc(c[1])}</option>`).join(''); }
+
+function dropZone(id) {
+  return `<label class="drop" id="${id}">Arrastra archivos aquí o toca para elegir (PDF, Word, Excel…)<input type="file" multiple hidden><div class="picked"></div></label>`;
+}
+function wireDrop(id) {
+  const z = $('#' + id), inp = $('input', z); let files = [];
+  const show = () => { $('.picked', z).innerHTML = files.map(f => esc(f.name) + ' · ' + fmtSize(f.size)).join('<br>'); };
+  inp.addEventListener('change', () => { files = [...inp.files]; show(); });
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('on'); });
+  z.addEventListener('dragleave', () => z.classList.remove('on'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('on'); files = [...e.dataTransfer.files]; show(); });
+  return () => files;
+}
+async function uploadAll(vid, files, msg) {
+  for (const [i, f] of files.entries()) {
+    msg.textContent = `Subiendo ${i + 1} de ${files.length}: ${f.name}…`; msg.style.color = 'var(--muted)';
+    await api(`/versions/${vid}/files?name=${encodeURIComponent(f.name)}`, { method: 'POST', headers: { 'content-type': f.type || 'application/octet-stream' }, body: f });
+  }
+}
+
+$('#add').addEventListener('click', () => {
+  open('Nuevo documento', `
+    <label class="field"><span>Título</span><input id="f-title" required></label>
+    <div class="row"><label class="field"><span>Categoría</span><select id="f-cat">${catOptions(S.cat || 'politicas')}</select></label>
+      <label class="field"><span>Estado</span><select id="f-st"><option value="vigente">Vigente</option><option value="borrador">Borrador</option></select></label></div>
+    <label class="field"><span>Descripción corta</span><textarea id="f-sum"></textarea></label>
+    <div class="row"><label class="field"><span>Aplica a / para quién</span><input id="f-aud" placeholder="Equipo comercial"></label>
+      <label class="field"><span>Etiquetas</span><input id="f-tags" placeholder="ventas, eventos"></label></div>
+    <label class="field"><span>Enlace (opcional)</span><input id="f-link" type="url" placeholder="https://…"></label>
+    <div class="row"><label class="field" style="flex:0 1 110px"><span>Versión</span><input id="f-ver" value="1.0"></label>
+      <label class="field"><span>Nota de la versión</span><input id="f-note" placeholder="Primera versión"></label></div>
+    ${dropZone('z-new')}
+    <div class="msg" id="f-msg"></div>
+    <div class="actions"><button class="btn primary" id="f-save">Guardar</button></div>`);
+  const files = wireDrop('z-new');
+  $('#f-save').addEventListener('click', async e => {
+    const msg = $('#f-msg'), b = e.target;
+    const title = $('#f-title').value.trim(); if (!title) { msg.textContent = 'Falta el título.'; return; }
+    b.disabled = true;
+    try {
+      const r = await send('/docs', 'POST', { title, category: $('#f-cat').value, status: $('#f-st').value, summary: $('#f-sum').value, audience: $('#f-aud').value,
+        tags: $('#f-tags').value, link: $('#f-link').value, version: $('#f-ver').value.trim() || '1.0', note: $('#f-note').value });
+      await uploadAll(r.version_id, files(), msg);
+      dlg.close(); await load();
+    } catch (err) { msg.style.color = ''; msg.textContent = err.message; b.disabled = false; }
+  });
+});
+
+$('#list').addEventListener('click', e => { const c = e.target.closest('.doc'); if (c) showDoc(Number(c.dataset.id)); });
+
+async function showDoc(id) {
+  const { doc, versions } = await api('/docs/' + id);
+  const ed = canEdit(), adm = S.role === 'admin';
+  open(doc.title, `
+    <div class="meta" style="display:flex;flex-wrap:wrap;gap:6px;font-size:13px;color:var(--muted)"><span class="chip">${esc(catName(doc.category))}</span><span class="chip st-${doc.status}">${esc(doc.status)}</span>${doc.audience ? `<span>${esc(doc.audience)}</span>` : ''}${doc.tags ? `<span>· ${esc(doc.tags)}</span>` : ''}</div>
+    ${doc.summary ? `<p style="margin:0">${esc(doc.summary)}</p>` : ''}
+    ${doc.link ? `<div class="files"><a class="file" href="${esc(doc.link)}" target="_blank" rel="noopener"><b>LINK</b><span>${esc(doc.link)}</span></a></div>` : ''}
+    <div class="vers">${versions.map((v, i) => `<div class="ver${i === 0 ? ' cur' : ''}">
+      <div class="vh"><b>v${esc(v.version)}</b><span>${fmtDate(v.created_at)}</span><span>${esc(v.created_by)}</span>${i === 0 ? '<span class="chip ok">actual</span>' : ''}</div>
+      ${v.note ? `<p>${esc(v.note)}</p>` : ''}
+      <div class="files">${v.files.map(f => `<span style="display:inline-flex;gap:4px;max-width:100%">${fileLink(f)}${adm ? `<button class="btn sm danger" data-delf="${f.id}" aria-label="Borrar ${esc(f.filename)}">×</button>` : ''}</span>`).join('') || '<span class="muted" style="font-size:13px">Sin archivos</span>'}</div>
+      ${ed ? `<button class="btn sm" data-addf="${v.id}" style="margin-top:6px">+ Archivo a v${esc(v.version)}</button>` : ''}
+    </div>`).join('') || '<div class="muted">Sin versiones.</div>'}</div>
+    ${ed ? `<h3 style="font-family:var(--f-display);font-size:19px;margin:6px 0 0">Nueva versión</h3>
+      <div class="row"><label class="field" style="flex:0 1 110px"><span>Versión</span><input id="v-ver" value="${esc(nextVersion(versions[0] && versions[0].version))}"></label>
+        <label class="field"><span>Qué cambió</span><input id="v-note"></label></div>
+      ${dropZone('z-ver')}
+      <div class="msg" id="v-msg"></div>
+      <div class="actions"><button class="btn primary" id="v-save">Guardar versión</button>
+        <button class="btn" id="d-edit">Editar datos</button>
+        ${adm ? `<button class="btn" id="d-arch">${doc.status === 'archivado' ? 'Reactivar' : 'Archivar'}</button><button class="btn danger" id="d-del">Borrar</button>` : ''}</div>` : ''}`);
+  if (!ed) return;
+  const files = wireDrop('z-ver');
+  $('#v-save').addEventListener('click', async e => {
+    const msg = $('#v-msg'); e.target.disabled = true;
+    try {
+      const r = await send(`/docs/${id}/versions`, 'POST', { version: $('#v-ver').value.trim(), note: $('#v-note').value });
+      await uploadAll(r.version_id, files(), msg);
+      await load(); showDoc(id);
+    } catch (err) { msg.style.color = ''; msg.textContent = err.message; e.target.disabled = false; }
+  });
+  $$('[data-addf]').forEach(b => b.addEventListener('click', () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true;
+    inp.onchange = async () => { try { await uploadAll(Number(b.dataset.addf), [...inp.files], $('#v-msg')); await load(); showDoc(id); } catch (err) { $('#v-msg').textContent = err.message; } };
+    inp.click();
+  }));
+  $$('[data-delf]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('¿Borrar este archivo?')) return;
+    await api('/files/' + b.dataset.delf, { method: 'DELETE' }); await load(); showDoc(id);
+  }));
+  $('#d-edit').addEventListener('click', () => editDoc(doc));
+  if (adm) {
+    $('#d-arch').addEventListener('click', async () => { await send('/docs/' + id, 'PATCH', { status: doc.status === 'archivado' ? 'vigente' : 'archivado' }); dlg.close(); load(); });
+    $('#d-del').addEventListener('click', async () => { if (!confirm('¿Borrar el documento con todas sus versiones? No se puede deshacer.')) return; await api('/docs/' + id, { method: 'DELETE' }); dlg.close(); load(); });
+  }
+}
+
+function editDoc(d) {
+  open('Editar datos', `
+    <label class="field"><span>Título</span><input id="e-title" value="${esc(d.title)}"></label>
+    <div class="row"><label class="field"><span>Categoría</span><select id="e-cat">${catOptions(d.category)}</select></label>
+      <label class="field"><span>Estado</span><select id="e-st"><option value="vigente"${d.status === 'vigente' ? ' selected' : ''}>Vigente</option><option value="borrador"${d.status === 'borrador' ? ' selected' : ''}>Borrador</option>${S.role === 'admin' ? `<option value="archivado"${d.status === 'archivado' ? ' selected' : ''}>Archivado</option>` : ''}</select></label></div>
+    <label class="field"><span>Descripción corta</span><textarea id="e-sum">${esc(d.summary)}</textarea></label>
+    <div class="row"><label class="field"><span>Aplica a / para quién</span><input id="e-aud" value="${esc(d.audience)}"></label>
+      <label class="field"><span>Etiquetas</span><input id="e-tags" value="${esc(d.tags)}"></label></div>
+    <label class="field"><span>Enlace</span><input id="e-link" type="url" value="${esc(d.link)}"></label>
+    <div class="msg" id="e-msg"></div>
+    <div class="actions"><button class="btn primary" id="e-save">Guardar</button></div>`);
+  $('#e-save').addEventListener('click', async () => {
+    try {
+      await send('/docs/' + d.id, 'PATCH', { title: $('#e-title').value, category: $('#e-cat').value, status: $('#e-st').value, summary: $('#e-sum').value, audience: $('#e-aud').value, tags: $('#e-tags').value, link: $('#e-link').value });
+      await load(); showDoc(d.id);
+    } catch (err) { $('#e-msg').textContent = err.message; }
+  });
+}
+
+$('#q').addEventListener('input', e => { S.q = e.target.value; render(); });
+$('#cats').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.cat = b.dataset.c; render(); } });
+$('#stf').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.st = b.dataset.s; $$('#stf button').forEach(x => x.setAttribute('aria-pressed', x === b)); render(); });
+load();
+</script>
+</body>
+</html>

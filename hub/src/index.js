@@ -9,10 +9,11 @@ import { syncMeta } from './ads-meta.js';
 import { clubRoute, clubRole } from './club.js';
 import { clubPublic } from './club-public.js';
 import { syncWineclub } from './club-wineclub.js';
+import { bibliotecaRoute } from './biblioteca.js';
 
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
-const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads', 'club', 'c']);
+const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads', 'club', 'c', 'biblioteca']);
 
 export default {
   // Hourly (wrangler.jsonc triggers): pull Meta ads into Anuncios (Google pushes on its own from a Google Ads script) and
@@ -51,6 +52,15 @@ export default {
       const role = await roleFor(env, user, 'ads');
       if (!role) return p.startsWith('/ads/api/') ? J({ code: 'not_granted', message: 'Sin acceso a Anuncios.' }, 403) : denied('Anuncios');
       try { return await adsRoute(request, env, url, user, role); }
+      catch (e) { return J({ code: 'unavailable', message: String(e && e.message || e) }, 500); }
+    }
+
+    // Biblioteca: documents with versions and files (src/biblioteca.js, public/biblioteca.html).
+    if (seg === 'biblioteca') {
+      if (!user) return p.startsWith('/biblioteca/api/') ? J({ code: 'revoked', message: 'Vuelve a entrar.' }, 401) : login(url);
+      const role = await roleFor(env, user, 'biblioteca');
+      if (!role) return p.startsWith('/biblioteca/api/') ? J({ code: 'not_granted', message: 'Sin acceso a la Biblioteca.' }, 403) : denied('la Biblioteca');
+      try { return await bibliotecaRoute(request, env, url, user, role); }
       catch (e) { return J({ code: 'unavailable', message: String(e && e.message || e) }, 500); }
     }
 

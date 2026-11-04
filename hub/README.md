@@ -8,6 +8,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 | `/` | Launcher: the apps this person can open, grouped by section (Bodega, Huerta, Hospitalidad, Ventas, Marketing, Equipo, Administración). Hub admins see every app, including the *Próximamente* placeholders |
 | `/admin/` | People and access, the app registry, the audit log (Hub admins only) |
 | `/ads/` | **Anuncios**: Google + Meta spend, bookings, ROAS, alerts, campaigns, monthly pace and the ads to-do list. Lives inside the Hub (`src/ads.js`, `public/ads.html`, tables `ads_*`); access = a grant on the `ads` app. See [Anuncios](#anuncios) |
+| `/biblioteca/` | **Biblioteca**: the document library (policies, contracts, SOPs, forms, proposals) with numbered versions and files per version. See [Biblioteca](#biblioteca) |
 | `/<slug>/…` | An app served through the Hub (registry `mode = proxy`): the request goes to that app's Worker over a service binding with a signed `X-DB-User` header |
 | `/auth/google`, `/auth/callback`, `/auth/salir` | Sign-in and sign-out |
 | `/api/…` | JSON for the pages above (`src/api.js`) |
@@ -19,7 +20,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 
 1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → `dosbuhos-ops`.
 2. Project name `hub` (must match `name` in wrangler.jsonc), root directory `hub`, build command empty, deploy command `npx wrangler deploy`.
-3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001–0003 are applied.
+3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001–0006 are applied.
 
 ## One-time setup
 
@@ -119,3 +120,18 @@ Who gets which benefits, their card, and what staff apply. Scope: [CLUB-SCOPE.md
 - Parrot and OpenTable: no integration yet; staff type the check number and total, and copy the OpenTable note.
 - Deploy: apply `migrations/0004_club.sql` (`npm run db:remote`) before pushing. It also removes the "Club de lealtad"
   placeholder app. Optional var `PUBLIC_ORIGIN` sets the host used in card and invite links (defaults to the request's).
+
+## Biblioteca
+
+Document library at `/biblioteca/` (registry slug `biblioteca`, section Administración, mode `internal`). Code:
+`src/biblioteca.js`, `public/biblioteca.html`, tables `lib_*` (migration 0006). Viewers read and download; editors add
+documents, versions and files; admins also archive and delete. Every change goes to the audit log.
+
+- A document (`lib_docs`) has a category, status (borrador / vigente / archivado), audience, tags and an optional link.
+- Each version (`lib_versions`, "1.0", "1.1"…) has a note and any number of files (`lib_files`), e.g. the PDF to send and
+  the Word to edit. The newest version is the current one; older ones stay downloadable.
+- Files are stored in D1 as BLOB chunks of 900 KB (`lib_chunks`), max 25 MB per file, served at `/biblioteca/f/<id>`.
+  A file is complete when `lib_files.chunks` equals its number of chunks; uploads set it last.
+- **Filing from Claude** (no Hub sign-in needed, through the Cloudflare D1 API): insert a `lib_docs` row (or reuse one),
+  a `lib_versions` row with `created_by = 'claude'`, a `lib_files` row with `chunks = 0`, then the chunks as
+  `X'<hex>'` literals (keep each statement under ~90 KB of hex), then set `chunks` to the count. Bump `lib_docs.updated_at`.
