@@ -100,7 +100,7 @@ are here. We track usage, eventually against Parrot and OpenTable.
 
 ## Later
 - Member receipt photo upload for points.
-- Wallet passes (Apple/Google).
+- Wallet passes (Apple/Google): built Nov 4 2026 (`src/club-wallet.js`); waiting on the Apple Developer and Google Wallet issuer accounts. Still later: pushing updates to cards already saved.
 - Own domain for clients.
 - A member self-service portal: Círculo shipments, payment history.
 - Parrot and OpenTable automation.

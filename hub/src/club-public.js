@@ -8,6 +8,7 @@
 //   GET  /c/<code>/app.webmanifest, /c/sw.js, /c/terminos
 import * as C from './club-core.js';
 import { qrSvg } from './qr.js';
+import { walletRoute, walletButtons } from './club-wallet.js';
 import { catalog, personState, findPerson, newCardCode, addMembership, clubAudit, publicOrigin, cardUrl } from './club-data.js';
 
 const H = (html, status = 200, extra = {}) => new Response(html, { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer', ...extra } });
@@ -76,6 +77,9 @@ input:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-
 ol.how { margin: 6px 0 0; padding-left: 22px; } ol.how li { margin: 4px 0; }
 footer { margin: 34px 0 0; text-align: center; font-size: 15px; color: var(--muted); }
 footer .mark { color: var(--wine); font-size: 13px; }
+.wallet-btns .btn { margin-top: 12px; }
+.btn.wallet.apple { background: #000; }
+.btn.wallet.google { background: #fff; color: #1f1f1f; border: 1px solid #c9c4bd; }
 .hero { text-align: center; padding: 26px 4px 6px; }
 .hero .mark { color: var(--wine); }
 .hero h1 { font-size: clamp(32px, 10vw, 42px); margin: 18px 0 8px; color: var(--ink); }
@@ -124,13 +128,25 @@ export async function clubPublic(request, env, url, staffRole) {
     return see(`/c/${code}?ok=cancelada`);
   }
   if (rest === '/compra' && m === 'POST') return receipt(request, env, person);
+  const wm = rest.match(/^\/wallet\/(apple|google)$/);
+  if (wm && m === 'GET') return wallet(request, env, url, person, wm[1]);
   if (rest && rest !== '/') return see(`/c/${code}`);
   if (staffRole && !url.searchParams.has('invitado')) return see(`/club/#c/${code}`);
-  return cardPage(env, url, person);
+  return cardPage(env, url, person, request.headers.get('user-agent') || '');
+}
+
+// ---------- wallet cards ----------
+async function wallet(request, env, url, person, which) {
+  const origin = publicOrigin(env, url);
+  const st = await personState(env, person, await catalog(env));
+  const assetBytes = async path => new Uint8Array(await (await env.ASSETS.fetch(new Request(origin + path))).arrayBuffer());
+  const res = await walletRoute(env, which, person, st, cardUrl(origin, person.card_code), origin, assetBytes).catch(err => { console.log('club wallet error', which, String(err && err.stack || err)); return 'error'; });
+  if (res && res !== 'error') return res;
+  return see(`/c/${person.card_code}?ok=${res === 'error' ? 'wallet_error' : 'wallet_off'}`);
 }
 
 // ---------- the card ----------
-async function cardPage(env, url, person) {
+async function cardPage(env, url, person, ua = '') {
   const cat = await catalog(env);
   const st = await personState(env, person, cat);
   const day = C.today();
@@ -143,7 +159,9 @@ async function cardPage(env, url, person) {
   const flash = ok === 'nuevo' ? `<div class="note ok"><b>Listo, ${e(C.firstName(person.name))}.</b> Esta es tu tarjeta. Guárdala en la pantalla de inicio para tenerla a la mano.</div>`
     : ok === 'voy' ? `<div class="note ok"><b>Gracias por avisar.</b> El equipo ya sabe que vienes.</div>`
     : ok === 'cancelada' ? `<div class="note ok">Cancelamos tu aviso.</div>`
-    : ok === 'compra' ? `<div class="note ok"><b>Recibimos tu compra.</b> El equipo la revisa y la suma a tu cuenta.</div>` : '';
+    : ok === 'compra' ? `<div class="note ok"><b>Recibimos tu compra.</b> El equipo la revisa y la suma a tu cuenta.</div>`
+    : ok === 'wallet_error' ? `<div class="note bad">No pudimos preparar la tarjeta para tu cartera. Intenta más tarde; esta tarjeta funciona igual.</div>`
+    : ok === 'wallet_off' ? `<div class="note warn">Esta opción todavía no está disponible. Usa esta tarjeta o agrégala a tu pantalla de inicio.</div>` : '';
   const blocked = person.status !== 'active';
   const pendingOnly = !st.programs.length && st.pending.length;
   const badges = [...st.programs.map(p => `<span class="badge" style="--c:${e(p.color)}"><i></i>${e(p.name)}</span>`),
@@ -167,6 +185,7 @@ async function cardPage(env, url, person) {
 <div class="card"><div class="top"><div class="mark">Dos Búhos<small>Club de beneficios</small></div>${OWL}</div>
   <h1>${e(person.name)}</h1><div class="badges">${badges || '<span class="badge"><i></i>Socio</span>'}</div>
   <div class="qr">${qrSvg(link, { label: 'Código de tu tarjeta' })}</div><p class="qr-cap">Muéstralo al llegar</p></div>
+${blocked ? '' : walletButtons(env, person.card_code, ua)}
 ${blocked ? '<div class="note bad">Esta tarjeta no está activa. Si crees que es un error, escríbenos.</div>'
   : pendingOnly ? '<div class="note warn"><b>Tu solicitud está en revisión.</b> Te avisamos por WhatsApp en cuanto quede lista; tus beneficios aparecen aquí.</div>' : ''}
 ${items ? `<section><h2>Tus beneficios</h2><ul class="benefits">${items}</ul>${unconfirmed ? '<p class="small"><sup>*</sup> Por confirmar: el equipo te confirma al aplicarlo.</p>' : ''}</section>` : ''}
@@ -227,7 +246,7 @@ async function shrink(file) {
 </script>`;
   const html = page({ title: `${person.name} · Club Dos Búhos`, body, manifest: `<link rel="manifest" href="/c/${e(person.card_code)}/app.webmanifest">` });
   // Cacheable for the guest's own browser (and the service worker keeps it offline); never by a shared cache.
-  return H(html, 200, { 'cache-control': ok ? 'no-store' : 'private, max-age=60, stale-while-revalidate=604800', vary: 'Cookie' });
+  return H(html, 200, { 'cache-control': ok ? 'no-store' : 'private, max-age=60, stale-while-revalidate=604800', vary: 'Cookie, User-Agent' });
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const fmtShort = d => { const [y, mo, da] = d.split('-').map(Number); return `${da} de ${MONTHS[mo - 1]}${y !== new Date().getFullYear() ? ' de ' + y : ''}`; };

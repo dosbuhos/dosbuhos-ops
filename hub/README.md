@@ -87,6 +87,20 @@ Who gets which benefits, their card, and what staff apply. Scope: [CLUB-SCOPE.md
 - Wine club: binding `WINECLUB_DB` (database `wineclub-production`, read-only use). The hourly cron and Programas →
   "Sincronizar ahora" copy live subscribers (matched by email or phone; merged members skipped), their paid charges of
   the last 12 months (amount missing → subscription price, flagged "estimado") and founders (→ Fundadores).
+- Wallet cards (`src/club-wallet.js`): "Agregar a Apple Wallet" / "Guardar en Google Wallet" on the card page
+  (`/c/<code>/wallet/apple` → signed `.pkpass`; `/c/<code>/wallet/google` → Google's save page). Same QR as the web card,
+  so staff scan it the same way. Name, program and level on the front; Apple's back lists the benefits as of when it was
+  added; the live list stays on the web card. Each button appears only once its settings exist:
+  - Apple: Apple Developer account in the company's name (US$99/yr; needs a D-U-N-S number) → Certificates →
+    Pass Type ID `pass.com.dosbuhos.club` → create its certificate, export certificate + key as PEM (key unencrypted
+    PKCS#8), and download Apple's WWDR G4 intermediate. Vars `APPLE_PASS_TYPE_ID`, `APPLE_TEAM_ID`; secrets
+    `APPLE_PASS_CERT`, `APPLE_PASS_KEY`, `APPLE_WWDR_CERT`.
+  - Google: Google Pay & Wallet Console → Google Wallet API → issuer account (approval for production use); a
+    service account in the `dos-buhos` Cloud project with access to the issuer, JSON key. Var `GOOGLE_WALLET_ISSUER_ID`;
+    secrets `GOOGLE_WALLET_SA_EMAIL`, `GOOGLE_WALLET_SA_KEY` (the key's `private_key`).
+  - Not yet: pushing changes to cards already in a wallet (Apple web service / Google object updates). A level change
+    shows on the web card at once; the wallet copy updates when the member adds it again.
+  - `test/club-wallet.test.mjs` signs with throwaway certificates and checks the `.pkpass` with openssl.
 - Parrot and OpenTable: no integration yet; staff type the check number and total, and copy the OpenTable note.
 - Deploy: apply `migrations/0004_club.sql` (`npm run db:remote`) before pushing. It also removes the "Club de lealtad"
   placeholder app. Optional var `PUBLIC_ORIGIN` sets the host used in card and invite links (defaults to the request's).
