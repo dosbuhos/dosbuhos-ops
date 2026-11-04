@@ -48,6 +48,8 @@
   const lotById = id => C.all.find(l => l.id === id);
   const lotName = id => { const l = lotById(id); return l ? l.name : (id || ''); };
   const lotGroup = id => { const l = lotById(id); return l ? l.group : ''; };
+  // Short label for a lot on the tank plan: its Excellovint tab ("L08 - SE" → "L08 SE"), else the first words of its name.
+  const lotAbbr = id => { const l = lotById(id); if (!l) return id || ''; const t = ((l.sheet || []).find(s => !s.archived) || {}).tab; return t ? String(t).replace(/\s*-\s*/g, ' ').replace(/\s+/g, ' ').trim() : String(l.name).split(/\s+/).slice(0, 2).join(' '); };
   const barrelsOf = lot => C.barrels.filter(b => b.lot === lot.id);
   const vintOK = l => C.vint === 'all' || (C.vint === 'old' ? C.vintageOf(l) < C.vintage - 2 : C.vintageOf(l) === +C.vint);
   // Barrels stack up to 4 high: level 1 = on the floor, 4 = top.
@@ -230,6 +232,7 @@
   // Tank floor plan (from the 2019 AutoCAD plan, meters). Tanks are gray; the wine inside fills from the bottom in the
   // wine's color, by liters / capacity. Vessels not on the plan are listed below it.
   const TCOL = { red: '#8a2433', rose: '#e9a3b3', white: '#efd36b', orange: '#e39a46', sparkling: '#a9c9d4' };
+  const TCOL_TXT = { red: '#7a1f2b', rose: '#b5506a', white: '#8a6d00', orange: '#a8580f', sparkling: '#3d6f80' };
   let TMAP = null, tmapLoading = null;
   const loadTMap = () => tmapLoading || (tmapLoading = fetch('/tankmap.json').then(r => r.json()).then(j => { TMAP = j; const b = C.root && $('#crBody', C.root); if (b && C.tab === 'tanks') b.innerHTML = renderTanks(); }).catch(() => { tmapLoading = null; }));
   function tankMapSvg(ts) {
@@ -241,13 +244,14 @@
       const frac = items.length ? (known ? Math.min(1, tot / (+v.cap || 1)) : 0.5) : 0, r = p.d / 2;
       const col = items.length ? (TCOL[lotGroup(items[0].lot)] || '#9aa5b1') : null, cid = 'tkc-' + v.id.replace(/[^A-Za-z0-9-]/g, '');
       const lbl = items.length ? (known ? Math.round(100 * frac) + '%' : '¿L?') : fmtL(+v.cap);
-      g += `<g class="tkm${items.length ? ' has' : ''}${v.kind === 'amphora' ? ' amph' : ''}" data-tk="${esc(v.id)}" role="button" tabindex="0" aria-label="${esc(v.name)}">
+      g += `<g class="tkm${items.length ? ' has' : ''}${v.kind === 'amphora' ? ' amph' : ''}${C.tkSel === v.id ? ' sel' : ''}" data-tksel="${esc(v.id)}" role="button" tabindex="0" aria-label="${esc(v.name)}">
         <clipPath id="${cid}"><circle cx="${p.x}" cy="${p.y}" r="${r}"/></clipPath>
         <circle class="tkm-b" cx="${p.x}" cy="${p.y}" r="${r}"/>
         ${items.length ? `<rect clip-path="url(#${cid})" x="${p.x - r}" y="${p.y + r - 2 * r * frac}" width="${2 * r}" height="${2 * r * frac}" fill="${col}"${known ? '' : ' opacity=".5"'}/>` : ''}
         <circle class="tkm-o" cx="${p.x}" cy="${p.y}" r="${r}"/>${v.jacket ? `<circle class="tkm-j" cx="${p.x}" cy="${p.y}" r="${r * 0.84}"/>` : ''}
         <text x="${p.x}" y="${p.y - r * 0.1}" font-size="${Math.max(0.2, r * 0.4)}">${esc(v.name)}</text>
-        <text class="s" x="${p.x}" y="${p.y + r * 0.38}" font-size="${Math.max(0.14, r * 0.26)}">${esc(lbl)}</text></g>`;
+        <text class="s" x="${p.x}" y="${p.y + r * 0.38}" font-size="${Math.max(0.14, r * 0.26)}">${esc(lbl)}</text>
+        ${items.length ? `<text class="lot" x="${p.x}" y="${p.y + r + Math.max(0.3, r * 0.5)}" font-size="${Math.max(0.28, r * 0.44)}" fill="${TCOL_TXT[lotGroup(items[0].lot)] || '#3f4548'}">${esc(items.map(x => lotAbbr(x.lot)).join(' + '))}</text>` : ''}</g>`;
     }
     const bg = Object.entries(M.bg).map(([k, d]) => `<path class="tkm-bg-${k}" d="${d}"/>`).join('');
     const tx = M.texts.map(([x, y, t, h]) => `<text x="${x}" y="${y}" font-size="${h}">${esc(t)}</text>`).join('');
@@ -275,8 +279,22 @@
     if (!TMAP) { loadTMap(); h += `<div class="cr-empty">Cargando el plano…</div>`; }
     else h += tankMapSvg(ts);
     h += `<div class="tkm-legend">${legend}</div>`;
-    const off = ts.filter(v => !TMAP || !TMAP.pos[v.id]).sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
-    if (TMAP && off.length) h += `<h3 class="cr-gh">Fuera del plano <small>${off.filter(v => tankContents(v).length).length} con vino · ${off.length} vasijas</small></h3><div class="tk-grid">${off.map(card).join('')}</div>`;
+    // Quick view of the tapped tank.
+    const sv = C.tkSel && ts.find(v => v.id === C.tkSel);
+    if (sv) {
+      const items = tankContents(sv), tot = items.reduce((s, x) => s + (+x.liters || 0), 0);
+      h += `<div class="tkm-card"><div><b class="tkm-cn">${esc(sv.name)}</b> <small>${fmtL(+sv.cap)}${sv.jacket ? ' · camisa' : ''}${sv.chiller ? ' · ' + esc(String(sv.chiller).split(' (')[0]) : ''}${sv.maker ? ' · ' + esc(sv.maker) : ''}</small></div>
+        ${items.length ? items.map(x => `<div class="tkm-cw"><i style="background:${TCOL[lotGroup(x.lot)] || '#9aa5b1'}"></i><b>${esc(lotName(x.lot))}</b> <small>${esc(lotAbbr(x.lot))}</small> · ${x.liters != null ? fmtL(x.liters) + ' / ' + fmtL(+sv.cap) + ' · ' + Math.round(100 * x.liters / (+sv.cap || 1)) + '%' : 'litros sin dato'}${x.auto ? ' <em>según la ficha del vino · confirmar</em>' : ''}</div>`).join('') : '<div class="tkm-cw">Vacío</div>'}
+        <div class="tkm-ca">${items.length ? `<button type="button" class="btn sm" data-open="${esc(items[0].lot)}">Ficha del vino</button>` : ''}<button type="button" class="btn sm" data-tk="${esc(sv.id)}">Ver / corregir contenido</button><button type="button" class="btn sm" data-tksel="">Cerrar</button></div></div>`;
+    }
+    // Every tank in one list, like the plan legend: what's in it at a glance.
+    const order = v => ({ front: 0, back: 1 }[v.room] ?? 2);
+    const rows = ts.slice().sort((a, b) => order(a) - order(b) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+    h += `<div class="tkm-list"><table><thead><tr><th>Tanque</th><th>Vino</th><th class="n">Litros</th><th class="n">Lleno</th></tr></thead><tbody>${rows.map(v => {
+      const items = tankContents(v), tot = items.reduce((s, x) => s + (+x.liters || 0), 0), known = items.some(x => x.liters != null);
+      return `<tr data-tksel="${esc(v.id)}" class="${C.tkSel === v.id ? 'sel' : ''}${items.length ? '' : ' mt'}"><td><b>${esc(v.name)}</b>${TMAP && !TMAP.pos[v.id] ? ' <small>fuera del plano</small>' : ''}</td>
+        <td>${items.length ? items.map(x => `<i style="background:${TCOL[lotGroup(x.lot)] || '#9aa5b1'}"></i>${esc(lotAbbr(x.lot))} <small>${esc(lotName(x.lot))}</small>`).join('<br>') : '<span class="tk-none">Vacío</span>'}</td>
+        <td class="n">${items.length ? (known ? fmtL(tot) : '¿?') + ' / ' : ''}${fmtL(+v.cap)}</td><td class="n">${items.length && known ? Math.round(100 * tot / (+v.cap || 1)) + '%' : items.length ? '¿?' : '—'}</td></tr>`; }).join('')}</tbody></table></div>`;
     return h;
   }
   // Pan / zoom on the plan (viewBox). A drag doesn't count as a tap on a tank.
@@ -566,6 +584,7 @@
     const lc = e.target.closest('[data-cl]'); if (lc) { C.noloc = lc.dataset.cl === '1'; render(); return; }
     const g2 = e.target.closest('[data-cg2]'); if (g2) { C.group = g2.dataset.cg2; render(); return; }
     if (C.more && !e.target.closest('.cr-morew')) { C.more = false; }
+    const ts0 = e.target.closest('[data-tksel]'); if (ts0 && !e.target.closest('[data-tk],[data-open]')) { if (tkMoved && ts0.closest('#tkmSvg')) return; C.tkSel = C.tkSel === ts0.dataset.tksel || !ts0.dataset.tksel ? '' : ts0.dataset.tksel; render(); if (C.tkSel && ts0.tagName === 'TR') { const sv = C.root.querySelector('#tkmSvg'); if (sv) sv.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } else if (C.tkSel) { const c = C.root.querySelector('.tkm-card'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; }
     const t = e.target.closest('[data-ct],[data-tk],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) { if (!C.more && C.root.querySelector('.cr-menu')) render(); return; }
     if (t.dataset.ca) C.more = false;
     if (t.dataset.ct) { C.tab = t.dataset.ct; C.q = ''; render(); return; }

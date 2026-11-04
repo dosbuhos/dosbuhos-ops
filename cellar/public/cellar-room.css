@@ -254,3 +254,22 @@
 .tkm-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted,#6b6f72);margin:8px 2px 14px}
 .tkm-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 .tkm-legend i.half{background:linear-gradient(to top,#efd36b 50%,#e3e5e7 50%);opacity:.7;border:1px solid #9aa0a6}
+/* Tank plan: lot label, selection, quick card, list */
+.tkm text.lot { font-weight: 700; }
+.tkm.sel .tkm-o { stroke: #1f6feb; stroke-width: .09; }
+.tkm-card { margin: 10px 0; padding: 10px 12px; border: 2px solid #1f6feb; border-radius: 10px; background: #f6f9ff; }
+.tkm-cn { font-size: 1.1em; }
+.tkm-cw { margin: 6px 0; line-height: 1.35; }
+.tkm-cw i, .tkm-list i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,.2); }
+.tkm-cw em { color: #8a6d00; font-size: .85em; }
+.tkm-ca { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.tkm-list { margin-top: 12px; overflow-x: auto; }
+.tkm-list table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tkm-list th { text-align: left; font-size: 12px; color: #66707a; border-bottom: 1px solid #d6dade; padding: 6px; }
+.tkm-list td { padding: 7px 6px; border-bottom: 1px solid #eceef0; vertical-align: top; }
+.tkm-list td small { color: #66707a; }
+.tkm-list .n { text-align: right; white-space: nowrap; }
+.tkm-list tr { cursor: pointer; }
+.tkm-list tr:hover { background: #f5f7f9; }
+.tkm-list tr.sel { background: #e8f0fe; }
+.tkm-list tr.mt td { color: #8c959e; }
