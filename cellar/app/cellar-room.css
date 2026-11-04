@@ -228,3 +228,29 @@
 .tk-spec label{display:flex;flex-direction:column;gap:4px;font-size:13px;min-width:0}
 .tk-spec input,.tk-spec select{font:inherit;padding:7px 9px}
 .tk-spec2{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+
+/* Tank floor plan */
+.tkm-head{font-size:13px;color:var(--muted,#6b6f72);margin:2px 0 8px}
+.tkm-head b{color:var(--ink,#222)}
+.tkm-wrap{position:relative;border:1px solid var(--rule,#ddd);border-radius:12px;background:#fbfbfa;overflow:hidden;touch-action:none}
+.tkm-svg{display:block;width:100%;height:auto;max-height:70vh;cursor:grab;user-select:none}
+@media (max-width:760px){.tkm-svg{aspect-ratio:1.1 !important}}
+.tkm-bg path{fill:none;stroke:#3b4043;stroke-width:.6;vector-effect:non-scaling-stroke}
+.tkm-bg .tkm-bg-aberturas,.tkm-bg .tkm-bg-equipo{stroke:#9ba1a5;stroke-width:.5}
+.tkm-bg .tkm-bg-glicol{stroke:#6fb3c4;stroke-dasharray:4 3;stroke-width:1.1}
+.tkm-bg .tkm-bg-zonas{stroke:#c9786c}
+.tkm-tx text{font-family:var(--f-mono,monospace);fill:#8b9195;letter-spacing:.04em}
+.tkm{cursor:pointer}
+.tkm .tkm-b{fill:#e3e5e7}
+.tkm .tkm-o{fill:none;stroke:#8f969b;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.tkm.has .tkm-o{stroke:#5f666b;stroke-width:1.8}
+.tkm.amph .tkm-o{stroke-dasharray:4 2}
+.tkm .tkm-j{fill:none;stroke:#7d868c;stroke-width:.8;stroke-dasharray:3 2;vector-effect:non-scaling-stroke;opacity:.7}
+.tkm text{font-family:var(--f-mono,monospace);font-weight:700;fill:#2f3437;text-anchor:middle;dominant-baseline:central;pointer-events:none;paint-order:stroke;stroke:rgba(255,255,255,.85);stroke-width:.03px;stroke-linejoin:round}
+.tkm text.s{font-weight:500;fill:#3f4548}
+.tkm:hover .tkm-o,.tkm:focus .tkm-o{stroke:#222;stroke-width:2.6}
+.tkm:focus{outline:none}
+.tkm-zoom{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}
+.tkm-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted,#6b6f72);margin:8px 2px 14px}
+.tkm-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tkm-legend i.half{background:linear-gradient(to top,#efd36b 50%,#e3e5e7 50%);opacity:.7;border:1px solid #9aa0a6}

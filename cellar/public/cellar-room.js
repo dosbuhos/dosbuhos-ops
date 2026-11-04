@@ -221,33 +221,87 @@
   const fmtL = n => n == null || isNaN(n) ? '' : Math.round(n).toLocaleString('es-MX') + ' L';
   function tankSvg(v, items) {
     const cap = +v.cap || 1, tot = items.reduce((s, x) => s + (+x.liters || 0), 0), known = items.some(x => x.liters != null);
-    const frac = items.length ? (known ? Math.min(1, tot / cap) : 0.5) : 0, col = items.length ? (GCOL[lotGroup(items[0].lot)] || '#9aa5b1') : '#e6e2dc';
+    const frac = items.length ? (known ? Math.min(1, tot / cap) : 0.5) : 0, col = items.length ? (TCOL[lotGroup(items[0].lot)] || "#9aa5b1") : "#e3e5e7";
     const H = 92, W = 58, top = 8, bodyH = H - top - 6, fillH = Math.round(bodyH * frac);
-    const shape = v.kind === 'amphora' ? `<path d="M18 6h22l-2 8c10 8 14 20 14 34s-6 30-22 40h-2C12 78 6 62 6 48s4-26 14-34z" fill="#fff" stroke="#8a8178" stroke-width="1.6"/>` : `<rect x="6" y="${top}" width="${W - 12}" height="${bodyH}" rx="8" fill="#fff" stroke="#8a8178" stroke-width="1.6"/>`;
+    const shape = v.kind === 'amphora' ? `<path d="M18 6h22l-2 8c10 8 14 20 14 34s-6 30-22 40h-2C12 78 6 62 6 48s4-26 14-34z" fill="#e3e5e7" stroke="#8f969b" stroke-width="1.6"/>` : `<rect x="6" y="${top}" width="${W - 12}" height="${bodyH}" rx="8" fill="#e3e5e7" stroke="#8f969b" stroke-width="1.6"/>`;
     const clip = v.kind === 'amphora' ? `<clipPath id="tc-${esc(v.id)}"><path d="M18 6h22l-2 8c10 8 14 20 14 34s-6 30-22 40h-2C12 78 6 62 6 48s4-26 14-34z"/></clipPath>` : `<clipPath id="tc-${esc(v.id)}"><rect x="6" y="${top}" width="${W - 12}" height="${bodyH}" rx="8"/></clipPath>`;
     return `<svg class="tk-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><defs>${clip}</defs>${shape}<rect clip-path="url(#tc-${esc(v.id)})" x="0" y="${top + bodyH - fillH}" width="${W}" height="${fillH}" fill="${col}" opacity="${known ? 1 : .45}"/>${v.jacket ? `<g stroke="#2d5c8a" stroke-width="1.2" opacity=".55"><line x1="6" y1="${top + 18}" x2="${W - 6}" y2="${top + 18}"/><line x1="6" y1="${top + 26}" x2="${W - 6}" y2="${top + 26}"/></g>` : ''}${v.capacity === 'variable' ? `<line x1="10" y1="${top + bodyH - fillH - 2}" x2="${W - 10}" y2="${top + bodyH - fillH - 2}" stroke="#3a3530" stroke-width="2.4" stroke-linecap="round"${items.length ? '' : ' opacity=".25"'}/>` : ''}</svg>`;
   }
+  // Tank floor plan (from the 2019 AutoCAD plan, meters). Tanks are gray; the wine inside fills from the bottom in the
+  // wine's color, by liters / capacity. Vessels not on the plan are listed below it.
+  const TCOL = { red: '#8a2433', rose: '#e9a3b3', white: '#efd36b', orange: '#e39a46', sparkling: '#a9c9d4' };
+  let TMAP = null, tmapLoading = null;
+  const loadTMap = () => tmapLoading || (tmapLoading = fetch('/tankmap.json').then(r => r.json()).then(j => { TMAP = j; const b = C.root && $('#crBody', C.root); if (b && C.tab === 'tanks') b.innerHTML = renderTanks(); }).catch(() => { tmapLoading = null; }));
+  function tankMapSvg(ts) {
+    const M = TMAP, pos = M.pos;
+    let g = '';
+    for (const v of ts) {
+      const p = pos[v.id]; if (!p) continue;
+      const items = tankContents(v), tot = items.reduce((s, x) => s + (+x.liters || 0), 0), known = items.some(x => x.liters != null);
+      const frac = items.length ? (known ? Math.min(1, tot / (+v.cap || 1)) : 0.5) : 0, r = p.d / 2;
+      const col = items.length ? (TCOL[lotGroup(items[0].lot)] || '#9aa5b1') : null, cid = 'tkc-' + v.id.replace(/[^A-Za-z0-9-]/g, '');
+      const lbl = items.length ? (known ? Math.round(100 * frac) + '%' : '¿L?') : fmtL(+v.cap);
+      g += `<g class="tkm${items.length ? ' has' : ''}${v.kind === 'amphora' ? ' amph' : ''}" data-tk="${esc(v.id)}" role="button" tabindex="0" aria-label="${esc(v.name)}">
+        <clipPath id="${cid}"><circle cx="${p.x}" cy="${p.y}" r="${r}"/></clipPath>
+        <circle class="tkm-b" cx="${p.x}" cy="${p.y}" r="${r}"/>
+        ${items.length ? `<rect clip-path="url(#${cid})" x="${p.x - r}" y="${p.y + r - 2 * r * frac}" width="${2 * r}" height="${2 * r * frac}" fill="${col}"${known ? '' : ' opacity=".5"'}/>` : ''}
+        <circle class="tkm-o" cx="${p.x}" cy="${p.y}" r="${r}"/>${v.jacket ? `<circle class="tkm-j" cx="${p.x}" cy="${p.y}" r="${r * 0.84}"/>` : ''}
+        <text x="${p.x}" y="${p.y - r * 0.1}" font-size="${Math.max(0.2, r * 0.4)}">${esc(v.name)}</text>
+        <text class="s" x="${p.x}" y="${p.y + r * 0.38}" font-size="${Math.max(0.14, r * 0.26)}">${esc(lbl)}</text></g>`;
+    }
+    const bg = Object.entries(M.bg).map(([k, d]) => `<path class="tkm-bg-${k}" d="${d}"/>`).join('');
+    const tx = M.texts.map(([x, y, t, h]) => `<text x="${x}" y="${y}" font-size="${h}">${esc(t)}</text>`).join('');
+    const fv = tkFit();
+    return `<div class="tkm-wrap"><svg class="tkm-svg" id="tkmSvg" viewBox="${fv.x} ${fv.y} ${fv.w} ${fv.h}" preserveAspectRatio="xMidYMid meet" style="aspect-ratio:${(fv.w / fv.h).toFixed(3)}"><g class="tkm-bg">${bg}</g><g class="tkm-tx">${tx}</g>${g}</svg>
+      <div class="tkm-zoom"><button type="button" class="btn sm" data-tkz="in" aria-label="Acercar">+</button><button type="button" class="btn sm" data-tkz="out" aria-label="Alejar">−</button><button type="button" class="btn sm" data-tkz="fit">Ajustar</button></div></div>`;
+  }
+  // Default view: the rooms with tanks (tank positions + 2.5 m), not the whole site plan.
+  function tkFit() { const ps = Object.values(TMAP.pos); const x0 = Math.min(...ps.map(p => p.x - p.d)), x1 = Math.max(...ps.map(p => p.x + p.d)), y0 = Math.min(...ps.map(p => p.y - p.d)), y1 = Math.max(...ps.map(p => p.y + p.d)); const pad = 2.5; return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad }; }
   function renderTanks() {
     const ts = tankList(); if (!ts.length) return `<div class="cr-empty">No hay tanques registrados.</div>`;
     const card = v => {
       const items = tankContents(v), tot = items.reduce((s, x) => s + (+x.liters || 0), 0);
       const pct = items.length && tot ? Math.round(100 * tot / (+v.cap || 1)) : null;
-      return `<button type="button" class="tk-card${items.length ? '' : ' empty'}" data-tk="${esc(v.id)}" style="--c:${items.length ? (GCOL[lotGroup(items[0].lot)] || '#9aa5b1') : '#d9d4cc'}">
+      return `<button type="button" class="tk-card${items.length ? '' : ' empty'}" data-tk="${esc(v.id)}" style="--c:${items.length ? (TCOL[lotGroup(items[0].lot)] || '#9aa5b1') : '#cfd2d4'}">
         ${tankSvg(v, items)}
         <span class="tk-info"><b class="tk-name">${esc(v.name)}</b><small>${esc((v.aliases || [])[0] || '')}${v.jacket ? ' · ❄︎' : ''}</small>
           ${items.length ? items.map(x => `<span class="tk-wine">${esc(lotName(x.lot))}</span>`).join('') : '<span class="tk-none">Vacío</span>'}
           <span class="tk-l">${items.length ? (tot ? fmtL(tot) + ' / ' : '¿? / ') : ''}${fmtL(+v.cap)}${pct != null ? ` · ${pct}%` : ''}</span>
           ${items.some(x => x.auto) ? '<span class="tk-auto">según la ficha del vino · confirmar</span>' : ''}</span></button>`;
     };
-    let h = `<p class="cr-help">Qué hay en cada tanque. Toca un tanque para ver el vino o corregirlo. ❄︎ = con chaqueta; la raya negra = tapa flotante.</p>`;
-    for (const [k, l] of ROOMS) {
-      const list = ts.filter(v => (v.room || '') === k).sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
-      if (!list.length) continue;
-      const full = list.filter(v => tankContents(v).length).length;
-      h += `<h3 class="cr-gh">${l} <small>${full} con vino · ${list.length} vasijas</small></h3><div class="tk-grid">${list.map(card).join('')}</div>`;
-    }
+    const full = ts.filter(v => tankContents(v).length), liters = full.reduce((s, v) => s + tankContents(v).reduce((a, x) => a + (+x.liters || 0), 0), 0);
+    const legend = Object.entries(TCOL).map(([k, c]) => `<span><i style="background:${c}"></i>${{ red: 'Tinto', rose: 'Rosado', white: 'Blanco', orange: 'Naranja', sparkling: 'Espumoso' }[k]}</span>`).join('') + '<span><i style="background:#e3e5e7;border:1px solid #9aa0a6"></i>Vacío</span><span><i class="half"></i>Falta el dato de litros</span>';
+    let h = `<div class="tkm-head"><b>${full.length} con vino</b> · ${fmtL(liters)} registrados · toca un tanque para ver o corregir su contenido</div>`;
+    if (!TMAP) { loadTMap(); h += `<div class="cr-empty">Cargando el plano…</div>`; }
+    else h += tankMapSvg(ts);
+    h += `<div class="tkm-legend">${legend}</div>`;
+    const off = ts.filter(v => !TMAP || !TMAP.pos[v.id]).sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+    if (TMAP && off.length) h += `<h3 class="cr-gh">Fuera del plano <small>${off.filter(v => tankContents(v).length).length} con vino · ${off.length} vasijas</small></h3><div class="tk-grid">${off.map(card).join('')}</div>`;
     return h;
   }
+  // Pan / zoom on the plan (viewBox). A drag doesn't count as a tap on a tank.
+  let tkDrag = null, tkMoved = false;
+  const tkView = svg => { const v = svg.viewBox.baseVal; return { x: v.x, y: v.y, w: v.width, h: v.height }; };
+  const tkSet = (svg, v) => svg.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
+  const tkZoom = (svg, f, cx, cy) => { const v = tkView(svg); if (cx == null) { cx = v.x + v.w / 2; cy = v.y + v.h / 2; } const w = Math.min(TMAP.W * 2, Math.max(2, v.w * f)), k = w / v.w; tkSet(svg, { x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k, w, h: v.h * k }); };
+  const tkPt = (svg, e) => { const r = svg.getBoundingClientRect(), v = tkView(svg), s = Math.max(v.w / r.width, v.h / r.height); const ox = (r.width * s - v.w) / 2, oy = (r.height * s - v.h) / 2; return { x: v.x - ox + (e.clientX - r.left) * s, y: v.y - oy + (e.clientY - r.top) * s, s }; };
+  document.addEventListener('wheel', e => { const svg = e.target.closest && e.target.closest('#tkmSvg'); if (!svg) return; e.preventDefault(); const p = tkPt(svg, e); tkZoom(svg, Math.exp(e.deltaY * 0.0015), p.x, p.y); }, { passive: false });
+  const tkPtrs = new Map();
+  document.addEventListener('pointerdown', e => { const svg = e.target.closest && e.target.closest('#tkmSvg'); if (!svg) return; tkPtrs.set(e.pointerId, e); tkMoved = false; tkDrag = { svg, x: e.clientX, y: e.clientY, v: tkView(svg), d: null }; if (tkPtrs.size === 2) { const [a, b] = [...tkPtrs.values()]; tkDrag.d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); } });
+  document.addEventListener('pointermove', e => {
+    if (!tkDrag || !tkPtrs.has(e.pointerId)) return; tkPtrs.set(e.pointerId, e); const svg = tkDrag.svg;
+    if (tkPtrs.size === 2 && tkDrag.d) { const [a, b] = [...tkPtrs.values()]; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); const p = tkPt(svg, { clientX: (a.clientX + b.clientX) / 2, clientY: (a.clientY + b.clientY) / 2 }); tkZoom(svg, tkDrag.d / d, p.x, p.y); tkDrag.d = d; tkMoved = true; return; }
+    const dx = e.clientX - tkDrag.x, dy = e.clientY - tkDrag.y; if (Math.abs(dx) + Math.abs(dy) > 5) tkMoved = true;
+    if (tkMoved) { const s = tkPt(svg, e).s; tkSet(svg, { ...tkDrag.v, x: tkDrag.v.x - dx * s, y: tkDrag.v.y - dy * s }); e.preventDefault(); }
+  });
+  const tkUp = e => { tkPtrs.delete(e.pointerId); if (!tkPtrs.size) setTimeout(() => { tkDrag = null; }, 0); };
+  document.addEventListener('pointerup', tkUp); document.addEventListener('pointercancel', tkUp);
+  document.addEventListener('click', e => {
+    if (e.target.closest && e.target.closest('#tkmSvg') && tkMoved) { e.stopPropagation(); e.preventDefault(); tkMoved = false; return; }
+    const z = e.target.closest && e.target.closest('[data-tkz]'); if (!z) return; const svg = $('#tkmSvg'); if (!svg) return;
+    if (z.dataset.tkz === 'fit') tkSet(svg, tkFit()); else tkZoom(svg, z.dataset.tkz === 'in' ? 0.7 : 1.4);
+  }, true);
+  document.addEventListener('keydown', e => { const g = e.target.closest && e.target.closest('.tkm[data-tk]'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTank(g.dataset.tk); } });
   function openTank(id) {
     const v = C.vessels.find(x => x.id === id); if (!v) return;
     const items = tankContents(v), ro = !C.canWrite;
@@ -256,6 +310,12 @@
     const d = sheet(`<form method="dialog" class="cr-form">
       <div class="cr-sh"><h3>${esc(v.name)} <small class="cr-dim">${esc((v.aliases || []).slice(0, 3).join(' · '))}</small></h3></div>
       <p class="cr-help">${fmtL(+v.cap)} · ${esc({ tank: 'tanque', amphora: 'ánfora', puncheon: 'puncheon' }[v.kind] || v.kind || '')}${v.capacity === 'variable' ? ' · tapa flotante' : ''}${v.jacket ? ' · con chaqueta' : ''}${v.maker ? ' · ' + esc(v.maker) : ''}${v.note ? '<br>' + esc(v.note) : ''}</p>
+      <fieldset class="tk-spec"><legend>Ficha técnica</legend>
+        <label>Modelo (placa del tanque)<input name="model" id="tkModel" value="${esc(v.model || '')}" placeholder="Ej. PZPK 1900 H11"${ro ? ' disabled' : ''}></label>
+        <div class="tk-spec2"><label>Pasa-hombre<select name="manway" id="tkManway"${ro ? ' disabled' : ''}>${[['', '—'], ['none', 'No tiene'], ['top', 'Arriba'], ['side', 'Lateral'], ['both', 'Arriba y lateral']].map(([k, l]) => `<option value="${k}"${(v.manway || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label>Medida pasa-hombre<input name="manwaySize" id="tkManwaySize" value="${esc(v.manwaySize || '')}" placeholder="Ej. 560 × 440 mm"${ro ? ' disabled' : ''}></label>
+        <label>Tri-clamp válvulas<select name="triclamp" id="tkTri"${ro ? ' disabled' : ''}>${['', '1"', '1.5"', '2"', '2.5"', '3"', 'Mixto'].map(k => `<option value="${esc(k)}"${(v.triclamp || '') === k ? ' selected' : ''}>${k || '—'}</option>`).join('')}</select></label></div>
+      </fieldset>
       ${items.some(x => x.auto) ? `<p class="cr-help"><b>Leído de la ficha del vino</b> (no confirmado). Guarda para confirmarlo o corrígelo.</p>` : ''}
       <div class="tk-rows">${rows.map(x => `<div class="tk-row"><label>Vino<select name="lot"${ro ? ' disabled' : ''}>${lotOpts(x.lot)}</select></label><label>Litros<input name="liters" inputmode="decimal" value="${x.liters != null ? esc(x.liters) : ''}"${ro ? ' disabled' : ''}></label></div>`).join('')}</div>
       ${items.length ? `<div class="cr-row">${items.map(x => `<button type="button" class="btn sm" data-open="${esc(x.lot)}">Ficha: ${esc(lotName(x.lot))}</button>`).join('')}</div>` : ''}
@@ -267,7 +327,7 @@
     f.querySelector('[data-cancel]').onclick = () => d.close();
     f.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) { d.close(); window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: o.dataset.open } })); } });
     const save = async items2 => {
-      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { contents: { items: items2, by: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
+      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { model: (f.querySelector('[name="model"]').value || '').trim(), manway: f.querySelector('[name="manway"]').value, manwaySize: (f.querySelector('[name="manwaySize"]').value || '').trim(), triclamp: f.querySelector('[name="triclamp"]').value, contents: { items: items2, by: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
       catch (err) { $('#crErr', f).textContent = err.message; }
     };
     const emp = f.querySelector('[data-tkempty]'); if (emp) emp.onclick = () => save([]);

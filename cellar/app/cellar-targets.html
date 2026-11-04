@@ -1808,7 +1808,7 @@ var SheetParse = (function () {
     sheet: { mode: "none", at: 0, msg: "", gids: {}, live: null, missing: [], cache: {}, cacheAt: "", retried: false },
     wmode: "prod"
   };
-  S.wmode = ["cellar", "tanks"].includes(recall("wmode", "prod")) ? recall("wmode", "prod") : "prod";
+  S.wmode = "prod"; // Wines always opens on Vinos; Tanques / Barricas are one tap away.
   if (location.hash === "#cellar") S.wmode = "cellar";
 
   const $ = id => document.getElementById(id);
@@ -5334,6 +5334,7 @@ Return ONLY JSON with this shape:
     }
     if (b.dataset.view) {
       S.view = b.dataset.view; store("view", S.view);
+      if (S.view === "wines") S.wmode = "prod";
       if (b.closest(".mnav")) window.scrollTo(0, 0);
       try { history.replaceState(null, "", "#" + S.view); } catch (err) {}
       render(); return;
