@@ -27,10 +27,12 @@ Reply with JSON only: {"summary":[3–6 short bullets in English for Eric and Di
 ${ctx}`;
   const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
     headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 6000, system: 'Reply with one JSON value only. No prose, no code fences.', messages: [{ role: 'user', content: prompt }] }) });
+    body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 12000, system: 'Reply with one JSON value only. No prose, no code fences.', messages: [{ role: 'user', content: prompt }] }) });
   if (!r.ok) throw Object.assign(new Error('Claude: ' + (await r.text()).slice(0, 300)), { status: 502 });
   const j = await r.json(), text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
-  let out; try { out = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch (e) { throw Object.assign(new Error('Claude devolvió algo que no es JSON.'), { status: 502 }); }
+  let out; try { const a = text.indexOf('{'), b = text.lastIndexOf('}'); out = JSON.parse(text.slice(a, b + 1)); } catch (e) {
+    await env.DB.prepare("INSERT OR REPLACE INTO docs (coll, id, data, updated_at) VALUES ('bottling_review_log', 'error', ?, ?)").bind(JSON.stringify({ at: new Date().toISOString(), stop: j.stop_reason, text: text.slice(0, 20000) }), Date.now()).run();
+    throw Object.assign(new Error('Claude devolvió algo que no es JSON (' + (j.stop_reason || '') + ').'), { status: 502 }); }
   const ids = new Set(plan.map(p => p.id));
   const doc = { at: new Date().toISOString(), by: by || 'cron', summary: (out.summary || []).map(String).slice(0, 8), flags: (out.flags || []).filter(f => f && ids.has(f.id)).slice(0, 40), rows: rows.length };
   const now = Date.now();
