@@ -5,7 +5,7 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   // Pull changes from Excellovint into the app's records every 5 minutes.
-  "triggers": { "crons": ["*/5 * * * *"] },
+  "triggers": { "crons": ["*/5 * * * *", "0 18 * * *", "0 22 * * *", "0 1 * * *"] },
   // Every request goes through the Worker first so the page itself sits behind Google sign-in.
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   // Lab reports (PDF/photos) and the Dos Búhos logos.

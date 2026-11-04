@@ -56,6 +56,22 @@ h2 small{font:500 12px var(--f-b);letter-spacing:0;text-transform:none;color:var
 .pc .by{margin-left:auto;font:12px var(--f-m);color:var(--muted)}
 .pc .act{display:flex;gap:8px;margin-top:10px}
 .pc .act .btn{flex:1}
+.pc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.urg{font:700 11.5px var(--f-m);letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:6px}
+.urg.u-high{background:var(--red);color:#fff}.urg.u-medium{background:var(--amber-bg);color:var(--amber)}.urg.u-low{background:var(--bg);color:var(--muted)}
+.stb{font:700 12px var(--f-b);padding:4px 10px;border-radius:999px;white-space:nowrap}
+.stb.s-open{background:#fff;color:var(--ink);border:1.5px dashed var(--muted)}
+.stb.s-ord{background:var(--blue-bg);color:var(--blue);border:1.5px solid #bcd0e6}
+.stb.s-rec{background:var(--green-bg);color:var(--green);border:1.5px solid #bcdcb9}
+.steps{display:flex;list-style:none;margin:10px 0 0;padding:0;gap:0;font:600 11.5px var(--f-b);color:var(--muted)}
+.steps li{flex:1;position:relative;padding-top:18px;text-align:center;line-height:1.2}
+.steps li::before{content:'';position:absolute;top:3px;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#fff;border:2px solid var(--rule);z-index:1}
+.steps li::after{content:'';position:absolute;top:7px;left:-50%;width:100%;height:2px;background:var(--rule)}
+.steps li:first-child::after{display:none}
+.steps li.past::before{background:var(--muted);border-color:var(--muted)}.steps li.past::after,.steps li.now::after{background:var(--muted)}
+.steps li.now{color:var(--ink)}.steps li.now::before{background:var(--ink);border-color:var(--ink);box-shadow:0 0 0 3px #fff,0 0 0 4px var(--ink)}
+.pc .act{flex-wrap:wrap}.pc .act .btn.next{flex:1 1 100%}.pc .act .btn.sq{flex:0 0 44px}
+.btn.next{background:var(--paper);border:2px solid var(--ink);color:var(--ink)}
 .btn{min-height:44px;border:1px solid var(--rule);background:var(--paper);border-radius:12px;padding:0 14px;font:600 15px var(--f-b);color:var(--ink);cursor:pointer}
 .btn.primary{background:var(--wine);border-color:var(--wine);color:#fff}
 .btn.ghost{color:var(--muted)}
@@ -129,8 +145,8 @@ body.inv .tabs{display:none}
 </header>
 <div class="modes" role="group"><button data-mode="compras" aria-pressed="true">Compras</button><button data-mode="inv" aria-pressed="false">Inventario<small id="nLow" hidden></small></button></div>
 <nav class="tabs" role="tablist">
-  <button role="tab" data-st="open" aria-selected="true">Pendientes<small id="nOpen"></small></button>
-  <button role="tab" data-st="ordered" aria-selected="false">Pedidas<small id="nOrd"></small></button>
+  <button role="tab" data-st="open" aria-selected="true">Sin pedir<small id="nOpen"></small></button>
+  <button role="tab" data-st="ordered" aria-selected="false">Pedidas, por llegar<small id="nOrd"></small></button>
   <button role="tab" data-st="received" aria-selected="false">Recibidas<small id="nRec"></small></button>
 </nav>
 <main id="comprasView">
@@ -159,7 +175,7 @@ body.inv .tabs{display:none}
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const linkify = s => esc(s).replace(/(https?:\/\/[^\s)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
-  const PRI = { high: 'Alta', medium: 'Media', low: 'Baja' };
+  const PRI = { high: 'Urgente', medium: 'Normal', low: 'Sin prisa' };
   const WHERE = ['', 'EE. UU.', 'México', 'En línea'];
   const CREW = ['EM', 'D', 'P/J', 'P', 'J'];
   const S = { st: 'open', who: '', items: [], me: {} };
@@ -173,6 +189,11 @@ body.inv .tabs{display:none}
     const [j, me] = await Promise.all([api('', 'GET'), fetch('/api/me').then(r => r.json()).catch(() => ({}))]);
     S.items = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); S.me = me; render();
   }
+  // Status is shown, never implied by a button: a badge (where it is now) + a 3-step line (Sin pedir → Pedida → Recibida).
+  const stBadge = i => { const st = i.status || 'open';
+    return st === 'received' ? `<span class="stb s-rec">✓ Recibida${i.receivedAt ? ' ' + fmt(i.receivedAt) : ''}</span>` : st === 'ordered' ? `<span class="stb s-ord">Pedida${i.orderedAt ? ' ' + fmt(i.orderedAt) : ''} · por llegar</span>` : `<span class="stb s-open">Sin pedir todavía</span>`; };
+  const steps = i => { const k = ['open', 'ordered', 'received'].indexOf(i.status || 'open');
+    return `<ol class="steps" aria-label="Estado">${['Sin pedir', 'Pedida', 'Recibida'].map((l, n) => `<li class="${n < k ? 'past' : n === k ? 'now' : ''}">${l}</li>`).join('')}</ol>`; };
   function render() {
     document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.st === S.st));
     const by = st => S.items.filter(i => (i.status || 'open') === st).length;
@@ -186,10 +207,12 @@ body.inv .tabs{display:none}
       const g = rows.filter(i => (i.pri || 'medium') === p); if (!g.length) continue;
       h += `<h2 class="${p}"><i></i>${PRI[p]} <small>${g.length}</small></h2><div class="cards">` + g.map(i => `
         <article class="pc ${p} ${i.status || 'open'}" data-id="${esc(i.id)}">
+          <div class="pc-top"><span class="urg u-${p}">${p === 'high' ? 'Urgente' : p === 'medium' ? 'Normal' : 'Sin prisa'}</span>${stBadge(i)}</div>
           <div class="t"><b>${esc(i.item)}</b>${i.qty ? `<span class="qty">${esc(i.qty)}</span>` : ''}</div>
           ${i.notes ? `<p class="n">${linkify(i.notes)}</p>` : ''}
-          <div class="meta">${i.asig ? `<span class="tag who">${esc(i.asig)}</span>` : ''}${i.where ? `<span class="tag where">${esc(i.where)}</span>` : ''}${i.status === 'ordered' ? `<span class="tag st-ordered">Pedida ${fmt(i.orderedAt)}</span>` : ''}${i.status === 'received' ? `<span class="tag st-received">Recibida ${fmt(i.receivedAt)}</span>` : ''}<span class="by">${esc(i.by || '')} · ${fmt(i.at)}</span></div>
-          <div class="act">${i.status === 'received' ? `<button class="btn ghost" data-set="open">Reabrir</button>` : i.status === 'ordered' ? `<button class="btn primary" data-set="received">✓ Recibida</button><button class="btn ghost" data-set="open">No pedida</button>` : `<button class="btn primary" data-set="ordered">Pedida</button><button class="btn" data-set="received">✓ Recibida</button>`}<button class="btn sq" data-edit aria-label="Editar">⋯</button></div>
+          ${steps(i)}
+          <div class="meta">${i.asig ? `<span class="tag who">Compra: ${esc(i.asig)}</span>` : ''}${i.where ? `<span class="tag where">${esc(i.where)}</span>` : ''}<span class="by">Pidió ${esc(i.by || '')} · ${fmt(i.at)}</span></div>
+          <div class="act">${(i.status || 'open') === 'received' ? `<button class="btn ghost" data-set="open">Reabrir (no llegó bien)</button>` : (i.status || 'open') === 'ordered' ? `<button class="btn next" data-set="received">Marcar como recibida</button><button class="btn ghost" data-set="open">Deshacer: no se pidió</button>` : `<button class="btn next" data-set="ordered">Marcar como pedida</button><button class="btn ghost" data-set="received">Ya llegó: marcar recibida</button>`}<button class="btn sq" data-edit aria-label="Editar">⋯</button></div>
         </article>`).join('') + '</div>';
     }
     $('#list').innerHTML = h || `<div class="empty">${S.st === 'open' ? 'Nada pendiente. Toca <b>+ Compra</b> para agregar.' : 'Nada aquí.'}</div>`;

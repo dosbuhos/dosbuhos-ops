@@ -315,7 +315,7 @@
     return runs.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }
   async function renderBottling(lotsIn) {
-    const box = document.getElementById('bottleView'); if (!box) return;
+    const box = document.getElementById('bottleDone') || document.getElementById('bottleView'); if (!box) return;
     try { await load(); } catch (e) {}
     const lots = lotsIn && lotsIn.length ? lotsIn : E.lots;
     const lotById = id => lots.find(l => l.id === id) || E.lots.find(l => l.id === id);
