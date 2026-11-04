@@ -16,8 +16,8 @@
   const SPEC_KEYS = ['size', 'cooperage', 'wood', 'toast', 'year', 'use'];
   // What kind of wine a barrel is for (a red barrel stays a red barrel). Set by hand; otherwise from the wine in it,
   // otherwise from the old paper code (CF24, SY24, AN24 = naranja…).
-  const USE = { white: 'Blanco', red: 'Tinto', orange: 'Naranja', rose: 'Rosado' };
-  const USE_C = { white: '#d8b43c', red: '#7a1f2b', orange: '#d9822b', rose: '#e0849a' };
+  const USE = { white: 'Blanco', red: 'Tinto', orange: 'Naranja', rose: 'Rosado', port: 'Oporto', vermouth: 'Vermut' };
+  const USE_C = { white: '#d8b43c', red: '#7a1f2b', orange: '#d9822b', rose: '#e0849a', port: '#4a2340', vermouth: '#6b7a3a' };
   const PAPER_USE = [[/^(L\d+-)?(CFRO|RO|ROS)/i, 'rose'], [/^(L\d+-)?(AN|OR|NAR)/i, 'orange'], [/^(L\d+-)?(SB|CB|CH|SE|MG|BL)/i, 'white'], [/^(L\d+-)?(CF|CS|SY|TE|GR|AG|MO|ME|MA|PS|MO|CFCM|MPCM)/i, 'red']];
   function useOf(b) {
     if (b.use && USE[b.use]) return b.use;
@@ -44,8 +44,70 @@
     C.barrels = (b.rows || []).map(r => Object.assign({ id: r.id }, r.data)).sort((x, y) => (+x.code || 0) - (+y.code || 0));
     const md = (m.rows || []).find(r => r.id === 'main'); C.map = md ? md.data : null;
     C.me = me.initials || ''; C.loaded = true;
-    loadSo2();
+    loadSo2(); loadLogs();
   }
+  // ---------- Mantenimiento de barricas (the paper "Mantenimiento quincenal" sheet, in the app) ----------
+  // Protocols from "Instrucciones para control de barricas" (10/10/2024). Paper colors: red p1, blue p2, gray/black p3, green fill.
+  const PROTO = {
+    p1: { n: 'Vaciada', d: 'Al vaciar (máx. 3 días): lavar, vaporizar, azufrar', c: '#b3261e', full: false },
+    p2: { n: 'Vacía · mensual', d: 'Mojar por fuera, llenar con agua (si fuga, esperar a que selle), vaciar, vaporizar, azufrar al día siguiente', c: '#2d6fb3', full: false },
+    p3: { n: 'Llena · mensual', d: 'Rellenar hasta arriba (vino que indique la enóloga), quitar velo y sanitizar con SO₂, tapones firmes, cisnes con agua y sulfitos', c: '#4a4f54', full: true },
+    fill: { n: 'Llenado', d: 'Se llenó después de estar vacía', c: '#2f7d32', full: true },
+  };
+  const MANT_DAYS = 30;
+  C.logs = []; let logsAt = 0;
+  function loadLogs(force) {
+    if (!force && Date.now() - logsAt < 120e3) return; logsAt = Date.now();
+    return api('barrel_log').then(j => { C.logs = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); C.mant = {}; for (const l of C.logs) if (l.kind === 'mant') { const k = String(l.code); if (!C.mant[k] || String(l.at) > String(C.mant[k].at)) C.mant[k] = l; } if (C.root && C.tab === 'barrels') render(); }).catch(() => { logsAt = 0; });
+  }
+  const mantOf = b => (C.mant || {})[String(b.code)] || null;
+  // Due when the last protocol is older than 30 days (or never logged).
+  const mantDue = b => { const m = mantOf(b); if (!m) return true; return (Date.now() - new Date(m.at)) / 864e5 > MANT_DAYS; };
+  const mantLine = b => {
+    const m = mantOf(b);
+    if (!m) return `<div class="cr-sub cr-mant due">Mantenimiento: sin registro</div>`;
+    const days = Math.round((Date.now() - new Date(m.at)) / 864e5), P = PROTO[m.proto] || {};
+    return `<div class="cr-sub cr-mant${days > MANT_DAYS ? ' due' : ''}"><i style="background:${P.c || '#999'}"></i>${esc(P.n || m.proto)} ${esc(fmtD(m.at))} · hace ${days} d${days > MANT_DAYS ? ' · <b>toca</b>' : ''}</div>`;
+  };
+  function openMant(preset) {
+    const bs = C.barrels.slice();
+    const groups = new Map(); for (const b of bs) { const k = b.lot ? lotName(b.lot) : stateOf(b) === 'empty' ? 'Vacías' : 'Por confirmar / otras'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(b); }
+    const keys = [...groups.keys()].sort((a, b) => (a === 'Vacías') - (b === 'Vacías') || a.localeCompare(b, 'es'));
+    const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
+    const d = sheet(`<form class="cr-form cr-mantf" method="dialog"><h3>Registrar mantenimiento</h3>
+      <fieldset class="cr-protos">${Object.entries(PROTO).map(([k, P], i) => `<label class="cr-proto"><input type="radio" name="proto" value="${k}"${i === 2 ? ' checked' : ''}><span><b><i style="background:${P.c}"></i>${P.n}</b><small>${P.d}</small></span></label>`).join('')}</fieldset>
+      <label>Fecha (el último día, si tomó varios)<input type="date" name="d" value="${today}" max="${today}"></label>
+      <div class="cr-p3x"><label>Litros para rellenar (cada barrica)<input name="topL" inputmode="decimal" placeholder="0.7"></label><label>Vino usado para rellenar<input name="topW" placeholder="BBL 15, VC-04…"></label>
+      <label class="cr-chk"><input type="checkbox" name="velo"> Había velo (se quitó y sanitizó)</label></div>
+      <label>Nota (opcional)<input name="note" placeholder="Fuga, tapón cambiado, …"></label>
+      <div class="cr-mpick"><div class="cr-mh"><b>Barricas</b> <small id="crMn">0</small> <button type="button" class="lnk" data-mall="due">Marcar las que tocan</button> <button type="button" class="lnk" data-mall="none">Ninguna</button></div>
+      ${keys.map(k => `<div class="cr-mg"><label class="cr-mgh"><input type="checkbox" data-mgrp="${esc(k)}"> <b>${esc(k)}</b> <small>${groups.get(k).length}</small></label><div class="cr-mbs">${groups.get(k).map(b => `<label class="cr-mb${mantDue(b) ? ' due' : ''}"><input type="checkbox" name="bb" value="${esc(b.code)}" data-g="${esc(k)}"${preset && preset.includes(String(b.code)) ? ' checked' : ''}><span>${esc(b.code)}</span></label>`).join('')}</div></div>`).join('')}</div>
+      <p class="cr-err" id="crErr"></p><div class="cr-row"><button type="button" class="btn" data-x>Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`, 'cr-wide');
+    const f = $('form', d), cnt = () => { $('#crMn', d).textContent = f.querySelectorAll('[name="bb"]:checked').length; };
+    const showP3 = () => { const v = (f.querySelector('[name="proto"]:checked') || {}).value; $('.cr-p3x', d).hidden = v !== 'p3'; };
+    showP3(); cnt();
+    f.addEventListener('change', e => { const g = e.target.dataset.mgrp; if (g != null) f.querySelectorAll(`[name="bb"][data-g="${CSS.escape(g)}"]`).forEach(x => { x.checked = e.target.checked; }); showP3(); cnt(); });
+    f.addEventListener('click', e => { const a = e.target.closest('[data-mall]'); if (!a) return; const v = a.dataset.mall, P = (f.querySelector('[name="proto"]:checked') || {}).value;
+      f.querySelectorAll('[name="bb"]').forEach(x => { const b = C.barrels.find(y => String(y.code) === x.value); x.checked = v === 'due' && !!b && mantDue(b) && (!P || (PROTO[P].full ? stateOf(b) !== 'empty' : stateOf(b) === 'empty')); }); cnt(); });
+    $('[data-x]', d).onclick = () => d.close();
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const proto = f.proto.value, date = f.d.value, codes = [...f.querySelectorAll('[name="bb"]:checked')].map(x => x.value);
+      if (!codes.length) { $('#crErr', d).textContent = 'Marca al menos una barrica.'; return; }
+      const P = PROTO[proto], extra = proto === 'p3' ? [f.topL.value ? 'rellenada ' + f.topL.value + ' L' + (f.topW.value ? ' con ' + f.topW.value : '') : '', f.velo.checked ? 'velo quitado' : ''].filter(Boolean) : [];
+      const text = [P.n, ...extra, f.note.value.trim()].filter(Boolean).join(' · ');
+      const btn = f.querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = 'Guardando…';
+      let n = 0;
+      for (const code of codes) {
+        const doc = { code: String(code), at: date + 'T12:00:00.000Z', by: C.me, kind: 'mant', proto, text, src: 'app' };
+        if (proto === 'p3') { if (f.topL.value) doc.topL = +f.topL.value || f.topL.value; if (f.topW.value) doc.topW = f.topW.value; if (f.velo.checked) doc.velo = true; }
+        try { await api('barrel_log/' + encodeURIComponent('b' + code + '-m' + date.replace(/-/g, '') + proto + '-' + Date.now().toString(36)), 'PUT', doc); n++; } catch (err) { $('#crErr', d).textContent = 'Barrica ' + code + ': ' + err.message; }
+      }
+      btn.disabled = false; btn.textContent = 'Guardar';
+      if (n === codes.length) { d.close(); await loadLogs(true); render(); }
+    };
+  }
+
   // Free SO2 + last addition per barrel, from Excellovint (refreshed at most every 10 min: it scans the whole log).
   let so2At = 0;
   function loadSo2() {
@@ -111,6 +173,7 @@
       tool = `<div class="cr-tool">
         <label class="cr-search">${ICON_S}<input type="search" class="cr-q" placeholder="Buscar" value="${esc(C.q)}" aria-label="Buscar barrica"></label>
         <button type="button" class="cr-fbtn${n ? ' on' : ''}" data-cpanel aria-expanded="${C.panel}">${ICON_F}<span>Filtros</span>${n ? `<b>${n}</b>` : ''}</button>
+        ${C.canWrite || C.crew ? `<button type="button" class="btn sm cr-mantb" data-ca="mant">Registrar mantenimiento</button>` : ''}
         ${C.canWrite ? `<button type="button" class="cr-add" data-ca="new" aria-label="Nueva barrica" title="Nueva barrica">+</button>` : ''}
         <span class="cr-morew"><button type="button" class="cr-more" data-cmore aria-expanded="${C.more}" aria-label="Más opciones">⋯</button>${C.more ? `<div class="cr-menu" role="menu">
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="import">Importar inventario</button>` : ''}
@@ -149,9 +212,10 @@
     const counts = { all: base.length };
     for (const k of ['confirm', 'full', 'partial', 'empty']) counts[k] = base.filter(b => stateOf(b) === k).length;
     counts.full += counts.partial; // "Con vino" = full + partial
-    if (C.filter === 'full') bs = bs.filter(b => ['full', 'partial'].includes(stateOf(b))); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
+    counts.due = base.filter(mantDue).length;
+    if (C.filter === 'full') bs = bs.filter(b => ['full', 'partial'].includes(stateOf(b))); else if (C.filter === 'due') bs = bs.filter(mantDue).sort((a, b) => String((mantOf(a) || {}).at || '').localeCompare(String((mantOf(b) || {}).at || ''))); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
     // One status row (the question people actually ask: what's full, what's free, what needs checking).
-    const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías']].concat(counts.confirm ? [['confirm', 'Revisar']] : []);
+    const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías'], ['due', 'Toca mantenimiento']].concat(counts.confirm ? [['confirm', 'Revisar']] : []);
     const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"${k === 'confirm' ? ' title="Por confirmar: vino viejo en papel"' : ''}><span>${l}</span><small>${counts[k]}</small></button>`).join('');
     const chips = [];
     if (C.use) chips.push(['use', 'Tipo: ' + (C.use === 'none' ? 'Sin tipo' : USE[C.use])]);
@@ -173,6 +237,7 @@
           ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
           <div class="cr-sub">${esc([st === 'confirm' || !b.lot ? '' : FILL[fill], b.vol && b.size && +b.vol < +b.size ? b.vol + ' / ' + b.size + ' L' : (b.size || b.vol ? (b.size || b.vol) + ' L' : ''), b.lot && lotById(b.lot) ? C.vintageOf(lotById(b.lot)) : ''].filter(Boolean).join(' · '))}</div>
           ${so2Line(b)}
+          ${mantLine(b)}
           ${specLine(b) ? `<div class="cr-sub cr-spec">${esc(specLine(b))}</div>` : ''}
           ${b.loc ? `<div class="cr-sub"><span class="cr-loc">${esc(b.loc)}</span> ${esc(locLabel(b.loc))}</div>` : ''}
         </div></article>`;
@@ -455,7 +520,8 @@
       const ph = (b.history || []);
       const paper = (b.flag ? `<p class="cr-flag">⚠ ${esc(b.flag)}</p>` : '') + (b.confirmed ? `<p class="cr-help">Confirmado por ${esc(b.confirmed.by || '')} ${fmtD(b.confirmed.at)}: ${esc(b.confirmed.state === 'same' ? 'sigue con ' + (b.confirmed.wine || '') : b.confirmed.state === 'empty' ? 'embotellada / vacía' : b.confirmed.wine || '')}</p>` : '') +
         `<h4>Registros en papel (SO₂) <small>${ph.length}</small></h4>` + (ph.length ? `<ul class="cr-log">${ph.map(r => `<li><span class="cr-ld">${fmtD(r.date)}</span><span class="cr-lk">${esc(r.wine || '')}</span>${[r.ph != null ? 'pH ' + r.ph : '', r.fso2 != null ? 'SO₂L ' + r.fso2 : '', r.kmbs_g != null ? 'KMBS ' + r.kmbs_g + ' g' : '', r.skipped ? 'omitido (ya en meta)' : r.applied ? 'añadido' : ''].filter(Boolean).map(esc).join(' · ')}${r.note && !/^(Añadido|OMITIR)/.test(r.note) ? ' · ' + esc(r.note) : ''}<small>${esc(r.src || '')}</small></li>`).join('')}</ul>` : '<p class="cr-none">Sin registros en papel.</p>');
-      pane.innerHTML = paper + `<h4>Movimientos en la app <small>${mine.length}</small></h4>` + (mine.length ? `<ul class="cr-log">${mine.map(r => `<li><span class="cr-ld">${fmtD(r.at)}</span><span class="cr-lk ${esc(r.kind)}">${esc(r.kind)}</span>${esc(r.text)}<small>${esc(r.by || '')}</small></li>`).join('')}</ul>` : '<p class="cr-none">Nada todavía.</p>') +
+      const hist = (b.wines || []).length ? `<h4>Historial de vinos <small>hoja</small></h4><p class="cr-help">${(b.wines || []).map(esc).join(' → ')}${b.sheet && b.sheet.state ? ` · según la hoja: <b>${b.sheet.state === 'full' ? 'llena' : 'vacía'}</b> (${esc(fmtD(b.sheet.d))})` : ''}</p>` : '';
+      pane.innerHTML = hist + paper + `<h4>Mantenimiento y movimientos <small>${mine.length}</small></h4>` + (mine.length ? `<ul class="cr-log">${mine.slice().sort((x, y) => String(y.at).localeCompare(String(x.at))).map(r => `<li><span class="cr-ld">${fmtD(r.at)}</span><span class="cr-lk ${esc(r.kind)}"${r.kind === 'mant' && PROTO[r.proto] ? ` style="background:${PROTO[r.proto].c};color:#fff"` : ''}>${esc(r.kind === 'mant' && PROTO[r.proto] ? PROTO[r.proto].n : r.kind)}</span>${esc(r.text)}<small>${esc(r.by || '')}</small></li>`).join('')}</ul>` : '<p class="cr-none">Nada todavía.</p>') +
         `<h4>En Excellovint <small>${xrows.length}</small></h4>` + (xrows.length ? `<div class="xlog">${xrows.map(r => `<article class="xe${r.ini ? ' is-done' : r.asig ? ' is-open' : ''}"><div class="xe-h"><span class="xe-d">${esc(r.date ? fmtD(r.date) : r.date_raw || '')}</span><span class="xe-u">${esc(r.tab)}${r.ubi ? ' · ' + esc(r.ubi) : ''}</span>${r.ini ? `<span class="xe-st done">Hecha · ${esc(r.ini)}</span>` : r.asig ? `<span class="xe-st open">Abierta · ${esc(r.asig)}</span>` : ''}</div><div class="xe-b">${RK.some(([k]) => r[k]) ? `<div class="xe-r">${RK.filter(([k]) => r[k]).map(([k, l]) => `<span><i>${l}</i>${esc(r[k])}</span>`).join('')}</div>` : ''}${r.note ? `<p class="xe-n">${esc(r.note)}</p>` : ''}</div></article>`).join('')}</div>` : '<p class="cr-none">Ninguna línea de Excellovint menciona esta barrica (busca «BBL ' + esc(b.code) + '»).</p>');
     } catch (e) { pane.innerHTML = '<p class="cr-none">No se pudo cargar: ' + esc(e.message) + '</p>'; }
   }
@@ -609,6 +675,7 @@
     if (t.dataset.cu != null) { C.use = t.dataset.cu; render(); return; }
     if (t.dataset.ca === 'new') { openBarrel(null, t.dataset.lot ? { lot: t.dataset.lot } : null); return; }
     if (t.dataset.ca === 'import') { openImport(); return; }
+    if (t.dataset.ca === 'mant') { openMant(); return; }
     if (t.dataset.ca === 'labels') { printLabels(null); return; }
     if (t.dataset.ca === 'mapcfg') { openMapCfg(); return; }
     if (t.dataset.bb) { openBarrel(t.dataset.bb); return; }
