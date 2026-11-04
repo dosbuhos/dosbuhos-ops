@@ -273,3 +273,10 @@
 .tkm-list tr:hover { background: #f5f7f9; }
 .tkm-list tr.sel { background: #e8f0fe; }
 .tkm-list tr.mt td { color: #8c959e; }
+/* Barrel cards: free SO2 + last addition */
+.cr-so2 { font-size: 12.5px; }
+.cr-so2v { font-weight: 700; color: #1f5e2a; }
+.cr-so2v.low { color: #8a1c1c; }
+.cr-so2v.old::after { content: ' · vieja'; font-weight: 500; color: #8a6d00; }
+.cr-so2v.none { color: #8c959e; font-weight: 500; }
+.cr-so2a { color: #3f4548; }

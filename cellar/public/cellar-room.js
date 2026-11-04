@@ -44,7 +44,22 @@
     C.barrels = (b.rows || []).map(r => Object.assign({ id: r.id }, r.data)).sort((x, y) => (+x.code || 0) - (+y.code || 0));
     const md = (m.rows || []).find(r => r.id === 'main'); C.map = md ? md.data : null;
     C.me = me.initials || ''; C.loaded = true;
+    loadSo2();
   }
+  // Free SO2 + last addition per barrel, from Excellovint (refreshed at most every 10 min: it scans the whole log).
+  let so2At = 0;
+  function loadSo2() {
+    if (Date.now() - so2At < 600e3) return; so2At = Date.now();
+    fetch('/api/xl/barrel-so2').then(r => r.ok ? r.json() : null).then(j => { if (j && j.barrels) { C.so2 = j.barrels; if (C.root && C.tab === 'barrels') render(); } }).catch(() => { so2At = 0; });
+  }
+  const daysOld = iso => iso ? Math.round((Date.now() - new Date(iso + 'T12:00')) / 864e5) : null;
+  const so2Line = b => {
+    const x = C.so2 && C.so2[String(+b.code)]; if (!x || !b.lot) return '';
+    const r = x.so2, a = x.add, old = r && daysOld(r.d) > 14;
+    const rd = r ? `<span class="cr-so2v${old ? ' old' : ''}${/^</.test(r.v) || +r.v < 10 ? ' low' : ''}">SO₂ libre ${esc(r.v)}</span> ${esc(fmtD(r.d))}${a && a.tab === r.tab && a.row === r.row ? ' <small>(antes de agregar)</small>' : ''}` : '<span class="cr-so2v none">SO₂ libre sin lectura</span>';
+    const ad = a ? ` · <span class="cr-so2a">+${a.g ? esc(a.g) + ' g' : ''}${a.g && a.ppm ? ' · ' : ''}${a.ppm ? esc(a.ppm) + ' ppm' : ''} ${esc(fmtD(a.d))}</span>` : '';
+    return `<div class="cr-sub cr-so2">${rd}${ad}</div>`;
+  };
   const lotById = id => C.all.find(l => l.id === id);
   const lotName = id => { const l = lotById(id); return l ? l.name : (id || ''); };
   const lotGroup = id => { const l = lotById(id); return l ? l.group : ''; };
@@ -157,6 +172,7 @@
           <div class="cr-bh"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
           ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
           <div class="cr-sub">${esc([st === 'confirm' || !b.lot ? '' : FILL[fill], b.vol && b.size && +b.vol < +b.size ? b.vol + ' / ' + b.size + ' L' : (b.size || b.vol ? (b.size || b.vol) + ' L' : ''), b.lot && lotById(b.lot) ? C.vintageOf(lotById(b.lot)) : ''].filter(Boolean).join(' · '))}</div>
+          ${so2Line(b)}
           ${specLine(b) ? `<div class="cr-sub cr-spec">${esc(specLine(b))}</div>` : ''}
           ${b.loc ? `<div class="cr-sub"><span class="cr-loc">${esc(b.loc)}</span> ${esc(locLabel(b.loc))}</div>` : ''}
         </div></article>`;

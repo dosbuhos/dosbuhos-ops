@@ -184,6 +184,27 @@ export async function xlRoute(request, env, p, url, user) {
     }).slice(0, 150);
     return { status: 200, body: { code, rows } };
   }
+  if (p === '/api/xl/barrel-so2') {
+    // Last free-SO2 reading and last done SO2 addition per barrel, read from Excellovint lines that name barrels.
+    const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
+    const { results } = await env.DB.prepare("SELECT tab, row, date, ubi, sl, note, ini FROM xl_rows WHERE date IS NOT NULL AND date <= ? AND (sl <> '' OR note LIKE '%KMBS%' OR note LIKE '%PPM%' OR note LIKE '%SO2%') ORDER BY date, row").bind(today).all();
+    const nums = (s) => { const out = []; const re = /\b(?:BBLS?|BARRICAS?|BARRELS?)\s*#?\s*((?:\d+\s*(?:,|\+|Y|AND|·|&)\s*)*\d+)/gi; let m; while ((m = re.exec(s || ''))) for (const n of m[1].match(/\d+/g) || []) out.push(String(+n)); return [...new Set(out)]; };
+    const out = {}; const at = c => (out[c] = out[c] || {});
+    const done = r => (r.ini && !/^(UNDO|XX)$/i.test(r.ini.trim())) || /^RESULTADO/i.test(r.note || '');
+    for (const r of results) {
+      const bs = nums(r.ubi), note = String(r.note || '');
+      // Per-barrel values written in the note win ("BBL 87=10.3 PPM").
+      const per = {}; let m; const re = /\bB(?:BL)?\s*#?\s*(\d+)\s*[=:]\s*(<?\s*\d+(?:[.,]\d+)?)\s*(?:PPM|MG)/gi;
+      while ((m = re.exec(note))) per[String(+m[1])] = m[2].replace(/\s/g, '').replace(',', '.');
+      for (const [c, v] of Object.entries(per)) at(c).so2 = { d: r.date, v, tab: r.tab, row: r.row, n: 1 };
+      if (r.sl !== '' && r.sl != null && bs.length) for (const c of bs) if (!per[c]) at(c).so2 = { d: r.date, v: String(r.sl), tab: r.tab, row: r.row, n: bs.length };
+      if (bs.length && done(r) && /KMBS|AGREG|AÑADI|ADD\b|ADDED|ADICI[OÓ]N/i.test(note) && !/NO SE AGREG|SOLO MEDIR|NO AGREGAR NADA|NO ADDITION|READING ONLY/i.test(note)) {
+        const g = note.match(/(\d+(?:[.,]\d+)?)\s*(?:G|GR|GRS|GRAMOS)\b(?!\s*\/)/i), ppm = note.match(/(?:ADD|AGREG[OÓ]|AGREGAR|AÑADI[OÓ]|SUBIR A)\s+(\d+(?:[.,]\d+)?)\s*(?:PPM|MG\/L)/i);
+        if (g || ppm) for (const c of bs) at(c).add = { d: r.date, g: g ? g[1].replace(',', '.') : '', ppm: ppm ? ppm[1].replace(',', '.') : '', tab: r.tab, row: r.row, n: bs.length };
+      }
+    }
+    return { status: 200, body: { today, barrels: out } };
+  }
   if (p === '/api/xl/day') {
     // Everything Excellovint logged for one day (work orders and notes), for looking back day by day.
     const d = String(url.searchParams.get('d') || '');
