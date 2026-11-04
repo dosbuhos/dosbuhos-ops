@@ -1211,6 +1211,7 @@ body { background-image: none !important; font-family: var(--f-body); }
 .lr-status { margin: 4px 0 8px; font-weight: 600; } .lr-k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #66707a; margin-top: 8px; }
 .lr-next, .lr-ap, .lr-sg { margin: 4px 0 0; padding-left: 20px; } .lr-next li, .lr-ap li, .lr-sg li { margin: 3px 0; line-height: 1.4; }
 .lr-sg i { color: #5a3a12; } .lr-a { display: inline-flex; gap: 8px; margin-left: 6px; } .lnk { background: none; border: 0; color: #2f6690; text-decoration: underline; cursor: pointer; padding: 0; font: inherit; font-size: 13px; }
+.tile sup.odd { color: #b06a00; font-size: .55em; margin-left: 2px; } .tile .odd-n { color: #8a5a00; }
 /* Embotellado → Ruta a botella */
 .bp-tabs { display: flex; gap: 6px; margin: 4px 0 12px; }
 .bp-tabs button { border: 1px solid var(--rule, #d6dade); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 600; cursor: pointer; }
@@ -1650,6 +1651,10 @@ var SheetParse = (function () {
       if (r.u) vessel = r.u;
       if (r.volf && !/KG/i.test(r.volf)) { const v = num(r.volf); if (v) { vol = v; volDate = r.d; } }
     }
+    // Readings that jump in a way wine can't (alcohol after ferment, malic going up, VA going down…) get an asterisk:
+    // usually a sample from the wrong vessel, a labelling mix-up or an instrument hiccup. Repeat before acting on them.
+    const ODD = { alc: (a, b) => a > 8 && Math.abs(b - a) > 0.6, am: (a, b) => b - a > 0.15, aa: (a, b) => a - b > 0.12, ph: (a, b) => Math.abs(b - a) > 0.2, at: (a, b) => Math.abs(b - a) > 1.0, rs: (a, b) => a < 4 && b - a > 1.0 };
+    for (const k in ODD) { const h = hist[k]; for (let i = 1; i < h.length; i++) { const a = h[i - 1].v, b = h[i].v; if (a != null && b != null && isFinite(a) && isFinite(b) && ODD[k](a, b)) h[i].odd = `${h[i - 1].raw} → ${h[i].raw}`; } }
     const latest = {};
     for (const k in hist) latest[k] = hist[k].length ? hist[k][hist[k].length - 1] : null;
     // Total SO2 estimate: last measured total plus additions logged after it (or all additions if never measured).
@@ -4049,7 +4054,7 @@ Return ONLY JSON with this shape:
     if (age != null && age > STALE_DAYS) c.push("old");
     if (extraCls) c.push(extraCls);
     const tip = `${LABEL[key] || key} ${p.raw} · ${p.d ? shortDate(p.d) : "no date"} · ${p.lab ? "outside lab" : "in-house"}`;
-    return `<span class="${c.join(" ")}" title="${esc(tip)}">${esc(String(p.raw).replace(/\s+/g, ""))}</span>`;
+    return `<span class="${c.join(" ")}" title="${esc(tip + (p.odd ? " · cambio raro " + p.odd + ": repetir" : ""))}">${esc(String(p.raw).replace(/\s+/g, ""))}${p.odd ? "*" : ""}</span>`;
   }
   function mlLabel(ml) {
     if (!ml) return "No malic yet";
@@ -4503,7 +4508,8 @@ Return ONLY JSON with this shape:
     const prev = h.length > 1 ? h[h.length - 2] : null;
     const trend = prev ? ` · was ${esc(prev.raw)} on ${esc(shortDate(prev.d))}` : "";
     return `<div class="tile ${cls}"><span class="tl">${esc(LABEL[key])}</span>` +
-      `<span class="${vc.join(" ")}">${esc(p.raw)}${unit ? `<span class="u">${esc(unit)}</span>` : ""}${key === "rs" ? rsDry(p, s) : ""}</span>` +
+      `<span class="${vc.join(" ")}">${esc(p.raw)}${p.odd ? `<sup class="odd" title="Lectura rara">*</sup>` : ""}${unit ? `<span class="u">${esc(unit)}</span>` : ""}${key === "rs" ? rsDry(p, s) : ""}</span>` +
+      (p.odd ? `<small class="odd-n">* Cambio raro (${esc(p.odd)}): probable error de muestra o del equipo. Repetir antes de decidir.</small>` : "") +
       (key === "heat" ? p.unf ? `<small class="heat-v">Unfiltered test (20/10): over-reads, not a real result. Needs the filtered heat test.</small>` : `<small class="heat-v ${p.v > 2 ? "no" : "ok"}">${p.v > 2 ? "Fails: heated sample got hazier than control (Δ > 2)" : "Passes: Δ = heated − control turbidity, ≤ 2 is stable"}</small>${p.filt ? `<small>Filtered method, bentonite series 0 g/hL jar: control ${p.c}, heated ${p.h} NTU</small>` : ""}` : "") +
       `<small>${esc(shortDate(p.d))} · ${p.lab ? "outside lab" : "in-house"}${trend}</small>` +
       (extra || "") + spark(h) + `</div>`;
