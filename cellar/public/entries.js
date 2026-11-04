@@ -307,8 +307,8 @@
   // ---------- Embotellado: upcoming bottling orders + every bottling done ----------
   const FILTL = { none: 'Sin filtrar', pad: 'Placas', sterile: 'Estéril', both: 'Placas + estéril' };
   const fmtL = n => (Math.round(+n * 10) / 10).toLocaleString('es-MX');
-  const dmy = iso => iso ? +iso.slice(8, 10) + '/' + +iso.slice(5, 7) + '/' + iso.slice(2, 4) : '';
-  const fmtTxt = fs => (fs || []).map(f => f.bottles.toLocaleString('es-MX') + ' × ' + (f.ml >= 1000 ? f.ml / 1000 + ' L' : f.ml + ' mL')).join(' + ');
+  const dmy = iso => !iso ? '?' : !/^\d{4}-\d\d-\d\d/.test(iso) ? iso : iso ? +iso.slice(8, 10) + '/' + +iso.slice(5, 7) + '/' + iso.slice(2, 4) : '';
+  const fmtTxt = fs => (fs || []).map(f => (f.bottles == null || f.bottles === '' ? '?' : (+f.bottles).toLocaleString('es-MX')) + ' × ' + (f.ml >= 1000 ? f.ml / 1000 + ' L' : f.ml + ' mL')).join(' + ');
   function bottlingRuns(lots) {
     const runs = [];
     for (const l of lots) for (const b of (l.bottlings || [])) runs.push(Object.assign({ lot: l }, b));
@@ -324,7 +324,7 @@
     const n = document.getElementById('wmBottleN'); if (n) n.textContent = runs.length || '';
     const total = runs.reduce((s, r) => s + (r.bottles || 0), 0), liters = runs.reduce((s, r) => s + (+r.liters || 0), 0);
     const dot = l => `<i class="bt-dot" style="background:${GC[(l || {}).group] || '#9aa5b1'}"></i>`;
-    let h = `<div class="bt-head"><b>${runs.length} embotellado${runs.length === 1 ? '' : 's'}</b> · ${total.toLocaleString('es-MX')} botellas · ${fmtL(liters)} L${open.length ? ` · <b>${open.length} programado${open.length > 1 ? 's' : ''}</b>` : ''}</div>`;
+    let h = `<div class="bt-head"><b>${runs.length} embotellado${runs.length === 1 ? '' : 's'}</b> · ${total.toLocaleString('es-MX')}${runs.some(r => r.bottles == null) ? '+ ?' : ''} botellas · ${fmtL(liters)} L${open.length ? ` · <b>${open.length} programado${open.length > 1 ? 's' : ''}</b>` : ''}</div>`;
     if (open.length) h += `<h3 class="cr-gh">Próximos <small>órdenes abiertas</small></h3><div class="bt-up">${open.map(m => { const l = lotById(m.lot), b = m.bottle || {};
       return `<article class="bt-card"><div class="bt-d">${esc(dmy(m.date))}</div><div>${dot(l)}<b>${esc((l || {}).name || m.tab)}</b><small>${esc(m.from || '')}${m.liters ? ' · ~' + fmtL(m.liters) + ' L' : ''}</small>
         <span class="bt-m">${b.bottles ? '~' + (+b.bottles).toLocaleString('es-MX') + ' × ' : ''}${b.format || 750} mL · ${esc(FILTL[b.filter] || 'Sin filtrar')} · ${esc(b.closure || '')}${b.so2 ? ' · SO₂ ' + b.so2 : ''}</span></div>
@@ -333,7 +333,7 @@
     if (!runs.length) h += `<div class="cr-empty">Todavía no hay embotellados registrados. Se crean con «Agregar → Trasiego · mezcla · embotellado → Embotellado» y se cierran desde «Anotar resultados» al terminar.</div>`;
     else h += `<div class="bt-wrap"><table class="bt-tbl"><thead><tr><th>Fecha</th><th>Vino</th><th>Botellas</th><th>Litros</th><th>Merma</th><th>Filtración</th><th>SO₂ libre / total</th><th>Lote</th></tr></thead><tbody>${runs.map(r => `<tr>
       <td class="n">${esc(dmy(r.date))}</td><td>${dot(r.lot)}<b>${esc(r.wine || r.lot.name)}</b>${r.sourceEmpty === false ? ' <span class="bt-part">parcial</span>' : ''}<small>${esc(r.from || '')}</small></td>
-      <td class="n">${esc(fmtTxt(r.formats))}</td><td class="n">${fmtL(r.liters || 0)}</td><td class="n">${r.loss ? fmtL(r.loss) + ' L' : '—'}</td>
+      <td class="n">${esc(fmtTxt(r.formats))}</td><td class="n">${r.liters == null || r.liters === '' ? '?' : fmtL(r.liters)}</td><td class="n">${r.loss ? fmtL(r.loss) + ' L' : '—'}</td>
       <td>${esc(FILTL[r.filter] || r.filter || '—')}</td><td class="n">${esc((r.fso2 || '—') + ' / ' + (r.tso2 || '—'))}</td><td class="n">${esc(r.lotno || '—')}</td></tr>`).join('')}</tbody></table></div>`;
     box.innerHTML = h;
   }
