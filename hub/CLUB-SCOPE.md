@@ -118,3 +118,6 @@ Follow the Hub's Guía de diseño y UX:
 - Spanish (Mexico)
 - `theme.css` tokens
 - the public pages are the most polished surface: they are what a guest sees
+
+## Navegación (como Join It)
+Barra lateral: Hoy · Socios (Ver socios, Agregar socio, Tipos de membresía = la cuadrícula de programas × beneficios, Ajustes de socios) · Portal del socio (Tarjetas digitales, Invitaciones, Novios) · Finanzas (Pagos) · Reportes (Resumen, Actividad), y "Ver portal del socio". En teléfono la misma barra se abre con Menú; abajo quedan Hoy, Socios y Escanear. Búsqueda de socios en la barra de arriba. La ficha del socio sigue el registro de Join It: acciones arriba, perfil y comentarios internos a la izquierda, tarjeta de membresía oscura y visitas a la derecha, y pestañas (Tarjeta digital, Visitas, Pagos, Compras y nivel, Historial, Datos, Programas). Lo único distinto: la administración de beneficios (la cuadrícula).

@@ -5,6 +5,7 @@
 import * as C from './club-core.js';
 import { qrSvg } from './qr.js';
 import { syncWineclub } from './club-wineclub.js';
+import { appleReady, googleReady } from './club-wallet.js';
 import { clubAudit, catalog, personState, programsFor, badge, newCardCode, findPerson, addMembership, publicOrigin, cardUrl, inviteUrl, windowStart, fieldValues, saveFieldValues, readFields } from './club-data.js';
 
 const J = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -40,7 +41,8 @@ export async function clubRoute(request, env, url, user, role) {
     const pros = await prosList(env, cat);
     return J({ role, me: { email: user.email, name: user.name }, day, origin, wineclub: !!env.WINECLUB_DB, ...cat,
       config: { milestone_every: Number(cat.config.milestone_every || 200), last_sync: cat.config.last_sync ? JSON.parse(cat.config.last_sync) : null }, pros,
-      channels: C.CHANNELS, pro_types: C.PRO_TYPES, pay_methods: C.PAY_METHODS, field_kinds: C.FIELD_KINDS });
+      channels: C.CHANNELS, pro_types: C.PRO_TYPES, pay_methods: C.PAY_METHODS, field_kinds: C.FIELD_KINDS,
+      wallet: { apple: appleReady(env), google: googleReady(env) } });
   }
 
   // ---------- Hoy ----------
@@ -182,6 +184,10 @@ export async function clubRoute(request, env, url, user, role) {
 
   // ---------- Socios: the member database ----------
   if (p === '/club/api/members' && m === 'GET') return J(await members(env, url, day));
+  if (p === '/club/api/payments' && m === 'GET') {
+    if (!admin) return NO('Solo quien administra el club ve los pagos.');
+    return J(await allPayments(env, url, day));
+  }
   if (p === '/club/api/members.csv' && m === 'GET') {
     if (!admin) return NO('Solo quien administra el club exporta la base de socios.');
     const r = await members(env, url, day, { all: true });
@@ -507,7 +513,26 @@ async function personDetail(env, person, origin, user, admin, day) {
     opentable: C.openTableNote(person, st.resolved, st.programs),
     wa: person.phone ? C.waLink(person.phone, C.cardText({ name: person.name, url })) : '',
     card_text: C.cardText({ name: person.name, url }),
+    card_qr: person.status === 'active' ? qrSvg(url, { label: 'Código de la tarjeta' }) : '',
   };
+}
+
+// Finanzas → Pagos: every fee received, newest first, with totals for the period. desde/hasta = YYYY-MM-DD.
+async function allPayments(env, url, day) {
+  const q = k => str(url.searchParams.get(k), 20);
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const hasta = iso.test(q('hasta')) ? q('hasta') : day;
+  const desde = iso.test(q('desde')) ? q('desde') : C.addDays(hasta, -89);
+  const method = q('metodo'), program = q('programa');
+  const where = ['y.day >= ?', 'y.day <= ?'], args = [desde, hasta];
+  if (method && C.PAY_METHODS[method]) { where.push('y.method = ?'); args.push(method); }
+  if (program) { where.push('y.program_id = ?'); args.push(program); }
+  const rows = (await env.DB.prepare(`SELECT y.id, y.person_id, y.program_id, y.day, y.amount, y.method, y.reference, y.note, y.extended_to, y.created_by, y.voided_at, p.name
+    FROM club_payments y JOIN club_people p ON p.id = y.person_id WHERE ${where.join(' AND ')} ORDER BY y.day DESC, y.id DESC LIMIT 500`).bind(...args).all()).results;
+  const live = rows.filter(r => !r.voided_at);
+  const byMethod = {};
+  for (const r of live) byMethod[r.method] = (byMethod[r.method] || 0) + r.amount;
+  return { desde, hasta, payments: rows, totals: { count: live.length, amount: live.reduce((a, r) => a + r.amount, 0), renewals: live.filter(r => r.extended_to).length, by_method: byMethod, voided: rows.length - live.length } };
 }
 const safeJson = s => { try { return JSON.parse(s); } catch { return s; } };
 
@@ -570,7 +595,7 @@ async function move(env, person, b, me) {
 // The whole database, filtered and sorted in the Worker (hundreds of people, not millions). Filters:
 //   estado: todos · activos · por_vencer (next 30 days) · vencidos · por_aprobar · bloqueados
 //   programa: a program id ·  q: name, phone or email ·  orden: actividad · nombre · alta · gasto · vence
-export const MEMBER_FILTERS = ['todos', 'activos', 'por_vencer', 'vencidos', 'por_aprobar', 'bloqueados'];
+export const MEMBER_FILTERS = ['todos', 'activos', 'por_vencer', 'vencidos', 'por_aprobar', 'bloqueados', 'sin_tarjeta'];
 async function members(env, url, day, { all = false } = {}) {
   const sp = url.searchParams;
   const estado = MEMBER_FILTERS.includes(sp.get('estado')) ? sp.get('estado') : 'todos';
@@ -593,6 +618,7 @@ async function members(env, url, day, { all = false } = {}) {
     vencidos: r => r.expired.length > 0,
     por_aprobar: r => r.pending,
     bloqueados: r => r.status !== 'active',
+    sin_tarjeta: r => r.status === 'active' && !r.card_sent_at && (r.programs.length > 0 || r.pending),
   };
   const counts = { todos: rows.length };
   for (const k of Object.keys(is)) counts[k] = rows.filter(is[k]).length;
@@ -616,7 +642,7 @@ async function members(env, url, day, { all = false } = {}) {
     fields: all ? cat.fields.filter(f => !f.archived) : [],
     people: page.map(r => ({ id: r.id, name: r.name, phone: r.phone, phone_fmt: C.fmtPhone(r.phone), email: r.email, birthday: r.birthday, vip: !!r.vip, status: r.status,
       programs: r.programs.map(badge), pending: r.pending, expired: r.expired, valid_until: r.valid_until, last_visit: r.last_visit || '', visits12: r.visits12,
-      created_at: r.created_at, spend: r.spend, source: r.source, ...(all ? { staff_note: r.staff_note, fields: V[r.id] || {} } : {}) })),
+      created_at: r.created_at, spend: r.spend, source: r.source, card_sent: !!r.card_sent_at, ...(all ? { staff_note: r.staff_note, fields: V[r.id] || {} } : {}) })),
   };
 }
 const csvCell = v => { const s = String(v ?? ''); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
