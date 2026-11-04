@@ -1,0 +1,27 @@
+// Capturas móviles (iPhone 13) de los formularios: análisis, lectura, recepción (pasos 2 y 3), depósito, adición, coupage.
+import { chromium, devices } from 'playwright';
+const BASE = process.env.BASE || 'http://localhost:8787';
+const OUT = process.env.OUT || '/home/claude/shots/f';
+const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] }); const page = await ctx.newPage(); page.setDefaultTimeout(5000);
+page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+const shot = (n) => page.screenshot({ path: `${OUT}-${n}.png` });
+const go = async (h) => { await page.goto(`${BASE}/#/${h}`); await page.waitForTimeout(700); };
+const esc = async () => { await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(150); };
+const tryStep = async (name, fn) => { try { await fn(); await shot(name); console.log('✓', name); } catch (e) { console.log('✗', name, e.message.split('\n')[0]); await esc(); } };
+await tryStep('01-analisis', async () => { await go('analisis'); await page.click('#newan'); await page.waitForTimeout(400); });
+await tryStep('02-lectura', async () => { await esc(); await go('fermentaciones'); await page.click('text=Nueva lectura'); await page.waitForTimeout(400); });
+await tryStep('03-recepcion-2', async () => { await esc(); await go('recepcion'); await page.click('#newr'); await page.waitForTimeout(400); await page.fill('[name=weight_kg]', '1200').catch(() => {}); await page.click('[data-step="2"]'); await page.waitForTimeout(300); });
+await tryStep('04-recepcion-3', async () => { await page.click('[data-step="3"]'); await page.waitForTimeout(300); });
+await tryStep('05-deposito-form', async () => { await esc(); await go('depositos'); await page.click('#newv'); await page.waitForTimeout(400); });
+await tryStep('06-op-adicion', async () => { await esc(); await go('operaciones'); await page.click('#newop'); await page.waitForTimeout(400); await page.click('.type-grid label:has(input[value=addition])'); await page.waitForTimeout(250); await page.evaluate(() => { document.querySelector('#modal .modal-body').scrollTop = 420; }); await page.waitForTimeout(150); });
+await tryStep('07-op-topping', async () => { await page.evaluate(() => { document.querySelector('#modal .modal-body').scrollTop = 0; }); await page.click('.type-grid label:has(input[value=topping])'); await page.waitForTimeout(250); await page.evaluate(() => { document.querySelector('#modal .modal-body').scrollTop = 420; }); await page.waitForTimeout(150); });
+await tryStep('08-coupage-picker', async () => { await esc(); await go('coupage'); await page.click('.vp[data-vp=o0] > button'); await page.waitForTimeout(350); });
+await tryStep('09-coupage-bottom', async () => { await esc(); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(200); });
+await tryStep('10-recipiente-bottom', async () => { await go('recipiente/1'); await page.evaluate(() => window.scrollTo(0, 700)); await page.waitForTimeout(200); });
+await tryStep('11-limpieza-form', async () => { await go('recipiente/1'); await page.click('text=Registrar limpieza'); await page.waitForTimeout(400); });
+await tryStep('12-parcela', async () => { await esc(); await go('parcela/1'); });
+await tryStep('13-traza', async () => { await go('traza?lot=1'); });
+await tryStep('14-calc-bottom', async () => { await go('calculadora'); await page.evaluate(() => window.scrollTo(0, 600)); await page.waitForTimeout(200); });
+await tryStep('15-saldos-bottom', async () => { await go('saldos'); await page.evaluate(() => window.scrollTo(0, 700)); await page.waitForTimeout(200); });
+await tryStep('16-ayuda-mas', async () => { await go('mas'); await page.evaluate(() => window.scrollTo(0, 300)); await page.waitForTimeout(200); });
+await b.close();

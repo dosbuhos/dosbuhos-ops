@@ -136,6 +136,12 @@ export async function route() {
   if (!fn) { location.hash = '#/panel'; return; }
   page.classList.remove('with-hero'); $('#main').scrollTop = 0; window.scrollTo(0, 0);
   try { await fn(page, S.route.id); } catch (err) { page.innerHTML = `<div class="alert bad">${ico('alert')}<span>${esc(err.message)}</span></div>`; }
+  mobilePolish(page);
+}
+// Móvil: en las tablas convertidas en tarjetas, las celdas vacías («—») no aportan nada y se ocultan.
+function mobilePolish(page) {
+  if (!window.matchMedia('(max-width: 719px)').matches) return;
+  $$('table.t.cards td[data-l]', page).forEach((td) => { if (td.textContent.trim() === '—') td.classList.add('mhide'); });
 }
 window.addEventListener('hashchange', route);
 (async () => {

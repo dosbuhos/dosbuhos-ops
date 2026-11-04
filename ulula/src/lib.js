@@ -1,5 +1,5 @@
 // Helpers compartidos por todos los módulos del Worker.
-export const VERSION = '0.4.0';
+export const VERSION = '0.4.1';
 export const MX_OFFSET_H = 6; // San Miguel: UTC-6 todo el año
 export const mxToday = () => new Date(Date.now() - MX_OFFSET_H * 3600000).toISOString().slice(0, 10);
 export const mxNow = () => new Date(Date.now() - MX_OFFSET_H * 3600000).toISOString().slice(0, 16).replace('T', ' ');

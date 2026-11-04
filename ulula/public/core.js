@@ -76,8 +76,11 @@ export const qs = (o) => { const p = new URLSearchParams(Object.fromEntries(Obje
 // ---------------------------------------------------------------- página
 export function crumbs(group, ...parts) {
   const all = ['<a href="#/panel">Inicio</a>'].concat(group ? [esc(group)] : []).concat(parts);
-  $('#crumbs').innerHTML = all.map((p, i, a) => i === a.length - 1 ? `<b>${p}</b>` : p).join(' <span>›</span> ');
+  $('#crumbs').innerHTML = all.map((p, i, a) => i === a.length - 1 ? `<b>${p}</b>` : `<span class="c">${p}</span>`).join('<span class="sep">›</span>');
 }
+export const isMobile = () => window.matchMedia('(max-width: 719px)').matches;
+// Filtros plegables en móvil: en pantallas grandes se muestran tal cual.
+export function mfilters(inner, n = 0) { return isMobile() ? `<details class="mfilters"><summary>${ico('filter')}Filtros${n ? ` <span class="pill">${n}</span>` : ''}${ico('down')}</summary>${inner}</details>` : inner; }
 export function head({ title, icon, sub, actions = '', k = '', eyebrow = '' }) {
   return `<div class="page-head ${k}"><div>${eyebrow ? `<div class="eyebrow">${esc(eyebrow)}</div>` : ''}<h1>${icon ? ico(icon) : ''}${esc(title)}</h1>${sub ? `<div class="sub">${sub}</div>` : ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`;
 }
@@ -124,7 +127,9 @@ export function vesselPicker({ id, value, filter, placeholder = 'Depósito…', 
     btn.onclick = () => {
       if ($('.drop', root)) { $('.drop', root).remove(); return; }
       $$('.vp .drop').forEach((d) => d.remove());
-      const drop = document.createElement('div'); drop.className = 'drop';
+      // En móvil el selector se abre como hoja apilada (nivel 2) para no recortarse dentro del formulario.
+      const sheet = isMobile() && !root.closest('#modal2');
+      const drop = document.createElement('div'); drop.className = 'drop' + (sheet ? ' sheet' : '');
       let chip = 'todos', text = '';
       const list = () => {
         const q = text.toLowerCase();
@@ -133,13 +138,14 @@ export function vesselPicker({ id, value, filter, placeholder = 'Depósito…', 
         if (q) vs = vs.filter((x) => [x.code, x.lot_code, x.varieties, x.location_name].some((y) => (y || '').toLowerCase().includes(q)));
         const groups = ['inox', 'barricas', 'otros'].map((g) => [GROUP_LABEL[g], vs.filter((x) => groupOf(x) === g)]).filter((g) => g[1].length);
         $('.list', drop).innerHTML = groups.length ? groups.map(([g, xs]) => `<div class="gh">${g}</div>` + xs.map((x) => `<button type="button" class="opt ${String(x.id) === String(value) ? 'on' : ''}" data-id="${x.id}"><span><b>${esc(x.code)}</b> <small>${KIND[x.kind] || ''}${x.location_name ? ' · ' + esc(x.location_name) : ''}</small><br><small>${x.stay_id ? `${esc(x.lot_code)} · ${fmtL(x.stay_volume, x.stay_unit)}` : 'vacío'}${x.capacity_l ? ` · ${fmtN(Math.max(0, x.capacity_l - (x.stay_unit === 'kg' ? 0 : x.stay_volume || 0)))} L libres` : ''}</small></span><span class="mini"><i style="width:${x.capacity_l ? Math.min(100, Math.round(((x.stay_volume || 0) / x.capacity_l) * 100)) : 0}%"></i></span></button>`).join('')).join('') : '<div class="none">Sin recipientes que cumplan la condición.</div>';
-        $$('.opt', drop).forEach((o) => o.onclick = () => { drop.remove(); onPick(+o.dataset.id); });
+        $$('.opt', drop).forEach((o) => o.onclick = () => { drop.remove(); if (sheet) closeModal(2); onPick(+o.dataset.id); });
       };
       drop.innerHTML = `<input placeholder="Buscar por código, lote o ubicación…" autocomplete="off"><div class="chips">${[['todos', 'Todos'], ['inox', 'Inox / Depósitos'], ['barricas', 'Barricas'], ['otros', 'Otros']].map(([k, l]) => `<button type="button" data-c="${k}" aria-pressed="${k === chip}">${l}</button>`).join('')}</div><div class="list"></div>`;
-      root.appendChild(drop);
+      if (sheet) { const m = modal(placeholder.replace(/^[—\-\s]+|[—\-\s…:]+$/g, '') || 'Recipiente', '', '', { eyebrow: 'Elegir recipiente', level: 2 }); $('.modal-body', m).appendChild(drop); }
+      else root.appendChild(drop);
       $('input', drop).oninput = (e) => { text = e.target.value; list(); };
       $$('.chips button', drop).forEach((c) => c.onclick = () => { chip = c.dataset.c; $$('.chips button', drop).forEach((x) => x.setAttribute('aria-pressed', x === c)); list(); });
-      list(); $('input', drop).focus();
+      list(); if (!sheet) $('input', drop).focus();
     };
   }, 0);
   return html;
