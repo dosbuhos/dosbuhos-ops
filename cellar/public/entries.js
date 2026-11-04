@@ -332,7 +332,7 @@
     h += `<h3 class="cr-gh">Embotellado <small>lo más reciente primero</small></h3>`;
     if (!runs.length) h += `<div class="cr-empty">Todavía no hay embotellados registrados. Se crean con «Agregar → Trasiego · mezcla · embotellado → Embotellado» y se cierran desde «Anotar resultados» al terminar.</div>`;
     else h += `<div class="bt-wrap"><table class="bt-tbl"><thead><tr><th>Fecha</th><th>Vino</th><th>Botellas</th><th>Litros</th><th>Merma</th><th>Filtración</th><th>SO₂ libre / total</th><th>Lote</th></tr></thead><tbody>${runs.map(r => `<tr>
-      <td class="n">${esc(dmy(r.date))}</td><td>${dot(r.lot)}<b>${esc(r.lot.name)}</b>${r.sourceEmpty === false ? ' <span class="bt-part">parcial</span>' : ''}<small>${esc(r.from || '')}</small></td>
+      <td class="n">${esc(dmy(r.date))}</td><td>${dot(r.lot)}<b>${esc(r.wine || r.lot.name)}</b>${r.sourceEmpty === false ? ' <span class="bt-part">parcial</span>' : ''}<small>${esc(r.from || '')}</small></td>
       <td class="n">${esc(fmtTxt(r.formats))}</td><td class="n">${fmtL(r.liters || 0)}</td><td class="n">${r.loss ? fmtL(r.loss) + ' L' : '—'}</td>
       <td>${esc(FILTL[r.filter] || r.filter || '—')}</td><td class="n">${esc((r.fso2 || '—') + ' / ' + (r.tso2 || '—'))}</td><td class="n">${esc(r.lotno || '—')}</td></tr>`).join('')}</tbody></table></div>`;
     box.innerHTML = h;
