@@ -20,6 +20,7 @@ const fail = (msg, status = 400) => Object.assign(new Error(msg), { status });
 const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.').replace(/[^\d.]/g, '')); return isFinite(n) ? n : 0; };
 const norm = (s) => up(s).replace(/\s+/g, ' ');
 const lotOfTab = (lots, tab) => lots.find(l => !l.archived && (l.sheet || []).some(s => s.tab === tab && !s.archived));
+const FILT = { none: 'SIN FILTRAR', pad: 'PLACAS (LIGERA, NO ESTÉRIL)', sterile: 'ESTÉRIL 0.45 µM', both: 'PLACAS + ESTÉRIL 0.45 µM' };
 const short = (tab) => up(tab).replace(/\s*-\s*/g, ' ').replace(/\s+/g, ' ');
 // "BBL 14, 46 Y 101" → ["14","46","101"]. Only numbers that follow BBL / BARRICA count as barrels (VC-05, TANQUE 6 are not).
 export function barrelCodes(text) {
@@ -41,13 +42,13 @@ async function writeRow(env, tab, rowNum, m, fields) {
   await gs(env, '/values:batchUpdate', { method: 'POST', body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }) });
 }
 // Black band across the row (A..last header column), white bold text.
-async function blackBand(env, tab, rowNum, lastCol) {
+async function blackBand(env, tab, rowNum, lastCol, bg) {
   const meta = await gs(env, '?fields=sheets.properties(sheetId,title)');
   const sh = (meta.sheets || []).find(s => s.properties && s.properties.title === tab);
   if (!sh) return;
   await gs(env, ':batchUpdate', { method: 'POST', body: JSON.stringify({ requests: [{ repeatCell: {
     range: { sheetId: sh.properties.sheetId, startRowIndex: rowNum - 1, endRowIndex: rowNum, startColumnIndex: 0, endColumnIndex: lastCol + 1 },
-    cell: { userEnteredFormat: { backgroundColor: { red: 0, green: 0, blue: 0 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true } } },
+    cell: { userEnteredFormat: { backgroundColor: bg || { red: 0, green: 0, blue: 0 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true } } },
     fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat' } }] }) });
 }
 
@@ -55,6 +56,14 @@ async function blackBand(env, tab, rowNum, lastCol) {
 function orderText(mv, lots) {
   const nm = (tab) => { const l = (mv.lot && lots.find(x => x.id === mv.lot)) || lotOfTab(lots, tab); return l ? up(l.name) : short(tab); };
   const close = ' AL TERMINAR: EN LA APP «ANOTAR RESULTADOS Y NOTAS» ANOTAR CADA VASIJA DE DESTINO CON SUS LITROS REALES Y SI EL ORIGEN QUEDÓ VACÍO. SIN ESO NO SE CIERRA LA ORDEN.';
+  if (mv.kind === 'bottle') {
+    const b = mv.bottle || {};
+    return 'EMBOTELLADO: ' + nm(mv.masterTab) + ' DE ' + (up(mv.from) || '?') + (mv.liters ? ' (~' + mv.liters + ' L' + (b.bottles ? ', ~' + b.bottles + ' BOTELLAS' : '') + ')' : '') +
+      '. FORMATO: ' + (b.format || 750) + ' ML. FILTRACIÓN: ' + (FILT[b.filter] || 'SIN FILTRAR') + '. CIERRE: ' + (up(b.closure) || '?') + '.' +
+      (b.so2 ? ' SO2 LIBRE META AL EMBOTELLAR: ' + b.so2 + ' MG/L (MEDIRLO EL DÍA ANTERIOR).' : '') +
+      ' BOTELLAS LIMPIAS, SANITIZADAS Y GASIFICADAS; TRASEGAR SIN LEVANTAR LÍAS; MISMA ALTURA DE LLENADO; GUARDAR 2 BOTELLAS DE ARCHIVO.' + (mv.extra ? ' ' + up(mv.extra) + '.' : '') +
+      ' AL TERMINAR: EN LA APP «ANOTAR RESULTADOS Y NOTAS» ANOTAR BOTELLAS POR FORMATO, LITROS EMBOTELLADOS, MERMA (LÍAS Y FILTRO), LOTE DE LA ETIQUETA Y SI EL ORIGEN QUEDÓ VACÍO. SIN ESO NO SE CIERRA LA ORDEN.';
+  }
   if (mv.kind === 'rack') {
     return 'TRASIEGO: ' + nm(mv.masterTab) + ' DE ' + (up(mv.from) || '?') + ' A ' + (up(mv.to) || '?') + (mv.liters ? ' (~' + mv.liters + ' L)' : '') +
       '. TRASEGAR CON CUIDADO, DEJAR LAS LÍAS GRUESAS, GASIFICAR LA VASIJA DE DESTINO.' + (mv.extra ? ' ' + up(mv.extra) + '.' : '') + close;
@@ -69,18 +78,24 @@ function orderText(mv, lots) {
 
 // ---------- create ----------
 async function createMove(env, b, user) {
-  const kind = b.kind === 'blend' ? 'blend' : 'rack';
+  const kind = b.kind === 'blend' ? 'blend' : b.kind === 'bottle' ? 'bottle' : 'rack';
   const lots = await list(env, 'lots');
   const masterTab = cell(b.masterTab);
   if (!/^L\d/i.test(masterTab)) throw fail('Elige el vino.');
   const parents = kind === 'blend' ? (Array.isArray(b.parents) ? b.parents : []).map(p => ({ tab: cell(p.tab), vessels: cell(p.vessels).slice(0, 80), liters: num(p.liters) || '' }))
     .filter(p => /^L\d/i.test(p.tab) && p.tab !== masterTab) : [];
   if (kind === 'blend' && !parents.length) throw fail('Una mezcla necesita al menos dos vinos.');
-  if (!cell(b.to)) throw fail('Falta a dónde va el vino (vasijas de destino).');
+  if (kind !== 'bottle' && !cell(b.to)) throw fail('Falta a dónde va el vino (vasijas de destino).');
+  if (kind === 'bottle' && !cell(b.from)) throw fail('Falta de dónde sale el vino (vasijas).');
   const date = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : todayMX();
   const mv = { kind, masterTab, parents, from: cell(b.from).slice(0, 80), liters: num(b.liters) || '', to: cell(b.to).slice(0, 120),
     name: kind === 'blend' ? cell(b.name).slice(0, 80) : '', extra: cell(b.extra).slice(0, 400), date,
     pri: ['URGENT', 'HIGH', 'NORMAL', 'LOW'].includes(up(b.pri)) ? up(b.pri) : 'HIGH', asig: up(b.asig).slice(0, 20) || 'P/J', by: up(user.initials) || 'EM' };
+  if (kind === 'bottle') {
+    const bb = b.bottle || {};
+    mv.to = 'BOTELLAS';
+    mv.bottle = { format: num(bb.format) || 750, bottles: num(bb.bottles) || '', closure: cell(bb.closure).slice(0, 30), filter: FILT[bb.filter] ? bb.filter : 'none', so2: num(bb.so2) || '' };
+  }
   // The app lot can be named directly (a tab can hold more than one app lot, e.g. Chenin tank + puncheon).
   const byId = (id) => id && lots.find(l => l.id === id && !l.archived && (l.sheet || []).length);
   const master = byId(cell(b.lot)) || lotOfTab(lots, masterTab);
@@ -89,7 +104,7 @@ async function createMove(env, b, user) {
   for (const p of parents) { const src = bp.find(x => cell(x.tab) === p.tab) || {}; const l = byId(cell(src.lot)) || lotOfTab(lots, p.tab); p.lot = l ? l.id : ''; p.name = l ? l.name : short(p.tab); }
   mv.note = orderText(mv, lots);
   const { hm, next } = await readTab(env, masterTab);
-  await writeRow(env, masterTab, next, hm.map, { date_raw: sheetDate(date), ubi: up(mv.from) || (kind === 'blend' ? 'MEZCLA' : ''), voli: mv.liters || '',
+  await writeRow(env, masterTab, next, hm.map, { date_raw: sheetDate(date), ubi: kind === 'bottle' ? up(mv.from) + ' → BOTELLAS' : (up(mv.from) || (kind === 'blend' ? 'MEZCLA' : '')), voli: mv.liters || '',
     note: mv.note, pri: mv.pri, by_: mv.by, asig: mv.asig });
   const id = 'mv-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   Object.assign(mv, { tab: masterTab, row: next, status: 'open', at: new Date().toISOString() });
@@ -103,6 +118,7 @@ async function completeMove(env, b, user) {
   const id = cell(b.id), mv = await get(env, 'moves', id);
   if (!mv) throw fail('No encuentro esa orden de trasiego.', 404);
   if (mv.status === 'done') throw fail('Esa orden ya se cerró.', 409);
+  if (mv.kind === 'bottle') return completeBottle(env, b, user, id, mv);
   const signer = up(b.signer).slice(0, 12); if (!signer) throw fail('Falta «¿Quién lo hizo?».');
   const dest = (Array.isArray(b.dest) ? b.dest : []).map(d => ({ vessel: up(d.vessel).slice(0, 40), liters: num(d.liters) })).filter(d => d.vessel && d.liters > 0);
   if (!dest.length) throw fail('Anota al menos una vasija de destino con sus litros.');
@@ -189,6 +205,72 @@ async function completeMove(env, b, user) {
   await put(env, 'moves', id, mv);
   try { await sync(env, [mv.tab].concat(archived)); } catch (x) {}
   return { ok: true, id, total, archived, barrels: barrelChanges, master: master ? master.id : '' };
+}
+
+// ---------- bottling: close ----------
+// Required: bottles per format and liters bottled; loss (lees + filter) and whether the source is empty.
+// Source empty → the lot is BOTTLED: leaves the active wines, its tab gets a wine-colored band, barrels/tanks are emptied.
+async function completeBottle(env, b, user, id, mv) {
+  const signer = up(b.signer).slice(0, 12); if (!signer) throw fail('Falta «¿Quién lo hizo?».');
+  const formats = (Array.isArray(b.formats) ? b.formats : []).map(f => ({ ml: num(f.ml), bottles: Math.round(num(f.bottles)) })).filter(f => f.ml > 0 && f.bottles > 0);
+  if (!formats.length) throw fail('Anota cuántas botellas y de qué tamaño.');
+  const bottles = formats.reduce((s, f) => s + f.bottles, 0);
+  const liters = num(b.liters) || Math.round(formats.reduce((s, f) => s + f.ml * f.bottles, 0) / 100) / 10;
+  const loss = num(b.loss), fso2 = cell(b.fso2), tso2 = cell(b.tso2), lotno = up(b.lotno).slice(0, 30);
+  const sourceEmpty = b.source !== 'left'; const left = sourceEmpty ? 0 : num(b.left);
+  const today = todayMX(), now = new Date().toISOString();
+  const lots = await list(env, 'lots');
+  const master = mv.lot ? lots.find(l => l.id === mv.lot) : lotOfTab(lots, mv.tab);
+  const fmt = formats.map(f => f.bottles + ' × ' + (f.ml >= 1000 ? (f.ml / 1000) + ' L' : f.ml + ' ML')).join(' + ');
+  const noteTxt = 'EMBOTELLADO: ' + fmt + ' = ' + liters + ' L' + (loss ? '. MERMA ' + loss + ' L' : '') + (lotno ? '. LOTE ' + lotno : '') +
+    '. ORIGEN ' + (sourceEmpty ? 'VACÍO' : 'CON ' + left + ' L') + (cell(b.note) ? '. ' + up(b.note) : '');
+  const values = { volf: String(liters) }; if (fso2) values.sl = fso2; if (tso2) values.st = tso2;
+  await writeEntry(env, { kind: 'result', tab: mv.tab, ubi: 'BOTELLAS', values, note: noteTxt, signer, order: { tab: mv.tab, row: mv.row, note: mv.note }, lot: master ? master.id : '' }, user);
+  {
+    const { v, hm } = await readTab(env, mv.tab);
+    let r = -1; const want = norm(mv.note);
+    for (let i = hm.row + 1; i < v.length; i++) if (norm((v[i] || [])[hm.map.note]) === want) { r = i + 1; if (r === mv.row) break; }
+    if (r > 0 && hm.map.ini != null) await writeRow(env, mv.tab, r, hm.map, { ini: signer });
+  }
+  // Whole lot bottled: a wine-colored band row at the bottom of the tab.
+  if (sourceEmpty) {
+    const { hm, next, v } = await readTab(env, mv.tab);
+    const text = '■ EMBOTELLADO ' + dm(today) + ': ' + fmt + ' (' + liters + ' L)' + (lotno ? ', LOTE ' + lotno : '') + '. ESTE VINO YA ESTÁ EN BOTELLA.';
+    await writeRow(env, mv.tab, next, hm.map, { date_raw: sheetDate(today), ubi: 'EMBOTELLADO', note: text, asig: signer, ini: signer });
+    const lastCol = Math.max((v[hm.row] || []).length - 1, ...Object.values(hm.map));
+    try { await blackBand(env, mv.tab, next, lastCol, { red: 0.36, green: 0.12, blue: 0.2 }); } catch (x) {}
+  }
+  const rec = { date: today, move: id, formats, bottles, liters, loss, fso2, tso2, lotno, filter: (mv.bottle || {}).filter || '', closure: (mv.bottle || {}).closure || '', from: mv.from, sourceEmpty, left, by: signer };
+  if (master) {
+    const m = Object.assign({}, master);
+    m.bottlings = (m.bottlings || []).concat(rec);
+    if (sourceEmpty) Object.assign(m, { bottled: true, bottledAt: today, ubiBefore: m.ubi || '', ubi: 'Embotellado ' + dm(today) + ' · ' + bottles + ' botellas', vol: 0 });
+    else { m.vol = left || m.vol; }
+    const { id: _m, ...data } = m; await put(env, 'lots', master.id, data);
+  }
+  // Barrels named in the source: emptied when the source is empty (only if they hold this lot or nothing).
+  const barrelChanges = [];
+  if (sourceEmpty) {
+    const barrels = await list(env, 'barrels'), byCode = new Map(barrels.map(x => [String(x.code || x.id), x]));
+    for (const c of barrelCodes(mv.from)) {
+      const bb = byCode.get(c); if (!bb || (bb.lot && master && bb.lot !== master.id)) continue;
+      const { id: bid, ...data } = Object.assign({}, bb, { lot: '', fill: 'empty', vol: '', by: signer, at: now });
+      await put(env, 'barrels', bid, data);
+      await put(env, 'barrel_log', 'b' + c + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), { code: String(c), at: now, by: signer, kind: 'empty', text: 'Vaciada (embotellado ' + dm(today) + ')' });
+      barrelChanges.push(c + ' vacía');
+    }
+    // Tanks whose confirmed contents list this lot: take it out.
+    if (master) for (const vsl of await list(env, 'vessels')) {
+      const items = vsl.contents && Array.isArray(vsl.contents.items) ? vsl.contents.items : null;
+      if (!items || !items.some(x => x.lot === master.id)) continue;
+      const { id: vid, ...data } = Object.assign({}, vsl, { contents: { items: items.filter(x => x.lot !== master.id), by: signer, at: now } });
+      await put(env, 'vessels', vid, data); barrelChanges.push(vsl.name + ' vacío');
+    }
+  }
+  Object.assign(mv, { status: 'done', done: Object.assign({ at: now, barrels: barrelChanges, note: cell(b.note) }, rec) });
+  await put(env, 'moves', id, mv);
+  try { await sync(env, [mv.tab]); } catch (x) {}
+  return { ok: true, id, total: liters, bottles, bottled: sourceEmpty, archived: [], barrels: barrelChanges, master: master ? master.id : '' };
 }
 
 export async function movesRoute(request, env, p, user) {

@@ -127,9 +127,13 @@
       const d = e.target.closest('[data-odel]'); if (d) { d.parentElement.remove(); return; }
       if (e.target.closest('[data-cancel]')) closeForm();
       if (e.target.closest('[data-dadd]')) { $('.mv-dest', form).insertAdjacentHTML('beforeend', destRow('', '')); $('.mv-dest .mv-d:last-child input', form).focus(); return; }
-      const dd = e.target.closest('[data-ddel]'); if (dd) { dd.parentElement.remove(); return; }
+      if (e.target.closest('[data-fadd]')) { $('.mv-fmts', form).insertAdjacentHTML('beforeend', fmtRow(375, '')); $('.mv-fmts .mv-f:last-child input', form).focus(); return; }
+      const dd = e.target.closest('[data-ddel]'); if (dd) { dd.parentElement.remove(); calcBl(); return; }
     });
-    form.addEventListener('change', e => { if (e.target.name === 'mvsrc') $('.mv-left', form).hidden = e.target.value !== 'left'; });
+    // Liters bottled: suggested from bottles × size until someone types their own number.
+    const calcBl = () => { const bl = $('[data-bl]', form); if (!bl) return; const l = $$('.mv-f', form).reduce((s, r) => s + (+$('[data-fml]', r).value || 0) * (+$('[data-fn]', r).value.replace(/[.,\s]/g, '') || 0), 0) / 1000; bl.placeholder = l ? (Math.round(l * 10) / 10) + ' (calculado)' : 'se calcula'; };
+    form.addEventListener('input', e => { if (e.target.matches('[data-fn]')) calcBl(); });
+    form.addEventListener('change', e => { if (e.target.name === 'mvsrc') $('.mv-left', form).hidden = e.target.value !== 'left'; if (e.target.matches('[data-fml]')) calcBl(); });
     const fup = $('[data-fup]', form);
     if (fup) fup.addEventListener('change', async () => {
       const f = fup.files[0]; if (!f) return;
@@ -153,7 +157,23 @@
       return /^\d{1,3}$/.test(x) && pre ? pre + x : x;
     });
   }
+  const FMT = [[750, '750 mL'], [375, '375 mL'], [500, '500 mL'], [1500, '1.5 L']];
+  const fmtRow = (ml, n) => `<div class="mv-d mv-f"><select data-fml aria-label="Formato">${FMT.map(([v, l]) => `<option value="${v}"${+ml === v ? ' selected' : ''}>${l}</option>`).join('')}</select><input data-fn inputmode="numeric" placeholder="Botellas" value="${esc(n || '')}" aria-label="Botellas"><button type="button" class="en-x" data-ddel aria-label="Quitar">×</button></div>`;
+  function bottleSection(mv) {
+    const b = mv.bottle || {};
+    return `<div class="mv-box"><b>Es un embotellado.</b> Para cerrarlo anota cuántas botellas salieron y de qué tamaño, los litros embotellados y la merma. Si el origen queda vacío, el vino pasa a «Embotellado».
+      <div class="mv-lbl">Botellas</div><div class="mv-dest mv-fmts">${fmtRow(b.format || 750, '')}</div>
+      <button type="button" class="btn sm" data-fadd>+ otro formato</button>
+      <div class="en-row2"><label>Litros embotellados<input data-bl inputmode="decimal" placeholder="se calcula"></label><label>Merma (lías + filtro), L<input data-bloss inputmode="decimal" placeholder="0"></label></div>
+      <div class="en-row2"><label>SO₂ libre al embotellar<input data-bfs inputmode="decimal" placeholder="mg/L"></label><label>SO₂ total<input data-bts inputmode="decimal" placeholder="mg/L"></label></div>
+      <label>Lote de la etiqueta <span class="ed-hint">opcional</span><input data-blot autocomplete="off" placeholder="L15-2611"></label>
+      <div class="mv-lbl">¿Cómo quedó el origen (${esc(mv.from || '—')})?</div>
+      <label class="mv-r"><input type="radio" name="mvsrc" value="empty" checked> Vacío (todo el vino quedó en botella)</label>
+      <label class="mv-r"><input type="radio" name="mvsrc" value="left"> Quedó vino</label>
+      <label class="mv-left" hidden>Litros que quedaron <input data-left inputmode="decimal" placeholder="L"></label></div>`;
+  }
   function moveSection(mv) {
+    if (mv.kind === 'bottle') return bottleSection(mv);
     const kind = mv.kind === 'blend' ? 'mezcla' : 'trasiego';
     const dests = splitVessels(mv.to);
     return `<div class="mv-box"><b>Es una ${kind}.</b> Para cerrarla anota dónde quedó el vino: cada vasija con sus litros reales.${mv.kind === 'blend' ? ` Al cerrar, ${esc((mv.parents || []).map(p => p.tab).join(', '))} se archiva y sigue en ${esc(mv.tab)}.` : ''}
@@ -164,7 +184,24 @@
       <label class="mv-r"><input type="radio" name="mvsrc" value="left"> Quedó vino</label>
       <label class="mv-left" hidden>Litros que quedaron <input data-left inputmode="decimal" placeholder="L"></label></div>`;
   }
+  async function saveBottle(form, x) {
+    const err = $('#enErr'), btn = $('#enSave'), mv = F.move;
+    const formats = $$('.mv-f', form).map(r => ({ ml: $('[data-fml]', r).value, bottles: $('[data-fn]', r).value.trim().replace(/[.,\s]/g, '') })).filter(f => f.bottles);
+    if (!formats.length || formats.some(f => !(+f.bottles > 0))) { err.textContent = 'Anota cuántas botellas salieron (o quita las filas vacías).'; return; }
+    const src = (form.querySelector('[name="mvsrc"]:checked') || {}).value || 'empty', left = ($('[data-left]', form) || {}).value || '';
+    if (src === 'left' && !(+String(left).replace(',', '.') > 0)) { err.textContent = 'Anota cuántos litros quedaron en el origen.'; return; }
+    const g = sel => (($(sel, form) || {}).value || '').trim().replace(',', '.');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const r = await post('/api/moves/complete', { id: mv.id, signer: x.signer, formats, liters: g('[data-bl]'), loss: g('[data-bloss]'), fso2: g('[data-bfs]'), tso2: g('[data-bts]'), lotno: g('[data-blot]'), source: src, left, note: x.note });
+      await loadMoves(); E.entriesAt = 0; closeForm();
+      toast('Embotellado cerrado · ' + r.bottles + ' botellas · ' + r.total + ' L' + (r.bottled ? ' · el vino pasa a Embotellado' : ''));
+      window.dispatchEvent(new CustomEvent('cellar:refresh')); window.dispatchEvent(new CustomEvent('cellar:lotschanged'));
+      setTimeout(decorateOrders, 400); refreshLotPanels();
+    } catch (e) { err.textContent = e.message; } finally { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
   async function saveMove(form, x) {
+    if (F.move && F.move.kind === 'bottle') return saveBottle(form, x);
     const err = $('#enErr'), btn = $('#enSave'), mv = F.move;
     const dest = $$('.mv-d', form).map(r => ({ vessel: $('[data-dv]', r).value.trim(), liters: $('[data-dl]', r).value.trim().replace(',', '.') })).filter(d => d.vessel || d.liters);
     if (!dest.length || dest.some(d => !d.vessel || !(+d.liters > 0))) { err.textContent = 'Anota cada vasija de destino con sus litros (o quita las filas vacías).'; return; }
@@ -188,7 +225,7 @@
   async function openMove() {
     try { await load(); } catch (e) { toast('No se pudo abrir: ' + e.message); return; }
     try { E.barrels = ((await api('/api/db/barrels')).rows || []).map(r => Object.assign({ id: r.id }, r.data)); } catch (e) { E.barrels = []; }
-    const lots = E.lots.filter(l => !l.archived && l.group !== 'routine' && (l.sheet || []).some(s => s.tab && !s.archived))
+    const lots = E.lots.filter(l => !l.archived && !l.bottled && l.group !== 'routine' && (l.sheet || []).some(s => s.tab && !s.archived))
       .sort((a, b) => String(a.sheet[0].tab).localeCompare(String(b.sheet[0].tab), undefined, { numeric: true }));
     const M = { kind: 'rack', sel: [], master: '', name: '', nameEdited: false };
     let ov = $('#mvSheet');
@@ -200,14 +237,19 @@
       .map(s => `<button type="button" class="en-chip" data-mas="${esc(signerTag(s))}" aria-pressed="${['P', 'J'].includes(signerTag(s))}">${esc(s.name)}</button>`).join('');
     const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
     ov.innerHTML = `<form class="sheet en-form mv-form" novalidate>
-      <h2>Trasiego / mezcla</h2>${XBTN}
-      <div class="en-sig" role="group" aria-label="Tipo"><button type="button" class="en-chip" data-mk="rack" aria-pressed="true">Trasiego<small> · un vino a otra vasija</small></button><button type="button" class="en-chip" data-mk="blend" aria-pressed="false">Mezcla<small> · juntar lotes</small></button></div>
+      <h2>Trasiego · mezcla · embotellado</h2>${XBTN}
+      <div class="en-sig" role="group" aria-label="Tipo"><button type="button" class="en-chip" data-mk="rack" aria-pressed="true">Trasiego<small> · un vino a otra vasija</small></button><button type="button" class="en-chip" data-mk="blend" aria-pressed="false">Mezcla<small> · juntar lotes</small></button><button type="button" class="en-chip" data-mk="bottle" aria-pressed="false">Embotellado<small> · a botellas</small></button></div>
       <div class="field"><label>Vino(s) <span class="ed-hint mv-hint">toca el vino que se mueve</span></label>
         <input type="search" class="en-lotq" placeholder="Buscar: rosé, L15…" autocomplete="off">
         <div class="en-lots en-all">${lots.map(l => `<button type="button" class="en-lot" data-ml="${esc(l.id)}" aria-pressed="false" style="--c:${GC[l.group] || '#9aa5b1'}"><b>${esc(l.name)}</b><small>${esc(tabOf(l))}${l.ubi ? ' · ' + esc(ubiOnly(l.ubi)) : ''}</small></button>`).join('')}</div></div>
       <div class="mv-sel"></div>
       <div class="field mv-namef" hidden><label for="mvName">Nombre del lote mezclado <span class="ed-hint">se propone solo; puedes cambiarlo</span></label><input id="mvName" autocomplete="off"></div>
-      <div class="field"><label for="mvTo">¿A dónde va? <span class="ed-hint">vasijas de destino</span></label><input id="mvTo" placeholder="BBL 60, 61 · TANQUE 6" autocomplete="off">
+      <div class="mv-btl" hidden>
+        <div class="en-row2"><label>Formato<select id="mvFmt"><option value="750" selected>750 mL</option><option value="375">375 mL</option><option value="500">500 mL</option><option value="1500">1.5 L</option></select></label><label>Botellas aprox.<input id="mvBot" inputmode="numeric" placeholder="1,040"></label></div>
+        <div class="en-row2"><label>Cierre<select id="mvClo"><option>Corcho</option><option>Rosca</option><option>Corcholata</option><option>Otro</option></select></label><label>Filtración<select id="mvFil"><option value="none">Sin filtrar</option><option value="pad">Placas (ligera)</option><option value="sterile">Estéril 0.45 µm</option><option value="both" selected>Placas + estéril</option></select></label></div>
+        <label class="mv-so2">SO₂ libre meta al embotellar (mg/L) <span class="ed-hint">opcional</span><input id="mvSo2" inputmode="decimal" placeholder="28"></label>
+      </div>
+      <div class="field mv-tof"><label for="mvTo">¿A dónde va? <span class="ed-hint">vasijas de destino</span></label><input id="mvTo" placeholder="BBL 60, 61 · TANQUE 6" autocomplete="off">
         ${empties.length ? `<div class="mv-empties"><small class="en-hint">Barricas vacías:</small> ${empties.map(b => `<button type="button" class="cr-chipmini" data-eb="${esc(b.code)}">${esc(b.code)}</button>`).join('')}</div>` : ''}</div>
       <div class="en-row2"><label>Fecha<input type="date" id="mvDate" value="${today}"></label><label>Prioridad<select id="mvPri"><option>URGENT</option><option selected>HIGH</option><option>NORMAL</option><option>LOW</option></select></label></div>
       <div class="field"><label>Asignar a</label><div class="en-sig">${staffChips}</div></div>
@@ -227,27 +269,32 @@
         return `<div class="mv-row" data-lot="${esc(id)}"><div class="mv-rh"><b>${esc(l.name)}</b> <small>${esc(tabOf(l))}</small>${M.kind === 'blend' ? `<label class="mv-r"><input type="radio" name="mvm" value="${esc(id)}"${id === M.master ? ' checked' : ''}> Maestro</label>` : ''}</div>
           <div class="en-row2"><label>Desde (vasijas)<input data-fv value="${esc(k.v)}" placeholder="BBL 44, 48"></label><label>Litros aprox.<input data-fl inputmode="decimal" value="${esc(k.l)}"></label></div></div>`; }).join('');
       $('.mv-namef', f).hidden = M.kind !== 'blend';
+      $('.mv-tof', f).hidden = M.kind === 'bottle'; $('.mv-btl', f).hidden = M.kind !== 'bottle';
+      if (M.kind === 'bottle') { const r = $('.mv-row [data-fl]', f), n = $('#mvBot', f); if (r && r.value && !n.dataset.ed) n.value = Math.floor(+r.value * 1000 / (+$('#mvFmt', f).value || 750)) || ''; }
       if (M.kind === 'blend' && !M.nameEdited) $('#mvName', f).value = autoName();
-      $('.mv-hint', f).textContent = M.kind === 'blend' ? 'toca dos o más vinos; elige cuál es el maestro (se queda con su pestaña)' : 'toca el vino que se mueve';
+      $('.mv-hint', f).textContent = M.kind === 'blend' ? 'toca dos o más vinos; elige cuál es el maestro (se queda con su pestaña)' : M.kind === 'bottle' ? 'toca el vino que se embotella' : 'toca el vino que se mueve';
     };
     f.addEventListener('click', e => {
-      const k = e.target.closest('[data-mk]'); if (k) { M.kind = k.dataset.mk; $$('[data-mk]', f).forEach(b => b.setAttribute('aria-pressed', String(b === k))); if (M.kind === 'rack') M.sel = M.sel.slice(0, 1); drawSel(); return; }
-      const l = e.target.closest('[data-ml]'); if (l) { const id = l.dataset.ml; if (M.kind === 'rack') M.sel = M.sel[0] === id ? [] : [id]; else M.sel = M.sel.includes(id) ? M.sel.filter(x => x !== id) : M.sel.concat(id); drawSel(); return; }
+      const k = e.target.closest('[data-mk]'); if (k) { M.kind = k.dataset.mk; $$('[data-mk]', f).forEach(b => b.setAttribute('aria-pressed', String(b === k))); if (M.kind !== 'blend') M.sel = M.sel.slice(0, 1); drawSel(); return; }
+      const l = e.target.closest('[data-ml]'); if (l) { const id = l.dataset.ml; if (M.kind !== 'blend') M.sel = M.sel[0] === id ? [] : [id]; else M.sel = M.sel.includes(id) ? M.sel.filter(x => x !== id) : M.sel.concat(id); drawSel(); return; }
       const eb = e.target.closest('[data-eb]'); if (eb) { const t = $('#mvTo', f); const cur = t.value.trim(); t.value = cur ? cur + ', ' + (/BBL/i.test(cur) ? '' : 'BBL ') + eb.dataset.eb : 'BBL ' + eb.dataset.eb; eb.disabled = true; return; }
       const a = e.target.closest('[data-mas]'); if (a) { a.setAttribute('aria-pressed', String(a.getAttribute('aria-pressed') !== 'true')); return; }
       if (e.target.closest('[data-mvc]')) close();
     });
-    f.addEventListener('change', e => { if (e.target.name === 'mvm') { M.master = e.target.value; drawSel(); } });
-    f.addEventListener('input', e => { if (e.target.id === 'mvName') M.nameEdited = true; if (e.target.classList.contains('en-lotq')) { const q = e.target.value.trim().toLowerCase(); $$('[data-ml]', f).forEach(b => { b.hidden = !!q && !b.textContent.toLowerCase().includes(q); }); } });
+    const drawBot = () => { const r = $('.mv-row [data-fl]', f), n = $('#mvBot', f); if (r && r.value && !n.dataset.ed) n.value = Math.floor(+String(r.value).replace(',', '.') * 1000 / (+$('#mvFmt', f).value || 750)) || ''; };
+    f.addEventListener('change', e => { if (e.target.name === 'mvm') { M.master = e.target.value; drawSel(); } if (e.target.id === 'mvFmt') drawBot(); });
+    f.addEventListener('input', e => { if (e.target.id === 'mvName') M.nameEdited = true; if (e.target.id === 'mvBot') e.target.dataset.ed = '1'; if (e.target.matches('[data-fl]') && M.kind === 'bottle') drawBot(); if (e.target.classList.contains('en-lotq')) { const q = e.target.value.trim().toLowerCase(); $$('[data-ml]', f).forEach(b => { b.hidden = !!q && !b.textContent.toLowerCase().includes(q); }); } });
     f.addEventListener('submit', async e => {
       e.preventDefault(); const err = $('#mvErr', f), btn = $('#mvSave', f); err.textContent = '';
       if (!M.sel.length) { err.textContent = 'Elige el vino.'; return; }
       if (M.kind === 'blend' && M.sel.length < 2) { err.textContent = 'Para una mezcla elige dos o más vinos.'; return; }
-      const to = $('#mvTo', f).value.trim(); if (!to) { err.textContent = 'Falta a dónde va el vino.'; return; }
+      const to = M.kind === 'bottle' ? 'BOTELLAS' : $('#mvTo', f).value.trim(); if (!to) { err.textContent = 'Falta a dónde va el vino.'; return; }
       const asig = $$('[data-mas][aria-pressed="true"]', f).map(b => b.dataset.mas).join('/'); if (!asig) { err.textContent = 'Asigna a alguien.'; return; }
       const row = id => { const r = $(`.mv-row[data-lot="${CSS.escape(id)}"]`, f); return { v: $('[data-fv]', r).value.trim(), l: $('[data-fl]', r).value.trim() }; };
       const ms = lotById(M.master), mr = row(M.master);
+      if (M.kind === 'bottle' && !mr.v) { err.textContent = 'Anota de qué vasijas sale el vino.'; return; }
       const body = { kind: M.kind, lot: ms.id, masterTab: tabOf(ms), from: mr.v, liters: mr.l, to, date: $('#mvDate', f).value, pri: $('#mvPri', f).value, asig, extra: $('#mvExtra', f).value.trim(),
+        bottle: M.kind === 'bottle' ? { format: $('#mvFmt', f).value, bottles: $('#mvBot', f).value, closure: $('#mvClo', f).value, filter: $('#mvFil', f).value, so2: $('#mvSo2', f).value } : null,
         name: M.kind === 'blend' ? $('#mvName', f).value.trim() : '', parents: M.kind === 'blend' ? M.sel.filter(id => id !== M.master).map(id => { const r = row(id); return { lot: id, tab: tabOf(lotById(id)), vessels: r.v, liters: r.l }; }) : [] };
       btn.disabled = true; btn.textContent = 'Creando…';
       try { const r = await post('/api/moves', body); await loadMoves(); close(); toast('Orden creada en ' + r.tab + ', fila ' + r.row); window.dispatchEvent(new CustomEvent('cellar:refresh')); }
@@ -256,6 +303,43 @@
     drawSel();
   }
   window.addEventListener('cellar:move', openMove);
+
+  // ---------- Embotellado: upcoming bottling orders + every bottling done ----------
+  const FILTL = { none: 'Sin filtrar', pad: 'Placas', sterile: 'Estéril', both: 'Placas + estéril' };
+  const fmtL = n => (Math.round(+n * 10) / 10).toLocaleString('es-MX');
+  const dmy = iso => iso ? +iso.slice(8, 10) + '/' + +iso.slice(5, 7) + '/' + iso.slice(2, 4) : '';
+  const fmtTxt = fs => (fs || []).map(f => f.bottles.toLocaleString('es-MX') + ' × ' + (f.ml >= 1000 ? f.ml / 1000 + ' L' : f.ml + ' mL')).join(' + ');
+  function bottlingRuns(lots) {
+    const runs = [];
+    for (const l of lots) for (const b of (l.bottlings || [])) runs.push(Object.assign({ lot: l }, b));
+    return runs.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }
+  async function renderBottling(lotsIn) {
+    const box = document.getElementById('bottleView'); if (!box) return;
+    try { await load(); } catch (e) {}
+    const lots = lotsIn && lotsIn.length ? lotsIn : E.lots;
+    const lotById = id => lots.find(l => l.id === id) || E.lots.find(l => l.id === id);
+    const open = E.moves.filter(m => m.kind === 'bottle' && m.status === 'open').sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const runs = bottlingRuns(lots);
+    const n = document.getElementById('wmBottleN'); if (n) n.textContent = runs.length || '';
+    const total = runs.reduce((s, r) => s + (r.bottles || 0), 0), liters = runs.reduce((s, r) => s + (+r.liters || 0), 0);
+    const dot = l => `<i class="bt-dot" style="background:${GC[(l || {}).group] || '#9aa5b1'}"></i>`;
+    let h = `<div class="bt-head"><b>${runs.length} embotellado${runs.length === 1 ? '' : 's'}</b> · ${total.toLocaleString('es-MX')} botellas · ${fmtL(liters)} L${open.length ? ` · <b>${open.length} programado${open.length > 1 ? 's' : ''}</b>` : ''}</div>`;
+    if (open.length) h += `<h3 class="cr-gh">Próximos <small>órdenes abiertas</small></h3><div class="bt-up">${open.map(m => { const l = lotById(m.lot), b = m.bottle || {};
+      return `<article class="bt-card"><div class="bt-d">${esc(dmy(m.date))}</div><div>${dot(l)}<b>${esc((l || {}).name || m.tab)}</b><small>${esc(m.from || '')}${m.liters ? ' · ~' + fmtL(m.liters) + ' L' : ''}</small>
+        <span class="bt-m">${b.bottles ? '~' + (+b.bottles).toLocaleString('es-MX') + ' × ' : ''}${b.format || 750} mL · ${esc(FILTL[b.filter] || 'Sin filtrar')} · ${esc(b.closure || '')}${b.so2 ? ' · SO₂ ' + b.so2 : ''}</span></div>
+        <span class="bt-t">${esc(m.tab)}, fila ${m.row}</span></article>`; }).join('')}</div>`;
+    h += `<h3 class="cr-gh">Embotellado <small>lo más reciente primero</small></h3>`;
+    if (!runs.length) h += `<div class="cr-empty">Todavía no hay embotellados registrados. Se crean con «Agregar → Trasiego · mezcla · embotellado → Embotellado» y se cierran desde «Anotar resultados» al terminar.</div>`;
+    else h += `<div class="bt-wrap"><table class="bt-tbl"><thead><tr><th>Fecha</th><th>Vino</th><th>Botellas</th><th>Litros</th><th>Merma</th><th>Filtración</th><th>SO₂ libre / total</th><th>Lote</th></tr></thead><tbody>${runs.map(r => `<tr>
+      <td class="n">${esc(dmy(r.date))}</td><td>${dot(r.lot)}<b>${esc(r.lot.name)}</b>${r.sourceEmpty === false ? ' <span class="bt-part">parcial</span>' : ''}<small>${esc(r.from || '')}</small></td>
+      <td class="n">${esc(fmtTxt(r.formats))}</td><td class="n">${fmtL(r.liters || 0)}</td><td class="n">${r.loss ? fmtL(r.loss) + ' L' : '—'}</td>
+      <td>${esc(FILTL[r.filter] || r.filter || '—')}</td><td class="n">${esc((r.fso2 || '—') + ' / ' + (r.tso2 || '—'))}</td><td class="n">${esc(r.lotno || '—')}</td></tr>`).join('')}</tbody></table></div>`;
+    box.innerHTML = h;
+  }
+  window.addEventListener('cellar:bottling', e => renderBottling((e.detail || {}).lots));
+  // Keep the tab's count fresh even before someone opens it.
+  load().then(() => { const n = document.getElementById('wmBottleN'); if (n) n.textContent = bottlingRuns(E.lots).length || ''; }).catch(() => {});
 
   // × in the top-right of every sheet; asks before throwing away typed work.
   const XBTN = '<button type="button" class="en-close" data-xclose aria-label="Cerrar">×</button>';

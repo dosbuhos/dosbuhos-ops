@@ -201,7 +201,7 @@
   function autoContents(v) {
     const out = [], names = vNames(v);
     for (const l of C.all) {
-      if (l.archived || !l.ubi) continue;
+      if (l.archived || l.bottled || !l.ubi) continue;
       const parts = String(l.ubi).split(/\s*·\s*|\s*;\s*/);
       // Text after "→" is a plan, not where the wine is now ("TK-01 → TK-13").
       const nowTxt = normV(String(l.ubi).split('→')[0]);
@@ -305,7 +305,7 @@
   function openTank(id) {
     const v = C.vessels.find(x => x.id === id); if (!v) return;
     const items = tankContents(v), ro = !C.canWrite;
-    const lotOpts = sel => `<option value="">— Vacío —</option>` + C.all.filter(l => !l.archived && l.group !== 'routine').map(l => `<option value="${esc(l.id)}"${l.id === sel ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
+    const lotOpts = sel => `<option value="">— Vacío —</option>` + C.all.filter(l => !l.archived && !l.bottled && l.group !== 'routine').map(l => `<option value="${esc(l.id)}"${l.id === sel ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
     const rows = (items.length ? items : [{ lot: '', liters: null }]);
     const d = sheet(`<form method="dialog" class="cr-form">
       <div class="cr-sh"><h3>${esc(v.name)} <small class="cr-dim">${esc((v.aliases || []).slice(0, 3).join(' · '))}</small></h3></div>

@@ -1288,8 +1288,10 @@ body { background-image: none !important; font-family: var(--f-body); }
       <button type="button" role="tab" data-wm="prod" aria-selected="true">Vinos <small id="wmProdN"></small></button>
       <button type="button" role="tab" data-wm="tanks" aria-selected="false">Tanques <small id="wmTankN"></small></button>
       <button type="button" role="tab" data-wm="cellar" aria-selected="false">Barricas <small id="wmCellarN"></small></button>
+      <button type="button" role="tab" data-wm="bottled" aria-selected="false">Embotellado <small id="wmBottleN"></small></button>
     </div>
     <div id="cellarView" hidden></div>
+    <div id="bottleView" hidden></div>
     <div class="stats" id="stats"></div>
     <div class="src" id="src"></div>
     <div class="tbl-wrap">
@@ -1939,7 +1941,7 @@ var SheetParse = (function () {
     sumMemo.set(l.id, { rows, sum });
     return sum;
   }
-  function wineLots() { return S.lots.filter(l => l.group !== "routine" && !l.archived); }
+  function wineLots() { return S.lots.filter(l => l.group !== "routine" && !l.archived && !l.bottled); }
   // Lots merged into another one (Trasiego / mezcla): hidden from every list; the "Archivados" chip shows them.
   function archivedLots() { return S.lots.filter(l => l.archived); }
   const showArch = () => listOf(S.group).includes("archived");
@@ -4239,15 +4241,17 @@ Return ONLY JSON with this shape:
     const body = $("wtBody");
     if (!S.gotLots || !S.gotTasks) return;
     // Production | Cellar switch. Cellar mode hands the view to cellar-room.js (barrels, map, tags).
-    const cellar = S.wmode === "cellar" || S.wmode === "tanks";
+    const bottledV = S.wmode === "bottled";
+    const cellar = S.wmode === "cellar" || S.wmode === "tanks" || bottledV;
     $("wmProdN").textContent = productionLots().length || "";
     $("wmCellarN").textContent = window.cellarFullBarrels != null ? window.cellarFullBarrels : ""; // barrels holding wine (cellar-room.js)
     $("wmTankN").textContent = window.cellarFullTanks != null ? window.cellarFullTanks : "";
     document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.wm === S.wmode)));
-    $("cellarView").hidden = !cellar;
+    $("cellarView").hidden = !cellar || bottledV; $("bottleView").hidden = !bottledV;
     $("stats").hidden = cellar; $("src").hidden = cellar; document.querySelector("#winesView .tbl-wrap").hidden = cellar;
     $("groups").hidden = cellar; $("wineCtl").hidden = cellar || S.view !== "wines";
     document.documentElement.classList.toggle("w-cellar", cellar && S.view === "wines");
+    if (bottledV) { window.dispatchEvent(new CustomEvent("cellar:bottling", { detail: { lots: S.lots } })); return; }
     if (cellar) {
       window.dispatchEvent(new CustomEvent("cellar:render", { detail: { tab: S.wmode === "tanks" ? "tanks" : "barrels", lots: cellarLots(), all: wineLots(), canWrite: !!(S.canWrite && S.db && !S.isCrew), crew: !!S.isCrew, vintage: CUR_VINTAGE, vintageOf, phaseOf } }));
       return;
