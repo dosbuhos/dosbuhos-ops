@@ -7,13 +7,14 @@ export async function clubAudit(env, actor, action, entity = '', id = '', detail
 }
 
 export async function catalog(env) {
-  const [programs, benefits, cells, cfg] = await Promise.all([
+  const [programs, benefits, cells, cfg, fields] = await Promise.all([
     env.DB.prepare('SELECT * FROM club_programs ORDER BY sort, name').all(),
     env.DB.prepare('SELECT * FROM club_benefits ORDER BY sort, name').all(),
     env.DB.prepare('SELECT * FROM club_cells').all(),
     env.DB.prepare('SELECT key, value FROM club_config').all(),
+    env.DB.prepare('SELECT * FROM club_fields ORDER BY sort, id').all(),
   ]);
-  return { programs: programs.results, benefits: benefits.results, cells: cells.results, config: Object.fromEntries(cfg.results.map(r => [r.key, r.value])) };
+  return { programs: programs.results, benefits: benefits.results, cells: cells.results, fields: fields.results, config: Object.fromEntries(cfg.results.map(r => [r.key, r.value])) };
 }
 
 // Rolling 12 months: the last 365 days including today.
@@ -41,7 +42,7 @@ export async function usedThisYear(env, personId, day = C.today()) {
 }
 
 export async function membershipsOf(env, personId) {
-  return (await env.DB.prepare(`SELECT m.id, m.program_id, m.status, m.source, m.created_at, m.reason, p.name AS program, p.kind
+  return (await env.DB.prepare(`SELECT m.id, m.program_id, m.status, m.source, m.created_at, m.reason, m.expires_on, p.name AS program, p.kind, p.duration_months, p.fee_mxn, p.pay_url
     FROM club_memberships m JOIN club_programs p ON p.id = m.program_id WHERE m.person_id = ? AND m.status IN ('active', 'pending') ORDER BY p.sort`).bind(personId).all()).results;
 }
 
@@ -50,10 +51,13 @@ export async function personState(env, person, cat, day = C.today()) {
   const [mem, sp, used] = await Promise.all([membershipsOf(env, person.id), spendMap(env, day, person.id), usedThisYear(env, person.id, day)]);
   const spend = sp[person.id]?.total || 0, estimated = sp[person.id]?.estimated || 0;
   const commitment = Number(person.sub_commitment) || 0;
-  const eff = C.effectivePrograms({ programs: cat.programs, memberships: mem, spend, commitment });
+  const eff = C.effectivePrograms({ programs: cat.programs, memberships: mem, spend, commitment, day });
+  const expired = mem.filter(m => m.status === 'active' && C.isExpired(m, day));
   const resolved = person.status === 'active' ? C.resolve({ programs: eff.programs, benefits: cat.benefits, cells: cat.cells, used }) : [];
   const next = eff.level ? C.nextLevel(eff.basis, cat.programs, eff.level) : null;
-  return { memberships: mem, pending: mem.filter(m => m.status === 'pending'), programs: eff.programs, level: eff.level, manualLevel: eff.manualLevel,
+  // The soonest expiry among memberships that still apply: what the card and the door show as "vigente hasta".
+  const running = mem.filter(m => m.status === 'active' && m.expires_on && !C.isExpired(m, day)).map(m => m.expires_on).sort();
+  return { memberships: mem, pending: mem.filter(m => m.status === 'pending'), expired, validUntil: running[0] || '', programs: eff.programs, level: eff.level, manualLevel: eff.manualLevel,
     spend, estimated, commitment, bySubscription: eff.bySubscription, next, resolved, used, vip: !!person.vip || eff.programs.some(p => p.vip) };
 }
 
@@ -63,13 +67,17 @@ export async function programsFor(env, cat, personIds, day = C.today()) {
   const ids = [...new Set(personIds)];
   const out = {}, mem = {};
   const ph = ids.map(() => '?').join(',');
-  const rows = (await env.DB.prepare(`SELECT person_id, program_id, status, source FROM club_memberships WHERE status IN ('active', 'pending') AND person_id IN (${ph})`).bind(...ids).all()).results;
+  const rows = (await env.DB.prepare(`SELECT person_id, program_id, status, source, expires_on FROM club_memberships WHERE status IN ('active', 'pending') AND person_id IN (${ph})`).bind(...ids).all()).results;
   for (const r of rows) (mem[r.person_id] ||= []).push(r);
   const sp = await spendMap(env, day);
   const cm = Object.fromEntries((await env.DB.prepare(`SELECT id, sub_commitment FROM club_people WHERE sub_commitment > 0 AND id IN (${ph})`).bind(...ids).all()).results.map(r => [r.id, r.sub_commitment]));
   for (const id of ids) {
-    const e = C.effectivePrograms({ programs: cat.programs, memberships: mem[id] || [], spend: sp[id]?.total || 0, commitment: cm[id] || 0 });
-    out[id] = { programs: e.programs, level: e.level, spend: sp[id]?.total || 0, pending: (mem[id] || []).some(m => m.status === 'pending') };
+    const ms = mem[id] || [];
+    const e = C.effectivePrograms({ programs: cat.programs, memberships: ms, spend: sp[id]?.total || 0, commitment: cm[id] || 0, day });
+    const live = ms.filter(m => m.status === 'active');
+    const running = live.filter(m => m.expires_on && !C.isExpired(m, day)).map(m => m.expires_on).sort();
+    out[id] = { programs: e.programs, level: e.level, spend: sp[id]?.total || 0, pending: ms.some(m => m.status === 'pending'),
+      expired: live.filter(m => C.isExpired(m, day)).map(m => ({ program_id: m.program_id, expires_on: m.expires_on })), valid_until: running[0] || '' };
   }
   return out;
 }
@@ -92,7 +100,8 @@ export async function findPerson(env, phone, email) {
 }
 
 // Add a membership unless the person already has a live one in that program. Returns the status it ended with.
-export async function addMembership(env, personId, programId, { status = 'active', source = 'manual', inviteId = null, reason = '', by = '' } = {}) {
+// A new membership gets the program's duration (wine club memberships follow Stripe instead: no expiry here).
+export async function addMembership(env, personId, programId, { status = 'active', source = 'manual', inviteId = null, reason = '', by = '', expiresOn = null } = {}) {
   const cur = await env.DB.prepare("SELECT id, status FROM club_memberships WHERE person_id = ? AND program_id = ? AND status IN ('active', 'pending')").bind(personId, programId).first();
   if (cur) {
     if (cur.status === 'pending' && status === 'active') {
@@ -101,11 +110,39 @@ export async function addMembership(env, personId, programId, { status = 'active
     }
     return cur.status;
   }
-  await env.DB.prepare('INSERT INTO club_memberships (person_id, program_id, status, source, invite_id, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(personId, programId, status, source, inviteId, reason, by, Date.now()).run();
+  let exp = expiresOn;
+  if (exp == null) {
+    const prog = await env.DB.prepare('SELECT duration_months FROM club_programs WHERE id = ?').bind(programId).first();
+    exp = source !== 'wineclub' && prog?.duration_months > 0 ? C.addMonths(C.today(), prog.duration_months) : '';
+  }
+  await env.DB.prepare('INSERT INTO club_memberships (person_id, program_id, status, source, invite_id, reason, created_by, created_at, expires_on) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(personId, programId, status, source, inviteId, reason, by, Date.now(), exp).run();
   return status;
 }
 
 export function publicOrigin(env, url) { return (env.PUBLIC_ORIGIN || url.origin).replace(/\/$/, ''); }
 export const cardUrl = (origin, code) => `${origin}/c/${code}`;
 export const inviteUrl = (origin, tok) => `${origin}/c/i/${tok}`;
+
+// Answers to the sign-up questions: {field_id: value}.
+export async function fieldValues(env, personId) {
+  const r = await env.DB.prepare('SELECT field_id, value FROM club_field_values WHERE person_id = ?').bind(personId).all();
+  return Object.fromEntries(r.results.map(x => [x.field_id, x.value]));
+}
+export async function saveFieldValues(env, personId, values, by) {
+  const now = Date.now();
+  const st = Object.entries(values).map(([fid, v]) => v === ''
+    ? env.DB.prepare('DELETE FROM club_field_values WHERE person_id = ? AND field_id = ?').bind(personId, Number(fid))
+    : env.DB.prepare('INSERT INTO club_field_values (person_id, field_id, value, updated_by, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(person_id, field_id) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = excluded.updated_at').bind(personId, Number(fid), v, by, now));
+  if (st.length) await env.DB.batch(st);
+}
+// Read and validate answers from a form/body for the given questions. Returns {values, error}.
+export function readFields(fields, src, key = id => 'f_' + id) {
+  const values = {};
+  for (const f of fields) {
+    const [v, err] = C.fieldValue(f, src[key(f.id)]);
+    if (err) return { values, error: err };
+    values[f.id] = v;
+  }
+  return { values, error: '' };
+}

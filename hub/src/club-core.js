@@ -21,6 +21,31 @@ export const today = (now = Date.now()) => new Date(now).toLocaleDateString('en-
 export const nowHM = (now = Date.now()) => new Date(now).toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
 export const addDays = (day, n) => new Date(Date.parse(day + 'T12:00:00Z') + n * DAY_MS).toISOString().slice(0, 10);
 export const yearStart = day => String(day).slice(0, 4) + '-01-01';
+// Same day n months later, clamped to the month's last day (Jan 31 + 1 month = Feb 28/29).
+export function addMonths(day, n) {
+  const [y, m, d] = String(day).split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + n, 1, 12));
+  const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0, 12)).getUTCDate();
+  t.setUTCDate(Math.min(d, last));
+  return t.toISOString().slice(0, 10);
+}
+// A membership applies through its expiry day; '' = no expiry.
+export const isExpired = (m, day) => !!(m && m.expires_on && m.expires_on < day);
+// The next expiry when renewing: from the current expiry if still running, else from today.
+export const renewTo = (current, months, day) => months > 0 ? addMonths(current && current >= day ? current : day, months) : '';
+export const PAY_METHODS = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta (terminal)', stripe: 'Stripe / en línea', otro: 'Otro' };
+export const FIELD_KINDS = { text: 'Texto', choice: 'Opciones', yes_no: 'Sí / no', date: 'Fecha' };
+// Validate one answer to a sign-up question. Returns [value, error].
+export function fieldValue(f, raw) {
+  const v = String(raw ?? '').trim().slice(0, 300);
+  if (!v) return [ '', f.required ? `Responde: ${f.label}` : '' ];
+  if (f.kind === 'yes_no') return [/^(si|sí|1|true|on|yes)$/i.test(v) ? 'Sí' : v === 'No' || /^(no|0|false)$/i.test(v) ? 'No' : '', ''];
+  if (f.kind === 'date') return DAY_RE.test(v) ? [v, ''] : ['', `Revisa la fecha: ${f.label}`];
+  if (f.kind === 'choice') { const opts = String(f.options || '').split('\n').map(s => s.trim()).filter(Boolean); return opts.includes(v) ? [v, ''] : ['', `Elige una opción: ${f.label}`]; }
+  return [v, ''];
+}
+// Questions that apply to a program: the ones for every program plus its own, not archived, in order.
+export const fieldsFor = (fields, programId, { guest = false } = {}) => fields.filter(f => !f.archived && (!f.program_id || f.program_id === programId) && !(guest && f.staff_only)).sort((a, b) => a.sort - b.sort || a.id - b.id);
 export const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // A long random token: card codes and invite tokens. 18 bytes = 144 bits = 24 base64url characters. The card code is the
@@ -87,9 +112,10 @@ export function nextLevel(spend, programs, current) {
 // purchase link). Only one purchase level applies: the higher of spend and a manual floor.
 // commitment: the annual commitment of an active Círculo subscription (price × periods per year). The level is set by the
 // higher of spend and commitment; bySubscription says the commitment is what set it ("Nivel 2 · por tu suscripción").
-export function effectivePrograms({ programs, memberships, spend = 0, commitment = 0 }) {
+export function effectivePrograms({ programs, memberships, spend = 0, commitment = 0, day = today() }) {
   const P = new Map(programs.map(p => [p.id, p]));
-  const act = memberships.filter(m => m.status === 'active').map(m => P.get(m.program_id)).filter(p => p && !p.archived);
+  // Expired memberships stop applying (they stay in the table so renewing keeps the history).
+  const act = memberships.filter(m => m.status === 'active' && !isExpired(m, day)).map(m => P.get(m.program_id)).filter(p => p && !p.archived);
   const invites = act.filter(p => p.kind !== 'compras');
   const basis = Math.max(Number(spend) || 0, Number(commitment) || 0);
   let level = (basis > 0 || !invites.length) ? (levelFromSpend(basis, programs) || compras(programs)[0] || null) : null;

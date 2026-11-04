@@ -5,7 +5,7 @@
 import * as C from './club-core.js';
 import { qrSvg } from './qr.js';
 import { syncWineclub } from './club-wineclub.js';
-import { clubAudit, catalog, personState, programsFor, badge, newCardCode, findPerson, addMembership, publicOrigin, cardUrl, inviteUrl, windowStart } from './club-data.js';
+import { clubAudit, catalog, personState, programsFor, badge, newCardCode, findPerson, addMembership, publicOrigin, cardUrl, inviteUrl, windowStart, fieldValues, saveFieldValues, readFields } from './club-data.js';
 
 const J = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const str = (v, max = 300) => String(v ?? '').trim().slice(0, max);
@@ -40,7 +40,7 @@ export async function clubRoute(request, env, url, user, role) {
     const pros = await prosList(env, cat);
     return J({ role, me: { email: user.email, name: user.name }, day, origin, wineclub: !!env.WINECLUB_DB, ...cat,
       config: { milestone_every: Number(cat.config.milestone_every || 200), last_sync: cat.config.last_sync ? JSON.parse(cat.config.last_sync) : null }, pros,
-      channels: C.CHANNELS, pro_types: C.PRO_TYPES });
+      channels: C.CHANNELS, pro_types: C.PRO_TYPES, pay_methods: C.PAY_METHODS, field_kinds: C.FIELD_KINDS });
   }
 
   // ---------- Hoy ----------
@@ -80,6 +80,8 @@ export async function clubRoute(request, env, url, user, role) {
         if ('pro_type' in b) next.pro_type = C.PRO_TYPES[b.pro_type] ? b.pro_type : '';
         if ('status' in b) next.status = b.status === 'blocked' ? 'blocked' : 'active';
         if ('wedding_date' in b) next.wedding_date = C.DAY_RE.test(b.wedding_date || '') ? b.wedding_date : '';
+        if ('birthday' in b) next.birthday = /^\d{2}-\d{2}$/.test(b.birthday || '') ? b.birthday : '';
+        if ('staff_note' in b) next.staff_note = str(b.staff_note, 1000);
       } else if (Object.keys(b).some(k => k !== 'staff_note')) return NO('Solo quien administra el club cambia los datos de una persona.');
       const keys = Object.keys(next);
       if (!keys.length) return BAD('Nada que cambiar.');
@@ -175,6 +177,82 @@ export async function clubRoute(request, env, url, user, role) {
     await env.DB.prepare('UPDATE club_memberships SET status = ?, program_id = ?, decided_by = ?, decided_at = ? WHERE id = ?')
       .bind(b.approve ? 'active' : 'rejected', program, me, Date.now(), ms.id).run();
     await clubAudit(env, me, b.approve ? 'membership.approve' : 'membership.reject', 'person', ms.person_id, { program, asked: ms.program_id });
+    return J({ ok: true });
+  }
+
+  // ---------- Socios: the member database ----------
+  if (p === '/club/api/members' && m === 'GET') return J(await members(env, url, day));
+  if (p === '/club/api/members.csv' && m === 'GET') {
+    if (!admin) return NO('Solo quien administra el club exporta la base de socios.');
+    const r = await members(env, url, day, { all: true });
+    await clubAudit(env, me, 'members.export', 'members', '', { count: r.people.length, filter: Object.fromEntries(url.searchParams) });
+    return new Response('﻿' + membersCsv(r), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="socios-dos-buhos-${day}.csv"`, 'cache-control': 'no-store' } });
+  }
+  if (p === '/club/api/people' && m === 'POST') {
+    if (!admin) return NO('Solo quien administra el club agrega socios.');
+    return addPerson(env, await body(), me, day);
+  }
+  if ((mm = p.match(/^\/club\/api\/person\/(\d+)\/(payment|fields)$/)) && (m === 'POST' || m === 'PUT')) {
+    if (!admin) return NO('Solo quien administra el club registra pagos y cambia datos.');
+    const person = await env.DB.prepare('SELECT * FROM club_people WHERE id = ?').bind(Number(mm[1])).first();
+    if (!person) return J({ code: 'not_found', message: 'No encontramos a esta persona.' }, 404);
+    const b = await body();
+    if (mm[2] === 'payment') return addPayment(env, person, b, me, day);
+    const cat = await catalog(env);
+    const fs = cat.fields.filter(f => !f.archived && Object.prototype.hasOwnProperty.call(b.values || {}, f.id));
+    const { values, error } = readFields(fs.map(f => ({ ...f, required: 0 })), b.values || {}, id => id);
+    if (error) return BAD(error);
+    await saveFieldValues(env, person.id, values, me);
+    await clubAudit(env, me, 'person.fields', 'person', person.id, values);
+    return J({ ok: true });
+  }
+  if ((mm = p.match(/^\/club\/api\/membership\/(\d+)\/expiry$/)) && m === 'POST') {
+    if (!admin) return NO('Solo quien administra el club cambia la vigencia.');
+    const b = await body();
+    const ms = await env.DB.prepare("SELECT * FROM club_memberships WHERE id = ? AND status IN ('active', 'pending')").bind(Number(mm[1])).first();
+    if (!ms) return J({ code: 'not_found', message: 'Esa membresía ya no está activa.' }, 404);
+    const exp = b.expires_on === '' ? '' : String(b.expires_on || '');
+    if (exp && !C.DAY_RE.test(exp)) return BAD('Revisa la fecha.');
+    await env.DB.prepare('UPDATE club_memberships SET expires_on = ? WHERE id = ?').bind(exp, ms.id).run();
+    await clubAudit(env, me, 'membership.expiry', 'person', ms.person_id, { membership: ms.id, program: ms.program_id, from: ms.expires_on, to: exp });
+    return J({ ok: true });
+  }
+  if ((mm = p.match(/^\/club\/api\/payment\/(\d+)\/void$/)) && m === 'POST') {
+    if (!admin) return NO('Solo quien administra el club anula pagos.');
+    const pay = await env.DB.prepare('SELECT * FROM club_payments WHERE id = ?').bind(Number(mm[1])).first();
+    if (!pay) return J({ code: 'not_found' }, 404);
+    if (pay.voided_at) return J({ ok: true });
+    await env.DB.prepare('UPDATE club_payments SET voided_at = ?, voided_by = ? WHERE id = ?').bind(Date.now(), me, pay.id).run();
+    await clubAudit(env, me, 'payment.void', 'person', pay.person_id, { payment: pay.id, amount: pay.amount });
+    return J({ ok: true, note: pay.extended_to ? 'La vigencia no cambia sola: ajústala si este pago la había extendido.' : '' });
+  }
+
+  // ---------- questions at sign-up (form builder, admin) ----------
+  if (p === '/club/api/fields' && m === 'POST') {
+    if (!admin) return NO('Solo quien administra el club cambia las preguntas.');
+    const b = await body(), f = fieldInput(b);
+    if (f.error) return BAD(f.error);
+    const sort = ((await env.DB.prepare('SELECT MAX(sort) AS s FROM club_fields').first())?.s || 0) + 1;
+    const r = await env.DB.prepare('INSERT INTO club_fields (label, help, kind, options, program_id, required, staff_only, sort, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(f.label, f.help, f.kind, f.options, f.program_id, f.required, f.staff_only, sort, me, Date.now()).run();
+    await clubAudit(env, me, 'field.create', 'field', r.meta.last_row_id, f);
+    return J({ ok: true, id: r.meta.last_row_id });
+  }
+  if ((mm = p.match(/^\/club\/api\/fields\/(\d+)$/)) && m === 'PATCH') {
+    if (!admin) return NO('Solo quien administra el club cambia las preguntas.');
+    const cur = await env.DB.prepare('SELECT * FROM club_fields WHERE id = ?').bind(Number(mm[1])).first();
+    if (!cur) return J({ code: 'not_found' }, 404);
+    const b = await body();
+    if ('archived' in b && Object.keys(b).length === 1) {
+      await env.DB.prepare('UPDATE club_fields SET archived = ?, updated_by = ?, updated_at = ? WHERE id = ?').bind(b.archived ? 1 : 0, me, Date.now(), cur.id).run();
+      await clubAudit(env, me, b.archived ? 'field.archive' : 'field.restore', 'field', cur.id);
+      return J({ ok: true });
+    }
+    const f = fieldInput({ ...cur, ...b, kind: cur.kind });
+    if (f.error) return BAD(f.error);
+    await env.DB.prepare('UPDATE club_fields SET label = ?, help = ?, options = ?, program_id = ?, required = ?, staff_only = ?, updated_by = ?, updated_at = ? WHERE id = ?')
+      .bind(f.label, f.help, f.options, f.program_id, f.required, f.staff_only, me, Date.now(), cur.id).run();
+    await clubAudit(env, me, 'field.update', 'field', cur.id, { before: cur, after: f });
     return J({ ok: true });
   }
 
@@ -277,8 +355,12 @@ export async function clubRoute(request, env, url, user, role) {
     while (await env.DB.prepare('SELECT 1 FROM club_programs WHERE id = ?').bind(id).first()) id += '-2';
     const color = HEX.test(b.color || '') && C.contrastOnWhite(b.color) >= 4.5 ? b.color : '#6b2737';
     const sort = ((await env.DB.prepare('SELECT MAX(sort) AS s FROM club_programs').first())?.s || 0) + 1;
-    await env.DB.prepare('INSERT INTO club_programs (id, name, kind, color, short_label, vip, is_pro, requires_approval, threshold_mxn, sort, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, name, kind, color, str(b.short_label, 30) || name, b.vip ? 1 : 0, b.is_pro ? 1 : 0, b.requires_approval ? 1 : 0, kind === 'compras' ? Number(b.threshold_mxn) : null, sort, me, Date.now()).run();
+    const dur = kind === 'compras' ? 0 : Math.min(120, Math.max(0, intOrNull(b.duration_months) || 0));
+    const fee = kind === 'compras' ? 0 : Math.max(0, numOrNull(b.fee_mxn) || 0);
+    const payUrl = kind === 'compras' ? '' : str(b.pay_url, 500);
+    if (payUrl && !/^https:\/\//.test(payUrl)) return BAD('El enlace de pago debe empezar con https://');
+    await env.DB.prepare('INSERT INTO club_programs (id, name, kind, color, short_label, vip, is_pro, requires_approval, threshold_mxn, sort, updated_by, updated_at, duration_months, fee_mxn, pay_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, name, kind, color, str(b.short_label, 30) || name, b.vip ? 1 : 0, b.is_pro ? 1 : 0, b.requires_approval ? 1 : 0, kind === 'compras' ? Number(b.threshold_mxn) : null, sort, me, Date.now(), dur, fee, payUrl).run();
     await clubAudit(env, me, 'program.create', 'program', id, { name, kind });
     return J({ ok: true, id });
   }
@@ -296,6 +378,11 @@ export async function clubRoute(request, env, url, user, role) {
     if ('archived' in b) next.archived = b.archived ? 1 : 0;
     if ('sort' in b && intOrNull(b.sort) != null) next.sort = intOrNull(b.sort);
     if ('threshold_mxn' in b) { if (prog.kind !== 'compras') return BAD('Solo los niveles por compras tienen monto.'); const t = numOrNull(b.threshold_mxn); if (t == null || t < 0) return BAD('Revisa el monto.'); next.threshold_mxn = t; }
+    if (prog.kind !== 'compras') {
+      if ('duration_months' in b) { const d = intOrNull(b.duration_months) || 0; if (d < 0 || d > 120) return BAD('Revisa la duración.'); next.duration_months = d; }
+      if ('fee_mxn' in b) { const f = numOrNull(b.fee_mxn) || 0; if (f < 0) return BAD('Revisa la cuota.'); next.fee_mxn = f; }
+      if ('pay_url' in b) { const u = str(b.pay_url, 500); if (u && !/^https:\/\//.test(u)) return BAD('El enlace de pago debe empezar con https://'); next.pay_url = u; }
+    }
     const keys = Object.keys(next);
     if (!keys.length) return BAD('Nada que cambiar.');
     await env.DB.prepare(`UPDATE club_programs SET ${keys.map(k => k + ' = ?').join(', ')}, updated_by = ?, updated_at = ? WHERE id = ?`).bind(...keys.map(k => next[k]), me, Date.now(), prog.id).run();
@@ -388,13 +475,15 @@ function inviteOut(i, origin) {
 async function personDetail(env, person, origin, user, admin, day) {
   const cat = await catalog(env);
   const st = await personState(env, person, cat, day);
-  const [visits, purchases, charges, anns, moves, brought] = await Promise.all([
+  const [visits, purchases, charges, anns, moves, brought, payments, answers] = await Promise.all([
     env.DB.prepare(`SELECT v.*, b.name AS brought_by_name FROM club_visits v LEFT JOIN club_people b ON b.id = v.brought_by WHERE v.person_id = ? ORDER BY v.created_at DESC LIMIT 30`).bind(person.id).all(),
     env.DB.prepare('SELECT id, day, amount, channel, status, source, has_photo, note, created_at, decided_by FROM club_purchases WHERE person_id = ? ORDER BY created_at DESC LIMIT 30').bind(person.id).all(),
     env.DB.prepare('SELECT day, amount, estimated FROM club_sub_charges WHERE person_id = ? AND day >= ? ORDER BY day DESC').bind(person.id, windowStart(day)).all(),
     env.DB.prepare('SELECT * FROM club_announcements WHERE person_id = ? AND day >= ? AND cancelled_at IS NULL ORDER BY day, time').bind(person.id, day).all(),
-    env.DB.prepare("SELECT at, actor, action, detail FROM club_audit WHERE entity = 'person' AND entity_id = ? AND action IN ('person.move', 'membership.approve', 'membership.reject', 'signup', 'signup.existing', 'card.newcode') ORDER BY id DESC LIMIT 20").bind(String(person.id)).all(),
+    env.DB.prepare("SELECT at, actor, action, detail FROM club_audit WHERE entity = 'person' AND entity_id = ? AND action IN ('person.move', 'person.create', 'membership.approve', 'membership.reject', 'membership.renew', 'membership.expiry', 'signup', 'signup.existing', 'card.newcode', 'payment.void', 'guest.update') ORDER BY id DESC LIMIT 20").bind(String(person.id)).all(),
     env.DB.prepare('SELECT COUNT(*) AS visits, COALESCE(SUM(party_size), 0) AS people, COALESCE(SUM(check_total - discount_total), 0) AS spend FROM club_visits WHERE brought_by = ? AND undone_at IS NULL').bind(person.id).first(),
+    admin ? env.DB.prepare('SELECT * FROM club_payments WHERE person_id = ? ORDER BY day DESC, id DESC LIMIT 30').bind(person.id).all() : { results: [] },
+    fieldValues(env, person.id),
   ]);
   const vids = visits.results.map(v => v.id);
   const vb = vids.length ? (await env.DB.prepare(`SELECT vb.*, b.name FROM club_visit_benefits vb JOIN club_benefits b ON b.id = vb.benefit_id WHERE vb.visit_id IN (${vids.map(() => '?').join(',')})`).bind(...vids).all()).results : [];
@@ -404,7 +493,10 @@ async function personDetail(env, person, origin, user, admin, day) {
     person: { ...person, phone_fmt: C.fmtPhone(person.phone), card_url: url, pro_type_name: C.PRO_TYPES[person.pro_type] || '' },
     programs: st.programs.map(badge), level: st.level && badge(st.level), manual_level: st.manualLevel, by_subscription: st.bySubscription, commitment: st.commitment, next: st.next && { name: st.next.program.name, missing: st.next.missing },
     spend: st.spend, spend_estimated: st.estimated, vip: st.vip,
-    memberships: st.memberships.map(x => ({ id: x.id, program_id: x.program_id, program: x.program, kind: x.kind, status: x.status, source: x.source, color: P.get(x.program_id)?.color })),
+    memberships: st.memberships.map(x => ({ id: x.id, program_id: x.program_id, program: x.program, kind: x.kind, status: x.status, source: x.source, color: P.get(x.program_id)?.color,
+      expires_on: x.expires_on, expired: C.isExpired(x, day), duration_months: x.duration_months, fee_mxn: x.fee_mxn, renew_to: C.renewTo(x.expires_on, x.duration_months, day) })),
+    expired: st.expired.map(x => ({ program: x.program, program_id: x.program_id, expires_on: x.expires_on })), valid_until: st.validUntil,
+    payments: payments.results, answers,
     benefits: st.resolved.map(r => ({ ...r, head: C.staffHead(r), rule: C.staffRule(r), guest: C.guestPhrase(r) })),
     visits: visits.results.map(v => ({ ...v, benefits: vb.filter(x => x.visit_id === v.id).map(x => ({ benefit_id: x.benefit_id, name: x.name, qty: x.qty, value: x.value, program_id: x.program_id })),
       can_undo: !v.undone_at && (v.created_by === user.email || admin) && Date.now() - v.created_at <= C.UNDO_MS, undo_until: v.created_at + C.UNDO_MS })),
@@ -474,6 +566,137 @@ async function move(env, person, b, me) {
   return J({ ok: true });
 }
 
+// ---------- Socios ----------
+// The whole database, filtered and sorted in the Worker (hundreds of people, not millions). Filters:
+//   estado: todos · activos · por_vencer (next 30 days) · vencidos · por_aprobar · bloqueados
+//   programa: a program id ·  q: name, phone or email ·  orden: actividad · nombre · alta · gasto · vence
+export const MEMBER_FILTERS = ['todos', 'activos', 'por_vencer', 'vencidos', 'por_aprobar', 'bloqueados'];
+async function members(env, url, day, { all = false } = {}) {
+  const sp = url.searchParams;
+  const estado = MEMBER_FILTERS.includes(sp.get('estado')) ? sp.get('estado') : 'todos';
+  const programa = str(sp.get('programa'), 40), orden = str(sp.get('orden'), 20) || 'actividad';
+  const q = str(sp.get('q'), 60).toLowerCase(), digits = q.replace(/\D/g, '');
+  const offset = Math.max(0, intOrNull(sp.get('desde')) || 0), limit = all ? 100000 : 50;
+  const cat = await catalog(env);
+  const people = (await env.DB.prepare(`SELECT p.*, (SELECT MAX(day) FROM club_visits v WHERE v.person_id = p.id AND v.undone_at IS NULL) AS last_visit,
+      (SELECT COUNT(*) FROM club_visits v WHERE v.person_id = p.id AND v.undone_at IS NULL AND v.day >= ?) AS visits12 FROM club_people p`).bind(windowStart(day)).all()).results;
+  const pf = await programsFor(env, cat, people.map(x => x.id), day);
+  const soon = C.addDays(day, 30);
+  const P = new Map(cat.programs.map(x => [x.id, x]));
+  const rows = people.map(x => {
+    const s = pf[x.id] || { programs: [], expired: [], valid_until: '', spend: 0 };
+    return { ...x, programs: s.programs, pending: s.pending, expired: s.expired.map(e => ({ ...e, program: P.get(e.program_id)?.name || e.program_id })), valid_until: s.valid_until, spend: s.spend };
+  });
+  const is = {
+    activos: r => r.status === 'active' && r.programs.length > 0 && !r.expired.length,
+    por_vencer: r => r.status === 'active' && r.valid_until && r.valid_until <= soon,
+    vencidos: r => r.expired.length > 0,
+    por_aprobar: r => r.pending,
+    bloqueados: r => r.status !== 'active',
+  };
+  const counts = { todos: rows.length };
+  for (const k of Object.keys(is)) counts[k] = rows.filter(is[k]).length;
+  let list = estado === 'todos' ? rows : rows.filter(is[estado]);
+  if (programa) list = list.filter(r => r.programs.some(x => x.id === programa) || r.expired.some(x => x.program_id === programa));
+  if (q) list = list.filter(r => r.name.toLowerCase().includes(q) || (r.email || '').includes(q) || (digits.length >= 3 && (r.phone || '').includes(digits)));
+  const by = {
+    nombre: (a, b) => a.name.localeCompare(b.name, 'es'),
+    alta: (a, b) => b.created_at - a.created_at,
+    gasto: (a, b) => b.spend - a.spend || a.name.localeCompare(b.name, 'es'),
+    vence: (a, b) => (a.expired[0]?.expires_on || a.valid_until || '9999').localeCompare(b.expired[0]?.expires_on || b.valid_until || '9999') || a.name.localeCompare(b.name, 'es'),
+    actividad: (a, b) => (b.last_visit || '').localeCompare(a.last_visit || '') || b.created_at - a.created_at,
+  };
+  list.sort(by[orden] || by.actividad);
+  const page = list.slice(offset, offset + limit);
+  const vals = all && page.length ? (await env.DB.prepare('SELECT person_id, field_id, value FROM club_field_values').all()).results : [];
+  const V = {};
+  for (const v of vals) (V[v.person_id] ||= {})[v.field_id] = v.value;
+  return {
+    estado, programa, orden, total: list.length, counts, next: offset + limit < list.length ? offset + limit : null,
+    fields: all ? cat.fields.filter(f => !f.archived) : [],
+    people: page.map(r => ({ id: r.id, name: r.name, phone: r.phone, phone_fmt: C.fmtPhone(r.phone), email: r.email, birthday: r.birthday, vip: !!r.vip, status: r.status,
+      programs: r.programs.map(badge), pending: r.pending, expired: r.expired, valid_until: r.valid_until, last_visit: r.last_visit || '', visits12: r.visits12,
+      created_at: r.created_at, spend: r.spend, source: r.source, ...(all ? { staff_note: r.staff_note, fields: V[r.id] || {} } : {}) })),
+  };
+}
+const csvCell = v => { const s = String(v ?? ''); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+function membersCsv(r) {
+  const head = ['Nombre', 'WhatsApp', 'Correo', 'Cumpleaños (MM-DD)', 'Programas', 'Vigente hasta', 'Vencidos', 'Estado', 'VIP', 'Alta', 'Última visita', 'Visitas 12 meses', 'Gasto 12 meses', 'Nota del equipo', ...r.fields.map(f => f.label)];
+  const lines = [head, ...r.people.map(x => [x.name, x.phone ? '+' + x.phone : '', x.email, x.birthday, x.programs.map(b => b.name).join(' · '), x.valid_until,
+    x.expired.map(e => `${e.program} (${e.expires_on})`).join(' · '), x.status === 'active' ? (x.pending ? 'Por aprobar' : 'Activo') : 'Bloqueado', x.vip ? 'Sí' : '',
+    new Date(x.created_at).toLocaleDateString('en-CA', { timeZone: C.TZ }), x.last_visit, x.visits12, Math.round(x.spend), x.staff_note, ...r.fields.map(f => x.fields[f.id] || '')])];
+  return lines.map(l => l.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+
+// Add someone directly (no invitation): the card is ready to send by WhatsApp from their profile.
+async function addPerson(env, b, me, day) {
+  const name = str(b.name, 80);
+  if (name.length < 2) return BAD('Escribe el nombre.');
+  const phone = C.normPhone(b.phone), email = C.normEmail(b.email);
+  if (b.phone && !C.validPhone(phone)) return BAD('Revisa el WhatsApp: 10 dígitos, o con lada de país.');
+  if (b.email && !email) return BAD('Revisa el correo.');
+  if (!phone && !email) return BAD('Escribe su WhatsApp o su correo, para poder mandarle su tarjeta.');
+  const prog = await env.DB.prepare('SELECT * FROM club_programs WHERE id = ? AND archived = 0').bind(str(b.program_id, 40)).first();
+  if (!prog || prog.kind === 'compras') return BAD('Elige el programa.');
+  const existing = await findPerson(env, phone, email);
+  if (existing) return J({ code: 'exists', id: existing.id, message: `${existing.name} ya está en el club con ese ${phone && existing.phone === phone ? 'WhatsApp' : 'correo'}.` }, 409);
+  const cat = await catalog(env);
+  // Staff adding someone at the counter are never blocked by a question: "obligatoria" applies to the guest sign-up.
+  const { values, error } = readFields(C.fieldsFor(cat.fields, prog.id).map(f => ({ ...f, required: 0 })), b.fields || {}, id => id);
+  if (error) return BAD(error);
+  const exp = b.expires_on === undefined || b.expires_on === null ? null : String(b.expires_on);
+  if (exp && !C.DAY_RE.test(exp)) return BAD('Revisa la fecha de vencimiento.');
+  const bd = String(b.birthday || '');
+  const birthday = /^\d{2}-\d{2}$/.test(bd) ? bd : '';
+  const now = Date.now(), code = await newCardCode(env);
+  const r = await env.DB.prepare(`INSERT INTO club_people (card_code, name, phone, email, birthday, pro_type, staff_note, vip, source, created_by, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?)`).bind(code, name, phone, email, birthday, prog.is_pro && C.PRO_TYPES[b.pro_type] ? b.pro_type : '', str(b.staff_note, 1000), b.vip ? 1 : 0, me, now, now).run();
+  const pid = r.meta.last_row_id;
+  await addMembership(env, pid, prog.id, { status: 'active', source: 'manual', by: me, reason: 'Agregado a mano', expiresOn: exp });
+  await saveFieldValues(env, pid, values, me);
+  await clubAudit(env, me, 'person.create', 'person', pid, { program: prog.id, expires_on: exp });
+  if (b.payment && numOrNull(b.payment.amount) > 0) {
+    const person = await env.DB.prepare('SELECT * FROM club_people WHERE id = ?').bind(pid).first();
+    const res = await addPayment(env, person, { ...b.payment, program_id: prog.id, extend: false }, me, day);
+    if (res.status !== 200) return J({ ok: true, id: pid, warning: 'Se agregó, pero el pago no se guardó: regístralo en su ficha.' });
+  }
+  return J({ ok: true, id: pid });
+}
+
+// A fee received. With extend, it renews the membership: from its expiry if still running, else from today.
+async function addPayment(env, person, b, me, day) {
+  const amount = Math.round(Number(b.amount) * 100) / 100;
+  if (!(amount > 0) || amount > 1e6) return BAD('Escribe el monto.');
+  const pday = C.DAY_RE.test(b.day || '') ? b.day : day;
+  if (pday > day || pday < C.addDays(day, -400)) return BAD('La fecha del pago no puede ser futura ni de hace más de un año.');
+  const method = C.PAY_METHODS[b.method] ? b.method : 'efectivo';
+  const programId = str(b.program_id, 40);
+  const ms = programId ? await env.DB.prepare(`SELECT m.*, p.duration_months, p.name AS program FROM club_memberships m JOIN club_programs p ON p.id = m.program_id
+    WHERE m.person_id = ? AND m.program_id = ? AND m.status IN ('active', 'pending') ORDER BY m.id DESC LIMIT 1`).bind(person.id, programId).first() : null;
+  if (programId && !ms) return BAD('No está en ese programa: agrégalo primero en Programas.');
+  let extended = '';
+  if (b.extend && ms) {
+    extended = C.DAY_RE.test(b.extend_to || '') ? b.extend_to : C.renewTo(ms.expires_on, ms.duration_months, day);
+    if (extended) {
+      await env.DB.prepare("UPDATE club_memberships SET expires_on = ?, status = CASE WHEN status = 'pending' THEN 'active' ELSE status END WHERE id = ?").bind(extended, ms.id).run();
+      await clubAudit(env, me, 'membership.renew', 'person', person.id, { membership: ms.id, program: ms.program_id, from: ms.expires_on, to: extended });
+    }
+  }
+  const r = await env.DB.prepare('INSERT INTO club_payments (person_id, membership_id, program_id, day, amount, method, reference, note, extended_to, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(person.id, ms?.id ?? null, programId, pday, amount, method, str(b.reference, 80), str(b.note, 300), extended, me, Date.now()).run();
+  await clubAudit(env, me, 'payment.add', 'person', person.id, { payment: r.meta.last_row_id, amount, method, program: programId, extended_to: extended });
+  return J({ ok: true, id: r.meta.last_row_id, extended_to: extended });
+}
+
+function fieldInput(b) {
+  const label = str(b.label, 80);
+  if (!label) return { error: 'Escribe la pregunta.' };
+  const kind = C.FIELD_KINDS[b.kind] ? b.kind : 'text';
+  const options = kind === 'choice' ? [...new Set(String(b.options || '').split('\n').map(s => s.trim().slice(0, 60)).filter(Boolean))].slice(0, 20).join('\n') : '';
+  if (kind === 'choice' && options.split('\n').filter(Boolean).length < 2) return { error: 'Escribe al menos dos opciones, una por renglón.' };
+  return { label, help: str(b.help, 160), kind, options, program_id: str(b.program_id, 40), required: b.required ? 1 : 0, staff_only: b.staff_only ? 1 : 0 };
+}
+
 async function hoy(env, url, user, admin, origin, day) {
   const cat = await catalog(env);
   const [anns, visits, receipts, reqs, approvals] = await Promise.all([
@@ -538,7 +761,10 @@ async function resumen(env, day) {
     return { id: x.id, name: x.name, programs: pf[x.id].programs.filter(q => q.is_pro).map(badge), visits: all.visits, people: all.people, spend: all.spend, last: all.last,
       last12: b12.get(x.id) || { visits: 0, people: 0, spend: 0 }, milestone: C.milestones(all.people, every) };
   }).sort((a, b) => b.people - a.people || a.name.localeCompare(b.name));
-  const totals = { people: people.length, active90: people.filter(x => (byPerson.get(x.id)?.last || '') >= since90).length, visits: visits.length,
+  const fees = await env.DB.prepare('SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS n FROM club_payments WHERE voided_at IS NULL AND day >= ? AND day <= ?').bind(since, day).first();
+  const expiring = Object.values(pf).filter(x => x.valid_until && x.valid_until <= C.addDays(day, 30)).length;
+  const lapsed = Object.values(pf).filter(x => x.expired.length).length;
+  const totals = { fees: fees.total, fee_payments: fees.n, expiring, lapsed, people: people.length, active90: people.filter(x => (byPerson.get(x.id)?.last || '') >= since90).length, visits: visits.length,
     spend: Object.values(pf).reduce((s, x) => s + x.spend, 0), discount: visits.reduce((s, v) => s + v.discount_total, 0) };
   return { day, since, totals, programs, pros, milestone_every: every, benefits: cat.benefits.map(b => ({ id: b.id, name: b.name, kind: b.kind })) };
 }

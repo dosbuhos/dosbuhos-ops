@@ -98,6 +98,11 @@ are here. We track usage, eventually against Parrot and OpenTable.
   Hoy list fills itself.
 - **Wine club**: Círculo members come from the `wineclub` D1 (read-only binding), matched by email and phone.
 
+## Added Nov 4 2026 (Join It parity)
+Socios database with filters and CSV export, add a member directly, validity and renewals, fee payments, sign-up
+questions per program (form builder), and "Mis datos" on the card. Not included on purpose: automations (renewal
+reminders, failed-payment notices) and communications (email/WhatsApp campaigns).
+
 ## Later
 - Member receipt photo upload for points.
 - Wallet passes (Apple/Google): built Nov 4 2026 (`src/club-wallet.js`); waiting on the Apple Developer and Google Wallet issuer accounts. Still later: pushing updates to cards already saved.

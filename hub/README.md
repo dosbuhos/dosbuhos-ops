@@ -87,6 +87,21 @@ Who gets which benefits, their card, and what staff apply. Scope: [CLUB-SCOPE.md
 - Wine club: binding `WINECLUB_DB` (database `wineclub-production`, read-only use). The hourly cron and Programas →
   "Sincronizar ahora" copy live subscribers (matched by email or phone; merged members skipped), their paid charges of
   the last 12 months (amount missing → subscription price, flagged "estimado") and founders (→ Fundadores).
+- Socios (`#socios`, replaces Buscar): search, scan, and the whole member database with filters (Activos, Por vencer =
+  next 30 days, Vencidos, Por aprobar, Bloqueados), program, sort and paging; admins also get **Agregar socio** (`#nuevo`,
+  no invitation needed) and **Exportar CSV** (`/club/api/members.csv`, audited; never includes card links).
+- Vigencia (migration 0005): a program can last N months (`duration_months`, 0 = no expiry), have a fee (`fee_mxn`) and a
+  payment link (`pay_url`, e.g. Stripe). New memberships get the program's duration (wine club ones follow Stripe and
+  don't expire here). An expired membership stops applying the next day: the door view and the card say so, the card
+  shows "Renovar" with the payment link. Renewing (ficha → Programas or the banner) counts from the expiry if still
+  running, else from today, and can record the fee in one step.
+- Pagos (`club_payments`): fees by method (efectivo, transferencia, tarjeta, Stripe, otro), optionally renewing; voided,
+  never deleted. Fees don't count toward purchase levels. Resumen shows fees in 12 months, expiring in 30 days, lapsed.
+- Preguntas del registro (Programas → Preguntas, `club_fields`): text, choice, yes/no or date; for one program or all;
+  required (guest sign-up only; staff adding someone are never blocked) or "solo equipo" (never shown to the guest).
+  Answers in the ficha (Datos) and the CSV.
+- Mis datos (guest card): add or change email, birthday and answers. Saved values are never shown back on the card (the
+  link is the only credential); blank keeps what's there. Name and WhatsApp changes go through staff.
 - Wallet cards (`src/club-wallet.js`): "Agregar a Apple Wallet" / "Guardar en Google Wallet" on the card page
   (`/c/<code>/wallet/apple` → signed `.pkpass`; `/c/<code>/wallet/google` → Google's save page). Same QR as the web card,
   so staff scan it the same way. Name, program and level on the front; Apple's back lists the benefits as of when it was

@@ -29,6 +29,7 @@ export function cardContent(person, st) {
     name: person.name,
     programs: programs.length ? programs.join(' · ') : (st.pending.length ? 'En revisión' : 'Club Dos Búhos'),
     level: st.level ? st.level.name : '',
+    validUntil: st.validUntil || '',
     benefits,
     since: person.created_at ? new Date(person.created_at).toISOString().slice(0, 10) : '',
   };
@@ -55,7 +56,7 @@ export function passJson(env, person, content, link) {
     storeCard: {
       primaryFields: [{ key: 'nombre', label: 'Socio', value: content.name }],
       secondaryFields: [{ key: 'programa', label: 'Programa', value: content.programs }],
-      auxiliaryFields: content.level ? [{ key: 'nivel', label: 'Nivel', value: content.level }] : [],
+      auxiliaryFields: [...(content.level ? [{ key: 'nivel', label: 'Nivel', value: content.level }] : []), ...(content.validUntil ? [{ key: 'vigencia', label: 'Vigente hasta', value: content.validUntil + 'T12:00:00-06:00', dateStyle: 'PKDateStyleMedium' }] : [])],
       backFields: back,
     },
   };
@@ -84,7 +85,7 @@ export function googlePayload(env, person, content, link, origin) {
   const issuer = env.GOOGLE_WALLET_ISSUER_ID;
   const classId = `${issuer}.dosbuhos_club`;
   const lang = v => ({ defaultValue: { language: 'es-MX', value: v } });
-  const modules = content.level ? [{ id: 'nivel', header: 'Nivel', body: content.level }] : [];
+  const modules = [...(content.level ? [{ id: 'nivel', header: 'Nivel', body: content.level }] : []), ...(content.validUntil ? [{ id: 'vigencia', header: 'Vigente hasta', body: content.validUntil }] : [])];
   // No benefits list here: the save link must stay short (Google advises under ~1,800 characters), and the live list
   // is one tap away through the link module.
   return {

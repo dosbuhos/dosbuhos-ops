@@ -9,7 +9,7 @@
 import * as C from './club-core.js';
 import { qrSvg } from './qr.js';
 import { walletRoute, walletButtons } from './club-wallet.js';
-import { catalog, personState, findPerson, newCardCode, addMembership, clubAudit, publicOrigin, cardUrl } from './club-data.js';
+import { catalog, personState, findPerson, newCardCode, addMembership, clubAudit, publicOrigin, cardUrl, fieldValues, saveFieldValues, readFields } from './club-data.js';
 
 const H = (html, status = 200, extra = {}) => new Response(html, { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer', ...extra } });
 const J = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -77,6 +77,8 @@ input:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-
 ol.how { margin: 6px 0 0; padding-left: 22px; } ol.how li { margin: 4px 0; }
 footer { margin: 34px 0 0; text-align: center; font-size: 15px; color: var(--muted); }
 footer .mark { color: var(--wine); font-size: 13px; }
+.valid { margin: 12px 0 0; font-size: 16px; font-style: italic; color: var(--gold-soft); }
+.note .btn.sm { margin-top: 10px; }
 .wallet-btns .btn { margin-top: 12px; }
 .btn.wallet.apple { background: #000; }
 .btn.wallet.google { background: #fff; color: #1f1f1f; border: 1px solid #c9c4bd; }
@@ -128,6 +130,7 @@ export async function clubPublic(request, env, url, staffRole) {
     return see(`/c/${code}?ok=cancelada`);
   }
   if (rest === '/compra' && m === 'POST') return receipt(request, env, person);
+  if (rest === '/datos' && m === 'POST') return guestData(request, env, person);
   const wm = rest.match(/^\/wallet\/(apple|google)$/);
   if (wm && m === 'GET') return wallet(request, env, url, person, wm[1]);
   if (rest && rest !== '/') return see(`/c/${code}`);
@@ -160,6 +163,7 @@ async function cardPage(env, url, person, ua = '') {
     : ok === 'voy' ? `<div class="note ok"><b>Gracias por avisar.</b> El equipo ya sabe que vienes.</div>`
     : ok === 'cancelada' ? `<div class="note ok">Cancelamos tu aviso.</div>`
     : ok === 'compra' ? `<div class="note ok"><b>Recibimos tu compra.</b> El equipo la revisa y la suma a tu cuenta.</div>`
+    : ok === 'datos' ? `<div class="note ok">Guardamos tus datos.</div>`
     : ok === 'wallet_error' ? `<div class="note bad">No pudimos preparar la tarjeta para tu cartera. Intenta más tarde; esta tarjeta funciona igual.</div>`
     : ok === 'wallet_off' ? `<div class="note warn">Esta opción todavía no está disponible. Usa esta tarjeta o agrégala a tu pantalla de inicio.</div>` : '';
   const blocked = person.status !== 'active';
@@ -184,10 +188,12 @@ async function cardPage(env, url, person, ua = '') {
   const body = `${flash}
 <div class="card"><div class="top"><div class="mark">Dos Búhos<small>Club de beneficios</small></div>${OWL}</div>
   <h1>${e(person.name)}</h1><div class="badges">${badges || '<span class="badge"><i></i>Socio</span>'}</div>
+  ${st.validUntil && !blocked ? `<p class="valid">Vigente hasta el ${e(fmtLong(st.validUntil))}</p>` : ''}
   <div class="qr">${qrSvg(link, { label: 'Código de tu tarjeta' })}</div><p class="qr-cap">Muéstralo al llegar</p></div>
 ${blocked ? '' : walletButtons(env, person.card_code, ua)}
 ${blocked ? '<div class="note bad">Esta tarjeta no está activa. Si crees que es un error, escríbenos.</div>'
   : pendingOnly ? '<div class="note warn"><b>Tu solicitud está en revisión.</b> Te avisamos por WhatsApp en cuanto quede lista; tus beneficios aparecen aquí.</div>' : ''}
+${blocked ? '' : st.expired.map(x => `<div class="note warn"><b>Tu membresía ${e(x.program)} venció el ${e(fmtLong(x.expires_on))}.</b> Sus beneficios ya no aparecen aquí. ${x.pay_url ? `Renuévala en línea y el equipo la reactiva.<a class="btn sm" href="${e(x.pay_url)}" target="_blank" rel="noopener">Renovar ${x.fee_mxn ? '· ' + C.money(x.fee_mxn) : ''}</a>` : 'Escríbenos para renovarla.'}</div>`).join('')}
 ${items ? `<section><h2>Tus beneficios</h2><ul class="benefits">${items}</ul>${unconfirmed ? '<p class="small"><sup>*</sup> Por confirmar: el equipo te confirma al aplicarlo.</p>' : ''}</section>` : ''}
 ${levelHtml}${annHtml}${pendHtml}
 ${blocked ? '' : `<details><summary>Voy a ir</summary><div>
@@ -205,6 +211,7 @@ ${blocked ? '' : `<details><summary>Voy a ir</summary><div>
     <label>Foto del ticket<input type="file" name="photo" accept="image/*" capture="environment" required></label>
     <p class="err" id="buyerr" role="alert"></p>
     <button class="btn" type="submit">Enviar compra</button></form></div></details>`}
+${blocked ? '' : await datosHtml(env, person, st, ok)}
 <details${ok === 'nuevo' ? ' open' : ''}><summary>Agregar a pantalla de inicio</summary><div>
   <p style="margin:6px 0 0"><b>iPhone</b> (Safari)</p><ol class="how"><li>Toca el botón Compartir <span aria-hidden="true">⬆︎</span>.</li><li>Elige <b>Agregar a inicio</b>.</li></ol>
   <p style="margin:10px 0 0"><b>Android</b> (Chrome)</p><ol class="how"><li>Toca el menú <span aria-hidden="true">⋮</span>.</li><li>Elige <b>Agregar a la pantalla principal</b>.</li></ol>
@@ -249,6 +256,44 @@ async function shrink(file) {
   return H(html, 200, { 'cache-control': ok ? 'no-store' : 'private, max-age=60, stale-while-revalidate=604800', vary: 'Cookie, User-Agent' });
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtLong = d => { const [y, mo, da] = d.split('-').map(Number); return `${da} de ${MONTHS[mo - 1]} de ${y}`; };
+// "Mis datos": the guest adds or changes their email, birthday and answers. The card link is the only credential, so
+// saved values are never shown back (a forwarded link must not reveal an email or a birthday): blank keeps what we
+// have, anything written replaces it. Name and WhatsApp go through the team (the number is how we find them).
+async function datosHtml(env, person, st, ok) {
+  const cat = await catalog(env);
+  const progIds = [...new Set(st.memberships.map(m => m.program_id))];
+  const qs = cat.fields.filter(f => !f.archived && !f.staff_only && (!f.program_id || progIds.includes(f.program_id))).sort((a, b) => a.sort - b.sort || a.id - b.id);
+  const ans = await fieldValues(env, person.id);
+  const have = '<span class="small" style="display:block">Ya lo tenemos. Escribe solo si quieres cambiarlo.</span>';
+  const days = Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+  const months = MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+  return `<details${ok === 'datos' ? ' open' : ''}><summary>Mis datos</summary><div>
+  <form method="post" action="/c/${e(person.card_code)}/datos">
+    <p class="small" style="margin:6px 0 0">Para cambiar tu nombre o tu WhatsApp, escríbenos.</p>
+    <label>Correo${person.email ? have : ' (opcional)'}<input name="email" type="email" autocomplete="email" maxlength="120"></label>
+    <label>Cumpleaños${person.birthday ? have : ' (opcional)'}</label><div class="two"><select name="bday" aria-label="Día"><option value="">Día</option>${days}</select><select name="bmonth" aria-label="Mes"><option value="">Mes</option>${months}</select></div>
+    ${qs.map(f => fieldHtml({ ...f, required: 0, help: ans[f.id] ? 'Ya respondiste. Elige o escribe solo si quieres cambiarlo.' : f.help }, '')).join('')}
+    <button class="btn" type="submit">Guardar mis datos</button></form></div></details>`;
+}
+async function guestData(request, env, person) {
+  if (person.status !== 'active') return see(`/c/${person.card_code}`);
+  const b = await form(request);
+  const next = {};
+  if (String(b.email || '').trim()) { const em = C.normEmail(b.email); if (em) next.email = em; }
+  const bd = parseInt(b.bday, 10), bm = parseInt(b.bmonth, 10);
+  if (bd >= 1 && bd <= 31 && bm >= 1 && bm <= 12) next.birthday = `${String(bm).padStart(2, '0')}-${String(bd).padStart(2, '0')}`;
+  const cat = await catalog(env);
+  const progIds = (await env.DB.prepare("SELECT program_id FROM club_memberships WHERE person_id = ? AND status IN ('active', 'pending')").bind(person.id).all()).results.map(r => r.program_id);
+  const qs = cat.fields.filter(f => !f.archived && !f.staff_only && (!f.program_id || progIds.includes(f.program_id)) && String(b['f_' + f.id] || '').trim());
+  const ans = readFields(qs.map(f => ({ ...f, required: 0 })), b);
+  const keys = Object.keys(next);
+  if (keys.length) await env.DB.prepare(`UPDATE club_people SET ${keys.map(k => k + ' = ?').join(', ')}, updated_at = ? WHERE id = ?`).bind(...keys.map(k => next[k]), Date.now(), person.id).run();
+  const vals = Object.fromEntries(Object.entries(ans.values).filter(([, v]) => v !== ''));
+  await saveFieldValues(env, person.id, vals, 'invitado');
+  if (keys.length || Object.keys(vals).length) await clubAudit(env, 'invitado', 'guest.update', 'person', person.id, { changed: keys, answers: Object.keys(vals).length });
+  return see(`/c/${person.card_code}?ok=datos`);
+}
 const fmtShort = d => { const [y, mo, da] = d.split('-').map(Number); return `${da} de ${MONTHS[mo - 1]}${y !== new Date().getFullYear() ? ' de ' + y : ''}`; };
 
 function stepper(name, value, min, max) {
@@ -317,6 +362,15 @@ async function receipt(request, env, person) {
 async function loadInvite(env, tok) {
   return env.DB.prepare('SELECT i.*, p.name AS program, p.kind AS program_kind, p.is_pro, p.archived AS program_archived FROM club_invites i JOIN club_programs p ON p.id = i.program_id WHERE i.token = ?').bind(tok).first();
 }
+// One sign-up question as a guest-page input. Name f_<id>.
+function fieldHtml(f, val = '') {
+  const n = `f_${f.id}`, req = f.required ? ' required' : '', lab = `${e(f.label)}${f.required ? '' : ' (opcional)'}`;
+  const help = f.help ? `<span class="small" style="display:block">${e(f.help)}</span>` : '';
+  if (f.kind === 'choice') return `<label>${lab}${help}<select name="${n}"${req}><option value="">Elige una opción</option>${String(f.options).split('\n').filter(Boolean).map(o => `<option${o === val ? ' selected' : ''}>${e(o)}</option>`).join('')}</select></label>`;
+  if (f.kind === 'yes_no') return `<label>${lab}${help}<select name="${n}"${req}><option value="">Elige</option><option${val === 'Sí' ? ' selected' : ''}>Sí</option><option${val === 'No' ? ' selected' : ''}>No</option></select></label>`;
+  if (f.kind === 'date') return `<label>${lab}${help}<input type="date" name="${n}" value="${e(val)}"${req}></label>`;
+  return `<label>${lab}${help}<input name="${n}" maxlength="300" value="${e(val)}"${req}></label>`;
+}
 async function signupForm(env, url, tok, vals = null, error = '') {
   const inv = await loadInvite(env, tok);
   const problem = C.inviteProblem(inv);
@@ -324,6 +378,8 @@ async function signupForm(env, url, tok, vals = null, error = '') {
   const v = vals || { name: inv.name, phone: inv.phone ? C.fmtPhone(inv.phone) : '', email: inv.email };
   const days = Array.from({ length: 31 }, (_, i) => i + 1).map(d => `<option${String(v.bday || '') === String(d) ? ' selected' : ''}>${d}</option>`).join('');
   const months = MONTHS.map((mo, i) => `<option value="${i + 1}"${String(v.bmonth || '') === String(i + 1) ? ' selected' : ''}>${mo}</option>`).join('');
+  const qs = C.fieldsFor((await catalog(env)).fields, inv.program_id, { guest: true });
+  const questions = qs.map(f => fieldHtml(f, v['f_' + f.id] ?? '')).join('');
   const pro = inv.is_pro ? `<label>¿A qué te dedicas?<select name="pro_type" required><option value="">Elige una opción</option>${Object.entries(C.PRO_TYPES).map(([k, t]) => `<option value="${k}"${v.pro_type === k ? ' selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
   const body = `<div class="hero"><div class="mark">Dos Búhos<small>Club de beneficios</small></div>
   <h1>${inv.name ? `Hola, ${e(C.firstName(inv.name))}` : 'Te damos la bienvenida'}</h1>
@@ -334,7 +390,7 @@ async function signupForm(env, url, tok, vals = null, error = '') {
   <label>WhatsApp<input name="phone" type="tel" required inputmode="tel" autocomplete="tel" placeholder="415 123 4567" value="${e(v.phone || '')}"></label>
   <label>Correo (opcional)<input name="email" type="email" autocomplete="email" maxlength="120" value="${e(v.email || '')}"></label>
   <label>Cumpleaños (opcional)</label><div class="two"><select name="bday" aria-label="Día"><option value="">Día</option>${days}</select><select name="bmonth" aria-label="Mes"><option value="">Mes</option>${months}</select></div>
-  ${pro}
+  ${pro}${questions}
   <label class="check"><input type="checkbox" name="terms" value="1" required${v.terms ? ' checked' : ''}><span>Acepto los <a href="/c/terminos" target="_blank" rel="noopener">términos del club</a> y que Dos Búhos me escriba por WhatsApp sobre mi tarjeta.</span></label>
   <button class="btn" type="submit">Crear mi tarjeta</button>
   ${inv.requires_approval ? '<p class="small" style="margin:12px 0 0">El equipo revisa esta solicitud antes de activar los beneficios. Tu tarjeta queda lista de inmediato.</p>' : ''}
@@ -354,6 +410,10 @@ async function signup(request, env, url, tok) {
   if (b.email && !email) return signupForm(env, url, tok, vals, 'Revisa tu correo, o déjalo vacío.');
   if (!b.terms) return signupForm(env, url, tok, vals, 'Para crear tu tarjeta acepta los términos del club.');
   if (inv.is_pro && !C.PRO_TYPES[b.pro_type]) return signupForm(env, url, tok, vals, 'Elige a qué te dedicas.');
+  const qs = C.fieldsFor((await catalog(env)).fields, inv.program_id, { guest: true });
+  for (const f of qs) vals['f_' + f.id] = b['f_' + f.id];
+  const ans = readFields(qs, b);
+  if (ans.error) return signupForm(env, url, tok, vals, ans.error);
   const bd = parseInt(b.bday, 10), bm = parseInt(b.bmonth, 10);
   const birthday = bd >= 1 && bd <= 31 && bm >= 1 && bm <= 12 ? `${String(bm).padStart(2, '0')}-${String(bd).padStart(2, '0')}` : '';
   // Count the use first, guarded, so a link with max uses cannot be over-used by two people at once.
@@ -374,6 +434,7 @@ async function signup(request, env, url, tok) {
     VALUES (?, ?, ?, ?, ?, ?, 'invite', ?, 'invitado', ?, ?)`).bind(code, vals.name, phone, email, birthday, inv.is_pro ? b.pro_type : '', now, now, now).run();
   const pid = r.meta.last_row_id;
   await addMembership(env, pid, inv.program_id, { status, source: 'invite', inviteId: inv.id, by: 'invitado' });
+  await saveFieldValues(env, pid, ans.values, 'invitado');
   await clubAudit(env, 'invitado', 'signup', 'person', pid, { invite: inv.id, program: inv.program_id, status });
   return see(`/c/${code}?ok=nuevo`);
 }

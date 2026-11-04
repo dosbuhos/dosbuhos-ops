@@ -20,7 +20,7 @@ function d1(files) {
   });
   return { db, prepare: q => stmt(q), batch: async list => { const out = []; for (const s of list) out.push(await s.run()); return out; } };
 }
-const HUB = ['0001_init.sql', '0004_club.sql'].map(f => new URL('../migrations/' + f, import.meta.url));
+const HUB = ['0001_init.sql', '0004_club.sql', '0005_club_members.sql'].map(f => new URL('../migrations/' + f, import.meta.url));
 const WC_DIR = new URL('../../wineclub/migrations/', import.meta.url);
 const WC = readdirSync(WC_DIR).filter(f => f.endsWith('.sql')).sort().map(f => new URL(f, WC_DIR));
 
@@ -396,4 +396,116 @@ test('an active Círculo subscriber is placed by the higher of 12-month spend an
   await syncWineclub(env);
   assert.equal(id('Nueva Bronce').sub_commitment, 0);
   assert.match((await call(null, 'GET', '/c/' + nb.card_code)).text, /<h2>Nivel 1<\/h2>/);
+});
+
+// ---------- Socios, vigencia, pagos, preguntas (Join It parity) ----------
+test('months add and renew: end-of-month clamps, renewal counts from expiry when still running', () => {
+  assert.equal(C.addMonths('2026-01-31', 1), '2026-02-28');
+  assert.equal(C.addMonths('2026-11-04', 12), '2027-11-04');
+  assert.equal(C.renewTo('2026-12-01', 12, '2026-11-04'), '2027-12-01', 'still running → from its expiry');
+  assert.equal(C.renewTo('2026-10-01', 12, '2026-11-04'), '2027-11-04', 'already expired → from today');
+  assert.equal(C.renewTo('', 0, '2026-11-04'), '', 'no duration → no expiry');
+  assert.deepEqual(C.fieldValue({ kind: 'choice', options: 'A\nB', label: 'X' }, 'C'), ['', 'Elige una opción: X']);
+  assert.deepEqual(C.fieldValue({ kind: 'yes_no', label: 'X' }, 'Sí'), ['Sí', '']);
+  assert.deepEqual(C.fieldValue({ kind: 'text', label: 'X', required: 1 }, ' '), ['', 'Responde: X']);
+});
+
+test('expired membership: benefits stop at the door and on the card, filters find it, renewal with payment brings it back', async () => {
+  const { DB, call } = await setup();
+  const day = C.today();
+  const ana = addPerson(DB, 'Ana López', { phone: '524151112222', programs: ['amigos'] });
+  DB.db.prepare('UPDATE club_memberships SET expires_on = ? WHERE person_id = ?').run(C.addDays(day, -3), ana.id);
+  const d = (await call('staff', 'GET', '/club/api/person/' + ana.id)).json;
+  assert.equal(d.expired.length, 1);
+  assert.ok(!d.programs.some(p => p.id === 'amigos'), 'Amigos y familia no longer applies');
+  assert.ok(!d.benefits.some(b => b.program_id === 'amigos'));
+  const card = (await call(null, 'GET', '/c/' + ana.code)).text;
+  assert.match(card, /venció el/); assert.doesNotMatch(card, /25% en vino para llevar/);
+  const venc = (await call('staff', 'GET', '/club/api/members?estado=vencidos')).json;
+  assert.equal(venc.counts.vencidos, 1); assert.deepEqual(venc.people.map(p => p.id), [ana.id]);
+  // staff can't take money or renew
+  assert.equal((await call('staff', 'POST', `/club/api/person/${ana.id}/payment`, { amount: 500, program_id: 'amigos', extend: true })).status, 403);
+  DB.db.prepare("UPDATE club_programs SET duration_months = 12, fee_mxn = 500 WHERE id = 'amigos'").run();
+  const pay = await call('admin', 'POST', `/club/api/person/${ana.id}/payment`, { amount: 500, method: 'efectivo', program_id: 'amigos', extend: true });
+  assert.equal(pay.status, 200); assert.equal(pay.json.extended_to, C.addMonths(day, 12), 'expired → a year from today');
+  const d2 = (await call('admin', 'GET', '/club/api/person/' + ana.id)).json;
+  assert.equal(d2.expired.length, 0); assert.equal(d2.valid_until, C.addMonths(day, 12));
+  assert.ok(d2.programs.some(p => p.id === 'amigos'));
+  assert.equal(d2.payments.length, 1); assert.equal(d2.payments[0].extended_to, C.addMonths(day, 12));
+  assert.match((await call(null, 'GET', '/c/' + ana.code)).text, /Vigente hasta el/);
+  // a fee is not a purchase: the level doesn't move
+  assert.equal(d2.spend, 0);
+  // void keeps the row
+  assert.equal((await call('admin', 'POST', `/club/api/payment/${d2.payments[0].id}/void`)).status, 200);
+  assert.ok((await call('admin', 'GET', '/club/api/person/' + ana.id)).json.payments[0].voided_at);
+});
+
+test('new members get the program duration; wine club members follow Stripe', async () => {
+  const { DB, call } = await setup();
+  DB.db.prepare("UPDATE club_programs SET duration_months = 6 WHERE id = 'amigos'").run();
+  const r = await call('admin', 'POST', '/club/api/people', { name: 'Beto Ruiz', phone: '415 222 3333', program_id: 'amigos' });
+  assert.equal(r.status, 200);
+  assert.equal(DB.db.prepare('SELECT expires_on FROM club_memberships WHERE person_id = ?').get(r.json.id).expires_on, C.addMonths(C.today(), 6));
+  const none = await call('admin', 'POST', '/club/api/people', { name: 'Caro Díaz', email: 'caro@x.test', program_id: 'amigos', expires_on: '' });
+  assert.equal(DB.db.prepare('SELECT expires_on FROM club_memberships WHERE person_id = ?').get(none.json.id).expires_on, '', 'explicit “sin vencimiento”');
+  const dup = await call('admin', 'POST', '/club/api/people', { name: 'Beto otra vez', phone: '4152223333', program_id: 'amigos' });
+  assert.equal(dup.status, 409); assert.equal(dup.json.id, r.json.id);
+  assert.equal((await call('admin', 'POST', '/club/api/people', { name: 'Sin contacto', program_id: 'amigos' })).status, 400);
+  assert.equal((await call('admin', 'POST', '/club/api/people', { name: 'Nivel', phone: '4159998888', program_id: 'nivel-2' })).status, 400, 'purchase levels are automatic');
+  assert.equal((await call('staff', 'POST', '/club/api/people', { name: 'X', phone: '4159998887', program_id: 'amigos' })).status, 403);
+  const { addMembership } = await import('../src/club-data.js');
+  const p = addPerson(DB, 'Socio Círculo', { phone: '524150001111' });
+  const env2 = { DB };
+  await addMembership(env2, p.id, 'amigos', { source: 'wineclub' });
+  assert.equal(DB.db.prepare('SELECT expires_on FROM club_memberships WHERE person_id = ?').get(p.id).expires_on, '');
+});
+
+test('questions: required ones block sign-up, staff-only ones never reach the guest, answers export', async () => {
+  const { DB, call } = await setup();
+  const q1 = (await call('admin', 'POST', '/club/api/fields', { label: '¿Cómo nos conociste?', kind: 'choice', options: 'Instagram\nUn amigo\nHotel', required: true, program_id: 'amigos' })).json.id;
+  const q2 = (await call('admin', 'POST', '/club/api/fields', { label: 'Recomendado por', kind: 'text', staff_only: true })).json.id;
+  assert.equal((await call('admin', 'POST', '/club/api/fields', { label: 'Mala', kind: 'choice', options: 'Solo una' })).status, 400);
+  assert.equal((await call('staff', 'POST', '/club/api/fields', { label: 'X' })).status, 403);
+  const inv = (await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'link', label: 'Prueba' })).json.invite;
+  const tok = inv.url.split('/c/i/')[1];
+  const pageHtml = (await call(null, 'GET', '/c/i/' + tok)).text;
+  assert.match(pageHtml, /Cómo nos conociste/); assert.doesNotMatch(pageHtml, /Recomendado por/);
+  const base = { name: 'Dana Pérez', phone: '4153334444', terms: '1' };
+  const bad = await call(null, 'POST', '/c/i/' + tok, form(base));
+  assert.equal(bad.status, 400); assert.match(bad.text, /Elige una opción|Responde/);
+  const ok = await call(null, 'POST', '/c/i/' + tok, form({ ...base, ['f_' + q1]: 'Hotel' }));
+  assert.equal(ok.status, 303);
+  const pid = DB.db.prepare("SELECT id FROM club_people WHERE phone = '524153334444'").get().id;
+  assert.equal(DB.db.prepare('SELECT value FROM club_field_values WHERE person_id = ? AND field_id = ?').get(pid, q1).value, 'Hotel');
+  assert.equal((await call('admin', 'PUT', `/club/api/person/${pid}/fields`, { values: { [q2]: 'Rosewood' } })).status, 200);
+  const csv = await call('admin', 'GET', '/club/api/members.csv');
+  assert.equal(csv.status, 200); assert.match(csv.headers.get('content-type'), /text\/csv/);
+  assert.match(csv.text, /Cómo nos conociste/); assert.match(csv.text, /Dana Pérez/); assert.match(csv.text, /Rosewood/);
+  const code = DB.db.prepare('SELECT card_code FROM club_people WHERE id = ?').get(pid).card_code;
+  assert.ok(!csv.text.includes(code), 'card links (credentials) are never exported');
+  assert.equal((await call('staff', 'GET', '/club/api/members.csv')).status, 403);
+  // the guest card never shows answers or contact details; "Mis datos" only adds or replaces
+  const card = (await call(null, 'GET', '/c/' + code)).text;
+  assert.doesNotMatch(card, /Rosewood|Recomendado por|4153334444|415 333|<option selected>Hotel/);
+  assert.match(card, /Mis datos/);
+  assert.equal((await call(null, 'POST', `/c/${code}/datos`, form({ email: 'dana@x.test', bday: '9', bmonth: '3', ['f_' + q1]: '' }))).status, 303);
+  const row = DB.db.prepare('SELECT email, birthday FROM club_people WHERE id = ?').get(pid);
+  assert.deepEqual({ ...row }, { email: 'dana@x.test', birthday: '03-09' });
+  assert.equal(DB.db.prepare('SELECT value FROM club_field_values WHERE person_id = ? AND field_id = ?').get(pid, q1).value, 'Hotel', 'blank keeps the answer');
+  assert.doesNotMatch((await call(null, 'GET', '/c/' + code)).text, /dana@x\.test/);
+});
+
+test('Socios: counts, search, sort and paging', async () => {
+  const { DB, call } = await setup();
+  for (let i = 0; i < 55; i++) addPerson(DB, `Persona ${String(i).padStart(2, '0')}`, { phone: '52415000' + String(1000 + i), programs: ['amigos'] });
+  const blocked = addPerson(DB, 'Zeta Bloqueada', { phone: '524159990000', programs: ['amigos'] });
+  DB.db.prepare("UPDATE club_people SET status = 'blocked' WHERE id = ?").run(blocked.id);
+  const r = (await call('staff', 'GET', '/club/api/members?orden=nombre')).json;
+  assert.equal(r.total, 56); assert.equal(r.people.length, 50); assert.equal(r.next, 50);
+  assert.equal(r.people[0].name, 'Persona 00'); assert.equal(r.counts.bloqueados, 1);
+  const more = (await call('staff', 'GET', '/club/api/members?orden=nombre&desde=50')).json;
+  assert.equal(more.people.length, 6); assert.equal(more.next, null);
+  assert.deepEqual((await call('staff', 'GET', '/club/api/members?q=1042')).json.people.map(p => p.name), ['Persona 42']);
+  assert.deepEqual((await call('staff', 'GET', '/club/api/members?estado=bloqueados')).json.people.map(p => p.name), ['Zeta Bloqueada']);
+  assert.equal((await call('staff', 'GET', '/club/api/members?programa=empleados')).json.total, 0);
 });
