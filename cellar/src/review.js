@@ -13,7 +13,9 @@ async function callClaude(env, prompt, max) {
   if (!r.ok) throw Object.assign(new Error('Claude ' + r.status + ': ' + (await r.text()).slice(0, 200)), { status: 502 });
   const j = await r.json(), text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   const a = text.indexOf('{'), b = text.lastIndexOf('}');
-  try { return JSON.parse(text.slice(a, b + 1)); } catch (e) { throw Object.assign(new Error('Claude: respuesta no es JSON (' + (j.stop_reason || '') + ')'), { status: 502 }); }
+  try { return JSON.parse(text.slice(a, b + 1)); } catch (e) {
+    try { await env.DB.prepare("INSERT OR REPLACE INTO docs (coll, id, data, updated_at) VALUES ('lotreview_err', 'last', ?, ?)").bind(JSON.stringify({ at: new Date().toISOString(), stop: j.stop_reason, usage: j.usage, types: (j.content || []).map(c => c.type), text: text.slice(0, 30000) }), Date.now()).run(); } catch (e2) {}
+    throw Object.assign(new Error('Claude: respuesta no es JSON (' + (j.stop_reason || '') + ')'), { status: 502 }); }
 }
 
 function rowsForLot(lot, rows) {
@@ -55,7 +57,7 @@ Return JSON:
  "ubi":"new location text, only if the rows prove the current one is wrong (vessel or liters changed); else empty",
  "suggest":[{"field":"<path.<i>.n | path.<i>.d | pathQs.<i>.a | bottling.<rowId>.<q|date|vessel|hold|holdNote|so2.v|so2.p|protein.p|pad.p|sterile.p> | none>","issue":"one sentence","value":"replacement text or empty"}]}
 Rules: never invent numbers or events; cite dates as d/m; English; keep every string short; at most 4 suggestions; only suggest where a row shows something changed or a decision depends on a stale (>14 days) reading.`;
-  const out = await callClaude(env, prompt, 2500);
+  const out = await callClaude(env, prompt, 8000);
   // Apply facts with evidence.
   const applied = [], upd = {};
   if (path && Array.isArray(out.pathDone)) {
