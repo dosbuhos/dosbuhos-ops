@@ -1219,6 +1219,11 @@ body { background-image: none !important; font-family: var(--f-body); }
 
 .xe-st.cx { background: #e3e5e7; color: #5a6168; text-decoration: none; }
 .tile .dry { font-size: .5em; font-weight: 600; margin-left: 6px; letter-spacing: 0; } .tile .dry.y { color: #1f5e2a; } .tile .dry.n { color: #8a6d00; }
+.lr-box { background: #fffaf0; border: 1px solid #e3d7b0; border-radius: 10px; padding: 10px 12px; }
+.lr-box h3 small { font-weight: 400; color: #66707a; font-size: 12px; margin-left: 6px; }
+.lr-status { margin: 4px 0 8px; font-weight: 600; } .lr-k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #66707a; margin-top: 8px; }
+.lr-next, .lr-ap, .lr-sg { margin: 4px 0 0; padding-left: 20px; } .lr-next li, .lr-ap li, .lr-sg li { margin: 3px 0; line-height: 1.4; }
+.lr-sg i { color: #5a3a12; } .lr-a { display: inline-flex; gap: 8px; margin-left: 6px; } .lnk { background: none; border: 0; color: #2f6690; text-decoration: underline; cursor: pointer; padding: 0; font: inherit; font-size: 13px; }
 /* Embotellado → Ruta a botella */
 .bp-tabs { display: flex; gap: 6px; margin: 4px 0 12px; }
 .bp-tabs button { border: 1px solid var(--rule, #d6dade); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 600; cursor: pointer; }
@@ -4267,6 +4272,66 @@ Return ONLY JSON with this shape:
     return h + `</tr>`;
   }
 
+  // ---------- Claude keeps each wine current (src/review.js, 12:00 · 16:00 · 19:00) ----------
+  S.lrev = {};
+  const lrWhen = iso => iso ? new Date(iso).toLocaleString("es-MX", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  function lrBox(l) {
+    const r = S.lrev[l.id], can = !!(S.db && S.canWrite !== false && !S.isCrew);
+    let h = `<section class="d-sec lr-box"><h3>Al día <small>Claude revisa a las 12:00, 16:00 y 19:00${r ? " · última: " + esc(lrWhen(r.at)) : ""}</small>${can ? ` <button type="button" class="btn sm" data-lrrun="${esc(l.id)}">Revisar ahora</button>` : ""}</h3>`;
+    if (!r) return h + `<p class="d-note">Todavía no hay revisión para este vino.</p></section>`;
+    if (r.status) h += `<p class="lr-status">${esc(r.status)}</p>`;
+    if (r.next && r.next.length) h += `<div class="lr-k">Siguiente</div><ol class="lr-next">${r.next.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`;
+    const ap = (r.applied || []).map((a, k) => ({ a, k })).filter(o => !o.a.undone);
+    if (ap.length) h += `<div class="lr-k">Claude actualizó</div><ul class="lr-ap">${ap.map(({ a, k }) => `<li>${a.kind === "path" ? `Etapa <b>${esc(a.t || "#" + (a.i + 1))}</b> → hecha${a.now.d ? " " + esc(shortDate(a.now.d)) : ""} <small>(${esc(a.row || "")}${a.why ? ": " + esc(a.why) : ""})</small>` : `Ubicación: <s>${esc(a.prev || "—")}</s> → <b>${esc(a.now)}</b>`}${can ? ` <button type="button" class="lnk" data-lrundo="${esc(l.id)}" data-k="${k}">Deshacer</button>` : ""}</li>`).join("")}</ul>`;
+    const sg = (r.suggest || []).map((s, k) => ({ s, k })).filter(o => !o.s.done);
+    if (sg.length) h += `<div class="lr-k">Sugerencias</div><ul class="lr-sg">${sg.map(({ s, k }) => `<li>${esc(s.issue)}${s.value ? `<br><i>${esc(lrFieldLabel(s.field))} → ${esc(s.value)}</i>` : ""}${can ? ` <span class="lr-a">${s.value && s.field !== "none" ? `<button type="button" class="btn sm" data-lrapply="${esc(l.id)}" data-k="${k}">Aplicar</button>` : ""}<button type="button" class="lnk" data-lrdismiss="${esc(l.id)}" data-k="${k}">Descartar</button></span>` : ""}</li>`).join("")}</ul>`;
+    return h + `</section>`;
+  }
+  function lrFieldLabel(f) {
+    const m = String(f || "").split(".");
+    if (m[0] === "path") return "Etapa " + (+m[1] + 1) + (m[2] === "d" ? " · fecha" : " · nota");
+    if (m[0] === "pathQs") return "Pregunta " + (+m[1] + 1);
+    if (m[0] === "bottling") return "Embotellado · " + m.slice(2).join(".");
+    if (m[0] === "ubi") return "Ubicación";
+    return f;
+  }
+  async function lrApply(lotId, k) {
+    const r = S.lrev[lotId], s = r && r.suggest && r.suggest[k], l = S.lots.find(x => x.id === lotId); if (!s || !l) return;
+    const m = s.field.split("."), v = s.value;
+    try {
+      if (m[0] === "path" && Array.isArray(l.path) && l.path[+m[1]]) { const p = l.path.map(x => Object.assign({}, x)); p[+m[1]][m[2] === "d" ? (/^\d{4}-\d{2}-\d{2}$/.test(v) ? "d" : "dt") : "n"] = v; await S.db.collection("lots").doc(lotId).update({ path: p }); }
+      else if (m[0] === "pathQs" && (l.pathQs || [])[+m[1]]) { const q = l.pathQs.map(x => Object.assign({}, x)); q[+m[1]].a = v; q[+m[1]].at = new Date().toISOString(); await S.db.collection("lots").doc(lotId).update({ pathQs: q }); }
+      else if (m[0] === "ubi") await S.db.collection("lots").doc(lotId).update({ ubi: v });
+      else if (m[0] === "bottling") { const b = S.bplan.find(x => x.id === m[1]); if (!b) throw new Error("Fila de embotellado no encontrada"); const upd = {}; if (m[3]) { upd[m[2]] = Object.assign({}, b[m[2]] || {}); upd[m[2]][m[3]] = v; } else upd[m[2]] = v; await S.db.collection("bottling").doc(m[1]).update(upd); }
+      else throw new Error("No sé dónde va esto");
+      await lrMark(lotId, "suggest", k, { done: true, by: S.me || "" }); toast("Aplicado");
+    } catch (e) { writeFailed(e); }
+  }
+  async function lrMark(lotId, list, k, patch) {
+    const r = S.lrev[lotId]; if (!r) return;
+    const arr = (r[list] || []).map((x, i) => i === k ? Object.assign({}, x, patch) : x);
+    await S.db.collection("lotreview").doc(lotId).update({ [list]: arr });
+  }
+  async function lrUndo(lotId, k) {
+    const r = S.lrev[lotId], a = r && r.applied && r.applied[k], l = S.lots.find(x => x.id === lotId); if (!a || !l) return;
+    try {
+      if (a.kind === "path" && Array.isArray(l.path) && l.path[a.i]) { const p = l.path.map(x => Object.assign({}, x)); p[a.i].st = a.prev.st; p[a.i].d = a.prev.d; await S.db.collection("lots").doc(lotId).update({ path: p }); }
+      if (a.kind === "ubi") await S.db.collection("lots").doc(lotId).update({ ubi: a.prev });
+      await lrMark(lotId, "applied", k, { undone: true }); toast("Deshecho");
+    } catch (e) { writeFailed(e); }
+  }
+  document.addEventListener("click", async e => {
+    const a = e.target.closest("[data-lrapply]"); if (a) { lrApply(a.dataset.lrapply, +a.dataset.k); return; }
+    const u = e.target.closest("[data-lrundo]"); if (u) { lrUndo(u.dataset.lrundo, +u.dataset.k); return; }
+    const d = e.target.closest("[data-lrdismiss]"); if (d) { try { await lrMark(d.dataset.lrdismiss, "suggest", +d.dataset.k, { done: true, dismissed: true }); } catch (err) { writeFailed(err); } return; }
+    const run = e.target.closest("[data-lrrun]"); if (run) {
+      run.disabled = true; run.textContent = "Revisando… (~30 s)";
+      try { const r = await fetch("/api/review/lot?id=" + encodeURIComponent(run.dataset.lrrun), { method: "POST" }); const j = await r.json(); if (!r.ok) throw new Error(j.message || r.status); toast("Revisado"); }
+      catch (err) { toast("No se pudo revisar: " + (err.message || err)); }
+      run.disabled = false; run.textContent = "Revisar ahora";
+    }
+  });
+
   // ---------- Embotellado → Ruta a botella: the bottling decision grid, live ----------
   // Plan per wine lives in coll "bottling" (Eric/Diane edit it); "Ahora" is read live from each linked lot's Excellovint rows;
   // Claude reviews the plan against the latest rows 3×/day (coll "bottling_review", doc "latest") and leaves suggestions.
@@ -4297,9 +4362,10 @@ Return ONLY JSON with this shape:
     const can = !!(S.canWrite !== false && S.db && !S.isCrew);
     let h = `<div class="bp-tabs" role="tablist"><button type="button" data-bpm="path" aria-selected="${S.bmode === "path"}">Ruta a botella</button><button type="button" data-bpm="done" aria-selected="${S.bmode === "done"}">Embotellados</button></div>`;
     if (S.bmode === "done") { box.innerHTML = h + `<div id="bottleDone"></div>`; window.dispatchEvent(new CustomEvent("cellar:bottling", { detail: { lots: S.lots } })); return; }
-    const rv = S.breview, flags = (rv && rv.flags) || [];
-    h += `<div class="bp-rev"><div class="bp-rev-h"><b>Revisión de Claude</b> <small>${rv && rv.at ? "última: " + esc(new Date(rv.at).toLocaleString("es-MX", { weekday: "short", hour: "2-digit", minute: "2-digit" })) : "todavía no corre"} · corre a las 12:00, 16:00 y 19:00</small>${can ? ` <button type="button" class="btn sm" data-bprev>Revisar ahora</button>` : ""}</div>` +
-      (rv && rv.summary && rv.summary.length ? `<ul>${rv.summary.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "") + `</div>`;
+    const run = S.lrev._run;
+    const flags = [];
+    for (const [lid, r] of Object.entries(S.lrev)) (r.suggest || []).forEach((sg, k) => { const m = String(sg.field || "").split("."); if (m[0] === "bottling" && !sg.done) flags.push({ id: m[1], field: m.slice(2).join("."), issue: sg.issue, suggest: sg.value, lot: lid, k }); });
+    h += `<div class="bp-rev"><div class="bp-rev-h"><b>Al día</b> <small>Claude revisa cada vino a las 12:00, 16:00 y 19:00${run ? " · última: " + esc(lrWhen(run.at)) : ""}. Sus sugerencias para esta tabla aparecen en Pendientes.</small></div></div>`;
     const rows = S.bplan.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
     if (!rows.length) { box.innerHTML = h + `<div class="cr-empty">Todavía no hay plan de embotellado.</div>`; return; }
     h += `<div class="bp-wrap"><table class="bp-tbl"><thead><tr><th>Vino · fecha</th><th>Ahora <small>en vivo</small></th><th>Proteína</th><th>Placas</th><th>Estéril</th><th>SO₂ mantener</th><th>SO₂ al embotellar</th><th>Pendientes</th></tr></thead><tbody>`;
@@ -4312,7 +4378,7 @@ Return ONLY JSON with this shape:
           `<td class="bp-now">${bpNow(r)}</td><td>${bpCell(r.protein)}</td><td>${bpCell(r.pad)}</td><td>${bpCell(r.sterile)}</td>` +
           `<td><span class="bp-so">${esc(r.hold || "—")}</span>${r.holdNote ? `<p>${esc(r.holdNote)}</p>` : ""}</td>` +
           `<td><span class="bp-so">${esc(bpGet(r, "so2.v") || "—")}</span>${bpGet(r, "so2.hd") ? `<span class="bp-hd">${esc(r.so2.hd)}</span>` : ""}${bpGet(r, "so2.p") ? `<p>${esc(r.so2.p)}</p>` : ""}</td>` +
-          `<td class="bp-q">${esc(r.q || "")}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><i>${esc(f.field || "")} → ${esc(f.suggest)}</i>${can && f.field ? ` <button type="button" class="btn sm" data-bpapply="${esc(r.id)}" data-f="${esc(f.field)}" data-s="${esc(f.suggest)}">Aplicar</button>` : ""}` : ""}</div>`).join("")}</td></tr>`;
+          `<td class="bp-q">${esc(r.q || "")}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><i>${esc(f.field || "")} → ${esc(f.suggest)}</i>${can ? ` <button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Aplicar</button>` : ""}` : ""}</div>`).join("")}</td></tr>`;
       }
     }
     h += `</tbody></table></div><p class="bp-foot">Proteína según las pruebas filtradas (serie de bentonita 30/10–2/11); las pruebas de calor del 20/10 sin filtrar leen de más y no cuentan. Molecular = libre ÷ (1 + 10^(pH − 1.81)). Gramos KMBS = (meta − libre) × L ÷ 576.</p>`;
@@ -4350,7 +4416,6 @@ Return ONLY JSON with this shape:
     const m = e.target.closest("[data-bpm]"); if (m) { S.bmode = m.dataset.bpm; store("bmode", S.bmode); renderBottlePath(); return; }
     const ed = e.target.closest("[data-bped]"); if (ed) { bpEdit(ed.dataset.bped); return; }
     const ap = e.target.closest("[data-bpapply]"); if (ap) { bpApply(ap.dataset.bpapply, ap.dataset.f, ap.dataset.s); return; }
-    const rv = e.target.closest("[data-bprev]"); if (rv) { rv.disabled = true; rv.textContent = "Revisando… (1–2 min)"; try { const r = await fetch("/api/bottling/review", { method: "POST" }); const j = await r.json(); if (!r.ok) throw new Error(j.message || r.status); toast("Revisión lista"); } catch (err) { toast("No se pudo revisar: " + (err.message || err)); } rv.disabled = false; rv.textContent = "Revisar ahora"; }
   });
 
   function renderWines() {
@@ -4682,6 +4747,7 @@ Return ONLY JSON with this shape:
       `<div class="lot-labs" data-lotlabs="${esc(l.id)}" data-tabs="${esc(tabs.join("|"))}"></div></section>`;
 
     // path to bottle
+    h += lrBox(l);
     h += pathSection(l, s);
 
     // tasks
@@ -5633,7 +5699,7 @@ Return ONLY JSON with this shape:
     db.collection("woqueue").onSnapshot(s => { S.woQueue = s.docs.map(d => Object.assign({ id: d.id }, d.data())); if (isAsgView()) render(); drainQueue(); }, () => {});
     db.collection("audit").onSnapshot(s => { S.audit = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotAudit = true; renderAudBadge(); if (S.view === "audit") renderAudit(); }, onErr);
     db.collection("bottling").onSnapshot(s => { S.bplan = s.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.wmode === "bottled" && S.view === "wines") render(); }, () => {});
-    db.collection("bottling_review").onSnapshot(s => { const d = s.docs.find(x => x.id === "latest"); S.breview = d ? d.data() : null; if (S.wmode === "bottled" && S.view === "wines") render(); }, () => {});
+    db.collection("lotreview").onSnapshot(s => { S.lrev = {}; s.docs.forEach(d => { S.lrev[d.id] = d.data(); }); if (S.open) renderDrawer(); if (S.wmode === "bottled" && S.view === "wines") render(); }, () => {});
     db.collection("trials").onSnapshot(s => { S.trials = s.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.view === "blends") renderBlends(); }, onErr);
     db.collection("tasks").onSnapshot(s => { S.tasks = s.docs.map(d => Object.assign({ id: d.id }, d.data())); S.gotTasks = true; render(); reconcile(); }, onErr);
     db.collection("settings").onSnapshot(s => {

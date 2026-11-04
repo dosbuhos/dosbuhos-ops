@@ -11,7 +11,7 @@ import { entriesRoute } from './entries.js';
 import { movesRoute } from './moves.js';
 import { VERSION_LABEL, APP_NAME, APP_SHORT } from './version.js';
 import { crewSheetsGuard, staffName, staffTags } from './guard.js';
-import { reviewBottling } from './bottling.js';
+import { reviewAll, reviewOne } from './review.js';
 
 const J = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, headers) });
 const COLL = /^[a-z][a-z0-9_-]{0,40}$/i;
@@ -20,8 +20,8 @@ const ID = /^[\w.\-]{1,120}$/;
 export default {
   // Every 5 minutes: copy whatever changed in Excellovint into the app's records.
   async scheduled(event, env, ctx) {
-    // 18:00 / 22:00 / 01:00 UTC = 12:00, 16:00, 19:00 in San Miguel (UTC−6): Claude reviews the bottling plan.
-    if (event.cron && event.cron !== '*/5 * * * *') { ctx.waitUntil(reviewBottling(env, 'cron').catch(e => console.log('bottling review failed', e && e.message))); return; }
+    // 18:00 / 22:00 / 01:00 UTC = 12:00, 16:00, 19:00 in San Miguel (UTC−6): Claude reviews every active wine (src/review.js).
+    if (event.cron && event.cron !== '*/5 * * * *') { ctx.waitUntil(reviewAll(env).catch(e => console.log('review failed', e && e.message))); return; }
     if (env.GOOGLE_SA_JSON) { ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); ctx.waitUntil(pullPurchases(env).catch(e => console.log('compras pull failed', e && e.message))); } },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
@@ -96,10 +96,9 @@ export default {
         try { const b = await request.json(); return J(p === '/api/inv/mov' ? await addMovement(env, b, initials) : await saveItem(env, b)); }
         catch (e) { return J({ message: String(e && e.message || e) }, 400); }
       }
-      if (p === '/api/bottling/review' && request.method === 'POST') {
+      if (p === '/api/review/lot' && request.method === 'POST') {
         if (crew || !canWrite) return J({ message: 'Solo Eric o Diane.' }, 403);
-        // Takes 1–2 min. Kept in the request (waitUntil would cut it at 30 s); the page waits for it.
-        try { return J(await reviewBottling(env, initials)); } catch (e) { return J({ message: String(e.message || e) }, e.status || 500); }
+        try { return J(await reviewOne(env, url.searchParams.get('id') || '', initials)); } catch (e) { return J({ message: String(e.message || e) }, e.status || 500); }
       }
       if (p === '/api/chats') {
         const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' ORDER BY updated_at DESC LIMIT 600").all();
