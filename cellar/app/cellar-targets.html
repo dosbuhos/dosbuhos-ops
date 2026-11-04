@@ -1573,6 +1573,7 @@ var SheetParse = (function () {
     const hist = { ph: [], at: [], am: [], sl: [], st: [], aa: [], alc: [], rs: [], heat: [], lac: [] };
     const adds = [], racks = [], sugar = [];
     let lastLab = "", vessel = "", vol = null, volDate = "", afEnd = "", noMlf = "";
+    let bent = null;
     const log = [];
     for (const r of list) {
       const lab = LAB_WHO.test((r.a || "") + " " + (r.i || "")) || LAB_NOTE.test(r.n || "");
@@ -1590,6 +1591,14 @@ var SheetParse = (function () {
         if ((m = r.n.match(/\bRS\s*[=:]\s*(\d+(?:[.,]\d+)?)/i))) { hist.rs.push({ d: r.d, v: num(m[1]), raw: m[1].replace(",", "."), lab }); measured = true; }
         if ((m = r.n.match(/L[AÁ]CTIC[OA]?(?:\s+ACID)?\s*[=:]?\s*(\d+(?:[.,]\d+)?)/i))) { hist.lac.push({ d: r.d, v: num(m[1]), raw: m[1].replace(",", "."), lab }); measured = true; }
         if ((m = r.n.match(/PROT[IÍ]DOS\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*NTU/i) || r.n.match(/HEAT[^0-9]{0,24}(\d+(?:[.,]\d+)?)\s*NTU/i))) { hist.heat.push({ d: r.d, v: num(m[1]), raw: m[1].replace(",", "."), lab }); measured = true; }
+        // Bentonite series (filtered AWRI method): the 0 g/hL jar is the real heat test. Control and heated reads can sit
+        // in one row ("SIN CALOR: 0.0=8.49 … CON CALOR: 0.0=11.88") or in two rows on the same day.
+        { const sin = r.n.match(/SIN\s+CALOR[^=]*?=?\s*(?:[A-Z]{2,4}\s+)?0(?:[.,]0)?\s*=\s*(\d+(?:[.,]\d+)?)/i), con = r.n.match(/CON\s+CALOR[^=]*?=?\s*(?:[A-Z]{2,4}\s+)?0(?:[.,]0)?\s*=\s*(\d+(?:[.,]\d+)?)/i);
+          if (sin || con) {
+            if (!bent || bent.d !== r.d) bent = { d: r.d };
+            if (sin) bent.c = num(sin[1]); if (con) bent.h = num(con[1]);
+            if (bent.c != null && bent.h != null && !bent.done) { const dv = Math.max(0, Math.round((bent.h - bent.c) * 100) / 100); hist.heat.push({ d: r.d, v: dv, raw: String(dv), lab: false, filt: true, c: bent.c, h: bent.h }); bent.done = true; measured = true; }
+          } }
         if (isRack(r)) racks.push({ d: r.d, u: r.u || "", n: r.n });
         const sg = sugarRead(r, lab);
         if (sg) { sugar.push(sg); measured = true; }
@@ -4306,7 +4315,7 @@ Return ONLY JSON with this shape:
     const trend = prev ? ` · was ${esc(prev.raw)} on ${esc(shortDate(prev.d))}` : "";
     return `<div class="tile ${cls}"><span class="tl">${esc(LABEL[key])}</span>` +
       `<span class="${vc.join(" ")}">${esc(p.raw)}${unit ? `<span class="u">${esc(unit)}</span>` : ""}</span>` +
-      (key === "heat" ? `<small class="heat-v ${p.v > 2 ? "no" : "ok"}">${p.v > 2 ? "Fails: heated sample got hazier than control (Δ > 2)" : "Passes: Δ = heated − control turbidity, ≤ 2 is stable"}</small>` : "") +
+      (key === "heat" ? `<small class="heat-v ${p.v > 2 ? "no" : "ok"}">${p.v > 2 ? "Fails: heated sample got hazier than control (Δ > 2)" : "Passes: Δ = heated − control turbidity, ≤ 2 is stable"}</small>${p.filt ? `<small>Filtered method, bentonite series 0 g/hL jar: control ${p.c}, heated ${p.h} NTU</small>` : ""}` : "") +
       `<small>${esc(shortDate(p.d))} · ${p.lab ? "outside lab" : "in-house"}${trend}</small>` +
       (extra || "") + spark(h) + `</div>`;
   }
