@@ -98,9 +98,8 @@ export default {
       }
       if (p === '/api/bottling/review' && request.method === 'POST') {
         if (crew || !canWrite) return J({ message: 'Solo Eric o Diane.' }, 403);
-        // Takes 1–2 min: run it after the response; the page updates when bottling_review/latest changes.
-        ctx.waitUntil(reviewBottling(env, initials).catch(e => console.log('bottling review failed', e && e.message)));
-        return J({ ok: true, started: true });
+        // Takes 1–2 min. Kept in the request (waitUntil would cut it at 30 s); the page waits for it.
+        try { return J(await reviewBottling(env, initials)); } catch (e) { return J({ message: String(e.message || e) }, e.status || 500); }
       }
       if (p === '/api/chats') {
         const { results } = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'chatlog' ORDER BY updated_at DESC LIMIT 600").all();
