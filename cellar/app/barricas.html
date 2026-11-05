@@ -504,7 +504,7 @@ function drawBarrel(svg,id,cx,cy,r){const v=view(id);
   // inside, under the number: the last free SO₂ (ppm) on full barrels; the position on empty ones
   if(v.st!=='none')el('text',{class:'pos'+(bs&&!bs.empty?' so':''),x:cx,y:cy+14,fill:ink},g).textContent=bs&&!bs.empty?(bs.so?bs.so.raw:'—'):CODE(id);
   const wl=v.st==='none'?(POS[id].b&&POS[id].b.added?'lugar libre':'sin barrica'):v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
-  const one=t=>{t=short(t).replace(/\s*\(.*?\)\s*/g,' ').trim();return t.length>15?t.slice(0,14).trim()+'…':t},wls=[one(wl)];wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
+  const one=t=>{t=short(t).replace(/\s*\(.*?\)\s*/g,' ').replace(/^20(\d\d) /,"'$1 ").replace(/^([^'].*?) (2\d)$/,"'$2 $1").trim();return t.length>16?t.slice(0,15).trim()+'…':t},wls=[one(wl)];wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
   if(alert){el('text',{class:'late '+alert,x:cx,y:cy+r+19.5},g).textContent=(bs.empty?'mant. ':'rellenar ')+(bs.late==null?'?':'+'+bs.late+' d')}
   if(false){const t=el('text',{class:'sol '+(bs.empty?'mnt '+bs.jcls:bs.so?bs.so.cls:'none'),x:cx,y:cy+r+10+wls.length*9.5},g);
     t.textContent=bs.empty?(bs.jd?'mant. '+fd(bs.jd).replace(/ \d\d$/,''):'sin mant.'):bs.so?'SO₂ '+bs.so.raw:'SO₂ ?'}
@@ -753,19 +753,22 @@ const unpad=n=>String(n==null?'':n).replace(/\D/g,'').replace(/^0+(?=\d)/,'');
 function pad(n){n=String(n).replace(/\D/g,'');return n?n.padStart(3,'0'):''}
 const GC={white:['#d9e3a1','#2b3330'],orange:['#f2b766','#2b3330'],rose:['#efb3c0','#2b3330'],red:['#7a1f2b','#ffffff'],sparkling:['#a9c9d4','#2b3330']};
 const lotById=id=>A.lots.find(l=>l.id===id);
-const lotName=id=>{const l=lotById(id);return l?l.name:(id||'')};
+function vintLabel(l){if(!l)return '';const raw=String(l.name||'');if(l.vintage===0||/oporto|port|vermut|solera/i.test(raw)&&!l.vintage)return raw;
+  const y=vintOf(l)||+((raw.match(/\b(20\d\d)\b/)||[])[1])||(+((raw.match(/\s(2\d)$/)||[])[1])?2000+ +raw.match(/\s(2\d)$/)[1]:0)||2026;
+  const name=raw.replace(/\b20\d\d\b/g,'').replace(/\s2\d$/,'').replace(/\s{2,}/g,' ').trim();return y+' '+name}
+const lotName=id=>{const l=lotById(id);return l?vintLabel(l):(id||'')};
 function vintOf(l){if(!l)return null;if(l.vintage)return +l.vintage;const s=(l.code||'')+' '+(l.name||'');let m=s.match(/\b20(2\d)\b/);if(m)return 2000+ +m[1];m=(l.code||'').match(/(?:^|[\s\-\/])[A-Z]{2,}(2\d)\b/);if(m)return 2000+ +m[1];return null}
 const needsConfirm=b=>b.status==='confirm'&&!b.confirmed;
 const stateOf=b=>needsConfirm(b)?'confirm':(b.lot||(b.fill&&b.fill!=='empty')?'full':'empty');
 const PAPER_USE=[[/^(L\d+-)?(CFRO|RO|ROS|RF|RT)/i,'rose'],[/^(L\d+-)?(AN|OR|NAR|AC)/i,'orange'],[/^(L\d+-)?(SB|CB|CH|CN|SE|MG|BL)/i,'white']];
 function useOf(b){if(b.use)return b.use;const l=lotById(b.lot);if(l&&USE[l.group])return l.group;const p=(b.paper&&b.paper.last)||'';for(const [re,u] of PAPER_USE)if(re.test(p))return u;return p?'red':''}
 // ---- conf per position, rebuilt from the collections
-function confOfBarrel(b){const st=stateOf(b),l=lotById(b.lot);return {num:pad(b.code),code:unpad(b.code),lot:b.lot||'',wine:l?l.name:(b.lot||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:st==='empty',here:true,confirm:st==='confirm',reg:true}}
+function confOfBarrel(b){const st=stateOf(b),l=lotById(b.lot);return {num:pad(b.code),code:unpad(b.code),lot:b.lot||'',wine:l?vintLabel(l):(b.lot||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:st==='empty',here:true,confirm:st==='confirm',reg:true}}
 function confOfPos(d){const l=lotById(d.lot);if(d.free)return {num:'',wine:'',empty:true,here:false,posDoc:true};
-  if(/^AN-0\d$/.test(d.id||''))return {num:d.id,code:d.id,lot:d.lot||'',wine:l?l.name:(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:true,vol:d.vol||'',notes:d.notes||'',amph:true,posDoc:true};
-  return {num:d.num?pad(d.num):'',code:unpad(d.num),lot:d.lot||'',wine:l?l.name:(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:d.here!==false,posDoc:true}}
+  if(/^AN-0\d$/.test(d.id||''))return {num:d.id,code:d.id,lot:d.lot||'',wine:l?vintLabel(l):(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:true,vol:d.vol||'',notes:d.notes||'',amph:true,posDoc:true};
+  return {num:d.num?pad(d.num):'',code:unpad(d.num),lot:d.lot||'',wine:l?vintLabel(l):(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:d.here!==false,posDoc:true}}
 function rebuild(){for(const k in WINES)if(k.startsWith('L:'))delete WINES[k];
-  for(const l of A.lots){const g=GC[l.group]||GC.red;WINES['L:'+l.id]=[l.name,g[0],g[1]]}
+  for(const l of A.lots){const g=GC[l.group]||GC.red;WINES['L:'+l.id]=[vintLabel(l),g[0],g[1]]}
   for(const id in A.pos)if(id.startsWith('order-')&&Array.isArray(A.pos[id].ids))applyOrder(id.slice(6),A.pos[id].ids);
   numberAisles();rebuildRev();const conf={};
   for(const id in A.pos){const cd=REV[id];if(cd)conf[cd]=confOfPos(A.pos[id])}
@@ -782,7 +785,7 @@ function virtualFor(code){const id='B:'+code;POS[id]={sec:SECTIONS[0],g:{label:'
 function posOfCode(code){code=unpad(code);for(const cd in S.conf)if(S.conf[cd].code===code&&!POS[cd].virtual)return cd;return virtualFor(code)}
 function locName(cd){const q=POS[cd];if(!q||q.virtual)return '';if(q.amph)return cd;if(q.sec.id==='X')return 'Área de prensa';const v=VIEWS.find(v=>v.id===VOF[q.rack]);return CODE(cd)+(v?' · '+v.name:'')}
 function bdata(num){const b=A.barrels[unpad(num)];if(!b)return null;const l=lotById(b.lot);
-  return {coop:b.cooperage||'',wood:b.wood||'',year:b.year?+b.year:null,use:useOf(b),fill:stateOf(b)==='empty'?'empty':'full',size:b.size||'',vol:b.vol||'',wine:l?l.name:'',wines:b.wines||[],toast:b.toast||'',th:!!b.th,notes:b.notes||'',so2:so2Of(b),logs:(A.lines[unpad(b.code)]||[]).slice().sort().reverse(),_b:b}}
+  return {coop:b.cooperage||'',wood:b.wood||'',year:b.year?+b.year:null,use:useOf(b),fill:stateOf(b)==='empty'?'empty':'full',size:b.size||'',vol:b.vol||'',wine:l?vintLabel(l):'',wines:b.wines||[],toast:b.toast||'',th:!!b.th,notes:b.notes||'',so2:so2Of(b),logs:(A.lines[unpad(b.code)]||[]).slice().sort().reverse(),_b:b}}
 function so2Of(b){const out=[],code=unpad(b.code);
   for(const h of (b.history||[]))out.push({date:h.date,wine:h.wine,ph:h.ph,fso2:h.fso2,kmbs_g:h.applied||h.kmbs_g?h.kmbs_g:null,skipped:h.skipped,src:h.src||'papel'});
   const x=A.so2[code];if(x){if(x.so2)out.push({date:x.so2.d,fso2:x.so2.v,src:'Excellovint',wine:x.so2.tab});if(x.add&&x.add.g)out.push({date:x.add.d,kmbs_g:+x.add.g||x.add.g,src:'Excellovint',wine:x.add.tab})}
