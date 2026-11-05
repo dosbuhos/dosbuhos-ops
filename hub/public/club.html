@@ -921,14 +921,22 @@ async function viewInvitar() {
   const progs = S.boot.programs.filter(p => !p.archived);
   const groups = [['invitacion', 'Por invitación'], ['fundadores', 'Fundadores'], ['compras', 'Por compras']];
   const sel = S.invProg || 'amigos';
-  app.innerHTML = `<h1 class="page">Invitar</h1><p class="sub">Una invitación personal (nombre y WhatsApp) o un enlace para varios. Se registran en un minuto y reciben su tarjeta.</p>
+  const po = !!P(sel)?.personal_only;
+  if (po) S.invKind = 'personal';
+  app.innerHTML = `<nav class="bc" aria-label="Ruta"><span>Portal del socio</span><i>›</i><span>Invitaciones</span></nav>
+  <h1 class="page">Invitaciones</h1><p class="sub">Una invitación personal, varias a la vez, o un enlace para un grupo. Se registran en un minuto y reciben su tarjeta.</p>
   <form class="f panel" id="inv">
     <div class="field"><span>Programa</span><select name="program_id">${groups.map(([k, t]) => `<optgroup label="${t}">${progs.filter(p => p.kind === k).map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select></div>
-    <div class="seg two-up" role="group" aria-label="Tipo de invitación"><button type="button" data-kind="personal" aria-pressed="${S.invKind !== 'link'}">Personal</button><button type="button" data-kind="link" aria-pressed="${S.invKind === 'link'}">Enlace para varios</button></div>
-    <div id="kPersonal" class="f${S.invKind === 'link' ? ' hide' : ''}">
+    <div class="seg" role="group" aria-label="Tipo de invitación" style="width:100%;display:grid;grid-template-columns:repeat(${po ? 2 : 3},1fr)"><button type="button" data-kind="personal" aria-pressed="${S.invKind !== 'link' && S.invKind !== 'bulk'}">Personal</button><button type="button" data-kind="bulk" aria-pressed="${S.invKind === 'bulk'}">Varias personas</button>${po ? '' : `<button type="button" data-kind="link" aria-pressed="${S.invKind === 'link'}">Enlace para un grupo</button>`}</div>
+    ${po ? `<p class="rulebox" style="margin:0">${esc(P(sel).name)} es solo por invitación personal: cada invitación es para un correo y sirve para una tarjeta. Si alguien la reenvía, no le sirve a otra persona.</p>` : ''}
+    <div id="kPersonal" class="f${S.invKind === 'link' || S.invKind === 'bulk' ? ' hide' : ''}">
       <div class="field"><span>Nombre</span><input name="name" maxlength="80" autocomplete="off" placeholder="Ej. Tía Carmen"></div>
-      <div class="field"><span>WhatsApp</span><input name="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="415 123 4567"></div>
-      <div class="field"><span>Correo (opcional)</span><input name="email" type="email" autocomplete="off"></div></div>
+      <div class="two"><div class="field"><span>Correo${po ? '' : ' (opcional)'}</span><input name="email" type="email" autocomplete="off"></div>
+      <div class="field"><span>WhatsApp (opcional)</span><input name="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="415 123 4567"></div></div>
+      <p class="hint" style="margin-top:-6px">Con correo, solo esa persona puede registrarse: tiene que escribir el mismo correo.</p></div>
+    <div id="kBulk" class="f${S.invKind === 'bulk' ? '' : ' hide'}">
+      <div class="field"><span>Una persona por renglón: nombre, correo, WhatsApp (opcional)</span><textarea name="bulk" rows="7" placeholder="Ana Pérez, ana@correo.com, 415 123 4567&#10;Luis Gómez, luis@correo.com"></textarea></div>
+      <p class="hint" style="margin-top:-6px">Cada persona recibe su propia invitación, ligada a su correo.</p></div>
     <div id="kLink" class="f${S.invKind === 'link' ? '' : ' hide'}">
       <div class="field"><span>Nombre del enlace (solo lo ves tú)</span><input name="label" maxlength="80" placeholder="Ej. Industria 2026"></div>
       <div class="field"><span>¿Cuántas personas pueden usarlo? (vacío = sin límite)</span><input name="max_uses" inputmode="numeric" placeholder="Sin límite"></div></div>
@@ -936,7 +944,7 @@ async function viewInvitar() {
     <label class="switch"><input type="checkbox" name="requires_approval"${P(sel)?.requires_approval ? ' checked' : ''}> Requiere aprobación antes de dar beneficios</label>
     <button class="btn primary block big" type="submit">Crear invitación</button>
   </form>
-  <div id="shareBox">${S.lastInvite ? shareHtml(S.lastInvite) : ''}</div>
+  <div id="shareBox">${S.bulkDone ? bulkHtml(S.bulkDone) : S.lastInvite ? shareHtml(S.lastInvite) : ''}</div>
   <p style="margin:14px 0 0"><a class="btn block" href="#novios">Agregar novios en lote</a></p>
   <div class="blk" style="margin-top:20px"><h2>Invitaciones <small>${r.invites.length || ''}</small></h2>
   ${r.invites.length ? `<div class="list">${r.invites.map(i => `<div class="r stack"><div class="main">
@@ -945,10 +953,11 @@ async function viewInvitar() {
       ${i.active ? `<div class="acts"><a class="btn sm" href="${esc(i.wa)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn sm" data-act="copy" data-text="${esc(i.url)}">Copiar</button><a class="btn sm" href="/club/print/${i.id}">QR</a><button class="btn sm danger" data-act="revoke" data-id="${i.id}">Cancelar</button></div>` : ''}</div>`).join('')}</div>`
     : '<div class="empty sm"><b>Aún no hay invitaciones</b>Crea la primera arriba.</div>'}</div>`;
   const f = $('#inv');
-  $$('[data-kind]', f).forEach(b => b.onclick = () => { S.invKind = b.dataset.kind; $$('[data-kind]', f).forEach(x => x.setAttribute('aria-pressed', x === b)); $('#kPersonal').classList.toggle('hide', S.invKind === 'link'); $('#kLink').classList.toggle('hide', S.invKind !== 'link'); });
-  f.program_id.onchange = () => { S.invProg = f.program_id.value; f.requires_approval.checked = !!P(f.program_id.value)?.requires_approval; };
+  $$('[data-kind]', f).forEach(b => b.onclick = () => { S.invKind = b.dataset.kind; $$('[data-kind]', f).forEach(x => x.setAttribute('aria-pressed', x === b)); $('#kPersonal').classList.toggle('hide', S.invKind !== 'personal'); $('#kBulk').classList.toggle('hide', S.invKind !== 'bulk'); $('#kLink').classList.toggle('hide', S.invKind !== 'link'); });
+  f.program_id.onchange = () => { S.invProg = f.program_id.value; S.lastInvite = null; S.bulkDone = null; viewInvitar(); };
   f.onsubmit = async ev => {
     ev.preventDefault();
+    if (S.invKind === 'bulk') return bulkInvite(f);
     const kind = S.invKind === 'link' ? 'link' : 'personal';
     try {
       const r = await api('POST', 'invites', { program_id: f.program_id.value, kind, name: f.name.value, phone: f.phone.value, email: f.email.value, label: f.label.value, max_uses: f.max_uses.value, expires_days: f.expires_days.value, requires_approval: f.requires_approval.checked });
@@ -957,6 +966,30 @@ async function viewInvitar() {
       $('#shareBox').scrollIntoView({ block: 'start', behavior: 'smooth' });
     } catch (e) { toast(e.message, true); }
   };
+}
+const parseBulk = text => text.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const parts = l.split(/[,;\t]/).map(x => x.trim()); const email = parts.find(x => /@/.test(x)) || ''; const phone = parts.find(x => /^\+?[\d\s().-]{8,}$/.test(x)) || ''; const name = parts.find(x => x && x !== email && x !== phone) || ''; return { line: l, name, email, phone }; });
+async function bulkInvite(f) {
+  const rows = parseBulk(f.bulk.value);
+  if (!rows.length) return toast('Pega al menos una persona: nombre, correo.', true);
+  const bad = rows.filter(r => !r.name || !r.email);
+  if (bad.length) return toast(`Falta nombre o correo en: ${bad.map(r => r.line).slice(0, 3).join(' · ')}`, true);
+  const btn = $('button[type=submit]', f); btn.disabled = true;
+  const done = [];
+  for (const r of rows) {
+    try { const x = await api('POST', 'invites', { program_id: f.program_id.value, kind: 'personal', name: r.name, email: r.email, phone: r.phone, expires_days: f.expires_days.value, requires_approval: f.requires_approval.checked }); done.push({ ok: true, ...x.invite }); }
+    catch (e) { done.push({ ok: false, name: r.name, error: e.message }); }
+  }
+  S.invProg = f.program_id.value; S.bulkDone = done; S.lastInvite = null;
+  await viewInvitar(); $('#shareBox').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+function bulkHtml(list) {
+  const ok = list.filter(x => x.ok);
+  return `<div class="share" style="margin-top:14px"><b style="display:block;margin-bottom:8px">Listo: ${ok.length} ${ok.length === 1 ? 'invitación' : 'invitaciones'}${ok.length < list.length ? ` · ${list.length - ok.length} con error` : ''}</b>
+    <p class="hint" style="margin:0 0 8px">Manda cada una por WhatsApp o correo. Cada enlace solo sirve con el correo de esa persona.</p>
+    <div class="list">${list.map(x => x.ok ? `<div class="r stack"><div class="main"><span class="t">${esc(x.name)}</span><span class="s">${esc(x.email)}${x.phone ? ' · ' + esc(x.phone) : ''}</span></div>
+      <div class="acts">${x.phone ? `<a class="btn sm primary" href="${esc(x.wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<a class="btn sm${x.phone ? '' : ' primary'}" href="${esc(x.mailto)}">Correo</a><button class="btn sm" data-act="copy" data-text="${esc(x.url)}">Copiar enlace</button></div></div>`
+      : `<div class="r"><div class="main"><span class="t">${esc(x.name)}</span><span class="s" style="color:var(--bad)">${esc(x.error)}</span></div></div>`).join('')}</div>
+    <button class="btn block" style="margin-top:8px" data-act="nextinv">Invitar a más personas</button></div>`;
 }
 function shareHtml(i) {
   return `<div class="share" style="margin-top:14px"><b style="display:block;margin-bottom:8px">Listo: invitación ${i.kind === 'personal' ? 'para ' + esc(i.name) : esc(i.label || 'para varios')}</b>
@@ -1217,7 +1250,8 @@ function progDialog(id) {
     <p class="hint" style="margin-top:-6px">La duración aplica a quien entre de hoy en adelante; cambia la de cada socio en su ficha. Si vence, la tarjeta muestra el enlace para renovar.</p>`}
     <label class="switch"><input type="checkbox" name="vip"${p.vip ? ' checked' : ''}> VIP: sale en “VIP aquí ahora”</label>
     ${p.kind !== 'compras' ? `<label class="switch"><input type="checkbox" name="requires_approval"${p.requires_approval ? ' checked' : ''}> Las invitaciones nuevas requieren aprobación</label>
-    <label class="switch"><input type="checkbox" name="is_pro"${p.is_pro ? ' checked' : ''}> Profesionales (pueden traer gente)</label>` : ''}
+    <label class="switch"><input type="checkbox" name="is_pro"${p.is_pro ? ' checked' : ''}> Profesionales (pueden traer gente)</label>
+    <label class="switch"><input type="checkbox" name="personal_only"${p.personal_only ? ' checked' : ''}> Solo invitación personal con correo (sin enlaces para grupos)</label>` : ''}
     <button class="btn primary block" type="submit">Guardar</button>
     ${n ? `<button class="btn block" type="button" data-act="confirmall" data-id="${p.id}">Confirmar los ${n} valores de ${esc(p.name)}</button>` : ''}
     <button class="btn block danger" type="button" data-act="archive" data-id="${p.id}">${p.archived ? 'Volver a activar' : 'Archivar programa'}</button>
@@ -1228,7 +1262,7 @@ function progDialog(id) {
     const body = { name: f.name.value, short_label: f.short_label.value, color: f.color.value, vip: f.vip.checked };
     if (f.threshold_mxn) body.threshold_mxn = num(f.threshold_mxn.value);
     if (f.duration_months) { body.duration_months = +f.duration_months.value; body.fee_mxn = num(f.fee_mxn.value); body.pay_url = f.pay_url.value.trim(); }
-    if (f.requires_approval) { body.requires_approval = f.requires_approval.checked; body.is_pro = f.is_pro.checked; }
+    if (f.requires_approval) { body.requires_approval = f.requires_approval.checked; body.is_pro = f.is_pro.checked; body.personal_only = f.personal_only.checked; }
     try { await api('PATCH', 'programs/' + id, body); closeDlg(); toast('Programa guardado'); viewProgramas(); } catch (e) { toast(e.message, true); }
   };
 }
@@ -1325,7 +1359,7 @@ document.addEventListener('click', async ev => {
     if (act === 'cancelnote') return viewPerson(S.person.person.id);
     if (act === 'newcode') { if (!confirm('¿Cambiar el código? El enlace anterior deja de funcionar y hay que mandarle la tarjeta nueva.')) return; await api('POST', `person/${S.person.person.id}/newcode`); toast('Código cambiado: manda la tarjeta nueva'); return viewPerson(S.person.person.id); }
     if (act === 'revoke') { if (!confirm('¿Cancelar esta invitación? El enlace deja de funcionar; quienes ya se registraron se quedan.')) return; await api('POST', `invites/${id}/revoke`); S.lastInvite = null; return viewInvitar(); }
-    if (act === 'nextinv') { S.lastInvite = null; await viewInvitar(); $('#inv').name.focus(); return; }
+    if (act === 'nextinv') { S.lastInvite = null; S.bulkDone = null; await viewInvitar(); (S.invKind === 'bulk' ? $('#inv').bulk : $('#inv').name).focus(); return; }
     if (act === 'nvprev') { const r = await api('POST', 'novios', { text: $('#nv').text.value, preview: true }); $('#nvprev').innerHTML = `<p class="hint">${r.rows.length} parejas listas${r.errors.length ? ':' : '.'}</p>${r.errors.map(e => `<p class="hint" style="color:var(--bad)">${esc(e)}</p>`).join('')}${r.rows.slice(0, 30).map(x => `<div class="r"><div class="main"><span class="t">${esc(x.name)}</span><span class="s">${esc(x.phone ? '+' + x.phone : '')} ${esc(x.email)} ${x.wedding ? '· boda ' + dayShort(x.wedding) : ''}</span></div></div>`).join('')}`; return; }
     if (act === 'pick') { S.progSel = a.dataset.id; return viewProgramas(); }
     if (act === 'celldlg') { const h = a.closest('[data-p][data-b]'); return cellDialog(h.dataset.p, h.dataset.b); }

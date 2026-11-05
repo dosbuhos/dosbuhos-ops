@@ -24,7 +24,7 @@ function d1(files) {
   });
   return { db, prepare: q => stmt(q), batch: async list => { const out = []; for (const s of list) out.push(await s.run()); return out; } };
 }
-const HUB = ['0001_init.sql', '0004_club.sql', '0005_club_members.sql'].map(f => new URL('../migrations/' + f, import.meta.url));
+const HUB = ['0001_init.sql', '0004_club.sql', '0005_club_members.sql', '0007_club_invite_only.sql'].map(f => new URL('../migrations/' + f, import.meta.url));
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 const CODE = 'abcdefghijklmnopqrstuvwxyz012345', CODE_OFF = 'zyxwvutsrqponmlkjihgfedcba543210';
 

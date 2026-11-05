@@ -20,7 +20,7 @@ function d1(files) {
   });
   return { db, prepare: q => stmt(q), batch: async list => { const out = []; for (const s of list) out.push(await s.run()); return out; } };
 }
-const HUB = ['0001_init.sql', '0004_club.sql', '0005_club_members.sql'].map(f => new URL('../migrations/' + f, import.meta.url));
+const HUB = ['0001_init.sql', '0004_club.sql', '0005_club_members.sql', '0007_club_invite_only.sql'].map(f => new URL('../migrations/' + f, import.meta.url));
 const WC_DIR = new URL('../../wineclub/migrations/', import.meta.url);
 const WC = readdirSync(WC_DIR).filter(f => f.endsWith('.sql')).sort().map(f => new URL(f, WC_DIR));
 
@@ -172,14 +172,21 @@ test('lost card: the same neutral answer whether or not the number exists; a req
 test('invites: personal (one use), multi-use with max uses, expiry, revoke, approval queue', async () => {
   const { DB, call } = await setup();
   const mk = async b => (await call('admin', 'POST', '/club/api/invites', b)).json.invite;
-  const fam = await mk({ program_id: 'amigos', kind: 'personal', name: 'Tía Carmen', phone: '415 222 3333' });
+  // Amigos y familia is personal-only: no group links, the invite needs an email, and only that email gets the card.
+  assert.equal((await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'link', label: 'Para todos' })).status, 400);
+  assert.equal((await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'personal', name: 'Sin correo' })).status, 400);
+  const fam = await mk({ program_id: 'amigos', kind: 'personal', name: 'Tía Carmen', phone: '415 222 3333', email: 'Carmen@Correo.test' });
   assert.match(fam.wa, /^https:\/\/wa\.me\/524152223333\?text=Hola%20T%C3%ADa%2C/);
   assert.equal(fam.max_uses, 1); assert.equal(fam.requires_approval, false);
   const tok = fam.url.split('/c/i/')[1];
-  assert.match((await call(null, 'GET', '/c/i/' + tok)).text, /Hola, Tía/);
-  const bad = await call(null, 'POST', '/c/i/' + tok, form({ name: 'Tía Carmen', phone: '123', terms: '1' }));
+  const formHtml = (await call(null, 'GET', '/c/i/' + tok)).text;
+  assert.match(formHtml, /Hola, Tía/); assert.doesNotMatch(formHtml, /carmen@correo/i, 'the invited email is never shown');
+  const bad = await call(null, 'POST', '/c/i/' + tok, form({ name: 'Tía Carmen', phone: '123', email: 'carmen@correo.test', terms: '1' }));
   assert.equal(bad.status, 400); assert.match(bad.text, /Revisa tu número/);
-  const ok = await call(null, 'POST', '/c/i/' + tok, form({ name: 'Tía Carmen', phone: '415 222 3333', terms: '1', bday: '3', bmonth: '7' }));
+  const fwd = await call(null, 'POST', '/c/i/' + tok, form({ name: 'Amigo de Carmen', phone: '415 999 8888', email: 'otro@correo.test', terms: '1' }));
+  assert.equal(fwd.status, 400); assert.match(fwd.text, /no coincide con la invitación/);
+  assert.equal(DB.db.prepare("SELECT uses FROM club_invites WHERE token = ?").get(tok).uses, 0, 'a wrong email does not use up the invite');
+  const ok = await call(null, 'POST', '/c/i/' + tok, form({ name: 'Tía Carmen', phone: '415 222 3333', email: ' carmen@CORREO.test ', terms: '1', bday: '3', bmonth: '7' }));
   assert.equal(ok.status, 303); assert.match(ok.location, /^\/c\/[A-Za-z0-9_-]{24}\?ok=nuevo$/);
   const p = DB.db.prepare("SELECT * FROM club_people WHERE name = 'Tía Carmen'").get();
   assert.equal(p.birthday, '07-03'); assert.equal(p.phone, '524152223333');
@@ -212,10 +219,10 @@ test('invites: personal (one use), multi-use with max uses, expiry, revoke, appr
   assert.match(after.text, /Profesionales 2/); assert.match(after.text, /20% en vino/);
 
   // Expired and revoked links.
-  const old = await mk({ program_id: 'amigos', kind: 'link', label: 'Viejo', expires_days: 1 });
+  const old = await mk({ program_id: 'novios', kind: 'link', label: 'Viejo', expires_days: 1 });
   DB.db.prepare('UPDATE club_invites SET expires_at = ? WHERE id = ?').run(Date.now() - 1000, old.id);
   assert.match((await call(null, 'GET', '/c/i/' + old.url.split('/c/i/')[1])).text, /ya venció/);
-  const rev = await mk({ program_id: 'amigos', kind: 'link', label: 'Cancelado' });
+  const rev = await mk({ program_id: 'novios', kind: 'link', label: 'Cancelado' });
   await call('admin', 'POST', `/club/api/invites/${rev.id}/revoke`);
   assert.match((await call(null, 'GET', '/c/i/' + rev.url.split('/c/i/')[1])).text, /ya no está activa/);
   assert.ok(DB.db.prepare("SELECT COUNT(*) AS n FROM club_audit WHERE action = 'invite.create' AND actor = 'admin@x.test'").get().n >= 4);
@@ -466,11 +473,11 @@ test('questions: required ones block sign-up, staff-only ones never reach the gu
   const q2 = (await call('admin', 'POST', '/club/api/fields', { label: 'Recomendado por', kind: 'text', staff_only: true })).json.id;
   assert.equal((await call('admin', 'POST', '/club/api/fields', { label: 'Mala', kind: 'choice', options: 'Solo una' })).status, 400);
   assert.equal((await call('staff', 'POST', '/club/api/fields', { label: 'X' })).status, 403);
-  const inv = (await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'link', label: 'Prueba' })).json.invite;
+  const inv = (await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'personal', name: 'Dana Pérez', email: 'dana@x.test' })).json.invite;
   const tok = inv.url.split('/c/i/')[1];
   const pageHtml = (await call(null, 'GET', '/c/i/' + tok)).text;
   assert.match(pageHtml, /Cómo nos conociste/); assert.doesNotMatch(pageHtml, /Recomendado por/);
-  const base = { name: 'Dana Pérez', phone: '4153334444', terms: '1' };
+  const base = { name: 'Dana Pérez', phone: '4153334444', email: 'dana@x.test', terms: '1' };
   const bad = await call(null, 'POST', '/c/i/' + tok, form(base));
   assert.equal(bad.status, 400); assert.match(bad.text, /Elige una opción|Responde/);
   const ok = await call(null, 'POST', '/c/i/' + tok, form({ ...base, ['f_' + q1]: 'Hotel' }));

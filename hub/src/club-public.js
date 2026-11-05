@@ -427,8 +427,12 @@ async function receipt(request, env, person) {
 }
 
 // ---------- sign-up ----------
+// A personal invitation made with an email is good only for that email (the form doesn't show it, so a forwarded link
+// is no use). Personal-only programs (Amigos y familia) take no group links at all.
+const emailLocked = inv => !!(inv && inv.kind === 'personal' && inv.email);
+const linkBlocked = inv => !!(inv && inv.personal_only && inv.kind !== 'personal');
 async function loadInvite(env, tok) {
-  return env.DB.prepare('SELECT i.*, p.name AS program, p.kind AS program_kind, p.is_pro, p.archived AS program_archived FROM club_invites i JOIN club_programs p ON p.id = i.program_id WHERE i.token = ?').bind(tok).first();
+  return env.DB.prepare('SELECT i.*, p.name AS program, p.kind AS program_kind, p.is_pro, p.personal_only, p.archived AS program_archived FROM club_invites i JOIN club_programs p ON p.id = i.program_id WHERE i.token = ?').bind(tok).first();
 }
 // One sign-up question as a guest-page input. Name f_<id>.
 function fieldHtml(f, val = '') {
@@ -441,9 +445,10 @@ function fieldHtml(f, val = '') {
 }
 async function signupForm(env, url, tok, vals = null, error = '') {
   const inv = await loadInvite(env, tok);
-  const problem = C.inviteProblem(inv);
+  const problem = linkBlocked(inv) ? 'Esta invitación ya no está activa. Pide a quien te la mandó una invitación personal.' : C.inviteProblem(inv);
   if (problem) return H(page({ title: 'Invitación · Dos Búhos', body: `<div class="hero"><div class="mark">Dos Búhos</div><h1>Lo sentimos</h1><p>${e(problem)}</p></div><a class="btn ghost" href="/c/">¿Ya tenías tarjeta? Recupérala</a>${foot}` }), inv ? 410 : 404);
-  const v = vals || { name: inv.name, phone: inv.phone ? C.fmtPhone(inv.phone) : '', email: inv.email };
+  const locked = emailLocked(inv);
+  const v = vals || { name: inv.name, phone: inv.phone ? C.fmtPhone(inv.phone) : '', email: locked ? '' : inv.email };
   const days = Array.from({ length: 31 }, (_, i) => i + 1).map(d => `<option${String(v.bday || '') === String(d) ? ' selected' : ''}>${d}</option>`).join('');
   const months = MONTHS.map((mo, i) => `<option value="${i + 1}"${String(v.bmonth || '') === String(i + 1) ? ' selected' : ''}>${mo}</option>`).join('');
   const qs = C.fieldsFor((await catalog(env)).fields, inv.program_id, { guest: true });
@@ -456,7 +461,7 @@ async function signupForm(env, url, tok, vals = null, error = '') {
   ${error ? `<p class="err" role="alert">${e(error)}</p>` : ''}
   <label>Nombre y apellido<input name="name" required maxlength="80" autocomplete="name" value="${e(v.name || '')}"></label>
   <label>WhatsApp<input name="phone" type="tel" required inputmode="tel" autocomplete="tel" placeholder="415 123 4567" value="${e(v.phone || '')}"></label>
-  <label>Correo (opcional)<input name="email" type="email" autocomplete="email" maxlength="120" value="${e(v.email || '')}"></label>
+  <label>${locked ? 'Correo <span class="small">(el mismo al que te llegó la invitación)</span>' : 'Correo (opcional)'}<input name="email" type="email" autocomplete="email" maxlength="120"${locked ? ' required' : ''} value="${e(v.email || '')}"></label>
   <label>Cumpleaños (opcional)</label><div class="two"><select name="bday" aria-label="Día"><option value="">Día</option>${days}</select><select name="bmonth" aria-label="Mes"><option value="">Mes</option>${months}</select></div>
   ${pro}${questions}
   <label class="check"><input type="checkbox" name="terms" value="1" required${v.terms ? ' checked' : ''}><span>Acepto los <a href="/c/terminos" target="_blank" rel="noopener">términos del club</a> y que Dos Búhos me escriba por WhatsApp sobre mi tarjeta.</span></label>
@@ -470,12 +475,16 @@ async function signupForm(env, url, tok, vals = null, error = '') {
 async function signup(request, env, url, tok) {
   const b = await form(request);
   const inv = await loadInvite(env, tok);
-  if (C.inviteProblem(inv)) return signupForm(env, url, tok);
+  if (linkBlocked(inv) || C.inviteProblem(inv)) return signupForm(env, url, tok);
   const vals = { name: String(b.name || '').trim().slice(0, 80), phone: String(b.phone || ''), email: String(b.email || ''), bday: b.bday, bmonth: b.bmonth, pro_type: b.pro_type, terms: b.terms };
   const phone = C.normPhone(b.phone), email = C.normEmail(b.email);
   if (vals.name.length < 2) return signupForm(env, url, tok, vals, 'Escribe tu nombre.');
   if (!C.validPhone(phone)) return signupForm(env, url, tok, vals, 'Revisa tu número de WhatsApp: 10 dígitos, o con lada de país.');
   if (b.email && !email) return signupForm(env, url, tok, vals, 'Revisa tu correo, o déjalo vacío.');
+  if (emailLocked(inv) && email !== C.normEmail(inv.email)) {
+    await clubAudit(env, 'invitado', 'signup.email_mismatch', 'invite', inv.id, { program: inv.program_id });
+    return signupForm(env, url, tok, vals, 'Este correo no coincide con la invitación. Usa el correo al que te llegó, o pide a quien te invitó que la revise.');
+  }
   if (!b.terms) return signupForm(env, url, tok, vals, 'Para crear tu tarjeta acepta los términos del club.');
   if (inv.is_pro && !C.PRO_TYPES[b.pro_type]) return signupForm(env, url, tok, vals, 'Elige a qué te dedicas.');
   const qs = C.fieldsFor((await catalog(env)).fields, inv.program_id, { guest: true });

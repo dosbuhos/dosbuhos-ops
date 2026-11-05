@@ -277,6 +277,9 @@ export async function clubRoute(request, env, url, user, role) {
     const phone = C.normPhone(b.phone), email = C.normEmail(b.email);
     if (kind === 'personal' && !str(b.name, 80)) return BAD('Escribe a quién invitas.');
     if (b.phone && !C.validPhone(phone)) return BAD('Revisa el teléfono.');
+    if (b.email && !email) return BAD('Revisa el correo.');
+    if (prog.personal_only && kind !== 'personal') return BAD(`${prog.name} es solo por invitación personal: invita a cada persona con su correo.`);
+    if (prog.personal_only && !email) return BAD(`Escribe el correo de la persona: en ${prog.name} solo se registra con el correo al que la invitas.`);
     const days = intOrNull(b.expires_days);
     const expires = days && days > 0 ? Date.now() + days * C.DAY_MS : null;
     const max = kind === 'personal' ? 1 : (intOrNull(b.max_uses) > 0 ? intOrNull(b.max_uses) : null);
@@ -381,6 +384,7 @@ export async function clubRoute(request, env, url, user, role) {
     if ('vip' in b) next.vip = b.vip ? 1 : 0;
     if ('is_pro' in b) next.is_pro = b.is_pro ? 1 : 0;
     if ('requires_approval' in b) next.requires_approval = b.requires_approval ? 1 : 0;
+    if ('personal_only' in b) { if (prog.kind === 'compras') return BAD('Los niveles por compras no llevan invitación.'); next.personal_only = b.personal_only ? 1 : 0; }
     if ('archived' in b) next.archived = b.archived ? 1 : 0;
     if ('sort' in b && intOrNull(b.sort) != null) next.sort = intOrNull(b.sort);
     if ('threshold_mxn' in b) { if (prog.kind !== 'compras') return BAD('Solo los niveles por compras tienen monto.'); const t = numOrNull(b.threshold_mxn); if (t == null || t < 0) return BAD('Revisa el monto.'); next.threshold_mxn = t; }
