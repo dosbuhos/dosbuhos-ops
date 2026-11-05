@@ -331,7 +331,9 @@
   // The page may scroll in a container rather than the window: scroll whichever ancestor actually scrolls.
   function scroller(el) { for (let n = el && el.parentElement; n && n !== document.body; n = n.parentElement) { const o = getComputedStyle(n).overflowY; if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 2) return n; } return document.scrollingElement || document.documentElement; }
   function scrollFrameTo(y) { const sc = scroller(mapFrame), r = mapFrame.getBoundingClientRect(), top0 = sc === document.scrollingElement || sc === document.documentElement ? 0 : sc.getBoundingClientRect().top;
-    sc.scrollTo({ top: Math.max(0, sc.scrollTop + r.top - top0 + y - 8), behavior: 'smooth' }); }
+    const target = Math.max(0, sc.scrollTop + r.top - top0 + y - 8); sc.scrollTo({ top: target, behavior: 'smooth' });
+    // a smooth scroll can be cut short when the frame grows meanwhile: make sure it lands
+    clearTimeout(scrollFrameTo.t); scrollFrameTo.t = setTimeout(() => { const max = sc.scrollHeight - sc.clientHeight; if (Math.abs(sc.scrollTop - Math.min(target, max)) > 30) sc.scrollTo({ top: target, behavior: 'auto' }); }, 650); }
   const vpLater = () => { if (!vpRaf) vpRaf = requestAnimationFrame(() => { vpRaf = 0; sendVp(); }); };
   window.addEventListener('scroll', vpLater, { passive: true, capture: true }); window.addEventListener('resize', vpLater);
   function renderMap() { return '<div class="cr-mapslot"></div>'; }
