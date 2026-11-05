@@ -335,6 +335,7 @@
     if (t === 'bm:close') { const d = $('#crCard'); if (d && d.open) d.close(); }
     else if (t === 'bm:changed') { if ($('#crCard') && $('#crCard').open) C.dirty = true; else if (C.tab !== 'map') refresh(); else load(); }
     else if (t === 'bm:mant') openMant();
+    else if (t === 'bm:focus' && mapFrame && C.tab === 'map') { const r = mapFrame.getBoundingClientRect(); if (Math.abs(r.top) > 4) window.scrollTo({ top: window.scrollY + r.top, behavior: 'smooth' }); }
   });
 
   // ---------- Tanques: every tank / amphora / puncheon from the vessel registry (coll "vessels") with the wine in it ----------

@@ -257,6 +257,14 @@ body.mv{padding-bottom:90px}body.mv .totop{display:none}
 .glance{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 14px;margin:4px 0 0;font-size:11.5px;color:var(--soft);width:100%}.glance b{font:700 11px var(--f-m);margin-left:4px}.g-ring{display:inline-block;width:11px;height:11px;border-radius:50%;border:2.5px solid var(--ok);border-right-color:var(--line);vertical-align:-2px;margin-right:5px}
 .tile .tgoal{font-size:10.5px}
 .bbl .rim.typed{stroke:var(--oak-rim)}.g-type{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--unk);border:3px solid #7a1f2b;vertical-align:-2px;margin-right:5px}
+.bbl .rim.al-bad,.bbl .rim.al-warn{stroke:rgba(0,0,0,.35)}.bbl .pos.so{font-size:10px;font-weight:700}
+.bbl .late{font:700 8.5px var(--f-m);text-anchor:middle}.bbl .late.warn{fill:#a46d00}.bbl .late.bad{fill:#c0261c}
+.g-al{display:inline-block;width:11px;height:11px;border-radius:50%;border:3px solid;vertical-align:-2px;margin-right:5px;background:var(--oak)}.g-al.w{border-color:#e0a526}.g-al.b{border-color:#c0261c}
+.g-type{border:2px solid var(--oak-rim)!important;background:color-mix(in srgb,#7a1f2b 30%,var(--unk))!important}
+.tile.warn b{color:#9a6a08}.tile .late{color:#b3261e;font-weight:600}.tile .tadd.late{color:#b3261e}
+.yhint{margin:6px 0;color:var(--soft);font-size:13px;text-align:center}.mm-face .ysel .bend{fill:#b3803f;stroke-width:.13!important}
+.pzhit{fill:#2f7d47;fill-opacity:.12;stroke:#2f7d47;stroke-width:.06;stroke-dasharray:.15 .1;cursor:pointer}.pzhit:hover{fill-opacity:.22}
+.mm-pr,.mm-pr *{cursor:pointer}
 /* ---- cellar app: embedded in the Barricas section (iframe) and as the barrel card (?b=NNN) ---- */
 [hidden]{display:none!important}
 body{margin:0}
@@ -324,7 +332,7 @@ body.cardonly .facecol .bcard{margin:0;border:0;border-radius:0}
   <div class="edges"><span id="edgeL"></span><span id="edgeR"></span></div>
   <div class="wall" id="wall"></div>
   <div class="secfoot"><h2 class="secname" id="secname"></h2><p class="secnote" id="secnote"></p>
-   <p class="glance"><span><i class="g-type"></i>Vacías: el borde dice si es de tinto, naranja o blanco</span></p></div>
+   <p class="glance"><span><i class="g-al w"></i>ya toca (hasta 10 días tarde)</span><span><i class="g-al b"></i>más de 10 días tarde</span><span>número chico = SO₂ libre (ppm)</span><span><i class="g-type"></i>vacías: el color de la cara es el tipo</span></p></div>
   <div class="panel bcard" id="panel" hidden></div>
  </section>
 </div>
@@ -456,30 +464,35 @@ function view(id){const q=POS[id],b=q.b&&q.b.spare?null:q.b;let c=S.conf[id];if(
 const R=27, GX=76, GY=90, PADL0=20, TOP=6, FOOT=24; // column numbers go under the stack
 // At a glance on the front view: the ring around each barrel counts down the 30 days to the next topping (empty
 // barrels: to the next maintenance); the line under the wine is the last free-SO2 reading against the ~20 ppm house target.
-const SO2_OK=20,SO2_LOW=12,SO2_OLD=45;
+const SO2_OK=20,SO2_LOW=12,SO2_OLD=45,JOB_DAYS=30,JOB_GRACE=10;
+function jobCls(ja){return ja==null||ja>JOB_DAYS+JOB_GRACE?'bad':ja>JOB_DAYS?'warn':'ok'}
 function so2Cls(v,age){return v==null||isNaN(v)?'none':age>SO2_OLD?'old':v<SO2_LOW?'bad':v<SO2_OK?'warn':'ok'}
 function bstat(id){const c=S.conf[id],q=POS[id];if(!q||q.amph)return null;const num=c?.num||q.b?.n||'';if(!num)return null;const D=bdata(num);if(!D)return null;
   const empty=c?!!c.empty:D.fill==='empty';
   const SO=[...((c&&c.so2)||[]),...(D.so2||[])].sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0),so=SO.find(h=>h.fso2!=null&&h.fso2!=='');
   const L=[...((c&&c.logs)||[]),...(D.logs||[])].sort().reverse(),job=L.find(x=>empty?/\|(p1|p2)(\||$)/.test(x):/\|(p3|top|fill)(\||$)/.test(x)),jd=job?job.split('|')[0]:null,ja=dago(jd);
   const v=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,sa=so?dago(so.date):null;
-  return {empty,so:so?{v,raw:String(so.fso2),age:sa,cls:so2Cls(v,sa)}:null,jd,ja,jcls:ja==null||ja>30?'bad':ja>24?'warn':'ok'}}
+  return {empty,so:so?{v,raw:String(so.fso2),age:sa,cls:so2Cls(v,sa)}:null,jd,ja,jcls:jobCls(ja),late:ja==null?null:ja-30}}
 // empty barrels still say what they are for: the band around the head takes the color of the wine type it holds (tinto, naranja, blanco…)
 const UTINT={red:'#7a1f2b',white:'#d8b43c',orange:'#d9822b',rose:'#e0849a',port:'#4a1622',vermouth:'#6b7a3a'};
 function useTint(id){const c=S.conf[id],q=POS[id],num=c?.num||q?.b?.n||'';const D=num?bdata(num):null;return D&&UTINT[D.use]||null}
 function drawBarrel(svg,id,cx,cy,r){const v=view(id);
   const g=el('g',{class:'bbl '+(v.st==='known'?'':v.st)+(S.sel===id?' sel':'')+mvCls(id),tabindex:0,role:'button','data-c':id,'aria-label':'Posición '+CODE(id)+' '+v.n+' '+v.wl},svg);
   const fill=(v.empty||v.st==='none')?'var(--unk)':v.w?WINES[v.w][1]:'var(--oak)', ink=(v.empty||v.st==='none')?'var(--unk-ink)':v.w?WINES[v.w][2]:'var(--ink)';
-  const bs=v.st!=='none'?bstat(id):null,ut=bs&&bs.empty?useTint(id):null;
-  el('circle',{class:'rim'+(ut?' typed':''),cx,cy,r,fill:ut||'var(--oak)'},g);el('circle',{class:'head',cx,cy,r:r-6,fill},g);
+  const bs=v.st!=='none'?bstat(id):null,ut=bs&&bs.empty?useTint(id):null,alert=bs&&bs.jcls!=='ok'?bs.jcls:'';
+  // the beige ring turns yellow (due, up to 10 days late) or red (more than 10 days late); empty barrels: the face is tinted by wine type
+  el('circle',{class:'rim'+(alert?' al-'+alert:''),cx,cy,r,fill:alert?(alert==='bad'?'#c0261c':'#e0a526'):'var(--oak)'},g);
+  el('circle',Object.assign({class:'head',cx,cy,r:r-6,fill},ut?{style:`fill:color-mix(in srgb, ${ut} 30%, var(--unk))`}:{}),g);
   if(bs&&S.glance==='ring'){const left=bs.ja==null||bs.ja>30?100:Math.max(6,Math.round((30-bs.ja)/30*100));
     el('circle',{class:'tring0',cx,cy,r:r+3.5},g);el('circle',{class:'tring '+bs.jcls,cx,cy,r:r+3.5,pathLength:100,'stroke-dasharray':left+' 100',transform:`rotate(-90 ${cx} ${cy})`},g)}
   // barrel number (3 digits, bold), position right under it; the wine goes under the barrel in plain ink
   el('text',{class:'num',x:cx,y:cy+3,fill:ink},g).textContent=v.n;
-  if(v.st!=='none')el('text',{class:'pos',x:cx,y:cy+14,fill:ink},g).textContent=CODE(id);
+  // inside, under the number: the last free SO₂ (ppm) on full barrels; the position on empty ones
+  if(v.st!=='none')el('text',{class:'pos'+(bs&&!bs.empty?' so':''),x:cx,y:cy+14,fill:ink},g).textContent=bs&&!bs.empty?(bs.so?bs.so.raw:'—'):CODE(id);
   const wl=v.st==='none'?'sin barrica':v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
-  const one=t=>{t=short(t);return t.length>16?t.slice(0,15).trim()+'…':t},wls=bs&&S.glance==='ring'?[one(wl)]:wrap2(wl,15);wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
-  if(bs&&S.glance==='ring'){const t=el('text',{class:'sol '+(bs.empty?'mnt '+bs.jcls:bs.so?bs.so.cls:'none'),x:cx,y:cy+r+10+wls.length*9.5},g);
+  const one=t=>{t=short(t).replace(/\s*\(.*?\)\s*/g,' ').trim();return t.length>15?t.slice(0,14).trim()+'…':t},wls=[one(wl)];wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
+  if(alert){el('text',{class:'late '+alert,x:cx,y:cy+r+19.5},g).textContent=(bs.empty?'mant. ':'rellenar ')+(bs.late==null?'?':'+'+bs.late+' d')}
+  if(false){const t=el('text',{class:'sol '+(bs.empty?'mnt '+bs.jcls:bs.so?bs.so.cls:'none'),x:cx,y:cy+r+10+wls.length*9.5},g);
     t.textContent=bs.empty?(bs.jd?'mant. '+fd(bs.jd).replace(/ \d\d$/,''):'sin mant.'):bs.so?'SO₂ '+bs.so.raw:'SO₂ ?'}
   if(false){el('circle',{class:'tick',cx:cx+r-6,cy:cy-r+6,r:8},g);el('text',{x:cx+r-6,y:cy-r+10,fill:'var(--sheet)','font-size':11,'font-weight':700},g).textContent='✓'}}
 // The end pair of the island lies sideways: from the aisle you see the side of the barrels, one behind the other.
@@ -509,10 +522,10 @@ function drawRack(sec,g,r,host){if(sec.id==='C'&&g.levels===1)return drawSidePai
     el('line',{x1:PADL+2,x2:PADL+GX*2+6,y1:TOP+GY*(i+1),y2:TOP+GY*(i+1),stroke:'var(--steel)','stroke-width':3},svg);
     if(first)el('text',{class:'lvl',x:PADL-5,y:y+5},svg).textContent=l.slice(1);
     SIDES.forEach((sd,j)=>drawBarrel(svg,r+'-'+l.slice(1)+sd,PADL+4+GX*j+GX/2,y-10,R))})}
-function drawYard(sec,g,host){const free=g.ids.filter(x=>!yOcc(x)&&(!S.move||x!==S.move.from)),ids=g.ids.filter(id=>yOcc(id)||(S.move&&free.indexOf(id)>-1&&free.indexOf(id)<3)),n=Math.max(1,ids.length),rows=Math.ceil(n/3),W=3*GX+10,H=rows*(GY-4)+12;
+function drawYard(sec,g,host){const free=g.ids.filter(x=>!yOcc(x)&&(!S.move||x!==S.move.from)),ids=g.ids.filter(id=>yOcc(id)||(S.move&&free.indexOf(id)>-1&&free.indexOf(id)<3)),n=Math.max(1,ids.length),rows=Math.ceil(n/3),YX=GX+12,W=3*YX+10,H=rows*(GY-4)+12;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
   if(!ids.length)el('text',{x:W/2,y:H/2+4,class:'wl','text-anchor':'middle'},svg).textContent='No hay barricas en el área de prensa';
-  ids.forEach((id,j)=>drawBarrel(svg,id,5+GX*(j%3)+GX/2,6+Math.floor(j/3)*(GY-4)+R+4,R))}
+  ids.forEach((id,j)=>drawBarrel(svg,id,5+YX*(j%3)+YX/2,6+Math.floor(j/3)*(GY-4)+R+4,R))}
 function drawAisle(sec,g,host){const ids=g.ids.filter(shown),W=Math.max(1,ids.length)*GX+10,H=TOP+GY+FOOT;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
   el('line',{x1:2,x2:W-2,y1:TOP+GY-4,y2:TOP+GY-4,stroke:'var(--line)','stroke-width':3},svg);
   ids.forEach((id,j)=>{const cx=5+GX*j+GX/2;drawBarrel(svg,id,cx,TOP+GY/2-10,R);el('text',{class:'rack-id',x:cx,y:TOP+GY+19},svg).textContent=COL[id]||''})}
@@ -592,11 +605,13 @@ function barrelTop(g,el,x,y,w,h){const along=w>h; // long axis along u
     else el('line',{y1:y+h*f,y2:y+h*f,x1:x+e*(f<.2||f>.8?1.1:.35),x2:x+w-e*(f<.2||f>.8?1.1:.35),class:'hoop'},g)}}
 // column number centred in each barrel (left→right as seen standing in front of the face)
 function labelTop(g,el,it,sec,cls){const b=g.__b||[];if(!it.id){el('text',{x:it.x+it.w/2,y:it.y+it.h/2+0.11,class:cls},g).textContent=it.name;return}
-  if(b.length===1){const t=String(COL[it.id]||'');el('text',Object.assign({x:b[0].x+b[0].w/2,y:b[0].y+b[0].h/2+0.11,class:cls},t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t;return}
+  if(b.length===1){const yard=POS[it.id]&&POS[it.id].sec.id==='X',t=yard?String((S.conf[it.id]&&S.conf[it.id].num)||'?'):String(COL[it.id]||'');el('text',Object.assign({x:b[0].x+b[0].w/2,y:b[0].y+b[0].h/2+(yard?0.085:0.11),class:cls},yard?{style:'font-size:.22px'}:t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t;return}
   const flip=FACE[sec.id].du<0;b.forEach((r,j)=>{const sd=(j===0)!==flip?'I':'D',t=String(COL[it.id+sd]);el('text',Object.assign({x:r.x+r.w/2,y:r.y+r.h/2+0.11,class:cls},t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t})}
 function drawItemTop(g,el,it){const p=0.04;
   if(it.kind==='amph'){el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:AW/2-0.04,class:'amph'},g);return}
-  if(it.kind==='end'){(g.__b||(g.__b=[])).push(it);const c0=S.conf[it.id],ut=c0&&c0.empty?useTint(it.id):null;el('circle',Object.assign({cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2,class:'bend'},ut?{style:`stroke:${ut};stroke-width:.09`}:{}),g);el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2*.74,class:'bendh'},g);return}
+  if(it.kind==='end'){(g.__b||(g.__b=[])).push(it);const c0=S.conf[it.id],bs=bstat(it.id),al=bs&&bs.jcls!=='ok'?bs.jcls:'',ut=c0&&c0.empty?useTint(it.id):null,sc=al?(al==='bad'?'#c0261c':'#e0a526'):ut;
+    g.setAttribute('data-yc',it.id);if(S.sel===it.id)g.classList.add('ysel');
+    el('circle',Object.assign({cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2,class:'bend'},sc?{style:`stroke:${sc};stroke-width:${al?.11:.09}`}:{}),g);el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2*.74,class:'bendh'},g);return}
   if(it.kind==='punch'||it.kind==='one'){barrelTop(g,el,it.x+p,it.y+p,it.w-2*p,it.h-2*p);return}
   el('rect',{x:it.x,y:it.y,width:it.w,height:it.h,rx:0.05,class:'rk'},g);
   if(it.w>=it.h){const bw=(it.w-3*p)/2;for(let j=0;j<2;j++)barrelTop(g,el,it.x+p+j*(bw+p),it.y+p,bw,it.h-2*p)}
@@ -626,7 +641,14 @@ function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
     const r=0.36,v=side?y1+0.1+r:y0-0.1-r,tip=v+dv*r,base=v-dv*r*0.7; // a small triangle pointing at the face, "TÚ" inside
     el('path',{d:`M${u} ${tip} L${u+r*1.05} ${base} L${u-r*1.05} ${base} Z`,class:'mm-eye'},svg);
     el('text',{x:u,y:v-dv*0.04+0.07,class:'mm-eyet'},svg).textContent='TÚ'}
-  svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>pick(n.dataset.s);n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}})}
+  // while moving, the whole crush pad is one big drop target (first free spot)
+  if(S.move){const L=ROOM.L,W=ROOM.W,hit=el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pzhit'},svg);
+    hit.onclick=ev=>{ev.stopPropagation();const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y&&S.move.from!==y)pickTarget(y)}}
+  svg.querySelectorAll('[data-yc]').forEach(n=>{n.style.cursor='pointer';n.onclick=ev=>{ev.stopPropagation();const id=n.dataset.yc;if(S.move){if(isFree(id))pickTarget(id);return}S.view='X';S.sec='X';select(id,true)}});
+  svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>{pick(n.dataset.s);if(!S.move)focusFace()};n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}})}
+// tapping a stack on the map brings its front view up (the map is one tap away with ↑ Mapa); inside the cellar app the page scrolls too
+function toParent(){try{if(parent!==window)parent.postMessage({type:'bm:focus'},location.origin)}catch(e){}}
+function focusFace(){toParent();requestAnimationFrame(()=>document.querySelector('.facecol').scrollIntoView({behavior:'smooth',block:'start'}))}
 function pick(id){S.view=id;S.sec=VIEWS.find(v=>v.id===id).sec;S.sel=null;S.selRack=null;draw();panel()}
 
 // Crush pad (área de prensa): no positions, just the list of barrels that are out there.
@@ -651,7 +673,7 @@ function draw(){numberAisles();rebuildRev();
   if(vw.amph){const d=document.createElement('div');d.className='grp';d.innerHTML='<div class="racks"></div>';w.appendChild(d);for(const n of ['AN-02','AN-01'])drawAmphPos(d.lastChild,n)}
   vw.gi.map(i=>sec.groups[i]).forEach(g=>{
     const d=document.createElement('div');d.className='grp';d.innerHTML=`<div class="racks"></div>`;w.appendChild(d);const host=d.lastChild;
-    if(g.yard)drawYard(sec,g,host);else if(g.aisle)drawAisle(sec,g,host);else if(g.punch)drawPunch(sec,g,host);else for(const r in g.racks)drawRack(sec,g,r,host)});
+    if(g.yard){if(S.move)drawYard(sec,g,host);else if(!S.sel||POS[S.sel].sec.id!=='X'){const m=document.createElement('p');m.className='yhint';m.textContent=vw.racks.some(yOcc)?'Toca una barrica del área de prensa en el mapa para abrir su tarjeta.':'No hay barricas en el área de prensa.';host.appendChild(m)}}else if(g.aisle)drawAisle(sec,g,host);else if(g.punch)drawPunch(sec,g,host);else for(const r in g.racks)drawRack(sec,g,r,host)});
   tabs();questions();minimap();
   let tot=0,ok=0;for(const id of ORDER){const v=view(id);if(v.st==='none')continue;tot++;if(v.st==='conf'||v.st==='known')ok++}
   fitWall()}
@@ -673,7 +695,7 @@ function questions(){return;const vw=VIEW(),sec={name:vw.name+' · '+vw.cols};co
   $('qs').innerHTML=`<h3 style="font-size:20px">Preguntas para Paris · ${sec.name} · ${rows.length}</h3><p class="sub" style="margin:4px 0 8px">Posición = columna.fila · la columna es el número de arriba, la fila el de la izquierda (1 = piso). Ej.: 30.2</p>${rows.length?`<ol class="ql">${rows.join('')}</ol>`:'<p class="okn">✓ Todo identificado aquí.</p>'}`;
   $('qs').querySelectorAll('[data-q]').forEach(x=>x.onclick=()=>select(x.dataset.q,true))}
 function select(id,scroll){if(S.sel!==id)S.tab=S.cardOnly&&!S.sel?(S.tab||'res'):'res';S.sel=id;S.selRack=POS[id].rack;draw();panel();document.body.classList.add('bopen');
-  if(scroll)requestAnimationFrame(()=>document.getElementById('panel').scrollIntoView({behavior:'smooth',block:'start'}))}
+  if(scroll){toParent();requestAnimationFrame(()=>document.getElementById('panel').scrollIntoView({behavior:'smooth',block:'start'}))}}
 // ============ Cellar app data layer ============
 // Truth lives in the app's collections: barrels (registry; loc = position key), barrel_log (maintenance, SO2, moves),
 // barrel_pos (positions without a numbered barrel in the registry: unknown barrel here, free marker, ánforas),
@@ -846,15 +868,15 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
   const lastM=L.find(x=>/\|(p1|p2|p3|top)/.test(x)),fillE=L.find(x=>x.includes('|fill'));
   const md=lastM?lastM.split('|')[0]:null,mAgo=dago(md),fd0=fillE?fillE.split('|')[0]:null;
   const mSt=mAgo==null?'bad':mAgo>30?'bad':mAgo>24?'warn':'ok';
-  const soAgo=so?dago(so.date):null,soV=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,soC=so2Cls(soV,soAgo),soSt=!so?'bad':soC==='old'?'warn':soC;
+  const soAgo=so?dago(so.date):null,soV=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,soC=so2Cls(soV,soAgo),soSt=!so?'bad':soV<SO2_LOW?'bad':soV<SO2_OK?'warn':soC==='old'?'warn':'ok';
   const lv=v=>v==null?'—':v;
   // ---- card: who · what's due (full = topping, empty = sulphur/hydration) · readings · barrel · actions
   const toast=c?.toast||D?.toast||'',coopV=c?.coop||D?.coop,woodV=c?.wood||D?.wood,age=D?.year?2026-D.year:null,uses=D&&D.wines?D.wines.length:0;
   const today=today0(),job=empty?'p2':'top';
   const lastJob=L.find(x=>empty?/\|(p1|p2)/.test(x):/\|(p3|top|fill)/.test(x)),jd=lastJob?lastJob.split('|')[0]:null,jAgo=dago(jd);
-  const doneToday=L.some(x=>x.startsWith(today+'|')&&/\|(p2|p3|top)/.test(x)),jSt=doneToday?'ok':jAgo==null?'bad':jAgo>30?'bad':jAgo>24?'warn':'ok';
+  const doneToday=L.some(x=>x.startsWith(today+'|')&&/\|(p2|p3|top)/.test(x)),jSt=doneToday?'ok':jobCls(jAgo);
   const what=empty?'Mantenimiento de vacía':'Relleno';
-  const mLine=doneToday?`${what} registrado hoy`:jAgo==null?`${what}: sin registro`:jSt==='bad'?(empty?'Toca mantenimiento':'Toca rellenar'):jSt==='warn'?`${empty?'Mantenimiento':'Relleno'} en ${30-jAgo} d`:`${what} al día`;
+  const mLine=doneToday?`${what} registrado hoy`:jAgo==null?`${what}: sin registro`:jSt!=='ok'?(empty?'Toca mantenimiento':'Toca rellenar')+` · ${jAgo-JOB_DAYS} d tarde`:`${what} al día`;
   const summary=`<div class="bc2" style="--c:${col};--ci:${ink}">
     <div class="bh"><div class="bnum">${esc(num||'?')}</div>
       <div class="bwho"><button type="button" class="wpick${!empty&&!wine?' unk':''}" data-q="wine" aria-label="Cambiar vino"><h3>${esc(empty?'Vacía':(wine||'¿vino?'))}</h3><em>▾</em></button>
@@ -863,8 +885,8 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
     ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${doneToday?'':jd?`último ${fd(jd)} · hace ${jAgo} d`:''}</span><em>›</em></button>`
       :`<button type="button" class="mline unk" data-gotab="res"><b>¿Qué barrica es?</b><span>Escribe el número en Datos para ver su mantenimiento</span><em>›</em></button>`}
     ${num?'':'<!--'}<div class="tiles">
-      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span>${empty?'vacía':so?fd(so.date)+(soAgo>SO2_OLD?' · hace '+soAgo+' d':''):'sin lectura'}</span>${!empty&&addA&&(!so||addA.date>=so.date)?`<span class="tadd">luego +${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS${addA.date!==so?.date?' ('+fd(addA.date)+')':''}</span>`:''}${!empty&&so?`<span class="tgoal">meta ≈ ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
-      <div class="tile na">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Vacía desde':'Llenada'}</small><b>${fd0&&!empty?dago(fd0)+' d':(md&&empty?dago(md)+' d':'—')}</b><span>${fd0&&!empty?fd(fd0):(empty&&md?fd(md):(L.length?'antes de may 26':''))}</span></div>
+      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span class="${so&&soAgo>SO2_OLD?'late':''}">${empty?'vacía':so?'medido '+fd(so.date)+' · hace '+soAgo+' d':'sin lectura'}</span>${!empty&&addA?`<span class="tadd${dago(addA.date)>SO2_OLD?' late':''}">${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS agregados el ${fd(addA.date)}</span>`:''}${!empty&&so?`<span class="tgoal${soV<SO2_OK?' late':''}">meta ≈ ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
+      <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span class="${jSt!=='ok'?'late':''}">${jd?fd(jd)+(jSt!=='ok'?' · '+(jAgo-JOB_DAYS)+' d tarde':''):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
       <div class="tile na"><small>Barrica</small><b>${age==null?'—':age+'<i> años</i>'}</b><span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></div>
     </div>${num?'':'-->'}
     <div class="qa"><button type="button" data-q="move">Mover</button></div>

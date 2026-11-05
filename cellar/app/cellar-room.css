@@ -307,8 +307,8 @@
 
 /* ---- v1.9: map (iframe) is the default view; the list is a table for bulk actions ---- */
 .cr-mapslot { margin: 0 -4px; }
-.cr-mapframe { display: block; width: 100%; height: calc(100dvh - 150px); min-height: 520px; border: 0; background: transparent; }
-@media (max-width: 700px) { .cr-mapslot { margin: 0 calc(-1 * max(10px, env(safe-area-inset-left, 0px))); } .cr-mapframe { height: calc(100dvh - 120px); } }
+.cr-mapframe { display: block; width: 100%; height: 100dvh; min-height: 520px; border: 0; background: transparent; }
+@media (max-width: 700px) { .cr-mapslot { margin: 0 calc(-1 * max(10px, env(safe-area-inset-left, 0px))); } .cr-mapframe { height: calc(100dvh - 64px); } }
 dialog.cr-card { padding: 0; border: 0; border-radius: 14px; width: min(680px, 100vw); height: min(92dvh, 1100px); max-height: none; max-width: 100vw; overflow: hidden; background: var(--paper); box-shadow: 0 20px 60px rgba(0,0,0,.3); }
 dialog.cr-card::backdrop { background: rgba(20,23,25,.45); }
 dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
