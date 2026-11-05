@@ -36,11 +36,11 @@
 .cr-grouprow { display: flex; justify-content: flex-end; }
 .cr-group { font: 13px var(--f-body); color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .cr-bbl { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; background: var(--paper); border: 1px solid var(--rule); border-left: 4px solid var(--c); border-radius: 12px; padding: 10px 12px; cursor: pointer; }
-.cr-bbl.f-empty { border-left-color: #c9ced3; }
+.cr-bbl.f-empty { border-left-color: #c8a77e; }
 .cr-bbl.f-partial .cr-code b::after { content: "½"; font-size: 12px; vertical-align: top; margin-left: 1px; color: var(--muted); }
 .cr-code { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 52px; }
 .cr-ico { width: 34px; height: 37px; display: block; }
-.cr-bbl.f-empty .cr-ico path:first-child { fill: #c9ced3; }
+.cr-bbl.f-empty .cr-ico path:first-child { fill: #c8a77e; }
 .cr-code b { font: 700 19px/1 var(--f-mono, ui-monospace, monospace); color: var(--ink); }
 .cr-spec { color: #5b4a3a; }
 .cr-bmain > b { font-size: 15.5px; line-height: 1.3; display: block; }

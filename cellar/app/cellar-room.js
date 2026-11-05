@@ -35,6 +35,8 @@
   const WINE_CODES = { AG: 'Aglianico', AN: 'Naranja', AC: 'Naranja carbónico', MO: 'Montepulciano', MP: 'Montepulciano', CF: 'Cabernet Franc', OP: 'Oporto', CH: 'Chardonnay', RC: 'Reserva de la Casa', CN: 'Chenin', SF: 'Syrah–Cab Franc', CO: 'Cabernet orgánico', SY: 'Syrah', CS: 'Cabernet Sauvignon', TC: 'Tempranillo–Cab Sauv', GR: 'Garnacha', TE: 'Tempranillo', MM: 'Merlot–Malbec', ME: 'Merlot', MA: 'Malbec', SB: 'Sauvignon Blanc', SE: 'Semillón', RF: 'Rosado de Cab Franc', RT: 'Rosado Tempranillo', PC: 'Petite Sirah carbónico', FC: 'Cab Franc carbónico', LT: 'Cosecha tardía', VM: 'Vermut', OR: 'Naranja' };
   const wineCode = c => { const m = /^([A-Z]{2})(\d)$/.exec(String(c || '')); return m && WINE_CODES[m[1]] ? WINE_CODES[m[1]] + ' 202' + m[2] : String(c || ''); };
   const fmtD = iso => iso ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + 'T12:00' : iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+  // Barrel numbers always show with 3 digits (79 → 079, 1 → 001); stored codes stay as they are.
+  const bn = c => /^\d{1,2}$/.test(String(c == null ? '' : c)) ? String(c).padStart(3, '0') : String(c == null ? '' : c);
   const codeOf = v => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
   // Small barrel drawn in the wine's color (the old square badge read like a calendar date).
   const BARREL_SVG = '<svg class="cr-ico" viewBox="0 0 40 44" aria-hidden="true"><path d="M8 3h24c4 6 5 12 5 19s-1 13-5 19H8C4 35 3 29 3 22S4 9 8 3z" fill="var(--c)"/><path d="M5.2 12h29.6M3.4 22h33.2M5.2 32h29.6" stroke="#1f1d1b" stroke-opacity=".55" stroke-width="2.4" fill="none"/><path d="M8 3h24c4 6 5 12 5 19s-1 13-5 19H8C4 35 3 29 3 22S4 9 8 3z" fill="none" stroke="#1f1d1b" stroke-opacity=".35" stroke-width="1.2"/><path d="M14 4c-2 6-3 12-3 18s1 12 3 18M26 4c2 6 3 12 3 18s-1 12-3 18" stroke="#fff" stroke-opacity=".28" stroke-width="1.2" fill="none"/></svg>';
@@ -87,7 +89,7 @@
       <label class="cr-chk"><input type="checkbox" name="velo"> Había velo (se quitó y sanitizó)</label></div>
       <label>Nota (opcional)<input name="note" placeholder="Fuga, tapón cambiado, …"></label>
       <div class="cr-mpick"><div class="cr-mh"><b>Barricas</b> <small id="crMn">0</small> <button type="button" class="lnk" data-mall="due">Marcar las que tocan</button> <button type="button" class="lnk" data-mall="none">Ninguna</button></div>
-      ${keys.map(k => `<div class="cr-mg"><label class="cr-mgh"><input type="checkbox" data-mgrp="${esc(k)}"> <b>${esc(k)}</b> <small>${groups.get(k).length}</small></label><div class="cr-mbs">${groups.get(k).map(b => `<label class="cr-mb${mantDue(b) ? ' due' : ''}"><input type="checkbox" name="bb" value="${esc(b.code)}" data-g="${esc(k)}"${preset && preset.includes(String(b.code)) ? ' checked' : ''}><span>${esc(b.code)}</span></label>`).join('')}</div></div>`).join('')}</div>
+      ${keys.map(k => `<div class="cr-mg"><label class="cr-mgh"><input type="checkbox" data-mgrp="${esc(k)}"> <b>${esc(k)}</b> <small>${groups.get(k).length}</small></label><div class="cr-mbs">${groups.get(k).map(b => `<label class="cr-mb${mantDue(b) ? ' due' : ''}"><input type="checkbox" name="bb" value="${esc(b.code)}" data-g="${esc(k)}"${preset && preset.includes(String(b.code)) ? ' checked' : ''}><span>${esc(bn(b.code))}</span></label>`).join('')}</div></div>`).join('')}</div>
       <p class="cr-err" id="crErr"></p><div class="cr-row"><button type="button" class="btn" data-x>Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`, 'cr-wide');
     const f = $('form', d), cnt = () => { $('#crMn', d).textContent = f.querySelectorAll('[name="bb"]:checked').length; };
     const showP3 = () => { const v = (f.querySelector('[name="proto"]:checked') || {}).value; $('.cr-p3x', d).hidden = v !== 'p3'; };
@@ -209,7 +211,7 @@
   // ---------- Barricas ----------
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
-    let bs = C.barrels.filter(b => !q || (b.code + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
+    let bs = C.barrels.filter(b => !q || (b.code + ' ' + bn(b.code) + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
     if (C.vint !== 'all') bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; }); // empties have no vintage: always shown
     if (C.use) bs = bs.filter(b => useOf(b) === C.use || (C.use === 'none' && !useOf(b)));
     if (C.noloc) bs = bs.filter(b => !b.loc);
@@ -233,11 +235,11 @@
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» para pegar el inventario de barricas desde Excel, o «+ Barrica» para capturar una por una.</div>`;
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
     if (C.filter === 'confirm') return h + `<p class="cr-help">Estas barricas tenían vino de años anteriores en los registros de SO₂ en papel (nov/25 y may/26). Confirma qué tienen hoy; lo de 2026 en Excellovint no se toca.</p><div class="cr-cfm">` +
-      bs.map(b => `<article class="cr-cfm-row" data-bb="${esc(b.id)}"><div><b>BBL ${esc(b.code)}</b><span>${esc(paperLine(b) || 'Sin registro')}</span>${b.flag ? `<em>⚠ ${esc(b.flag)}</em>` : ''}</div>${C.canWrite ? `<div class="cr-cfm-a"><button type="button" class="btn sm" data-cfm="same" data-id="${esc(b.id)}">Sigue con ${esc((b.paper && b.paper.last) || 'este vino')}</button><button type="button" class="btn sm" data-cfm="empty" data-id="${esc(b.id)}">Embotellada / vacía</button><button type="button" class="btn sm" data-cfm="other" data-id="${esc(b.id)}">Otro vino…</button></div>` : ''}</article>`).join('') + `</div>`;
+      bs.map(b => `<article class="cr-cfm-row" data-bb="${esc(b.id)}"><div><b>BBL ${esc(bn(b.code))}</b><span>${esc(paperLine(b) || 'Sin registro')}</span>${b.flag ? `<em>⚠ ${esc(b.flag)}</em>` : ''}</div>${C.canWrite ? `<div class="cr-cfm-a"><button type="button" class="btn sm" data-cfm="same" data-id="${esc(b.id)}">Sigue con ${esc((b.paper && b.paper.last) || 'este vino')}</button><button type="button" class="btn sm" data-cfm="empty" data-id="${esc(b.id)}">Embotellada / vacía</button><button type="button" class="btn sm" data-cfm="other" data-id="${esc(b.id)}">Otro vino…</button></div>` : ''}</article>`).join('') + `</div>`;
     const card = b => {
       const g = lotGroup(b.lot), st = stateOf(b), fill = st === 'confirm' ? 'empty' : st, u = useOf(b);
-      return `<article class="cr-bbl f-${fill}" data-bb="${esc(b.id)}" style="--c:${GCOL[g] || '#9aa5b1'}">
-        <div class="cr-code">${BARREL_SVG}<b>${esc(b.code)}</b></div>
+      return `<article class="cr-bbl f-${fill}" data-bb="${esc(b.id)}" style="--c:${b.lot ? (GCOL[g] || '#9aa5b1') : st === 'full' && u ? (USE_C[u] || '#c8a77e') : '#c8a77e'}">
+        <div class="cr-code">${BARREL_SVG}<b>${esc(bn(b.code))}</b></div>
         <div class="cr-bmain">
           <div class="cr-bh"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
           ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
@@ -259,7 +261,7 @@
   // ---------- Mapa ----------
   function renderMap() {
     const map = C.map || DEFAULT_MAP;
-    const legend = Object.entries(GCOL).map(([g, c]) => `<span><i style="background:${c}"></i>${{ red: 'Tinto', rose: 'Rosado', white: 'Blanco', orange: 'Naranja', sparkling: 'Espumoso' }[g]}</span>`).join('') + '<span><i style="background:#c9ced3"></i>Vacía</span><span><i class="dash"></i>Libre</span>';
+    const legend = Object.entries(GCOL).map(([g, c]) => `<span><i style="background:${c}"></i>${{ red: 'Tinto', rose: 'Rosado', white: 'Blanco', orange: 'Naranja', sparkling: 'Espumoso' }[g]}</span>`).join('') + '<span><i style="background:#c8a77e"></i>Vacía</span><span><i class="dash"></i>Libre</span>';
     let h = `<div class="cr-legend">${legend}${!C.map ? '<em>Plano de ejemplo: ajústalo en «Configurar mapa».</em>' : ''}</div>`;
     for (const z of map.zones || []) {
       h += `<section class="cr-zone"><h3 class="cr-gh">${esc(z.name || 'Zona ' + z.id)} <small>${C.barrels.filter(b => (b.loc || '').startsWith(z.id + '-')).length} barricas</small></h3>`;
@@ -268,7 +270,7 @@
         h += `<div class="cr-rowmap"><div class="cr-rowlab">${esc(r.name || 'Fila ' + r.id)}</div><div class="cr-grid" style="--n:${slots}">`;
         for (let lv = levels; lv >= 1; lv--) for (let s = 1; s <= slots; s++) {
           const loc = `${z.id}-${r.id}-${s}-${lv}`, b = atLoc(loc);
-          if (b) { const g = lotGroup(b.lot); h += `<button type="button" class="cr-cell has ${b.fill === 'partial' ? 'half' : ''}" data-bb="${esc(b.id)}" style="--c:${b.lot ? (GCOL[g] || '#999') : '#c9ced3'}" title="${esc(b.code + ' · ' + (lotName(b.lot) || 'vacía') + ' · ' + locLabel(loc))}"><b>${esc(b.code)}</b><small>${esc((lotName(b.lot) || 'vacía').slice(0, 14))}</small></button>`; }
+          if (b) { const g = lotGroup(b.lot); h += `<button type="button" class="cr-cell has ${b.fill === 'partial' ? 'half' : ''}" data-bb="${esc(b.id)}" style="--c:${b.lot ? (GCOL[g] || '#999') : '#c8a77e'}" title="${esc(bn(b.code) + ' · ' + (lotName(b.lot) || 'vacía') + ' · ' + locLabel(loc))}"><b>${esc(bn(b.code))}</b><small>${esc((lotName(b.lot) || 'vacía').slice(0, 14))}</small></button>`; }
           else h += `<button type="button" class="cr-cell free" data-loc="${loc}" title="${esc(locLabel(loc))}"${C.canWrite ? '' : ' disabled'}><small>${s}${levels > 1 ? '·' + lv : ''}</small></button>`;
         }
         h += `</div></div>`;
@@ -276,7 +278,7 @@
       h += `</section>`;
     }
     const unplaced = C.barrels.filter(b => !b.loc);
-    if (unplaced.length) h += `<h3 class="cr-gh">Sin ubicación <small>${unplaced.length}</small></h3><div class="cr-chips">${unplaced.map(b => `<button type="button" class="cr-chip" data-bb="${esc(b.id)}" style="--c:${GCOL[lotGroup(b.lot)] || '#999'}"><b>${esc(b.code)}</b><small>${esc(lotName(b.lot) || 'vacía')}</small></button>`).join('')}</div>`;
+    if (unplaced.length) h += `<h3 class="cr-gh">Sin ubicación <small>${unplaced.length}</small></h3><div class="cr-chips">${unplaced.map(b => `<button type="button" class="cr-chip" data-bb="${esc(b.id)}" style="--c:${GCOL[lotGroup(b.lot)] || '#999'}"><b>${esc(bn(b.code))}</b><small>${esc(lotName(b.lot) || 'vacía')}</small></button>`).join('')}</div>`;
     return h;
   }
 
@@ -474,7 +476,7 @@
     if (isNew && C.crew) return;
     const lotOpts = `<option value="">— Vacía / sin vino —</option>` + ['red', 'rose', 'white', 'orange', 'sparkling'].map(g => { const ls = C.all.filter(l => l.group === g); return ls.length ? `<optgroup label="${{ red: 'Tintos', rose: 'Rosados', white: 'Blancos', orange: 'Naranjas', sparkling: 'Espumosos' }[g]}">${ls.map(l => `<option value="${esc(l.id)}"${l.id === b.lot ? ' selected' : ''}>${esc(l.name)} (${C.vintageOf(l)}${l.code ? ' · ' + esc(l.code) : ''})</option>`).join('')}</optgroup>` : ''; }).join('');
     const d = sheet(`<form method="dialog" class="cr-form">
-      <div class="cr-sh"><h3>${isNew ? 'Nueva barrica' : 'Barrica ' + esc(b.code)}</h3>${!isNew ? `<nav class="cr-stabs"><button type="button" data-st="form" aria-selected="true">Datos</button><button type="button" data-st="hist" aria-selected="false">Historial</button><button type="button" data-st="tag" aria-selected="false">Etiqueta</button></nav>` : ''}</div>
+      <div class="cr-sh"><h3>${isNew ? 'Nueva barrica' : 'Barrica ' + esc(bn(b.code))}</h3>${!isNew ? `<nav class="cr-stabs"><button type="button" data-st="form" aria-selected="true">Datos</button><button type="button" data-st="hist" aria-selected="false">Historial</button><button type="button" data-st="tag" aria-selected="false">Etiqueta</button></nav>` : ''}</div>
       <div class="cr-pane" data-pane="form">
         <div class="g3"><label>Nº barrica<input name="code" inputmode="numeric" required value="${esc(b.code)}" ${isNew ? '' : 'readonly'} placeholder="101"></label><label>Tamaño (L)<input name="size" inputmode="numeric" value="${esc(b.size)}"></label><label>Llenado<select name="fill">${Object.entries(FILL).map(([k, l]) => `<option value="${k}"${(b.fill || 'full') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>
         <label>Vino<select name="lot">${lotOpts}</select></label>
@@ -548,7 +550,7 @@
     pane.innerHTML = '<div class="cr-empty">Generando…</div>';
     try {
       const svg = await qrSvg(tagUrl(b.code), 160);
-      pane.innerHTML = `<div class="cr-tag"><div class="cr-label"><div class="cr-lcode"><small>BBL</small><b>${esc(b.code)}</b></div>${svg}<div class="cr-lfoot">${esc(lotName(b.lot) || '')}<br><span>Dos Búhos · ${esc(tagUrl(b.code).replace(/^https?:\/\//, ''))}</span></div></div>
+      pane.innerHTML = `<div class="cr-tag"><div class="cr-label"><div class="cr-lcode"><small>BBL</small><b>${esc(bn(b.code))}</b></div>${svg}<div class="cr-lfoot">${esc(lotName(b.lot) || '')}<br><span>Dos Búhos · ${esc(tagUrl(b.code).replace(/^https?:\/\//, ''))}</span></div></div>
         <p class="cr-help">Al escanear el QR se abre esta barrica. El contenido no va impreso: siempre se lee lo actual.</p>
         <div class="cr-row"><button type="button" class="btn" data-print1>Imprimir esta etiqueta</button>${'NDEFReader' in window ? `<button type="button" class="btn" data-nfc>Escribir tag NFC</button>` : '<small class="cr-dim">NFC: disponible en Android con Chrome.</small>'}</div><div class="cr-err" id="crNfc"></div></div>`;
       pane.querySelector('[data-print1]').onclick = () => printLabels([b]);
@@ -559,7 +561,7 @@
     const bs = list || C.barrels; if (!bs.length) return alert('No hay barricas registradas.');
     const svgs = await Promise.all(bs.map(b => qrSvg(tagUrl(b.code), 120)));
     let host = $('#crPrint'); if (!host) { host = document.createElement('div'); host.id = 'crPrint'; document.body.appendChild(host); }
-    host.innerHTML = bs.map((b, i) => `<div class="cr-label"><div class="cr-lcode"><small>BBL</small><b>${esc(b.code)}</b></div>${svgs[i]}<div class="cr-lfoot">${esc(lotName(b.lot) || '')}<br><span>Dos Búhos · ${esc(tagUrl(b.code).replace(/^https?:\/\//, ''))}</span></div></div>`).join('');
+    host.innerHTML = bs.map((b, i) => `<div class="cr-label"><div class="cr-lcode"><small>BBL</small><b>${esc(bn(b.code))}</b></div>${svgs[i]}<div class="cr-lfoot">${esc(lotName(b.lot) || '')}<br><span>Dos Búhos · ${esc(tagUrl(b.code).replace(/^https?:\/\//, ''))}</span></div></div>`).join('');
     document.documentElement.classList.add('cr-printing');
     const done = () => { document.documentElement.classList.remove('cr-printing'); window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done); setTimeout(() => window.print(), 150); setTimeout(done, 60000);
@@ -639,7 +641,7 @@
     const list = C.barrels.slice().sort((a, b) => (!!a.loc - !!b.loc) || (+a.code - +b.code));
     const d = sheet(`<form method="dialog" class="cr-form"><div class="cr-sh"><h3>${esc(locLabel(loc))}</h3><span class="cr-loc">${esc(loc)}</span></div>
       <input type="search" class="search" placeholder="Buscar barrica o vino" data-aq>
-      <div class="cr-chips" data-al>${list.map(b => `<button type="button" class="cr-chip${b.loc ? ' placed' : ''}" data-pick="${esc(b.id)}" style="--c:${GCOL[lotGroup(b.lot)] || '#999'}"><b>${esc(b.code)}</b><small>${esc(lotName(b.lot) || 'vacía')}${b.loc ? ' · ' + esc(b.loc) : ''}</small></button>`).join('') || '<span class="cr-none">No hay barricas registradas; usa «+ Barrica».</span>'}</div>
+      <div class="cr-chips" data-al>${list.map(b => `<button type="button" class="cr-chip${b.loc ? ' placed' : ''}" data-pick="${esc(b.id)}" style="--c:${GCOL[lotGroup(b.lot)] || '#999'}"><b>${esc(bn(b.code))}</b><small>${esc(lotName(b.lot) || 'vacía')}${b.loc ? ' · ' + esc(b.loc) : ''}</small></button>`).join('') || '<span class="cr-none">No hay barricas registradas; usa «+ Barrica».</span>'}</div>
       <div class="cr-actions"><button type="button" class="btn" data-cancel>Cancelar</button><button type="button" class="btn primary" data-newhere>+ Nueva barrica aquí</button></div></form>`);
     d.querySelector('[data-cancel]').onclick = () => d.close();
     d.querySelector('[data-newhere]').onclick = () => { d.close(); openBarrel(null, { loc }); };
