@@ -331,6 +331,7 @@ html.embedmap .snack{transform:translate(-50%,calc(-100% - 16px))}
 html.embedmap .totop{transform:translateY(calc(-100% - 14px))}
 html.embedmap .dlg{position:absolute;top:var(--vpt);height:var(--vph);bottom:auto}
 html.embedmap body.bopen .facecol{min-height:0}
+.pend{background:#fbf1dc;border:1.5px solid #d79a1f;color:#7a5200;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px}
 
 </style>
 </head>
@@ -761,6 +762,7 @@ function useOf(b){if(b.use)return b.use;const l=lotById(b.lot);if(l&&USE[l.group
 // ---- conf per position, rebuilt from the collections
 function confOfBarrel(b){const st=stateOf(b),l=lotById(b.lot);return {num:pad(b.code),code:unpad(b.code),lot:b.lot||'',wine:l?l.name:(b.lot||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:st==='empty',here:true,confirm:st==='confirm',reg:true}}
 function confOfPos(d){const l=lotById(d.lot);if(d.free)return {num:'',wine:'',empty:true,here:false,posDoc:true};
+  if(/^AN-0\d$/.test(d.id||''))return {num:d.id,code:d.id,lot:d.lot||'',wine:l?l.name:(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:true,vol:d.vol||'',notes:d.notes||'',amph:true,posDoc:true};
   return {num:d.num?pad(d.num):'',code:unpad(d.num),lot:d.lot||'',wine:l?l.name:(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:d.here!==false,posDoc:true}}
 function rebuild(){for(const k in WINES)if(k.startsWith('L:'))delete WINES[k];
   for(const l of A.lots){const g=GC[l.group]||GC.red;WINES['L:'+l.id]=[l.name,g[0],g[1]]}
@@ -1090,6 +1092,66 @@ async function doMove(){const {from,to}=S.move,c=S.conf[from]||{},now=new Date()
   S.move=null;document.body.classList.remove('mv');$('mvbar').hidden=true;select(to,true);tellParent();snack('Movida a '+(isYard(to)?'Área de prensa':CODE(to)))}
 $('wall').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const g=e.target.closest('.bbl');if(!g)return;e.preventDefault();select(g.dataset.c);
   const n=document.querySelector(`.bbl[data-c="${S.sel}"]`);n&&n.focus()});
+// ---------- Ánforas: a card like a barrel's (Datos · Mantenimiento · Historial · Etiqueta), kept in barrel_pos/AN-0x and barrel_log (code AN-0x)
+// The maintenance protocol is a PROPOSAL until we have the maker's instructions: it says so on the card.
+const AMPH_CAP={'AN-01':1000,'AN-02':900};
+const AMPH_PR={af:['Ánfora llena','#8a4b2a'],av:['Ánfora vacía','#2d6fb3'],ae:['Ánfora vaciada','#b3261e'],fill:['Llenado','#2f7d32'],otro:['Otro','#7a6a55']};
+const AMPH_STEPS={af:['Revisar el nivel y rellenar con el mismo vino','Limpiar y sanitizar la boca y la tapa','Revisar que la tapa/sello cierre bien (sin aire)','Revisar el exterior: humedad, manchas o goteo'],
+  av:['Revisar el interior: grietas, cera desprendida, olores raros','Enjuagar con agua limpia (sin sosa ni químicos fuertes)','Dejar secar ventilada y tapada con malla'],
+  ae:['Retirar lías y orujo el mismo día','Lavar con agua a presión (sin cepillo metálico ni sosa)','Enjuagar bien y dejar secar ventilada']};
+const AMPH_DAYS={af:14,av:30};
+function amphLines(cd){return A.logs.filter(l=>l.code===cd&&l.kind==='mant').map(l=>({l,d:String(l.at).slice(0,10)})).sort((a,b)=>a.d<b.d?1:-1)}
+async function amphLog(cd,doc){if(noWrite())return null;const id='a'+cd+'-'+doc.at.slice(0,10).replace(/-/g,'')+doc.proto+'-'+Date.now().toString(36);const d=Object.assign({code:cd,kind:'mant',src:'app',by:me()},doc);
+  A.logs.push(Object.assign({id},d));try{await api('barrel_log/'+enc(id),'PUT',d)}catch(e){snack('No se guardó: '+e.message)}rebuild();keep(()=>{draw();panel()});tellParent();
+  return ()=>{A.logs=A.logs.filter(x=>x.id!==id);api('barrel_log/'+enc(id),'DELETE').catch(()=>{});rebuild();keep(()=>{draw();panel()});tellParent()}}
+function amphPanel(p,cd,c){c=c||{};const empty=!!c.empty||!c.wine,wine=c.wine||'',cap=AMPH_CAP[cd]||'',tab=S.tab||'res',today=today0();
+  const L=amphLines(cd),job=L.find(x=>empty?/^(av|ae)$/.test(x.l.proto):/^(af|fill)$/.test(x.l.proto)),jd=job?job.d:null,ja=dago(jd),every=empty?AMPH_DAYS.av:AMPH_DAYS.af,
+    st=ja==null?'bad':ja>every+7?'bad':ja>every?'warn':'ok',what=empty?'Mantenimiento de ánfora vacía':'Revisión de ánfora llena';
+  const lot=c.lot||'',wk=c.w,col=wk&&WINES[wk]?WINES[wk][1]:'var(--amph)',ink=wk&&WINES[wk]?WINES[wk][2]:'#fff';
+  let body='';
+  if(tab==='res')body=`<form id="af" class="grid"><label class="w2">Vino<select id="aw" data-list="wine">${sel('wine',empty?'':lot,'— vacía —')}</select></label>
+     <label>Litros<input id="avol" inputmode="decimal" value="${esc(c.vol||'')}" placeholder="${cap}"></label>
+     <label class="w3">Notas<textarea id="ano" rows="2">${esc(c.notes||'')}</textarea></label>
+     <div class="btns w3"><button type="submit" class="pri">Guardar</button><span class="status" id="fs"></span></div></form>`;
+  else if(tab==='mant'){const K=empty?[['av','Mensual'],['fill','Se llenó'],['otro','Otro']]:[['af','Revisión'],['ae','Se vació'],['otro','Otro']],mk=K.some(k=>k[0]===S.amk)?S.amk:K[0][0];let by='';try{by=localStorage.getItem('fb-by')||''}catch(e){}
+    body=`<div class="mt"><div class="pend">⚠ <b>Protocolo propuesto, pendiente de revisión.</b> Todavía no es obligatorio: falta confirmarlo con las instrucciones del fabricante.</div>
+     <p class="mt-sched">${empty?'Vacía · cada '+AMPH_DAYS.av+' días':'Llena · revisión cada '+AMPH_DAYS.af+' días'}${jd?' · la próxima toca el <b>'+fd(new Date(Date.parse(jd)+every*864e5).toISOString().slice(0,10))+'</b>':''}</p>
+     <form id="amf" class="mf"><h4>¿Qué se hizo?</h4><div class="seg3" role="radiogroup">${K.map(([k,t])=>`<button type="button" role="radio" data-amk="${k}" aria-checked="${k===mk}">${t}</button>`).join('')}</div>
+      ${Object.entries(AMPH_STEPS).filter(([k])=>K.some(x=>x[0]===k)).map(([k,list])=>`<div class="steps" data-ak="${k}" ${mk===k?'':'hidden'}>${list.map(t=>`<label class="chk"><input type="checkbox" checked> ${t}</label>`).join('')}</div>`).join('')}
+      ${empty?`<div class="row2" data-ak="fill" ${mk==='fill'?'':'hidden'}><label>Vino<select data-f="w" data-list="wine">${sel('wine','')}</select></label><label>Litros<input data-f="l" inputmode="decimal" placeholder="${cap}"></label></div>`:`<div class="row2" data-ak="af" ${mk==='af'?'':'hidden'}><label>Rellenado con<select data-f="w" data-list="wine">${sel('wine',lot)}</select></label><label>Litros<input data-f="l" inputmode="decimal" placeholder="0"></label></div>`}
+      <div class="ot" data-ak="otro" ${mk==='otro'?'':'hidden'}><input id="amo" placeholder="Describe lo que se hizo" autocomplete="off"></div>
+      <div class="row2"><label>Fecha<input type="date" id="amd" value="${today}" max="${today}"></label><label>Quién<select id="amby"><option value="">—</option>${CREW.map(x=>`<option ${x===by?'selected':''}>${x}</option>`).join('')}</select></label></div>
+      <label class="nota">Nota<textarea id="amn" rows="2" placeholder="opcional"></textarea></label>
+      <div class="btns"><button class="pri" type="submit">Registrar</button><span class="status" id="amfs"></span></div></form>
+     <h4>Registros</h4>${L.length?L.slice(0,10).map(({l,d})=>{const P=AMPH_PR[l.proto]||['',' #888'];return `<div class="hrow"><time>${fd(d)}</time><span class="tag" style="background:${P[1]};color:#fff">${P[0]}</span><span class="ht">${esc(l.extra||'')}${l.by?` <i>· ${esc(l.by)}</i>`:''}</span>${l.src==='app'?`<button type="button" class="rm" data-arm="${esc(l.id)}" aria-label="Borrar registro">×</button>`:''}</div>`}).join(''):'<p class="mut">Sin registros.</p>'}</div>`}
+  else if(tab==='hist'){const ev=A.logs.filter(l=>l.code===cd).sort((x,y)=>String(y.at).localeCompare(String(x.at)));
+    body=`<div class="hist"><h4>Mantenimiento y movimientos <small>${ev.length}</small></h4>${ev.length?`<ul class="cr-log">${ev.map(r=>{const P=r.kind==='mant'&&AMPH_PR[r.proto];return `<li><span class="cr-ld">${fd(r.at)}</span><span class="cr-lk ${esc(r.kind)}"${P?` style="background:${P[1]};color:#fff"`:''}>${esc(P?P[0]:LOGTAG[r.kind]||r.kind)}</span>${esc(r.text||r.extra||'')}<small>${esc(r.by||'')}</small></li>`}).join('')}</ul>`:'<p class="cr-none">Nada todavía.</p>'}</div>`}
+  else body=`<div class="lab"><div class="lab-c"><div class="lab-n">${esc(cd)}</div><div id="qr"></div><small>Dos Búhos</small></div><p class="mut">Al escanear el QR se abre esta ánfora.</p></div>`;
+  p.innerHTML=`<div class="bc2" style="--c:${col};--ci:${ink}"><div class="bh"><div class="bnum">${esc(cd)}</div><div class="bwho"><h3>${esc(empty?'Vacía':wine)}</h3>
+      <div class="chips"><span class="chip pos">Ánfora · ${cap} L</span><span class="chip">${empty?'Vacía':'Llena'}</span></div></div><button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
+    <button type="button" class="mline ${st}" data-gotab="mant"><b>${ja==null?what+': sin registro':st==='ok'?what+' al día':'Toca '+(empty?'mantenimiento':'revisión')+' · '+(ja-every)+' d tarde'}</b><span>${jd?'último '+fd(jd)+' · hace '+ja+' d':''} · protocolo pendiente de revisión</span><em>›</em></button></div>
+   <div class="seg2" role="tablist">${[['res','Datos'],['mant','Mantenimiento'],['hist','Historial'],['qr','Etiqueta']].map(([k,t])=>`<button type="button" data-t="${k}" aria-pressed="${tab===k}">${t}</button>`).join('')}</div>`+body;
+  wireOtro(p);
+  p.querySelectorAll('.seg2 button').forEach(x=>x.onclick=()=>{S.tab=x.dataset.t;keep(()=>panel())});
+  p.querySelectorAll('[data-gotab]').forEach(x=>x.onclick=()=>{S.tab=x.dataset.gotab;keep(()=>panel())});
+  $('fx').onclick=()=>{if(S.cardOnly&&parent!==window){try{parent.postMessage({type:'bm:close'},location.origin)}catch(e){}return}S.sel=null;draw();panel()};
+  if(tab==='qr'&&window.QRCode){try{new QRCode($('qr'),{text:location.origin+'/barricas.html?b='+cd,width:150,height:150,correctLevel:QRCode.CorrectLevel.M})}catch(e){}}
+  if(tab==='res')$('af').onsubmit=async e=>{e.preventDefault();if(noWrite())return;const v=$('aw').value==='__otro'?'':$('aw').value,isE=!v,prev=c.lot||'';
+    try{await putPos(cd,{num:cd,lot:v,wine:'',empty:isE,here:true,vol:$('avol').value.trim(),notes:$('ano').value.trim(),by:me(),at:new Date().toISOString()});
+      if(prev!==v)await logEvent(cd,v?'fill':'empty',v?'Con '+lotName(v):'Vacía (antes: '+(lotName(prev)||'—')+')');$('fs').textContent='Guardado ✓';reload()}catch(er){$('fs').textContent='No se guardó: '+er.message}};
+  if(tab==='mant'){const f=$('amf');wireOtro(f);const cur=()=>f.querySelector('[data-amk][aria-checked="true"]').dataset.amk;
+    f.querySelectorAll('[data-amk]').forEach(x=>x.onclick=()=>{S.amk=x.dataset.amk;f.querySelectorAll('[data-amk]').forEach(y=>y.setAttribute('aria-checked',y===x));f.querySelectorAll('[data-ak]').forEach(y=>y.hidden=y.dataset.ak!==S.amk)});
+    $('amby').onchange=()=>{try{localStorage.setItem('fb-by',$('amby').value)}catch(e){}};
+    p.querySelectorAll('[data-arm]').forEach(x=>x.onclick=async()=>{const id=x.dataset.arm,doc=A.logs.find(l=>l.id===id);if(!doc)return;A.logs=A.logs.filter(l=>l.id!==id);await api('barrel_log/'+enc(id),'DELETE').catch(()=>{});rebuild();keep(()=>{draw();panel()});
+      snack('Registro borrado',async()=>{const {id:_,...d}=doc;A.logs.push(doc);await api('barrel_log/'+enc(id),'PUT',d).catch(()=>{});rebuild();keep(()=>{draw();panel()})})});
+    f.onsubmit=async e=>{e.preventDefault();const k=cur(),d=$('amd').value;if(!/^\d{4}-\d\d-\d\d$/.test(d)||d>today){$('amfs').textContent='Fecha no válida.';return}
+      const parts=[];const box=f.querySelector(`.steps[data-ak="${k}"]`);if(box){const cb=[...box.querySelectorAll('input')],n=cb.filter(x=>x.checked).length;if(!n){$('amfs').textContent='Marca al menos un paso.';return}if(n<cb.length)parts.push(n+'/'+cb.length+' pasos')}
+      if(k==='otro'){const t=$('amo').value.trim();if(!t){$('amfs').textContent='Escribe qué se hizo.';return}parts.push(t)}
+      const rw=f.querySelector(`.row2[data-ak="${k}"]`);let fillLot='';if(rw){const w=rw.querySelector('[data-f="w"]').value,l=rw.querySelector('[data-f="l"]').value.trim();fillLot=w;if(k==='fill'){if(!w){$('amfs').textContent='Elige el vino.';return}parts.unshift(wname(w)+(l?' · '+l+' L':''))}else if(l)parts.push('rellenada con '+(wname(w)||wine)+' '+l+' L')}
+      const note=$('amn').value.trim();if(note)parts.push(note);
+      const extra=parts.join(' · '),undo=await amphLog(cd,{at:d+'T12:00:00.000Z',proto:k,extra,text:(AMPH_PR[k]||[k])[0]+(extra?' · '+extra:''),by:$('amby').value||me()});
+      if(k==='fill'||k==='ae'){await putPos(cd,Object.assign({},A.pos[cd]||{},{num:cd,here:true,empty:k==='ae',lot:k==='ae'?'':fillLot,by:me(),at:new Date().toISOString()}));delete (A.pos[cd]||{}).id;reload()}
+      if(undo)snack((AMPH_PR[k]||[k])[0]+' registrado · '+fd(d),undo)}}}
 // ---------- boot
 for(const k in POS){const b=POS[k].b;if(b&&b.n&&!POS[k].amph)delete b.n} // the registry says which barrel is where; the plan keeps only the wine hints
 const QS=new URLSearchParams(location.search);S.cardOnly=QS.has('b');if(S.cardOnly)document.body.classList.add('cardonly');
@@ -1106,7 +1168,7 @@ if(EMBED){document.documentElement.classList.add('embedmap');
   $('totop').onclick=goTop;
   window.__embedScroll=el=>{requestAnimationFrame(()=>{const h=Math.ceil(document.documentElement.getBoundingClientRect().height),y=Math.round(el.getBoundingClientRect().top+scrollY);try{parent.postMessage({type:'bm:scroll',y,h},location.origin)}catch(e){}})}}
 draw();
-load().then(()=>{if(S.cardOnly){const cd=posOfCode(QS.get('b'));if(!POS[cd].virtual&&VOF[POS[cd].rack]){S.view=VOF[POS[cd].rack];S.sec=VIEWS.find(v=>v.id===S.view).sec}S.sel=cd;S.selRack=POS[cd].rack;S.tab=QS.get('tab')||'res'}draw();panel()})
+load().then(()=>{if(S.cardOnly){const qb=QS.get('b'),cd=/^AN-0\d$/i.test(qb)?qb.toUpperCase():posOfCode(qb);if(!POS[cd].virtual&&VOF[POS[cd].rack]){S.view=VOF[POS[cd].rack];S.sec=VIEWS.find(v=>v.id===S.view).sec}S.sel=cd;S.selRack=POS[cd].rack;S.tab=QS.get('tab')||'res'}draw();panel()})
   .catch(e=>{$('dbst').textContent='No se pudo cargar: '+e.message});
 setInterval(()=>{if(document.hidden||S.move)return;const a=document.activeElement;if(a&&a.closest&&a.closest('form,.qa-x,.dlg'))return;if(!$('qax')||$('qax').hidden)reload()},90000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!S.move)reload()});
