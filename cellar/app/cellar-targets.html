@@ -1240,6 +1240,7 @@ body { background-image: none !important; font-family: var(--f-body); }
 .bp-dlg form { display: grid; gap: 10px; } .bp-dlg label { display: grid; gap: 4px; font-weight: 600; font-size: 13px; }
 .bp-dlg fieldset { display: grid; gap: 6px; border: 1px solid #e0e3e6; border-radius: 8px; } .bp-dlg input, .bp-dlg select, .bp-dlg textarea { font: inherit; padding: 6px 8px; border: 1px solid #cfd4d8; border-radius: 6px; }
 .bp-dlg-a { display: flex; justify-content: flex-end; gap: 8px; }
+.asg-xx summary{cursor:pointer;padding:10px 4px;color:var(--muted);font-size:14px}.asg-xx summary b{color:var(--ink)}
 </style>
 
 <div class="page">
@@ -3425,11 +3426,18 @@ Return ONLY JSON with this shape:
       for (const r of g) h += rowHtml(r);
       h += `</div>`;
     }
-    if (closedToday.length) {
-      closedToday.sort((a, b) => (a.asig || "~").localeCompare(b.asig || "~") || a.tab.localeCompare(b.tab, undefined, { numeric: true }) || a.row - b.row);
-      h += `<div class="asg-group asg-closed"><h3>Closed today <small>${closedToday.length} · check they're really done; set Status back to Open to revisit</small></h3>` +
-        `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span><span></span></div>` +
-        closedToday.map(rowHtml).join("") + `</div>`;
+    // Canceled orders (XX) don't clutter the day: they sit folded at the bottom, one tap to see them.
+    const isXX = r => /^XX$/i.test(r.ini || "");
+    const doneToday = closedToday.filter(r => !isXX(r)), xxToday = closedToday.filter(isXX);
+    const byAsig = (a, b) => (a.asig || "~").localeCompare(b.asig || "~") || a.tab.localeCompare(b.tab, undefined, { numeric: true }) || a.row - b.row;
+    const headRow = `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span><span></span></div>`;
+    if (doneToday.length) {
+      doneToday.sort(byAsig);
+      h += `<div class="asg-group asg-closed"><h3>Closed today <small>${doneToday.length} · check they're really done; set Status back to Open to revisit</small></h3>` + headRow + doneToday.map(rowHtml).join("") + `</div>`;
+    }
+    if (xxToday.length) {
+      xxToday.sort(byAsig);
+      h += `<details class="asg-group asg-closed asg-xx"><summary><b>Canceladas hoy</b> <small>${xxToday.length} · no hay que hacerlas; toca para verlas</small></summary>` + headRow + xxToday.map(rowHtml).join("") + `</details>`;
     }
     // Same list as last time (a timer, a poll, another collection changing): leave the rows alone so nothing moves.
     if (el.__html === h && el.firstChild) return;
