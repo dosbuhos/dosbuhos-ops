@@ -341,6 +341,7 @@
     else if (t === 'bm:changed') { if ($('#crCard') && $('#crCard').open) C.dirty = true; else if (C.tab !== 'map') refresh(); else load(); }
     else if (t === 'bm:mant') openMant();
     else if (t === 'bm:h' && mapFrame) { mapFrame.style.height = Math.max(300, +e.data.h || 0) + 'px'; sendVp(); }
+    else if (t === 'bm:scroll' && mapFrame) { if (e.data.h) mapFrame.style.height = Math.max(300, +e.data.h) + 'px'; const r = mapFrame.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + r.top + (+e.data.y || 0) - 8), behavior: 'smooth' }); }
     else if (t === 'bm:top' && mapFrame) { const r = mapFrame.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 8), behavior: 'smooth' }); }
   });
 

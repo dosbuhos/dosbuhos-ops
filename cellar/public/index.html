@@ -1874,7 +1874,7 @@ var SheetParse = (function () {
     wmode: "prod"
   };
   S.wmode = "prod"; // Wines always opens on Vinos; Tanques / Barricas are one tap away.
-  if (location.hash === "#cellar") S.wmode = "cellar";
+  if (location.hash === "#cellar" || location.hash === "#barricas" || location.hash === "#mapa") S.wmode = "cellar";
 
   const $ = id => document.getElementById(id);
   const board = $("board");
@@ -1904,7 +1904,7 @@ var SheetParse = (function () {
   if (location.hash === "#wines") S.view = "wines";
   if (location.hash === "#labs") S.view = "labs";
   if (location.hash === "#blends") S.view = "blends";
-  if (location.hash === "#cellar") { S.view = "wines"; S.wmode = "cellar"; }
+  if (location.hash === "#cellar" || location.hash === "#barricas" || location.hash === "#mapa") { S.view = "wines"; S.wmode = "cellar"; }
   // Phones open on Today (the assigned work orders) the first time.
   try { if (window.matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 540px)").matches && recall("view", null) == null && !location.hash) { S.view = "weeks"; S.span = "asg"; } } catch (e) {}
   // The work-orders list (same component everywhere): the Work orders tab, Calendar → Assigned, and the phone's Órdenes.

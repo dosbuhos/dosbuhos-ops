@@ -676,7 +676,8 @@ function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
   svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>{pick(n.dataset.s);if(!S.move)focusFace()};n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}})}
 // tapping a stack on the map brings its front view up (the map is one tap away with ↑ Mapa); inside the cellar app the page scrolls too
 function toParent(){try{if(parent!==window)parent.postMessage({type:'bm:focus'},location.origin)}catch(e){}}
-function focusFace(){toParent();requestAnimationFrame(()=>document.querySelector('.facecol').scrollIntoView({behavior:'smooth',block:'start'}))}
+function scrollToEl(el){if(!el)return;if(window.__embedScroll)return window.__embedScroll(el);el.scrollIntoView({behavior:'smooth',block:'start'})}
+function focusFace(){requestAnimationFrame(()=>scrollToEl(document.querySelector('.facecol')))}
 function pick(id){S.view=id;S.sec=VIEWS.find(v=>v.id===id).sec;S.sel=null;S.selRack=null;draw();panel()}
 
 // Crush pad (área de prensa): no positions, just the list of barrels that are out there.
@@ -724,7 +725,7 @@ function questions(){return;const vw=VIEW(),sec={name:vw.name+' · '+vw.cols};co
   $('qs').innerHTML=`<h3 style="font-size:20px">Preguntas para Paris · ${sec.name} · ${rows.length}</h3><p class="sub" style="margin:4px 0 8px">Posición = columna.fila · la columna es el número de arriba, la fila el de la izquierda (1 = piso). Ej.: 30.2</p>${rows.length?`<ol class="ql">${rows.join('')}</ol>`:'<p class="okn">✓ Todo identificado aquí.</p>'}`;
   $('qs').querySelectorAll('[data-q]').forEach(x=>x.onclick=()=>select(x.dataset.q,true))}
 function select(id,scroll){if(S.sel!==id)S.tab=S.cardOnly&&!S.sel?(S.tab||'res'):'res';S.sel=id;S.selRack=POS[id].rack;draw();panel();document.body.classList.add('bopen');
-  if(scroll){toParent();requestAnimationFrame(()=>document.getElementById('panel').scrollIntoView({behavior:'smooth',block:'start'}))}}
+  if(scroll){requestAnimationFrame(()=>scrollToEl(document.getElementById('panel')))}}
 // ============ Cellar app data layer ============
 // Truth lives in the app's collections: barrels (registry; loc = position key), barrel_log (maintenance, SO2, moves),
 // barrel_pos (positions without a numbered barrel in the registry: unknown barrel here, free marker, ánforas),
@@ -1102,7 +1103,8 @@ if(EMBED){document.documentElement.classList.add('embedmap');
   try{new ResizeObserver(tell).observe(document.documentElement)}catch(e){setInterval(tell,1000)}tell();
   addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='bm:vp')return;const r=document.documentElement.style;r.setProperty('--vpt',e.data.top+'px');r.setProperty('--vph',e.data.h+'px');
     const mb=document.querySelector('.mmbox');if(mb)$('totop').hidden=e.data.top<mb.offsetTop+mb.offsetHeight*0.85||!!S.move});
-  $('totop').onclick=goTop}
+  $('totop').onclick=goTop;
+  window.__embedScroll=el=>{requestAnimationFrame(()=>{const h=Math.ceil(document.documentElement.getBoundingClientRect().height),y=Math.round(el.getBoundingClientRect().top+scrollY);try{parent.postMessage({type:'bm:scroll',y,h},location.origin)}catch(e){}})}}
 draw();
 load().then(()=>{if(S.cardOnly){const cd=posOfCode(QS.get('b'));if(!POS[cd].virtual&&VOF[POS[cd].rack]){S.view=VOF[POS[cd].rack];S.sec=VIEWS.find(v=>v.id===S.view).sec}S.sel=cd;S.selRack=POS[cd].rack;S.tab=QS.get('tab')||'res'}draw();panel()})
   .catch(e=>{$('dbst').textContent='No se pudo cargar: '+e.message});
