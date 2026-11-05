@@ -307,8 +307,8 @@
 
 /* ---- v1.9: map (iframe) is the default view; the list is a table for bulk actions ---- */
 .cr-mapslot { margin: 0 -4px; }
-.cr-mapframe { display: block; width: 100%; height: 100dvh; min-height: 520px; border: 0; background: transparent; }
-@media (max-width: 700px) { .cr-mapslot { margin: 0 calc(-1 * max(10px, env(safe-area-inset-left, 0px))); } .cr-mapframe { height: calc(100dvh - 64px); } }
+.cr-mapframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; overflow: hidden; }
+@media (max-width: 700px) { .cr-mapslot { margin: 0 calc(-1 * max(10px, env(safe-area-inset-left, 0px))); }  }
 dialog.cr-card { padding: 0; border: 0; border-radius: 14px; width: min(680px, 100vw); height: min(92dvh, 1100px); max-height: none; max-width: 100vw; overflow: hidden; background: var(--paper); box-shadow: 0 20px 60px rgba(0,0,0,.3); }
 dialog.cr-card::backdrop { background: rgba(20,23,25,.45); }
 dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
@@ -362,4 +362,21 @@ dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
   .cr-status { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; } .cr-status button { flex: none; padding-left: 12px; padding-right: 12px; }
   .cr-mantb { display: none; }
   .c-mant small { display: none; }
+}
+/* ---- v1.9.2: compact list header — one toolbar row, one quiet state row ---- */
+.cr-tool1 { margin: 10px 0 6px; flex-wrap: nowrap; }
+.cr-tool1 .cr-view { margin: 0; flex: none; }
+.cr-tool1 .cr-search, .cr-tool1 .cr-fbtn { min-height: 38px; } .cr-tool1 .cr-more { width: 38px; height: 38px; }
+.cr-subbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; border-bottom: 1px solid var(--rule); }
+.cr-status2 { border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; background: transparent !important; gap: 2px !important; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.cr-status2 button { flex: none !important; flex-direction: row !important; align-items: baseline !important; gap: 6px !important; min-height: 38px !important; padding: 8px 10px 7px !important; border-radius: 0 !important; border-bottom: 2.5px solid transparent !important; font-size: 13.5px; color: var(--muted); }
+.cr-status2 button small { font-size: 11.5px !important; }
+.cr-status2 button[aria-pressed="true"] { background: transparent !important; color: var(--ink) !important; border-bottom-color: #5c1f33 !important; }
+.cr-status2 button[aria-pressed="true"] small { color: #5c1f33 !important; }
+.cr-subbar .cr-lsort { flex: none; font-size: 12.5px; } .cr-subbar .cr-lsort select { padding: 4px 6px; font-size: 13px; }
+.c-num small.cr-lcount { font: 500 10px var(--f-mono, monospace); color: var(--muted); margin-left: 4px; }
+.cr-bulk { margin-top: 0; }
+@media (max-width: 760px) {
+  .cr-tool1 { gap: 6px; } .cr-tool1 .cr-view button { padding: 6px 11px; } .cr-tool1 .cr-fbtn span { display: none; } .cr-tool1 .cr-fbtn { padding: 0 11px; }
+  .cr-subbar { gap: 6px; } .cr-subbar .cr-lsort span { display: none; }
 }

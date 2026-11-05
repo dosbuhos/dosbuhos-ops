@@ -185,19 +185,19 @@
     let tool = '';
     if (C.tab === 'barrels') {
       const n = nFilters();
-      tool = `<div class="cr-tool">
+      tool = `<div class="cr-tool cr-tool1">${tabs}
         <label class="cr-search">${ICON_S}<input type="search" class="cr-q" placeholder="Buscar" value="${esc(C.q)}" aria-label="Buscar barrica"></label>
         <button type="button" class="cr-fbtn${n ? ' on' : ''}" data-cpanel aria-expanded="${C.panel}">${ICON_F}<span>Filtros</span>${n ? `<b>${n}</b>` : ''}</button>
         ${C.canWrite || C.crew ? `<button type="button" class="btn sm cr-mantb" data-ca="mant">Registro masivo</button>` : ''}
-        ${C.canWrite ? `<button type="button" class="cr-add" data-ca="new" aria-label="Nueva barrica" title="Nueva barrica">+</button>` : ''}
         <span class="cr-morew"><button type="button" class="cr-more" data-cmore aria-expanded="${C.more}" aria-label="Más opciones">⋯</button>${C.more ? `<div class="cr-menu" role="menu">
+          ${C.canWrite ? `<button type="button" role="menuitem" data-ca="new">+ Nueva barrica</button>` : ''}
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="import">Importar inventario</button>` : ''}
           ${C.canWrite || C.crew ? `<button type="button" role="menuitem" data-ca="mant">Registro de mantenimiento masivo</button>` : ''}
           <button type="button" role="menuitem" data-ca="labels">Imprimir etiquetas QR</button>
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="mapcfg">Configurar mapa</button>` : ''}</div>` : ''}</span>
       </div>`;
     }
-    C.root.innerHTML = `<div class="cr">${tabs}${tool}<div class="cr-body" id="crBody"></div></div>`;
+    C.root.innerHTML = `<div class="cr">${C.tab === 'barrels' ? '' : tabs}${tool}<div class="cr-body" id="crBody"></div></div>`;
     const body = $('#crBody', C.root);
     body.innerHTML = C.tab === 'map' ? renderMap() : C.tab === 'tanks' ? renderTanks() : renderBarrels();
     if (C.tab === 'map') mountMap();
@@ -238,7 +238,7 @@
     const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías'], ['due', 'Toca mantenimiento']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []);
     const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"><span>${l}</span><small>${counts[k]}</small></button>`).join('');
     const chips = []; if (C.use) chips.push(['use', 'Tipo: ' + (C.use === 'none' ? 'Sin tipo' : USE[C.use])]); if (C.vint !== 'all') chips.push(['vint', 'Añada: ' + (C.vint === 'old' ? 'Anteriores' : C.vint)]); if (C.noloc) chips.push(['loc', 'Sin ubicación']);
-    let h = `<div class="cr-status" role="group" aria-label="Estado">${fchips}</div>` +
+    let h = `<div class="cr-subbar"><div class="cr-status cr-status2" role="group" aria-label="Estado">${fchips}</div><label class="cr-lsort"><span>Ordenar</span><select data-csort>${SORTS.map(([k, l]) => `<option value="${k}"${k === (C.sortB || 'type') ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>` +
       (chips.length ? `<div class="cr-chips2">${chips.map(([k, l]) => `<button type="button" class="cr-fchip" data-cclear="${k}">${esc(l)} <b aria-hidden="true">×</b></button>`).join('')}<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button></div>` : '') + (C.panel ? filterPanel() : '');
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» o «+ Barrica».</div>`;
     // sort + group
@@ -250,8 +250,7 @@
     const gname = k => TYPE_N[k] || String(k);
     const ids = new Set(bs.map(b => b.id)); for (const id of [...C.selB]) if (!C.barrels.some(b => b.id === id)) C.selB.delete(id);
     const nSel = C.selB.size, allOn = bs.length && bs.every(b => C.selB.has(b.id));
-    h += `<div class="cr-ltool"><label class="cr-lsort">Ordenar<select data-csort>${SORTS.map(([k, l]) => `<option value="${k}"${k === sortBy ? ' selected' : ''}>${l}</option>`).join('')}</select></label><span class="cr-lcount">${bs.length} barrica${bs.length === 1 ? '' : 's'}</span></div>`;
-    h += `<div class="cr-bulk${nSel ? ' on' : ''}" role="region" aria-label="Acciones en lote"><b>${nSel ? nSel + ' seleccionada' + (nSel === 1 ? '' : 's') : 'Selecciona barricas para actuar en lote'}</b>${nSel ? `<select data-cbulk aria-label="Acción en lote"><option value="">Acciones…</option>${C.canWrite || C.crew ? '<option value="mant">Registrar mantenimiento</option><option value="so2">Registrar SO₂</option><option value="wine">Cambiar vino</option><option value="empty">Marcar vacías</option>' : ''}<option value="labels">Imprimir etiquetas QR</option></select><button type="button" class="btn sm primary" data-cbulkgo>Aplicar</button><button type="button" class="cr-clear" data-cselnone>Quitar selección</button>` : ''}</div>`;
+    if (nSel) h += `<div class="cr-bulk on" role="region" aria-label="Acciones en lote"><b>${nSel + ' seleccionada' + (nSel === 1 ? '' : 's')}</b>${nSel ? `<select data-cbulk aria-label="Acción en lote"><option value="">Acciones…</option>${C.canWrite || C.crew ? '<option value="mant">Registrar mantenimiento</option><option value="so2">Registrar SO₂</option><option value="wine">Cambiar vino</option><option value="empty">Marcar vacías</option>' : ''}<option value="labels">Imprimir etiquetas QR</option></select><button type="button" class="cr-clear" data-cselnone>Quitar selección</button>` : ''}</div>`;
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
     const row = b => {
       const stt = stateOf(b), g = lotGroup(b.lot), u = useOf(b), col = b.lot ? (GCOL[g] || '#9aa5b1') : stt === 'confirm' ? '#d79a1f' : 'transparent';
@@ -323,10 +322,16 @@
     if (!d.open) d.showModal();
   }
   let mapFrame = null;
+  // One scroll for the whole page: the map frame is as tall as its content, and is told which part of it is on screen.
+  let vpRaf = 0;
+  function sendVp() { if (!mapFrame || !mapFrame.isConnected || !mapFrame.contentWindow) return; const r = mapFrame.getBoundingClientRect(), nav = window.innerWidth <= 760 ? 64 : 0;
+    try { mapFrame.contentWindow.postMessage({ type: 'bm:vp', top: Math.max(0, Math.round(-r.top)), h: Math.max(200, Math.round(Math.min(window.innerHeight - nav, r.bottom) - Math.max(0, r.top))) }, location.origin); } catch (e) {} }
+  const vpLater = () => { if (!vpRaf) vpRaf = requestAnimationFrame(() => { vpRaf = 0; sendVp(); }); };
+  window.addEventListener('scroll', vpLater, { passive: true }); window.addEventListener('resize', vpLater);
   function renderMap() { return '<div class="cr-mapslot"></div>'; }
   function mountMap() {
     const slot = C.root && C.root.querySelector('.cr-mapslot'); if (!slot) return;
-    if (!mapFrame) { mapFrame = document.createElement('iframe'); mapFrame.className = 'cr-mapframe'; mapFrame.title = 'Mapa de barricas'; mapFrame.src = '/barricas.html'; }
+    if (!mapFrame) { mapFrame = document.createElement('iframe'); mapFrame.className = 'cr-mapframe'; mapFrame.title = 'Mapa de barricas'; mapFrame.src = '/barricas.html'; mapFrame.setAttribute('scrolling', 'no'); mapFrame.addEventListener('load', () => setTimeout(sendVp, 50)); }
     slot.appendChild(mapFrame);
   }
   window.addEventListener('message', e => {
@@ -335,7 +340,8 @@
     if (t === 'bm:close') { const d = $('#crCard'); if (d && d.open) d.close(); }
     else if (t === 'bm:changed') { if ($('#crCard') && $('#crCard').open) C.dirty = true; else if (C.tab !== 'map') refresh(); else load(); }
     else if (t === 'bm:mant') openMant();
-    else if (t === 'bm:focus' && mapFrame && C.tab === 'map') { const r = mapFrame.getBoundingClientRect(); if (Math.abs(r.top) > 4) window.scrollTo({ top: window.scrollY + r.top, behavior: 'smooth' }); }
+    else if (t === 'bm:h' && mapFrame) { mapFrame.style.height = Math.max(300, +e.data.h || 0) + 'px'; sendVp(); }
+    else if (t === 'bm:top' && mapFrame) { const r = mapFrame.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 8), behavior: 'smooth' }); }
   });
 
   // ---------- Tanques: every tank / amphora / puncheon from the vessel registry (coll "vessels") with the wine in it ----------

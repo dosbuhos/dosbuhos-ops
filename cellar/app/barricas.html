@@ -265,6 +265,10 @@ body.mv{padding-bottom:90px}body.mv .totop{display:none}
 .yhint{margin:6px 0;color:var(--soft);font-size:13px;text-align:center}.mm-face .ysel .bend{fill:#b3803f;stroke-width:.13!important}
 .pzhit{fill:#2f7d47;fill-opacity:.12;stroke:#2f7d47;stroke-width:.06;stroke-dasharray:.15 .1;cursor:pointer}.pzhit:hover{fill-opacity:.22}
 .mm-pr,.mm-pr *{cursor:pointer}
+.bnum.free{background:var(--paper);color:var(--soft);border:2px dashed var(--line)}.bigb{min-height:46px;font-size:15px}.freec .qa-x label{flex:1 1 120px}
+.aedit{font-size:12.5px;padding:5px 11px}.aedit.on{background:#5e3a16;border-color:#5e3a16;color:#fff}
+.ains{cursor:pointer}.ains circle{fill:var(--sheet);stroke:#2f7d47;stroke-width:2;stroke-dasharray:3 2}.ains text{font:700 16px var(--f-b);fill:#2f7d47;text-anchor:middle;pointer-events:none}.ains:hover circle{fill:#d6eadb}
+.arm{cursor:pointer}.arm circle{fill:#b3261e}.arm text{font:700 12px var(--f-b);fill:#fff;text-anchor:middle;pointer-events:none}
 /* ---- cellar app: embedded in the Barricas section (iframe) and as the barrel card (?b=NNN) ---- */
 [hidden]{display:none!important}
 body{margin:0}
@@ -318,10 +322,19 @@ body.cardonly .facecol .bcard{margin:0;border:0;border-radius:0}
 .totop{top:auto!important;bottom:calc(14px + env(safe-area-inset-bottom,0px))!important}
 @media (max-width:600px){.seg3{display:grid;grid-template-columns:1fr 1fr}.seg3 button{width:100%}}
 
+/* embedded map: no scroll of its own; fixed things follow the part of the frame that's on screen (--vpt / --vph from the app) */
+html.embedmap,html.embedmap body{overflow:hidden;height:auto}
+html.embedmap{--vpt:0px;--vph:100vh}
+html.embedmap .mvbar,html.embedmap .snack,html.embedmap .totop{position:absolute!important;top:calc(var(--vpt) + var(--vph))!important;bottom:auto!important}
+html.embedmap .mvbar{transform:translateY(-100%)}
+html.embedmap .snack{transform:translate(-50%,calc(-100% - 16px))}
+html.embedmap .totop{transform:translateY(calc(-100% - 14px))}
+html.embedmap .dlg{position:absolute;top:var(--vpt);height:var(--vph);bottom:auto}
+html.embedmap body.bopen .facecol{min-height:0}
+
 </style>
 </head>
 <body>
-<div class="bmtools"><button type="button" id="bmMass">Registro masivo</button></div>
 <p class="status" id="dbst" style="text-align:center;margin:0"></p>
 <button type="button" class="totop" id="totop" hidden aria-label="Volver al mapa">↑ Mapa</button>
 <div class="mvbar" id="mvbar" hidden></div><div class="snack" id="snack" role="status" hidden></div>
@@ -331,7 +344,7 @@ body.cardonly .facecol .bcard{margin:0;border:0;border-radius:0}
  <section class="facecol">
   <div class="edges"><span id="edgeL"></span><span id="edgeR"></span></div>
   <div class="wall" id="wall"></div>
-  <div class="secfoot"><h2 class="secname" id="secname"></h2><p class="secnote" id="secnote"></p>
+  <div class="secfoot"><h2 class="secname" id="secname"></h2><p class="secnote" id="secnote"></p><button type="button" class="aedit" id="aedit" hidden>Editar pasillo</button>
    <p class="glance"><span><i class="g-al w"></i>ya toca (hasta 10 días tarde)</span><span><i class="g-al b"></i>más de 10 días tarde</span><span>número chico = SO₂ libre (ppm)</span><span><i class="g-type"></i>vacías: el color de la cara es el tipo</span></p></div>
   <div class="panel bcard" id="panel" hidden></div>
  </section>
@@ -450,7 +463,7 @@ function rebuildRev(){for(const k in REV)delete REV[k];for(const id in POS)if(!P
 function colRange(r){if(RACKS[r]&&RACKS[r].aisle)return COL[r]||'';return RACKS[r]&&RACKS[r].g.punch?String(COL[r]):COL[r+'I']+'–'+COL[r+'D']}
 const S={sec:'O',view:'OS',sel:null,conf:{},prensa:{}};
 function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
-function view(id){const q=POS[id],b=q.b&&q.b.spare?null:q.b;let c=S.conf[id];if(c&&!c.num&&!c.empty&&!c.wine&&!q.amph)c=null; // a log on an unnumbered barrel is not a confirmation
+function view(id){const q=POS[id],b=q.b&&q.b.spare?null:q.b;let c=S.conf[id];if(c&&!c.num&&!c.empty&&!c.wine&&!c.here&&!q.amph)c=null; // a log on an unnumbered barrel is not a confirmation
   if(q.aisle&&q.b&&q.b.spare&&!(c&&c.num))return {st:'none',n:'',w:null,wl:'aquí'};
   if(q.amph)return c?{st:'conf',n:id,w:null,wl:c.empty?'Vacía':(c.wine||''),empty:!!c.empty}:{st:'part',n:id,w:null,wl:'¿vino?'};
   if(c&&c.empty&&!c.num&&!c.here) return {st:'none',n:'',w:null,wl:'vacía'};
@@ -489,7 +502,7 @@ function drawBarrel(svg,id,cx,cy,r){const v=view(id);
   el('text',{class:'num',x:cx,y:cy+3,fill:ink},g).textContent=v.n;
   // inside, under the number: the last free SO₂ (ppm) on full barrels; the position on empty ones
   if(v.st!=='none')el('text',{class:'pos'+(bs&&!bs.empty?' so':''),x:cx,y:cy+14,fill:ink},g).textContent=bs&&!bs.empty?(bs.so?bs.so.raw:'—'):CODE(id);
-  const wl=v.st==='none'?'sin barrica':v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
+  const wl=v.st==='none'?(POS[id].b&&POS[id].b.added?'lugar libre':'sin barrica'):v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
   const one=t=>{t=short(t).replace(/\s*\(.*?\)\s*/g,' ').trim();return t.length>15?t.slice(0,14).trim()+'…':t},wls=[one(wl)];wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
   if(alert){el('text',{class:'late '+alert,x:cx,y:cy+r+19.5},g).textContent=(bs.empty?'mant. ':'rellenar ')+(bs.late==null?'?':'+'+bs.late+' d')}
   if(false){const t=el('text',{class:'sol '+(bs.empty?'mnt '+bs.jcls:bs.so?bs.so.cls:'none'),x:cx,y:cy+r+10+wls.length*9.5},g);
@@ -526,9 +539,24 @@ function drawYard(sec,g,host){const free=g.ids.filter(x=>!yOcc(x)&&(!S.move||x!=
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
   if(!ids.length)el('text',{x:W/2,y:H/2+4,class:'wl','text-anchor':'middle'},svg).textContent='No hay barricas en el área de prensa';
   ids.forEach((id,j)=>drawBarrel(svg,id,5+YX*(j%3)+YX/2,6+Math.floor(j/3)*(GY-4)+R+4,R))}
-function drawAisle(sec,g,host){const ids=g.ids.filter(shown),W=Math.max(1,ids.length)*GX+10,H=TOP+GY+FOOT;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
+function drawAisle(sec,g,host){const ids=g.ids.filter(shown),ed=S.aedit&&!S.move,PX=ed?26:0,W=Math.max(1,ids.length)*(GX+PX)+10+PX,H=TOP+GY+FOOT;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
   el('line',{x1:2,x2:W-2,y1:TOP+GY-4,y2:TOP+GY-4,stroke:'var(--line)','stroke-width':3},svg);
-  ids.forEach((id,j)=>{const cx=5+GX*j+GX/2;drawBarrel(svg,id,cx,TOP+GY/2-10,R);el('text',{class:'rack-id',x:cx,y:TOP+GY+19},svg).textContent=COL[id]||''})}
+  // editing an aisle: a "+" before, between and after the barrels adds a spot there; an empty added spot can be taken away
+  const plus=(x,after)=>{const b=el('g',{class:'ains',tabindex:0,role:'button','aria-label':'Agregar un lugar aquí','data-after':after==null?'':after},svg);el('circle',{cx:x,cy:TOP+GY/2-10,r:11},b);el('text',{x,y:TOP+GY/2-5.5},b).textContent='+'};
+  if(ed)plus(5+PX/2,null);
+  ids.forEach((id,j)=>{const cx=5+PX+(GX+PX)*j+GX/2;drawBarrel(svg,id,cx,TOP+GY/2-10,R);el('text',{class:'rack-id',x:cx,y:TOP+GY+19},svg).textContent=COL[id]||'';
+    if(ed){plus(cx+GX/2+PX/2,id);const q=POS[id];if(q.b&&q.b.added&&isFree(id)){const x=el('g',{class:'arm',tabindex:0,role:'button','aria-label':'Quitar este lugar','data-arm':id},svg);el('circle',{cx:cx+R-2,cy:TOP+GY/2-10-R+2,r:8},x);el('text',{x:cx+R-2,y:TOP+GY/2-10-R+6},x).textContent='×'}}});
+  if(ed){svg.querySelectorAll('.ains').forEach(n=>n.onclick=ev=>{ev.stopPropagation();addSlot(sec,g,n.dataset.after||null)});svg.querySelectorAll('.arm').forEach(n=>n.onclick=ev=>{ev.stopPropagation();removeSlot(g,n.dataset.arm)})}}
+// aisle spots: the order is saved per aisle group ("order-QA0"); new spots get ids like QA0-n1
+function aBase(sec,g){return sec.id+'A'+sec.groups.indexOf(g)}
+function mkSlot(sec,g,id){POS[id]={sec,g,rack:id,lv:1,side:'',b:{spare:true,added:true},aisle:true};RACKS[id]={sec,g,aisle:true};return id}
+function syncAisleViews(){for(const v of VIEWS){const gs=v.gi.map(i=>v.S.groups[i]);if(!gs.length||!gs.every(g=>g.aisle))continue;v.racks=gs.flatMap(g=>g.ids);for(const r of v.racks)VOF[r]=v.id}}
+function applyOrder(key,ids){for(const sec of SECTIONS)for(const g of sec.groups){if(!g.aisle||g.yard||aBase(sec,g)!==key)continue;
+  const list=[];for(const id of ids){if(!id.startsWith(key+'-'))continue;if(!POS[id])mkSlot(sec,g,id);if(!list.includes(id))list.push(id)}
+  for(const id of g.ids)if(!list.includes(id))list.push(id);g.ids=list;syncAisleViews()}}
+function addSlot(sec,g,after){const key=aBase(sec,g);let k=0,id;do{id=key+'-n'+(++k)}while(POS[id]);mkSlot(sec,g,id);
+  const i=after?g.ids.indexOf(after)+1:g.ids.findIndex(x=>shown(x));g.ids.splice(Math.max(0,i),0,id);syncAisleViews();saveOrder(key,g.ids);draw()}
+function removeSlot(g,id){if(!isFree(id))return;g.ids=g.ids.filter(x=>x!==id);const sec=POS[id].sec;delete POS[id];delete RACKS[id];syncAisleViews();saveOrder(aBase(sec,g),g.ids);draw()}
 function drawPunch(sec,g,host){const W=104,H=TOP+GY*sec.levels+FOOT,id=g.punch.id;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
   if(sec.id==='C'){const an=id==='C18'?'AN-02':'AN-01',gh=el('g',{class:'ghost',transform:`translate(${W/2-62} ${H-FOOT-192}) scale(0.95)`},svg);
     el('path',{d:'M36 10 h58 v10 h-58z'},gh);el('path',{d:'M40 20 C8 30 2 70 10 98 C18 126 42 146 65 147 C88 146 112 126 120 98 C128 70 122 30 90 20 Z'},gh);
@@ -643,8 +671,8 @@ function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
     el('text',{x:u,y:v-dv*0.04+0.07,class:'mm-eyet'},svg).textContent='TÚ'}
   // while moving, the whole crush pad is one big drop target (first free spot)
   if(S.move){const L=ROOM.L,W=ROOM.W,hit=el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pzhit'},svg);
-    hit.onclick=ev=>{ev.stopPropagation();const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y&&S.move.from!==y)pickTarget(y)}}
-  svg.querySelectorAll('[data-yc]').forEach(n=>{n.style.cursor='pointer';n.onclick=ev=>{ev.stopPropagation();const id=n.dataset.yc;if(S.move){if(isFree(id))pickTarget(id);return}S.view='X';S.sec='X';select(id,true)}});
+    hit.onclick=ev=>{ev.stopPropagation();if(S.move.fill)return;const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y&&S.move.from!==y)pickTarget(y)}}
+  svg.querySelectorAll('[data-yc]').forEach(n=>{n.style.cursor='pointer';n.onclick=ev=>{ev.stopPropagation();const id=n.dataset.yc;if(S.move){if(S.move.fill?occ(id):isFree(id))pickTarget(id);return}S.view='X';S.sec='X';select(id,true)}});
   svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>{pick(n.dataset.s);if(!S.move)focusFace()};n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}})}
 // tapping a stack on the map brings its front view up (the map is one tap away with ↑ Mapa); inside the cellar app the page scrolls too
 function toParent(){try{if(parent!==window)parent.postMessage({type:'bm:focus'},location.origin)}catch(e){}}
@@ -668,6 +696,7 @@ function draw(){numberAisles();rebuildRev();
   const vw=VIEW(),sec=vw.S,w=$('wall');w.innerHTML='';S._rk=0;
   $('secname').textContent=vw.amph?'Ánforas':vw.S.id==='X'?(n=>'Área de prensa · '+(n===1?'1 barrica':n+' barricas'))(vw.racks.filter(yOcc).length):vw.name+(vw.S.id==='P'||vw.S.id==='Q'?' · ':' · columnas ')+vw.colsFn();
   $('secnote').innerHTML=sec.id==='X'?'Barricas paradas fuera de la bodega, 3 de ancho':`Parado ${sec.stand}, mirando al <b>${sec.facing}</b>`;
+  {const ae=$('aedit'),isA=(sec.id==='P'||sec.id==='Q')&&!S.move;ae.hidden=!isA;ae.textContent=S.aedit?'Listo':'Editar pasillo';ae.classList.toggle('on',!!S.aedit);ae.onclick=()=>{S.aedit=!S.aedit;draw()};if(!isA)S.aedit=false}
   $('edgeL').textContent=sec.left?'← '+sec.left:'';$('edgeR').textContent=sec.right?sec.right+' →':'';
   const mid=kind=>{const m=document.createElement('div');m.className='amph-wrap faded';if(kind==='amph'){m.style.flexDirection='row';amph(m,'AN-02');amph(m,'AN-01')}else door(m);w.appendChild(m)};
   if(vw.amph){const d=document.createElement('div');d.className='grp';d.innerHTML='<div class="racks"></div>';w.appendChild(d);for(const n of ['AN-02','AN-01'])drawAmphPos(d.lastChild,n)}
@@ -734,6 +763,7 @@ function confOfPos(d){const l=lotById(d.lot);if(d.free)return {num:'',wine:'',em
   return {num:d.num?pad(d.num):'',code:unpad(d.num),lot:d.lot||'',wine:l?l.name:(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:d.here!==false,posDoc:true}}
 function rebuild(){for(const k in WINES)if(k.startsWith('L:'))delete WINES[k];
   for(const l of A.lots){const g=GC[l.group]||GC.red;WINES['L:'+l.id]=[l.name,g[0],g[1]]}
+  for(const id in A.pos)if(id.startsWith('order-')&&Array.isArray(A.pos[id].ids))applyOrder(id.slice(6),A.pos[id].ids);
   numberAisles();rebuildRev();const conf={};
   for(const id in A.pos){const cd=REV[id];if(cd)conf[cd]=confOfPos(A.pos[id])}
   for(const k in POS)if(POS[k].virtual)delete POS[k];
@@ -807,6 +837,7 @@ function logEdit(cd,{add,del,patch}){if(noWrite())return null;const c=S.conf[cd]
     if(delDoc){A.logs.push(delDoc);const {id,...doc}=delDoc;api('barrel_log/'+enc(id),'PUT',doc).catch(()=>{})}
     if(patched){Object.assign(b,prev);api('barrels/'+enc(b.id||code),'PATCH',prev).catch(()=>{})}
     rebuild();keep(()=>{draw();panel()});tellParent()}}
+function saveOrder(key,ids){if(noWrite())return;A.pos['order-'+key]={id:'order-'+key,ids:ids.slice()};api('barrel_pos/'+enc('order-'+key),'PUT',{ids,by:me(),at:new Date().toISOString()}).then(tellParent).catch(e=>snack('No se guardó el pasillo: '+e.message))}
 // what a position holds when there is no numbered barrel in the registry for it
 async function putPos(cd,doc){const k=refKey(cd);if(doc){A.pos[k]=Object.assign({id:k},doc);await api('barrel_pos/'+enc(k),'PUT',doc)}else if(A.pos[k]){delete A.pos[k];await api('barrel_pos/'+enc(k),'DELETE')}}
 // set the wine (lot id) or "vacía" for whatever is at cd
@@ -859,6 +890,7 @@ async function histInto(host,code){const b=A.barrels[code];if(!b){host.innerHTML
 
 function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;return}if(!A.ok){p.hidden=false;p.innerHTML='<p class="cr-none" style="padding:14px">Cargando…</p>';return}p.hidden=false;const q=POS[cd],b=q.b,c=S.conf[cd],v=view(cd);
   if(q.amph)return amphPanel(p,cd,c);
+  if(isFree(cd))return freePanel(p,cd);
   const num=c?.num||'',D=bdata(num),hint=b&&b.w&&WINES[b.w]?WINES[b.w][0]:'',wine=c?.confirm?'':(c?.wine||(c?'':hint)||D?.wine||''),lotId=c?.lot||'';
   const wk=c?.w||(c?null:b?.w),use=USE[D?.use]||null,col=wk&&WINES[wk]?WINES[wk][1]:(use?use[1]:'var(--oak)'),ink=wk&&WINES[wk]?WINES[wk][2]:'#fff';
   const empty=c?!!c.empty:(D?.fill==='empty'),last=D&&D.logs[0]?D.logs[0].split('|'):null,lastP=last&&PR[last[1]],ago=last?dago(last[0]):null;
@@ -1002,6 +1034,18 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
   $('fw').addEventListener('change',()=>{if($('fw').value==='')$('ffill').value='empty';else if($('fw').value!=='__otro')$('ffill').value='full'});$('ffill').onchange=()=>{if($('ffill').value==='empty')$('fw').value=''};
   $('f').onsubmit=e=>{e.preventDefault();save(cd,rec())};
 }
+function freePanel(p,cd){const where=POS[cd].sec.id==='X'?'Área de prensa':CODE(cd);
+  p.innerHTML=`<div class="bc2 freec" style="--c:var(--line)"><div class="bh"><div class="bnum free">—</div><div class="bwho"><h3>Lugar vacío</h3><div class="chips"><span class="chip pos">📍 ${esc(where)}</span></div></div><button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
+    <button type="button" class="pri bigb" id="fput">Poner una barrica aquí</button>
+    <p class="mut sm" style="margin:0">Toca la barrica en el mapa (puede estar en otra sección o en el área de prensa), o escribe su número:</p>
+    <div class="qa-x"><label>Nº de barrica<input id="fnum" inputmode="numeric" maxlength="4" placeholder="000" autocomplete="off"></label><button type="button" id="fbring">Traer aquí</button><span class="status" id="fst"></span></div>
+    <button type="button" class="lnk" id="fhere" style="align-self:flex-start;padding:0">Aquí hay una barrica, pero no sé su número</button></div>`;
+  $('fx').onclick=()=>{if(S.cardOnly&&parent!==window){try{parent.postMessage({type:'bm:close'},location.origin)}catch(e){}return}S.sel=null;S.selRack=null;document.body.classList.remove('bopen');draw();panel()};
+  $('fput').onclick=()=>startFill(cd);
+  $('fbring').onclick=()=>{const n=$('fnum').value.trim();if(!n){$('fst').textContent='Escribe el número.';return}const from=findByNum(n);if(!from){$('fst').textContent='No encuentro la '+pad(n)+'.';return}
+    if(from===cd)return;S.move={from,to:cd,fill:true};document.body.classList.add('mv');draw();mvbar()};
+  $('fnum').onkeydown=e=>{if(e.key==='Enter')$('fbring').click()};
+  $('fhere').onclick=()=>markHere(cd)}
 function amphPanel(p,cd,c){p.innerHTML=`<div class="bc-h"><b>${cd}</b><span>${esc(c?(c.empty?'Vacía':c.wine):'')}</span><small>Ánfora · ${esc(POS[cd].b.d)}${c?' · ✓ confirmada':''}</small><button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
    <form id="f"><div class="row"><label class="wine">Vino<input id="fw" type="text" value="${esc(c?.wine||'')}" placeholder="vacía o nombre del vino"></label></div>
    <div class="btns"><label class="chk"><input id="fe" type="checkbox" ${c?.empty?'checked':''}> Vacía</label><button type="submit" class="pri">Guardar</button></div>
@@ -1013,18 +1057,23 @@ function next(cd){const v=VIEW(),mine=ORDER.filter(x=>v.racks.includes(POS[x].ra
   const n=mine.slice(i+1).concat(mine.slice(0,i)).find(x=>{const st=view(x).st;return st==='part'||st==='unk'});select(n||cd)}
 $('wall').addEventListener('click',e=>{const g=e.target.closest('.bbl');if(!g)return;if(S.move){pickTarget(g.dataset.c);return}select(g.dataset.c,true)});
 // ---------- moving a barrel: choose an EMPTY position on the map (or the crush pad); never typed, never on top of another barrel
-function shown(id){const q=POS[id];if(!q.aisle)return true;const c=S.conf[id];if(c&&c.num)return true;if(q.b&&q.b.spare)return !!S.move&&S.move.from!==id&&q.g.ids.find(x=>POS[x].b&&POS[x].b.spare&&!(S.conf[x]&&(S.conf[x].num||S.conf[x].here)))===id;return !(c&&c.empty&&!c.here)}
+function shown(id){const q=POS[id];if(!q.aisle)return true;const c=S.conf[id];if(c&&c.num)return true;if(q.b&&q.b.added)return true;if(q.b&&q.b.spare)return !!S.move&&S.move.from!==id&&q.g.ids.find(x=>POS[x].b&&POS[x].b.spare&&!(S.conf[x]&&(S.conf[x].num||S.conf[x].here)))===id;return !(c&&c.empty&&!c.here)}
 function isFree(id){const q=POS[id];if(!q||q.amph||q.virtual)return false;const c=S.conf[id];if(c)return !!c.empty&&!c.num&&!c.here;return view(id).st==='none'}
-function mvCls(id){if(!S.move)return'';if(id===S.move.from)return' moving';if(id===S.move.to)return' target';return isFree(id)?' drop':' blocked'}
+function occ(id){const q=POS[id];return !!q&&!q.amph&&!q.virtual&&!isFree(id)&&view(id).st!=='none'}
+function mvCls(id){if(!S.move)return'';if(S.move.fill){if(id===S.move.to)return' target';if(id===S.move.from)return' moving';return occ(id)?' drop':' blocked'}if(id===S.move.from)return' moving';if(id===S.move.to)return' target';return isFree(id)?' drop':' blocked'}
 function startMove(cd){if(noWrite())return;S.move={from:cd,to:null};document.body.classList.remove('cardonly');document.body.classList.add('mv');
-  if(POS[cd].virtual){/* stays where the list showed it */}draw();mvbar();scrollTo({top:0,behavior:'smooth'})}
-function pickTarget(id){if(!isFree(id))return;S.move.to=id;draw();mvbar()}
+  if(POS[cd].virtual){/* stays where the list showed it */}draw();mvbar();goTop()}
+function startFill(cd){if(noWrite())return;S.move={from:null,to:cd,fill:true};document.body.classList.add('mv');draw();mvbar();goTop()}
+function findByNum(n){const k=unpad(n);if(!A.barrels[k])return null;return posOfCode(k)}
+async function markHere(cd){if(noWrite())return;await putPos(cd,{num:'',here:true,empty:false,free:false,pos:CODE(cd),by:me(),at:new Date().toISOString()});rebuild();draw();panel();tellParent()}
+function pickTarget(id){if(S.move&&S.move.fill){if(!occ(id))return;S.move.from=id;draw();mvbar();return}if(!isFree(id))return;S.move.to=id;draw();mvbar()}
 function endMove(){S.move=null;document.body.classList.remove('mv');$('mvbar').hidden=true;draw();panel()}
 const isYard=id=>POS[id]&&POS[id].sec.id==='X';
-function mvbar(){const m=S.move,b=$('mvbar'),c=S.conf[m.from]||{},num=c.num||'?',wine=c.empty?'vacía':(c.wine||'');b.hidden=false;
+function mvbar(){const m=S.move,b=$('mvbar');if(m.fill&&!m.from){b.hidden=false;b.innerHTML=`<div><b>¿Qué barrica va en ${esc(isYard(m.to)?'el área de prensa':CODE(m.to))}?</b><small>Toca la barrica en el mapa (verde = se puede mover). Cambia de sección en el mapa de arriba.</small></div><div class="mvb"><button type="button" id="mvx">Cancelar</button></div>`;$('mvx').onclick=endMove;return}
+  const c=S.conf[m.from]||{},num=c.num||'?',wine=c.empty?'vacía':(c.wine||'');b.hidden=false;
   b.innerHTML=m.to?`<div><b>Mover ${esc(num)}</b> de ${esc(POS[m.from].virtual?'sin ubicación':CODE(m.from))} a <b>${isYard(m.to)?'Área de prensa':esc(CODE(m.to))}</b></div><div class="mvb"><button type="button" class="pri" id="mvok">Confirmar</button><button type="button" id="mvch">Cambiar</button><button type="button" id="mvx">Cancelar</button></div>`
    :`<div><b>Moviendo ${esc(num)}</b>${wine?' · '+esc(wine):''}<small>Toca un lugar vacío (verde). Cambia de sección en el mapa.</small></div><div class="mvb"><button type="button" id="mvpr">Área de prensa</button><button type="button" id="mvx">Cancelar</button></div>`;
-  $('mvx').onclick=endMove;if($('mvch'))$('mvch').onclick=()=>{S.move.to=null;draw();mvbar()};if($('mvpr'))$('mvpr').onclick=()=>{const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y){S.move.to=y;draw();mvbar()}};
+  $('mvx').onclick=endMove;if($('mvch'))$('mvch').onclick=()=>{if(S.move.fill)S.move.from=null;else S.move.to=null;draw();mvbar()};if($('mvpr'))$('mvpr').onclick=()=>{const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y){S.move.to=y;draw();mvbar()}};
   if($('mvok'))$('mvok').onclick=doMove}
 async function doMove(){const {from,to}=S.move,c=S.conf[from]||{},now=new Date().toISOString(),kf=refKey(from),kt=refKey(to),b=c.code&&A.barrels[c.code];
   const btn=$('mvok');btn.disabled=true;btn.textContent='Moviendo…';
@@ -1044,7 +1093,16 @@ $('wall').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;
 for(const k in POS){const b=POS[k].b;if(b&&b.n&&!POS[k].amph)delete b.n} // the registry says which barrel is where; the plan keeps only the wine hints
 const QS=new URLSearchParams(location.search);S.cardOnly=QS.has('b');if(S.cardOnly)document.body.classList.add('cardonly');
 if(parent!==window)document.body.classList.add('embed');
-$('bmMass').onclick=()=>{try{parent.postMessage({type:'bm:mant'},location.origin)}catch(e){}};
+// Inside the app's Barricas → Mapa the page has ONE scroll: the app's. This frame grows to its content (it never scrolls itself);
+// the app tells it which part of it is on screen so the bottom bars, the dialog and "↑ Mapa" sit where the person is looking.
+const EMBED=parent!==window&&!S.cardOnly;
+function goTop(){if(EMBED){try{parent.postMessage({type:'bm:top'},location.origin)}catch(e){}}else scrollTo({top:0,behavior:'smooth'})}
+if(EMBED){document.documentElement.classList.add('embedmap');
+  const tell=()=>{try{parent.postMessage({type:'bm:h',h:Math.ceil(document.documentElement.getBoundingClientRect().height)},location.origin)}catch(e){}};
+  try{new ResizeObserver(tell).observe(document.documentElement)}catch(e){setInterval(tell,1000)}tell();
+  addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='bm:vp')return;const r=document.documentElement.style;r.setProperty('--vpt',e.data.top+'px');r.setProperty('--vph',e.data.h+'px');
+    const mb=document.querySelector('.mmbox');if(mb)$('totop').hidden=e.data.top<mb.offsetTop+mb.offsetHeight*0.85||!!S.move});
+  $('totop').onclick=goTop}
 draw();
 load().then(()=>{if(S.cardOnly){const cd=posOfCode(QS.get('b'));if(!POS[cd].virtual&&VOF[POS[cd].rack]){S.view=VOF[POS[cd].rack];S.sec=VIEWS.find(v=>v.id===S.view).sec}S.sel=cd;S.selRack=POS[cd].rack;S.tab=QS.get('tab')||'res'}draw();panel()})
   .catch(e=>{$('dbst').textContent='No se pudo cargar: '+e.message});
