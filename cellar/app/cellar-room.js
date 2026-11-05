@@ -142,7 +142,9 @@
   // Short label for a lot on the tank plan: its Excellovint tab ("L08 - SE" → "L08 SE"), else the first words of its name.
   const lotAbbr = id => { const l = lotById(id); if (!l) return id || ''; const t = ((l.sheet || []).find(s => !s.archived) || {}).tab; return t ? String(t).replace(/\s*-\s*/g, ' ').replace(/\s+/g, ' ').trim() : String(l.name).split(/\s+/).slice(0, 2).join(' '); };
   const barrelsOf = lot => C.barrels.filter(b => b.lot === lot.id);
-  const vintOK = l => C.vint === 'all' || (C.vint === 'old' ? C.vintageOf(l) < C.vintage - 2 : C.vintageOf(l) === +C.vint);
+  // Filters can combine: several wine types and several vintages at once (empty set = all).
+  C.uses = C.uses || new Set(); C.vints = C.vints || new Set();
+  const vintOK = l => !C.vints.size || [...C.vints].some(v => v === 'old' ? C.vintageOf(l) < C.vintage - 2 : C.vintageOf(l) === +v);
   // Barrels stack up to 4 high: level 1 = on the floor, 4 = top.
   const MAX_LEVELS = 4;
   const lvName = lv => +lv === 1 ? 'piso' : 'nivel ' + lv;
@@ -169,7 +171,7 @@
   C.panel = false; C.more = false; C.noloc = false;
   const ICON_F = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>';
   const ICON_S = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
-  function nFilters() { return (C.vint !== 'all' ? 1 : 0) + (C.use ? 1 : 0) + (C.noloc ? 1 : 0); }
+  function nFilters() { return C.vints.size + C.uses.size + (C.noloc ? 1 : 0); }
   function vintChips() {
     const vints = [...new Set(C.all.map(l => C.vintageOf(l)))].sort((a, b) => b - a);
     return [['all', 'Todas']].concat(vints.filter(v => v >= C.vintage - 2).map(v => [String(v), String(v)])).concat(vints.some(v => v < C.vintage - 2) ? [['old', 'Anteriores']] : []);
@@ -205,13 +207,13 @@
   // Filtros sheet (bottom sheet on phones, centered card on desktop).
   function filterPanel() {
     const uses = [['', 'Todas'], ['white', 'Blanco'], ['red', 'Tinto'], ['orange', 'Naranja'], ['rose', 'Rosado'], ['none', 'Sin tipo']];
+    const segM = (attr, list, set, none) => `<div class="cr-pseg">${list.map(([k, l, dot]) => `<button type="button" ${attr}="${k}" aria-pressed="${k === none ? !set.size : set.has(k)}">${dot ? `<i style="background:${dot}"></i>` : ''}${l}</button>`).join('')}</div>`;
     const seg = (attr, list, cur) => `<div class="cr-pseg">${list.map(([k, l, dot]) => `<button type="button" ${attr}="${k}" aria-pressed="${cur === k}">${dot ? `<i style="background:${dot}"></i>` : ''}${l}</button>`).join('')}</div>`;
     return `<div class="cr-panel" data-cpanelbg><div class="cr-pin" role="dialog" aria-label="Filtros">
       <div class="cr-ph"><b>Filtros</b><button type="button" class="cr-px" data-cpanel aria-label="Cerrar">×</button></div>
-      <div class="cr-plbl">Tipo de barrica</div>${seg('data-cu', uses.map(([k, l]) => [k, l, USE_C[k]]), C.use || '')}
-      <div class="cr-plbl">Añada del vino</div>${seg('data-cv', vintChips(), C.vint)}
+      <div class="cr-plbl">Tipo de barrica <small>(puedes elegir varios)</small></div>${segM('data-cu', uses.map(([k, l]) => [k, l, USE_C[k]]), C.uses, '')}
+      <div class="cr-plbl">Añada del vino <small>(puedes elegir varias)</small></div>${segM('data-cv', vintChips(), C.vints, 'all')}
       <div class="cr-plbl">Ubicación</div>${seg('data-cl', [['', 'Todas'], ['1', 'Sin ubicación']], C.noloc ? '1' : '')}
-      <div class="cr-plbl">Agrupar la lista</div>${seg('data-cg2', [['loc', 'Por ubicación'], ['wine', 'Por vino'], ['none', 'Sin agrupar']], C.group)}
       <div class="cr-pfoot">${nFilters() ? `<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button>` : '<span></span>'}<button type="button" class="btn primary" data-cpanel>Listo</button></div>
     </div></div>`;
   }
@@ -229,15 +231,15 @@
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
     let bs = C.barrels.filter(b => !q || (b.code + ' ' + bn(b.code) + ' ' + lotName(b.lot) + ' ' + locShort(b) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
-    if (C.vint !== 'all') bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; });
-    if (C.use) bs = bs.filter(b => useOf(b) === C.use || (C.use === 'none' && !useOf(b)));
+    if (C.vints.size) bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; });
+    if (C.uses.size) bs = bs.filter(b => C.uses.has(useOf(b) || 'none'));
     if (C.noloc) bs = bs.filter(b => !b.loc);
     const counts = { all: bs.length }; for (const k of ['confirm', 'full', 'partial', 'empty']) counts[k] = bs.filter(b => stateOf(b) === k).length;
     counts.full += counts.partial; counts.due = bs.filter(mantDue).length;
     if (C.filter === 'full') bs = bs.filter(b => ['full', 'partial'].includes(stateOf(b))); else if (C.filter === 'due') bs = bs.filter(mantDue); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
     const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías'], ['due', 'Toca mantenimiento']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []);
     const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"><span>${l}</span><small>${counts[k]}</small></button>`).join('');
-    const chips = []; if (C.use) chips.push(['use', 'Tipo: ' + (C.use === 'none' ? 'Sin tipo' : USE[C.use])]); if (C.vint !== 'all') chips.push(['vint', 'Añada: ' + (C.vint === 'old' ? 'Anteriores' : C.vint)]); if (C.noloc) chips.push(['loc', 'Sin ubicación']);
+    const chips = []; for (const u of C.uses) chips.push(['use:' + u, u === 'none' ? 'Sin tipo' : USE[u]]); for (const v of C.vints) chips.push(['vint:' + v, v === 'old' ? 'Añadas anteriores' : 'Añada ' + v]); if (C.noloc) chips.push(['loc', 'Sin ubicación']);
     let h = `<div class="cr-subbar"><div class="cr-status cr-status2" role="group" aria-label="Estado">${fchips}</div><label class="cr-lsort"><span>Ordenar</span><select data-csort>${SORTS.map(([k, l]) => `<option value="${k}"${k === (C.sortB || 'type') ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>` +
       (chips.length ? `<div class="cr-chips2">${chips.map(([k, l]) => `<button type="button" class="cr-fchip" data-cclear="${k}">${esc(l)} <b aria-hidden="true">×</b></button>`).join('')}<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button></div>` : '') + (C.panel ? filterPanel() : '');
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» o «+ Barrica».</div>`;
@@ -326,8 +328,12 @@
   let vpRaf = 0;
   function sendVp() { if (!mapFrame || !mapFrame.isConnected || !mapFrame.contentWindow) return; const r = mapFrame.getBoundingClientRect(), nav = window.innerWidth <= 760 ? 64 : 0;
     try { mapFrame.contentWindow.postMessage({ type: 'bm:vp', top: Math.max(0, Math.round(-r.top)), h: Math.max(200, Math.round(Math.min(window.innerHeight - nav, r.bottom) - Math.max(0, r.top))) }, location.origin); } catch (e) {} }
+  // The page may scroll in a container rather than the window: scroll whichever ancestor actually scrolls.
+  function scroller(el) { for (let n = el && el.parentElement; n && n !== document.body; n = n.parentElement) { const o = getComputedStyle(n).overflowY; if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 2) return n; } return document.scrollingElement || document.documentElement; }
+  function scrollFrameTo(y) { const sc = scroller(mapFrame), r = mapFrame.getBoundingClientRect(), top0 = sc === document.scrollingElement || sc === document.documentElement ? 0 : sc.getBoundingClientRect().top;
+    sc.scrollTo({ top: Math.max(0, sc.scrollTop + r.top - top0 + y - 8), behavior: 'smooth' }); }
   const vpLater = () => { if (!vpRaf) vpRaf = requestAnimationFrame(() => { vpRaf = 0; sendVp(); }); };
-  window.addEventListener('scroll', vpLater, { passive: true }); window.addEventListener('resize', vpLater);
+  window.addEventListener('scroll', vpLater, { passive: true, capture: true }); window.addEventListener('resize', vpLater);
   function renderMap() { return '<div class="cr-mapslot"></div>'; }
   function mountMap() {
     const slot = C.root && C.root.querySelector('.cr-mapslot'); if (!slot) return;
@@ -341,8 +347,8 @@
     else if (t === 'bm:changed') { if ($('#crCard') && $('#crCard').open) C.dirty = true; else if (C.tab !== 'map') refresh(); else load(); }
     else if (t === 'bm:mant') openMant();
     else if (t === 'bm:h' && mapFrame) { mapFrame.style.height = Math.max(300, +e.data.h || 0) + 'px'; sendVp(); }
-    else if (t === 'bm:scroll' && mapFrame) { if (e.data.h) mapFrame.style.height = Math.max(300, +e.data.h) + 'px'; const r = mapFrame.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + r.top + (+e.data.y || 0) - 8), behavior: 'smooth' }); }
-    else if (t === 'bm:top' && mapFrame) { const r = mapFrame.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 8), behavior: 'smooth' }); }
+    else if (t === 'bm:scroll' && mapFrame) { if (e.data.h) mapFrame.style.height = Math.max(300, +e.data.h) + 'px'; scrollFrameTo(+e.data.y || 0); }
+    else if (t === 'bm:top' && mapFrame) scrollFrameTo(0);
   });
 
   // ---------- Tanques: every tank / amphora / puncheon from the vessel registry (coll "vessels") with the wine in it ----------
@@ -786,7 +792,7 @@
     if (e.target.matches && e.target.matches('[data-cpanelbg]')) { C.panel = false; render(); return; }
     const pn = e.target.closest('[data-cpanel]'); if (pn) { C.panel = !C.panel; C.more = false; render(); return; }
     const mo = e.target.closest('[data-cmore]'); if (mo) { C.more = !C.more; render(); return; }
-    const cl = e.target.closest('[data-cclear]'); if (cl) { const k = cl.dataset.cclear; if (k === 'use' || k === 'all') C.use = ''; if (k === 'vint' || k === 'all') C.vint = 'all'; if (k === 'loc' || k === 'all') C.noloc = false; render(); return; }
+    const cl = e.target.closest('[data-cclear]'); if (cl) { const k = cl.dataset.cclear; if (k.startsWith('use:')) C.uses.delete(k.slice(4)); if (k.startsWith('vint:')) C.vints.delete(k.slice(5)); if (k === 'use' || k === 'all') C.uses.clear(); if (k === 'vint' || k === 'all') C.vints.clear(); if (k === 'loc' || k === 'all') C.noloc = false; render(); return; }
     const lc = e.target.closest('[data-cl]'); if (lc) { C.noloc = lc.dataset.cl === '1'; render(); return; }
     const g2 = e.target.closest('[data-cg2]'); if (g2) { C.group = g2.dataset.cg2; render(); return; }
     if (C.more && !e.target.closest('.cr-morew')) { C.more = false; }
@@ -794,9 +800,9 @@
     const t = e.target.closest('[data-ct],[data-tk],[data-cv],[data-cf],[data-cu],[data-ca],[data-bb],[data-loc],[data-open],[data-phase]'); if (!t) { if (!C.more && C.root.querySelector('.cr-menu')) render(); return; }
     if (t.dataset.ca) C.more = false;
     if (t.dataset.ct) { C.tab = t.dataset.ct; C.q = ''; render(); return; }
-    if (t.dataset.cv) { C.vint = t.dataset.cv; render(); return; }
+    if (t.dataset.cv) { const v = t.dataset.cv; if (v === 'all') C.vints.clear(); else if (C.vints.has(v)) C.vints.delete(v); else C.vints.add(v); render(); return; }
     if (t.dataset.cf) { C.filter = t.dataset.cf; render(); return; }
-    if (t.dataset.cu != null) { C.use = t.dataset.cu; render(); return; }
+    if (t.dataset.cu != null) { const u = t.dataset.cu; if (!u) C.uses.clear(); else if (C.uses.has(u)) C.uses.delete(u); else C.uses.add(u); render(); return; }
     if (t.dataset.ca === 'new') { openBarrel(null, t.dataset.lot ? { lot: t.dataset.lot } : null); return; }
     if (t.dataset.ca === 'import') { openImport(); return; }
     if (t.dataset.ca === 'mant') { openMant(); return; }
