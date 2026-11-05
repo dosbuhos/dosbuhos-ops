@@ -43,7 +43,7 @@
   const specLine = b => [b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year ? 'hecha en ' + b.year : ''].filter(Boolean).join(' · ');
   const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 4 }, { id: '2', name: 'Fila 2', slots: 8, levels: 4 }, { id: '3', name: 'Fila 3', slots: 8, levels: 4 }] }] };
 
-  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'barrels', vessels: [], vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'wine', sheetTabs: {} };
+  const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'map', vessels: [], vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'wine', sheetTabs: {} };
 
   // ---------- data ----------
   async function load() {
@@ -61,12 +61,14 @@
     p2: { n: 'Vacía · mensual', d: 'Mojar por fuera, llenar con agua (si fuga, esperar a que selle), vaciar, vaporizar, azufrar al día siguiente', c: '#2d6fb3', full: false },
     p3: { n: 'Llena · mensual', d: 'Rellenar hasta arriba (vino que indique la enóloga), quitar velo y sanitizar con SO₂, tapones firmes, cisnes con agua y sulfitos', c: '#4a4f54', full: true },
     fill: { n: 'Llenado', d: 'Se llenó después de estar vacía', c: '#2f7d32', full: true },
+    top: { n: 'Relleno', d: 'Solo rellenar (sin el resto del mensual)', c: '#6b4a2a', full: true },
+    otro: { n: 'Otro', d: 'Algo más: bâtonnage, revisión de fuga, cambio de tapón… (escríbelo en la nota)', c: '#7a6a55', full: null },
   };
   const MANT_DAYS = 30;
   C.logs = []; let logsAt = 0;
   function loadLogs(force) {
     if (!force && Date.now() - logsAt < 120e3) return; logsAt = Date.now();
-    return api('barrel_log').then(j => { C.logs = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); C.mant = {}; for (const l of C.logs) if (l.kind === 'mant') { const k = String(l.code); if (!C.mant[k] || String(l.at) > String(C.mant[k].at)) C.mant[k] = l; } if (C.root && C.tab === 'barrels') render(); }).catch(() => { logsAt = 0; });
+    return api('barrel_log').then(j => { C.logs = (j.rows || []).map(r => Object.assign({ id: r.id }, r.data)); C.mant = {}; for (const l of C.logs) if (l.kind === 'mant' && l.proto !== 'otro') { const k = String(l.code); if (!C.mant[k] || String(l.at) > String(C.mant[k].at)) C.mant[k] = l; } if (C.root && C.tab === 'barrels') render(); }).catch(() => { logsAt = 0; });
   }
   const mantOf = b => (C.mant || {})[String(b.code)] || null;
   // Due when the last protocol is older than 30 days (or never logged).
@@ -82,33 +84,37 @@
     const groups = new Map(); for (const b of bs) { const k = b.lot ? lotName(b.lot) : stateOf(b) === 'empty' ? 'Vacías' : 'Por confirmar / otras'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(b); }
     const keys = [...groups.keys()].sort((a, b) => (a === 'Vacías') - (b === 'Vacías') || a.localeCompare(b, 'es'));
     const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
-    const d = sheet(`<form class="cr-form cr-mantf" method="dialog"><h3>Registrar mantenimiento</h3>
+    const d = sheet(`<form class="cr-form cr-mantf" method="dialog"><h3>Registro de mantenimiento masivo</h3>
       <fieldset class="cr-protos">${Object.entries(PROTO).map(([k, P], i) => `<label class="cr-proto"><input type="radio" name="proto" value="${k}"${i === 2 ? ' checked' : ''}><span><b><i style="background:${P.c}"></i>${P.n}</b><small>${P.d}</small></span></label>`).join('')}</fieldset>
       <label>Fecha (el último día, si tomó varios)<input type="date" name="d" value="${today}" max="${today}"></label>
       <div class="cr-p3x"><label>Litros para rellenar (cada barrica)<input name="topL" inputmode="decimal" placeholder="0.7"></label><label>Vino usado para rellenar<input name="topW" placeholder="BBL 15, VC-04…"></label>
       <label class="cr-chk"><input type="checkbox" name="velo"> Había velo (se quitó y sanitizó)</label></div>
-      <label>Nota (opcional)<input name="note" placeholder="Fuga, tapón cambiado, …"></label>
-      <div class="cr-mpick"><div class="cr-mh"><b>Barricas</b> <small id="crMn">0</small> <button type="button" class="lnk" data-mall="due">Marcar las que tocan</button> <button type="button" class="lnk" data-mall="none">Ninguna</button></div>
+      <label>Nota<textarea name="note" rows="2" placeholder="Opcional; para «Otro», qué se hizo"></textarea></label>
+      <div class="cr-mpick"><label class="cr-mnums">Escribe números (separados por coma o espacio)<input name="nums" inputmode="numeric" placeholder="44, 48, 51" autocomplete="off"></label><div class="cr-mh"><b>Barricas</b> <small id="crMn">0</small> <button type="button" class="lnk" data-mall="due">Marcar las que tocan</button> <button type="button" class="lnk" data-mall="none">Ninguna</button></div>
       ${keys.map(k => `<div class="cr-mg"><label class="cr-mgh"><input type="checkbox" data-mgrp="${esc(k)}"> <b>${esc(k)}</b> <small>${groups.get(k).length}</small></label><div class="cr-mbs">${groups.get(k).map(b => `<label class="cr-mb${mantDue(b) ? ' due' : ''}"><input type="checkbox" name="bb" value="${esc(b.code)}" data-g="${esc(k)}"${preset && preset.includes(String(b.code)) ? ' checked' : ''}><span>${esc(bn(b.code))}</span></label>`).join('')}</div></div>`).join('')}</div>
       <p class="cr-err" id="crErr"></p><div class="cr-row"><button type="button" class="btn" data-x>Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`, 'cr-wide');
     const f = $('form', d), cnt = () => { $('#crMn', d).textContent = f.querySelectorAll('[name="bb"]:checked').length; };
-    const showP3 = () => { const v = (f.querySelector('[name="proto"]:checked') || {}).value; $('.cr-p3x', d).hidden = v !== 'p3'; };
+    const showP3 = () => { const v = (f.querySelector('[name="proto"]:checked') || {}).value; $('.cr-p3x', d).hidden = v !== 'p3' && v !== 'top'; };
+    f.nums.addEventListener('input', () => { const ns = (f.nums.value.match(/\d+/g) || []).map(n => String(+n)); f.querySelectorAll('[name="bb"]').forEach(x => { if (ns.includes(String(+x.value))) x.checked = true; }); cnt(); });
     showP3(); cnt();
+    if (preset && preset.length) { const pk = $('.cr-mpick', d); pk.hidden = true; pk.insertAdjacentHTML('beforebegin', `<div class="cr-mpre"><b>${preset.length} barrica${preset.length === 1 ? '' : 's'}:</b> ${preset.map(c => esc(bn(c))).join(', ')} <button type="button" class="lnk" data-mshow>Cambiar</button></div>`); $('[data-mshow]', d).onclick = () => { pk.hidden = false; $('.cr-mpre', d).remove(); }; }
     f.addEventListener('change', e => { const g = e.target.dataset.mgrp; if (g != null) f.querySelectorAll(`[name="bb"][data-g="${CSS.escape(g)}"]`).forEach(x => { x.checked = e.target.checked; }); showP3(); cnt(); });
     f.addEventListener('click', e => { const a = e.target.closest('[data-mall]'); if (!a) return; const v = a.dataset.mall, P = (f.querySelector('[name="proto"]:checked') || {}).value;
-      f.querySelectorAll('[name="bb"]').forEach(x => { const b = C.barrels.find(y => String(y.code) === x.value); x.checked = v === 'due' && !!b && mantDue(b) && (!P || (PROTO[P].full ? stateOf(b) !== 'empty' : stateOf(b) === 'empty')); }); cnt(); });
+      f.querySelectorAll('[name="bb"]').forEach(x => { const b = C.barrels.find(y => String(y.code) === x.value); x.checked = v === 'due' && !!b && mantDue(b) && (!P || PROTO[P].full == null || (PROTO[P].full ? stateOf(b) !== 'empty' : stateOf(b) === 'empty')); }); cnt(); });
     $('[data-x]', d).onclick = () => d.close();
     f.onsubmit = async e => {
       e.preventDefault();
       const proto = f.proto.value, date = f.d.value, codes = [...f.querySelectorAll('[name="bb"]:checked')].map(x => x.value);
       if (!codes.length) { $('#crErr', d).textContent = 'Marca al menos una barrica.'; return; }
-      const P = PROTO[proto], extra = proto === 'p3' ? [f.topL.value ? 'rellenada ' + f.topL.value + ' L' + (f.topW.value ? ' con ' + f.topW.value : '') : '', f.velo.checked ? 'velo quitado' : ''].filter(Boolean) : [];
+      if (proto === 'otro' && !f.note.value.trim()) { $('#crErr', d).textContent = 'Escribe en la nota qué se hizo.'; f.note.focus(); return; }
+      const P = PROTO[proto], extra = proto === 'p3' || proto === 'top' ? [f.topL.value ? 'rellenada ' + f.topL.value + ' L' + (f.topW.value ? ' con ' + f.topW.value : '') : '', f.velo.checked ? 'velo quitado' : ''].filter(Boolean) : [];
       const text = [P.n, ...extra, f.note.value.trim()].filter(Boolean).join(' · ');
       const btn = f.querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = 'Guardando…';
       let n = 0;
       for (const code of codes) {
         const doc = { code: String(code), at: date + 'T12:00:00.000Z', by: C.me, kind: 'mant', proto, text, src: 'app' };
-        if (proto === 'p3') { if (f.topL.value) doc.topL = +f.topL.value || f.topL.value; if (f.topW.value) doc.topW = f.topW.value; if (f.velo.checked) doc.velo = true; }
+        doc.extra = [...extra, f.note.value.trim()].filter(Boolean).join(' · ');
+        if (proto === 'p3' || proto === 'top') { if (f.topL.value) doc.topL = +f.topL.value || f.topL.value; if (f.topW.value) doc.topW = f.topW.value; if (f.velo.checked) doc.velo = true; }
         try { await api('barrel_log/' + encodeURIComponent('b' + code + '-m' + date.replace(/-/g, '') + proto + '-' + Date.now().toString(36)), 'PUT', doc); n++; } catch (err) { $('#crErr', d).textContent = 'Barrica ' + code + ': ' + err.message; }
       }
       btn.disabled = false; btn.textContent = 'Guardar';
@@ -142,6 +148,7 @@
   const lvName = lv => +lv === 1 ? 'piso' : 'nivel ' + lv;
   const locLabel = loc => {
     if (!loc) return '';
+    if (!/^[A-Z]-\d+-\d+-\d+$/.test(String(loc))) { const b = C.barrels.find(x => x.loc === loc); return (b && b.locName) || String(loc); }
     const [z, r, s, lv] = String(loc).split('-'); const zone = (C.map || DEFAULT_MAP).zones.find(x => x.id === z);
     const row = zone && (zone.rows || []).find(x => x.id === r);
     return (zone ? zone.name : 'Zona ' + z) + ' · ' + (row ? row.name : 'Fila ' + r) + ' · Pos ' + s + (lv ? ' · ' + lvName(lv) : '');
@@ -170,10 +177,10 @@
   function render() {
     if (!C.root) return;
     if (!C.loaded) { C.root.innerHTML = '<div class="cr-empty">Cargando bodega…</div>'; return; }
-    if (C.tab === 'wines') C.tab = 'barrels';
+    if (C.tab === 'wines') C.tab = 'map';
     const tabs = C.tab === 'tanks' ? '' : `<div class="cr-view" role="tablist" aria-label="Vista">
-        <button type="button" role="tab" data-ct="barrels" aria-selected="${C.tab === 'barrels'}">Lista</button>
         <button type="button" role="tab" data-ct="map" aria-selected="${C.tab === 'map'}">Mapa</button>
+        <button type="button" role="tab" data-ct="barrels" aria-selected="${C.tab === 'barrels'}">Lista</button>
       </div>`;
     let tool = '';
     if (C.tab === 'barrels') {
@@ -181,19 +188,19 @@
       tool = `<div class="cr-tool">
         <label class="cr-search">${ICON_S}<input type="search" class="cr-q" placeholder="Buscar" value="${esc(C.q)}" aria-label="Buscar barrica"></label>
         <button type="button" class="cr-fbtn${n ? ' on' : ''}" data-cpanel aria-expanded="${C.panel}">${ICON_F}<span>Filtros</span>${n ? `<b>${n}</b>` : ''}</button>
-        ${C.canWrite || C.crew ? `<button type="button" class="btn sm cr-mantb" data-ca="mant">Registrar mantenimiento</button>` : ''}
+        ${C.canWrite || C.crew ? `<button type="button" class="btn sm cr-mantb" data-ca="mant">Registro masivo</button>` : ''}
         ${C.canWrite ? `<button type="button" class="cr-add" data-ca="new" aria-label="Nueva barrica" title="Nueva barrica">+</button>` : ''}
         <span class="cr-morew"><button type="button" class="cr-more" data-cmore aria-expanded="${C.more}" aria-label="Más opciones">⋯</button>${C.more ? `<div class="cr-menu" role="menu">
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="import">Importar inventario</button>` : ''}
+          ${C.canWrite || C.crew ? `<button type="button" role="menuitem" data-ca="mant">Registro de mantenimiento masivo</button>` : ''}
           <button type="button" role="menuitem" data-ca="labels">Imprimir etiquetas QR</button>
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="mapcfg">Configurar mapa</button>` : ''}</div>` : ''}</span>
       </div>`;
-    } else if (C.tab === 'map' && C.canWrite) {
-      tool = `<div class="cr-tool cr-tool-r"><button type="button" class="btn sm" data-ca="mapcfg">Configurar mapa</button></div>`;
     }
     C.root.innerHTML = `<div class="cr">${tabs}${tool}<div class="cr-body" id="crBody"></div></div>`;
     const body = $('#crBody', C.root);
     body.innerHTML = C.tab === 'map' ? renderMap() : C.tab === 'tanks' ? renderTanks() : renderBarrels();
+    if (C.tab === 'map') mountMap();
   }
   // Filtros sheet (bottom sheet on phones, centered card on desktop).
   function filterPanel() {
@@ -208,79 +215,127 @@
       <div class="cr-pfoot">${nFilters() ? `<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button>` : '<span></span>'}<button type="button" class="btn primary" data-cpanel>Listo</button></div>
     </div></div>`;
   }
-  // ---------- Barricas ----------
+  // ---------- Lista: one row per barrel, select rows, bulk actions (v1.9) ----------
+  C.selB = C.selB || new Set();
+  const SORTS = [['type', 'Tipo de vino'], ['wine', 'Vino'], ['vint', 'Añada'], ['loc', 'Ubicación'], ['mant', 'Mantenimiento'], ['num', 'Número']];
+  const typeOf = b => { const st = stateOf(b); if (st === 'confirm') return 'confirm'; if (st === 'empty') return 'empty'; return lotGroup(b.lot) || useOf(b) || 'other'; };
+  const TYPE_N = { red: 'Tintos', white: 'Blancos', orange: 'Naranjas', rose: 'Rosados', sparkling: 'Espumosos', port: 'Oporto', vermouth: 'Vermut', other: 'Con vino (sin tipo)', confirm: 'Por confirmar', empty: 'Vacías' };
+  const TYPE_O = ['red', 'rose', 'orange', 'white', 'sparkling', 'port', 'vermouth', 'other', 'confirm', 'empty'];
+  const vintB = b => { const l = lotById(b.lot); return l ? C.vintageOf(l) : ''; };
+  const mantDays = b => { const m = mantOf(b); return m ? Math.round((Date.now() - new Date(m.at)) / 864e5) : null; };
+  const so2Cell = b => { const x = C.so2 && C.so2[String(+b.code)], r = x && x.so2; if (!r || !b.lot) return '<span class="cr-dim">—</span>'; const low = /^</.test(r.v) || +r.v < 10, old = daysOld(r.d) > 14; return `<span class="cr-so2v${low ? ' low' : ''}${old ? ' old' : ''}">${esc(r.v)}</span><small>${esc(fmtD(r.d))}</small>`; };
+  const mantCell = b => { const m = mantOf(b), d = mantDays(b); if (!m) return '<span class="cr-due">Sin registro</span>'; const P = PROTO[m.proto] || {}; return `<span class="${d > MANT_DAYS ? 'cr-due' : ''}"><i class="cr-pdot" style="background:${P.c || '#999'}"></i>${d > MANT_DAYS ? 'Toca · ' : ''}hace ${d} d</span><small>${esc(P.n || '')}</small>`; };
+  const locShort = b => b.loc ? (b.locName || locLabel(b.loc)) : '';
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
-    let bs = C.barrels.filter(b => !q || (b.code + ' ' + bn(b.code) + ' ' + lotName(b.lot) + ' ' + (b.loc || '') + ' ' + locLabel(b.loc) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
-    if (C.vint !== 'all') bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; }); // empties have no vintage: always shown
+    let bs = C.barrels.filter(b => !q || (b.code + ' ' + bn(b.code) + ' ' + lotName(b.lot) + ' ' + locShort(b) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
+    if (C.vint !== 'all') bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; });
     if (C.use) bs = bs.filter(b => useOf(b) === C.use || (C.use === 'none' && !useOf(b)));
     if (C.noloc) bs = bs.filter(b => !b.loc);
-    if (C.filter === 'noloc') C.filter = 'all';
-    const base = bs;
-    const counts = { all: base.length };
-    for (const k of ['confirm', 'full', 'partial', 'empty']) counts[k] = base.filter(b => stateOf(b) === k).length;
-    counts.full += counts.partial; // "Con vino" = full + partial
-    counts.due = base.filter(mantDue).length;
-    if (C.filter === 'full') bs = bs.filter(b => ['full', 'partial'].includes(stateOf(b))); else if (C.filter === 'due') bs = bs.filter(mantDue).sort((a, b) => String((mantOf(a) || {}).at || '').localeCompare(String((mantOf(b) || {}).at || ''))); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
-    // One status row (the question people actually ask: what's full, what's free, what needs checking).
-    const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías'], ['due', 'Toca mantenimiento']].concat(counts.confirm ? [['confirm', 'Revisar']] : []);
-    const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"${k === 'confirm' ? ' title="Por confirmar: vino viejo en papel"' : ''}><span>${l}</span><small>${counts[k]}</small></button>`).join('');
-    const chips = [];
-    if (C.use) chips.push(['use', 'Tipo: ' + (C.use === 'none' ? 'Sin tipo' : USE[C.use])]);
-    if (C.vint !== 'all') chips.push(['vint', 'Añada: ' + (C.vint === 'old' ? 'Anteriores' : C.vint)]);
-    if (C.noloc) chips.push(['loc', 'Sin ubicación']);
+    const counts = { all: bs.length }; for (const k of ['confirm', 'full', 'partial', 'empty']) counts[k] = bs.filter(b => stateOf(b) === k).length;
+    counts.full += counts.partial; counts.due = bs.filter(mantDue).length;
+    if (C.filter === 'full') bs = bs.filter(b => ['full', 'partial'].includes(stateOf(b))); else if (C.filter === 'due') bs = bs.filter(mantDue); else if (C.filter !== 'all') bs = bs.filter(b => stateOf(b) === C.filter);
+    const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías'], ['due', 'Toca mantenimiento']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []);
+    const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"><span>${l}</span><small>${counts[k]}</small></button>`).join('');
+    const chips = []; if (C.use) chips.push(['use', 'Tipo: ' + (C.use === 'none' ? 'Sin tipo' : USE[C.use])]); if (C.vint !== 'all') chips.push(['vint', 'Añada: ' + (C.vint === 'old' ? 'Anteriores' : C.vint)]); if (C.noloc) chips.push(['loc', 'Sin ubicación']);
     let h = `<div class="cr-status" role="group" aria-label="Estado">${fchips}</div>` +
-      (chips.length ? `<div class="cr-chips2">${chips.map(([k, l]) => `<button type="button" class="cr-fchip" data-cclear="${k}" aria-label="Quitar ${esc(l)}">${esc(l)} <b aria-hidden="true">×</b></button>`).join('')}<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button></div>` : '') +
-      (C.panel ? filterPanel() : '');
-    if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» para pegar el inventario de barricas desde Excel, o «+ Barrica» para capturar una por una.</div>`;
+      (chips.length ? `<div class="cr-chips2">${chips.map(([k, l]) => `<button type="button" class="cr-fchip" data-cclear="${k}">${esc(l)} <b aria-hidden="true">×</b></button>`).join('')}<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button></div>` : '') + (C.panel ? filterPanel() : '');
+    if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» o «+ Barrica».</div>`;
+    // sort + group
+    const sortBy = C.sortB || 'type';
+    const numCmp = (a, b) => (+a.code || 0) - (+b.code || 0);
+    const cmp = { num: numCmp, wine: (a, b) => lotName(a.lot).localeCompare(lotName(b.lot), 'es') || numCmp(a, b), vint: (a, b) => (+vintB(b) || 0) - (+vintB(a) || 0) || numCmp(a, b), loc: (a, b) => locShort(a).localeCompare(locShort(b), 'es', { numeric: true }) || numCmp(a, b), mant: (a, b) => (mantDays(b) ?? 9999) - (mantDays(a) ?? 9999) || numCmp(a, b), type: (a, b) => lotName(a.lot).localeCompare(lotName(b.lot), 'es') || numCmp(a, b) }[sortBy];
+    bs = bs.slice().sort(cmp);
+    const groupKey = sortBy === 'type' ? b => typeOf(b) : sortBy === 'vint' ? b => (stateOf(b) === 'empty' ? 'empty' : vintB(b) || 'Sin añada') : sortBy === 'wine' ? b => (b.lot ? lotName(b.lot) : TYPE_N[typeOf(b)]) : null;
+    const gname = k => TYPE_N[k] || String(k);
+    const ids = new Set(bs.map(b => b.id)); for (const id of [...C.selB]) if (!C.barrels.some(b => b.id === id)) C.selB.delete(id);
+    const nSel = C.selB.size, allOn = bs.length && bs.every(b => C.selB.has(b.id));
+    h += `<div class="cr-ltool"><label class="cr-lsort">Ordenar<select data-csort>${SORTS.map(([k, l]) => `<option value="${k}"${k === sortBy ? ' selected' : ''}>${l}</option>`).join('')}</select></label><span class="cr-lcount">${bs.length} barrica${bs.length === 1 ? '' : 's'}</span></div>`;
+    h += `<div class="cr-bulk${nSel ? ' on' : ''}" role="region" aria-label="Acciones en lote"><b>${nSel ? nSel + ' seleccionada' + (nSel === 1 ? '' : 's') : 'Selecciona barricas para actuar en lote'}</b>${nSel ? `<select data-cbulk aria-label="Acción en lote"><option value="">Acciones…</option>${C.canWrite || C.crew ? '<option value="mant">Registrar mantenimiento</option><option value="so2">Registrar SO₂</option><option value="wine">Cambiar vino</option><option value="empty">Marcar vacías</option>' : ''}<option value="labels">Imprimir etiquetas QR</option></select><button type="button" class="btn sm primary" data-cbulkgo>Aplicar</button><button type="button" class="cr-clear" data-cselnone>Quitar selección</button>` : ''}</div>`;
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
-    if (C.filter === 'confirm') return h + `<p class="cr-help">Estas barricas tenían vino de años anteriores en los registros de SO₂ en papel (nov/25 y may/26). Confirma qué tienen hoy; lo de 2026 en Excellovint no se toca.</p><div class="cr-cfm">` +
-      bs.map(b => `<article class="cr-cfm-row" data-bb="${esc(b.id)}"><div><b>BBL ${esc(bn(b.code))}</b><span>${esc(paperLine(b) || 'Sin registro')}</span>${b.flag ? `<em>⚠ ${esc(b.flag)}</em>` : ''}</div>${C.canWrite ? `<div class="cr-cfm-a"><button type="button" class="btn sm" data-cfm="same" data-id="${esc(b.id)}">Sigue con ${esc((b.paper && b.paper.last) || 'este vino')}</button><button type="button" class="btn sm" data-cfm="empty" data-id="${esc(b.id)}">Embotellada / vacía</button><button type="button" class="btn sm" data-cfm="other" data-id="${esc(b.id)}">Otro vino…</button></div>` : ''}</article>`).join('') + `</div>`;
-    const card = b => {
-      const g = lotGroup(b.lot), st = stateOf(b), fill = st === 'confirm' ? 'empty' : st, u = useOf(b);
-      return `<article class="cr-bbl f-${fill}" data-bb="${esc(b.id)}" style="--c:${b.lot ? (GCOL[g] || '#9aa5b1') : st === 'full' && u ? (USE_C[u] || '#c8a77e') : '#c8a77e'}">
-        <div class="cr-code">${BARREL_SVG}<b>${esc(bn(b.code))}</b></div>
-        <div class="cr-bmain">
-          <div class="cr-bh"><b>${b.lot ? esc(lotName(b.lot)) : needsConfirm(b) ? '<span class="cr-cf">Por confirmar</span>' : b.confirmed && b.confirmed.wine ? esc(b.confirmed.wine) : '<span class="cr-none">Vacía</span>'}</b>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
-          ${needsConfirm(b) && paperLine(b) ? `<div class="cr-sub">${esc(paperLine(b))}</div>` : ''}
-          <div class="cr-sub">${esc([st === 'confirm' || !b.lot ? '' : FILL[fill], b.vol && b.size && +b.vol < +b.size ? b.vol + ' / ' + b.size + ' L' : (b.size || b.vol ? (b.size || b.vol) + ' L' : ''), b.lot && lotById(b.lot) ? C.vintageOf(lotById(b.lot)) : ''].filter(Boolean).join(' · '))}</div>
-          ${so2Line(b)}
-          ${mantLine(b)}
-          ${specLine(b) ? `<div class="cr-sub cr-spec">${esc(specLine(b))}</div>` : ''}
-          ${b.loc ? `<div class="cr-sub"><span class="cr-loc">${esc(b.loc)}</span> ${esc(locLabel(b.loc))}</div>` : ''}
-        </div></article>`;
+    const row = b => {
+      const stt = stateOf(b), g = lotGroup(b.lot), u = useOf(b), col = b.lot ? (GCOL[g] || '#9aa5b1') : stt === 'confirm' ? '#d79a1f' : 'transparent';
+      const wine = b.lot ? esc(lotName(b.lot)) : stt === 'confirm' ? `<span class="cr-cf">Por confirmar</span>${b.paper && b.paper.last ? ` <small>papel: ${esc(b.paper.last)}</small>` : ''}` : '<span class="cr-none">Vacía</span>';
+      return `<div class="cr-tr${C.selB.has(b.id) ? ' sel' : ''}" data-bbrow="${esc(b.id)}" role="row">
+        <label class="cr-td c-sel" aria-label="Seleccionar ${esc(bn(b.code))}"><input type="checkbox" data-bsel="${esc(b.id)}"${C.selB.has(b.id) ? ' checked' : ''}></label>
+        <div class="cr-td c-num"><b>${esc(bn(b.code))}</b></div>
+        <div class="cr-td c-wine"><i class="cr-wdot" style="background:${col}"></i><span>${wine}</span>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
+        <div class="cr-td c-vint">${esc(vintB(b) || '')}</div>
+        <div class="cr-td c-loc">${b.loc ? esc(locShort(b)) : '<span class="cr-dim">sin ubicación</span>'}</div>
+        <div class="cr-td c-so2">${so2Cell(b)}</div>
+        <div class="cr-td c-mant">${mantCell(b)}</div>
+        <div class="cr-td c-spec">${esc([b.cooperage, b.wood, b.year, b.toast ? 'T ' + b.toast : ''].filter(Boolean).join(' · ')) || '<span class="cr-dim">—</span>'}</div>
+      </div>`;
     };
-    if (C.group === 'none') return h + `<div class="cr-cards">${bs.map(card).join('')}</div>`;
-    const key = b => C.group === 'wine' ? (b.lot ? lotName(b.lot) : 'Vacías') : (b.loc ? locLabel(b.loc).split(' · ').slice(0, 2).join(' · ') : 'Sin ubicación');
-    const by = new Map(); for (const b of bs) { const k = key(b); if (!by.has(k)) by.set(k, []); by.get(k).push(b); }
-    const keys = [...by.keys()].sort((a, b) => (a.startsWith('Sin') || a === 'Vacías') - (b.startsWith('Sin') || b === 'Vacías') || a.localeCompare(b, 'es', { numeric: true }));
-    for (const k of keys) h += `<h3 class="cr-gh">${esc(k)} <small>${by.get(k).length}</small></h3><div class="cr-cards">${by.get(k).map(card).join('')}</div>`;
-    return h;
-  }
-
-  // ---------- Mapa ----------
-  function renderMap() {
-    const map = C.map || DEFAULT_MAP;
-    const legend = Object.entries(GCOL).map(([g, c]) => `<span><i style="background:${c}"></i>${{ red: 'Tinto', rose: 'Rosado', white: 'Blanco', orange: 'Naranja', sparkling: 'Espumoso' }[g]}</span>`).join('') + '<span><i style="background:#c8a77e"></i>Vacía</span><span><i class="dash"></i>Libre</span>';
-    let h = `<div class="cr-legend">${legend}${!C.map ? '<em>Plano de ejemplo: ajústalo en «Configurar mapa».</em>' : ''}</div>`;
-    for (const z of map.zones || []) {
-      h += `<section class="cr-zone"><h3 class="cr-gh">${esc(z.name || 'Zona ' + z.id)} <small>${C.barrels.filter(b => (b.loc || '').startsWith(z.id + '-')).length} barricas</small></h3>`;
-      for (const r of z.rows || []) {
-        const slots = +r.slots || 1, levels = +r.levels || 1;
-        h += `<div class="cr-rowmap"><div class="cr-rowlab">${esc(r.name || 'Fila ' + r.id)}</div><div class="cr-grid" style="--n:${slots}">`;
-        for (let lv = levels; lv >= 1; lv--) for (let s = 1; s <= slots; s++) {
-          const loc = `${z.id}-${r.id}-${s}-${lv}`, b = atLoc(loc);
-          if (b) { const g = lotGroup(b.lot); h += `<button type="button" class="cr-cell has ${b.fill === 'partial' ? 'half' : ''}" data-bb="${esc(b.id)}" style="--c:${b.lot ? (GCOL[g] || '#999') : '#c8a77e'}" title="${esc(bn(b.code) + ' · ' + (lotName(b.lot) || 'vacía') + ' · ' + locLabel(loc))}"><b>${esc(bn(b.code))}</b><small>${esc((lotName(b.lot) || 'vacía').slice(0, 14))}</small></button>`; }
-          else h += `<button type="button" class="cr-cell free" data-loc="${loc}" title="${esc(locLabel(loc))}"${C.canWrite ? '' : ' disabled'}><small>${s}${levels > 1 ? '·' + lv : ''}</small></button>`;
-        }
-        h += `</div></div>`;
-      }
-      h += `</section>`;
+    const head = `<div class="cr-tr cr-th" role="row"><label class="cr-td c-sel" aria-label="Seleccionar todas"><input type="checkbox" data-bselall${allOn ? ' checked' : ''}></label><div class="cr-td c-num">Nº</div><div class="cr-td c-wine">Vino</div><div class="cr-td c-vint">Añada</div><div class="cr-td c-loc">Ubicación</div><div class="cr-td c-so2">SO₂ libre</div><div class="cr-td c-mant">Mantenimiento</div><div class="cr-td c-spec">Barrica</div></div>`;
+    let body = '';
+    if (!groupKey) body = bs.map(row).join('');
+    else {
+      const by = new Map(); for (const b of bs) { const k = groupKey(b); if (!by.has(k)) by.set(k, []); by.get(k).push(b); }
+      const keys = [...by.keys()].sort((a, b) => sortBy === 'type' ? TYPE_O.indexOf(a) - TYPE_O.indexOf(b) : sortBy === 'vint' ? (a === 'empty') - (b === 'empty') || (+b || 0) - (+a || 0) : String(a).localeCompare(String(b), 'es'));
+      for (const k of keys) { const list = by.get(k), on = list.every(b => C.selB.has(b.id)); body += `<div class="cr-tg" role="row"><label><input type="checkbox" data-bselg="${esc(list.map(b => b.id).join(','))}"${on ? ' checked' : ''}> <b>${esc(sortBy === 'vint' && k === 'empty' ? 'Vacías' : gname(k))}</b> <small>${list.length}</small></label></div>` + list.map(row).join(''); }
     }
-    const unplaced = C.barrels.filter(b => !b.loc);
-    if (unplaced.length) h += `<h3 class="cr-gh">Sin ubicación <small>${unplaced.length}</small></h3><div class="cr-chips">${unplaced.map(b => `<button type="button" class="cr-chip" data-bb="${esc(b.id)}" style="--c:${GCOL[lotGroup(b.lot)] || '#999'}"><b>${esc(bn(b.code))}</b><small>${esc(lotName(b.lot) || 'vacía')}</small></button>`).join('')}</div>`;
-    return h;
+    return h + `<div class="cr-table" role="table" aria-label="Barricas">${head}${body}</div>`;
   }
+  function selCodes() { return C.barrels.filter(b => C.selB.has(b.id)); }
+  async function bulk(action) {
+    const bs = selCodes(); if (!bs.length) return;
+    if (action === 'labels') { printLabels(bs); return; }
+    if (action === 'mant') { openMant(bs.map(b => String(b.code))); return; }
+    if (action === 'so2') { openBulkSo2(bs); return; }
+    if (action === 'wine' || action === 'empty') {
+      const d = sheet(`<form class="cr-form" method="dialog"><h3>${action === 'wine' ? 'Cambiar vino' : 'Marcar vacías'} · ${bs.length} barrica${bs.length === 1 ? '' : 's'}</h3>
+        <p class="cr-help">${bs.map(b => esc(bn(b.code))).join(', ')}</p>${action === 'wine' ? winePicker('') : '<p class="cr-help">Quedan sin vino. Se anota en el historial de cada barrica.</p>'}
+        <p class="cr-err" id="crErr"></p><div class="cr-row"><button type="button" class="btn" data-x>Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`);
+      const f = $('form', d); if (action === 'wine') wirePicker(f); $('[data-x]', d).onclick = () => d.close();
+      f.onsubmit = async e => { e.preventDefault(); let lot = '';
+        if (action === 'wine') { lot = f.querySelector('[name="lot"]').value; if (lot === '__new') { try { lot = await newWineFrom(f); } catch (err) { $('#crErr', d).textContent = err.message; return; } } if (!lot) { $('#crErr', d).textContent = 'Elige el vino.'; return; } }
+        const btn = f.querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = 'Guardando…'; const at = new Date().toISOString();
+        for (const b of bs) { const patch = lot ? { lot, fill: 'full', status: 'occupied2026', by: C.me, at } : { lot: '', fill: 'empty', by: C.me, at };
+          if (needsConfirm(b)) { patch.confirmed = { state: lot ? 'other' : 'empty', wine: lot ? lotName(lot) : '', by: C.me, at }; if (!lot) patch.status = 'empty'; }
+          try { await api('barrels/' + encodeURIComponent(b.id), 'PATCH', patch); await logEvent(b.code, lot ? 'fill' : 'empty', lot ? 'Con ' + lotName(lot) + ' (en lote)' : 'Vacía (antes: ' + (lotName(b.lot) || '—') + ', en lote)'); } catch (err) { $('#crErr', d).textContent = 'Barrica ' + b.code + ': ' + err.message; btn.disabled = false; btn.textContent = 'Guardar'; return; } }
+        d.close(); C.selB.clear(); await refresh(); };
+    }
+  }
+  function openBulkSo2(bs) {
+    const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
+    const d = sheet(`<form class="cr-form" method="dialog"><h3>Registrar SO₂ · ${bs.length} barrica${bs.length === 1 ? '' : 's'}</h3>
+      <fieldset class="cr-protos"><label class="cr-proto"><input type="radio" name="k" value="read" checked><span><b>Lectura</b><small>SO₂ libre medido (ppm). Si cada barrica dio distinto, escríbelo por barrica abajo.</small></span></label><label class="cr-proto"><input type="radio" name="k" value="add"><span><b>Adición</b><small>Gramos de KMBS agregados a cada barrica.</small></span></label></fieldset>
+      <div class="g2"><label>Fecha<input type="date" name="d" value="${today}" max="${today}"></label><label class="cr-k-read">SO₂ libre (ppm) para todas<input name="v" inputmode="decimal" placeholder="25"></label><label class="cr-k-add" hidden>KMBS (g) por barrica<input name="g" inputmode="decimal" placeholder="6"></label></div>
+      <div class="cr-k-read cr-so2each">${bs.map(b => `<label>${esc(bn(b.code))}<input name="v_${esc(b.id)}" inputmode="decimal" placeholder="—"></label>`).join('')}</div>
+      <label>Nota (opcional)<textarea name="note" rows="2"></textarea></label>
+      <p class="cr-err" id="crErr"></p><div class="cr-row"><button type="button" class="btn" data-x>Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`, 'cr-wide');
+    const f = $('form', d); $('[data-x]', d).onclick = () => d.close();
+    f.addEventListener('change', () => { const k = f.k.value; f.querySelectorAll('.cr-k-read').forEach(x => x.hidden = k !== 'read'); f.querySelectorAll('.cr-k-add').forEach(x => x.hidden = k !== 'add'); });
+    f.onsubmit = async e => { e.preventDefault(); const k = f.k.value, date = f.d.value, num = v => { const x = parseFloat(String(v || '').replace(',', '.')); return isFinite(x) ? x : null; };
+      const all = num(k === 'read' ? f.v.value : f.g.value); let n = 0;
+      for (const b of bs) { const v = k === 'read' ? (num(f['v_' + b.id] && f['v_' + b.id].value) ?? all) : all; if (v == null) continue;
+        const doc = { code: String(b.code), at: date + 'T12:00:00.000Z', by: C.me, kind: 'so2', so2kind: k, fso2: k === 'read' ? v : null, kmbs_g: k === 'add' ? v : null, note: f.note.value.trim(), text: k === 'read' ? 'Lectura SO₂ libre ' + v + ' ppm' : 'Adición de SO₂: KMBS ' + v + ' g', src: 'app' };
+        try { await api('barrel_log/' + encodeURIComponent('b' + b.code + '-s' + date.replace(/-/g, '') + '-' + Date.now().toString(36)), 'PUT', doc); n++; } catch (err) { $('#crErr', d).textContent = err.message; return; } }
+      if (!n) { $('#crErr', d).textContent = k === 'read' ? 'Escribe la lectura.' : 'Escribe los gramos.'; return; }
+      d.close(); C.selB.clear(); await loadLogs(true); render(); };
+  }
+  // ---------- the barrel card (same page as the map: /barricas.html?b=NNN) ----------
+  function openCard(id, tab) {
+    const b = C.barrels.find(x => x.id === id); if (!b) return;
+    let d = $('#crCard'); if (!d) { d = document.createElement('dialog'); d.id = 'crCard'; d.className = 'cr-card'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); d.addEventListener('close', () => { d.innerHTML = ''; if (C.dirty) { C.dirty = false; refresh(); } }); }
+    d.innerHTML = `<iframe title="Barrica ${esc(bn(b.code))}" src="/barricas.html?b=${encodeURIComponent(b.code)}${tab ? '&tab=' + tab : ''}"></iframe>`;
+    if (!d.open) d.showModal();
+  }
+  let mapFrame = null;
+  function renderMap() { return '<div class="cr-mapslot"></div>'; }
+  function mountMap() {
+    const slot = C.root && C.root.querySelector('.cr-mapslot'); if (!slot) return;
+    if (!mapFrame) { mapFrame = document.createElement('iframe'); mapFrame.className = 'cr-mapframe'; mapFrame.title = 'Mapa de barricas'; mapFrame.src = '/barricas.html'; }
+    slot.appendChild(mapFrame);
+  }
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || !e.data) return;
+    const t = e.data.type;
+    if (t === 'bm:close') { const d = $('#crCard'); if (d && d.open) d.close(); }
+    else if (t === 'bm:changed') { if ($('#crCard') && $('#crCard').open) C.dirty = true; else if (C.tab !== 'map') refresh(); else load(); }
+    else if (t === 'bm:mant') openMant();
+  });
 
   // ---------- Tanques: every tank / amphora / puncheon from the vessel registry (coll "vessels") with the wine in it ----------
   // What's in a tank: set by hand on the tank (contents), otherwise read from each wine's location text (ubi) by the
@@ -602,7 +657,7 @@
     const bs = list || C.barrels; if (!bs.length) return alert('No hay barricas registradas.');
     const svgs = await Promise.all(bs.map(b => qrSvg(tagUrl(b.code), 120)));
     let host = $('#crPrint'); if (!host) { host = document.createElement('div'); host.id = 'crPrint'; document.body.appendChild(host); }
-    host.innerHTML = bs.map((b, i) => `<div class="cr-label"><div class="cr-lcode"><small>BBL</small><b>${esc(bn(b.code))}</b></div>${svgs[i]}<div class="cr-lfoot">${esc(lotName(b.lot) || '')}<br><span>Dos Búhos · ${esc(tagUrl(b.code).replace(/^https?:\/\//, ''))}</span></div></div>`).join('');
+    host.innerHTML = bs.map((b, i) => `<div class="cr-label"><div class="cr-lcode cr-lcode1"><b>BBL ${esc(bn(b.code))}</b></div>${svgs[i]}<div class="cr-lfoot"><span>Dos Búhos</span></div></div>`).join('');
     document.documentElement.classList.add('cr-printing');
     const done = () => { document.documentElement.classList.remove('cr-printing'); window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done); setTimeout(() => window.print(), 150); setTimeout(done, 60000);
@@ -715,6 +770,11 @@
   document.addEventListener('click', e => {
     if (!C.root || !C.root.contains(e.target)) return;
     const cf = e.target.closest('[data-cfm]'); if (cf) { confirmBarrel(cf.dataset.id, cf.dataset.cfm); return; }
+    // Lista: selection and bulk actions
+    if (e.target.closest('.c-sel,.cr-tg label')) return; // checkboxes: handled on change
+    if (e.target.closest('[data-cselnone]')) { C.selB.clear(); render(); return; }
+    if (e.target.closest('[data-cbulkgo]')) { const v = (C.root.querySelector('[data-cbulk]') || {}).value; if (v) bulk(v); return; }
+    const br = e.target.closest('[data-bbrow]'); if (br && !e.target.closest('select,input,button')) { openCard(br.dataset.bbrow); return; }
     if (e.target.matches && e.target.matches('[data-cpanelbg]')) { C.panel = false; render(); return; }
     const pn = e.target.closest('[data-cpanel]'); if (pn) { C.panel = !C.panel; C.more = false; render(); return; }
     const mo = e.target.closest('[data-cmore]'); if (mo) { C.more = !C.more; render(); return; }
@@ -734,14 +794,23 @@
     if (t.dataset.ca === 'mant') { openMant(); return; }
     if (t.dataset.ca === 'labels') { printLabels(null); return; }
     if (t.dataset.ca === 'mapcfg') { openMapCfg(); return; }
-    if (t.dataset.bb) { openBarrel(t.dataset.bb); return; }
+    if (t.dataset.bb) { openCard(t.dataset.bb); return; }
     if (t.dataset.tk) { openTank(t.dataset.tk); return; }
     if (t.dataset.loc) { if (C.canWrite) openAssign(t.dataset.loc); return; }
     if (t.dataset.open) { window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: t.dataset.open } })); return; }
     if (t.dataset.phase) { window.dispatchEvent(new CustomEvent('cellar:phase', { detail: { lot: t.dataset.lot, phase: t.dataset.phase } })); return; }
   });
   document.addEventListener('input', e => { if (C.root && C.root.contains(e.target) && e.target.classList.contains('cr-q')) { C.q = e.target.value; const body = $('#crBody', C.root); if (body) body.innerHTML = C.tab === 'map' ? renderMap() : C.tab === 'tanks' ? renderTanks() : renderBarrels(); } });
-  document.addEventListener('change', e => { if (C.root && C.root.contains(e.target) && e.target.matches('[data-cg]')) { C.group = e.target.value; render(); } });
+  document.addEventListener('change', e => {
+    if (!C.root || !C.root.contains(e.target)) return;
+    const t = e.target;
+    if (t.matches('[data-cg]')) { C.group = t.value; render(); return; }
+    if (t.matches('[data-csort]')) { C.sortB = t.value; render(); return; }
+    if (t.matches('[data-bsel]')) { if (t.checked) C.selB.add(t.dataset.bsel); else C.selB.delete(t.dataset.bsel); render(); return; }
+    if (t.matches('[data-bselg]')) { for (const id of t.dataset.bselg.split(',')) if (t.checked) C.selB.add(id); else C.selB.delete(id); render(); return; }
+    if (t.matches('[data-bselall]')) { C.root.querySelectorAll('[data-bsel]').forEach(x => { if (t.checked) C.selB.add(x.dataset.bsel); else C.selB.delete(x.dataset.bsel); }); render(); return; }
+    if (t.matches('[data-cbulk]') && t.value) { bulk(t.value); t.value = ''; }
+  });
 
   let loading = null;
   window.addEventListener('cellar:render', async e => {
@@ -753,6 +822,6 @@
     render();
     // Deep link from a tag: /b/101 → /?b=101#cellar
     const m = location.search.match(/[?&]b=(\d+)/);
-    if (m && !window.__crOpened) { window.__crOpened = true; const b = C.barrels.find(x => x.id === m[1]); if (b) openBarrel(b.id); else if (C.canWrite) openBarrel(null, { code: m[1] }); }
+    if (m && !window.__crOpened) { window.__crOpened = true; const b = C.barrels.find(x => x.id === m[1]); if (b) openCard(b.id); else if (C.canWrite) openBarrel(null, { code: m[1] }); }
   });
 })();

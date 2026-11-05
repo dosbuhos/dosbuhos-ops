@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Barricas · Dos Búhos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#eef0ec; --sheet:#f8f9f6; --ink:#2b3330; --soft:#78827d; --line:#c9cfc9; --steel:#7d8a92; --oak:#e7cfa4; --oak-rim:#9a6b3b;
+  --unk:#e3e6e2; --unk-ink:#8b9590; --ok:#2f7d47; --warn:#b5651d; --amph:#c4622d; --amph-fill:#f0d2bd;
+  --sb:#d9e3a1; --or:#f2b766; --mp:#9b2f3a; --ag:#5b3768; --ga:#c85a64; --cs:#6e1f2c; --cf:#8c3d72;
+  --f-d:"Barlow Condensed","Arial Narrow",sans-serif; --f-b:"IBM Plex Sans",system-ui,sans-serif; --f-m:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#161b1a; --sheet:#1e2523; --ink:#dde3df; --soft:#8f9a95; --line:#36423e; --steel:#6d7a82; --oak:#5a4630; --oak-rim:#c79a63;
+  --unk:#2a312f; --unk-ink:#8f9a95; --ok:#78c48d; --warn:#e3a061; --amph:#f0996a; --amph-fill:#4a2e20; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#161b1a; --sheet:#1e2523; --ink:#dde3df; --soft:#8f9a95; --line:#36423e; --steel:#6d7a82; --oak:#5a4630; --oak-rim:#c79a63;
+  --unk:#2a312f; --unk-ink:#8f9a95; --ok:#78c48d; --warn:#e3a061; --amph:#f0996a; --amph-fill:#4a2e20; color-scheme:dark}
+body{background:var(--paper);color:var(--ink);font:14px/1.45 var(--f-b);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
+h1{font:700 30px/1 var(--f-d);text-transform:uppercase;letter-spacing:.02em;margin:0;text-wrap:balance}
+.sub{color:var(--soft);font-size:13px}
+.prog{display:flex;align-items:center;gap:10px;margin:10px 0 14px;font-size:13px}
+.bar{flex:0 1 220px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--ok);width:0}
+.wall{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:10px;align-items:flex-end;background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:14px 12px 8px}
+.grp{display:flex;flex-direction:column;gap:4px;min-width:0}
+.grp h2{font:600 11px var(--f-b);text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:0 0 2px 4px}
+.racks{display:flex;gap:6px}
+svg{display:block;max-width:100%;height:auto}
+.rack-frame{fill:none;stroke:var(--steel);stroke-width:3}
+.rack-lbl{font:700 15px var(--f-d);fill:var(--soft);text-anchor:middle}
+.lvl{font:700 15px var(--f-d);fill:var(--soft);text-anchor:end}
+.gc{font:600 8px var(--f-m)}
+.bbl{cursor:pointer}
+.bbl .rim{stroke:var(--oak-rim);stroke-width:3}
+.bbl .head{stroke:none}
+.bbl text{text-anchor:middle;pointer-events:none}
+.bbl .num{font:700 17px var(--f-d)}.bbl .pos{font:600 8.5px var(--f-m);opacity:.8;text-anchor:middle}.bbl .wl{font:600 8.5px var(--f-b);fill:var(--ink);text-anchor:middle}
+.bbl .wn{font:500 7.5px var(--f-b)}
+.bbl.unk .rim{stroke:var(--oak-rim);stroke-dasharray:5 3}
+.amphp .rim{stroke:var(--amph);stroke-width:3}.amphp .alid{fill:var(--amph)}.amphp.sel .rim{stroke:var(--ink);stroke-width:5}.amphp.conf .rim{stroke:var(--ok)}
+.bbl.side .rim{stroke-width:2.5}.bbl.side.back{opacity:.75}.hoopS{stroke:var(--steel);stroke-width:2.5}.bbl.side .side{font:600 10px var(--f-b);fill:var(--soft)}
+.bbl.none .rim{stroke:var(--unk-ink);stroke-dasharray:3 4;stroke-width:1.5;fill:none}.bbl.none .head{fill:var(--unk)}
+.bbl.part .rim{stroke:var(--warn);stroke-dasharray:5 3}
+.bbl.conf .rim{stroke:var(--ok);stroke-width:3.5}
+.bbl:hover .rim,.bbl:focus .rim{stroke-width:5}
+.bbl.sel .rim{stroke:var(--ink);stroke-width:5}
+.bbl:focus{outline:none}
+.tick{fill:var(--ok)}
+.amph-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 6px}
+@media (max-width:600px){.amph-wrap{flex-direction:row;width:100%;justify-content:center}.amph-wrap svg{width:44px;height:88px}}
+.floor{height:4px;background:var(--line);border-radius:2px;margin-top:6px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:12px 2px 0;font-size:12px;color:var(--soft)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:50%;display:inline-block;border:2px solid var(--oak-rim)}
+.legend i.p{border:2px dashed var(--warn);background:var(--oak)} .legend i.u{border:2px dashed var(--unk-ink);background:var(--unk)} .legend i.c{border:2.5px solid var(--ok);background:var(--oak)}
+.wines{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 2px 0;font-size:12px}
+.wines span{display:inline-flex;align-items:center;gap:5px}.wines b{width:12px;height:12px;border-radius:3px;display:inline-block}
+.panel{margin-top:14px;background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:14px 16px;max-width:620px}
+.panel h3{font:700 26px/1 var(--f-d);margin:0}
+.panel .where{color:var(--soft);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:12px 0}
+.panel dt{color:var(--soft)} .panel dd{margin:0;font-family:var(--f-m)}
+.panel .note{color:var(--warn);font-size:13px;margin:8px 0}
+.panel .okn{color:var(--ok);font-size:13px;margin:8px 0}
+form{display:grid;gap:10px;margin-top:10px;border-top:1px solid var(--line);padding-top:12px}
+form .row{display:flex;flex-wrap:wrap;gap:10px}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--soft);min-width:0}
+input[type=text],input[inputmode]{font:500 16px var(--f-m);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
+label.num{flex:0 0 110px} label.wine{flex:1 1 220px}
+.chk{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--ink)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:600 14px var(--f-b);border-radius:7px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+button.pri{background:var(--ok);border-color:var(--ok);color:var(--sheet)}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.status{font-size:12px;color:var(--soft)}
+.ql{margin:0;padding-left:22px;display:grid;gap:5px;font-size:13.5px}.ql button{font:700 14px var(--f-m);padding:3px 8px;margin-right:6px}
+.lay{display:flex;flex-direction:column;gap:12px;align-items:center}
+.mmcol,.facecol{width:100%;max-width:900px}.facecol{display:flex;flex-direction:column;align-items:center}
+.facecol .secname,.facecol .secnote{text-align:center}.facecol .edges{width:100%}.facecol .wall{width:100%;box-sizing:border-box;justify-content:safe center}
+.bcard{margin-left:auto;margin-right:auto;width:100%;box-sizing:border-box}
+header,.prog{max-width:900px;margin-left:auto;margin-right:auto;justify-content:center}
+.mmcol{}.mmbox{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:10px}
+.mmh{font:600 11px var(--f-b);text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin-bottom:6px}
+.mmsvg{width:100%;height:auto;display:block}
+.mm-room{fill:var(--paper);stroke:var(--ink);stroke-width:.08}
+.mm-door{fill:var(--sheet);stroke:var(--soft);stroke-width:.05}
+.mm-t{font:600 .32px var(--f-b);fill:var(--soft);text-anchor:middle;letter-spacing:.02px}
+.mm-n{fill:var(--ink)}
+.mm-face{cursor:pointer}.mm-face:focus{outline:none}
+.mm-rack{fill:var(--oak);stroke:var(--oak-rim);stroke-width:.05}
+.mm-amph{fill:var(--amph-fill);stroke:var(--amph);stroke-width:.06}
+.mm-face:hover .mm-rack{stroke-width:.1}
+.mm-face.on .mm-rack{fill:var(--ok);stroke:var(--ok);fill-opacity:.35}
+.mm-face.on .mm-rack.sel{fill-opacity:.9}
+.mm-id{font:700 .3px var(--f-m);fill:var(--ink);text-anchor:middle;pointer-events:none}
+.mm-eye{fill:var(--ok);stroke:var(--sheet);stroke-width:.04;stroke-linejoin:round}.mm-eyet{font:700 .17px var(--f-b);fill:var(--sheet);text-anchor:middle;pointer-events:none}
+.mm-arrow{stroke:var(--ok);stroke-width:.1;fill:none}
+.room .wall{fill:var(--ink)}.room .frame{fill:#8a5a12}.room .win{fill:var(--sheet);stroke:var(--ink);stroke-width:.03}.room .vent{fill:none;stroke:var(--ink);stroke-width:.03}
+.room .swing{fill:none;stroke:#8a5a12;stroke-width:.04;stroke-dasharray:.08 .06}.room .lbl,.mm-pr .lbl{font:600 .3px var(--f-b);fill:var(--soft);text-anchor:middle;letter-spacing:.03px}
+.pz{fill:#ece4d6;stroke:var(--soft);stroke-width:.04}
+.bt{fill:var(--oak);stroke:var(--oak-rim);stroke-width:.035}.hoop{stroke:var(--oak-rim);stroke-width:.03}.rk{fill:none;stroke:var(--steel);stroke-width:.04}
+.amph{fill:var(--amph-fill);stroke:var(--amph);stroke-width:.05}
+.mm-face.on .bt{fill:#b3803f;stroke:#5e3a16}.mm-face.on .hoop{stroke:#5e3a16}.mm-face.on .rk{stroke:#5e3a16;stroke-width:.07}.mm-face.on .mm-id{fill:#fff}.mm-face.on .it.sel .bt{fill:#7a4c1f}.mm-face.on .pz{stroke:#5e3a16;fill:#e3cfa8}
+.mm-face.on .amph{stroke:#5e3a16;stroke-width:.1;fill:#e0b48a}
+.mm-face{cursor:pointer}.mm-face:hover .bt{stroke-width:.07}
+.amph-wrap.faded{opacity:.4}.mm-deco{pointer-events:none}
+.secname{font:700 22px var(--f-d);text-transform:uppercase;margin:2px 0 2px}
+.edges{display:flex;justify-content:space-between;font:600 12px var(--f-b);text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin:0 4px 4px}
+.rack-id{font:700 19px var(--f-d);fill:var(--ink);text-anchor:middle}
+.side{font:600 10px var(--f-m);fill:var(--soft);text-anchor:middle}
+.rack-frame.on{stroke:#7a4c1f;stroke-width:4}
+.bcard{max-width:560px;margin-top:10px;padding:12px 14px}.bc-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;position:relative;padding-right:30px}.bc-h b{font:700 26px var(--f-d)}.bc-h span{font-weight:600}.bc-h small{width:100%;color:var(--soft);font-size:12px}.bc-h .x{position:absolute;right:0;top:0;padding:2px 9px;font-size:18px}
+.bcard form{margin-top:8px;padding-top:8px}.bcard .btns{align-items:center}
+.prensa{display:flex;flex-direction:column;gap:10px;width:100%;max-width:560px}.prensa form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.pl{list-style:none;margin:0;padding:0}.pl li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.pl li b{font:700 18px var(--f-d);min-width:44px}.pl li span{flex:1;color:var(--soft)}
+.mm-pr .mm-id{font-size:.32px}
+.ghost path{fill:none;stroke:var(--amph);stroke-width:2;stroke-dasharray:5 4;opacity:.35}.ghost text{font:600 10px var(--f-b);fill:var(--amph);opacity:.55}
+.wall .grp:has(svg .ghost)+.grp:has(svg .ghost){margin-left:40px}
+.wall svg{max-width:none;flex:none}.wall .grp{flex:none}.wall .racks{flex-wrap:nowrap}
+.mmbox{max-width:900px;margin:0 auto}
+/* one column of two cards, same width: the room map, then the section view with the barrel card inside it */
+.facecol{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-sizing:border-box}
+.facecol .secname{margin:0}.facecol .secnote{margin:2px 0 10px}
+.facecol .edges{border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 6px}
+.facecol .wall{background:none;border:0;border-radius:0;padding:8px 0 4px}
+.grp{align-items:center}.grp h2{margin:0 0 2px;text-align:center}
+.facecol .bcard{max-width:none;width:100%;margin:10px 0 0;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.bcard form .row label.wine{flex:1 1 260px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--sheet);border-color:var(--ink)}.tabs button small{font-weight:500;opacity:.75;margin-left:4px}
+.secnote{color:var(--soft);font-size:12.5px;margin:-4px 2px 10px}
+.cands{display:flex;flex-wrap:wrap;gap:6px}.cands button{font:600 14px var(--f-m);padding:6px 10px}
+
+/* tight layout: everything on one phone screen */
+body{padding-block:8px 24px}header{margin-bottom:0}h1{font-size:22px}.prog{margin:4px auto 8px}
+.lay{gap:8px}.mmbox{padding:6px}
+.facecol{padding:8px 10px}.facecol .edges{border:0;padding:0;margin:0;font-size:11px}
+.facecol .wall{padding:2px 0 0;gap:6px;overflow-x:hidden}.wall .racks{gap:4px}
+.secfoot{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:2px 10px;border-top:1px solid var(--line);padding-top:6px;margin-top:4px;width:100%}
+.facecol .secname{font-size:17px;margin:0}.facecol .secnote{margin:0;font-size:12px}
+.facecol .bcard{margin-top:8px;padding:10px 12px}
+.bcard form .row{flex-wrap:nowrap}.bcard label.num{flex:0 0 88px}.bcard label.wine{flex:1 1 auto;min-width:0}.bcard form{gap:8px}
+.totop{position:fixed;right:max(10px,env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));font-size:13px;padding:6px 11px!important;z-index:20;border-radius:20px;padding:9px 14px;background:var(--ink);color:var(--sheet);border-color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+body.bopen .facecol{min-height:calc(100dvh - 16px)}.facecol{scroll-margin-top:8px}
+
+.facecol .bcard{padding:0;overflow:hidden;background:var(--sheet)}
+.bc{display:flex;gap:14px;padding:14px 14px 12px;border-left:6px solid var(--c);position:relative}
+.bc-l{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:4px}.bc-l b{font:700 24px var(--f-m)}
+.bc-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding-right:34px}.bc-m p{margin:0;font:400 13.5px var(--f-m);color:var(--ink)}
+.bc-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.bc-t h3{font:700 21px var(--f-b);margin:0}
+.badge{font:700 11px var(--f-b);padding:2px 7px;border-radius:5px;border:1.5px solid var(--b);color:var(--b)}
+.mut{color:var(--soft)!important}.toca{color:#b3261e}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.bc .x{position:absolute;right:10px;top:10px;padding:2px 9px;font-size:18px}
+.seg2{display:flex;gap:4px;margin:0 14px;padding:4px;background:var(--paper);border-radius:9px;width:max-content;max-width:calc(100% - 28px)}
+.seg2 button{border:0;background:none;padding:6px 14px;font-weight:600;color:var(--soft)}.seg2 button[aria-pressed="true"]{background:var(--sheet);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.bcard form.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px 14px 14px;margin:0;border:0}
+.bcard form.grid label{font:600 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.08em}
+.bcard form.grid input,.bcard form.grid select{font:500 15px var(--f-b);padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box;text-transform:none;letter-spacing:0}
+.bcard .w2{grid-column:span 2}.bcard .w3{grid-column:1/-1}
+@media (max-width:520px){.bcard form.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bcard .w2{grid-column:1/-1}}
+.hist{padding:10px 14px 14px}.hist h4{font:700 11px var(--f-b);text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:12px 0 6px}.hist h4 small{font-weight:600}.hist p{margin:0}
+.hrow{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}.hrow time{font:500 12px var(--f-m);color:var(--soft);width:64px;flex:none}
+.tag{font:700 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:5px;background:var(--paper)}
+.lab{padding:12px 14px 16px;display:flex;flex-direction:column;align-items:center;gap:10px}.lab p{font-size:13px;text-align:center;margin:0}
+.lab-c{border:1.5px solid var(--soft);border-radius:12px;padding:14px 22px;display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;color:#111}
+.lab-n{font:700 44px/1 var(--f-m);white-space:nowrap}.lab-c small{font:400 11px var(--f-m);color:#555}
+
+.bc2{border-left:6px solid var(--c);padding:12px 14px 10px;display:flex;flex-direction:column;gap:10px}
+.bh{display:flex;gap:12px;align-items:center;position:relative;padding-right:36px}
+.bnum{font:700 34px/1 var(--f-m);letter-spacing:-.02em;padding:8px 10px;border-radius:10px;background:var(--c);color:var(--ci);min-width:74px;text-align:center}
+.bwho{min-width:0;display:flex;flex-direction:column;gap:5px}.bwho h3{font:700 20px/1.15 var(--f-b);margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font:600 12px var(--f-b);padding:2px 8px;border-radius:12px;border:1.5px solid var(--b,var(--line));color:var(--b,var(--ink))}.chip.pos{border-color:var(--ink);font-family:var(--f-m)}
+.bh .x{position:absolute;right:0;top:0;padding:2px 9px;font-size:18px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{border-radius:9px;padding:8px 10px;background:var(--paper);display:flex;flex-direction:column;gap:1px;border-top:4px solid var(--line)}
+.tile small{font:700 10px var(--f-b);text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}
+.tile b{font:700 22px/1.1 var(--f-d)}.tile b i{font:500 12px var(--f-b);font-style:normal;color:var(--soft)}.tile span{font-size:11.5px;color:var(--soft)}
+.tile.ok{border-top-color:var(--ok)}.tile.warn{border-top-color:#d79a1f}.tile.bad{border-top-color:#b3261e}.tile.bad b{color:#b3261e}.tile.bad span{color:#b3261e;font-weight:600}
+.qa{display:flex;flex-wrap:wrap;gap:6px}.qa button{flex:1 1 auto}
+.qa-x{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--paper);border-radius:9px;padding:8px 10px}.qa-x label{flex:1 1 140px;font:600 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.08em}
+.qa-x input,.qa-x select{font:500 15px var(--f-b);padding:7px 8px;border:1px solid var(--line);border-radius:7px;background:var(--sheet);color:var(--ink);width:100%;box-sizing:border-box}
+.ident{margin:0;font-size:12.5px;color:var(--soft)}
+#fw2{margin-top:6px;font:500 15px var(--f-b);padding:8px 9px;border:1px solid var(--line);border-radius:7px;width:100%;box-sizing:border-box}
+
+.bc3{border-left:6px solid var(--c);padding:12px 14px 12px;display:flex;flex-direction:column;gap:10px}
+.mstat{display:flex;align-items:center;gap:10px;border-radius:10px;padding:10px 12px;background:#e6f2e9;border:1.5px solid var(--ok)}
+.mstat>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.mstat b{font:700 16px var(--f-b);color:var(--ok)}.mstat small{font-size:12px;color:var(--soft)}
+.mstat.warn{background:#fbf1dc;border-color:#d79a1f}.mstat.warn b{color:#9a6a08}
+.mstat.bad{background:#fbe6e4;border-color:#b3261e}.mstat.bad b{color:#b3261e}
+.mstat button{flex:none;font-size:15px;padding:10px 14px}
+.ident2{display:grid;grid-template-columns:minmax(0,2.2fr) repeat(3,minmax(0,1fr));gap:6px;align-items:stretch}
+.coop{display:flex;align-items:center;gap:8px;background:var(--paper);border-radius:9px;padding:6px 8px;min-width:0}
+.coop>div{min-width:0;display:flex;flex-direction:column}.coop b{font:700 13.5px var(--f-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.coop small{font-size:11.5px;color:var(--soft)}
+.mono{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--f-d);letter-spacing:.04em;color:var(--sheet);background:var(--ink);border:2px solid var(--oak-rim)}
+.spec{background:var(--paper);border-radius:9px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.spec b{font:700 20px/1 var(--f-d)}.spec small{font-size:10.5px;color:var(--soft);margin-top:2px}
+.spec.miss{border:1.5px dashed var(--warn);cursor:pointer}.spec.miss small{color:var(--warn);font-weight:600}
+.reads{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.reads>div{padding:7px 10px;display:flex;flex-direction:column;border-left:1px solid var(--line)}.reads>div:first-child{border-left:0}
+.reads small{font:700 10px var(--f-b);text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}.reads b{font:700 19px/1.15 var(--f-d)}.reads span{font-size:11.5px;color:var(--soft)}
+.reads .warn b{color:#9a6a08}.reads .bad b{color:#b3261e}
+@media (max-width:440px){.ident2{grid-template-columns:repeat(3,minmax(0,1fr))}.coop{grid-column:1/-1}}
+.pzb{fill:#d6d9d5;stroke:#9aa29d;stroke-width:.04}.pzh{fill:none;stroke:#9aa29d;stroke-width:.03}
+.mstat button.undo{background:var(--sheet);border:1.5px solid var(--soft);color:var(--ink)}
+.qa-x{position:relative}.qa-x .qx{padding:6px 11px;font-size:17px;flex:none}
+.mline{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;border-radius:9px;padding:9px 12px;background:#e6f2e9;border-left:5px solid var(--ok)}
+.mline b{font:700 16px var(--f-b);color:var(--ok)}.mline span{font-size:12.5px;color:var(--soft)}
+.mline.warn{background:#fbf1dc;border-left-color:#d79a1f}.mline.warn b{color:#9a6a08}.mline.bad{background:#fbe6e4;border-left-color:#b3261e}.mline.bad b{color:#b3261e}
+.lnk{border:0;background:none;padding:0 0 0 6px;color:var(--ink);text-decoration:underline;font-size:12.5px}
+.tile .miss{color:var(--warn);font-weight:600;cursor:pointer;text-decoration:underline dotted}
+.wh{list-style:none;margin:0;padding:0 0 0 4px;border-left:2px solid var(--line)}.wh li{position:relative;padding:4px 0 4px 14px;font-size:13.5px;display:flex;gap:10px}
+.wh li::before{content:'';position:absolute;left:-6px;top:10px;width:10px;height:10px;border-radius:50%;background:var(--line)}.wh li.now::before{background:var(--ok)}
+.wh .wy{font:600 12px var(--f-m);color:var(--soft);width:36px;flex:none}.wh small{color:var(--soft)}
+button.mline{width:100%;text-align:left;border:0;border-left:5px solid var(--ok);border-radius:9px;cursor:pointer;position:relative;padding-right:28px}button.mline em{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;font-size:20px;color:var(--soft)}
+.mline.unk{background:var(--paper);border-left-color:var(--warn)}.mline.unk b{color:var(--warn)}
+.mt{padding:10px 14px 14px}.mt h4{font:700 11px var(--f-b);text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:14px 0 6px}
+.mt-due{border-radius:9px;padding:9px 12px;background:#e6f2e9;display:flex;flex-direction:column;gap:2px}.mt-due b{color:var(--ok);font-size:16px}.mt-due span{font-size:12.5px;color:var(--soft)}
+.mt-due.warn{background:#fbf1dc}.mt-due.warn b{color:#9a6a08}.mt-due.bad{background:#fbe6e4}.mt-due.bad b{color:#b3261e}
+.mt-done{margin-top:10px;padding:9px 12px;border:1.5px solid var(--ok);border-radius:9px;color:var(--ok);font-weight:600}
+.steps{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;border:0}.steps .chk{font-size:14.5px}.steps button{align-self:flex-start}
+.row2{display:flex;gap:8px}.row2 label{flex:1;font:600 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.08em}.row2 select,.row2 input{font:500 15px var(--f-b);padding:7px 8px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
+.mt-sched{margin:0 0 4px;font-size:12.5px;color:var(--soft)}
+.mvbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--ink);color:var(--sheet);padding:10px max(14px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;box-shadow:0 -4px 16px rgba(0,0,0,.25)}
+.mvbar small{display:block;opacity:.8;font-size:12px}.mvb{display:flex;gap:6px}.mvbar button{border-color:rgba(255,255,255,.4);background:transparent;color:var(--sheet)}.mvbar button.pri{background:var(--ok);border-color:var(--ok)}
+body.mv{padding-bottom:90px}body.mv .totop{display:none}
+.bbl.blocked{opacity:.35;cursor:not-allowed}.bbl.moving{opacity:.5}.bbl.moving .rim{stroke:var(--ink);stroke-dasharray:4 3;stroke-width:4}
+.bbl.drop .rim{stroke:var(--ok)!important;stroke-width:4!important;stroke-dasharray:5 3}.bbl.drop .head{fill:#d6eadb!important}
+.bbl.target .rim{stroke:var(--ok)!important;stroke-width:6!important;stroke-dasharray:none}.bbl.target .head{fill:var(--ok)!important}
+.cands .cl{width:100%;font-size:12.5px;color:var(--soft)}
+.bcard form.grid label.chk{flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font:500 14px var(--f-b);color:var(--ink);align-self:end;padding-bottom:10px}.bcard form.grid label.chk input{width:20px;height:20px}
+.dlg{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:16px}
+.dlg-b{background:var(--sheet);border-radius:12px;padding:16px;width:min(380px,100%);display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.3)}.dlg-b h3{margin:0;font:700 19px var(--f-b)}
+.dlg-b input{font:500 16px var(--f-b);padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.bend{fill:var(--oak);stroke:var(--oak-rim);stroke-width:.04}.bendh{fill:none;stroke:var(--oak-rim);stroke-width:.03}.bslot{fill:none;stroke:#b9b2a3;stroke-width:.025;stroke-dasharray:.06 .05}
+.mm-face.on .bend{fill:#b3803f;stroke:#5e3a16}
+.mf{display:flex;flex-direction:column;gap:10px}.mf h4{margin:6px 0 0}
+.seg3{display:flex;flex-wrap:wrap;gap:6px}.seg3 button,.pills button{font:600 14px var(--f-b);padding:8px 13px;border:1.5px solid var(--line);border-radius:999px;background:var(--sheet);color:var(--ink)}
+.seg3 button[aria-checked="true"]{background:#5e3a16;border-color:#5e3a16;color:#fff}
+.pills{display:flex;flex-wrap:wrap;gap:6px}.pills button{font-size:13px;padding:6px 11px}.pills button[aria-pressed="true"]{border-color:#5e3a16;background:color-mix(in srgb,#b3803f 22%,var(--sheet))}
+.when{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.when input,.ot input{font:500 15px var(--f-b);padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--sheet);color:var(--ink)}
+.ot{display:flex;flex-direction:column;gap:8px}.ot input{width:100%;box-sizing:border-box}
+.hrow .ht{flex:1;min-width:0}.hrow .ht i{color:var(--soft);font-style:normal}.hrow .rm{border:0;background:none;color:var(--soft);font-size:18px;line-height:1;padding:0 4px}
+.mut.sm{font-size:11.5px;margin-top:8px}
+.snack{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;gap:14px;align-items:center;background:#2b2118;color:#fff;padding:10px 16px;border-radius:10px;font:500 14px var(--f-b);box-shadow:0 4px 18px rgba(0,0,0,.25);max-width:calc(100vw - 32px)}
+.snack button{border:0;background:none;color:#f0c27a;font:700 14px var(--f-b);text-transform:uppercase;letter-spacing:.06em;padding:0}
+.wpick{display:flex;align-items:baseline;gap:6px;border:0;background:none;padding:0;color:var(--ink);text-align:left;cursor:pointer;min-width:0}.wpick em{font-style:normal;font-size:13px;color:var(--soft)}.wpick.unk h3{color:var(--warn)}
+.tile{position:relative}.tile:has(.tplus) small{min-height:24px;padding-right:28px;display:flex;align-items:center}.tplus{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:var(--sheet);color:var(--ink);font:600 19px/1 var(--f-b);padding:0;display:grid;place-items:center}
+.tile .tadd{color:var(--ink);font-weight:600}
+.qtop{flex:1 1 100%;display:flex;align-items:center;gap:10px}.qtop b{font:700 15px var(--f-b)}.qtop .qx{margin-left:auto}.qwhen{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.qwhen input{width:auto!important}
+.nota{display:flex;flex-direction:column;gap:3px;font:600 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}.nota textarea{font:500 15px var(--f-b);text-transform:none;letter-spacing:0;padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);resize:vertical;min-height:52px;box-sizing:border-box;width:100%}
+.qa-x .qfull{flex:1 1 100%}.qa-x .nota textarea{background:var(--sheet)}.row2 input[type=date]{min-width:0}
+.tring0{fill:none;stroke:var(--line);stroke-width:3;opacity:.6}.tring{fill:none;stroke-width:3;stroke-linecap:round}.tring.ok{stroke:var(--ok)}.tring.warn{stroke:#d79a1f}.tring.bad{stroke:#b3261e}
+.bbl .sol{font:700 8.5px var(--f-m);text-anchor:middle}.sol.ok{fill:var(--ok);color:var(--ok)}.sol.warn{fill:#a86f00;color:#a86f00}.sol.bad{fill:#b3261e;color:#b3261e}.sol.old,.sol.none{fill:var(--soft);color:var(--soft)}.sol.mnt{font-weight:600}
+.glance{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 14px;margin:4px 0 0;font-size:11.5px;color:var(--soft);width:100%}.glance b{font:700 11px var(--f-m);margin-left:4px}.g-ring{display:inline-block;width:11px;height:11px;border-radius:50%;border:2.5px solid var(--ok);border-right-color:var(--line);vertical-align:-2px;margin-right:5px}
+.tile .tgoal{font-size:10.5px}
+.bbl .rim.typed{stroke:var(--oak-rim)}.g-type{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--unk);border:3px solid #7a1f2b;vertical-align:-2px;margin-right:5px}
+/* ---- cellar app: embedded in the Barricas section (iframe) and as the barrel card (?b=NNN) ---- */
+[hidden]{display:none!important}
+body{margin:0}
+html{-webkit-text-size-adjust:100%}
+body{padding-block:6px 28px}
+.bmtools{display:flex;justify-content:flex-end;max-width:900px;margin:0 auto 6px}
+.bmtools button{font-size:13px;padding:7px 12px}
+body.cardonly .bmtools,body.cardonly .mmcol,body.cardonly .edges,body.cardonly .wall,body.cardonly .secfoot,body.cardonly .totop{display:none!important}
+body.cardonly{padding-block:0 20px}body.cardonly .facecol{border:0;padding:0;background:none;min-height:0!important}
+body.cardonly .facecol .bcard{margin:0;border:0;border-radius:0}
+.chip.warn{border-color:var(--warn);color:var(--warn)}
+#dbst:empty{display:none}
+/* the app's history blocks */
+.hist h4{font:700 11px var(--f-b);text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:16px 0 6px}.hist h4 small{font-weight:500;letter-spacing:0;text-transform:none}
+.hist h4:first-child{margin-top:4px}
+.cr-none{color:var(--soft);font-style:italic;margin:4px 0}
+.cr-help{margin:0;font-size:13.5px;line-height:1.45;color:var(--ink)}
+.cr-flag{color:#8f6200;background:#faefd3;padding:8px 10px;margin:0 0 10px;border-radius:8px}
+.cr-log{list-style:none;margin:0;padding:0}
+.cr-log li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.cr-ld{font:12px var(--f-m);color:var(--soft);min-width:62px}
+.cr-lk{font:700 10px var(--f-m);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:var(--paper);color:var(--soft)}
+.cr-lk.move{background:#e6eef7;color:#2d5c8a}.cr-lk.fill,.cr-lk.new{background:#e3f0e1;color:#2f6b34}.cr-lk.empty,.cr-lk.delete{background:#fbe2df;color:#b3261e}.cr-lk.so2{background:#efe7f6;color:#5b3768}
+.cr-log li small{margin-left:auto;font:11px var(--f-m);color:var(--soft)}
+.xlog{display:flex;flex-direction:column;gap:10px}
+.xe{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sheet)}
+.xe-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 12px;background:#3a4043;color:#fff;font:600 12px var(--f-m);letter-spacing:.03em}
+.xe-d{white-space:nowrap}.xe-u{color:#d9dde0;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.xe-st{margin-left:auto;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.14);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.xe-st.open{background:#ffb13d;color:#3a2500}.xe-st.done{background:#9ad39f;color:#10351a}
+.xe-b{padding:9px 12px 10px}.xe-r{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 6px;font:600 14px var(--f-m)}.xe-r span{white-space:nowrap}
+.xe-r i{display:block;font:500 9.5px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-style:normal}
+.xe-n{margin:0;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}.xe.is-done .xe-b{opacity:.8}
+.bcard form.grid textarea{font:500 15px var(--f-b);padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);resize:vertical;width:100%;box-sizing:border-box}
+/* ---- phones: thumbs, not mice ---- */
+@media (max-width:600px){
+  body{padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+  .facecol{padding:8px 6px}
+  .seg2{margin:0 10px;width:auto;max-width:none;display:grid;grid-template-columns:repeat(4,1fr)}.seg2 button{padding:9px 4px;font-size:13.5px}
+  .bc2{padding:12px 12px 10px}.bnum{font-size:30px;min-width:66px;padding:8px}
+  .bwho h3{font-size:18px}
+  .tiles{gap:6px}.tile{padding:7px 8px}.tile b{font-size:20px}
+  .qa button{min-height:46px;font-size:15px}
+  .mt{padding:10px 12px 16px}.seg3 button{min-height:42px}
+  .bcard form.grid{padding:12px}
+  .bcard form.grid input,.bcard form.grid select,.row2 select,.row2 input,.qa-x input,.qa-x select,.nota textarea{font-size:16px;min-height:44px}
+  .btns .pri,.mf .pri,#qok,#qwok{min-height:48px;flex:1 1 100%;font-size:16px}
+  .mvbar{flex-wrap:wrap;gap:8px}.mvbar .mvb{width:100%}.mvbar .mvb button{flex:1;min-height:44px}
+  .hrow{font-size:14px}
+}
+.totop{top:auto!important;bottom:calc(14px + env(safe-area-inset-bottom,0px))!important}
+@media (max-width:600px){.seg3{display:grid;grid-template-columns:1fr 1fr}.seg3 button{width:100%}}
+
+</style>
+</head>
+<body>
+<div class="bmtools"><button type="button" id="bmMass">Registro masivo</button></div>
+<p class="status" id="dbst" style="text-align:center;margin:0"></p>
+<button type="button" class="totop" id="totop" hidden aria-label="Volver al mapa">↑ Mapa</button>
+<div class="mvbar" id="mvbar" hidden></div><div class="snack" id="snack" role="status" hidden></div>
+<div class="dlg" id="dlg" hidden></div>
+<div class="lay">
+ <aside class="mmcol"><div class="mmbox"><div id="mm"></div></div></aside>
+ <section class="facecol">
+  <div class="edges"><span id="edgeL"></span><span id="edgeR"></span></div>
+  <div class="wall" id="wall"></div>
+  <div class="secfoot"><h2 class="secname" id="secname"></h2><p class="secnote" id="secnote"></p>
+   <p class="glance"><span><i class="g-type"></i>Vacías: el borde dice si es de tinto, naranja o blanco</span></p></div>
+  <div class="panel bcard" id="panel" hidden></div>
+ </section>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const WINES={
+  sb:['SB 2025','var(--sb)','#2b3330'], or:['Orange Moscato Ánfora 25','var(--or)','#2b3330'], chn:['Chenin Blanc 2026','var(--sb)','#2b3330'],
+  mp:['Montepulciano 2026','var(--mp)','#fff'], mp25:['Montepulciano 2025','var(--mp)','#fff'], mp23:['Montepulciano 2023','var(--mp)','#fff'], mp24:['Montepulciano 2024','var(--mp)','#fff'],
+  port:['Oporto Montepulciano 24','#4a1622','#fff'],
+  ag25:['Aglianico 2025','var(--ag)','#fff'], ag:['Aglianico 2026','var(--ag)','#fff'],
+  ga25:['Garnacha 2025','var(--ga)','#fff'], ga:['Garnacha 2026','var(--ga)','#fff'], gt:['Garnacha 25 + Tempranillo 23','var(--ga)','#fff'],
+  cs:['Cab Sauv 2026','var(--cs)','#fff'], cs25:['Cab Sauv 2025','var(--cs)','#fff'],
+  cf:['Cab Franc T4 2026','var(--cf)','#fff'], cf26:['Cab Franc T2 2026','var(--cf)','#fff'], cf25:['Cab Franc 2025','var(--cf)','#fff'], cf24:['Cab Franc 2024','var(--cf)','#fff'],
+  me:['Merlot 2026','#7a3b52','#fff'], mb:['Malbec 2026','#3f2a55','#fff'], mm25:['Merlot + Malbec 2025','#6a3550','#fff'], mpmm:['Montepul. 25 + Merlot/Malbec 25','var(--mp)','#fff'], sbp:['SB 2026 puncheon (T3)','var(--sb)','#2b3330'], sblh:['SB 2026 late harvest','#e8d27a','#2b3330'], vm23:['Vermut 2023','#6b4a2a','#fff'], tcf24:['Tempranillo / Cab Franc 2024','#7a3b52','#fff'], sel26:['Selección especial 2026','#5a1d36','#fff'], port22:['Oporto 2022','#4a1622','#fff'], vacia:['Vacía (barrica de Oporto)','var(--unk)','var(--unk-ink)']};
+// Read from Paris's photos 5/11. n = barrel number read; c = likely numbers when it was hidden; w = wine (null = not readable); d = what's on the head.
+const SECTIONS=[
+ {id:'O',name:'Pared oeste · ánforas',levels:4,stand:'en el pasillo oeste',facing:'oeste',left:'Sur',right:'Norte',mid:'amph',
+  groups:[{label:'Izquierda de las ánforas',racks:{
+   O01:{L3:[{n:'035',w:'sb',d:'SB 25 T3+T4 · 05/09/25 · Bel Air'},{c:['017','159'],w:'or',d:'"MIX F" · número tapado'}],
+       L2:[{n:'023',w:'sb',d:'SB 25 T3 free run · cinta WHITE',x:'La app la tiene como barrica de tinto'},{n:'114',w:'sb',d:'SB 25 T3 free run · Cadus'}],
+       L1:[{n:'110',w:'sb',d:'SB 25 T3 free run'},{n:'112',w:'sb',d:'SB 25 T3 · Cadus',x:'Se leía "82"; por el logo Cadus es 112'}]},
+   O02:{L3:[{n:'010',w:'or',d:'VM 23/01 · 13/02/26',x:'La app la tiene como tinto'},{n:'018',w:'or',d:'VM 23/01 · 13/02/26'}],
+       L2:[{n:'088',w:'or',d:'F2 · Giraud'},{n:'019',w:'or',d:'F1'}],
+       L1:[{n:'160',w:'or',d:'Logo "T5"'},{c:['017','159'],w:'or',d:'Logo "ML" · número tapado'}]},
+   O03:{L2:[{n:'260',w:'mp',d:'23/09/26 · Garbellotto'},{n:'255',w:'mp',d:'23/09/26 · Garbellotto'}],
+       L1:[{c:['162','163','165'],w:'ag25',d:'19/09/25 · Saint Martin · etiqueta "BBL 16?"'},{c:['165','162','163'],w:'ga25',d:'01/06/26 · Saint Martin · etiqueta "BBL 165?"'}]}}},
+  {label:'Derecha de las ánforas',racks:{
+   O04:{L3:[{c:['130','138'],w:'cs',d:'Free run 14/Sep · Master Coopers'},{c:[],w:'cs',d:'"½ FR" · número tapado',x:'Puede que no esté en la app'}],
+       L2:[{n:'122',w:'cs',d:'+ CF · 17/Sep · d’Aquitaine'},{n:'128',w:'cs',d:'17/Sep · Master Coopers'}],
+       L1:[{n:'132',w:'cs',d:'17/09 · Master Coopers'},{c:['130','138'],w:'cs',d:'17/09 · Master Coopers'}]},
+   O05:{L3:[{n:'083',w:'ag',d:'Free run 21/Sep/26 · Vicard'},{n:'116',w:'ag',d:'Free run 21/Sep/26 · Montgillard'}],
+       L2:[{n:'105',w:'cf',d:'T4 · 17/Sep · Kalina'},{n:'104',w:'cf',d:'T4 · 17/Sep · Kalina'}],
+       L1:[{c:['032','043','049','054'],w:'ga',d:'Free run 17/Sep/26 · Darnajou'},{c:['032','043','049','054'],w:'ga',d:'SOJ-19-1901 · free run · Darnajou'}]},
+   O06:{L3:[{n:'040',w:'ga',d:'18/Sep/26 · d’Aquitaine'},{n:'042',w:'ga',d:'18/Sep · d’Aquitaine'}],
+       L2:[{c:['032','043','049','054'],w:'ga',d:'Círculo ⑬ · SOJ-19-1888 · Darnajou'},{c:['032','043','049','054'],w:'ga',d:'Círculo ④ · Darnajou'}],
+       L1:[{c:['139','140'],w:'ga',d:'Círculo ⓪ · Master Coopers'},{c:['139','140'],w:'ga',d:'Círculo ② · Master Coopers'}]}}}],
+  absent:['O01-4I','O01-4D','O03-4I','O03-4D','O06-4I','O06-4D']},
+ {id:'E',name:'Pared este · puerta',levels:4,stand:'en el pasillo este',facing:'este',left:'Norte',right:'Sur',mid:'door',
+  groups:[{label:'Izquierda de la puerta',racks:{
+   E07:{L2:[{c:['251','252','257'],w:null,d:'Garbellotto · cinta azul ilegible · sin gis'},{n:'256',w:null,d:'Garbellotto · cinta azul 256 · sin gis',x:'En la app la 256 está vacía: confirma si tiene vino'}],
+       L1:[{c:[],w:null,d:'Kalina · sin gis visible'},{c:[],w:null,d:'Kalina · marca "M"'}]},
+   E08:{L3:[{c:['150','164'],w:'me',d:'08/Sep · MWOG · Saint Martin'},{c:['164','150'],w:'me',d:'08/09 · MWOG · Saint Martin'}],
+       L2:[{n:'149',w:'me',d:'08/09 · MWOG · Saint Martin · etiqueta BBL 149'},{n:'027',w:'me',d:'VM 23/Sep · 30/09/26 · Darnajou',x:'La app no tiene vino asignado a la 027'}],
+       L1:[{n:'124',w:'mb',d:'08/Sep · MWOG · d’Aquitaine'},{n:'125',w:'mb',d:'08/Sep · MWOG · d’Aquitaine'}]},
+   E09:{L3:[null,null],
+       L2:[{n:'144',w:'cf26',d:'08/Sep · MWOG · European Coopers'},{n:'147',w:'cf26',d:'08/Sep · MWOG · European Coopers'}],
+       L1:[{n:'167',w:'cf26',d:'08/Sep · MWOG · Saint Martin · etiqueta BBL 167'},{c:['258'],w:'cf26',d:'VM 23/Sep · SOJ-19-190? · 30/09/26 · Darnajou',x:'En la app la 4ª barrica de CF T2 es la 258 (Garbellotto); esta es Darnajou'}]},
+   E10:{L4:[{c:[],w:'cf25',d:'27/05/26'},{c:[],w:'cf25',d:'27/05/26'}],
+       L3:[{c:[],w:'mp25',d:'10/Jul/26'},{c:[],w:'mp25',d:'10/Jul/26 · MWOG'}],
+       L2:[{c:[],w:'cs25',d:'FR · 01/06/26 · Saint Martin'},{c:[],w:'cs25',d:'02/06 · Saint Martin'}],
+       L1:[{c:[],w:'cs25',d:'FR · 01/06/26 · Master Coopers'},{c:[],w:'cs25',d:'FR · 01/06/26 · Master Coopers'}]}}},
+  {label:'Derecha de la puerta',racks:{
+   E11:{L4:[{c:[],w:'cf25',d:'27/05/26'},{c:[],w:'cf25',d:'27/05/26'}],
+       L3:[{c:[],w:'mm25',d:'29/05/26'},{c:[],w:'mm25',d:'29/05/26'}],
+       L2:[{c:[],w:'mm25',d:'29/05/26'},{c:[],w:'mm25',d:'29/05/26 · Arbor Bench'}],
+       L1:[{c:[],w:'mpmm',d:'28/05 · Master Coopers'},{c:[],w:'gt',d:'28/05'}]},
+   E12:{L4:[{c:[],w:'cs25',d:'15/04'},{c:[],w:'cs25',d:'15/04'}],
+       L3:[{c:[],w:'mp23',d:'04/08/25 · Viñedos del Polo'},{c:[],w:'mp24',d:'04/08/25'}],
+       L2:[{c:[],w:'cf24',d:'NF · 14/08/25 · European Coopers'},{c:[],w:'cf24',d:'NF · 14/08/25 · Orion'}],
+       L1:[{c:[],w:'cf24',d:'13/08/25'},{c:[],w:'cf24',d:'13/08/25 · (P)'}]},
+   E13:{L4:[{c:[],w:'port',d:'Oporto'},{c:[],w:'port',d:'Oporto'}],
+       L3:[{c:[],w:'cf24',d:'SOJ-19-1978 · 14/08/25 · Orion'},{c:[],w:'cf24',d:'14/08/25 · European Coopers'}],
+       L2:[{c:[],w:'cf24',d:'(P) · 14/08/25 · European Coopers'},{c:[],w:'cf24',d:'(P) · 14/08/25'}],
+       L1:[{c:[],w:'cf24',d:'13/08/25 · Arbor Bench'},{c:[],w:'cf24',d:'14/08/25'}]},
+   E14:{L3:[{c:[],w:'ga25',d:'01/06/26 · Saint Martin'},{n:'082',w:'port',d:'19/03/26 · Vicard · MWOG'}],
+       L2:[{n:'096',w:'port',d:'19/marzo/26 · Kalina'},{n:'103',w:'port',d:'19/marzo/26 · Kalina'}],
+       L1:[{c:[],w:'port',d:'19/marzo/26 · Vicard'},{c:[],w:'port',d:'19/03/26 · Vicard'}]}}}],
+  absent:['E07-4I','E07-4D','E07-3I','E07-3D','E09-4I','E09-4D','E09-3D','E14-4I','E14-4D']},
+ {id:'C',name:'Isla central',levels:3,stand:'en el pasillo este',facing:'oeste',left:'Sur',right:'Norte',
+  note:'',
+  groups:[{label:'Racks sur',racks:{C15:{},C16:{},C17:{}}},
+          {label:'Chenin',punch:{id:'C18',n:'022',w:'chn',d:'Chenin Blanc 26 · MWOG · 08/Sep/2026 · 500 L'}},
+          {label:'SB',punch:{id:'C19',c:[],w:'sbp',d:'Sauvignon T3 · MWOG · 1?/Ago/26 · 500 L'}},
+          {label:'Racks norte',racks:{C20:{L1:[{c:[],w:'sblh',d:'SB 26 late harvest · barrica nueva',x:'Lado (izquierda/derecha) por confirmar'},null]},C21:{}}},
+          {label:'De lado',levels:1,racks:{C22:{}}}],
+  absent:['C15-3I']},
+ {id:'P',name:'Pasillo este',levels:1,stand:'en el pasillo este',facing:'oeste',left:'Sur',right:'Norte',
+  note:'Barricas en el piso del pasillo, numeradas PE-1, PE-2… de izquierda a derecha (desde el sur) según lo que haya. Temporales: se trasiegan.',
+  groups:[{label:'Al sur de la puerta',aisle:[null,null,null,null,null,null]},{label:'Al norte de la puerta',start:8.025,aisle:[null,null,null,null]}],absent:[]},
+ // Área de prensa: barricas paradas, 3 de ancho; no son posiciones fijas
+ {id:'X',name:'Área de prensa',levels:1,stand:'en el área de prensa',facing:'—',left:'',right:'',note:'',groups:[{label:'Área de prensa',yard:true,aisle:[]}],absent:[]},
+ // Pasillo oeste (frente a las ánforas), según Paris 5/11: 2 bases de cada lado
+ {id:'Q',name:'Pasillo oeste',levels:1,stand:'en el pasillo oeste',facing:'oeste',left:'Sur',right:'Norte',note:'',
+  groups:[{label:'Lado sur',aisle:[{c:[],w:'vm23'},{c:[],w:'vm23'},{c:[],w:'tcf24'}]},
+          {label:'Lado norte',start:9.5,aisle:[{c:[],w:'sel26'},{c:[],w:'port22'},{c:[],w:'vacia'}]}],
+  absent:[]}
+];
+const SIDES=['I','D'];
+const $=id=>document.getElementById(id), NS='http://www.w3.org/2000/svg';
+// Location code = <rack>-<level><side>: rack numbers are unique in the room (O01–O06 west wall, E07–E14 east wall,
+// C15–C22 island, P23–P25 aisle); level 1 = floor; I/D = left/right as drawn (standing where each face says).
+const POS={}, ORDER=[], RACKS={};
+for(const sec of SECTIONS){sec.levels_=Array.from({length:sec.levels},(_,i)=>'L'+(sec.levels-i));sec.abs=new Set(sec.absent);
+  for(const g of sec.groups){g.levels_=g.levels?Array.from({length:g.levels},(_,i)=>'L'+(g.levels-i)):sec.levels_;
+    if(g.aisle){g.aisle=g.yard?Array.from({length:33},()=>({spare:true})):[...g.aisle,{spare:true},{spare:true},{spare:true},{spare:true}];g.ids=g.aisle.map((b,j)=>{const id=sec.id+'A'+(sec.groups.indexOf(g))+'-'+j;POS[id]={sec,g,rack:id,lv:1,side:'',b,aisle:true};RACKS[id]={sec,g,aisle:true};ORDER.push(id);return id});continue}
+    if(g.punch){const id=g.punch.id+'-1';POS[id]={sec,g,rack:g.punch.id,lv:1,side:'',b:g.punch,punch:true};ORDER.push(id);RACKS[g.punch.id]={sec,g};continue}
+    for(const r in g.racks){RACKS[r]={sec,g};for(const l of g.levels_)SIDES.forEach((sd,j)=>{const lv=+l.slice(1),id=r+'-'+lv+sd;
+        POS[id]={sec,g,rack:r,lv,side:sd,b:(g.racks[r][l]||[])[j]||null};ORDER.push(id)})}}}
+// Position = column.row. Every column of barrels in the room has its own number: west wall 1–12, island 13–26,
+// east wall 27–42, aisle 43–48 (always left→right as drawn). Row 1 = floor. A puncheon is a one-row column.
+const COL={},REV={};{let n=0;for(const sid of ['O','C','E']){const sec=SECTIONS.find(x=>x.id===sid);
+  for(const g of sec.groups){if(g.punch){COL[g.punch.id]=++n;continue}for(const r in g.racks){COL[r+'I']=++n;COL[r+'D']=++n}}}
+  // aisles: PE-1, PE-2… (pasillo este) and PO-1… (pasillo oeste), left to right as seen, by what is actually there
+}
+// aisles: just count what's there, left to right (south → north): PE-1, PE-2… / PO-1, PO-2…
+function numberAisles(){for(const [sid,pre] of [['P','PE-'],['Q','PO-'],['X','AP-']]){let k=0;for(const g of SECTIONS.find(x=>x.id===sid).groups)for(const id of g.ids){const c=S.conf&&S.conf[id];if((c&&c.empty&&!c.num&&!c.here)||(!c&&POS[id].b&&POS[id].b.spare)){COL[id]='';continue}COL[id]=pre+(++k)}}}
+// the two ánforas are positions too (their wine can be updated)
+for(const [n,cap] of [['AN-02',900],['AN-01',1000]])POS[n]={sec:SECTIONS[0],g:{label:'Ánforas'},rack:n,lv:1,side:'',amph:true,b:{n,w:null,d:cap+' L · Excellovint: vacía'}};
+function CODE(id){const q=POS[id];if(!q||q.virtual)return 'sin ubicación';if(q.amph)return id;if(q.aisle)return COL[q.rack]||'—';return q.punch?COL[q.rack]+'.1':COL[q.rack+q.side]+'.'+q.lv}
+// aisle numbers are dynamic, so aisle records are keyed by their slot id, not by PE-n
+function refKey(id){return POS[id].virtual||POS[id].aisle?id:CODE(id)}
+function rebuildRev(){for(const k in REV)delete REV[k];for(const id in POS)if(!POS[id].virtual)REV[refKey(id)]=id;for(const id in POS)if(POS[id].aisle&&COL[id])REV[COL[id]]=REV[COL[id]]||id}
+function colRange(r){if(RACKS[r]&&RACKS[r].aisle)return COL[r]||'';return RACKS[r]&&RACKS[r].g.punch?String(COL[r]):COL[r+'I']+'–'+COL[r+'D']}
+const S={sec:'O',view:'OS',sel:null,conf:{},prensa:{}};
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+function view(id){const q=POS[id],b=q.b&&q.b.spare?null:q.b;let c=S.conf[id];if(c&&!c.num&&!c.empty&&!c.wine&&!q.amph)c=null; // a log on an unnumbered barrel is not a confirmation
+  if(q.aisle&&q.b&&q.b.spare&&!(c&&c.num))return {st:'none',n:'',w:null,wl:'aquí'};
+  if(q.amph)return c?{st:'conf',n:id,w:null,wl:c.empty?'Vacía':(c.wine||''),empty:!!c.empty}:{st:'part',n:id,w:null,wl:'¿vino?'};
+  if(c&&c.empty&&!c.num&&!c.here) return {st:'none',n:'',w:null,wl:'vacía'};
+  if(c) return {st:c.confirm?'part':c.reg?'known':'conf',n:c.num||'?',w:c.empty?null:(c.w||b?.w||null),wl:c.empty?'Vacía':(c.wine||(b&&b.w&&WINES[b.w][0])||''),empty:!!c.empty};
+  if(!b&&q.sec.abs.has(id)) return {st:'none',n:'',w:null,wl:'Sin barrica'};
+  if(!b) return {st:'unk',n:'?',w:null,wl:''};
+  if(b.n&&b.w) return {st:'known',n:b.n,w:b.w,wl:WINES[b.w][0]};
+  if(b.n) return {st:'part',n:b.n,w:null,wl:'¿vino?'};
+  return {st:'part',n:'?',w:b.w,wl:b.w?WINES[b.w][0]:''};
+}
+const R=27, GX=76, GY=90, PADL0=20, TOP=6, FOOT=24; // column numbers go under the stack
+// At a glance on the front view: the ring around each barrel counts down the 30 days to the next topping (empty
+// barrels: to the next maintenance); the line under the wine is the last free-SO2 reading against the ~20 ppm house target.
+const SO2_OK=20,SO2_LOW=12,SO2_OLD=45;
+function so2Cls(v,age){return v==null||isNaN(v)?'none':age>SO2_OLD?'old':v<SO2_LOW?'bad':v<SO2_OK?'warn':'ok'}
+function bstat(id){const c=S.conf[id],q=POS[id];if(!q||q.amph)return null;const num=c?.num||q.b?.n||'';if(!num)return null;const D=bdata(num);if(!D)return null;
+  const empty=c?!!c.empty:D.fill==='empty';
+  const SO=[...((c&&c.so2)||[]),...(D.so2||[])].sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0),so=SO.find(h=>h.fso2!=null&&h.fso2!=='');
+  const L=[...((c&&c.logs)||[]),...(D.logs||[])].sort().reverse(),job=L.find(x=>empty?/\|(p1|p2)(\||$)/.test(x):/\|(p3|top|fill)(\||$)/.test(x)),jd=job?job.split('|')[0]:null,ja=dago(jd);
+  const v=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,sa=so?dago(so.date):null;
+  return {empty,so:so?{v,raw:String(so.fso2),age:sa,cls:so2Cls(v,sa)}:null,jd,ja,jcls:ja==null||ja>30?'bad':ja>24?'warn':'ok'}}
+// empty barrels still say what they are for: the band around the head takes the color of the wine type it holds (tinto, naranja, blanco…)
+const UTINT={red:'#7a1f2b',white:'#d8b43c',orange:'#d9822b',rose:'#e0849a',port:'#4a1622',vermouth:'#6b7a3a'};
+function useTint(id){const c=S.conf[id],q=POS[id],num=c?.num||q?.b?.n||'';const D=num?bdata(num):null;return D&&UTINT[D.use]||null}
+function drawBarrel(svg,id,cx,cy,r){const v=view(id);
+  const g=el('g',{class:'bbl '+(v.st==='known'?'':v.st)+(S.sel===id?' sel':'')+mvCls(id),tabindex:0,role:'button','data-c':id,'aria-label':'Posición '+CODE(id)+' '+v.n+' '+v.wl},svg);
+  const fill=(v.empty||v.st==='none')?'var(--unk)':v.w?WINES[v.w][1]:'var(--oak)', ink=(v.empty||v.st==='none')?'var(--unk-ink)':v.w?WINES[v.w][2]:'var(--ink)';
+  const bs=v.st!=='none'?bstat(id):null,ut=bs&&bs.empty?useTint(id):null;
+  el('circle',{class:'rim'+(ut?' typed':''),cx,cy,r,fill:ut||'var(--oak)'},g);el('circle',{class:'head',cx,cy,r:r-6,fill},g);
+  if(bs&&S.glance==='ring'){const left=bs.ja==null||bs.ja>30?100:Math.max(6,Math.round((30-bs.ja)/30*100));
+    el('circle',{class:'tring0',cx,cy,r:r+3.5},g);el('circle',{class:'tring '+bs.jcls,cx,cy,r:r+3.5,pathLength:100,'stroke-dasharray':left+' 100',transform:`rotate(-90 ${cx} ${cy})`},g)}
+  // barrel number (3 digits, bold), position right under it; the wine goes under the barrel in plain ink
+  el('text',{class:'num',x:cx,y:cy+3,fill:ink},g).textContent=v.n;
+  if(v.st!=='none')el('text',{class:'pos',x:cx,y:cy+14,fill:ink},g).textContent=CODE(id);
+  const wl=v.st==='none'?'sin barrica':v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
+  const one=t=>{t=short(t);return t.length>16?t.slice(0,15).trim()+'…':t},wls=bs&&S.glance==='ring'?[one(wl)]:wrap2(wl,15);wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
+  if(bs&&S.glance==='ring'){const t=el('text',{class:'sol '+(bs.empty?'mnt '+bs.jcls:bs.so?bs.so.cls:'none'),x:cx,y:cy+r+10+wls.length*9.5},g);
+    t.textContent=bs.empty?(bs.jd?'mant. '+fd(bs.jd).replace(/ \d\d$/,''):'sin mant.'):bs.so?'SO₂ '+bs.so.raw:'SO₂ ?'}
+  if(false){el('circle',{class:'tick',cx:cx+r-6,cy:cy-r+6,r:8},g);el('text',{x:cx+r-6,y:cy-r+10,fill:'var(--sheet)','font-size':11,'font-weight':700},g).textContent='✓'}}
+// The end pair of the island lies sideways: from the aisle you see the side of the barrels, one behind the other.
+function drawAmphPos(host,id){const v=view(id),svg=el('svg',{viewBox:'0 0 150 190',width:150,height:190},host);
+  const g=el('g',{class:'bbl amphp'+(v.st==='conf'?' conf':'')+(S.sel===id?' sel':''),tabindex:0,role:'button','data-c':id,'aria-label':'Ánfora '+id+' '+v.wl},svg);
+  el('path',{d:'M46 14 h58 v10 h-58z',class:'alid'},g);
+  el('path',{class:'rim',d:'M50 24 C18 34 12 74 20 102 C28 130 52 150 75 151 C98 150 122 130 130 102 C138 74 132 34 100 24 Z',fill:'var(--amph-fill)'},g);
+  el('text',{class:'num',x:75,y:90,fill:'var(--amph)'},g).textContent=id;
+  wrap2(v.wl,16).forEach((t,i)=>el('text',{class:'wl',x:75,y:170+i*10},g).textContent=t)}
+function drawSidePair(sec,g,r,host){const W=200,H=TOP+GY*sec.levels+FOOT+14;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H,role:'group'},host);
+  el('text',{class:'rack-id',x:W/2,y:H-5},svg).textContent=COL[r+'I']+' · '+COL[r+'D'];
+  const base=H-FOOT-14;el('line',{x1:14,x2:W-14,y1:base,y2:base,stroke:'var(--steel)','stroke-width':3},svg);
+  sideBarrel(svg,r+'-1I',40,base-112,140,64,'atrás',true);sideBarrel(svg,r+'-1D',22,base-72,140,64,'adelante',false)}
+function sideBarrel(svg,id,x,y,w,h,tag,back){const v=view(id);
+  const g=el('g',{class:'bbl side '+(v.st==='known'?'':v.st)+(S.sel===id?' sel':'')+(back?' back':'')+mvCls(id),tabindex:0,role:'button','data-c':id,'aria-label':'Posición '+CODE(id)+' '+v.n+' '+v.wl+' ('+tag+')'},svg);
+  const fill=(v.empty||v.st==='none')?'var(--unk)':v.w?WINES[v.w][1]:'var(--oak)',ink=(v.empty||v.st==='none')?'var(--unk-ink)':v.w?WINES[v.w][2]:'var(--ink)',b=7;
+  el('path',{class:'rim',d:`M${x+b} ${y} Q${x+w/2} ${y-b} ${x+w-b} ${y} Q${x+w+2} ${y+h/2} ${x+w-b} ${y+h} Q${x+w/2} ${y+h+b} ${x+b} ${y+h} Q${x-2} ${y+h/2} ${x+b} ${y}Z`,fill},g);
+  for(const f of [0.14,0.3,0.7,0.86])el('line',{x1:x+w*f,x2:x+w*f,y1:y-(f>0.2&&f<0.8?5:3),y2:y+h+(f>0.2&&f<0.8?5:3),class:'hoopS'},g);
+  el('text',{class:'num',x:x+w/2,y:y+h/2+(v.wl?1:7),fill:ink},g).textContent=v.n;
+  if(v.wl)el('text',{class:'wn',x:x+w/2,y:y+h/2+14,fill:ink},g).textContent=short(v.wl);
+  el('text',{class:'side',x:x+w/2,y:back?y-10:y+h+22},g).textContent=COL[POS[id].rack+POS[id].side]+' · '+tag}
+function drawRack(sec,g,r,host){if(sec.id==='C'&&g.levels===1)return drawSidePair(sec,g,r,host);const first=!S._rk++,PADL=first?PADL0:6;const L=g.levels_.length,W=PADL+GX*2+10,H=TOP+GY*L+FOOT;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H,role:'group','aria-label':'Rack '+r},host);
+  SIDES.forEach((sd,j)=>el('text',{class:'rack-id',x:PADL+4+GX*j+GX/2,y:TOP+GY*L+19},svg).textContent=COL[r+sd]);
+  el('rect',{class:'rack-frame'+(S.selRack===r?' on':''),x:PADL+2,y:TOP,width:GX*2+4,height:GY*L,rx:3},svg);
+  g.levels_.forEach((l,i)=>{const y=TOP+GY*i+GY/2;
+    el('line',{x1:PADL+2,x2:PADL+GX*2+6,y1:TOP+GY*(i+1),y2:TOP+GY*(i+1),stroke:'var(--steel)','stroke-width':3},svg);
+    if(first)el('text',{class:'lvl',x:PADL-5,y:y+5},svg).textContent=l.slice(1);
+    SIDES.forEach((sd,j)=>drawBarrel(svg,r+'-'+l.slice(1)+sd,PADL+4+GX*j+GX/2,y-10,R))})}
+function drawYard(sec,g,host){const free=g.ids.filter(x=>!yOcc(x)&&(!S.move||x!==S.move.from)),ids=g.ids.filter(id=>yOcc(id)||(S.move&&free.indexOf(id)>-1&&free.indexOf(id)<3)),n=Math.max(1,ids.length),rows=Math.ceil(n/3),W=3*GX+10,H=rows*(GY-4)+12;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
+  if(!ids.length)el('text',{x:W/2,y:H/2+4,class:'wl','text-anchor':'middle'},svg).textContent='No hay barricas en el área de prensa';
+  ids.forEach((id,j)=>drawBarrel(svg,id,5+GX*(j%3)+GX/2,6+Math.floor(j/3)*(GY-4)+R+4,R))}
+function drawAisle(sec,g,host){const ids=g.ids.filter(shown),W=Math.max(1,ids.length)*GX+10,H=TOP+GY+FOOT;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
+  el('line',{x1:2,x2:W-2,y1:TOP+GY-4,y2:TOP+GY-4,stroke:'var(--line)','stroke-width':3},svg);
+  ids.forEach((id,j)=>{const cx=5+GX*j+GX/2;drawBarrel(svg,id,cx,TOP+GY/2-10,R);el('text',{class:'rack-id',x:cx,y:TOP+GY+19},svg).textContent=COL[id]||''})}
+function drawPunch(sec,g,host){const W=104,H=TOP+GY*sec.levels+FOOT,id=g.punch.id;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
+  if(sec.id==='C'){const an=id==='C18'?'AN-02':'AN-01',gh=el('g',{class:'ghost',transform:`translate(${W/2-62} ${H-FOOT-192}) scale(0.95)`},svg);
+    el('path',{d:'M36 10 h58 v10 h-58z'},gh);el('path',{d:'M40 20 C8 30 2 70 10 98 C18 126 42 146 65 147 C88 146 112 126 120 98 C128 70 122 30 90 20 Z'},gh);
+    el('text',{x:65,y:6,'text-anchor':'middle'},gh).textContent=an+' (atrás)'}
+  el('text',{class:'rack-id',x:W/2,y:H-5},svg).textContent=COL[id];drawBarrel(svg,id+'-1',W/2,H-FOOT-70,42)}
+function wrap2(t,n){if(!t)return[];if(t.length<=n)return[t];const w=t.split(' ');let a='';while(w.length&&(a+' '+w[0]).trim().length<=n)a=(a+' '+w.shift()).trim();if(!a)a=w.shift();return[a,w.join(' ')].filter(Boolean)}
+function short(s){return s.replace('Orange Moscato Ánfora','Orange').replace(/ 20(\d\d)/,' $1').replace('Cab Franc T4','CF T4').replace('Cab Franc T2','CF T2').replace('Cab Franc','CF').replace('Montepulciano','Montepul.').replace('Merlot + Malbec','Mer+Mal').replace('Montepul. 25 + Merlot/Malbec 25','Mp+Mer/Mal').replace('Garnacha 25 + Tempranillo 23','Garn+Temp').replace('Oporto Montepul. 24','Oporto 24').replace(' puncheon (T3)',' punch')}
+function amph(h,name){const svg=el('svg',{viewBox:'0 0 130 150',width:104,height:120,'aria-label':'Ánfora '+name},h);
+  el('path',{d:'M36 10 h58 v10 h-58z',fill:'var(--amph)'},svg);
+  el('path',{d:'M40 20 C8 30 2 70 10 98 C18 126 42 146 65 147 C88 146 112 126 120 98 C128 70 122 30 90 20 Z',fill:'var(--amph-fill)',stroke:'var(--amph)','stroke-width':3},svg);
+  el('text',{x:65,y:88,'text-anchor':'middle','font-family':'Barlow Condensed,sans-serif','font-weight':700,'font-size':16,fill:'var(--amph)'},svg).textContent=name}
+function door(h){const svg=el('svg',{viewBox:'0 0 120 150',width:110,height:137,'aria-label':'Puerta'},h);
+  el('path',{d:'M6 148 V44 A54 40 0 0 1 114 44 V148',fill:'var(--unk)',stroke:'var(--ink)','stroke-width':3},svg);
+  el('line',{x1:60,y1:6,x2:60,y2:148,stroke:'var(--line)','stroke-width':2},svg);
+  el('text',{x:60,y:100,'text-anchor':'middle','font-family':'Barlow Condensed,sans-serif','font-weight':700,'font-size':17,fill:'var(--soft)'},svg).textContent='PUERTA'}
+
+// ---------- room plan from Eric's AutoCAD drawing (metres). u = from the south wall (left) to the north wall (right),
+// v = from the west wall (top, ánforas) to the east wall (bottom, puerta). Interior 13.89 × 7.0.
+const ROOM={L:13.89,W:7.0}, RW=1.45, PW=0.95, AW=1.3, DEP=0.95, GAP=0.05;
+// Each face runs along a line: start, direction along the face (left→right as drawn) and the way barrels stick out.
+const FACE={O:{u:0.05,v:0,du:1,dv:0,nu:0,nv:1},
+  E:{u:ROOM.L-0.04,v:ROOM.W,du:-1,dv:0,nu:0,nv:-1},
+  C:{u:6.05-PW/2-(3*RW+3*GAP),v:3.5+DEP/2,du:1,dv:0,nu:0,nv:-1},
+  P:{u:0.35,v:4.3,du:1,dv:0,nu:0,nv:1},Q:{u:0.35,v:1.45,du:1,dv:0,nu:0,nv:1}};
+// where you stand: the middle of the free aisle band, pointing at the face you're looking at
+const EYE={X:{v:3.5,dir:'n'},O:{v:2.72,dir:'n'},Q:{v:2.72,dir:'n'},C:{v:5.65,dir:'n'},P:{v:5.65,dir:'n'},E:{v:5.65,dir:'s'}};
+const yOcc=id=>!!(S.conf[id]&&(S.conf[id].num||S.conf[id].here));
+function layout(sec){if(sec.id==='X'){const L=ROOM.L;return sec.groups[0].ids.map((id,j)=>({kind:'end',id,x:L+0.36+(j%3)*0.57,y:0.12+Math.floor(j/3)*0.62,w:0.52,h:0.52})).filter(it=>yOcc(it.id))}
+  const f=FACE[sec.id],items=[];let t=0;
+  sec.groups.forEach((g,gi)=>{
+    if(gi===1&&sec.mid==='amph'){t=Math.max(t,5.3);for(const n of ['AN-02','AN-01']){items.push({kind:'amph',name:n,t0:t+0.05,t1:t+0.05+AW});t+=AW+0.15}
+      t=ROOM.L-0.1-(3*RW+2*GAP)} // ánforas line up with the puncheons; columns 7–12 sit against the north wall
+    if(gi===1&&sec.mid==='door'){items.push({kind:'door',t0:t,t1:t+1.95});t+=1.95+GAP}
+    if(g.aisle){if(g.start)t=g.start-f.u;for(const id of g.ids){if(!shown(id))continue;items.push({kind:'one',id,t0:t,t1:t+(RW-0.04)/2+0.04});t+=(RW-0.04)/2+0.06}return}
+    if(g.punch){if(sec.id==='C')t=(g.punch.id==='C18'?6.05:7.5)-PW/2-f.u; // each puncheon centred on its ánfora
+      items.push({kind:'punch',id:g.punch.id,t0:t,t1:t+PW});t+=PW+GAP;return}
+    for(const r in g.racks){if(sec.id==='P'&&r==='P26')t=8.025-f.u;if(sec.id==='Q'&&r==='Q3')t=9.5-f.u; // PE-7…PE-10 sit north of the door, in front of 21–24
+      const side=g.levels===1&&sec.id==='C';items.push({kind:side?'side':'rack',id:r,t0:t,t1:t+(side?DEP:RW)});t+=(side?DEP:RW)+(sec.id==='P'||sec.id==='Q'?0.12:GAP)}});
+  const P=(tt,d)=>({u:f.u+f.du*tt+f.nu*d,v:f.v+f.dv*tt+f.nv*d});
+  items.forEach(it=>{const dep=it.kind==='one'?DEP:it.kind==='side'?RW:it.kind==='amph'?AW:it.kind==='punch'?1.2:it.kind==='door'?0.1:DEP;
+    const a=P(it.t0,0),b=P(it.t1,dep);it.x=Math.min(a.u,b.u);it.y=Math.min(a.v,b.v);it.w=Math.abs(a.u-b.u);it.h=Math.abs(a.v-b.v);
+    if(it.kind==='side'&&sec.id==='C')it.y+= (RW-DEP)/2; // centre the end pair on the island
+    if(it.kind==='punch'&&sec.id==='C')it.y+=(1.2-DEP)/2; // puncheons centred on the island row
+  });
+  return items}
+// walls, doors and windows, drawn once
+function drawRoom(svg,el){const L=ROOM.L,W=ROOM.W,T=0.25;
+  const g=el('g',{class:'room'},svg);
+  // wall bands (outside the interior), leaving the openings
+  const band=(x,y,w,h)=>el('rect',{x,y,width:w,height:h,class:'wall'},g);
+  band(-T,-T,L+2*T,T);                                   // west (top)
+  band(-T,W,5.96+T,T);band(7.95,W,L-7.95+T,T);           // east (bottom) with the 2 m door
+  band(-T,0,T,1.83);band(-T,5.17,T,W-5.17);              // south (left) with its 3.3 m opening
+  band(L,0,T,1.77);band(L,5.13,T,W-5.13);                // north (right) with the double doors
+  el('rect',{x:-T*0.6,y:1.83,width:0.12,height:3.34,class:'frame'},g);           // south opening frame
+  for(const [a,b] of [[1.39,1.92],[3.2,3.72]])el('rect',{x:a,y:W+0.06,width:b-a,height:0.13,class:'win'},g); // windows
+  for(const a of [4.94,8.56])el('rect',{x:a,y:-0.17,width:0.45,height:0.09,class:'vent'},g);
+  // north double doors swinging out
+  const d=3.36/2,y0=1.77,yc=y0+d;
+  el('path',{d:`M${L+T} ${y0} h${d} M${L+T} ${y0+2*d} h${d} M${L+T+d} ${y0} A${d} ${d} 0 0 1 ${L+T} ${yc} M${L+T+d} ${y0+2*d} A${d} ${d} 0 0 0 ${L+T} ${yc}`,class:'swing'},g);
+  // labels
+  el('text',{x:L/2,y:-0.42,class:'lbl'},g).textContent='PARED OESTE · ÁNFORAS';
+  el('text',{x:L/2,y:W+0.68,class:'lbl'},g).textContent='PARED ESTE · PUERTA';
+  el('text',{x:-0.55,y:W/2,class:'lbl',transform:`rotate(-90 -0.55 ${W/2})`},g).textContent='SUR';
+  return g}
+// barrels seen from above: a pair per rack, oriented the way they actually lie
+function barrelTop(g,el,x,y,w,h){const along=w>h; // long axis along u
+  (g.__b||(g.__b=[])).push({x,y,w,h});
+  const L=along?w:h,D=along?h:w,e=D*0.14,k=L*0.16; // e = head inset, k = bulge
+  let d;if(along)d=`M${x+k*.35} ${y+e} Q${x+w/2} ${y-e*.6} ${x+w-k*.35} ${y+e} L${x+w-k*.35} ${y+h-e} Q${x+w/2} ${y+h+e*.6} ${x+k*.35} ${y+h-e} Z`;
+  else d=`M${x+e} ${y+k*.35} Q${x-e*.6} ${y+h/2} ${x+e} ${y+h-k*.35} L${x+w-e} ${y+h-k*.35} Q${x+w+e*.6} ${y+h/2} ${x+w-e} ${y+k*.35} Z`;
+  el('path',{d,class:'bt'},g);
+  for(const f of [0.12,0.3,0.7,0.88]){if(along)el('line',{x1:x+w*f,x2:x+w*f,y1:y+e*(f<.2||f>.8?1.1:.35),y2:y+h-e*(f<.2||f>.8?1.1:.35),class:'hoop'},g);
+    else el('line',{y1:y+h*f,y2:y+h*f,x1:x+e*(f<.2||f>.8?1.1:.35),x2:x+w-e*(f<.2||f>.8?1.1:.35),class:'hoop'},g)}}
+// column number centred in each barrel (left→right as seen standing in front of the face)
+function labelTop(g,el,it,sec,cls){const b=g.__b||[];if(!it.id){el('text',{x:it.x+it.w/2,y:it.y+it.h/2+0.11,class:cls},g).textContent=it.name;return}
+  if(b.length===1){const t=String(COL[it.id]||'');el('text',Object.assign({x:b[0].x+b[0].w/2,y:b[0].y+b[0].h/2+0.11,class:cls},t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t;return}
+  const flip=FACE[sec.id].du<0;b.forEach((r,j)=>{const sd=(j===0)!==flip?'I':'D',t=String(COL[it.id+sd]);el('text',Object.assign({x:r.x+r.w/2,y:r.y+r.h/2+0.11,class:cls},t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t})}
+function drawItemTop(g,el,it){const p=0.04;
+  if(it.kind==='amph'){el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:AW/2-0.04,class:'amph'},g);return}
+  if(it.kind==='end'){(g.__b||(g.__b=[])).push(it);const c0=S.conf[it.id],ut=c0&&c0.empty?useTint(it.id):null;el('circle',Object.assign({cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2,class:'bend'},ut?{style:`stroke:${ut};stroke-width:.09`}:{}),g);el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2*.74,class:'bendh'},g);return}
+  if(it.kind==='punch'||it.kind==='one'){barrelTop(g,el,it.x+p,it.y+p,it.w-2*p,it.h-2*p);return}
+  el('rect',{x:it.x,y:it.y,width:it.w,height:it.h,rx:0.05,class:'rk'},g);
+  if(it.w>=it.h){const bw=(it.w-3*p)/2;for(let j=0;j<2;j++)barrelTop(g,el,it.x+p+j*(bw+p),it.y+p,bw,it.h-2*p)}
+  else{const bh=(it.h-3*p)/2;for(let j=0;j<2;j++)barrelTop(g,el,it.x+p,it.y+p+j*(bh+p),it.w-2*p,bh)}}
+// Front views: each face is split at its dividers (ánforas, puerta, puncheons) so a view is at most 8 columns.
+const VIEWS=[{id:'OS',sec:'O',gi:[0],after:'amph',name:'Pared oeste · sur'},{id:'ON',sec:'O',gi:[1],before:'amph',name:'Pared oeste · norte'},
+  {id:'CS',sec:'C',gi:[0],name:'Isla · sur'},{id:'CP',sec:'C',gi:[1,2],name:'Isla · puncheons'},{id:'CN',sec:'C',gi:[3,4],name:'Isla · norte'},
+  {id:'EN',sec:'E',gi:[0],after:'door',name:'Pared este · norte'},{id:'ES',sec:'E',gi:[1],before:'door',name:'Pared este · sur'},{id:'X',sec:'X',gi:[0],name:'Área de prensa'},{id:'QS',sec:'Q',gi:[0],name:'Pasillo oeste · sur'},{id:'QN',sec:'Q',gi:[1],name:'Pasillo oeste · norte'},{id:'PS',sec:'P',gi:[0],name:'Pasillo este · sur'},{id:'PN',sec:'P',gi:[1],name:'Pasillo este · norte'}];
+VIEWS.splice(1,0,{id:'AN',sec:'O',gi:[],amph:true,name:'Ánforas'});
+for(const v of VIEWS){v.S=SECTIONS.find(x=>x.id===v.sec);v.racks=v.amph?['AN-02','AN-01']:[];for(const i of v.gi){const g=v.S.groups[i];if(g.aisle)v.racks.push(...g.ids);else if(g.punch)v.racks.push(g.punch.id);else v.racks.push(...Object.keys(g.racks))}
+  v.colsFn=()=>{const cols=v.amph?['AN-02','AN-01']:v.racks.flatMap(r=>RACKS[r].aisle?[COL[r]]:RACKS[r].g.punch?[COL[r]]:[COL[r+'I'],COL[r+'D']]).filter(Boolean);return cols.length?cols[0]+(cols.length>1?'–'+cols[cols.length-1]:''):'vacío'}}
+const VOF={};for(const v of VIEWS)for(const r of v.racks)VOF[r]=v.id;
+const VIEW=()=>VIEWS.find(v=>v.id===S.view);
+function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
+  const svg=el('svg',{viewBox:`-1.0 -0.85 ${L+3.65} ${W+1.75}`,class:'mmsvg','aria-label':'Plano del cuarto de barricas'},h);
+  drawRoom(svg,el);
+  {const pg=el('g',{class:'mm-face mm-pr'+(S.view==='X'?' on':''),'data-s':'X',tabindex:0,role:'button','aria-label':'Área de prensa'},svg);
+   el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pz'},pg);
+   el('text',{x:L+2.42,y:W/2,class:'lbl',transform:`rotate(90 ${L+2.42} ${W/2})`},svg).textContent='ÁREA DE PRENSA · NORTE'}
+  const groups={};for(const v of VIEWS)groups[v.id]=el('g',{class:'mm-face'+(v.id===S.view?' on':''),'data-s':v.id,tabindex:0,role:'button','aria-label':v.name},svg);
+  const deco=el('g',{class:'mm-deco'},svg);
+  for(const sec of SECTIONS)for(const it of layout(sec)){if(it.kind==='door')continue;const host=it.id?groups[VOF[it.id]]:it.kind==='amph'?groups.AN:deco;
+      const gi=el('g',{class:'it'+(S.selRack&&S.selRack===it.id?' sel':'')},host);drawItemTop(gi,el,it);
+      labelTop(gi,el,it,sec,'mm-id')}
+  if(S.view!=='X'&&S.view!=='XX'){const vw=VIEW(),sec=vw.S,items=layout(sec).filter(i=>vw.amph?i.kind==='amph':vw.racks.includes(i.id)),e=EYE[sec.id];
+    const u=(Math.min(...items.map(i=>i.x))+Math.max(...items.map(i=>i.x+i.w)))/2,y0=Math.min(...items.map(i=>i.y)),y1=Math.max(...items.map(i=>i.y+i.h)),side=e.v>(y0+y1)/2,dv=side?-1:1;
+    const r=0.36,v=side?y1+0.1+r:y0-0.1-r,tip=v+dv*r,base=v-dv*r*0.7; // a small triangle pointing at the face, "TÚ" inside
+    el('path',{d:`M${u} ${tip} L${u+r*1.05} ${base} L${u-r*1.05} ${base} Z`,class:'mm-eye'},svg);
+    el('text',{x:u,y:v-dv*0.04+0.07,class:'mm-eyet'},svg).textContent='TÚ'}
+  svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>pick(n.dataset.s);n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}})}
+function pick(id){S.view=id;S.sec=VIEWS.find(v=>v.id===id).sec;S.sel=null;S.selRack=null;draw();panel()}
+
+// Crush pad (área de prensa): no positions, just the list of barrels that are out there.
+function drawPrensa(){const w=$('wall');w.innerHTML='';$('secname').textContent='Área de prensa';
+  $('secnote').innerHTML='Barricas fuera de la bodega (no en uso). No tienen posición: solo anota cuáles están ahí.';$('edgeL').textContent='';$('edgeR').textContent='';
+  const L=Object.entries(S.prensa).sort((a,b)=>a[1].num.localeCompare(b[1].num));
+  const d=document.createElement('div');d.className='prensa';d.innerHTML=`<form id="pf" class="row"><label class="num">Número<input id="pn" inputmode="numeric" maxlength="4" placeholder="000"></label>
+    <label class="wine">Vino o estado (opcional)<input id="pw" type="text" placeholder="vacía, en lavado, Cab Sauv 25…"></label><button class="pri">Agregar</button></form>
+    <div class="status" id="ps">${S.db?'':'Solo lectura aquí: abre la página con tu cuenta para agregar.'}</div>
+    ${L.length?`<ul class="pl">${L.map(([k,x])=>`<li><b>${esc(x.num)}</b> <span>${esc(x.wine||'')}</span><button type="button" data-del="${k}" aria-label="Quitar ${esc(x.num)}">Quitar</button></li>`).join('')}</ul>`:'<p class="sub">Todavía no hay barricas anotadas en el área de prensa.</p>'}`;
+  w.appendChild(d);
+  $('pf').onsubmit=async e=>{e.preventDefault();const n=pad($('pn').value);if(!n){$('ps').textContent='Escribe el número de la barrica.';return}if(!S.db)return;
+    try{await S.db.collection(COLL).doc('prensa-'+n).set({num:n,wine:$('pw').value.trim(),at:new Date().toISOString(),pos:'prensa'});S.prensa['prensa-'+n]={num:n,wine:$('pw').value.trim()};draw()}catch(er){$('ps').textContent='No se guardó.'}};
+  d.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{try{await S.db.collection(COLL).doc(b.dataset.del).delete();delete S.prensa[b.dataset.del];draw()}catch(er){}});
+  }
+function draw(){numberAisles();rebuildRev();
+  const vw=VIEW(),sec=vw.S,w=$('wall');w.innerHTML='';S._rk=0;
+  $('secname').textContent=vw.amph?'Ánforas':vw.S.id==='X'?(n=>'Área de prensa · '+(n===1?'1 barrica':n+' barricas'))(vw.racks.filter(yOcc).length):vw.name+(vw.S.id==='P'||vw.S.id==='Q'?' · ':' · columnas ')+vw.colsFn();
+  $('secnote').innerHTML=sec.id==='X'?'Barricas paradas fuera de la bodega, 3 de ancho':`Parado ${sec.stand}, mirando al <b>${sec.facing}</b>`;
+  $('edgeL').textContent=sec.left?'← '+sec.left:'';$('edgeR').textContent=sec.right?sec.right+' →':'';
+  const mid=kind=>{const m=document.createElement('div');m.className='amph-wrap faded';if(kind==='amph'){m.style.flexDirection='row';amph(m,'AN-02');amph(m,'AN-01')}else door(m);w.appendChild(m)};
+  if(vw.amph){const d=document.createElement('div');d.className='grp';d.innerHTML='<div class="racks"></div>';w.appendChild(d);for(const n of ['AN-02','AN-01'])drawAmphPos(d.lastChild,n)}
+  vw.gi.map(i=>sec.groups[i]).forEach(g=>{
+    const d=document.createElement('div');d.className='grp';d.innerHTML=`<div class="racks"></div>`;w.appendChild(d);const host=d.lastChild;
+    if(g.yard)drawYard(sec,g,host);else if(g.aisle)drawAisle(sec,g,host);else if(g.punch)drawPunch(sec,g,host);else for(const r in g.racks)drawRack(sec,g,r,host)});
+  tabs();questions();minimap();
+  let tot=0,ok=0;for(const id of ORDER){const v=view(id);if(v.st==='none')continue;tot++;if(v.st==='conf'||v.st==='known')ok++}
+  fitWall()}
+// shrink the section to fit the screen width so a whole section is visible at once on a phone
+function fitWall(){const w=$('wall'),svgs=[...w.querySelectorAll(':scope svg')];svgs.forEach(v=>{v.style.width=v.getAttribute('width')+'px'});
+  const need=w.scrollWidth,have=w.clientWidth-2;if(need<=have)return;const k=have/need;svgs.forEach(v=>{v.style.width=(v.getAttribute('width')*k)+'px';v.style.height='auto'})}
+addEventListener('resize',()=>fitWall());
+// "↑ Mapa" shows once the map has scrolled away
+{const b=$('totop');b.onclick=()=>scrollTo({top:0,behavior:'smooth'});
+ try{new IntersectionObserver(es=>{b.hidden=es[0].isIntersecting},{threshold:0.15}).observe(document.querySelector('.mmbox'))}catch(e){addEventListener('scroll',()=>{b.hidden=scrollY<200})}}
+function pending(vid){const v=VIEWS.find(x=>x.id===vid);return ORDER.filter(id=>v.racks.includes(POS[id].rack)).filter(id=>{const st=view(id).st;return st==='part'||st==='unk'})}
+function tabs(){return;$('tabs').innerHTML=VIEWS.map(x=>`<button type="button" role="tab" aria-pressed="${x.id===S.view}" data-s="${x.id}">${x.cols}<small>${pending(x.id).length||'✓'}</small></button>`).join('')+`<button type="button" role="tab" aria-pressed="${S.view==='X'}" data-s="X">Área de prensa<small>${Object.keys(S.prensa).length}</small></button>`;
+  $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>pick(b.dataset.s))}
+function wines(){$('wines').innerHTML=Object.values(WINES).map(([n,c])=>`<span><b style="background:${c}"></b>${n}</span>`).join('')}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function questions(){return;const vw=VIEW(),sec={name:vw.name+' · '+vw.cols};const rows=pending(vw.id).map(id=>{const b=POS[id].b;
+    const t=!b?'¿Qué barrica es? Número y vino':b.n?`Barrica ${b.n} — ¿qué vino tiene?`:`${b.w?esc(WINES[b.w][0]):'¿vino?'} — ¿número?${b.c&&b.c.length?' (probable '+b.c.join(' / ')+')':''}`;
+    return `<li><button type="button" data-q="${id}">${CODE(id)}</button> ${t}</li>`});
+  $('qs').innerHTML=`<h3 style="font-size:20px">Preguntas para Paris · ${sec.name} · ${rows.length}</h3><p class="sub" style="margin:4px 0 8px">Posición = columna.fila · la columna es el número de arriba, la fila el de la izquierda (1 = piso). Ej.: 30.2</p>${rows.length?`<ol class="ql">${rows.join('')}</ol>`:'<p class="okn">✓ Todo identificado aquí.</p>'}`;
+  $('qs').querySelectorAll('[data-q]').forEach(x=>x.onclick=()=>select(x.dataset.q,true))}
+function select(id,scroll){if(S.sel!==id)S.tab=S.cardOnly&&!S.sel?(S.tab||'res'):'res';S.sel=id;S.selRack=POS[id].rack;draw();panel();document.body.classList.add('bopen');
+  if(scroll)requestAnimationFrame(()=>document.getElementById('panel').scrollIntoView({behavior:'smooth',block:'start'}))}
+// ============ Cellar app data layer ============
+// Truth lives in the app's collections: barrels (registry; loc = position key), barrel_log (maintenance, SO2, moves),
+// barrel_pos (positions without a numbered barrel in the registry: unknown barrel here, free marker, ánforas),
+// barrel_lists (extra coopers / woods / toasts), lots (wines). Excellovint SO2 comes from /api/xl/barrel-so2.
+const USE={red:['Tinto','#7a1f2b'],white:['Blanco','#9a8a2a'],orange:['Naranja','#c4622d'],rose:['Rosado','#c0587a'],port:['Oporto','#4a1622'],vermouth:['Vermut','#6b4a2a']};
+const OTROS=['Bâtonnage','Revisión de fuga','Cambio de tapón','Toma de muestra','Ajuste de SO₂','Limpieza exterior'],CREW=['Paris','Jimena','Diane','Eric'];
+const PR={top:['Relleno','Rellenada','#6b4a2a'],otro:['Otro','','#7a6a55'],p1:['Vaciada','Vaciada: lavar, vaporizar, azufrar','#b3261e'],p2:['Vacía · mensual','Mojar, llenar con agua, vaciar, vaporizar, azufrar','#2d6fb3'],p3:['Llena · mensual','Rellenar, velo, tapones y cisnes','#4a4f54'],fill:['Llenado','Se llenó','#2f7d32']};
+const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fd(d){if(!d)return'';const [y,m,dd]=String(d).slice(0,10).split('-');return (+dd)+' '+MES[+m-1]+' '+y.slice(2)}
+function today0(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dago(d){return d?Math.round((Date.parse(today0())-Date.parse(String(d).slice(0,10)))/864e5):null}
+function keep(fn){const y=scrollY,p=$('panel'),h=p.offsetHeight;p.style.minHeight=h+'px';fn();scrollTo(0,y);requestAnimationFrame(()=>{p.style.minHeight=''})}
+const COOPERS=["D'Aquitaine",'Bel Air','Cadus','Dargaud & Jaegle','Darnajou','De Jarnac','European Coopers','François Frères','Garbellotto','Giraud','Kalina','Master Coopers','Montgillard','Orion','Saint Martin','Seguin Moreau','Sylvain','Taransaud','Treuil','Vicard'];
+const TOASTS=[['','—'],['U','Sin tostar (U)'],['L','Ligero (L)'],['L+','Ligero+ (L+)'],['ML','Medio ligero (ML)'],['M','Medio (M)'],['MLg','Medio largo (M largo)'],['M+','Medio+ (M+)'],['M++','Medio++ (M++)'],['MH','Medio fuerte (MH)'],['H','Fuerte (H)'],['H+','Fuerte+ (H+)'],['LL','Largo ligero / lento'],['IR','Infrarrojo'],['INF','Infusión (agua)'],['X','Otro / especial']];
+const WINE_CODES={AG:'Aglianico',AN:'Naranja',AC:'Naranja carbónico',MO:'Montepulciano',MP:'Montepulciano',CF:'Cabernet Franc',OP:'Oporto',CH:'Chardonnay',RC:'Reserva de la Casa',CN:'Chenin',SF:'Syrah–Cab Franc',CO:'Cabernet orgánico',SY:'Syrah',CS:'Cabernet Sauvignon',TC:'Tempranillo–Cab Sauv',TF:'Tempranillo–Cab Franc',GR:'Garnacha',TE:'Tempranillo',MM:'Merlot–Malbec',ME:'Merlot',MA:'Malbec',SB:'Sauvignon Blanc',SE:'Semillón',RF:'Rosado de Cab Franc',RT:'Rosado Tempranillo',PC:'Petite Sirah carbónico',FC:'Cab Franc carbónico',LT:'Cosecha tardía',VM:'Vermut',OR:'Naranja'};
+const wineCode=c=>{const m=/^([A-Z]{2})(\d)$/.exec(String(c||''));return m&&WINE_CODES[m[1]]?WINE_CODES[m[1]]+' 202'+m[2]:String(c||'')};
+S.lists={coop:[],wood:[],toast:[]};
+const LABEL={coop:'tonelería',wood:'madera',toast:'tostado',wine:'vino'};
+const A={barrels:{},lots:[],logs:[],pos:{},so2:{},me:{},byLine:{},appLine:{},ok:false};
+const enc=encodeURIComponent;
+const api=async(path,method,body)=>{const r=await fetch('/api/db/'+path,{method:method||'GET',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||('Error '+r.status));return j};
+const rowsOf=j=>(j.rows||[]).map(r=>Object.assign({id:r.id},r.data));
+const unpad=n=>String(n==null?'':n).replace(/\D/g,'').replace(/^0+(?=\d)/,'');
+function pad(n){n=String(n).replace(/\D/g,'');return n?n.padStart(3,'0'):''}
+const GC={white:['#d9e3a1','#2b3330'],orange:['#f2b766','#2b3330'],rose:['#efb3c0','#2b3330'],red:['#7a1f2b','#ffffff'],sparkling:['#a9c9d4','#2b3330']};
+const lotById=id=>A.lots.find(l=>l.id===id);
+const lotName=id=>{const l=lotById(id);return l?l.name:(id||'')};
+function vintOf(l){if(!l)return null;if(l.vintage)return +l.vintage;const s=(l.code||'')+' '+(l.name||'');let m=s.match(/\b20(2\d)\b/);if(m)return 2000+ +m[1];m=(l.code||'').match(/(?:^|[\s\-\/])[A-Z]{2,}(2\d)\b/);if(m)return 2000+ +m[1];return null}
+const needsConfirm=b=>b.status==='confirm'&&!b.confirmed;
+const stateOf=b=>needsConfirm(b)?'confirm':(b.lot||(b.fill&&b.fill!=='empty')?'full':'empty');
+const PAPER_USE=[[/^(L\d+-)?(CFRO|RO|ROS|RF|RT)/i,'rose'],[/^(L\d+-)?(AN|OR|NAR|AC)/i,'orange'],[/^(L\d+-)?(SB|CB|CH|CN|SE|MG|BL)/i,'white']];
+function useOf(b){if(b.use)return b.use;const l=lotById(b.lot);if(l&&USE[l.group])return l.group;const p=(b.paper&&b.paper.last)||'';for(const [re,u] of PAPER_USE)if(re.test(p))return u;return p?'red':''}
+// ---- conf per position, rebuilt from the collections
+function confOfBarrel(b){const st=stateOf(b),l=lotById(b.lot);return {num:pad(b.code),code:unpad(b.code),lot:b.lot||'',wine:l?l.name:(b.lot||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:st==='empty',here:true,confirm:st==='confirm',reg:true}}
+function confOfPos(d){const l=lotById(d.lot);if(d.free)return {num:'',wine:'',empty:true,here:false,posDoc:true};
+  return {num:d.num?pad(d.num):'',code:unpad(d.num),lot:d.lot||'',wine:l?l.name:(d.wine||''),w:l&&WINES['L:'+l.id]?'L:'+l.id:null,empty:!!d.empty,here:d.here!==false,posDoc:true}}
+function rebuild(){for(const k in WINES)if(k.startsWith('L:'))delete WINES[k];
+  for(const l of A.lots){const g=GC[l.group]||GC.red;WINES['L:'+l.id]=[l.name,g[0],g[1]]}
+  numberAisles();rebuildRev();const conf={};
+  for(const id in A.pos){const cd=REV[id];if(cd)conf[cd]=confOfPos(A.pos[id])}
+  for(const k in POS)if(POS[k].virtual)delete POS[k];
+  for(const b of Object.values(A.barrels)){const cd=b.loc&&REV[b.loc];if(cd)conf[cd]=confOfBarrel(b)}
+  S.conf=conf;numberAisles();rebuildRev();
+  // positions that moved: a barrel whose stored position name is stale gets it refreshed (aisle numbers are dynamic)
+  // A.lines: maintenance lines per barrel code
+  A.byLine={};A.appLine={};A.lines={};
+  for(const l of A.logs){if(l.kind!=='mant')continue;const by=l.by==='Hoja'?'':(l.by||'');const ex=l.extra!=null?l.extra:(l.src==='hoja'?'':String(l.text||'').replace(/^[^·]*·?\s*/,''));
+    const line=[String(l.at).slice(0,10),l.proto,String(ex).replace(/\|/g,'/'),by].join('|').replace(/\|+$/,'');(A.lines[l.code]=A.lines[l.code]||[]).push(line);A.byLine[line]=l.id;if(l.src==='app')A.appLine[line]=1}}
+// a barrel with no position in the room (opened from the list) gets a virtual position
+function virtualFor(code){const id='B:'+code;POS[id]={sec:SECTIONS[0],g:{label:''},rack:null,lv:0,side:'',b:null,virtual:true};const b=A.barrels[code];if(b)S.conf[id]=confOfBarrel(b);return id}
+function posOfCode(code){code=unpad(code);for(const cd in S.conf)if(S.conf[cd].code===code&&!POS[cd].virtual)return cd;return virtualFor(code)}
+function locName(cd){const q=POS[cd];if(!q||q.virtual)return '';if(q.amph)return cd;if(q.sec.id==='X')return 'Área de prensa';const v=VIEWS.find(v=>v.id===VOF[q.rack]);return CODE(cd)+(v?' · '+v.name:'')}
+function bdata(num){const b=A.barrels[unpad(num)];if(!b)return null;const l=lotById(b.lot);
+  return {coop:b.cooperage||'',wood:b.wood||'',year:b.year?+b.year:null,use:useOf(b),fill:stateOf(b)==='empty'?'empty':'full',size:b.size||'',vol:b.vol||'',wine:l?l.name:'',wines:b.wines||[],toast:b.toast||'',th:!!b.th,notes:b.notes||'',so2:so2Of(b),logs:(A.lines[unpad(b.code)]||[]).slice().sort().reverse(),_b:b}}
+function so2Of(b){const out=[],code=unpad(b.code);
+  for(const h of (b.history||[]))out.push({date:h.date,wine:h.wine,ph:h.ph,fso2:h.fso2,kmbs_g:h.applied||h.kmbs_g?h.kmbs_g:null,skipped:h.skipped,src:h.src||'papel'});
+  const x=A.so2[code];if(x){if(x.so2)out.push({date:x.so2.d,fso2:x.so2.v,src:'Excellovint',wine:x.so2.tab});if(x.add&&x.add.g)out.push({date:x.add.d,kmbs_g:+x.add.g||x.add.g,src:'Excellovint',wine:x.add.tab})}
+  for(const l of A.logs)if(l.kind==='so2'&&String(l.code)===code)out.push({date:String(l.at).slice(0,10),fso2:l.fso2,ph:l.ph,kmbs_g:l.kmbs_g,kind:l.so2kind,by:l.by,src:'app',_id:l.id});
+  return out.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0)}
+async function load(){const st=$('dbst');
+  const [b,l,g,p,ls,me,x]=await Promise.all(['barrels','lots','barrel_log','barrel_pos','barrel_lists'].map(c=>api(c).catch(()=>({rows:[]}))).concat([fetch('/api/me').then(r=>r.json()).catch(()=>({})),fetch('/api/xl/barrel-so2').then(r=>r.ok?r.json():{}).catch(()=>({}))]));
+  A.barrels={};for(const r of rowsOf(b))A.barrels[unpad(r.code||r.id)]=r;
+  A.lots=rowsOf(l).filter(x=>x.group!=='routine');A.logs=rowsOf(g);A.pos={};for(const r of rowsOf(p))A.pos[r.id]=r;
+  for(const r of rowsOf(ls))if(Array.isArray(r.items))S.lists[r.id]=r.items;
+  A.me=me||{};A.so2=(x&&x.barrels)||{};A.canWrite=!!A.me.canWrite;A.crew=A.me.role==='crew';A.ok=true;st.textContent=A.canWrite?'':'Solo lectura';
+  rebuild()}
+async function reload(){try{await load()}catch(e){}if(S.sel&&POS[S.sel]&&POS[S.sel].virtual){const c=S.conf[S.sel]&&S.conf[S.sel].code;if(c){const real=posOfCode(c);S.sel=real}}draw();panel();tellParent()}
+function tellParent(){try{if(parent!==window)parent.postMessage({type:'bm:changed'},location.origin)}catch(e){}}
+const me=()=>A.me.initials||'';
+async function logEvent(code,kind,text,extra){const at=new Date().toISOString();const id='b'+code+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);const doc=Object.assign({code:String(code),at,by:me(),kind,text},extra||{});A.logs.push(Object.assign({id},doc));await api('barrel_log/'+enc(id),'PUT',doc).catch(()=>{});return id}
+// ---- lists (dropdowns with "+ Otro…")
+function wineOpts(cur,blank){const by={};for(const l of A.lots.filter(l=>!l.archived||l.id===cur)){const y=vintOf(l)||'Sin añada';(by[y]=by[y]||[]).push(l)}
+  const ys=Object.keys(by).sort((a,b)=>(+b||0)-(+a||0));
+  return `<option value="">${blank||'—'}</option>`+ys.map(y=>`<optgroup label="${esc(y)}">${by[y].sort((a,b)=>a.name.localeCompare(b.name,'es')).map(l=>`<option value="${esc(l.id)}" ${l.id===cur?'selected':''}>${esc(l.name)}${l.code?' · '+esc(l.code):''}</option>`).join('')}</optgroup>`).join('')+'<option value="__otro">+ Otro vino…</option>'}
+function listOf(k){const base=k==='coop'?[...COOPERS,'Desconocida']:k==='wood'?['Francesa','Americana','Húngara']:TOASTS;return [...base,...(S.lists[k]||[]).filter(x=>!base.some(b=>(Array.isArray(b)?b[0]:b)===x))]}
+function sel(k,cur,blank){if(k==='wine')return wineOpts(cur,blank);return `<option value="">${blank||'—'}</option>`+opts(listOf(k),cur)+`<option value="__otro">+ Otra ${k==='coop'?'tonelería':k==='wood'?'madera':'opción'}…</option>`}
+function opts(list,cur){const L=list.map(x=>Array.isArray(x)?x:[x,x]);if(cur&&!L.some(x=>x[0]===cur))L.push([cur,cur]);return L.map(([v,t])=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(t)}</option>`).join('')}
+const wname=v=>v&&lotById(v)?lotById(v).name:(v||'');
+function wireOtro(root){root.querySelectorAll('select[data-list]').forEach(x=>{x.dataset.prev=x.value;x.onchange=()=>{if(x.value!=='__otro'){x.dataset.prev=x.value;x.dispatchEvent(new Event('picked'));return}const k=x.dataset.list;x.value=x.dataset.prev||'';
+  askNew(k,async v=>{if(!v)return;let val=v;
+    if(k==='wine'){try{val=await newWine(v)}catch(e){snack('No se pudo agregar el vino: '+e.message);return}}
+    else if(!listOf(k).some(o=>(Array.isArray(o)?o[0]:o)===v)){S.lists[k]=[...(S.lists[k]||[]),v];api('barrel_lists/'+k,'PUT',{items:S.lists[k]}).catch(()=>{})}
+    x.innerHTML=sel(k,val);x.value=val;x.dataset.prev=val;x.dispatchEvent(new Event('picked'))})}})}
+async function newWine(name){const y=(name.match(/20\d\d/)||[])[0]||'',g=/rosad|ros[eé]/i.test(name)?'rose':/naranja|orange/i.test(name)?'orange':/blanc|chenin|chard|semill|moscato|sauvignon b/i.test(name)?'white':'red';
+  const id='w-'+(y||'nv')+'-'+name.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30);
+  if(lotById(id))return id;const doc={name,code:'',group:g,vintage:y?+y:null,phase:'cellar',sheet:[],src:'barricas',by:me(),at:new Date().toISOString()};
+  await api('lots/'+enc(id),'PUT',doc);A.lots.push(Object.assign({id},doc));const gg=GC[g];WINES['L:'+id]=[name,gg[0],gg[1]];return id}
+function askNew(k,done){const d=$('dlg');d.hidden=false;d.innerHTML=`<div class="dlg-b" role="dialog" aria-modal="true" aria-label="Agregar ${LABEL[k]}"><h3>Agregar ${LABEL[k]}</h3><p class="sub">${k==='wine'?'Se guarda como vino de la bodega y queda en la lista para todas las barricas.':'Queda en la lista para todas las barricas.'}</p>
+   <input id="dlgv" autocomplete="off" placeholder="${k==='wine'?'ej. Syrah 2026':k==='coop'?'ej. Tonnellerie Boutes':''}"><div class="btns"><button type="button" class="pri" id="dlgok">Agregar</button><button type="button" id="dlgx">Cancelar</button></div></div>`;
+  const close=v=>{d.hidden=true;d.innerHTML='';done(v)};$('dlgv').focus();$('dlgok').onclick=()=>close($('dlgv').value.trim());$('dlgx').onclick=()=>close('');
+  $('dlgv').onkeydown=e=>{if(e.key==='Enter')close($('dlgv').value.trim());if(e.key==='Escape')close('')};d.onclick=e=>{if(e.target===d)close('')}}
+let snackT;function snack(msg,undo){const n=$('snack');n.hidden=false;n.innerHTML=`<span>${esc(msg)}</span>${undo?'<button type="button" id="snu">Deshacer</button>':''}`;clearTimeout(snackT);
+  if(undo)$('snu').onclick=()=>{undo();n.hidden=true};snackT=setTimeout(()=>{n.hidden=true},7000)}
+function noWrite(){if(A.canWrite)return false;snack('Solo lectura: entra con tu cuenta para guardar.');return true}
+// ---- writes
+// maintenance line "date|proto|extra|by" ↔ one barrel_log doc. patch: {fill:lotId} (Se llenó) or {empty:true} (Se vació).
+function logEdit(cd,{add,del,patch}){if(noWrite())return null;const c=S.conf[cd]||{},code=c.code;if(!code||!A.barrels[code]){snack('Primero pon el número de la barrica en Datos.');return null}
+  const b=A.barrels[code],prev={fill:b.fill,lot:b.lot,status:b.status};let addId=null,delDoc=null;
+  if(del){const id=A.byLine[del];delDoc=A.logs.find(l=>l.id===id);if(delDoc){A.logs=A.logs.filter(l=>l.id!==id);api('barrel_log/'+enc(id),'DELETE').catch(()=>{})}}
+  if(add){const [d,proto,extra,by]=add.split('|');addId='b'+code+'-m'+d.replace(/-/g,'')+proto+'-'+Date.now().toString(36);
+    const doc={code,at:d+'T12:00:00.000Z',by:by||me(),kind:'mant',proto,text:[PR[proto]?PR[proto][0]:proto,extra].filter(Boolean).join(' · '),extra:extra||'',src:'app'};
+    A.logs.push(Object.assign({id:addId},doc));api('barrel_log/'+enc(addId),'PUT',doc).catch(e=>snack('No se guardó: '+e.message))}
+  let patched=false;
+  if(patch&&add){const d=add.split('|')[0],later=(A.lines[code]||[]).some(x=>x!==add&&/\|(p1|fill)(\||$)/.test(x)&&x.split('|')[0]>d);
+    if(!later){const pt=patch.empty?{fill:'empty',lot:''}:{fill:'full',lot:patch.fill||b.lot||'',status:'occupied2026'};Object.assign(b,pt);patched=true;api('barrels/'+enc(b.id||code),'PATCH',Object.assign({by:me(),at:new Date().toISOString()},pt)).catch(()=>{});
+      logEvent(code,patch.empty?'empty':'fill',patch.empty?'Vaciada (antes: '+lotName(prev.lot)+')':'Llenada con '+lotName(pt.lot))}}
+  rebuild();keep(()=>{draw();panel()});tellParent();
+  return ()=>{if(addId){A.logs=A.logs.filter(l=>l.id!==addId);api('barrel_log/'+enc(addId),'DELETE').catch(()=>{})}
+    if(delDoc){A.logs.push(delDoc);const {id,...doc}=delDoc;api('barrel_log/'+enc(id),'PUT',doc).catch(()=>{})}
+    if(patched){Object.assign(b,prev);api('barrels/'+enc(b.id||code),'PATCH',prev).catch(()=>{})}
+    rebuild();keep(()=>{draw();panel()});tellParent()}}
+// what a position holds when there is no numbered barrel in the registry for it
+async function putPos(cd,doc){const k=refKey(cd);if(doc){A.pos[k]=Object.assign({id:k},doc);await api('barrel_pos/'+enc(k),'PUT',doc)}else if(A.pos[k]){delete A.pos[k];await api('barrel_pos/'+enc(k),'DELETE')}}
+// set the wine (lot id) or "vacía" for whatever is at cd
+async function setWine(cd,lot,isE){if(noWrite())return;const c=S.conf[cd]||{},b=c.code&&A.barrels[c.code];
+  if(b){const prev={fill:b.fill,lot:b.lot||'',status:b.status,confirmed:b.confirmed};const pt=isE?{fill:'empty',lot:''}:{fill:'full',lot,status:'occupied2026'};
+    if(needsConfirm(b))pt.confirmed={state:isE?'empty':'other',wine:isE?'':lotName(lot),by:me(),at:new Date().toISOString()};if(isE&&needsConfirm(b))pt.status='empty';
+    Object.assign(b,pt);rebuild();keep(()=>{draw();panel()});await api('barrels/'+enc(b.id||c.code),'PATCH',Object.assign({by:me(),at:new Date().toISOString()},pt));
+    const ev=await logEvent(c.code,isE?'empty':'fill',isE?'Vacía (antes: '+lotName(prev.lot)+')':'Con '+lotName(lot));
+    snack(isE?'Marcada vacía':'Vino: '+lotName(lot),async()=>{Object.assign(b,prev);await api('barrels/'+enc(b.id||c.code),'PATCH',prev);A.logs=A.logs.filter(l=>l.id!==ev);api('barrel_log/'+enc(ev),'DELETE').catch(()=>{});reload()});tellParent();return}
+  const k=refKey(cd),old=A.pos[k]?Object.assign({},A.pos[k]):null;delete (old||{}).id;
+  await putPos(cd,Object.assign({},old||{},{num:c.code||'',here:true,empty:!!isE,lot:isE?'':lot,wine:'',free:false,pos:CODE(cd),by:me(),at:new Date().toISOString()}));
+  rebuild();keep(()=>{draw();panel()});tellParent();snack(isE?'Marcada vacía':'Vino: '+lotName(lot),async()=>{await putPos(cd,old);reload()})}
+async function save(cd,d){const fs=$('fs');if(noWrite())return;const q=POS[cd],k=refKey(cd),code=unpad(d.num),now=new Date().toISOString();
+  if(q.amph){await putPos(cd,{num:cd,wine:d.wine,empty:d.empty,here:true,by:me(),at:now});fs.textContent='Guardado ✓';reload();return}
+  if(!d.empty&&!code&&!d.lot){fs.textContent='Escribe el número, el vino o marca "vacía".';return}
+  fs.textContent='Guardando…';
+  try{
+    if(code){let b=A.barrels[code];
+      if(b&&b.loc&&b.loc!==k&&!q.virtual&&REV[b.loc]){fs.textContent='La '+pad(code)+' está en '+locName(REV[b.loc])+'. Usa «Mover» desde su tarjeta.';return}
+      const lot=d.empty?'':(d.lot||''),patch={code,size:+d.size||'',cooperage:d.coop||'',wood:d.wood||'',year:d.year||'',use:d.use||'',toast:d.toast||'',th:!!d.th,notes:d.note||'',fill:d.empty?'empty':'full',lot,vol:d.vol?+String(d.vol).replace(',','.')||d.vol:'',by:me(),at:now};
+      if(!q.virtual){patch.loc=k;patch.locName=locName(cd)}
+      if(lot)patch.status='occupied2026';
+      if(b&&needsConfirm(b)&&(lot||d.empty))patch.confirmed={state:d.empty?'empty':'other',wine:d.empty?'':lotName(lot),by:me(),at:now};
+      if(b&&needsConfirm(b)&&!lot&&!d.empty){delete patch.fill;delete patch.lot}
+      if(!b){if(A.crew){await putPos(cd,{num:code,lot,empty:!!d.empty,here:true,pos:CODE(cd),by:me(),at:now});fs.textContent='Guardado ✓ (la barrica '+pad(code)+' no está en el registro: pídele a Eric o Diane que la den de alta)';reload();return}
+        await api('barrels/'+enc(code),'PUT',patch);await logEvent(code,'new','Registrada'+(lot?' con '+lotName(lot):' vacía')+(patch.loc?' en '+patch.locName:''))}
+      else{await api('barrels/'+enc(b.id||code),'PATCH',patch);
+        if(patch.loc&&b.loc!==patch.loc)await logEvent(code,'move',(b.locName||b.loc||'sin ubicación')+' → '+patch.locName);
+        if(patch.lot!==undefined&&(b.lot||'')!==patch.lot)await logEvent(code,patch.lot?'fill':'empty',patch.lot?'Llenada con '+lotName(patch.lot):'Vaciada (antes: '+lotName(b.lot)+')')}
+      if(A.pos[k]&&!q.virtual)await putPos(cd,null)}
+    else await putPos(cd,{num:'',lot:d.empty?'':(d.lot||''),empty:!!d.empty,here:true,pos:CODE(cd),by:me(),at:now});
+    fs.textContent='Guardado ✓';await reload()}catch(e){fs.textContent='No se guardó ('+(e.message||'error')+'). Intenta otra vez.'}}
+async function addSo2(cd,e){if(noWrite())return;const c=S.conf[cd]||{};if(!c.code||!A.barrels[c.code]){snack('Primero pon el número de la barrica en Datos.');return}
+  const id=await logEvent(c.code,'so2',e.so2kind==='add'?'Adición de SO₂: KMBS '+e.kmbs_g+' g':'Lectura SO₂ libre '+e.fso2+' ppm'+(e.ph?' · pH '+e.ph:''),Object.assign({src:'app'},e,{at:e.date+'T12:00:00.000Z',by:e.by||me()}));
+  rebuild();keep(()=>{draw();panel()});tellParent();
+  snack((e.so2kind==='add'?'Adición ':'Lectura ')+'registrada · '+fd(e.date),()=>{A.logs=A.logs.filter(l=>l.id!==id);api('barrel_log/'+enc(id),'DELETE').catch(()=>{});rebuild();keep(()=>{draw();panel()});tellParent()})}
+
+// ---- Historial: the cellar app's history (wines from the sheet, paper SO2, maintenance and moves, Excellovint)
+const XRK=[['volf','Vol'],['ph','pH'],['at','AT'],['am','Málico'],['sl','SO₂ L'],['st','SO₂ T'],['aa','AV']];
+const LOGTAG={move:'Movida',fill:'Llenada',empty:'Vaciada',new:'Alta',vol:'Volumen',spec:'Datos',so2:'SO₂',delete:'Borrada'};
+async function histInto(host,code){const b=A.barrels[code];if(!b){host.innerHTML='<p class="cr-none">Sin historial: esta barrica no está en el registro.</p>';return}
+  host.innerHTML='<p class="cr-none">Cargando historial…</p>';
+  const xl=await fetch('/api/xl/barrel?code='+enc(code)).then(r=>r.json()).catch(()=>({rows:[]}));
+  const mine=A.logs.filter(l=>String(l.code)===String(code)).sort((x,y)=>String(y.at).localeCompare(String(x.at))),xrows=xl.rows||[],ph=b.history||[];
+  const hist=(b.wines||[]).length?`<h4>Historial de vinos <small>hoja</small></h4><p class="cr-help">${(b.wines||[]).map(c=>esc(wineCode(c))).join(' → ')}${b.sheet&&b.sheet.state?` · según la hoja: <b>${b.sheet.state==='full'?'llena':'vacía'}</b> (${esc(fd(b.sheet.d))})`:''}</p>`:'';
+  const paper=(b.flag?`<p class="cr-flag">⚠ ${esc(b.flag)}</p>`:'')+(b.confirmed?`<p class="cr-help">Confirmado por ${esc(b.confirmed.by||'')} ${fd(b.confirmed.at)}: ${esc(b.confirmed.state==='same'?'sigue con '+(b.confirmed.wine||''):b.confirmed.state==='empty'?'embotellada / vacía':b.confirmed.wine||'')}</p>`:'')+
+    `<h4>Registros en papel (SO₂) <small>${ph.length}</small></h4>`+(ph.length?`<ul class="cr-log">${ph.map(r=>`<li><span class="cr-ld">${fd(r.date)}</span><span class="cr-lk">${esc(r.wine||'')}</span>${[r.ph!=null?'pH '+r.ph:'',r.fso2!=null?'SO₂L '+r.fso2:'',r.kmbs_g!=null?'KMBS '+r.kmbs_g+' g':'',r.skipped?'omitido (ya en meta)':r.applied?'añadido':''].filter(Boolean).map(esc).join(' · ')}${r.note&&!/^(Añadido|OMITIR)/.test(r.note)?' · '+esc(r.note):''}<small>${esc(r.src||'')}</small></li>`).join('')}</ul>`:'<p class="cr-none">Sin registros en papel.</p>');
+  host.innerHTML=hist+paper+`<h4>Mantenimiento y movimientos <small>${mine.length}</small></h4>`+(mine.length?`<ul class="cr-log">${mine.map(r=>{const P=r.kind==='mant'&&PR[r.proto];return `<li><span class="cr-ld">${fd(r.at)}</span><span class="cr-lk ${esc(r.kind)}"${P?` style="background:${P[2]};color:#fff"`:''}>${esc(P?P[0]:LOGTAG[r.kind]||r.kind)}</span>${esc(r.text||'')}<small>${esc(r.by||'')}</small></li>`}).join('')}</ul>`:'<p class="cr-none">Nada todavía.</p>')+
+    `<h4>En Excellovint <small>${xrows.length}</small></h4>`+(xrows.length?`<div class="xlog">${xrows.map(r=>`<article class="xe${r.ini?' is-done':r.asig?' is-open':''}"><div class="xe-h"><span class="xe-d">${esc(r.date?fd(r.date):r.date_raw||'')}</span><span class="xe-u">${esc(r.tab)}${r.ubi?' · '+esc(r.ubi):''}</span>${r.ini?`<span class="xe-st done">Hecha · ${esc(r.ini)}</span>`:r.asig?`<span class="xe-st open">Abierta · ${esc(r.asig)}</span>`:''}</div><div class="xe-b">${XRK.some(([k])=>r[k])?`<div class="xe-r">${XRK.filter(([k])=>r[k]).map(([k,l])=>`<span><i>${l}</i>${esc(r[k])}</span>`).join('')}</div>`:''}${r.note?`<p class="xe-n">${esc(r.note)}</p>`:''}</div></article>`).join('')}</div>`:'<p class="cr-none">Ninguna línea de Excellovint menciona esta barrica (busca «BBL '+esc(code)+'»).</p>')}
+
+function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;return}if(!A.ok){p.hidden=false;p.innerHTML='<p class="cr-none" style="padding:14px">Cargando…</p>';return}p.hidden=false;const q=POS[cd],b=q.b,c=S.conf[cd],v=view(cd);
+  if(q.amph)return amphPanel(p,cd,c);
+  const num=c?.num||'',D=bdata(num),hint=b&&b.w&&WINES[b.w]?WINES[b.w][0]:'',wine=c?.confirm?'':(c?.wine||(c?'':hint)||D?.wine||''),lotId=c?.lot||'';
+  const wk=c?.w||(c?null:b?.w),use=USE[D?.use]||null,col=wk&&WINES[wk]?WINES[wk][1]:(use?use[1]:'var(--oak)'),ink=wk&&WINES[wk]?WINES[wk][2]:'#fff';
+  const empty=c?!!c.empty:(D?.fill==='empty'),last=D&&D.logs[0]?D.logs[0].split('|'):null,lastP=last&&PR[last[1]],ago=last?dago(last[0]):null;
+  const SO=[...((c&&c.so2)||[]),...((D&&D.so2)||[])].sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0),so=SO.find(h=>h.fso2!=null),addA=SO.find(h=>h.kmbs_g&&!h.skipped);const tab=S.tab||'res';
+  // ---- at a glance: who it is, where it is, what it needs
+  const extra=[],L=[...extra,...(D?D.logs:[])].sort().reverse();
+  const lastM=L.find(x=>/\|(p1|p2|p3|top)/.test(x)),fillE=L.find(x=>x.includes('|fill'));
+  const md=lastM?lastM.split('|')[0]:null,mAgo=dago(md),fd0=fillE?fillE.split('|')[0]:null;
+  const mSt=mAgo==null?'bad':mAgo>30?'bad':mAgo>24?'warn':'ok';
+  const soAgo=so?dago(so.date):null,soV=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,soC=so2Cls(soV,soAgo),soSt=!so?'bad':soC==='old'?'warn':soC;
+  const lv=v=>v==null?'—':v;
+  // ---- card: who · what's due (full = topping, empty = sulphur/hydration) · readings · barrel · actions
+  const toast=c?.toast||D?.toast||'',coopV=c?.coop||D?.coop,woodV=c?.wood||D?.wood,age=D?.year?2026-D.year:null,uses=D&&D.wines?D.wines.length:0;
+  const today=today0(),job=empty?'p2':'top';
+  const lastJob=L.find(x=>empty?/\|(p1|p2)/.test(x):/\|(p3|top|fill)/.test(x)),jd=lastJob?lastJob.split('|')[0]:null,jAgo=dago(jd);
+  const doneToday=L.some(x=>x.startsWith(today+'|')&&/\|(p2|p3|top)/.test(x)),jSt=doneToday?'ok':jAgo==null?'bad':jAgo>30?'bad':jAgo>24?'warn':'ok';
+  const what=empty?'Mantenimiento de vacía':'Relleno';
+  const mLine=doneToday?`${what} registrado hoy`:jAgo==null?`${what}: sin registro`:jSt==='bad'?(empty?'Toca mantenimiento':'Toca rellenar'):jSt==='warn'?`${empty?'Mantenimiento':'Relleno'} en ${30-jAgo} d`:`${what} al día`;
+  const summary=`<div class="bc2" style="--c:${col};--ci:${ink}">
+    <div class="bh"><div class="bnum">${esc(num||'?')}</div>
+      <div class="bwho"><button type="button" class="wpick${!empty&&!wine?' unk':''}" data-q="wine" aria-label="Cambiar vino"><h3>${esc(empty?'Vacía':(wine||'¿vino?'))}</h3><em>▾</em></button>
+        <div class="chips"><span class="chip pos">📍 ${CODE(cd)}</span>${use?`<span class="chip" style="--b:${use[1]}">${use[0]}</span>`:''}<span class="chip">${empty?'Vacía':'Llena'}</span>${c?.confirm?'<span class="chip warn">Por confirmar</span>':''}${!c&&hint?'<span class="chip warn">Foto: '+esc(hint)+'?</span>':''}</div></div>
+      <button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
+    ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${doneToday?'':jd?`último ${fd(jd)} · hace ${jAgo} d`:''}</span><em>›</em></button>`
+      :`<button type="button" class="mline unk" data-gotab="res"><b>¿Qué barrica es?</b><span>Escribe el número en Datos para ver su mantenimiento</span><em>›</em></button>`}
+    ${num?'':'<!--'}<div class="tiles">
+      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span>${empty?'vacía':so?fd(so.date)+(soAgo>SO2_OLD?' · hace '+soAgo+' d':''):'sin lectura'}</span>${!empty&&addA&&(!so||addA.date>=so.date)?`<span class="tadd">luego +${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS${addA.date!==so?.date?' ('+fd(addA.date)+')':''}</span>`:''}${!empty&&so?`<span class="tgoal">meta ≈ ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
+      <div class="tile na">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Vacía desde':'Llenada'}</small><b>${fd0&&!empty?dago(fd0)+' d':(md&&empty?dago(md)+' d':'—')}</b><span>${fd0&&!empty?fd(fd0):(empty&&md?fd(md):(L.length?'antes de may 26':''))}</span></div>
+      <div class="tile na"><small>Barrica</small><b>${age==null?'—':age+'<i> años</i>'}</b><span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></div>
+    </div>${num?'':'-->'}
+    <div class="qa"><button type="button" data-q="move">Mover</button></div>
+    <div class="qa-x" id="qax" hidden></div>
+    <p class="ident" ${num?'':'hidden'}>${[coopV,woodV,(c?.year||D?.year)?'hecha en '+(c?.year||D?.year):'',(c?.size||D?.size||225)+' L'].filter(Boolean).join(' · ')}</p>
+  </div>
+   <div class="seg2" role="tablist">${[['res','Datos'],['mant','Mantenimiento'],['hist','Historial'],['qr','Etiqueta']].map(([k,t])=>`<button type="button" data-t="${k}" aria-pressed="${tab===k}">${t}</button>`).join('')}</div>`;
+  let body='';
+  const STEPS={p3:['Rellenar hasta arriba','Quitar velo y sanitizar con SO₂','Tapones firmes','Cisne con agua y sulfitos'],p2:['Mojar por fuera y llenar con agua (si fuga, esperar a que selle)','Vaciar y vaporizar','Azufrar al día siguiente'],p1:['Lavar','Vaporizar','Azufrar (máx. 3 días después de vaciar)']};
+  if(tab==='mant'){const ML=L.filter(x=>/\|(p1|p2|p3|top|fill|otro)/.test(x)),mine=new Set(ML.filter(x=>A.appLine[x]));
+    const K=empty?[['p2','Mensual'],['fill','Se llenó'],['otro','Otro']]:[['p3','Mensual'],['top','Solo rellenar'],['p1','Se vació'],['otro','Otro']];
+    const mk=K.some(k=>k[0]===S.mk)?S.mk:K[0][0];let by='';try{by=localStorage.getItem('fb-by')||''}catch(e){}
+    const ck=(k,list)=>`<div class="steps" data-k="${k}" ${mk===k?'':'hidden'}>${list.map((t,i)=>`<label class="chk"><input type="checkbox" checked> ${t}</label>`).join('')}</div>`;
+    const rel=(k,lbl)=>`<div class="row2" data-k="${k}" ${mk===k?'':'hidden'}><label>${lbl}<select data-f="w" data-list="wine">${sel('wine',lotId)}</select></label><label>Litros<input data-f="l" inputmode="decimal" placeholder="${k==='fill'?'225':'0.5'}"></label></div>`;
+    const ago=n=>{const d=new Date(Date.parse(today)-n*864e5);return d.toISOString().slice(0,10)};
+    body=!num?`<div class="mt"><p class="mut">Primero escribe el número de la barrica en <b>Datos</b>: sin número no hay historial de mantenimiento.</p></div>`:`<div class="mt">
+     <p class="mt-sched">${empty?'Vacía':'Llena'} · mantenimiento cada 30 días${jd?' · el próximo toca el <b>'+fd(new Date(Date.parse(jd)+30*864e5).toISOString().slice(0,10))+'</b>':''}</p>
+     <form id="mf" class="mf">
+      <h4>¿Qué se hizo?</h4>
+      <div class="seg3" role="radiogroup">${K.map(([k,t])=>`<button type="button" role="radio" data-mk="${k}" aria-checked="${k===mk}">${t}</button>`).join('')}</div>
+      ${empty?ck('p2',STEPS.p2):ck('p3',STEPS.p3)+rel('p3','Rellenado con')+rel('top','Rellenado con')+ck('p1',STEPS.p1)}
+      ${empty?rel('fill','Vino'):''}
+      <div class="ot" data-k="otro" ${mk==='otro'?'':'hidden'}><div class="pills">${OTROS.map(o=>`<button type="button" data-ot="${esc(o)}">${esc(o)}</button>`).join('')}</div>
+        <input id="mo" placeholder="Describe lo que se hizo" autocomplete="off"></div>
+      <div class="row2"><label>Fecha<input type="date" id="md" value="${today}" max="${today}"></label><label>Quién<select id="mby"><option value="">—</option>${CREW.map(x=>`<option ${x===by?'selected':''}>${x}</option>`).join('')}</select></label></div>
+      <label class="nota">Nota<textarea id="mn" rows="2" placeholder="opcional"></textarea></label>
+      <div class="btns"><button class="pri" type="submit" id="mgo">Registrar</button><span class="status" id="mfs"></span></div>
+     </form>
+     <h4>Registros</h4>${ML.length?ML.slice(0,10).map(x=>{const [d,pr,ex,who]=x.split('|'),P=PR[pr]||['','','#888'];const t=pr==='top'?'Rellenada'+(ex?' con '+ex:''):pr==='otro'?ex:(ex||P[1]);
+       return `<div class="hrow"><time>${fd(d)}</time><span class="tag" style="background:${P[2]};color:#fff">${P[0]}</span><span class="ht">${esc(t||'')}${who?` <i>· ${esc(who)}</i>`:''}</span>${mine.has(x)?`<button type="button" class="rm" data-rm="${esc(x)}" aria-label="Borrar registro">×</button>`:''}</div>`}).join(''):'<p class="mut">Sin registros.</p>'}
+     <p class="mut sm">Los registros de la hoja de papel no se pueden borrar aquí.</p>
+    </div>`}
+  else if(tab==='res'){body=`<form id="f" class="grid">
+     <label>Nº barrica<input id="fn" inputmode="numeric" maxlength="4" value="${esc(num)}" placeholder="000"></label>
+     <label>Llenado<select id="ffill"><option value="full" ${!empty?'selected':''}>Llena</option><option value="empty" ${empty?'selected':''}>Vacía</option></select></label>
+     <label class="w2">Vino<select id="fw" data-list="wine">${sel('wine',empty?'':lotId,'— vacía —')}</select></label><label>Litros<input id="fvol" inputmode="decimal" value="${esc(D?.vol||'')}" placeholder="${esc(D?.size||225)}"></label><label>Tamaño (L)<input id="fsz" inputmode="numeric" value="${esc(D?.size||'')}" placeholder="225"></label>
+     <label>Tonelería<select id="fco" data-list="coop">${sel('coop',c?.coop||D?.coop||'')}</select></label>
+     <label>Madera<select id="fwd" data-list="wood">${sel('wood',c?.wood||D?.wood||'')}</select></label>
+     <label>Año<input id="fyr" inputmode="numeric" value="${esc(D?.year||'')}"></label>
+     <label>Tostado<select id="fto" data-list="toast">${sel('toast',toast)}</select></label><label class="chk"><input id="fth" type="checkbox" ${D?.th?'checked':''}> Cabezas tostadas</label>
+     <label>Tipo<select id="fus">${['',...Object.keys(USE)].map(k=>`<option value="${k}" ${D?.use===k?'selected':''}>${k?USE[k][0]:''}</option>`).join('')}</select></label>
+     <label class="w3">Notas<textarea id="fno" rows="2">${esc(D?.notes||'')}</textarea></label>
+     ${b?.c&&b.c.length&&!num?`<div class="cands w3"><span class="cl">¿Es alguna de estas? Toca para poner el número:</span>${b.c.map(x=>`<button type="button" data-n="${x}">${x}</button>`).join('')}</div>`:''}
+     <div class="btns w3"><button type="submit" class="pri">Guardar</button><span class="status" id="fs"></span></div></form>`}
+  else if(tab==='hist'){body=`<div class="hist" id="histh"></div>`}
+  else{const url=location.origin+'/b/'+unpad(num);body=`<div class="lab"><div class="lab-c"><div class="lab-n">BBL ${esc(num||'?')}</div><div id="qr"></div><small>Dos Búhos</small></div>
+     <p class="mut">Al escanear el QR se abre esta barrica. El contenido no va impreso: siempre se lee lo actual. Para imprimir varias: Lista → ⋯ → Imprimir etiquetas QR.</p></div>`}
+  p.innerHTML=summary+body;
+  wireOtro(p);
+  p.querySelectorAll('.seg2 button').forEach(x=>x.onclick=()=>{S.tab=x.dataset.t;keep(()=>panel())});
+  const closeX=()=>{const x=$('qax').querySelector('.qx');if(x)x.onclick=()=>{$('qax').hidden=true;$('qax').innerHTML=''}};
+  p.querySelectorAll('[data-go="res"]').forEach(x=>x.onclick=()=>{S.tab='res';panel();const t=$('fto');t&&t.focus()});
+  p.querySelectorAll('.qa [data-q],.mstat [data-q],.wpick,.tplus').forEach(x=>x.onclick=()=>{const k=x.dataset.q,ax=$('qax');
+    if(k==='undo'){const c0=S.conf[cd]||{};c0.logs=(c0.logs||[]).filter(x=>!x.startsWith(today+'|'));addLog(cd,'__noop');return}
+    if(k==='p3'||k==='p2'||k==='p1'){addLog(cd,k);return}
+    if(k==='fillnow'){addLog(cd,'fill');return}
+    if(k==='top'){ax.hidden=false;ax.innerHTML=`<label>Con qué vino<select id="tw" data-list="wine">${sel('wine',lotId)}</select></label><label>Litros<input id="tl" inputmode="decimal" placeholder="0.5"></label><button type="button" class="pri" id="tok">Registrar</button><button type="button" class="qx" aria-label="Cancelar">×</button>`;closeX();
+      wireOtro($('qax'));$('tok').onclick=()=>addLog(cd,'top',($('tw').value||wine)+($('tl').value?' · '+$('tl').value+' L':''));return}
+    if(k==='so2'||k==='topq'){let by='';try{by=localStorage.getItem('fb-by')||''}catch(e){}
+      const whenH=`<div class="row2 qfull"><label>Fecha<input type="date" id="qd" value="${today}" max="${today}"></label><label>Quién<select id="qby"><option value="">—</option>${CREW.map(x=>`<option ${x===by?'selected':''}>${x}</option>`).join('')}</select></label></div><label class="nota qfull">Nota<textarea id="qn" rows="2" placeholder="opcional"></textarea></label>`;
+      const whoH='';
+      ax.hidden=false;ax.innerHTML=k==='so2'?`<div class="qtop"><b>SO₂</b><div class="seg3" role="radiogroup"><button type="button" role="radio" data-sk="read" aria-checked="true">Lectura</button><button type="button" role="radio" data-sk="add" aria-checked="false">Adición</button></div><button type="button" class="qx" aria-label="Cancelar">×</button></div>
+        <label data-s="read">SO₂ libre (ppm)<input id="qf" inputmode="decimal" placeholder="25"></label><label data-s="read">pH<input id="qph" inputmode="decimal" placeholder="opcional"></label>
+        <label data-s="add" hidden>KMBS (g)<input id="qk" inputmode="decimal" placeholder="6"></label>${whenH}${whoH}<button type="button" class="pri" id="qok">Guardar</button><span class="status" id="qst"></span>`
+       :`<div class="qtop"><b>Relleno</b><button type="button" class="qx" aria-label="Cancelar">×</button></div><label>Con qué vino<select id="qw" data-list="wine">${sel('wine',lotId)}</select></label><label>Litros<input id="ql" inputmode="decimal" placeholder="0.5"></label>${whenH}${whoH}<button type="button" class="pri" id="qok">Guardar</button><span class="status" id="qst"></span>`;
+      closeX();wireOtro(ax);
+      ax.querySelectorAll('[data-sk]').forEach(x=>x.onclick=()=>{ax.querySelectorAll('[data-sk]').forEach(y=>y.setAttribute('aria-checked',y===x));ax.querySelectorAll('[data-s]').forEach(y=>y.hidden=y.dataset.s!==x.dataset.sk);(ax.querySelector(`[data-s="${x.dataset.sk}"] input`)||{}).focus?.()});
+      const sync=()=>ax.querySelectorAll('[data-ago]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.ago===$('qd').value));
+      ax.querySelectorAll('[data-ago]').forEach(x=>x.onclick=()=>{$('qd').value=x.dataset.ago;sync()});$('qd').onchange=sync;
+      $('qby').onchange=()=>{try{localStorage.setItem('fb-by',$('qby').value)}catch(e){}};
+      const num_=v=>{const x=parseFloat(String(v).replace(',','.'));return isFinite(x)?x:null};
+      $('qok').onclick=()=>{const d=$('qd').value,who=$('qby').value;if(!/^\d{4}-\d\d-\d\d$/.test(d)||d>today){$('qst').textContent='Fecha no válida.';return}
+        const qn=$('qn').value.trim();if(k==='topq'){const w=wname($('qw').value)||wine,l=$('ql').value.trim();const line=[d,'top',(w+(l?' · '+l+' L':'')+(qn?' · '+qn:'')).replace(/\|/g,'/'),who].join('|').replace(/\|+$/,'');ax.hidden=true;const u=logEdit(cd,{add:line});snack('Relleno registrado · '+fd(d),u);return}
+        const add=ax.querySelector('[data-sk="add"]').getAttribute('aria-checked')==='true';let e;
+        if(add){const g=num_($('qk').value);if(g==null){$('qst').textContent='Escribe los gramos.';return}e={date:d,kind:'add',fso2:null,ph:null,kmbs_g:g,by:who,src:'app'}}
+        else{const f=num_($('qf').value);if(f==null){$('qst').textContent='Escribe la lectura.';return}e={date:d,kind:'read',fso2:f,ph:num_($('qph').value),kmbs_g:null,by:who,src:'app'}}
+        e.note=qn;e.so2kind=e.kind;delete e.kind;delete e.src;ax.hidden=true;addSo2(cd,e);return};
+      (ax.querySelector('input:not([type=date])')||{}).focus?.();return}
+    if(k==='wine'){ax.hidden=false;ax.innerHTML=`<label>¿Qué tiene?<select id="qw" data-list="wine"><option value="__vacia" ${empty?'selected':''}>Vacía</option>${sel('wine',empty?'':lotId).replace('<option value=""','<option value="" disabled')}</select></label><button type="button" class="pri" id="qwok">Guardar</button><button type="button" class="qx" aria-label="Cancelar">×</button>`;closeX();wireOtro(ax);
+      $('qwok').onclick=()=>{const w=$('qw').value;if(!w)return;ax.hidden=true;setWine(cd,w==='__vacia'?'':w,w==='__vacia')};return}
+    if(k==='move'){startMove(cd);return}
+    if(false){ax.hidden=false;ax.innerHTML=`<label>Mover a<input id="mto" placeholder="ej. 9.4, PE-2 o prensa" autocomplete="off"></label><button type="button" class="pri" id="mok">Mover</button><button type="button" class="qx" aria-label="Cancelar">×</button><span class="status" id="mst"></span>`;closeX();
+      $('mto').focus();$('mok').onclick=()=>{const t=$('mto').value.trim().toUpperCase().replace(/\s+/g,'');if(!t)return;if(!/^PRENSA$/.test(t)&&!REV[t]){$('mst').textContent='No existe '+t;return}addLog(cd,'move',t)}}});
+  $('fx').onclick=()=>{if(S.cardOnly&&parent!==window){try{parent.postMessage({type:'bm:close'},location.origin)}catch(e){}return}S.sel=null;S.selRack=null;document.body.classList.remove('bopen');draw();panel()};
+  if(tab==='hist')histInto($('histh'),unpad(num));
+  if(tab==='qr'&&num&&window.QRCode){try{new QRCode($('qr'),{text:location.origin+'/b/'+unpad(num),width:150,height:150,correctLevel:QRCode.CorrectLevel.M})}catch(e){}}
+  p.querySelectorAll('[data-gotab]').forEach(x=>x.onclick=()=>{S.tab=x.dataset.gotab;keep(()=>panel())});
+  if(tab==='mant'&&p.querySelectorAll('.rm').length)p.querySelectorAll('.rm').forEach(x=>x.onclick=()=>{const u=logEdit(cd,{del:x.dataset.rm});if(u)snack('Registro borrado',u)});
+  if(tab==='mant'&&$('mf')){const f=$('mf');wireOtro(f);
+    const cur=()=>f.querySelector('[data-mk][aria-checked="true"]').dataset.mk;
+    f.querySelectorAll('[data-mk]').forEach(x=>x.onclick=()=>{S.mk=x.dataset.mk;f.querySelectorAll('[data-mk]').forEach(y=>y.setAttribute('aria-checked',y===x));f.querySelectorAll('[data-k]').forEach(y=>y.hidden=y.dataset.k!==S.mk);$('mfs').textContent=''});
+    f.querySelectorAll('[data-ot]').forEach(x=>x.onclick=()=>{$('mo').value=x.dataset.ot;f.querySelectorAll('[data-ot]').forEach(y=>y.setAttribute('aria-pressed',y===x))});
+    const syncWhen=()=>{const v=$('md').value;f.querySelectorAll('[data-ago]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.ago===v));$('mgo').textContent=v===today?'Registrar':'Registrar el '+fd(v)};
+    f.querySelectorAll('[data-ago]').forEach(x=>x.onclick=()=>{$('md').value=x.dataset.ago;syncWhen()});$('md').onchange=syncWhen;
+    $('mby').onchange=()=>{try{localStorage.setItem('fb-by',$('mby').value)}catch(e){}};
+    f.onsubmit=e=>{e.preventDefault();const k=cur(),d=$('md').value,box=f.querySelector(`[data-k="${k}"].steps`),rw=f.querySelector(`[data-k="${k}"].row2`);
+      if(!/^\d{4}-\d\d-\d\d$/.test(d)||d>today){$('mfs').textContent='Fecha no válida.';return}
+      const parts=[];if(box){const cb=[...box.querySelectorAll('input')],n=cb.filter(x=>x.checked).length;if(!n){$('mfs').textContent='Marca al menos un paso.';return}if(n<cb.length)parts.push(n+'/'+cb.length+' pasos')}
+      if(k==='otro'){const t=$('mo').value.trim();if(!t){$('mfs').textContent='Escribe qué se hizo.';$('mo').focus();return}parts.push(t)}
+      let fillW='';if(rw){const w=rw.querySelector('[data-f="w"]').value,l=rw.querySelector('[data-f="l"]').value.trim();fillW=w;
+        if(k==='top'||k==='fill')parts.unshift((wname(w)||wine)+(l?' · '+l+' L':''));else if(l)parts.push('rellenada con '+(wname(w)||wine)+' '+l+' L')}
+      const note=$('mn').value.trim();if(note)parts.push(note);
+      const line=[d,k,parts.join(' · ').replace(/\|/g,'/'),$('mby').value].join('|').replace(/\|+$/,'');
+      if(k==='fill'&&!fillW&&!lotId){$('mfs').textContent='Elige el vino.';return}
+      const patch=k==='fill'?{fill:fillW||lotId}:k==='p1'?{empty:true}:null;
+      const undo=logEdit(cd,{add:line,patch});if(undo)snack(`${(PR[k]||[''])[0]==='Llena · mensual'||(PR[k]||[''])[0]==='Vacía · mensual'?'Mensual':PR[k][0]} registrado · ${fd(d)}`,undo)}}
+  if(tab!=='res')return;
+  p.querySelectorAll('.cands button').forEach(x=>x.onclick=()=>{$('fn').value=x.dataset.n;$('fn').dispatchEvent(new Event('input'))});
+  $('fn').oninput=()=>{const k=unpad($('fn').value),bb=A.barrels[k];$('fs').textContent=!k?'':!bb?'No está en el registro.':bb.loc&&bb.loc!==refKey(cd)?'Esa barrica está en '+(REV[bb.loc]?locName(REV[bb.loc]):bb.locName||bb.loc)+'.':'En el registro: '+(lotName(bb.lot)||'vacía')};
+  const rec=()=>({num:pad($('fn').value),lot:$('fw').value==='__otro'?'':$('fw').value,empty:$('ffill').value==='empty',note:$('fno').value.trim(),vol:$('fvol').value.trim(),
+     here:true,size:$('fsz').value.trim(),coop:$('fco').value.trim(),wood:$('fwd').value,year:$('fyr').value.trim(),use:$('fus').value,toast:$('fto').value,th:$('fth').checked,
+     });
+  $('fw').addEventListener('change',()=>{if($('fw').value==='')$('ffill').value='empty';else if($('fw').value!=='__otro')$('ffill').value='full'});$('ffill').onchange=()=>{if($('ffill').value==='empty')$('fw').value=''};
+  $('f').onsubmit=e=>{e.preventDefault();save(cd,rec())};
+}
+function amphPanel(p,cd,c){p.innerHTML=`<div class="bc-h"><b>${cd}</b><span>${esc(c?(c.empty?'Vacía':c.wine):'')}</span><small>Ánfora · ${esc(POS[cd].b.d)}${c?' · ✓ confirmada':''}</small><button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
+   <form id="f"><div class="row"><label class="wine">Vino<input id="fw" type="text" value="${esc(c?.wine||'')}" placeholder="vacía o nombre del vino"></label></div>
+   <div class="btns"><label class="chk"><input id="fe" type="checkbox" ${c?.empty?'checked':''}> Vacía</label><button type="submit" class="pri">Guardar</button></div>
+   <div class="status" id="fs"></div></form>`;
+  $('fx').onclick=()=>{S.sel=null;draw();panel()};
+  $('f').onsubmit=e=>{e.preventDefault();const em=$('fe').checked,w=$('fw').value.trim();if(!em&&!w){$('fs').textContent='Escribe el vino o marca vacía.';return}save(cd,{num:cd,wine:w,empty:em,note:'',w:null})};
+}
+function next(cd){const v=VIEW(),mine=ORDER.filter(x=>v.racks.includes(POS[x].rack)),i=mine.indexOf(cd);
+  const n=mine.slice(i+1).concat(mine.slice(0,i)).find(x=>{const st=view(x).st;return st==='part'||st==='unk'});select(n||cd)}
+$('wall').addEventListener('click',e=>{const g=e.target.closest('.bbl');if(!g)return;if(S.move){pickTarget(g.dataset.c);return}select(g.dataset.c,true)});
+// ---------- moving a barrel: choose an EMPTY position on the map (or the crush pad); never typed, never on top of another barrel
+function shown(id){const q=POS[id];if(!q.aisle)return true;const c=S.conf[id];if(c&&c.num)return true;if(q.b&&q.b.spare)return !!S.move&&S.move.from!==id&&q.g.ids.find(x=>POS[x].b&&POS[x].b.spare&&!(S.conf[x]&&(S.conf[x].num||S.conf[x].here)))===id;return !(c&&c.empty&&!c.here)}
+function isFree(id){const q=POS[id];if(!q||q.amph||q.virtual)return false;const c=S.conf[id];if(c)return !!c.empty&&!c.num&&!c.here;return view(id).st==='none'}
+function mvCls(id){if(!S.move)return'';if(id===S.move.from)return' moving';if(id===S.move.to)return' target';return isFree(id)?' drop':' blocked'}
+function startMove(cd){if(noWrite())return;S.move={from:cd,to:null};document.body.classList.remove('cardonly');document.body.classList.add('mv');
+  if(POS[cd].virtual){/* stays where the list showed it */}draw();mvbar();scrollTo({top:0,behavior:'smooth'})}
+function pickTarget(id){if(!isFree(id))return;S.move.to=id;draw();mvbar()}
+function endMove(){S.move=null;document.body.classList.remove('mv');$('mvbar').hidden=true;draw();panel()}
+const isYard=id=>POS[id]&&POS[id].sec.id==='X';
+function mvbar(){const m=S.move,b=$('mvbar'),c=S.conf[m.from]||{},num=c.num||'?',wine=c.empty?'vacía':(c.wine||'');b.hidden=false;
+  b.innerHTML=m.to?`<div><b>Mover ${esc(num)}</b> de ${esc(POS[m.from].virtual?'sin ubicación':CODE(m.from))} a <b>${isYard(m.to)?'Área de prensa':esc(CODE(m.to))}</b></div><div class="mvb"><button type="button" class="pri" id="mvok">Confirmar</button><button type="button" id="mvch">Cambiar</button><button type="button" id="mvx">Cancelar</button></div>`
+   :`<div><b>Moviendo ${esc(num)}</b>${wine?' · '+esc(wine):''}<small>Toca un lugar vacío (verde). Cambia de sección en el mapa.</small></div><div class="mvb"><button type="button" id="mvpr">Área de prensa</button><button type="button" id="mvx">Cancelar</button></div>`;
+  $('mvx').onclick=endMove;if($('mvch'))$('mvch').onclick=()=>{S.move.to=null;draw();mvbar()};if($('mvpr'))$('mvpr').onclick=()=>{const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y){S.move.to=y;draw();mvbar()}};
+  if($('mvok'))$('mvok').onclick=doMove}
+async function doMove(){const {from,to}=S.move,c=S.conf[from]||{},now=new Date().toISOString(),kf=refKey(from),kt=refKey(to),b=c.code&&A.barrels[c.code];
+  const btn=$('mvok');btn.disabled=true;btn.textContent='Moviendo…';
+  const fromName=POS[from].virtual?(b&&b.locName)||'sin ubicación':locName(from),toName=locName(to);
+  try{
+    if(b){await api('barrels/'+enc(b.id||c.code),'PATCH',{loc:kt,locName:toName,by:me(),at:now});b.loc=kt;b.locName=toName;await logEvent(c.code,'move',fromName+' → '+toName)}
+    else{const d=Object.assign({},A.pos[kf]||{},{here:true,free:false,pos:CODE(to),by:me(),at:now});delete d.id;await putPos(to,d)}
+    // the old spot is free now: a free marker where the room plan expected a barrel, else nothing
+    if(!POS[from].virtual){const base=POS[from].b&&!POS[from].b.spare;if(base)await putPos(from,{free:true,pos:CODE(from),by:me(),at:now});else if(A.pos[kf])await putPos(from,null)}
+    if(b&&A.pos[kt])await putPos(to,null);
+  }catch(e){snack('No se pudo mover: '+e.message);btn.disabled=false;btn.textContent='Confirmar';return}
+  rebuild();if(VOF[to]){S.view=VOF[to];S.sec=VIEWS.find(v=>v.id===S.view).sec}
+  S.move=null;document.body.classList.remove('mv');$('mvbar').hidden=true;select(to,true);tellParent();snack('Movida a '+(isYard(to)?'Área de prensa':CODE(to)))}
+$('wall').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const g=e.target.closest('.bbl');if(!g)return;e.preventDefault();select(g.dataset.c);
+  const n=document.querySelector(`.bbl[data-c="${S.sel}"]`);n&&n.focus()});
+// ---------- boot
+for(const k in POS){const b=POS[k].b;if(b&&b.n&&!POS[k].amph)delete b.n} // the registry says which barrel is where; the plan keeps only the wine hints
+const QS=new URLSearchParams(location.search);S.cardOnly=QS.has('b');if(S.cardOnly)document.body.classList.add('cardonly');
+if(parent!==window)document.body.classList.add('embed');
+$('bmMass').onclick=()=>{try{parent.postMessage({type:'bm:mant'},location.origin)}catch(e){}};
+draw();
+load().then(()=>{if(S.cardOnly){const cd=posOfCode(QS.get('b'));if(!POS[cd].virtual&&VOF[POS[cd].rack]){S.view=VOF[POS[cd].rack];S.sec=VIEWS.find(v=>v.id===S.view).sec}S.sel=cd;S.selRack=POS[cd].rack;S.tab=QS.get('tab')||'res'}draw();panel()})
+  .catch(e=>{$('dbst').textContent='No se pudo cargar: '+e.message});
+setInterval(()=>{if(document.hidden||S.move)return;const a=document.activeElement;if(a&&a.closest&&a.closest('form,.qa-x,.dlg'))return;if(!$('qax')||$('qax').hidden)reload()},90000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!S.move)reload()});
+</script>
+</body>
+</html>
