@@ -419,7 +419,7 @@
   function openTank(id) {
     const v = C.vessels.find(x => x.id === id); if (!v) return;
     const items = tankContents(v), ro = !C.canWrite;
-    const lotOpts = sel => `<option value="">— Vacío —</option>` + C.all.filter(l => !l.archived && !l.bottled && l.group !== 'routine').map(l => `<option value="${esc(l.id)}"${l.id === sel ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
+    const lotOpts = sel => `<option value="">— Vacío —</option>` + C.all.filter(l => !l.archived && !l.bottled && l.group !== 'routine').sort((a, b) => wineLabel(b).localeCompare(wineLabel(a), 'es')).map(l => `<option value="${esc(l.id)}"${l.id === sel ? ' selected' : ''}>${esc(wineLabel(l))}</option>`).join('');
     const rows = (items.length ? items : [{ lot: '', liters: null }]);
     const d = sheet(`<form method="dialog" class="cr-form">
       <div class="cr-sh"><h3>${esc(v.name)} <small class="cr-dim">${esc((v.aliases || []).slice(0, 3).join(' · '))}</small></h3></div>
@@ -469,28 +469,65 @@
     const ls = `<select name="l">${Array.from({ length: row ? +row.levels || 1 : 1 }, (_, i) => `<option value="${i + 1}"${String(i + 1) === (l0 || '1') ? ' selected' : ''}>${i + 1 === 1 ? '1 · piso' : (i + 1) + (i + 1 === (+row.levels || 1) ? ' · arriba' : '')}</option>`).join('')}</select>`;
     return `<div class="cr-locsel"><label>Zona${zs}</label><label>Fila${rs}</label><label>Pos.${ss}</label><label>Nivel${ls}</label></div>`;
   };
+  // ---------- Wine picker: Añada → Vino (+ add an older wine that becomes reusable) ----------
+  const VARIETIES = [['Cabernet Franc', 'red'], ['Cabernet Sauvignon', 'red'], ['Merlot', 'red'], ['Malbec', 'red'], ['Syrah', 'red'], ['Garnacha', 'red'], ['Tempranillo', 'red'], ['Montepulciano', 'red'], ['Aglianico', 'red'], ['Petite Sirah', 'red'],
+    ['Merlot–Malbec', 'red'], ['Syrah–Cab Franc', 'red'], ['Tempranillo–Cab Franc', 'red'], ['Tempranillo–Cab Sauv', 'red'], ['Reserva de la Casa', 'red'], ['Sauvignon Blanc', 'white'], ['Semillón', 'white'], ['Chenin', 'white'], ['Chardonnay', 'white'],
+    ['Moscato Giallo', 'white'], ['Naranja', 'orange'], ['Rosado', 'rose'], ['Oporto', 'red'], ['Vermut', 'red']];
+  const GNAME = { red: 'Tinto', rose: 'Rosado', white: 'Blanco', orange: 'Naranja', sparkling: 'Espumoso' };
+  const NO_VINT = 0; // port, vermouth, solera: no single vintage
+  const wineLabel = l => { const y = C.vintageOf(l); return (y && y !== NO_VINT ? y + ' · ' : '') + l.name + (l.code ? ' · ' + l.code : ''); };
+  const winesOf = y => C.all.filter(l => !l.archived && l.group !== 'routine' && (+C.vintageOf(l) || NO_VINT) === +y).sort((a, b) => wineLabel(a).localeCompare(wineLabel(b), 'es'));
+  const YEARS = [2026, 2025, 2024, 2023, 2022, 2021, NO_VINT];
+  const yearOpt = (y, sel) => `<option value="${y}"${+y === +sel ? ' selected' : ''}>${y === NO_VINT ? 'Sin añada (oporto, vermut…)' : y}</option>`;
+  const wineOpts = (y, sel) => `<option value="">— Vacía / sin vino —</option>` + winesOf(y).map(l => `<option value="${esc(l.id)}"${l.id === sel ? ' selected' : ''}>${esc(wineLabel(l))}</option>`).join('') + `<option value="__new">+ Otro vino de ${+y === NO_VINT ? 'esta categoría' : 'esta añada'}…</option>`;
+  const winePicker = cur => {
+    const l = cur && lotById(cur), y0 = l ? (+C.vintageOf(l) || NO_VINT) : 2026;
+    return `<div class="g2"><label>Añada<select name="vy">${YEARS.map(y => yearOpt(y, y0)).join('')}</select></label><label>Vino<select name="lot">${wineOpts(y0, cur)}</select></label></div>
+      <div class="cr-newwine" hidden><div class="g3"><label>Variedad o mezcla<select name="nwv"><option value="">—</option>${VARIETIES.map(([n, g]) => `<option value="${esc(n)}" data-g="${g}">${esc(n)}</option>`).join('')}<option value="__other">Otra / mezcla (escribir)</option></select></label>
+      <label>Color<select name="nwg">${Object.entries(GNAME).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label><label>Nº de lote (si tiene)<input name="nwcode" placeholder="L17"></label></div>
+      <label class="cr-nwname" hidden>Nombre del vino o mezcla<input name="nwname" placeholder="CF 60 / ME 40"></label><p class="cr-help">Se guarda como vino de la bodega y queda en la lista para las demás barricas.</p></div>`;
+  };
+  function wirePicker(f) {
+    const vy = f.querySelector('[name="vy"]'), lot = f.querySelector('[name="lot"]'), box = f.querySelector('.cr-newwine'); if (!vy) return;
+    const sync = () => { box.hidden = lot.value !== '__new'; };
+    vy.onchange = () => { lot.innerHTML = wineOpts(vy.value, ''); sync(); };
+    lot.onchange = sync;
+    const v = f.querySelector('[name="nwv"]'), g = f.querySelector('[name="nwg"]'), nm = f.querySelector('.cr-nwname');
+    v.onchange = () => { const o = v.selectedOptions[0]; if (o && o.dataset.g) g.value = o.dataset.g; nm.hidden = v.value !== '__other'; };
+  }
+  // Creates the older wine as a lot (cellar phase, no Excellovint tab) and returns its id.
+  async function newWineFrom(f) {
+    const y = +f.querySelector('[name="vy"]').value, v = f.querySelector('[name="nwv"]').value;
+    const name = (v === '__other' ? f.querySelector('[name="nwname"]').value : v || '').trim();
+    if (!name) throw new Error('Elige la variedad o escribe el nombre del vino.');
+    const code = (f.querySelector('[name="nwcode"]').value || '').trim().toUpperCase(), group = f.querySelector('[name="nwg"]').value || 'red';
+    const dup = winesOf(y).find(l => l.name.toLowerCase() === name.toLowerCase() && (l.code || '') === code); if (dup) return dup.id;
+    const id = 'w-' + (y || 'nv') + '-' + name.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) + (code ? '-' + code.toLowerCase() : '');
+    const doc = { name, code, group, vintage: y || null, phase: 'cellar', sheet: [], src: 'barricas', by: C.me, at: new Date().toISOString() };
+    await api('lots/' + encodeURIComponent(id), 'PUT', doc);
+    C.all.push(Object.assign({ id }, doc)); return id;
+  }
   function openBarrel(id, preset) {
     const b = id ? C.barrels.find(x => x.id === id) : Object.assign({ code: '', size: 225, fill: 'full', lot: '', vol: '', loc: '', cooperage: '', wood: '', toast: '', year: '', notes: '' }, preset || {});
     if (!b) return;
-    const isNew = !id, ro = !C.canWrite && !C.crew, specOnly = C.crew && !isNew;
+    const isNew = !id, ro = !C.canWrite && !C.crew, specOnly = false;
     if (isNew && C.crew) return;
     const lotOpts = `<option value="">— Vacía / sin vino —</option>` + ['red', 'rose', 'white', 'orange', 'sparkling'].map(g => { const ls = C.all.filter(l => l.group === g); return ls.length ? `<optgroup label="${{ red: 'Tintos', rose: 'Rosados', white: 'Blancos', orange: 'Naranjas', sparkling: 'Espumosos' }[g]}">${ls.map(l => `<option value="${esc(l.id)}"${l.id === b.lot ? ' selected' : ''}>${esc(l.name)} (${C.vintageOf(l)}${l.code ? ' · ' + esc(l.code) : ''})</option>`).join('')}</optgroup>` : ''; }).join('');
     const d = sheet(`<form method="dialog" class="cr-form">
       <div class="cr-sh"><h3>${isNew ? 'Nueva barrica' : 'Barrica ' + esc(bn(b.code))}</h3>${!isNew ? `<nav class="cr-stabs"><button type="button" data-st="form" aria-selected="true">Datos</button><button type="button" data-st="hist" aria-selected="false">Historial</button><button type="button" data-st="tag" aria-selected="false">Etiqueta</button></nav>` : ''}</div>
       <div class="cr-pane" data-pane="form">
         <div class="g3"><label>Nº barrica<input name="code" inputmode="numeric" required value="${esc(b.code)}" ${isNew ? '' : 'readonly'} placeholder="101"></label><label>Tamaño (L)<input name="size" inputmode="numeric" value="${esc(b.size)}"></label><label>Llenado<select name="fill">${Object.entries(FILL).map(([k, l]) => `<option value="${k}"${(b.fill || 'full') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>
-        <label>Vino<select name="lot">${lotOpts}</select></label>
+        ${winePicker(b.lot)}
         <div class="g2"><label>Litros en la barrica<input name="vol" inputmode="decimal" value="${esc(b.vol)}" placeholder="225"></label><label>Año en que se hizo<select name="year"><option value="">—</option>${Array.from({ length: 2027 - 1995 }, (_, i) => 2026 - i).map(y => `<option${String(y) === String(b.year || '') ? ' selected' : ''}>${y}</option>`).join('')}</select></label></div>
         <label>Ubicación ${b.loc ? `<span class="cr-loc">${esc(b.loc)}</span>` : ''}${locSelects(b.loc)}</label>
         <div class="g3"><label>Tonelería<select name="cooperage"><option value="">—</option>${COOPERS.map(([n, c]) => `<option value="${esc(n)}"${n === (b.cooperage || '') ? ' selected' : ''}>${esc(n)} (${c})</option>`).join('')}${b.cooperage && !COOPERS.some(([n]) => n === b.cooperage) ? `<option value="${esc(b.cooperage)}" selected>${esc(b.cooperage)} (código de la hoja, sin identificar)</option>` : ''}</select></label><label>Madera<select name="wood">${WOOD.map(w => `<option${w === (b.wood || '') ? ' selected' : ''}>${w}</option>`).join('')}</select></label><label>Tipo<select name="use"><option value="">—</option>${Object.entries(USE).map(([k, l]) => `<option value="${k}"${(b.use || useOf(b)) === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label><label>Tostado<select name="toast">${TOASTS.map(t => `<option value="${esc(t)}"${t === (b.toast || '') ? ' selected' : ''}>${t || '—'}</option>`).join('')}${b.toast && !TOASTS.includes(b.toast) ? `<option value="${esc(b.toast)}" selected>${esc(b.toast)}</option>` : ''}</select></label></div>
-        ${specOnly ? '<p class="cr-help">Puedes anotar tonelería, madera, tostado, año y tamaño. Lo demás lo cambian Eric o Diane.</p>' : ''}
         <label>Notas<textarea name="notes" rows="2">${esc(b.notes)}</textarea></label>
         <div class="cr-err" id="crErr"></div>
       </div>
       ${!isNew ? `<div class="cr-pane" data-pane="hist" hidden><div class="cr-empty">Cargando historial…</div></div><div class="cr-pane" data-pane="tag" hidden></div>` : ''}
-      <div class="cr-actions">${!isNew && !ro ? `<button type="button" class="btn danger" data-del>Borrar</button>` : ''}<button type="button" class="btn" data-cancel>Cerrar</button>${ro ? '' : `<button type="submit" class="btn primary">Guardar</button>`}</div>
+      <div class="cr-actions">${!isNew && !ro && !C.crew ? `<button type="button" class="btn danger" data-del>Borrar</button>` : ''}<button type="button" class="btn" data-cancel>Cerrar</button>${ro ? '' : `<button type="submit" class="btn primary">Guardar</button>`}</div>
     </form>`);
-    const f = $('form', d);
+    const f = $('form', d); wirePicker(f);
     if (specOnly) f.querySelectorAll('[data-pane="form"] input, [data-pane="form"] select, [data-pane="form"] textarea').forEach(el => { if (!SPEC_KEYS.includes(el.name)) el.disabled = true; });
     f.querySelector('[data-cancel]').onclick = () => d.close();
     f.addEventListener('change', e => { if (e.target.name === 'z' || e.target.name === 'r') { const z = f.z.value, r = e.target.name === 'z' ? '' : f.r.value; const tmp = locSelects(z ? `${z}-${r || ((C.map || DEFAULT_MAP).zones.find(x => x.id === z) || { rows: [{}] }).rows[0].id}-1-1` : ''); f.querySelector('.cr-locsel').outerHTML = tmp; } });
@@ -507,14 +544,18 @@
         return;
       }
       if (!code) { $('#crErr', f).textContent = 'Falta el número de barrica.'; return; }
+      if (fd.get('lot') === '__new') { try { fd.set('lot', await newWineFrom(f)); } catch (err) { $('#crErr', f).textContent = err.message; return; } }
       const z = fd.get('z'), loc = z ? [z, fd.get('r'), fd.get('s'), fd.get('l')].join('-') : '';
       const next = { code, use: fd.get('use') || '', size: +fd.get('size') || '', fill: fd.get('fill'), lot: fd.get('lot') || '', vol: fd.get('vol') ? +String(fd.get('vol')).replace(',', '.') : '', loc, cooperage: String(fd.get('cooperage')).trim(), wood: fd.get('wood'), toast: String(fd.get('toast')).trim(), year: String(fd.get('year')).trim(), notes: String(fd.get('notes')).trim(), by: C.me, at: new Date().toISOString() };
       if (!next.lot) next.fill = 'empty';
+      // Choosing a wine settles a "por confirmar" barrel; existing barrels are merged (PATCH) so paper history, sheet data and logs survive.
+      if (next.lot) { next.status = 'occupied2026'; if (needsConfirm(b)) next.confirmed = { state: 'other', wine: lotName(next.lot), by: C.me, at: new Date().toISOString() }; }
+      else if (!isNew && needsConfirm(b)) { next.status = 'empty'; next.confirmed = { state: 'empty', wine: '', by: C.me, at: new Date().toISOString() }; }
       const other = loc && C.barrels.find(x => x.loc === loc && x.id !== (isNew ? code : b.id));
       if (other && !confirm('En ' + loc + ' ya está la barrica ' + other.code + '. ¿Poner las dos ahí?')) return;
       if (isNew && C.barrels.some(x => x.id === code)) { $('#crErr', f).textContent = 'La barrica ' + code + ' ya existe; ábrela desde la lista.'; return; }
       try {
-        await api('barrels/' + encodeURIComponent(isNew ? code : b.id), 'PUT', next);
+        await api('barrels/' + encodeURIComponent(isNew ? code : b.id), isNew ? 'PUT' : 'PATCH', next);
         if (isNew) await logEvent(code, 'new', 'Registrada' + (next.lot ? ' con ' + lotName(next.lot) : ' vacía') + (loc ? ' en ' + loc : ''));
         else {
           if (b.loc !== loc) await logEvent(code, 'move', (b.loc || 'sin ubicación') + ' → ' + (loc || 'sin ubicación'));

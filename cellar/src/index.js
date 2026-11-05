@@ -173,7 +173,8 @@ const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purch
 // Crew follow the orders Eric and Diane give: they mark tasks done (and the order link that goes with it), nothing else.
 const CREW_TASK_KEYS = new Set(['done', 'wo']);
 // Barrels: crew may fill in the barrel's own data (cooper, wood, toast, year made, size), not what it holds or where it sits.
-const CREW_BARREL_KEYS = new Set(['size', 'cooperage', 'wood', 'toast', 'year', 'use', 'by', 'at']);
+// Crew keeps barrel records current: specs plus what's in it, how full, where (not delete, not new barrels).
+const CREW_BARREL_KEYS = new Set(['code', 'size', 'cooperage', 'wood', 'toast', 'year', 'use', 'fill', 'lot', 'vol', 'loc', 'notes', 'status', 'confirmed', 'by', 'at']);
 async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);
@@ -193,7 +194,11 @@ async function dbRoute(request, env, p, canWrite, ctx, crew) {
   if (!canWrite) return J({ code: 'not_granted', message: 'Read-only access.' }, 403);
   const now = Date.now();
   const planOnly = () => J({ code: 'not_granted', message: 'Solo Eric o Diane pueden cambiar el plan, los vinos, los protocolos o los ajustes.' }, 403);
-  if (crew && !CREW_COLLS.has(coll) && coll !== 'tasks' && coll !== 'barrels') return planOnly();
+  // Crew may add an older cellar wine from the barrel form (ids "w-…", new docs only).
+  if (crew && coll === 'lots' && m === 'PUT' && /^w-/.test(id)) {
+    const ex = await env.DB.prepare("SELECT 1 FROM docs WHERE coll = 'lots' AND id = ?").bind(id).first();
+    if (ex) return planOnly();
+  } else if (crew && !CREW_COLLS.has(coll) && coll !== 'tasks' && coll !== 'barrels') return planOnly();
   if (crew && coll === 'barrels' && m !== 'PATCH') return planOnly();
   if (crew && coll === 'tasks' && m !== 'PATCH') return planOnly();
   if (m === 'DELETE') { await env.DB.prepare('DELETE FROM docs WHERE coll = ? AND id = ?').bind(coll, id).run(); if (coll === 'purchases') ctx.waitUntil(pushPurchase(env, id, null)); return J({ ok: true }); }
