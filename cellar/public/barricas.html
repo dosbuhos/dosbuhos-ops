@@ -333,6 +333,8 @@ html.embedmap .dlg{position:absolute;top:var(--vpt);height:var(--vph);bottom:aut
 html.embedmap body.bopen .facecol{min-height:0}
 .pend{background:#fbf1dc;border:1.5px solid #d79a1f;color:#7a5200;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px}
 
+.whob{font-size:12.5px;color:var(--soft)}.whob b{color:var(--ink)}#dbst{text-align:center;margin:0 0 6px}
+
 </style>
 </head>
 <body>
@@ -732,7 +734,7 @@ function select(id,scroll){if(S.sel!==id)S.tab=S.cardOnly&&!S.sel?(S.tab||'res')
 // barrel_pos (positions without a numbered barrel in the registry: unknown barrel here, free marker, ánforas),
 // barrel_lists (extra coopers / woods / toasts), lots (wines). Excellovint SO2 comes from /api/xl/barrel-so2.
 const USE={red:['Tinto','#7a1f2b'],white:['Blanco','#9a8a2a'],orange:['Naranja','#c4622d'],rose:['Rosado','#c0587a'],port:['Oporto','#4a1622'],vermouth:['Vermut','#6b4a2a']};
-const OTROS=['Bâtonnage','Revisión de fuga','Cambio de tapón','Toma de muestra','Ajuste de SO₂','Limpieza exterior'],CREW=['Paris','Jimena','Diane','Eric'];
+const OTROS=['Bâtonnage','Revisión de fuga','Cambio de tapón','Toma de muestra','Ajuste de SO₂','Limpieza exterior'],CREW=['Paris','Jimena','Eduvijes','Margaro','Jaime','Diane','Eric'];
 const PR={top:['Relleno','Rellenada','#6b4a2a'],otro:['Otro','','#7a6a55'],p1:['Vaciada','Vaciada: lavar, vaporizar, azufrar','#b3261e'],p2:['Vacía · mensual','Mojar, llenar con agua, vaciar, vaporizar, azufrar','#2d6fb3'],p3:['Llena · mensual','Rellenar, velo, tapones y cisnes','#4a4f54'],fill:['Llenado','Se llenó','#2f7d32']};
 const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 function fd(d){if(!d)return'';const [y,m,dd]=String(d).slice(0,10).split('-');return (+dd)+' '+MES[+m-1]+' '+y.slice(2)}
@@ -796,12 +798,22 @@ async function load(){const st=$('dbst');
   A.barrels={};for(const r of rowsOf(b))A.barrels[unpad(r.code||r.id)]=r;
   A.lots=rowsOf(l).filter(x=>x.group!=='routine');A.logs=rowsOf(g);A.pos={};for(const r of rowsOf(p))A.pos[r.id]=r;
   for(const r of rowsOf(ls))if(Array.isArray(r.items))S.lists[r.id]=r.items;
-  A.me=me||{};A.so2=(x&&x.barrels)||{};A.canWrite=!!A.me.canWrite;A.crew=A.me.role==='crew';A.ok=true;st.textContent=A.canWrite?'':'Solo lectura';
+  A.me=me||{};A.so2=(x&&x.barrels)||{};A.canWrite=!!A.me.canWrite;A.crew=A.me.role==='crew';A.ok=true;st.textContent=A.canWrite?'':'Solo lectura';setTimeout(()=>{whoBar();if(A.canWrite&&A.crew&&!person())askWho()},0);
   rebuild()}
 async function reload(){try{await load()}catch(e){}if(S.sel&&POS[S.sel]&&POS[S.sel].virtual){const c=S.conf[S.sel]&&S.conf[S.sel].code;if(c){const real=posOfCode(c);S.sel=real}}draw();panel();tellParent()}
 function tellParent(){try{if(parent!==window)parent.postMessage({type:'bm:changed'},location.origin)}catch(e){}}
-const me=()=>A.me.initials||'';
-async function logEvent(code,kind,text,extra){const at=new Date().toISOString();const id='b'+code+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);const doc=Object.assign({code:String(code),at,by:me(),kind,text},extra||{});A.logs.push(Object.assign({id},doc));await api('barrel_log/'+enc(id),'PUT',doc).catch(()=>{});return id}
+function person(){try{return localStorage.getItem('fb-by')||''}catch(e){return ''}}
+function setPerson(n){try{localStorage.setItem('fb-by',n)}catch(e){}whoBar()}
+const me=()=>person()||A.me.initials||'';
+// Every change is signed (like the initials in Excellovint). On the shared crew account the device asks who is working.
+function whoBar(){const st=$('dbst');if(!st||!A.ok)return;if(!A.canWrite){st.textContent='Solo lectura';return}
+  const p=person();st.innerHTML=`<span class="whob">Registrando como <b>${esc(p||A.me.initials||'—')}</b> <button type="button" class="lnk" id="whoch">cambiar</button></span>`;$('whoch').onclick=()=>askWho()}
+function askWho(then){const d=$('dlg');d.hidden=false;d.innerHTML=`<div class="dlg-b" role="dialog" aria-modal="true" aria-label="¿Quién está registrando?"><h3>¿Quién está registrando?</h3><p class="sub">Queda anotado en cada cambio (mantenimiento, SO₂, movimientos). Se recuerda en este teléfono.</p>
+   <div class="pills">${CREW.map(n=>`<button type="button" data-who="${esc(n)}" aria-pressed="${n===person()}">${esc(n)}</button>`).join('')}</div>
+   <input id="whoo" placeholder="Otro nombre" autocomplete="off"><div class="btns"><button type="button" class="pri" id="whook">Listo</button>${person()?'<button type="button" id="whox">Cancelar</button>':''}</div></div>`;
+  const done=n=>{n=String(n||'').trim();if(!n)return;setPerson(n);d.hidden=true;d.innerHTML='';if(then)then()};
+  d.querySelectorAll('[data-who]').forEach(b=>b.onclick=()=>done(b.dataset.who));$('whook').onclick=()=>done($('whoo').value);if($('whox'))$('whox').onclick=()=>{d.hidden=true;d.innerHTML=''}}
+async function logEvent(code,kind,text,extra){const at=new Date().toISOString();const id='b'+code+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);const doc=Object.assign({code:String(code),at,by:me(),acct:A.me.initials||'',kind,text},extra||{});A.logs.push(Object.assign({id},doc));await api('barrel_log/'+enc(id),'PUT',doc).catch(()=>{});return id}
 // ---- lists (dropdowns with "+ Otro…")
 function wineOpts(cur,blank){const by={};for(const l of A.lots.filter(l=>!l.archived||l.id===cur)){const y=vintOf(l)||'Sin añada';(by[y]=by[y]||[]).push(l)}
   const ys=Object.keys(by).sort((a,b)=>(+b||0)-(+a||0));
@@ -825,14 +837,14 @@ function askNew(k,done){const d=$('dlg');d.hidden=false;d.innerHTML=`<div class=
   $('dlgv').onkeydown=e=>{if(e.key==='Enter')close($('dlgv').value.trim());if(e.key==='Escape')close('')};d.onclick=e=>{if(e.target===d)close('')}}
 let snackT;function snack(msg,undo){const n=$('snack');n.hidden=false;n.innerHTML=`<span>${esc(msg)}</span>${undo?'<button type="button" id="snu">Deshacer</button>':''}`;clearTimeout(snackT);
   if(undo)$('snu').onclick=()=>{undo();n.hidden=true};snackT=setTimeout(()=>{n.hidden=true},7000)}
-function noWrite(){if(A.canWrite)return false;snack('Solo lectura: entra con tu cuenta para guardar.');return true}
+function noWrite(){if(A.canWrite&&A.crew&&!person()){askWho();return true}if(A.canWrite)return false;snack('Solo lectura: entra con tu cuenta para guardar.');return true}
 // ---- writes
 // maintenance line "date|proto|extra|by" ↔ one barrel_log doc. patch: {fill:lotId} (Se llenó) or {empty:true} (Se vació).
 function logEdit(cd,{add,del,patch}){if(noWrite())return null;const c=S.conf[cd]||{},code=c.code;if(!code||!A.barrels[code]){snack('Primero pon el número de la barrica en Datos.');return null}
   const b=A.barrels[code],prev={fill:b.fill,lot:b.lot,status:b.status};let addId=null,delDoc=null;
   if(del){const id=A.byLine[del];delDoc=A.logs.find(l=>l.id===id);if(delDoc){A.logs=A.logs.filter(l=>l.id!==id);api('barrel_log/'+enc(id),'DELETE').catch(()=>{})}}
   if(add){const [d,proto,extra,by]=add.split('|');addId='b'+code+'-m'+d.replace(/-/g,'')+proto+'-'+Date.now().toString(36);
-    const doc={code,at:d+'T12:00:00.000Z',by:by||me(),kind:'mant',proto,text:[PR[proto]?PR[proto][0]:proto,extra].filter(Boolean).join(' · '),extra:extra||'',src:'app'};
+    const doc={code,at:d+'T12:00:00.000Z',by:by||me(),acct:A.me.initials||'',kind:'mant',proto,text:[PR[proto]?PR[proto][0]:proto,extra].filter(Boolean).join(' · '),extra:extra||'',src:'app'};
     A.logs.push(Object.assign({id:addId},doc));api('barrel_log/'+enc(addId),'PUT',doc).catch(e=>snack('No se guardó: '+e.message))}
   let patched=false;
   if(patch&&add){const d=add.split('|')[0],later=(A.lines[code]||[]).some(x=>x!==add&&/\|(p1|fill)(\||$)/.test(x)&&x.split('|')[0]>d);
@@ -1104,7 +1116,7 @@ const AMPH_STEPS={af:['Revisar el nivel y rellenar con el mismo vino','Limpiar y
   ae:['Retirar lías y orujo el mismo día','Lavar con agua a presión (sin cepillo metálico ni sosa)','Enjuagar bien y dejar secar ventilada']};
 const AMPH_DAYS={af:14,av:30};
 function amphLines(cd){return A.logs.filter(l=>l.code===cd&&l.kind==='mant').map(l=>({l,d:String(l.at).slice(0,10)})).sort((a,b)=>a.d<b.d?1:-1)}
-async function amphLog(cd,doc){if(noWrite())return null;const id='a'+cd+'-'+doc.at.slice(0,10).replace(/-/g,'')+doc.proto+'-'+Date.now().toString(36);const d=Object.assign({code:cd,kind:'mant',src:'app',by:me()},doc);
+async function amphLog(cd,doc){if(noWrite())return null;const id='a'+cd+'-'+doc.at.slice(0,10).replace(/-/g,'')+doc.proto+'-'+Date.now().toString(36);const d=Object.assign({code:cd,kind:'mant',src:'app',by:me(),acct:A.me.initials||''},doc);
   A.logs.push(Object.assign({id},d));try{await api('barrel_log/'+enc(id),'PUT',d)}catch(e){snack('No se guardó: '+e.message)}rebuild();keep(()=>{draw();panel()});tellParent();
   return ()=>{A.logs=A.logs.filter(x=>x.id!==id);api('barrel_log/'+enc(id),'DELETE').catch(()=>{});rebuild();keep(()=>{draw();panel()});tellParent()}}
 function amphPanel(p,cd,c){c=c||{};const empty=!!c.empty||!c.wine,wine=c.wine||'',cap=AMPH_CAP[cd]||'',tab=S.tab||'res',today=today0();

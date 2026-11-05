@@ -43,6 +43,8 @@
   const specLine = b => [b.cooperage, b.wood, b.toast ? 'tostado ' + b.toast : '', b.year ? 'hecha en ' + b.year : ''].filter(Boolean).join(' · ');
   const DEFAULT_MAP = { zones: [{ id: 'A', name: 'Sala de barricas', rows: [{ id: '1', name: 'Fila 1', slots: 8, levels: 4 }, { id: '2', name: 'Fila 2', slots: 8, levels: 4 }, { id: '3', name: 'Fila 3', slots: 8, levels: 4 }] }] };
 
+  // who did it: the person picked on this device (the crew shares one account), else the account's initials
+  const whoB = () => { try { return localStorage.getItem('fb-by') || C.me || ''; } catch (e) { return C.me || ''; } };
   const C = { root: null, lots: [], all: [], canWrite: false, vintage: 2026, vintageOf: () => 2026, phaseOf: () => 'prod', barrels: [], map: null, tab: 'map', vessels: [], vint: 'all', q: '', filter: 'all', me: '', loaded: false, crew: false, group: 'wine', sheetTabs: {} };
 
   // ---------- data ----------
@@ -84,7 +86,7 @@
     const groups = new Map(); for (const b of bs) { const k = b.lot ? lotName(b.lot) : stateOf(b) === 'empty' ? 'Vacías' : 'Por confirmar / otras'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(b); }
     const keys = [...groups.keys()].sort((a, b) => (a === 'Vacías') - (b === 'Vacías') || a.localeCompare(b, 'es'));
     const today = new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
-    const d = sheet(`<form class="cr-form cr-mantf" method="dialog"><h3>Registro de mantenimiento masivo</h3>
+    const d = sheet(`<form class="cr-form cr-mantf" method="dialog"><h3>Registro de mantenimiento masivo</h3><p class="cr-help">Se registra a nombre de <b>${esc(whoB() || '—')}</b>${C.crew ? ' (cámbialo en el mapa: «Registrando como…»)' : ''}.</p>
       <fieldset class="cr-protos">${Object.entries(PROTO).map(([k, P], i) => `<label class="cr-proto"><input type="radio" name="proto" value="${k}"${i === 2 ? ' checked' : ''}><span><b><i style="background:${P.c}"></i>${P.n}</b><small>${P.d}</small></span></label>`).join('')}</fieldset>
       <label>Fecha (el último día, si tomó varios)<input type="date" name="d" value="${today}" max="${today}"></label>
       <div class="cr-p3x"><label>Litros para rellenar (cada barrica)<input name="topL" inputmode="decimal" placeholder="0.7"></label><label>Vino usado para rellenar<input name="topW" placeholder="BBL 15, VC-04…"></label>
@@ -112,7 +114,7 @@
       const btn = f.querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = 'Guardando…';
       let n = 0;
       for (const code of codes) {
-        const doc = { code: String(code), at: date + 'T12:00:00.000Z', by: C.me, kind: 'mant', proto, text, src: 'app' };
+        const doc = { code: String(code), at: date + 'T12:00:00.000Z', by: whoB(), acct: C.me, kind: 'mant', proto, text, src: 'app' };
         doc.extra = [...extra, f.note.value.trim()].filter(Boolean).join(' · ');
         if (proto === 'p3' || proto === 'top') { if (f.topL.value) doc.topL = +f.topL.value || f.topL.value; if (f.topW.value) doc.topW = f.topW.value; if (f.velo.checked) doc.velo = true; }
         try { await api('barrel_log/' + encodeURIComponent('b' + code + '-m' + date.replace(/-/g, '') + proto + '-' + Date.now().toString(36)), 'PUT', doc); n++; } catch (err) { $('#crErr', d).textContent = 'Barrica ' + code + ': ' + err.message; }
@@ -162,7 +164,7 @@
   const paperLine = b => b.paper && b.paper.last ? 'Papel: ' + b.paper.last + (b.paper.date ? ' · ' + fmtD(b.paper.date) : '') : '';
   async function logEvent(code, kind, text) {
     const at = new Date().toISOString();
-    await api('barrel_log/' + encodeURIComponent('b' + code + '-' + Date.now().toString(36)), 'PUT', { code: String(code), at, by: C.me, kind, text }).catch(() => {});
+    await api('barrel_log/' + encodeURIComponent('b' + code + '-' + Date.now().toString(36)), 'PUT', { code: String(code), at, by: whoB(), acct: C.me, kind, text }).catch(() => {});
   }
 
   // ---------- shell ----------
@@ -292,8 +294,8 @@
       f.onsubmit = async e => { e.preventDefault(); let lot = '';
         if (action === 'wine') { lot = f.querySelector('[name="lot"]').value; if (lot === '__new') { try { lot = await newWineFrom(f); } catch (err) { $('#crErr', d).textContent = err.message; return; } } if (!lot) { $('#crErr', d).textContent = 'Elige el vino.'; return; } }
         const btn = f.querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = 'Guardando…'; const at = new Date().toISOString();
-        for (const b of bs) { const patch = lot ? { lot, fill: 'full', status: 'occupied2026', by: C.me, at } : { lot: '', fill: 'empty', by: C.me, at };
-          if (needsConfirm(b)) { patch.confirmed = { state: lot ? 'other' : 'empty', wine: lot ? lotName(lot) : '', by: C.me, at }; if (!lot) patch.status = 'empty'; }
+        for (const b of bs) { const patch = lot ? { lot, fill: 'full', status: 'occupied2026', by: whoB(), acct: C.me, at } : { lot: '', fill: 'empty', by: whoB(), acct: C.me, at };
+          if (needsConfirm(b)) { patch.confirmed = { state: lot ? 'other' : 'empty', wine: lot ? lotName(lot) : '', by: whoB(), acct: C.me, at }; if (!lot) patch.status = 'empty'; }
           try { await api('barrels/' + encodeURIComponent(b.id), 'PATCH', patch); await logEvent(b.code, lot ? 'fill' : 'empty', lot ? 'Con ' + lotName(lot) + ' (en lote)' : 'Vacía (antes: ' + (lotName(b.lot) || '—') + ', en lote)'); } catch (err) { $('#crErr', d).textContent = 'Barrica ' + b.code + ': ' + err.message; btn.disabled = false; btn.textContent = 'Guardar'; return; } }
         d.close(); C.selB.clear(); await refresh(); };
     }
@@ -311,7 +313,7 @@
     f.onsubmit = async e => { e.preventDefault(); const k = f.k.value, date = f.d.value, num = v => { const x = parseFloat(String(v || '').replace(',', '.')); return isFinite(x) ? x : null; };
       const all = num(k === 'read' ? f.v.value : f.g.value); let n = 0;
       for (const b of bs) { const v = k === 'read' ? (num(f['v_' + b.id] && f['v_' + b.id].value) ?? all) : all; if (v == null) continue;
-        const doc = { code: String(b.code), at: date + 'T12:00:00.000Z', by: C.me, kind: 'so2', so2kind: k, fso2: k === 'read' ? v : null, kmbs_g: k === 'add' ? v : null, note: f.note.value.trim(), text: k === 'read' ? 'Lectura SO₂ libre ' + v + ' ppm' : 'Adición de SO₂: KMBS ' + v + ' g', src: 'app' };
+        const doc = { code: String(b.code), at: date + 'T12:00:00.000Z', by: whoB(), acct: C.me, kind: 'so2', so2kind: k, fso2: k === 'read' ? v : null, kmbs_g: k === 'add' ? v : null, note: f.note.value.trim(), text: k === 'read' ? 'Lectura SO₂ libre ' + v + ' ppm' : 'Adición de SO₂: KMBS ' + v + ' g', src: 'app' };
         try { await api('barrel_log/' + encodeURIComponent('b' + b.code + '-s' + date.replace(/-/g, '') + '-' + Date.now().toString(36)), 'PUT', doc); n++; } catch (err) { $('#crErr', d).textContent = err.message; return; } }
       if (!n) { $('#crErr', d).textContent = k === 'read' ? 'Escribe la lectura.' : 'Escribe los gramos.'; return; }
       d.close(); C.selB.clear(); await loadLogs(true); render(); };
@@ -512,7 +514,7 @@
     f.querySelector('[data-cancel]').onclick = () => d.close();
     f.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) { d.close(); window.dispatchEvent(new CustomEvent('cellar:open', { detail: { lot: o.dataset.open } })); } });
     const save = async items2 => {
-      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { model: (f.querySelector('[name="model"]').value || '').trim(), manway: f.querySelector('[name="manway"]').value, manwaySize: (f.querySelector('[name="manwaySize"]').value || '').trim(), triclamp: f.querySelector('[name="triclamp"]').value, contents: { items: items2, by: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
+      try { await api('vessels/' + encodeURIComponent(v.id), 'PATCH', { model: (f.querySelector('[name="model"]').value || '').trim(), manway: f.querySelector('[name="manway"]').value, manwaySize: (f.querySelector('[name="manwaySize"]').value || '').trim(), triclamp: f.querySelector('[name="triclamp"]').value, contents: { items: items2, by: whoB(), acct: C.me, at: new Date().toISOString() } }); d.close(); await refresh(); }
       catch (err) { $('#crErr', f).textContent = err.message; }
     };
     const emp = f.querySelector('[data-tkempty]'); if (emp) emp.onclick = () => save([]);
@@ -574,7 +576,7 @@
     const code = (f.querySelector('[name="nwcode"]').value || '').trim().toUpperCase(), group = f.querySelector('[name="nwg"]').value || 'red';
     const dup = winesOf(y).find(l => l.name.toLowerCase() === name.toLowerCase() && (l.code || '') === code); if (dup) return dup.id;
     const id = 'w-' + (y || 'nv') + '-' + name.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) + (code ? '-' + code.toLowerCase() : '');
-    const doc = { name, code, group, vintage: y || null, phase: 'cellar', sheet: [], src: 'barricas', by: C.me, at: new Date().toISOString() };
+    const doc = { name, code, group, vintage: y || null, phase: 'cellar', sheet: [], src: 'barricas', by: whoB(), acct: C.me, at: new Date().toISOString() };
     await api('lots/' + encodeURIComponent(id), 'PUT', doc);
     C.all.push(Object.assign({ id }, doc)); return id;
   }
@@ -610,18 +612,18 @@
       e.preventDefault(); if (ro) return;
       const fd = new FormData(f), code = codeOf(fd.get('code') || b.code);
       if (specOnly) {
-        const patch = { use: fd.get('use') || '', size: +fd.get('size') || '', cooperage: String(fd.get('cooperage') || '').trim(), wood: fd.get('wood') || '', toast: String(fd.get('toast') || '').trim(), year: String(fd.get('year') || '').trim(), by: C.me, at: new Date().toISOString() };
+        const patch = { use: fd.get('use') || '', size: +fd.get('size') || '', cooperage: String(fd.get('cooperage') || '').trim(), wood: fd.get('wood') || '', toast: String(fd.get('toast') || '').trim(), year: String(fd.get('year') || '').trim(), by: whoB(), acct: C.me, at: new Date().toISOString() };
         try { await api('barrels/' + encodeURIComponent(b.id), 'PATCH', patch); await logEvent(b.code, 'spec', 'Datos de la barrica: ' + (specLine(patch) || '—')); d.close(); await refresh(); } catch (err) { $('#crErr', f).textContent = err.message; }
         return;
       }
       if (!code) { $('#crErr', f).textContent = 'Falta el número de barrica.'; return; }
       if (fd.get('lot') === '__new') { try { fd.set('lot', await newWineFrom(f)); } catch (err) { $('#crErr', f).textContent = err.message; return; } }
       const z = fd.get('z'), loc = z ? [z, fd.get('r'), fd.get('s'), fd.get('l')].join('-') : '';
-      const next = { code, use: fd.get('use') || '', size: +fd.get('size') || '', fill: fd.get('fill'), lot: fd.get('lot') || '', vol: fd.get('vol') ? +String(fd.get('vol')).replace(',', '.') : '', loc, cooperage: String(fd.get('cooperage')).trim(), wood: fd.get('wood'), toast: String(fd.get('toast')).trim(), year: String(fd.get('year')).trim(), notes: String(fd.get('notes')).trim(), by: C.me, at: new Date().toISOString() };
+      const next = { code, use: fd.get('use') || '', size: +fd.get('size') || '', fill: fd.get('fill'), lot: fd.get('lot') || '', vol: fd.get('vol') ? +String(fd.get('vol')).replace(',', '.') : '', loc, cooperage: String(fd.get('cooperage')).trim(), wood: fd.get('wood'), toast: String(fd.get('toast')).trim(), year: String(fd.get('year')).trim(), notes: String(fd.get('notes')).trim(), by: whoB(), acct: C.me, at: new Date().toISOString() };
       if (!next.lot) next.fill = 'empty';
       // Choosing a wine settles a "por confirmar" barrel; existing barrels are merged (PATCH) so paper history, sheet data and logs survive.
-      if (next.lot) { next.status = 'occupied2026'; if (needsConfirm(b)) next.confirmed = { state: 'other', wine: lotName(next.lot), by: C.me, at: new Date().toISOString() }; }
-      else if (!isNew && needsConfirm(b)) { next.status = 'empty'; next.confirmed = { state: 'empty', wine: '', by: C.me, at: new Date().toISOString() }; }
+      if (next.lot) { next.status = 'occupied2026'; if (needsConfirm(b)) next.confirmed = { state: 'other', wine: lotName(next.lot), by: whoB(), acct: C.me, at: new Date().toISOString() }; }
+      else if (!isNew && needsConfirm(b)) { next.status = 'empty'; next.confirmed = { state: 'empty', wine: '', by: whoB(), acct: C.me, at: new Date().toISOString() }; }
       const other = loc && C.barrels.find(x => x.loc === loc && x.id !== (isNew ? code : b.id));
       if (other && !confirm('En ' + loc + ' ya está la barrica ' + other.code + '. ¿Poner las dos ahí?')) return;
       if (isNew && C.barrels.some(x => x.id === code)) { $('#crErr', f).textContent = 'La barrica ' + code + ' ya existe; ábrela desde la lista.'; return; }
@@ -711,7 +713,7 @@
       let n = 0;
       for (const p of parsed) {
         const cur = C.barrels.find(b => b.id === p.code) || {};
-        const doc = Object.assign({}, cur, { code: p.code, by: C.me, at: new Date().toISOString() });
+        const doc = Object.assign({}, cur, { code: p.code, by: whoB(), acct: C.me, at: new Date().toISOString() });
         for (const k of ['size', 'cooperage', 'wood', 'toast', 'year', 'vol', 'loc']) if (p[k] !== '' && p[k] != null) doc[k] = p[k];
         if (p.lot) doc.lot = p.lot; else if (p.lotTxt) doc.notes = [cur.notes, 'Vino (importado): ' + p.lotTxt].filter(Boolean).join(' · ');
         if (p.notes) doc.notes = [doc.notes, p.notes].filter(Boolean).join(' · ');
@@ -758,7 +760,7 @@
     d.querySelector('[data-cancel]').onclick = () => d.close();
     d.querySelector('[data-newhere]').onclick = () => { d.close(); openBarrel(null, { loc }); };
     d.querySelector('[data-aq]').oninput = e => { const q = e.target.value.toLowerCase(); d.querySelectorAll('[data-pick]').forEach(c => c.hidden = q && !c.textContent.toLowerCase().includes(q)); };
-    d.querySelector('[data-al]').onclick = async e => { const c = e.target.closest('[data-pick]'); if (!c) return; const b = C.barrels.find(x => x.id === c.dataset.pick); if (!b) return; const from = b.loc; await api('barrels/' + encodeURIComponent(b.id), 'PATCH', { loc, by: C.me, at: new Date().toISOString() }); await logEvent(b.code, 'move', (from || 'sin ubicación') + ' → ' + loc); d.close(); await refresh(); };
+    d.querySelector('[data-al]').onclick = async e => { const c = e.target.closest('[data-pick]'); if (!c) return; const b = C.barrels.find(x => x.id === c.dataset.pick); if (!b) return; const from = b.loc; await api('barrels/' + encodeURIComponent(b.id), 'PATCH', { loc, by: whoB(), acct: C.me, at: new Date().toISOString() }); await logEvent(b.code, 'move', (from || 'sin ubicación') + ' → ' + loc); d.close(); await refresh(); };
   }
 
   async function refresh() { await load(); render(); showCount(); }
@@ -776,7 +778,7 @@
     const b = C.barrels.find(x => x.id === id); if (!b || !C.canWrite) return;
     let wine = (b.paper && b.paper.last) || '';
     if (how === 'other') { wine = (prompt('¿Qué vino tiene la barrica ' + b.code + '?', '') || '').trim(); if (!wine) return; }
-    const patch = { confirmed: { state: how, wine: how === 'empty' ? '' : wine, by: C.me, at: new Date().toISOString() }, status: how === 'empty' ? 'empty' : 'confirmed', by: C.me, at: new Date().toISOString() };
+    const patch = { confirmed: { state: how, wine: how === 'empty' ? '' : wine, by: whoB(), acct: C.me, at: new Date().toISOString() }, status: how === 'empty' ? 'empty' : 'confirmed', by: whoB(), acct: C.me, at: new Date().toISOString() };
     if (how === 'empty') { patch.fill = 'empty'; patch.lot = ''; } else { patch.fill = 'full'; patch.notes = [b.notes, 'Contiene ' + wine + ' (confirmado ' + new Date().toLocaleDateString('es-MX') + ')'].filter(Boolean).join(' · '); }
     try { await api('barrels/' + encodeURIComponent(id), 'PATCH', patch); await logEvent(b.code, how === 'empty' ? 'empty' : 'fill', how === 'empty' ? 'Confirmada: embotellada / vacía' : 'Confirmada: sigue con ' + wine); await refresh(); }
     catch (err) { alert('No se pudo guardar: ' + err.message); }
