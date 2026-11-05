@@ -301,3 +301,4 @@
 .cr-mantf .cr-proto, .cr-mantf .cr-chk, .cr-mantf .cr-mgh { flex-direction: row !important; text-transform: none !important; letter-spacing: 0 !important; font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif !important; color: #1f2426; }
 .cr-mantf .cr-proto input, .cr-mantf .cr-chk input, .cr-mantf .cr-mgh input { width: 20px !important; height: 20px !important; min-height: 0 !important; flex: 0 0 20px; margin: 2px 0 0; padding: 0; }
 .cr-mantf .cr-proto b { font-size: 15px; } .cr-mantf .cr-proto small { font-size: 12.5px; text-transform: none; letter-spacing: 0; font-family: inherit; }
+.tkm text.lot2 { font-weight: 500; }

@@ -324,6 +324,10 @@
   const loadTMap = () => tmapLoading || (tmapLoading = fetch('/tankmap.json').then(r => r.json()).then(j => { TMAP = j; const b = C.root && $('#crBody', C.root); if (b && C.tab === 'tanks') b.innerHTML = renderTanks(); }).catch(() => { tmapLoading = null; }));
   function tankMapSvg(ts) {
     const M = TMAP, pos = M.pos;
+    // Labels sit on one common line per row of tanks (not under each circle), so different tank sizes don't sawtooth.
+    const placed = ts.filter(v => pos[v.id]).map(v => ({ id: v.id, y: pos[v.id].y, b: pos[v.id].y + pos[v.id].d / 2 })).sort((a, b) => a.y - b.y);
+    const rowBase = {}; let cur = null;
+    for (const t of placed) { if (!cur || t.y - cur.y0 > 0.8) { cur = { y0: t.y, b: t.b, ids: [] }; } cur.b = Math.max(cur.b, t.b); cur.ids.push(t.id); for (const id of cur.ids) rowBase[id] = cur; }
     let g = '';
     for (const v of ts) {
       const p = pos[v.id]; if (!p) continue;
@@ -338,7 +342,8 @@
         <circle class="tkm-o" cx="${p.x}" cy="${p.y}" r="${r}"/>${v.jacket ? `<circle class="tkm-j" cx="${p.x}" cy="${p.y}" r="${r * 0.84}"/>` : ''}
         <text x="${p.x}" y="${p.y - r * 0.1}" font-size="${Math.max(0.2, r * 0.4)}">${esc(v.name)}</text>
         <text class="s" x="${p.x}" y="${p.y + r * 0.38}" font-size="${Math.max(0.14, r * 0.26)}">${esc(lbl)}</text>
-        ${items.length ? `<text class="lot" x="${p.x}" y="${p.y + r + Math.max(0.3, r * 0.5)}" font-size="${Math.max(0.28, r * 0.44)}" fill="${TCOL_TXT[lotGroup(items[0].lot)] || '#3f4548'}">${esc(items.map(x => lotAbbr(x.lot)).join(' + '))}</text>` : ''}</g>`;
+        ${items.length ? (() => { const parts = items.map(x => String(lotAbbr(x.lot)).split(' ')), code = parts.map(a => a[0]).join(' + '), desc = parts.map(a => a.slice(1).join(' ')).filter(Boolean).join(' + '), by = rowBase[v.id].b + 0.62, fc = TCOL_TXT[lotGroup(items[0].lot)] || '#3f4548';
+          return `<text class="lot" x="${p.x}" y="${by}" font-size="0.3" fill="${fc}">${esc(code)}</text>${desc ? `<text class="lot2" x="${p.x}" y="${by + 0.32}" font-size="0.22" fill="${fc}">${esc(desc)}</text>` : ''}`; })() : ''}</g>`;
     }
     const bg = Object.entries(M.bg).map(([k, d]) => `<path class="tkm-bg-${k}" d="${d}"/>`).join('');
     const tx = M.texts.map(([x, y, t, h]) => `<text x="${x}" y="${y}" font-size="${h}">${esc(t)}</text>`).join('');
@@ -347,7 +352,9 @@
       <div class="tkm-zoom"><button type="button" class="btn sm" data-tkz="in" aria-label="Acercar">+</button><button type="button" class="btn sm" data-tkz="out" aria-label="Alejar">−</button><button type="button" class="btn sm" data-tkz="fit">Ajustar</button></div></div>`;
   }
   // Default view: the rooms with tanks (tank positions + 2.5 m), not the whole site plan.
-  function tkFit() { const ps = Object.values(TMAP.pos); const x0 = Math.min(...ps.map(p => p.x - p.d)), x1 = Math.max(...ps.map(p => p.x + p.d)), y0 = Math.min(...ps.map(p => p.y - p.d)), y1 = Math.max(...ps.map(p => p.y + p.d)); const pad = 2.5; return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad }; }
+  // Default view: the whole building (outer walls ≈ x 4.4–39.8 m, y −0.2–24.8 m in tankmap.json) with a small margin,
+  // so nothing of the winery is cropped; zoom/pan from there.
+  function tkFit() { return { x: 3.6, y: -0.8, w: 37.0, h: 26.4 }; }
   function renderTanks() {
     const ts = tankList(); if (!ts.length) return `<div class="cr-empty">No hay tanques registrados.</div>`;
     const card = v => {
