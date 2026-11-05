@@ -116,7 +116,6 @@ footer .mark { color: var(--wine); font-size: 13px; }
 .mc-logo { display: block; width: 44%; aspect-ratio: 730 / 160; -webkit-mask: url(/logo-word.png) left center / contain no-repeat; mask: url(/logo-word.png) left center / contain no-repeat; }
 .mc-club { text-align: right; font: 600 clamp(9px, 2.6vw, 11px)/1.25 var(--body); letter-spacing: .26em; text-transform: uppercase; }
 .mc-club b { display: block; font: 600 clamp(15px, 4.6vw, 19px)/1.1 var(--display); letter-spacing: .06em; text-transform: none; margin-top: 3px; }
-.mc-owl { position: absolute; right: -4%; top: 14%; width: 46%; height: auto; opacity: .07; color: #ffe7b0; }
 .mc-bot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; position: relative; z-index: 1; }
 .mc-lbl { font: 500 clamp(8.5px, 2.4vw, 10px)/1 var(--body); letter-spacing: .3em; text-transform: uppercase; opacity: .7; }
 .mc-name { font: 600 clamp(20px, 6.4vw, 27px)/1.05 var(--display); letter-spacing: .04em; margin: 5px 0 6px; overflow-wrap: anywhere; color: #fff8ea; }
@@ -301,7 +300,6 @@ async function shrink(file) {
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const metalOf = name => /diamante/i.test(name) ? 'm-diamante' : /plata/i.test(name) ? 'm-plata' : /bronce/i.test(name) ? 'm-bronce' : 'm-oro';
-const OWL_BIG = `<svg class="mc-owl" viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"><path d="M9 9l4 4M31 9l-4 4"/><path d="M8 18c0-6 5-10 12-10s12 4 12 10v6c0 7-5 12-12 12S8 31 8 24z"/><circle cx="15" cy="19" r="4"/><circle cx="25" cy="19" r="4"/><circle cx="15" cy="19" r="1" fill="currentColor"/><circle cx="25" cy="19" r="1" fill="currentColor"/><path d="M18.5 24.5L20 27l1.5-2.5"/></svg>`;
 // The card itself. The QR is the same link the staff scan; the person's contact details never appear on it.
 export function memberCard(person, st, link, blocked) {
   const main = st.programs[0] || st.level || null;
@@ -313,7 +311,7 @@ export function memberCard(person, st, link, blocked) {
   const until = st.validUntil && !blocked ? `Vigente hasta el ${e(fmtLong(st.validUntil))}.` : '';
   return `<div class="mc ${metalOf(club)}${blocked ? ' off' : ''}" id="mc" role="button" tabindex="0" aria-pressed="false" aria-label="Tarjeta de socio de ${e(person.name)}. Toca para ver el código grande.">
   <div class="mc-in">
-    <div class="mc-face mc-front">${OWL_BIG}
+    <div class="mc-face mc-front">
       <div class="mc-top"><span class="mc-logo foil" role="img" aria-label="Dos Búhos"></span><div class="mc-club foil-t">Club Dos Búhos<b>${e(club)}</b></div></div>
       <div class="mc-bot"><div style="min-width:0"><div class="mc-lbl">Socio</div><div class="mc-name">${e(person.name)}</div>
         <div class="mc-meta">Desde ${e(since)}<span>·</span>${no}</div></div>
