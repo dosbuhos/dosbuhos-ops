@@ -169,7 +169,7 @@ async function appUserList(env) {
 
 // ---------- db: collections of JSON docs in D1 (same shape as the artifact's shared database) ----------
 // What the crew role may write. Tasks: only the fields that follow a work order (done, the order itself, its assignee/priority/date).
-const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purchases', 'barrel_log', 'trials']);
+const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purchases', 'barrel_log', 'trials', 'barrel_pos']);
 // Crew follow the orders Eric and Diane give: they mark tasks done (and the order link that goes with it), nothing else.
 const CREW_TASK_KEYS = new Set(['done', 'wo']);
 // Barrels: crew may fill in the barrel's own data (cooper, wood, toast, year made, size), not what it holds or where it sits.
