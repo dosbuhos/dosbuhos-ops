@@ -89,6 +89,51 @@ footer .mark { color: var(--wine); font-size: 13px; }
 .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 4px 16px 18px; margin-top: 18px; }
 .upcoming { display: flex; flex-direction: column; gap: 2px; }
 .upcoming form { margin: 0; }
+
+/* The member card: a wallet-sized card with a metal finish by tier (Oro, Plata, Bronce, Diamante; gold otherwise),
+   the Dos Búhos wordmark in foil, name, club and date joined, a small QR in the corner. Tap to flip: a large QR. */
+.mc { --m1: #f3dea0; --m2: #b8893c; --m3: #fff0c2; --m4: #8a6424; perspective: 1400px; margin: 4px 0 0; cursor: pointer; -webkit-tap-highlight-color: transparent; outline: none; }
+.mc.m-plata { --m1: #f2f2f0; --m2: #9ea3a6; --m3: #ffffff; --m4: #6e7376; }
+.mc.m-bronce { --m1: #f0c39a; --m2: #a86a3c; --m3: #ffdcbc; --m4: #6f3f1c; }
+.mc.m-diamante { --m1: #eef3f6; --m2: #9fb3c2; --m3: #ffffff; --m4: #5e7182; }
+.mc-in { position: relative; width: 100%; aspect-ratio: 1.586; transition: transform .7s cubic-bezier(.2, .7, .2, 1); transform-style: preserve-3d; }
+.mc.flip .mc-in { transform: rotateY(180deg); }
+@media (prefers-reduced-motion: reduce) { .mc-in { transition: none; } }
+.mc-face { position: absolute; inset: 0; border-radius: 18px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; color: #f4ead6;
+  background: radial-gradient(140% 120% at 0% 0%, #4a1322 0%, #2a0b14 45%, #12070a 100%);
+  box-shadow: 0 30px 50px -26px rgba(30, 5, 12, .75), 0 10px 18px -12px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .08); }
+.mc-face::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: repeating-radial-gradient(circle at 115% 120%, rgba(255, 225, 160, .06) 0 1px, transparent 1px 7px),
+    linear-gradient(115deg, transparent 30%, rgba(255, 240, 200, .10) 45%, transparent 60%); }
+.mc-face::after { content: ""; position: absolute; inset: 9px; border-radius: 12px; pointer-events: none; border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--m1), var(--m2) 40%, var(--m3) 60%, var(--m4)) border-box; opacity: .55;
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) padding-box exclude, linear-gradient(#000 0 0); }
+.mc-back { transform: rotateY(180deg); }
+.foil { background: linear-gradient(135deg, var(--m1) 0%, var(--m2) 38%, var(--m3) 55%, var(--m2) 72%, var(--m4) 100%); }
+.foil-t { background: linear-gradient(135deg, var(--m1) 0%, var(--m2) 38%, var(--m3) 55%, var(--m2) 72%, var(--m4) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.mc-front { display: flex; flex-direction: column; justify-content: space-between; padding: 7% 7.5% 6.5%; }
+.mc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; position: relative; z-index: 1; }
+.mc-logo { display: block; width: 44%; aspect-ratio: 730 / 160; -webkit-mask: url(/logo-word.png) left center / contain no-repeat; mask: url(/logo-word.png) left center / contain no-repeat; }
+.mc-club { text-align: right; font: 600 clamp(9px, 2.6vw, 11px)/1.25 var(--body); letter-spacing: .26em; text-transform: uppercase; }
+.mc-club b { display: block; font: 600 clamp(15px, 4.6vw, 19px)/1.1 var(--display); letter-spacing: .06em; text-transform: none; margin-top: 3px; }
+.mc-owl { position: absolute; right: -4%; top: 14%; width: 46%; height: auto; opacity: .07; color: #ffe7b0; }
+.mc-bot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; position: relative; z-index: 1; }
+.mc-lbl { font: 500 clamp(8.5px, 2.4vw, 10px)/1 var(--body); letter-spacing: .3em; text-transform: uppercase; opacity: .7; }
+.mc-name { font: 600 clamp(20px, 6.4vw, 27px)/1.05 var(--display); letter-spacing: .04em; margin: 5px 0 6px; overflow-wrap: anywhere; color: #fff8ea; }
+.mc-meta { font: 400 clamp(11px, 3.2vw, 13px)/1.3 var(--body); letter-spacing: .08em; opacity: .85; }
+.mc-meta span { opacity: .55; padding: 0 5px; }
+.mc-qs { flex: none; width: 23%; aspect-ratio: 1; background: #fffaf0; border-radius: 8px; padding: 4px; box-shadow: 0 0 0 1px rgba(255, 230, 170, .5); }
+.mc-qs svg, .mc-qb svg { display: block; width: 100%; height: 100%; }
+.mc-back { display: flex; align-items: center; gap: 6%; padding: 7% 7.5%; }
+.mc-qb { flex: none; height: 86%; aspect-ratio: 1; background: #fffaf0; border-radius: 12px; padding: 6px; position: relative; z-index: 1; }
+.mc-btx { position: relative; z-index: 1; min-width: 0; }
+.mc-btx .mc-logo { width: 100%; max-width: 150px; margin-bottom: 12px; }
+.mc-btx b { display: block; font: 600 clamp(16px, 4.8vw, 20px)/1.15 var(--display); color: #fff8ea; }
+.mc-btx p { margin: 6px 0 0; font-size: clamp(11.5px, 3.3vw, 13.5px); line-height: 1.35; opacity: .8; }
+.mc-hint { text-align: center; font-size: 14.5px; font-style: italic; color: var(--muted); margin: 10px 0 0; }
+.mc-more { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 10px 0 0; }
+.mc-more .badge { background: var(--paper); color: var(--ink); border-color: var(--line); }
+.mc.off .mc-face { filter: grayscale(1) brightness(.7); }
 @media print { body { background: #fff; } details, footer, .noprint { display: none !important; } }
 `;
 const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -186,10 +231,7 @@ async function cardPage(env, url, person, ua = '') {
       <form method="post" action="/c/${e(person.card_code)}/voy/${a.id}/cancelar"><button class="btn ghost sm" type="submit">Cancelar aviso</button></form></div>`).join('')}</section>` : '';
   const pendHtml = pend.results.length ? `<section><h2>Tus compras</h2><ul class="benefits">${pend.results.map(x => `<li>${C.money(x.amount)} · ${e(C.CHANNELS[x.channel] || x.channel)}<span>${e(fmtShort(x.day))} · ${x.status === 'pending' ? 'en revisión' : x.status === 'approved' ? 'sumada a tu cuenta' : 'no la pudimos sumar; pregunta al equipo'}</span></li>`).join('')}</ul></section>` : '';
   const body = `${flash}
-<div class="card"><div class="top"><div class="mark">Dos Búhos<small>Club de beneficios</small></div>${OWL}</div>
-  <h1>${e(person.name)}</h1><div class="badges">${badges || '<span class="badge"><i></i>Socio</span>'}</div>
-  ${st.validUntil && !blocked ? `<p class="valid">Vigente hasta el ${e(fmtLong(st.validUntil))}</p>` : ''}
-  <div class="qr">${qrSvg(link, { label: 'Código de tu tarjeta' })}</div><p class="qr-cap">Muéstralo al llegar</p></div>
+${memberCard(person, st, link, blocked)}
 ${blocked ? '' : walletButtons(env, person.card_code, ua)}
 ${blocked ? '<div class="note bad">Esta tarjeta no está activa. Si crees que es un error, escríbenos.</div>'
   : pendingOnly ? '<div class="note warn"><b>Tu solicitud está en revisión.</b> Te avisamos por WhatsApp en cuanto quede lista; tus beneficios aparecen aquí.</div>' : ''}
@@ -220,6 +262,8 @@ ${foot}
 <script>
 ${STEPPER_JS}
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/c/sw.js', { scope: '/c/' }).catch(() => {});
+const mc = document.getElementById('mc');
+if (mc) { const t = () => { const on = mc.classList.toggle('flip'); mc.setAttribute('aria-pressed', String(on)); }; mc.addEventListener('click', t); mc.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); t(); } }); }
 const f = document.getElementById('buy');
 if (f) f.addEventListener('submit', async ev => {
   ev.preventDefault();
@@ -256,6 +300,32 @@ async function shrink(file) {
   return H(html, 200, { 'cache-control': ok ? 'no-store' : 'private, max-age=60, stale-while-revalidate=604800', vary: 'Cookie, User-Agent' });
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const metalOf = name => /diamante/i.test(name) ? 'm-diamante' : /plata/i.test(name) ? 'm-plata' : /bronce/i.test(name) ? 'm-bronce' : 'm-oro';
+const OWL_BIG = `<svg class="mc-owl" viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"><path d="M9 9l4 4M31 9l-4 4"/><path d="M8 18c0-6 5-10 12-10s12 4 12 10v6c0 7-5 12-12 12S8 31 8 24z"/><circle cx="15" cy="19" r="4"/><circle cx="25" cy="19" r="4"/><circle cx="15" cy="19" r="1" fill="currentColor"/><circle cx="25" cy="19" r="1" fill="currentColor"/><path d="M18.5 24.5L20 27l1.5-2.5"/></svg>`;
+// The card itself. The QR is the same link the staff scan; the person's contact details never appear on it.
+export function memberCard(person, st, link, blocked) {
+  const main = st.programs[0] || st.level || null;
+  const club = main ? main.name : st.pending.length ? st.pending[0].program : 'Socio';
+  const since = new Date(person.created_at).toLocaleDateString('es-MX', { month: 'long', year: 'numeric', timeZone: C.TZ });
+  const no = 'Nº ' + String(person.id).padStart(4, '0');
+  const qr = qrSvg(link, { label: 'Código de tu tarjeta', color: '#1c0c10', bg: '#fffaf0' });
+  const extra = st.programs.slice(1).map(p => `<span class="badge" style="--c:${e(p.color)}"><i></i>${e(p.name)}</span>`).join('');
+  const until = st.validUntil && !blocked ? `Vigente hasta el ${e(fmtLong(st.validUntil))}.` : '';
+  return `<div class="mc ${metalOf(club)}${blocked ? ' off' : ''}" id="mc" role="button" tabindex="0" aria-pressed="false" aria-label="Tarjeta de socio de ${e(person.name)}. Toca para ver el código grande.">
+  <div class="mc-in">
+    <div class="mc-face mc-front">${OWL_BIG}
+      <div class="mc-top"><span class="mc-logo foil" role="img" aria-label="Dos Búhos"></span><div class="mc-club foil-t">Club Dos Búhos<b>${e(club)}</b></div></div>
+      <div class="mc-bot"><div style="min-width:0"><div class="mc-lbl">Socio</div><div class="mc-name">${e(person.name)}</div>
+        <div class="mc-meta">Desde ${e(since)}<span>·</span>${no}</div></div>
+        ${blocked ? '' : `<div class="mc-qs">${qr}</div>`}</div></div>
+    <div class="mc-face mc-back">
+      ${blocked ? '<div class="mc-btx"><b>Tarjeta no activa</b></div>' : `<div class="mc-qb">${qr}</div>`}
+      <div class="mc-btx"><span class="mc-logo foil" role="img" aria-label="Dos Búhos"></span><b>Muéstralo al llegar</b>
+        <p>${until} Personal e intransferible.</p><p class="foil-t" style="opacity:1;letter-spacing:.18em;text-transform:uppercase;font-size:10px;margin-top:10px">San Miguel de Allende</p></div></div>
+  </div></div>
+${extra ? `<div class="mc-more">${extra}</div>` : ''}
+<p class="mc-hint noprint">Toca la tarjeta para voltearla</p>`;
+}
 const fmtLong = d => { const [y, mo, da] = d.split('-').map(Number); return `${da} de ${MONTHS[mo - 1]} de ${y}`; };
 // "Mis datos": the guest adds or changes their email, birthday and answers. The card link is the only credential, so
 // saved values are never shown back (a forwarded link must not reveal an email or a birthday): blank keeps what we
