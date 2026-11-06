@@ -189,7 +189,7 @@ const CREW_COLLS = new Set(['progress', 'woqueue', 'wocache', 'labcache', 'purch
 const CREW_TASK_KEYS = new Set(['done', 'wo']);
 // Barrels: crew may fill in the barrel's own data (cooper, wood, toast, year made, size), not what it holds or where it sits.
 // Crew keeps barrel records current: specs plus what's in it, how full, where (not delete, not new barrels).
-const CREW_BARREL_KEYS = new Set(['code', 'size', 'cooperage', 'wood', 'toast', 'year', 'use', 'fill', 'lot', 'vol', 'loc', 'notes', 'status', 'confirmed', 'th', 'locName', 'by', 'acct', 'at']);
+const CREW_BARREL_KEYS = new Set(['code', 'size', 'cooperage', 'wood', 'toast', 'year', 'use', 'fill', 'lot', 'vol', 'loc', 'notes', 'status', 'confirmed', 'th', 'locName', 'by', 'acct', 'at', 'discarded']);
 async function dbRoute(request, env, p, canWrite, ctx, crew) {
   const [, , , coll, id] = p.split('/').map(decodeURIComponent);
   if (!COLL.test(coll || '') || /^mcp_/i.test(coll)) return J({ code: 'bad_request' }, 400);

@@ -215,6 +215,7 @@ body.bopen .facecol{min-height:calc(100dvh - 16px)}.facecol{scroll-margin-top:8p
 .wh li::before{content:'';position:absolute;left:-6px;top:10px;width:10px;height:10px;border-radius:50%;background:var(--line)}.wh li.now::before{background:var(--ok)}
 .wh .wy{font:600 12px var(--f-m);color:var(--soft);width:36px;flex:none}.wh small{color:var(--soft)}
 button.mline{width:100%;text-align:left;border:0;border-left:5px solid var(--ok);border-radius:9px;cursor:pointer;position:relative;padding-right:28px}button.mline em{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;font-size:20px;color:var(--soft)}
+.mline.na{background:var(--paper);border-left-color:#c0261c}.mline.na b{color:#c0261c}
 .mline.unk{background:var(--paper);border-left-color:var(--warn)}.mline.unk b{color:var(--warn)}
 .mt{padding:10px 14px 14px}.mt h4{font:700 11px var(--f-b);text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:14px 0 6px}
 .mt-due{border-radius:9px;padding:9px 12px;background:#e6f2e9;display:flex;flex-direction:column;gap:2px}.mt-due b{color:var(--ok);font-size:16px}.mt-due span{font-size:12.5px;color:var(--soft)}
@@ -262,7 +263,7 @@ body.mv{padding-bottom:90px}body.mv .totop{display:none}
 .g-al{display:inline-block;width:11px;height:11px;border-radius:50%;border:3px solid;vertical-align:-2px;margin-right:5px;background:var(--oak)}.g-al.w{border-color:#e0a526}.g-al.b{border-color:#c0261c}
 .g-type{border:2px solid var(--oak-rim)!important;background:color-mix(in srgb,#7a1f2b 30%,var(--unk))!important}
 .tile.warn b{color:#9a6a08}.tile .late{color:#b3261e;font-weight:600}.tile .tadd.late{color:#b3261e}
-.yhint{margin:6px 0;color:var(--soft);font-size:13px;text-align:center}.mm-face .ysel .bend{fill:#b3803f;stroke-width:.13!important}
+.yhint{flex-basis:100%;white-space:normal;margin:6px 0;color:var(--soft);font-size:13px;text-align:center}.mm-face .ysel .bend{fill:#b3803f;stroke-width:.13!important}
 .pzhit{fill:#2f7d47;fill-opacity:.12;stroke:#2f7d47;stroke-width:.06;stroke-dasharray:.15 .1;cursor:pointer}.pzhit:hover{fill-opacity:.22}
 .mm-pr,.mm-pr *{cursor:pointer}
 .bnum.free{background:var(--paper);color:var(--soft);border:2px dashed var(--line)}.bigb{min-height:46px;font-size:15px}.freec .qa-x label{flex:1 1 120px}
@@ -332,6 +333,9 @@ html.embedmap .totop{transform:translateY(calc(-100% - 14px))}
 html.embedmap .dlg{position:absolute;top:var(--vpt);height:var(--vph);bottom:auto}
 html.embedmap body.bopen .facecol{min-height:0}
 .maker{display:flex;gap:10px;align-items:flex-start;background:var(--sheet);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px}.maker img{border-radius:50%;flex:none}.maker p{margin:6px 0 0}
+.xdisc{stroke:#c0261c;stroke-width:4;stroke-linecap:round;fill:none;opacity:.8;pointer-events:none}.xdisc.t{stroke-width:.075;opacity:.9}
+.chip.disc{background:#c0261c;color:#fff;border-color:#c0261c}
+.discb{margin:12px 0 4px;padding:10px 12px;border:1px dashed var(--line);border-radius:9px;font-size:14px}.discb.on{border:1.5px solid #c0261c;background:color-mix(in srgb,#c0261c 8%,var(--sheet))}.discb p{margin:0 0 8px}.discb button{min-height:44px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);font:inherit}.discb #dz1{color:#c0261c;border-color:#c0261c}.discb label{display:block;margin:8px 0}.discb input{width:100%;font-size:16px;min-height:44px;box-sizing:border-box}.discb .btns{display:flex;gap:8px}.discb .dz{background:#c0261c;color:#fff;border-color:#c0261c}
 .pend{background:#fbf1dc;border:1.5px solid #d79a1f;color:#7a5200;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px}
 
 .whob{font-size:12.5px;color:var(--soft)}.whob b{color:var(--ink)}#dbst{text-align:center;margin:0 0 6px}
@@ -493,20 +497,23 @@ function bstat(id){const c=S.conf[id],q=POS[id];if(!q||q.amph)return null;const 
 // empty barrels still say what they are for: the band around the head takes the color of the wine type it holds (tinto, naranja, blanco…)
 const UTINT={red:'#7a1f2b',white:'#d8b43c',orange:'#d9822b',rose:'#e0849a',port:'#4a1622',vermouth:'#6b7a3a'};
 function useTint(id){const c=S.conf[id],q=POS[id],num=c?.num||q?.b?.n||'';const D=num?bdata(num):null;return D&&UTINT[D.use]||null}
+// a barrel taken out of circulation (marked discarded on its card) gets a red X through its head
+function discOf(id){const c=S.conf[id],q=POS[id],num=c?.num||q?.b?.n||'';const b=num&&A.barrels&&A.barrels[unpad(num)];return b&&b.discarded?b.discarded:null}
 function drawBarrel(svg,id,cx,cy,r){const v=view(id);
   const g=el('g',{class:'bbl '+(v.st==='known'?'':v.st)+(S.sel===id?' sel':'')+mvCls(id),tabindex:0,role:'button','data-c':id,'aria-label':'Posición '+CODE(id)+' '+v.n+' '+v.wl},svg);
   const fill=(v.empty||v.st==='none')?'var(--unk)':v.w?WINES[v.w][1]:'var(--oak)', ink=(v.empty||v.st==='none')?'var(--unk-ink)':v.w?WINES[v.w][2]:'var(--ink)';
-  const bs=v.st!=='none'?bstat(id):null,ut=bs&&bs.empty?useTint(id):null,alert=bs&&bs.jcls!=='ok'?bs.jcls:'';
+  const bs=v.st!=='none'?bstat(id):null,dz=v.st!=='none'?discOf(id):null,ut=bs&&bs.empty?useTint(id):null,alert=!dz&&bs&&bs.jcls!=='ok'?bs.jcls:'';
   // the beige ring turns yellow (due, up to 10 days late) or red (more than 10 days late); empty barrels: the face is tinted by wine type
   el('circle',{class:'rim'+(alert?' al-'+alert:''),cx,cy,r,fill:alert?(alert==='bad'?'#c0261c':'#e0a526'):'var(--oak)'},g);
   el('circle',Object.assign({class:'head',cx,cy,r:r-6,fill},ut?{style:`fill:color-mix(in srgb, ${ut} 30%, var(--unk))`}:{}),g);
+  if(dz){const k=r*.58;el('path',{class:'xdisc',d:`M${cx-k} ${cy-k}L${cx+k} ${cy+k}M${cx+k} ${cy-k}L${cx-k} ${cy+k}`},g)}
   if(bs&&S.glance==='ring'){const left=bs.ja==null||bs.ja>30?100:Math.max(6,Math.round((30-bs.ja)/30*100));
     el('circle',{class:'tring0',cx,cy,r:r+3.5},g);el('circle',{class:'tring '+bs.jcls,cx,cy,r:r+3.5,pathLength:100,'stroke-dasharray':left+' 100',transform:`rotate(-90 ${cx} ${cy})`},g)}
   // barrel number (3 digits, bold), position right under it; the wine goes under the barrel in plain ink
   el('text',{class:'num',x:cx,y:cy+3,fill:ink},g).textContent=v.n;
   // inside, under the number: the last free SO₂ (ppm) on full barrels; the position on empty ones
   if(v.st!=='none')el('text',{class:'pos'+(bs&&!bs.empty?' so':''),x:cx,y:cy+14,fill:ink},g).textContent=bs&&!bs.empty?(bs.so?bs.so.raw:'—'):CODE(id);
-  const wl=v.st==='none'?(POS[id].b&&POS[id].b.added?'lugar libre':'sin barrica'):v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
+  const wl=dz?'descartada':v.st==='none'?(POS[id].b&&POS[id].b.added?'lugar libre':'sin barrica'):v.empty?'vacía':(v.wl&&v.wl!=='¿vino?'?v.wl:(v.st==='unk'?'':'¿vino?'));
   const one=t=>{t=short(t).replace(/\s*\(.*?\)\s*/g,' ').replace(/^20(\d\d) /,"'$1 ").replace(/^([^'].*?) (2\d)$/,"'$2 $1").trim();return t.length>16?t.slice(0,15).trim()+'…':t},wls=[one(wl)];wls.forEach((t,i)=>el('text',{class:'wl',x:cx,y:cy+r+10+i*9.5},g).textContent=t);
   if(alert){el('text',{class:'late '+alert,x:cx,y:cy+r+19.5},g).textContent=(bs.empty?'mant. ':'rellenar ')+(bs.late==null?'?':'+'+bs.late+' d')}
   if(false){const t=el('text',{class:'sol '+(bs.empty?'mnt '+bs.jcls:bs.so?bs.so.cls:'none'),x:cx,y:cy+r+10+wls.length*9.5},g);
@@ -641,9 +648,9 @@ function labelTop(g,el,it,sec,cls){const b=g.__b||[];if(!it.id){el('text',{x:it.
   const flip=FACE[sec.id].du<0;b.forEach((r,j)=>{const sd=(j===0)!==flip?'I':'D',t=String(COL[it.id+sd]);el('text',Object.assign({x:r.x+r.w/2,y:r.y+r.h/2+0.11,class:cls},t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t})}
 function drawItemTop(g,el,it){const p=0.04;
   if(it.kind==='amph'){el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:AW/2-0.04,class:'amph'},g);return}
-  if(it.kind==='end'){(g.__b||(g.__b=[])).push(it);const c0=S.conf[it.id],bs=bstat(it.id),al=bs&&bs.jcls!=='ok'?bs.jcls:'',ut=c0&&c0.empty?useTint(it.id):null,sc=al?(al==='bad'?'#c0261c':'#e0a526'):ut;
-    g.setAttribute('data-yc',it.id);if(S.sel===it.id)g.classList.add('ysel');
-    el('circle',Object.assign({cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2,class:'bend'},sc?{style:`stroke:${sc};stroke-width:${al?.11:.09}`}:{}),g);el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2*.74,class:'bendh'},g);return}
+  if(it.kind==='end'){(g.__b||(g.__b=[])).push(it);const c0=S.conf[it.id],bs=bstat(it.id),al=bs&&bs.jcls!=='ok'&&!discOf(it.id)?bs.jcls:'',ut=c0&&c0.empty?useTint(it.id):null,sc=al?(al==='bad'?'#c0261c':'#e0a526'):ut;
+    g.setAttribute('data-yc',it.id);if(S.sel===it.id)g.classList.add('ysel');const dzt=discOf(it.id);
+    el('circle',Object.assign({cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2,class:'bend'},sc?{style:`stroke:${sc};stroke-width:${al?.11:.09}`}:{}),g);el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:it.w/2*.74,class:'bendh'},g);if(dzt){const cx=it.x+it.w/2,cy=it.y+it.h/2,k=it.w*.3;el('path',{class:'xdisc t',d:`M${cx-k} ${cy-k}L${cx+k} ${cy+k}M${cx+k} ${cy-k}L${cx-k} ${cy+k}`},g)}return}
   if(it.kind==='punch'||it.kind==='one'){barrelTop(g,el,it.x+p,it.y+p,it.w-2*p,it.h-2*p);return}
   el('rect',{x:it.x,y:it.y,width:it.w,height:it.h,rx:0.05,class:'rk'},g);
   if(it.w>=it.h){const bw=(it.w-3*p)/2;for(let j=0;j<2;j++)barrelTop(g,el,it.x+p+j*(bw+p),it.y+p,bw,it.h-2*p)}
@@ -925,19 +932,19 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
   const toast=c?.toast||D?.toast||'',coopV=c?.coop||D?.coop,woodV=c?.wood||D?.wood,age=D?.year?2026-D.year:null,uses=D&&D.wines?D.wines.length:0;
   const today=today0(),job=empty?'p2':'top';
   const lastJob=L.find(x=>empty?/\|(p1|p2)/.test(x):/\|(p3|top|fill)/.test(x)),jd=lastJob?lastJob.split('|')[0]:null,jAgo=dago(jd);
-  const doneToday=L.some(x=>x.startsWith(today+'|')&&/\|(p2|p3|top)/.test(x)),jSt=doneToday?'ok':jobCls(jAgo);
+  const doneToday=L.some(x=>x.startsWith(today+'|')&&/\|(p2|p3|top)/.test(x)),dzc=D&&D._b&&D._b.discarded,jSt=dzc?'na':doneToday?'ok':jobCls(jAgo);
   const what=empty?'Mantenimiento de vacía':'Relleno';
-  const mLine=doneToday?`${what} registrado hoy`:jAgo==null?`${what}: sin registro`:jSt!=='ok'?(empty?'Toca mantenimiento':'Toca rellenar')+` · ${jAgo-JOB_DAYS} d tarde`:`${what} al día`;
+  const mLine=dzc?'Descartada · fuera de circulación':doneToday?`${what} registrado hoy`:jAgo==null?`${what}: sin registro`:jSt!=='ok'?(empty?'Toca mantenimiento':'Toca rellenar')+` · ${jAgo-JOB_DAYS} d tarde`:`${what} al día`;
   const summary=`<div class="bc2" style="--c:${col};--ci:${ink}">
     <div class="bh"><div class="bnum">${esc(num||'?')}</div>
       <div class="bwho"><button type="button" class="wpick${!empty&&!wine?' unk':''}" data-q="wine" aria-label="Cambiar vino"><h3>${esc(empty?'Vacía':(wine||'¿vino?'))}</h3><em>▾</em></button>
-        <div class="chips"><span class="chip pos">📍 ${CODE(cd)}</span>${use?`<span class="chip" style="--b:${use[1]}">${use[0]}</span>`:''}<span class="chip">${empty?'Vacía':'Llena'}</span>${c?.confirm?'<span class="chip warn">Por confirmar</span>':''}${!c&&hint?'<span class="chip warn">Foto: '+esc(hint)+'?</span>':''}</div></div>
+        <div class="chips"><span class="chip pos">📍 ${CODE(cd)}</span>${use?`<span class="chip" style="--b:${use[1]}">${use[0]}</span>`:''}<span class="chip">${empty?'Vacía':'Llena'}</span>${c?.confirm?'<span class="chip warn">Por confirmar</span>':''}${D?._b?.discarded?'<span class="chip disc">✕ Descartada</span>':''}${!c&&hint?'<span class="chip warn">Foto: '+esc(hint)+'?</span>':''}</div></div>
       <button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
-    ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${doneToday?'':jd?`último ${fd(jd)} · hace ${jAgo} d`:''}</span><em>›</em></button>`
+    ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${dzc?'no toca mantenimiento':doneToday?'':jd?`último ${fd(jd)} · hace ${jAgo} d`:''}</span><em>›</em></button>`
       :`<button type="button" class="mline unk" data-gotab="res"><b>¿Qué barrica es?</b><span>Escribe el número en Datos para ver su mantenimiento</span><em>›</em></button>`}
     ${num?'':'<!--'}<div class="tiles">
       <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span class="${so&&soAgo>SO2_OLD?'late':''}">${empty?'vacía':so?'medido '+fd(so.date)+' · hace '+soAgo+' d':'sin lectura'}</span>${!empty&&addA?`<span class="tadd${dago(addA.date)>SO2_OLD?' late':''}">${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS agregados el ${fd(addA.date)}</span>`:''}${!empty&&so?`<span class="tgoal${soV<SO2_OK?' late':''}">meta ≈ ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
-      <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span class="${jSt!=='ok'?'late':''}">${jd?fd(jd)+(jSt!=='ok'?' · '+(jAgo-JOB_DAYS)+' d tarde':''):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
+      <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span class="${jSt!=='ok'&&!dzc?'late':''}">${jd?fd(jd)+(jSt!=='ok'&&!dzc?' · '+(jAgo-JOB_DAYS)+' d tarde':''):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
       <div class="tile na"><small>Barrica</small><b>${age==null?'—':age+'<i> años</i>'}</b><span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></div>
     </div>${num?'':'-->'}
     <div class="qa"><button type="button" data-q="move">Mover</button></div>
@@ -981,7 +988,7 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
      <label>Tipo<select id="fus">${['',...Object.keys(USE)].map(k=>`<option value="${k}" ${D?.use===k?'selected':''}>${k?USE[k][0]:''}</option>`).join('')}</select></label>
      <label class="w3">Notas<textarea id="fno" rows="2">${esc(D?.notes||'')}</textarea></label>
      ${b?.c&&b.c.length&&!num?`<div class="cands w3"><span class="cl">¿Es alguna de estas? Toca para poner el número:</span>${b.c.map(x=>`<button type="button" data-n="${x}">${x}</button>`).join('')}</div>`:''}
-     <div class="btns w3"><button type="submit" class="pri">Guardar</button><span class="status" id="fs"></span></div></form>`}
+     <div class="btns w3"><button type="submit" class="pri">Guardar</button><span class="status" id="fs"></span></div></form>`+discBlock(D)}
   else if(tab==='hist'){body=`<div class="hist" id="histh"></div>`}
   else{const url=location.origin+'/b/'+unpad(num);body=`<div class="lab"><div class="lab-c"><div class="lab-n">BBL ${esc(num||'?')}</div><div id="qr"></div><small>Dos Búhos</small></div>
      <p class="mut">Al escanear el QR se abre esta barrica. El contenido no va impreso: siempre se lee lo actual. Para imprimir varias: Lista → ⋯ → Imprimir etiquetas QR.</p></div>`}
@@ -1052,7 +1059,20 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
      });
   $('fw').addEventListener('change',()=>{if($('fw').value==='')$('ffill').value='empty';else if($('fw').value!=='__otro')$('ffill').value='full'});$('ffill').onchange=()=>{if($('ffill').value==='empty')$('fw').value=''};
   $('f').onsubmit=e=>{e.preventDefault();save(cd,rec())};
+  const B=D&&D._b;
+  if($('dz1'))$('dz1').onclick=()=>{$('dz2').hidden=false;$('dz1').hidden=true;$('dzw').focus()};
+  if($('dzno'))$('dzno').onclick=()=>{$('dz2').hidden=true;$('dz1').hidden=false};
+  if($('dzok'))$('dzok').onclick=()=>setDisc(B,{by:me(),at:new Date().toISOString(),why:$('dzw').value.trim()});
+  if($('dzback'))$('dzback').onclick=()=>setDisc(B,null);
 }
+// Discarded ("ya no sirve"): only admins mark it; the barrel keeps its history and can go back into circulation
+function discBlock(D){const b=D&&D._b;if(!b)return '';const dz=b.discarded,adm=A.me&&A.me.role==='admin';
+  if(dz)return `<div class="discb on"><p><b>✕ Descartada</b> el ${fd(String(dz.at).slice(0,10))}${dz.by?' · '+esc(dz.by):''}${dz.why?' · '+esc(dz.why):''}. Fuera de circulación: no se usa para vino.</p>${adm?'<button type="button" id="dzback">Volver a circulación</button>':''}</div>`;
+  if(!adm)return '';
+  return `<div class="discb"><button type="button" id="dz1">✕ Marcar como descartada (ya no sirve)</button><div id="dz2" hidden><label>¿Por qué?<input id="dzw" placeholder="ej. huele mal, moho por dentro" autocomplete="off"></label><div class="btns"><button type="button" class="pri dz" id="dzok">Sí, descartar</button><button type="button" id="dzno">Cancelar</button></div></div></div>`}
+async function setDisc(b,v){if(!b||noWrite())return;const prev=b.discarded;b.discarded=v;
+  try{await api('barrels/'+enc(b.id||b.code),'PATCH',{discarded:v,by:me(),acct:A.me.initials||'',at:new Date().toISOString()})}catch(e){b.discarded=prev;snack('No se guardó: '+e.message)}
+  rebuild();keep(()=>{draw();panel()});tellParent()}
 function freePanel(p,cd){const where=POS[cd].sec.id==='X'?'Área de prensa':CODE(cd);
   p.innerHTML=`<div class="bc2 freec" style="--c:var(--line)"><div class="bh"><div class="bnum free">—</div><div class="bwho"><h3>Lugar vacío</h3><div class="chips"><span class="chip pos">📍 ${esc(where)}</span></div></div><button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
     <button type="button" class="pri bigb" id="fput">Poner una barrica aquí</button>

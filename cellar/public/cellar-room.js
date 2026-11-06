@@ -258,7 +258,7 @@
     if (!bs.length) return h + `<div class="cr-empty">Ninguna barrica coincide.</div>`;
     const row = b => {
       const stt = stateOf(b), g = lotGroup(b.lot), u = useOf(b), col = b.lot ? (GCOL[g] || '#9aa5b1') : stt === 'confirm' ? '#d79a1f' : 'transparent';
-      const wine = b.lot ? esc(lotName(b.lot)) : stt === 'confirm' ? `<span class="cr-cf">Por confirmar</span>${b.paper && b.paper.last ? ` <small>papel: ${esc(b.paper.last)}</small>` : ''}` : '<span class="cr-none">Vacía</span>';
+      const wine = b.discarded ? '<span class="cr-disc">✕ Descartada</span>' : b.lot ? esc(lotName(b.lot)) : stt === 'confirm' ? `<span class="cr-cf">Por confirmar</span>${b.paper && b.paper.last ? ` <small>papel: ${esc(b.paper.last)}</small>` : ''}` : '<span class="cr-none">Vacía</span>';
       return `<div class="cr-tr${C.selB.has(b.id) ? ' sel' : ''}" data-bbrow="${esc(b.id)}" role="row">
         <label class="cr-td c-sel" aria-label="Seleccionar ${esc(bn(b.code))}"><input type="checkbox" data-bsel="${esc(b.id)}"${C.selB.has(b.id) ? ' checked' : ''}></label>
         <div class="cr-td c-num"><b>${esc(bn(b.code))}</b></div>

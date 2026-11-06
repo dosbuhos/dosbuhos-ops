@@ -380,3 +380,5 @@ dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
   .cr-tool1 { gap: 6px; } .cr-tool1 .cr-view button { padding: 6px 11px; } .cr-tool1 .cr-fbtn span { display: none; } .cr-tool1 .cr-fbtn { padding: 0 11px; }
   .cr-subbar { gap: 6px; } .cr-subbar .cr-lsort span { display: none; }
 }
+
+.cr-disc{color:#c0261c;font-weight:700}
