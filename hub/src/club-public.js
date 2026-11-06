@@ -75,7 +75,7 @@ input:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-
 .stepper output { text-align: center; font-size: 20px; }
 .err { color: var(--bad); font-weight: 500; }
 ol.how { margin: 6px 0 0; padding-left: 22px; } ol.how li { margin: 4px 0; }
-.otw { margin: 10px 0; display: flex; justify-content: center; min-height: 40px; } .otw iframe { max-width: 100%; }
+.otw { margin: 10px -8px; min-height: 40px; overflow: hidden; } .otw iframe { display: block; margin: 0 auto; transform-origin: top left; }
 footer { margin: 34px 0 0; text-align: center; font-size: 15px; color: var(--muted); }
 footer .mark { color: var(--wine); font-size: 13px; }
 .valid { margin: 12px 0 0; font-size: 16px; font-style: italic; color: var(--gold-soft); }
@@ -263,7 +263,17 @@ ${foot}
 ${STEPPER_JS}
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/c/sw.js', { scope: '/c/' }).catch(() => {});
 const rv = document.getElementById('reservar');
-if (rv) rv.addEventListener('toggle', () => { const w = document.getElementById('otw'); if (!rv.open || w.dataset.on) return; w.dataset.on = '1'; const s = document.createElement('script'); s.src = ${JSON.stringify(OT_WIDGET_SRC)}; w.appendChild(s); });
+// OpenTable's widget is a fixed-size iframe; scale it down to fit narrow phones so the whole calendar shows.
+const fitOT = () => { const w = document.getElementById('otw'), f = w && w.querySelector('iframe'); if (!f) return;
+  const fw = parseFloat(f.getAttribute('width')) || f.offsetWidth, fh = parseFloat(f.getAttribute('height')) || f.offsetHeight; if (!fw || !fh) return;
+  f.style.width = fw + 'px'; f.style.height = fh + 'px';
+  const k = Math.min(1, w.clientWidth / fw);
+  f.style.transform = k < 1 ? 'scale(' + k + ')' : ''; f.style.margin = k < 1 ? '0' : '0 auto';
+  w.style.height = Math.ceil(fh * k) + 'px'; };
+if (rv) rv.addEventListener('toggle', () => { const w = document.getElementById('otw'); if (!rv.open) return; if (w.dataset.on) return fitOT(); w.dataset.on = '1';
+  new MutationObserver(fitOT).observe(w, { childList: true, subtree: true, attributes: true, attributeFilter: ['width', 'height'] });
+  const s = document.createElement('script'); s.src = ${JSON.stringify(OT_WIDGET_SRC)}; w.appendChild(s); });
+addEventListener('resize', fitOT);
 const mc = document.getElementById('mc');
 if (mc) { const t = () => { const on = mc.classList.toggle('flip'); mc.setAttribute('aria-pressed', String(on)); }; mc.addEventListener('click', t); mc.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); t(); } }); }
 const f = document.getElementById('buy');
