@@ -1,9 +1,8 @@
 name = "card"
 compatibility_date = "2026-11-01"
 workers_dev = true
+routes = [{ pattern = "hola.dosbuhos.com", custom_domain = true }]
 
 [assets]
 directory = "./public"
 not_found_handling = "single-page-application"
-
-routes = [{ pattern = "hola.dosbuhos.com", custom_domain = true }]
