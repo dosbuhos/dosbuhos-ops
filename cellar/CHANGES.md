@@ -21,6 +21,8 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
 ## 2026-11-06 (afternoon) — Lista on phones rebuilt, slimmer gutters
+- Lista opens on "Con vino" (not every barrel incl. empties) · Eric · cellar-room.js
+- Lista rows on phones: one information column — "BBL 083 · Aglianico 2026", tonelería (cooperage · wood · year), SO₂ (value + age, red when low) and relleno (red when late); ▾ opens location, añada, barrel details, last maintenance, notes and "Abrir tarjeta" in place · location moved into the details · cellar-room.js/css
 - Phones: side gutter 6px everywhere (was 12px), map cards use the same gutter · more content per screen · mobile.css
 - Barricas: Mapa / Lista toggle in the app bar on phones · list starts higher, toolbar has room · mobile.js
 - Lista on phones: toolbar = search + "Filtros" + "Más" (labelled, 44px); "Orden: Tipo de vino ▾" visible above the list (opens Filtros); group headers are plain headings with "Elegir todas" on the right; rows are two clear lines — number + wine, then status · 📍 place · SO₂ (no reading → hidden), no overlaps · cellar-room.js/css
