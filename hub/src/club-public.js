@@ -278,7 +278,7 @@ const rv = document.getElementById('reservar');
 const fitOT = () => { const w = document.getElementById('otw'), f = w && w.querySelector('iframe'); if (!f) return;
   // The widget is a fixed 288×490 frame; large-text phones overflow it a little. Give it a little room,
   // then scale it to the card's full width (up or down) so the calendar is as big as the screen allows.
-  const fw = 310, fh = 500;
+  const fw = 294, fh = 482;
   f.style.width = fw + 'px'; f.style.height = fh + 'px';
   const k = Math.min(1.6, w.clientWidth / fw);
   f.style.transform = 'scale(' + k + ')'; f.style.margin = '0';
