@@ -43,6 +43,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.1; ma
 .qr svg { display: block; width: 100%; height: auto; }
 .qr-cap { text-align: center; font-size: 15px; font-style: italic; color: var(--gold-soft); margin: 8px 0 0; }
 .note { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 17px; }
+#flash .note { position: relative; padding-right: 40px; transition: opacity .4s, transform .4s; } #flash.gone .note { opacity: 0; transform: translateX(60%); }
+#flash .x { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; background: none; font-size: 22px; line-height: 1; color: var(--muted, #7a6f66); cursor: pointer; }
 .note.ok { border-left: 4px solid var(--ok); } .note.warn { border-left: 4px solid var(--gold); } .note.bad { border-left: 4px solid var(--bad); }
 .note b { font-weight: 600; }
 section { margin: 26px 0 0; }
@@ -206,7 +208,9 @@ async function cardPage(env, url, person, ua = '') {
     env.DB.prepare('SELECT id, day, time, party_size, reservation_name FROM club_announcements WHERE person_id = ? AND day >= ? AND cancelled_at IS NULL ORDER BY day, time LIMIT 3').bind(person.id, day).all(),
     env.DB.prepare("SELECT day, amount, channel, status FROM club_purchases WHERE person_id = ? AND (status = 'pending' OR (status <> 'pending' AND decided_at > ?)) ORDER BY created_at DESC LIMIT 5").bind(person.id, Date.now() - 14 * C.DAY_MS).all(),
   ]);
-  const ok = url.searchParams.get('ok');
+  let ok = url.searchParams.get('ok');
+  // The welcome only makes sense right after sign-up (people save the card with ?ok=nuevo still in the link).
+  if (ok === 'nuevo' && Date.now() - (person.created_at || 0) > 6 * 3600 * 1000) ok = null;
   const flash = ok === 'nuevo' ? `<div class="note ok"><b>Listo, ${e(C.firstName(person.name))}.</b> Esta es tu tarjeta. Guárdala en la pantalla de inicio para tenerla a la mano.</div>`
     : ok === 'voy' ? `<div class="note ok"><b>Gracias por avisar.</b> El equipo ya sabe que vienes.</div>`
     : ok === 'cancelada' ? `<div class="note ok">Cancelamos tu aviso.</div>`
@@ -233,7 +237,7 @@ async function cardPage(env, url, person, ua = '') {
       <span class="small">${a.party_size} ${a.party_size === 1 ? 'persona' : 'personas'}${a.reservation_name ? ' · reservación a nombre de ' + e(a.reservation_name) : ''}</span>
       <form method="post" action="/c/${e(person.card_code)}/voy/${a.id}/cancelar"><button class="btn ghost sm" type="submit">Cancelar aviso</button></form></div>`).join('')}</section>` : '';
   const pendHtml = pend.results.length ? `<section><h2>Tus compras</h2><ul class="benefits">${pend.results.map(x => `<li>${C.money(x.amount)} · ${e(C.CHANNELS[x.channel] || x.channel)}<span>${e(fmtShort(x.day))} · ${x.status === 'pending' ? 'en revisión' : x.status === 'approved' ? 'sumada a tu cuenta' : 'no la pudimos sumar; pregunta al equipo'}</span></li>`).join('')}</ul></section>` : '';
-  const body = `${flash}
+  const body = `${flash ? `<div id="flash">${flash.replace('</div>', '<button type="button" class="x" aria-label="Cerrar" onclick="this.closest(\'#flash\').remove()">×</button></div>')}</div>` : ''}
 ${memberCard(person, st, link, blocked)}
 ${blocked ? '' : walletButtons(env, person.card_code, ua)}
 ${blocked ? '<div class="note bad">Esta tarjeta no está activa. Si crees que es un error, escríbenos.</div>'
@@ -262,10 +266,18 @@ ${foot}
 <script>
 ${STEPPER_JS}
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/c/sw.js', { scope: '/c/' }).catch(() => {});
+// One-time messages: drop ?ok from the link (so a saved card never shows them again), swipe or tap × to close, fade after 10 s.
+if (location.search.includes('ok=')) { const u = new URL(location.href); u.searchParams.delete('ok'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); }
+const fl = document.getElementById('flash');
+if (fl) { const bye = () => { fl.classList.add('gone'); setTimeout(() => fl.remove(), 400); }; let x0 = null;
+  fl.addEventListener('touchstart', ev => { x0 = ev.touches[0].clientX; }, { passive: true });
+  fl.addEventListener('touchend', ev => { if (x0 !== null && Math.abs(ev.changedTouches[0].clientX - x0) > 60) bye(); x0 = null; });
+  setTimeout(bye, 10000); }
 const rv = document.getElementById('reservar');
 // OpenTable's widget is a fixed-size iframe; scale it down to fit narrow phones so the whole calendar shows.
 const fitOT = () => { const w = document.getElementById('otw'), f = w && w.querySelector('iframe'); if (!f) return;
-  const fw = parseFloat(f.getAttribute('width')) || f.offsetWidth, fh = parseFloat(f.getAttribute('height')) || f.offsetHeight; if (!fw || !fh) return;
+  // Phones with large text make the widget's content overflow its own 288px frame: give it room, then scale to fit.
+  const fw = Math.max(340, parseFloat(f.getAttribute('width')) || f.offsetWidth), fh = Math.max(540, parseFloat(f.getAttribute('height')) || f.offsetHeight); if (!fw || !fh) return;
   f.style.width = fw + 'px'; f.style.height = fh + 'px';
   const k = Math.min(1, w.clientWidth / fw);
   f.style.transform = k < 1 ? 'scale(' + k + ')' : ''; f.style.margin = k < 1 ? '0' : '0 auto';
