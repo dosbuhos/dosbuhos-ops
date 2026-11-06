@@ -19,6 +19,21 @@ Newest night first. Each entry: time, what changed and why, files, screenshots (
 
 ## 2026-11-06 · Night 1 — Barricas on the phone
 
+### Resumen de la noche (mira esto primero)
+All on staging, phone first (390px). Open **Bodega → Barricas** on your phone; screenshots are on `/staging-review.html`.
+1. **Mapa del cuarto** — tap a section with a thumb: each one has a bigger tap area and the chosen one is outlined in green. (Mapa, top.)
+2. **Vista de frente** — the lines under each barrel (wine, "rellenar +N d", SO₂) are readable now. (Tap any wall section.)
+3. **Tarjeta de barrica** — the banner says *when* topping was due ("15 d tarde — tocaba el 22 oct"); SO₂ and Relleno are
+   two calm tiles; buttons, tabs and × are glove-size; Notas no longer zooms on iPhone. (Tap a full barrel, e.g. 044.)
+4. **Lista** — the state tabs aren't covered any more, rows line up, the right column says "SO₂ 12.4" / "📍 9.3";
+   Ordenar is inside **Filtros**. (Barricas → Lista.)
+5. **Editar pasillo** — on the phone the aisle wraps into rows of 3 with big "+" / "×" and a one-line hint. (Mapa → an
+   aisle (Pasillo este/oeste) → Editar pasillo.)
+6. Small: app bar says **BODEGA** instead of WINES; Vinos/Tanques/Barricas/Embotellado all fit; Mapa/Lista buttons 38px.
+
+Open questions: see **Preguntas para Eric** above (map rotated on phones, "+5 d" wording, "Tinto" chip, Spanish nav,
+SO₂ thresholds) — no new ones from run 3.
+
 ### Run 1 (≈23:00 Central) — audit
 Before screenshots: `review/2026-11-06/*-before.png` (390×844 and 1300×900, mock data).
 Biggest phone problems, worst first:
@@ -76,3 +91,22 @@ desktop unchanged. Nothing to fix from run 1. Found one old bug on the way: empt
   buttons are 44px, Cancelar is always there. Left for the next run with Poner barrica / Editar pasillo.
 - Risk: low. Display only, plus one JS change in Lista (sort buttons in the Filtros sheet write the same `C.sortB` the
   select writes). `node --check` on the touched scripts; no horizontal scroll at 390; desktop card and Lista checked.
+
+### Run 3 (≈05:00 Central) — re-test, Editar pasillo
+Re-tested everything changed tonight on the mock at 390×844 and 1300×900: room map, front view, barrel card and its four
+tabs, ánfora card, Mover (pick a spot → Confirmar / Cambiar / Cancelar), Poner una barrica aquí, Editar pasillo, Lista,
+Filtros sheet, bulk bar. No regressions and no horizontal scroll. (Barrel 035 shows "¿vino?" on the card while the front
+view says '25 SB: same on `main` — it's a "Por confirmar" barrel in the mock data, not something tonight changed.)
+- **Mover / Poner barrica: checked, left as is.** The dark bar is readable, says what to tap ("Toca un lugar vacío
+  (verde)"), the chosen spot turns solid green, and Confirmar / Cambiar / Cancelar are 44px, full width, always at the bottom.
+- **Editar pasillo on phones: big "+" and "×", rows of 3, a hint.** One aisle row was scaled to ~52% on a phone, so the
+  "+" that adds a spot was ~12px and the "×" that removes an empty added spot ~8px — not tappable with gloves. While
+  editing on a phone the aisle now wraps into rows of 3 with wider gaps: each "+" has a ≈51×72px tap area, the "×" is
+  ~25px with a larger ring, barrels ~46px. Under the section name: "Toca + para agregar un lugar. × quita un lugar vacío
+  que agregaste. Toca Listo al terminar." Same insert points and saves as before (tested: + adds a spot, × removes it).
+  Desktop keeps the single row (gets the hint too). Files: `cellar/app/barricas.html` (`drawAisle()`, the Editar pasillo
+  button code in `draw()`, CSS block "staging night 1 run 3"). Screens: `15-phone-editar-pasillo`, `16-desktop-editar-pasillo`,
+  `17-phone-editar-pasillo-lugar-after` (a spot just added, with its ×).
+- Not done tonight (left for Night 2): Spanish/terms/colour consistency pass, and empty/loading/error states.
+- Risk: low. Display only; the aisle order and spot ids are written exactly as before. `node --check` on the page script.
+
