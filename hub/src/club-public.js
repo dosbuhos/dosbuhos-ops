@@ -44,6 +44,12 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.1; ma
 .qr-cap { text-align: center; font-size: 15px; font-style: italic; color: var(--gold-soft); margin: 8px 0 0; }
 .note { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 17px; }
 #flash .note { position: relative; padding-right: 40px; transition: opacity .4s, transform .4s; } #flash.gone .note { opacity: 0; transform: translateX(60%); }
+.qrcam { position: relative; margin-top: 10px; border-radius: 14px; overflow: hidden; background: #000; }
+.qrcam video { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.qrcam i { position: absolute; inset: 18%; border: 3px solid rgba(255,255,255,.85); border-radius: 12px; pointer-events: none; }
+.qrcam .btn { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: auto; background: rgba(255,255,255,.9); }
+.qrmsg:empty { display: none; } .qrmsg { margin-top: 10px; padding: 12px 14px; border-radius: 12px; font-size: 17px; }
+.qrmsg.ok { background: #eaf4ea; color: #1f5a2a; } .qrmsg.bad { background: #fbeceb; color: #8a2a22; } .qrmsg.wait { background: var(--paper); }
 #flash .x { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; background: none; font-size: 22px; line-height: 1; color: var(--muted, #7a6f66); cursor: pointer; }
 .note.ok { border-left: 4px solid var(--ok); } .note.warn { border-left: 4px solid var(--gold); } .note.bad { border-left: 4px solid var(--bad); }
 .note b { font-weight: 600; }
@@ -252,10 +258,12 @@ ${blocked ? '' : `<details id="reservar"><summary>Reservar mesa</summary><div>
   <div id="otw" class="otw"></div>
   <a class="btn ghost sm" href="${OT_TABLE_URL}" target="_blank" rel="noopener">Abrir en OpenTable</a></div></details>
 <details id="ticket"${ok === 'ticket' ? ' open' : ''}><summary>Sumar mi ticket</summary><div>
-  <p class="small" style="margin:6px 0 0">Toma una foto del código QR de facturación de tu ticket de Dos Búhos. Nosotros leemos el total y la fecha; no tienes que escribir nada.</p>
-  <label class="btn" for="qrfile" style="margin-top:10px">Escanear el QR del ticket</label>
-  <input id="qrfile" type="file" accept="image/*" capture="environment" hidden>
-  <p class="small" id="qrmsg" role="status" style="margin:8px 0 0"></p>
+  <p class="small" style="margin:6px 0 0">Escanea el código QR de facturación de tu ticket de Dos Búhos. Nosotros leemos el total y la fecha; no tienes que escribir nada.</p>
+  <button type="button" class="btn" id="qrgo" style="margin-top:10px">Escanear el QR del ticket</button>
+  <input id="qrfile" type="file" accept="image/*" capture="environment" style="display:none">
+  <div id="qrcam" class="qrcam" style="display:none"><video id="qrvid" playsinline muted></video><i aria-hidden="true"></i>
+    <button type="button" class="btn ghost sm" id="qrstop">Cancelar</button></div>
+  <div id="qrmsg" role="status" class="qrmsg"></div>
   <p class="small" style="margin:8px 0 0">Solo cuentas que tú pagaste, una por mesa.</p>
   <details style="margin-top:10px"><summary class="small">¿Compraste vino en otro lugar?</summary><div>
   <form id="buy"><label>Monto (MXN)<input name="amount" inputmode="decimal" required placeholder="1,250"></label>
@@ -296,23 +304,39 @@ if (rv) rv.addEventListener('toggle', () => { const w = document.getElementById(
 addEventListener('resize', fitOT);
 const mc = document.getElementById('mc');
 if (mc) { const t = () => { const on = mc.classList.toggle('flip'); mc.setAttribute('aria-pressed', String(on)); }; mc.addEventListener('click', t); mc.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); t(); } }); }
-// "Sumar mi ticket": read the QR from a photo (BarcodeDetector where the phone has it, jsQR otherwise) and send only its text.
-const qf = document.getElementById('qrfile'), qm = document.getElementById('qrmsg');
-async function readQR(file) {
-  const bmp = await createImageBitmap(file);
-  if ('BarcodeDetector' in window) { try { const d = await new BarcodeDetector({ formats: ['qr_code'] }).detect(bmp); if (d[0]) return d[0].rawValue; } catch (_) {} }
-  if (!window.jsQR) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
-  for (const side of [1600, 1000, 700]) { const k = Math.min(1, side / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
-    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); const x = c.getContext('2d'); x.drawImage(bmp, 0, 0, c.width, c.height);
-    const r = window.jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height); if (r) return r.data; }
-  return null; }
-if (qf) qf.addEventListener('change', async () => { const file = qf.files[0]; if (!file) return; qm.textContent = 'Leyendo el código…';
-  try { const qr = await readQR(file); qf.value = '';
-    if (!qr) { qm.textContent = 'No pudimos leer el código. Acércate al QR, con buena luz, e intenta de nuevo.'; return; }
-    const r = await fetch(location.pathname.replace(/\\/$/, '') + '/ticket', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ qr }) });
-    const b = await r.json().catch(() => ({})); if (!r.ok) { qm.textContent = b.message || 'No se pudo enviar. Intenta de nuevo.'; return; }
-    location.href = location.pathname + '?ok=ticket';
-  } catch (x) { qm.textContent = 'No se pudo leer la foto. Intenta de nuevo.'; } });
+// "Sumar mi ticket": live camera scan (BarcodeDetector where the phone has it, jsQR otherwise); falls back to a photo.
+const qf = document.getElementById('qrfile'), qm = document.getElementById('qrmsg'), qgo = document.getElementById('qrgo'),
+  qcam = document.getElementById('qrcam'), qv = document.getElementById('qrvid');
+let qstream = null, qbusy = false;
+const say = (cls, html) => { qm.className = 'qrmsg ' + cls; qm.innerHTML = html; };
+async function needJsQR() { if (window.jsQR) return; await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+const det = ('BarcodeDetector' in window) ? (() => { try { return new BarcodeDetector({ formats: ['qr_code'] }); } catch (_) { return null; } })() : null;
+async function decode(src, w, h) {
+  if (det) { try { const d = await det.detect(src); if (d[0]) return d[0].rawValue; } catch (_) {} }
+  await needJsQR(); const c = document.createElement('canvas'), k = Math.min(1, 1000 / Math.max(w, h)); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  const x = c.getContext('2d'); x.drawImage(src, 0, 0, c.width, c.height); const r = window.jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height); return r ? r.data : null; }
+function stopCam() { if (qstream) qstream.getTracks().forEach(t => t.stop()); qstream = null; qcam.style.display = 'none'; qgo.style.display = ''; }
+async function send(qr) {
+  say('wait', 'Registrando tu ticket…');
+  try { const r = await fetch(location.pathname.replace(/\\/$/, '') + '/ticket', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ qr }) });
+    const b = await r.json().catch(() => ({}));
+    if (r.ok) say('ok', '<b>✓ Ticket registrado.</b> Lo confirmamos con el restaurante y se suma solo a tu tarjeta.');
+    else say(r.status === 409 && /tu tarjeta/.test(b.message || '') ? 'ok' : 'bad', (r.status === 409 && /tu tarjeta/.test(b.message || '') ? '<b>✓</b> ' : '') + (b.message || 'No se pudo registrar. Intenta de nuevo.'));
+  } catch (_) { say('bad', 'Sin conexión. Intenta de nuevo.'); } }
+async function scanLoop() {
+  if (!qstream || qbusy) return; qbusy = true;
+  try { if (qv.readyState >= 2) { const qr = await decode(qv, qv.videoWidth, qv.videoHeight); if (qr) { if (navigator.vibrate) navigator.vibrate(80); stopCam(); qbusy = false; return send(qr); } } } catch (_) {}
+  qbusy = false; setTimeout(scanLoop, 250); }
+if (qgo) qgo.addEventListener('click', async () => { qm.className = 'qrmsg'; qm.innerHTML = '';
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return qf.click();
+  try { qstream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    qv.srcObject = qstream; await qv.play(); qcam.style.display = ''; qgo.style.display = 'none'; say('wait', 'Apunta al código QR de facturación del ticket.'); scanLoop();
+  } catch (_) { qf.click(); } });
+document.getElementById('qrstop')?.addEventListener('click', () => { stopCam(); qm.className = 'qrmsg'; qm.innerHTML = ''; });
+if (qf) qf.addEventListener('change', async () => { const file = qf.files[0]; if (!file) return; say('wait', 'Leyendo el código…');
+  try { const bmp = await createImageBitmap(file); const qr = await decode(bmp, bmp.width, bmp.height); qf.value = '';
+    if (!qr) return say('bad', 'No pudimos leer el código. Acércate al QR, con buena luz, e intenta de nuevo.'); send(qr);
+  } catch (_) { say('bad', 'No se pudo leer la foto. Intenta de nuevo.'); } });
 const f = document.getElementById('buy');
 if (f) f.addEventListener('submit', async ev => {
   ev.preventDefault();

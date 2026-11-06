@@ -276,6 +276,15 @@ test('register a visit: counts decrement per person, cannot overspend, undo with
 });
 
 // ---------- receipts and levels ----------
+test('the card page script parses (inline JS in a template literal is easy to break)', async () => {
+  const { DB, call } = await setup();
+  const a = addPerson(DB, 'Ana JS', { programs: [] });
+  const html = (await call(null, 'GET', `/c/${a.code}`)).text;
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(scripts.length);
+  for (const sc of scripts) new Function('return async () => {' + sc + '}');
+});
+
 test('"Sumar mi ticket": the scanned QR is kept once, per card; a second scan is recognized', async () => {
   const { DB, call } = await setup();
   const a = addPerson(DB, 'Ana QR', { programs: [] }), b = addPerson(DB, 'Beto QR', { programs: [] });
