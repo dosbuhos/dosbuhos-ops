@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cotizador de eventos · Dos Búhos</title>
+<meta name="theme-color" content="#5c1e33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cotizador">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  @font-face{font-family:"Cormorant Garamond";font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-400-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:500;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:600;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:400;font-style:italic;font-display:swap;src:url(/fonts/cormorant-garamond-latin-400-italic.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:300;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-300-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-400-normal.woff2) format("woff2")}
+  :root{--bg:#f6f2e7;--paper:#fffef8;--ink:#2b2420;--wine:#5c1e33;--wine2:#7a2a45;--gold:#a0783a;--muted:#7d7466;--line:#e4dccb;--red:#b8302a;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--ink);font-family:Lato,system-ui,sans-serif;font-weight:300;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .top{background:var(--wine);color:#f6f2e7;padding:calc(var(--sat) + 14px) 18px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  .top img{height:26px;display:block}
+  .top .t{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.85}
+  .top button{background:none;border:1px solid rgba(246,242,231,.4);color:#f6f2e7;font:inherit;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:7px 10px}
+  .wrap{max-width:640px;margin:0 auto;padding:18px 16px calc(var(--sab) + 150px)}
+  h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:26px;color:var(--wine);margin:26px 0 10px;line-height:1.1}
+  h2 small{display:block;font-family:Lato,sans-serif;font-weight:300;font-size:13px;color:var(--muted);margin-top:2px}
+  .card{background:var(--paper);border:1px solid var(--line);padding:14px 14px 4px}
+  .f{display:flex;flex-direction:column;gap:5px;padding:9px 0 12px;border-bottom:1px solid var(--line)}
+  .f:last-child{border-bottom:0}
+  .f label{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .f input,.f select{width:100%;font:inherit;font-size:16px;font-weight:400;color:var(--ink);background:#fff;border:1px solid var(--line);padding:11px 12px;border-radius:0;-webkit-appearance:none;appearance:none}
+  .f select{background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:36px}
+  .f input:focus,.f select:focus{outline:2px solid var(--wine2);outline-offset:-1px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row2 .f{border-bottom:0}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .sw span{font-size:15px}
+  .tog{position:relative;width:46px;height:26px;flex:0 0 auto}
+  .tog input{opacity:0;width:0;height:0}
+  .tog i{position:absolute;inset:0;background:#d9d1c0;border-radius:26px;transition:.2s}
+  .tog i:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .tog input:checked + i{background:var(--wine)}
+  .tog input:checked + i:before{transform:translateX(20px)}
+  /* lines */
+  .lines{background:var(--paper);border:1px solid var(--line)}
+  .ln{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14.5px}
+  .ln:last-child{border-bottom:0}
+  .ln b{font-weight:400;color:var(--ink)}
+  .ln i{font-style:normal;white-space:nowrap;color:var(--ink)}
+  .ln.sub b,.ln.sub i{color:var(--muted);font-size:13.5px}
+  .ln.tot{background:#f1ebdd}
+  .ln.tot b{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-weight:500;color:var(--wine)}
+  .ln.tot i{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-weight:600;color:var(--wine)}
+  .ln.red b,.ln.red i{color:var(--red)}
+  .ln .d{display:block;font-size:12px;color:var(--muted)}
+  .note{font-size:13px;color:var(--muted);padding:10px 2px}
+  .alert{background:#fbe9e7;border:1px solid #efc4c0;color:var(--red);padding:12px 14px;font-size:13.5px;margin-top:12px;white-space:pre-line}
+  .ok{background:#eaf2e6;border:1px solid #cfe0c6;color:#2f5e2a;padding:12px 14px;font-size:13.5px;margin-top:12px;white-space:pre-line}
+  /* sticky total */
+  .dock{position:fixed;left:0;right:0;bottom:0;background:var(--wine);color:#f6f2e7;padding:12px 16px calc(var(--sab) + 12px);z-index:6;box-shadow:0 -6px 18px rgba(0,0,0,.18)}
+  .dock .in{max-width:640px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .dock .tt{font-family:"Cormorant Garamond",Georgia,serif;font-size:30px;font-weight:600;line-height:1}
+  .dock .pp{font-size:11.5px;opacity:.85;margin-top:3px}
+  .dock button{background:#f6f2e7;color:var(--wine);border:0;font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:12px 14px;cursor:pointer;white-space:nowrap}
+  .dock button.sec{background:none;color:#f6f2e7;border:1px solid rgba(246,242,231,.45)}
+  .btns{display:flex;gap:8px}
+  /* internal */
+  .internal{display:none}
+  body.int .internal{display:block}
+  .intl{border-left:3px solid var(--gold)}
+  .textarea{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:#fff;border:1px solid var(--line);padding:10px 12px;min-height:72px;border-radius:0}
+  /* ---------- proposal (client page) ---------- */
+  #prop{display:none;background:#fff}
+  body.prop #app{display:none}
+  body.prop #prop{display:block}
+  .pp-bar{background:var(--wine);color:#f6f2e7;padding:calc(var(--sat) + 12px) 16px 12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+  .pp-bar button{background:none;border:1px solid rgba(246,242,231,.45);color:#f6f2e7;font:inherit;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:8px 11px}
+  .page{max-width:720px;margin:0 auto;padding:30px 24px 60px;background:#fffef8;color:var(--ink)}
+  .page .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--gold);padding-bottom:12px}
+  .page .hd img{height:30px}
+  .page .hd .k{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+  .page h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:34px;color:var(--wine);margin-top:22px;line-height:1.05}
+  .page .lead{font-size:14px;color:var(--muted);margin-top:4px}
+  .page h3{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);margin:26px 0 8px}
+  .page .ev{font-family:"Cormorant Garamond",Georgia,serif;font-size:21px;line-height:1.25;white-space:pre-line}
+  .it{display:grid;grid-template-columns:92px 1fr;gap:6px 14px;font-size:14px;border-top:1px solid var(--line)}
+  .it > div{padding:10px 0;border-bottom:1px solid var(--line)}
+  .it .tm{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);padding-top:13px}
+  .it b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;font-weight:500;color:var(--wine)}
+  .it span{color:#4a423b}
+  .tot-box{margin-top:22px;background:var(--wine);color:#f6f2e7;padding:18px 20px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+  .tot-box .l{font-size:10px;letter-spacing:.26em;text-transform:uppercase;opacity:.85}
+  .tot-box .v{font-family:"Cormorant Garamond",Georgia,serif;font-size:38px;font-weight:600;line-height:1}
+  .tot-box .p{font-size:12px;opacity:.9;margin-top:6px}
+  .page p{font-size:14px;color:#4a423b;margin-top:8px;white-space:pre-line}
+  .page .sp{white-space:pre-line}
+  .page .detwrap{display:none}
+  body.det .page .detwrap{display:block}
+  .page .det{margin-top:10px;border-top:1px solid var(--line)}
+  .page .det .ln{padding:7px 0;font-size:13.5px}
+  .page .fine{font-size:12px;color:var(--muted);margin-top:26px;border-top:1px solid var(--line);padding-top:12px}
+  .page .ct{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;font-size:13.5px}
+  .page .ct b{display:block;font-weight:400;color:var(--wine)}
+  @media print{
+    body{background:#fff}
+    .pp-bar,.dock,#app{display:none !important}
+    #prop{display:block !important}
+    .page{max-width:none;padding:0;margin:0}
+    @page{size:letter;margin:16mm 16mm 18mm}
+  }
+  /* gate */
+  #gate{position:fixed;inset:0;background:var(--wine);color:#f6f2e7;display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+  #gate.on{display:flex}
+  #gate form{width:100%;max-width:320px;text-align:center}
+  #gate img{height:34px;margin-bottom:26px}
+  #gate input{width:100%;font:inherit;font-size:22px;letter-spacing:.4em;text-align:center;padding:12px;border:1px solid rgba(246,242,231,.5);background:rgba(0,0,0,.15);color:#fff;border-radius:0}
+  #gate button{margin-top:12px;width:100%;background:#f6f2e7;color:var(--wine);border:0;font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:12px}
+  #gate .e{font-size:12.5px;margin-top:10px;opacity:.85;min-height:18px}
+</style>
+</head>
+<body>
+
+<div id="gate"><form onsubmit="return gateSubmit(event)"><img src="/icons/logo-light.png" alt="Dos Búhos"><input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button>Entrar</button><div class="e" id="gate-e"></div></form></div>
+
+<div id="app">
+  <div class="top"><div><img src="/icons/logo-light.png" alt="Dos Búhos"><div class="t">Cotizador de eventos</div></div><div class="btns"><button onclick="document.body.classList.toggle('int');save()">Interno</button><button onclick="resetAll()">Nueva</button></div></div>
+  <div class="wrap">
+
+    <h2>El evento<small>Quién, cuándo, cuántos</small></h2>
+    <div class="card">
+      <div class="f"><label>Cliente</label><input id="cv_cliente" placeholder="Nombre del cliente"></div>
+      <div class="f"><label>Evento</label><input id="cv_evento" placeholder="Boda, cena de empresa, cumpleaños…"></div>
+      <div class="row2"><div class="f"><label>Fecha</label><input id="cv_fecha" placeholder="Sábado 14 de marzo"></div><div class="f"><label>Horario</label><input id="cv_hora" placeholder="19:00 - 22:00"></div></div>
+      <div class="row2"><div class="f"><label>Invitados</label><input id="fb_pax" type="number" inputmode="numeric" min="0" placeholder="0"></div><div class="f"><label>Prepara la propuesta</label><input id="cv_por" placeholder="Luis · Melanie"></div></div>
+    </div>
+
+    <h2>El espacio<small>Renta más IVA · uso privado o restaurante en horario regular</small></h2>
+    <div class="card">
+      <div class="f"><label>Espacio</label><select id="sp_space"><option value="">Elegir…</option><option value="bodega">Bodega de Arte · uso privado</option><option value="garden">Winegarden · uso privado</option><option value="rest">Restaurante · horario regular</option></select></div>
+      <div class="row2"><div class="f"><label>Día</label><select id="sp_dia"><option value="vd">Viernes a domingo</option><option value="lj">Lunes a jueves</option></select></div><div class="f"><label>Horas del evento</label><input id="sp_hrs" type="number" inputmode="numeric" min="0" placeholder="3"></div></div>
+      <div class="sw"><span>Hacienda completa en exclusiva</span><label class="tog"><input type="checkbox" id="sp_estate"><i></i></label></div>
+      <div class="hint" id="o_sp_basis" style="padding:10px 0 6px"></div>
+      <div class="internal"><div class="f intl" style="padding-left:12px"><label>Cortesía de la casa en la renta (%)</label><input id="sp_desc" type="number" inputmode="numeric" min="0" max="100" placeholder="0"><div class="hint">Hasta 20 % a criterio del equipo; más de 20 %, solo con autorización de Eric. 100 = renta sin costo.</div></div></div>
+    </div>
+
+    <h2>Alimentos y bebidas<small>Precios por persona, más 15 % de servicio e IVA</small></h2>
+    <div class="card">
+      <div class="f"><label>Copa de bienvenida</label><select id="fb_copa"><option>Cortesía de la casa</option><option>Copa de espumoso · $120 p/p</option><option>Sin selección</option></select></div>
+      <div class="f"><label>Bocados y antojos</label><select id="fb_bot"><option>Sin selección</option><option>Canapés de la casa · 6 piezas · $205</option><option>Barra botanera de feria · hasta 2 h · $172</option><option>Barra botanera de feria · hasta 5 h · $202</option><option>Canapés + barra botanera 2 h · $377</option><option>Canapés + barra botanera 5 h · $407</option></select></div>
+      <div class="f"><label>Menú</label><select id="fb_menu"><option value="">Sin menú</option><option value="342">Menú Esencial · tres tiempos · $342</option><option value="470">Menú Selección · tres tiempos · $470</option><option value="640">Menú Reserva · tres tiempos · $640</option><option value="412.29">Parrillada de la huerta · $412</option><option value="637.18">Parrillada fuego y bodega · $637</option></select></div>
+      <div class="row2"><div class="f"><label>Barra libre</label><select id="fb_bar"><option>Sin barra libre</option><option>3 horas · estándar</option><option>3 horas · Gran Reserva</option><option>4 horas · estándar</option><option>4 horas · Gran Reserva</option><option>5 horas · estándar</option><option>5 horas · Gran Reserva</option><option>6 horas · estándar</option><option>6 horas · Gran Reserva</option><option>7 horas · estándar</option><option>7 horas · Gran Reserva</option><option>8 horas · estándar</option><option>8 horas · Gran Reserva</option></select></div><div class="f"><label>Sin alcohol · pers.</label><input id="fb_nalc" type="number" inputmode="numeric" min="0" placeholder="0"></div></div>
+      <div class="row2"><div class="f"><label>Recorrido con vino · pers.</label><input id="fb_tour" type="number" inputmode="numeric" min="0" placeholder="0"></div><div class="f"><label>Copas</label><select id="fb_tourw"><option value="2">2 copas · $300</option><option value="3">3 copas · $450</option><option value="4">4 copas · $600</option></select></div></div>
+      <div class="row2"><div class="f"><label>Recorrido sin alcohol · pers.</label><input id="fb_tournv" type="number" inputmode="numeric" min="0" placeholder="0"></div><div class="f"><label>Botellas de obsequio</label><input id="fb_bott" type="number" inputmode="numeric" min="0" placeholder="0"><div class="hint">$499 c/u, IVA incluido · etiqueta personalizada desde 24</div></div></div>
+    </div>
+
+    <h2>La cotización<small>Lo que ve el cliente</small></h2>
+    <div class="lines" id="fb_lines"></div>
+    <div class="note" id="o_pp"></div>
+    <div class="lines" id="sp_lines" style="margin-top:10px"></div>
+    <div class="note" id="o_sp_pp"></div>
+    <div class="lines" style="margin-top:10px"><div class="ln tot"><b>Total del evento<span class="d" style="color:var(--muted)">Alimentos, bebidas y espacio · servicio e IVA incluidos</span></b><i id="o_grand">$0</i></div></div>
+    <div class="note" id="o_grand_pp"></div>
+    <div id="o_min_note" class="note" style="white-space:pre-line"></div>
+
+    <div class="internal">
+      <h2>Uso interno<small>No se imprime para el cliente</small></h2>
+      <div id="in_alert"></div>
+      <div class="lines intl" style="margin-top:12px">
+        <div class="ln"><b>Servicio 15 % de la cotización</b><i id="in_serv"></i></div>
+        <div class="ln sub"><b>Cocina (50 %)</b><i id="in_cocina"></i></div>
+        <div class="ln sub"><b>Meseros (50 %)</b><i id="in_meseros"></i></div>
+        <div class="ln"><b>Renta neta para la casa (sin IVA)</b><i id="in_net"></i></div>
+      </div>
+      <div class="note" style="white-space:pre-line" id="in_gap"></div>
+    </div>
+
+    <h2>Notas<small>Van en la propuesta</small></h2>
+    <div class="card">
+      <div class="f"><label>Alimentos y bebidas</label><textarea class="textarea" id="fb_notas">Opción vegetariana disponible en todos los menús. Les agradeceremos compartir alergias y restricciones alimentarias de sus invitados.</textarea></div>
+      <div class="f"><label>Espacio y pagos</label><textarea class="textarea" id="sp_notas">Anticipo de 50% para apartar la fecha; saldo cinco días antes del evento. Pagos por transferencia bancaria. Propuesta vigente por 15 días naturales.</textarea></div>
+    </div>
+  </div>
+
+  <div class="dock"><div class="in"><div><div class="tt" id="dock_total">$0</div><div class="pp" id="dock_pp">&nbsp;</div></div><div class="btns"><button class="sec" onclick="shareWA()">WhatsApp</button><button onclick="showProp()">Propuesta</button></div></div></div>
+</div>
+
+<!-- ================= PROPUESTA ================= -->
+<div id="prop">
+  <div class="pp-bar"><button onclick="document.body.classList.remove('prop')">‹ Editar</button><button onclick="document.body.classList.toggle('det')" id="detbtn">+ Detalle</button><button onclick="window.print()">PDF · Imprimir</button></div>
+  <div class="page">
+    <div class="hd"><img src="/icons/logo-dark.png" alt="Dos Búhos"><div class="k">Su cotización</div></div>
+    <h1>Su cotización</h1>
+    <div class="lead">Todo lo que incluye su evento, en una sola página. Precios en pesos mexicanos.</div>
+    <h3>Su evento</h3><div class="ev" id="r_evento"></div>
+    <h3>El ritmo de su velada</h3><div class="it" id="r_it"></div>
+    <h3>El espacio</h3><p class="sp" id="r_space"></p>
+    <div class="tot-box"><div><div class="l">Total del evento</div><div class="p" id="r_fb_note"></div></div><div style="text-align:right"><div class="v" id="r_total"></div><div class="p" id="r_pp"></div></div></div>
+    <p id="r_min"></p>
+    <div class="detwrap"><h3 id="r_det_h">Detalle</h3><div class="det" id="r_det"></div></div>
+    <h3>Notas</h3><p id="r_notas"></p>
+    <h3>Siguientes pasos</h3>
+    <div class="ct"><div><b>Cómo reservar</b>La fecha se aparta con 50 % de anticipo; el saldo, cinco días antes del evento. Menú y número final de invitados, diez días antes. Pagos por transferencia bancaria. Propuesta vigente por 15 días naturales.</div><div><b>Contacto</b>Luis Alberto Quezada · Embajador de Experiencias<br>Melanie Harris · Curadora de eventos<br>eventos@dosbuhos.com<br>WhatsApp +52 415 139 0978</div></div>
+    <div class="fine">Bodega Dos Búhos · Viñedo orgánico certificado · San Miguel de Allende, Guanajuato · eventos@dosbuhos.com · +52 415 139 0978</div>
+  </div>
+</div>
+
+<script>
+// ===================== PRECIOS (editar aquí) =====================
+const P = {
+  menus: {"342":"Menú Esencial","470":"Menú Selección","640":"Menú Reserva","412.29":"Parrillada de la huerta","637.18":"Parrillada fuego y bodega"},
+  canapes: 205, botanera2h: 172.41, botanera5h: 202.4, copa: 120,
+  bar:  [0,0,0,475,630,790,945,1100,1255],      // por persona, índice = horas (3..8)
+  barGR:[0,0,0,675,890,1105,1320,1530,1745],
+  barNA:[0,0,0,180,220,260,300,340,380],        // sin alcohol
+  tourCopa: 150, botella: 499,
+  servicio: 0.15, iva: 0.16,
+  minimo: 30000, minimoHoraExtra: 5000,         // consumo mínimo, hasta 3 h; +5,000 por hora adicional
+  espacios: { bodega:{lj:136,vd:179,clj:95000,cvd:125000,std:7,est:50000,xlj:13500,xvd:18000},
+              garden:{lj:75, vd:119,clj:60000,cvd:95000, std:8,est:80000,xlj:7500, xvd:12000} },
+  minPax: 30, minHrs: 3, cortesiaMax: 20,
+};
+const IDS = ["cv_cliente","cv_evento","cv_fecha","cv_hora","cv_por","fb_pax","sp_space","sp_dia","sp_hrs","sp_estate","sp_desc","fb_copa","fb_bot","fb_menu","fb_bar","fb_nalc","fb_tour","fb_tourw","fb_tournv","fb_bott","fb_notas","sp_notas"];
+const $ = id => document.getElementById(id);
+const n = id => { const v = Number($(id).value); return (isNaN(v) || v < 0) ? 0 : v; };
+const m = x => (x < 0 ? "-" : "") + "$" + Math.round(Math.abs(x)).toLocaleString("en-US");
+
+// ===================== ALIMENTOS Y BEBIDAS =====================
+function calcFB() {
+  const pax = Math.floor(n("fb_pax")), menu = Number($("fb_menu").value) || 0;
+  const bx = $("fb_bot").value, bot = bx.includes("2 h") ? P.botanera2h : (bx.includes("5 h") ? P.botanera5h : 0), canpp = bx.includes("Canap") ? P.canapes : 0;
+  const barv = $("fb_bar").value, h = parseInt(barv, 10) || 0, grb = barv.includes("Gran");
+  const barpp = (grb ? P.barGR[h] : P.bar[h]) || 0;
+  const nal = Math.min(Math.floor(n("fb_nalc")), pax), bpx = pax - nal;
+  const cp = $("fb_copa").value, cpv = cp.includes("$120") ? P.copa * pax : 0, cpz = cp.includes("Cortes");
+  const cnv = canpp * pax, a = menu * pax, b = bot * pax, c = barpp * bpx, c2 = h ? (P.barNA[h] || 0) * nal : 0;
+  let sub = a + cnv + b + c + c2 + cpv;
+  const tw = n("fb_tourw") || 2, tp = Math.floor(n("fb_tour")), tour = tp * P.tourCopa * tw, tnp = Math.floor(n("fb_tournv")), tnv = tnp * P.tourCopa, bq = Math.floor(n("fb_bott")), bott = bq * P.botella;
+  const sps = $("sp_space").value, prv = (sps === "bodega" || sps === "garden"), shh = Number($("sp_hrs").value) || 3;
+  const MIN = P.minimo + Math.max(0, shh - 3) * P.minimoHoraExtra, spend = sub + (tour + tnv + bott) / (1 + P.iva), gap = prv ? Math.max(0, MIN - spend) : 0;
+  const serv = sub * P.servicio, iva = (sub + serv) * P.iva, total = sub + serv + iva + tour + tnv + bott;
+  const L = [];
+  if (cpz) L.push(["Copa de espumoso de bienvenida", "Cortesía"]);
+  if (cpv) L.push([`Copa de espumoso · ${pax} pers.`, m(cpv)]);
+  if (a) L.push([P.menus[String(menu)] || "Menú", m(a)]);
+  if (cnv) L.push([`Canapés · 6 piezas · ${pax} pers.`, m(cnv)]);
+  if (b) L.push([`Barra botanera de feria · hasta ${bot < 190 ? 2 : 5} h`, m(b)]);
+  if (c) L.push([(grb ? "Barra Gran Reserva · " : "Barra libre con alcohol · ") + `${h} h · ${bpx} pers.`, m(c)]);
+  if (c2) L.push([`Barra sin alcohol · ${h} h · ${nal} pers.`, m(c2)]);
+  if (gap > 0) L.push([`Mínimo ${m(MIN)} · faltan`, `(${m(gap)})`, "red"]);
+  L.push(["Subtotal", m(sub), "sub"], ["Servicio 15%", m(serv), "sub"], ["IVA 16%", m(iva), "sub"]);
+  if (tour) L.push([`Recorrido con vino · ${tp} pers. · ${tw} copas`, m(tour)]);
+  if (tnv) L.push([`Recorrido sin alcohol · ${tnp} pers.`, m(tnv)]);
+  if (bott) L.push([`Botellas de obsequio · ${bq} (IVA incl.)`, m(bott)]);
+  return { L, total, pax, menu, cpz, cpv, canpp, bot, h, grb, nal, bpx, tp, tw, tnp, bq, serv, gap, MIN, shh, prv, spend, sub,
+    barnew: (!h && pax) ? P.bar[Math.min(Math.max(shh, 3), 8)] * pax : 0,
+    barup: (h && h < 8) ? ((grb ? P.barGR[h + 1] - P.barGR[h] : P.bar[h + 1] - P.bar[h]) * bpx) : 0,
+    copaup: (!cpv && pax) ? P.copa * pax : 0,
+    bargr: (h && !grb) ? (P.barGR[h] - P.bar[h]) * bpx : 0 };
+}
+
+// ===================== ESPACIO =====================
+function calcSP(fbpax) {
+  const pax = Math.floor(n("fb_pax")) || fbpax || 0, h = n("sp_hrs"), s = $("sp_space").value, dia = $("sp_dia").value;
+  const r = P.espacios[s] || P.espacios.bodega, rate = dia === "lj" ? r.lj : r.vd, cap = dia === "lj" ? r.clj : r.cvd, xr = dia === "lj" ? r.xlj : r.xvd, xh = Math.max(0, h - r.std);
+  let space = 0, extra = 0, basis = "";
+  if (!pax || !s) { basis = s ? "Captura el número de invitados." : ""; }
+  else if (s === "rest") { basis = h > 3 ? "Horario regular: hasta 3 horas sin costo; tiempo adicional a cotizar" : "Restaurante en horario regular · hasta 3 horas, sin costo"; }
+  else if (pax >= 100) { space = cap; extra = xh * xr; basis = `Espacio completo · incluye ${r.std} horas`; }
+  else { const bp = Math.max(pax, P.minPax), bh = Math.max(h, P.minHrs), g = rate * bp * bh, capT = cap + xh * xr; space = Math.min(g, capT); basis = g > capT ? "Tope: precio del espacio completo" : `$${rate} x ${bp} invitados x ${bh} h`; }
+  const est = (s && s !== "rest" && $("sp_estate").checked) ? r.est : 0;
+  const pct = Math.min(n("sp_desc"), 100), desc = (space + extra + est) * pct / 100, sub = space + extra + est - desc, iva = sub * P.iva, total = sub + iva;
+  const L = [["Renta del espacio", s === "rest" ? "Sin costo" : m(space)]];
+  if (extra) L.push(["Horas adicionales", m(extra)]);
+  if (est) L.push(["Hacienda completa en exclusiva", m(est)]);
+  if (desc) L.push(["Cortesía de la casa", m(-desc)]);
+  L.push(["Subtotal", m(sub), "sub"], ["IVA 16%", m(iva), "sub"]);
+  return { L, total, sub, basis, s, h, pax, est, desc, pct };
+}
+
+// ===================== RENDER =====================
+function lines(el, L, totalLabel, total) {
+  el.innerHTML = L.map(([a, b, k]) => `<div class="ln ${k || ""}"><b>${a}</b><i>${b}</i></div>`).join("") + (totalLabel ? `<div class="ln tot"><b>${totalLabel}</b><i>${m(total)}</i></div>` : "");
+}
+function recalc() {
+  const F = calcFB(), S = calcSP(F.pax);
+  lines($("fb_lines"), F.L, "Total alimentos y bebidas", F.total);
+  $("o_pp").textContent = F.pax ? `${m(F.total / F.pax)} por invitado · MXN, servicio e IVA incluidos` : "";
+  lines($("sp_lines"), S.L, "Total espacio", S.total);
+  $("o_sp_basis").textContent = S.basis;
+  $("o_sp_pp").textContent = (S.pax && S.total) ? `${m(S.total / S.pax)} por invitado · MXN, IVA incluido` : "";
+  const grand = F.total + S.total, pax = F.pax || S.pax || 0;
+  $("o_grand").textContent = m(grand); $("dock_total").textContent = m(grand);
+  $("o_grand_pp").textContent = pax ? `${m(grand / pax)} por invitado · MXN` : ""; $("dock_pp").textContent = pax ? `${m(grand / pax)} por invitado · ${pax} invitados` : "Captura invitados, espacio y menú";
+  $("o_min_note").textContent = (F.prv && F.gap > 0) ? `Para eventos privados fuera de nuestro horario regular manejamos un consumo mínimo de ${m(F.MIN)} en alimentos y bebidas para un evento de ${F.shh} horas, antes de servicio e IVA: así abrimos la bodega solo para ustedes, con todo nuestro equipo. Para grupos pequeños, lo que falte lo convertimos en algo que disfruten: un mejor menú, canapés o vino de nuestra bodega para llevar a casa.` : "";
+  // interno
+  const priv = S.s === "bodega" || S.s === "garden";
+  $("in_serv").textContent = (F.serv || priv) ? m(F.serv) : ""; $("in_cocina").textContent = (F.serv || priv) ? m(F.serv / 2) : ""; $("in_meseros").textContent = (F.serv || priv) ? m(F.serv / 2) : ""; $("in_net").textContent = priv ? m(S.sub) : "—";
+  const al = [];
+  if (F.prv && F.gap > 0) al.push(`BAJO EL CONSUMO MÍNIMO · faltan ${m(F.gap)} de ${m(F.MIN)}. Ver opciones abajo antes de enviar.`);
+  if (F.h && S.h && F.h != S.h) al.push(`ATENCIÓN · La barra libre (${F.h} h) debe cubrir las mismas horas del evento (${S.h} h).`);
+  if (S.pct > P.cortesiaMax) al.push(`ATENCIÓN · Cortesía de ${S.pct} %: más de ${P.cortesiaMax} % requiere autorización de Eric antes de enviar.`);
+  $("in_alert").innerHTML = al.length ? `<div class="alert">${al.join("\n")}</div>` : `<div class="ok">Sin alertas.</div>`;
+  let t;
+  if (!F.prv) t = "Consumo mínimo: no aplica (restaurante en horario regular o sin espacio elegido).";
+  else if (F.gap <= 0) t = `Cumple el mínimo · consumo de ${m(F.spend)} antes de servicio e IVA.`;
+  else { t = `Faltan ${m(F.gap)} para el mínimo de ${m(F.MIN)} (${F.shh} h). Agrega servicios hasta llegar; la línea "Mínimo · faltan" desaparece sola.`;
+    const up = F.menu == 342 ? 128 : F.menu == 470 ? 170 : 0, o = [];
+    if (up && F.pax) o.push(`${F.menu == 342 ? "Selección" : "Reserva"} suma ${m(up * F.pax)}${up * F.pax >= F.gap ? " (cubre el mínimo)" : ""}`);
+    if (F.barnew) o.push(`barra libre de ${Math.min(Math.max(F.shh, 3), 8)} h suma ${m(F.barnew)}${F.barnew >= F.gap ? " (cubre el mínimo)" : ""}`);
+    if (F.copaup) o.push(`cobrar la copa de bienvenida suma ${m(F.copaup)}`);
+    if (F.bargr) o.push(`barra Gran Reserva suma ${m(F.bargr)}${F.bargr >= F.gap ? " (cubre el mínimo)" : ""}`);
+    if (o.length) t += ` Opciones: ${o.join("; ")}; o botellas de obsequio ($${P.botella} c/u).`; }
+  $("in_gap").textContent = t;
+  save(); return { F, S, grand, pax };
+}
+
+// ===================== PROPUESTA =====================
+function itinerary(F) {
+  const hm = String($("cv_hora").value || "").match(/(\d{1,2})[:.](\d{2})/); let t0 = hm ? Number(hm[1]) * 60 + Number(hm[2]) : -1;
+  const tf = x => { if (t0 < 0) return ""; x = x % 1440; const hh = Math.floor(x / 60), mm = x % 60; return `${hh}:${mm < 10 ? "0" : ""}${mm}`; };
+  const S = []; let tt = t0;
+  if (F.tp || F.tnp) { S.push([tf(tt), "El recorrido", "Caminamos el viñedo y entramos a la bodega con quien hace nuestros vinos" + (F.tp ? `; degustación de ${F.tw} copas` : "") + (F.tnp ? (F.tp ? `, y una versión sin alcohol para ${F.tnp} invitados` : `; versión sin alcohol para ${F.tnp} invitados`) : "") + "."]); tt += 45; }
+  if (F.cpz || F.cpv || F.canpp) { const w = []; if (F.cpz || F.cpv) w.push("Una copa de nuestro espumoso al llegar" + (F.cpz ? ", cortesía de la casa" : "")); if (F.canpp) w.push(w.length ? "canapés, seis bocados por persona, servidos al paso" : "Canapés de la casa, seis bocados por persona, servidos al paso"); S.push([tf(tt), "La bienvenida", w.join(", y ") + "."]); tt += 30; }
+  if (F.menu) { const pr = (F.menu == 412.29 || F.menu == 637.18); S.push([tf(tt), "La mesa", (P.menus[String(F.menu)] || "Nuestro menú") + (pr ? ": carne y verdura al carbón al centro de la mesa, con salsas y tortillas de la casa, para compartir." : ": tres tiempos emplatados de nuestra cocina, ingredientes de la huerta y del Bajío, con opción vegetariana.")]); }
+  if (F.h || F.bot) { let b = F.h ? `Barra libre ${F.grb ? "Gran Reserva, con nuestros Tempranillo y Cabernet Sauvignon Gran Reserva y nuestro Sauvignon Blanc" : "con nuestros vinos de la casa"}, cerveza artesanal y bebidas sin alcohol, ${F.h} horas.` : ""; if (F.bot) b += (b ? " " : "") + `Barra botanera de feria para picar, hasta ${F.bot < 190 ? 2 : 5} horas.`; S.push(["Toda la velada", "La barra", b]); }
+  if (F.bq) S.push(["Al despedirse", "Para llevar a casa", `${F.bq} botellas de obsequio de nuestra bodega.`]);
+  return S;
+}
+function showProp() {
+  const { F, S, grand, pax } = recalc();
+  const g = id => String($(id).value || "").trim();
+  const a = [g("cv_cliente"), g("cv_evento")].filter(Boolean).join(" · "), b = [g("cv_fecha"), g("cv_hora"), pax ? `${pax} invitados` : ""].filter(Boolean).join(" · ");
+  $("r_evento").textContent = a + (a && b ? "\n" : "") + b;
+  $("r_it").innerHTML = itinerary(F).map(([t, h, d]) => `<div class="tm">${t}</div><div><b>${h}</b><span>${d}</span></div>`).join("") || `<div class="tm"></div><div><span>Captura menú, barra o recorrido para armar la velada.</span></div>`;
+  const SN = { bodega: "La Bodega de Arte", garden: "El Winegarden" }; let sp = "";
+  if (S.s === "rest") sp = "Una mesa en nuestro restaurante, en horario regular, hasta 3 horas.";
+  else if (S.s) sp = (S.est ? `La hacienda completa en exclusiva, con ${SN[S.s].toLowerCase()} como espacio principal` : `${SN[S.s]} en exclusiva para su grupo`) + `, abierta fuera de nuestro horario regular · ${S.h || 3} horas.\n\nEstacionamiento y sanitarios atendidos; mobiliario, mantelería, cristalería y vajilla, y coordinación en sitio.` + (S.desc ? "\n\nCon cortesía de la casa en la renta del espacio." : "");
+  $("r_space").textContent = sp;
+  $("r_total").textContent = m(grand); $("r_pp").textContent = pax ? `${m(grand / pax)} por invitado · MXN` : ""; $("r_fb_note").textContent = grand ? "Alimentos, bebidas, espacio, servicio e IVA incluidos" : "";
+  $("r_min").textContent = $("o_min_note").textContent;
+  const det = F.L.concat([["Total alimentos y bebidas", m(F.total), "tot"]]).concat(S.s ? S.L.concat([["Total espacio", m(S.total), "tot"]]) : []);
+  $("r_det").innerHTML = det.filter(x => x[2] !== "red").map(([a, b, k]) => `<div class="ln ${k || ""}"><b>${a}</b><i>${b}</i></div>`).join("");
+  $("r_notas").textContent = [g("fb_notas"), g("sp_notas")].filter(Boolean).join("\n\n");
+  document.body.classList.add("prop"); window.scrollTo(0, 0);
+}
+function shareWA() {
+  const { F, S, grand, pax } = recalc();
+  const g = id => String($(id).value || "").trim();
+  const t = [`*Dos Búhos · Cotización*`, [g("cv_cliente"), g("cv_evento")].filter(Boolean).join(" · "), [g("cv_fecha"), g("cv_hora"), pax ? pax + " invitados" : ""].filter(Boolean).join(" · "), "",
+    ...F.L.filter(x => x[2] !== "sub" && x[2] !== "red").map(([a, b]) => `• ${a}: ${b}`), S.s ? `• ${S.L[0][0]}: ${S.L[0][1]}` : "", "",
+    `*Total del evento: ${m(grand)}*` + (pax ? ` · ${m(grand / pax)} por invitado` : ""), "Servicio e IVA incluidos. Propuesta vigente 15 días.", "eventos@dosbuhos.com · +52 415 139 0978"].filter(x => x !== null).join("\n");
+  window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
+}
+
+// ===================== ESTADO =====================
+function save() { try { const o = {}; IDS.forEach(i => o[i] = $(i).type === "checkbox" ? $(i).checked : $(i).value); o._int = document.body.classList.contains("int"); localStorage.setItem("cotizador", JSON.stringify(o)); } catch (e) {} }
+function load() { try { const o = JSON.parse(localStorage.getItem("cotizador") || "{}"); IDS.forEach(i => { if (o[i] !== undefined) { if ($(i).type === "checkbox") $(i).checked = !!o[i]; else $(i).value = o[i]; } }); if (o._int) document.body.classList.add("int"); } catch (e) {} }
+function resetAll() { if (!confirm("¿Empezar una cotización nueva? Se borra lo capturado.")) return; IDS.forEach(i => { if ($(i).type === "checkbox") $(i).checked = false; else if ($(i).tagName === "SELECT") $(i).selectedIndex = 0; else if (!i.endsWith("_notas")) $(i).value = ""; }); recalc(); }
+IDS.forEach(i => { $(i).addEventListener("input", recalc); $(i).addEventListener("change", recalc); });
+load(); recalc();
+
+// ===================== PIN =====================
+async function gateSubmit(e) { e.preventDefault(); const r = await fetch("/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pin: $("pin").value }) }); if (r.ok) { $("gate").classList.remove("on"); } else { $("gate-e").textContent = "PIN incorrecto"; } return false; }
+fetch("/me").then(r => r.json()).then(j => { if (j.locked) $("gate").classList.add("on"); }).catch(() => {});
+if ("serviceWorker" in navigator) { try { navigator.serviceWorker.register("/sw.js"); } catch (e) {} }
+</script>
+</body>
+</html>
