@@ -20,6 +20,7 @@ const ID = /^[\w.\-]{1,120}$/;
 export default {
   // Every 5 minutes: copy whatever changed in Excellovint into the app's records.
   async scheduled(event, env, ctx) {
+    if (env.STAGING === '1') return; // staging never syncs, reviews or writes to Google
     // 18:00 / 22:00 / 01:00 UTC = 12:00, 16:00, 19:00 in San Miguel (UTC−6): Claude reviews every active wine (src/review.js).
     if (event.cron && event.cron !== '*/5 * * * *') { ctx.waitUntil(reviewAll(env).catch(e => console.log('review failed', e && e.message))); return; }
     if (env.GOOGLE_SA_JSON) { ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); ctx.waitUntil(pullPurchases(env).catch(e => console.log('compras pull failed', e && e.message))); } },
@@ -51,6 +52,19 @@ export default {
       if (crew && /^\/settings(\.html)?\/?$/.test(p)) return Response.redirect(url.origin + '/', 302);
       if (p === '/api/me') return J({ email, canWrite, initials, admin, name: await staffName(env, initials, email), role: crew ? 'crew' : admin ? 'admin' : canWrite ? 'editor' : 'viewer', version: VERSION_LABEL });
       if (p === '/api/version') return J({ version: VERSION_LABEL });
+      // Staging only: refresh this copy's data from production (read-only on PROD_DB). Crew logins are not copied.
+      if (p === '/api/staging/seed' && request.method === 'POST') {
+        if (env.STAGING !== '1' || !env.PROD_DB || !admin) return J({ message: 'Not available.' }, 404);
+        const out = {};
+        for (const [t, cols, where] of [['docs', 'coll, id, data, updated_at', "WHERE coll <> 'users'"], ['xl_tabs', 'tab, lote, vino, header_row, imported_at', ''], ['xl_rows', 'tab, row, date, date_raw, ubi, voli, volf, ph, bx, tp, at, am, sl, st, aa, note, pri, by_, asig, ini, updated_at, h', '']]) {
+          const rows = (await env.PROD_DB.prepare(`SELECT ${cols} FROM ${t} ${where}`).all()).results || [];
+          const names = cols.split(',').map(x => x.trim()), qs = names.map(() => '?').join(',');
+          await env.DB.prepare(`DELETE FROM ${t}`).run();
+          for (let i = 0; i < rows.length; i += 50) await env.DB.batch(rows.slice(i, i + 50).map(r => env.DB.prepare(`INSERT OR REPLACE INTO ${t} (${cols}) VALUES (${qs})`).bind(...names.map(n => r[n] ?? null))));
+          out[t] = rows.length;
+        }
+        return J({ ok: true, copied: out });
+      }
       if (p === '/api/users') {
         if (!admin) return J({ message: 'Only an admin can manage users.' }, 403);
         if (request.method === 'GET') return J({ users: env.__users, fromSecret: String(env.ALLOWED_EMAILS || '').split(',').map(x => x.split('=')[0].trim()).filter(Boolean) });
@@ -147,7 +161,8 @@ export default {
     const h = new Headers(res.headers); h.set('cache-control', 'no-store'); h.set('x-robots-tag', 'noindex');
     if ((h.get('content-type') || '').includes('text/html')) {
       // One version, stored in src/version.js, stamped into every page's footer.
-      const html = (await res.text()).split('__APP_VERSION__').join(VERSION_LABEL);
+      let html = (await res.text()).split('__APP_VERSION__').join(VERSION_LABEL);
+      if (env.STAGING === '1') html = html.replace(/<body([^>]*)>/i, '<body$1><div style="position:fixed;z-index:2147483647;top:0;left:50%;transform:translateX(-50%);background:#e0a526;color:#2b2118;font:700 11px/1 system-ui;letter-spacing:.12em;padding:4px 10px 5px;border-radius:0 0 8px 8px;pointer-events:none">STAGING · copia de prueba</div>');
       h.delete('content-length');
       return new Response(html, { status: res.status, headers: h });
     }

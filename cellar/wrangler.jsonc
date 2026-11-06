@@ -18,6 +18,28 @@
     "SHEET_ID": "1DFvcD1i73vaVQqjw05vBnqmX_sYd9xTZze5H7ImGqsU",
     "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
     "AI_MODEL": "claude-sonnet-5-5"
+  },
+  // Staging copy (cellar-staging): its own D1 + R2, no crons, never writes to Google Sheets (SHEETS_MOCK), only Eric signs in.
+  // Deployed from the `staging` branch with: npx wrangler deploy --env staging. Data refresh: POST /api/staging/seed (admin).
+  "env": {
+    "staging": {
+      "name": "cellar-staging",
+      "triggers": { "crons": [] },
+      "r2_buckets": [{ "binding": "LABS", "bucket_name": "cellar-labs-staging" }],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "cellar-staging", "database_id": "3785d159-6284-4aa0-87db-e9c7e1456731", "migrations_dir": "migrations" },
+        { "binding": "PROD_DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42" }
+      ],
+      "vars": {
+        "PUBLIC": "0",
+        "STAGING": "1",
+        "SHEETS_MOCK": "1",
+        "SHEET_ID": "staging-no-sheet",
+        "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
+        "ADMIN_EMAILS": "cabosari@dosbuhos.com,emaycotte@gmail.com",
+        "AI_MODEL": "claude-sonnet-5-5"
+      }
+    }
   }
   // Secrets (Cloudflare dashboard → cellar → Settings → Variables and Secrets, or `npx wrangler secret put NAME`):
   // GOOGLE_CLIENT_SECRET  OAuth client "Cellar calendar" in Google Cloud project dos-buhos (redirect https://cellar.dos-buhos.workers.dev/auth/callback)
