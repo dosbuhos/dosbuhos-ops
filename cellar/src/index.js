@@ -53,7 +53,7 @@ export default {
       if (p === '/api/me') return J({ email, canWrite, initials, admin, name: await staffName(env, initials, email), role: crew ? 'crew' : admin ? 'admin' : canWrite ? 'editor' : 'viewer', version: VERSION_LABEL });
       if (p === '/api/version') return J({ version: VERSION_LABEL });
       // Staging only: refresh this copy's data from production (read-only on PROD_DB). Crew logins are not copied.
-      if (p === '/api/staging/seed' && request.method === 'POST') {
+      if (p === '/api/staging/seed') { // open it in the browser once after the first deploy, or any time to refresh
         if (env.STAGING !== '1' || !env.PROD_DB || !admin) return J({ message: 'Not available.' }, 404);
         const out = {};
         for (const [t, cols, where] of [['docs', 'coll, id, data, updated_at', "WHERE coll <> 'users'"], ['xl_tabs', 'tab, lote, vino, header_row, imported_at', ''], ['xl_rows', 'tab, row, date, date_raw, ubi, voli, volf, ph, bx, tp, at, am, sl, st, aa, note, pri, by_, asig, ini, updated_at, h', '']]) {
