@@ -77,7 +77,7 @@ input:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-
 .stepper output { text-align: center; font-size: 20px; }
 .err { color: var(--bad); font-weight: 500; }
 ol.how { margin: 6px 0 0; padding-left: 22px; } ol.how li { margin: 4px 0; }
-.otw { margin: 10px -8px; min-height: 40px; overflow: hidden; } .otw iframe { display: block; margin: 0 auto; transform-origin: top left; }
+.otw { margin: 10px -8px 4px; min-height: 40px; overflow: hidden; } .otw + .btn { margin-top: 0; } .otw iframe { display: block; margin: 0 auto; transform-origin: top left; }
 footer { margin: 34px 0 0; text-align: center; font-size: 15px; color: var(--muted); }
 footer .mark { color: var(--wine); font-size: 13px; }
 .valid { margin: 12px 0 0; font-size: 16px; font-style: italic; color: var(--gold-soft); }
@@ -276,11 +276,12 @@ if (fl) { const bye = () => { fl.classList.add('gone'); setTimeout(() => fl.remo
 const rv = document.getElementById('reservar');
 // OpenTable's widget is a fixed-size iframe; scale it down to fit narrow phones so the whole calendar shows.
 const fitOT = () => { const w = document.getElementById('otw'), f = w && w.querySelector('iframe'); if (!f) return;
-  // Phones with large text make the widget's content overflow its own 288px frame: give it room, then scale to fit.
-  const fw = Math.max(340, parseFloat(f.getAttribute('width')) || f.offsetWidth), fh = Math.max(540, parseFloat(f.getAttribute('height')) || f.offsetHeight); if (!fw || !fh) return;
+  // The widget is a fixed 288×490 frame; large-text phones overflow it a little. Give it a little room,
+  // then scale it to the card's full width (up or down) so the calendar is as big as the screen allows.
+  const fw = 310, fh = 500;
   f.style.width = fw + 'px'; f.style.height = fh + 'px';
-  const k = Math.min(1, w.clientWidth / fw);
-  f.style.transform = k < 1 ? 'scale(' + k + ')' : ''; f.style.margin = k < 1 ? '0' : '0 auto';
+  const k = Math.min(1.6, w.clientWidth / fw);
+  f.style.transform = 'scale(' + k + ')'; f.style.margin = '0';
   w.style.height = Math.ceil(fh * k) + 'px'; };
 if (rv) rv.addEventListener('toggle', () => { const w = document.getElementById('otw'); if (!rv.open) return; if (w.dataset.on) return fitOT(); w.dataset.on = '1';
   new MutationObserver(fitOT).observe(w, { childList: true, subtree: true, attributes: true, attributeFilter: ['width', 'height'] });
