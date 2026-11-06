@@ -216,6 +216,7 @@
       <div class="cr-plbl">Tipo de barrica <small>(puedes elegir varios)</small></div>${segM('data-cu', uses.map(([k, l]) => [k, l, USE_C[k]]), C.uses, '')}
       <div class="cr-plbl">Añada del vino <small>(puedes elegir varias)</small></div>${segM('data-cv', vintChips(), C.vints, 'all')}
       <div class="cr-plbl">Ubicación</div>${seg('data-cl', [['', 'Todas'], ['1', 'Sin ubicación']], C.noloc ? '1' : '')}
+      <div class="cr-psort"><div class="cr-plbl">Ordenar por</div>${seg('data-csortb', SORTS, C.sortB || 'type')}</div>
       <div class="cr-pfoot">${nFilters() ? `<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button>` : '<span></span>'}<button type="button" class="btn primary" data-cpanel>Listo</button></div>
     </div></div>`;
   }
@@ -264,8 +265,8 @@
         <div class="cr-td c-num"><b>${esc(bn(b.code))}</b></div>
         <div class="cr-td c-wine"><i class="cr-wdot" style="background:${col}"></i><span>${wine}</span>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
         <div class="cr-td c-vint">${esc(vintB(b) || '')}</div>
-        <div class="cr-td c-loc">${b.loc ? esc(locShort(b)) : '<span class="cr-dim">sin ubicación</span>'}</div>
-        <div class="cr-td c-so2">${so2Cell(b)}</div>
+        <div class="cr-td c-loc">${b.loc ? '<i class="cr-ph-l" aria-hidden="true">📍 </i>' + esc(locShort(b)) : '<span class="cr-dim">sin ubicación</span>'}</div>
+        <div class="cr-td c-so2"><i class="cr-ph-l">SO₂ </i>${so2Cell(b)}</div>
         <div class="cr-td c-mant">${mantCell(b)}</div>
         <div class="cr-td c-spec">${esc([b.cooperage, b.wood, b.year, b.toast ? 'T ' + b.toast : ''].filter(Boolean).join(' · ')) || '<span class="cr-dim">—</span>'}</div>
       </div>`;
@@ -798,6 +799,7 @@
     const mo = e.target.closest('[data-cmore]'); if (mo) { C.more = !C.more; render(); return; }
     const cl = e.target.closest('[data-cclear]'); if (cl) { const k = cl.dataset.cclear; if (k.startsWith('use:')) C.uses.delete(k.slice(4)); if (k.startsWith('vint:')) C.vints.delete(k.slice(5)); if (k === 'use' || k === 'all') C.uses.clear(); if (k === 'vint' || k === 'all') C.vints.clear(); if (k === 'loc' || k === 'all') C.noloc = false; render(); return; }
     const lc = e.target.closest('[data-cl]'); if (lc) { C.noloc = lc.dataset.cl === '1'; render(); return; }
+    const sb = e.target.closest('[data-csortb]'); if (sb) { C.sortB = sb.dataset.csortb; render(); return; }
     const g2 = e.target.closest('[data-cg2]'); if (g2) { C.group = g2.dataset.cg2; render(); return; }
     if (C.more && !e.target.closest('.cr-morew')) { C.more = false; }
     const ts0 = e.target.closest('[data-tksel]'); if (ts0 && !e.target.closest('[data-tk],[data-open]')) { if (tkMoved && ts0.closest('#tkmSvg')) return; C.tkSel = C.tkSel === ts0.dataset.tksel || !ts0.dataset.tksel ? '' : ts0.dataset.tksel; render(); if (C.tkSel && ts0.tagName === 'TR') { const sv = C.root.querySelector('#tkmSvg'); if (sv) sv.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } else if (C.tkSel) { const c = C.root.querySelector('.tkm-card'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; }
