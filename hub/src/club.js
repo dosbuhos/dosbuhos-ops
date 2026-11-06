@@ -278,8 +278,8 @@ export async function clubRoute(request, env, url, user, role) {
     if (kind === 'personal' && !str(b.name, 80)) return BAD('Escribe a quién invitas.');
     if (b.phone && !C.validPhone(phone)) return BAD('Revisa el teléfono.');
     if (b.email && !email) return BAD('Revisa el correo.');
-    if (prog.personal_only && kind !== 'personal') return BAD(`${prog.name} es solo por invitación personal: invita a cada persona con su correo.`);
-    if (prog.personal_only && !email) return BAD(`Escribe el correo de la persona: en ${prog.name} solo se registra con el correo al que la invitas.`);
+    if (prog.personal_only && kind !== 'personal') return BAD(`${prog.name} es solo por invitación personal: invita a cada persona con su WhatsApp o su correo.`);
+    if (prog.personal_only && !email && !phone) return BAD(`Escribe el WhatsApp o el correo de la persona: en ${prog.name} solo se registra con el número o correo al que la invitas.`);
     const days = intOrNull(b.expires_days);
     const expires = days && days > 0 ? Date.now() + days * C.DAY_MS : null;
     const max = kind === 'personal' ? 1 : (intOrNull(b.max_uses) > 0 ? intOrNull(b.max_uses) : null);

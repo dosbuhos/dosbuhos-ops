@@ -935,7 +935,7 @@ async function viewInvitar() {
       <div class="field"><span>WhatsApp (opcional)</span><input name="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="415 123 4567"></div></div>
       <p class="hint" style="margin-top:-6px">Con correo, solo esa persona puede registrarse: tiene que escribir el mismo correo.</p></div>
     <div id="kBulk" class="f${S.invKind === 'bulk' ? '' : ' hide'}">
-      <div class="field"><span>Una persona por renglón: nombre, correo, WhatsApp (opcional)</span><textarea name="bulk" rows="7" placeholder="Ana Pérez, ana@correo.com, 415 123 4567&#10;Luis Gómez, luis@correo.com"></textarea></div>
+      <div class="field"><span>Una persona por renglón: nombre, WhatsApp y/o correo</span><textarea name="bulk" rows="7" placeholder="Ana Pérez, 415 123 4567&#10;Luis Gómez, luis@correo.com, 415 765 4321"></textarea></div>
       <p class="hint" style="margin-top:-6px">Cada persona recibe su propia invitación, ligada a su correo.</p></div>
     <div id="kLink" class="f${S.invKind === 'link' ? '' : ' hide'}">
       <div class="field"><span>Nombre del enlace (solo lo ves tú)</span><input name="label" maxlength="80" placeholder="Ej. Industria 2026"></div>
@@ -970,9 +970,9 @@ async function viewInvitar() {
 const parseBulk = text => text.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const parts = l.split(/[,;\t]/).map(x => x.trim()); const email = parts.find(x => /@/.test(x)) || ''; const phone = parts.find(x => /^\+?[\d\s().-]{8,}$/.test(x)) || ''; const name = parts.find(x => x && x !== email && x !== phone) || ''; return { line: l, name, email, phone }; });
 async function bulkInvite(f) {
   const rows = parseBulk(f.bulk.value);
-  if (!rows.length) return toast('Pega al menos una persona: nombre, correo.', true);
-  const bad = rows.filter(r => !r.name || !r.email);
-  if (bad.length) return toast(`Falta nombre o correo en: ${bad.map(r => r.line).slice(0, 3).join(' · ')}`, true);
+  if (!rows.length) return toast('Pega al menos una persona: nombre y WhatsApp o correo.', true);
+  const bad = rows.filter(r => !r.name || (!r.email && !r.phone));
+  if (bad.length) return toast(`Falta nombre, o WhatsApp o correo, en: ${bad.map(r => r.line).slice(0, 3).join(' · ')}`, true);
   const btn = $('button[type=submit]', f); btn.disabled = true;
   const done = [];
   for (const r of rows) {
@@ -985,7 +985,7 @@ async function bulkInvite(f) {
 function bulkHtml(list) {
   const ok = list.filter(x => x.ok);
   return `<div class="share" style="margin-top:14px"><b style="display:block;margin-bottom:8px">Listo: ${ok.length} ${ok.length === 1 ? 'invitación' : 'invitaciones'}${ok.length < list.length ? ` · ${list.length - ok.length} con error` : ''}</b>
-    <p class="hint" style="margin:0 0 8px">Manda cada una por WhatsApp o correo. Cada enlace solo sirve con el correo de esa persona.</p>
+    <p class="hint" style="margin:0 0 8px">Manda cada una por WhatsApp o correo. Cada enlace solo sirve con el WhatsApp o correo de esa persona.</p>
     <div class="list">${list.map(x => x.ok ? `<div class="r stack"><div class="main"><span class="t">${esc(x.name)}</span><span class="s">${esc(x.email)}${x.phone ? ' · ' + esc(x.phone) : ''}</span></div>
       <div class="acts">${x.phone ? `<a class="btn sm primary" href="${esc(x.wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<a class="btn sm${x.phone ? '' : ' primary'}" href="${esc(x.mailto)}">Correo</a><button class="btn sm" data-act="copy" data-text="${esc(x.url)}">Copiar enlace</button></div></div>`
       : `<div class="r"><div class="main"><span class="t">${esc(x.name)}</span><span class="s" style="color:var(--bad)">${esc(x.error)}</span></div></div>`).join('')}</div>

@@ -174,7 +174,7 @@ test('invites: personal (one use), multi-use with max uses, expiry, revoke, appr
   const mk = async b => (await call('admin', 'POST', '/club/api/invites', b)).json.invite;
   // Amigos y familia is personal-only: no group links, the invite needs an email, and only that email gets the card.
   assert.equal((await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'link', label: 'Para todos' })).status, 400);
-  assert.equal((await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'personal', name: 'Sin correo' })).status, 400);
+  assert.equal((await call('admin', 'POST', '/club/api/invites', { program_id: 'amigos', kind: 'personal', name: 'Sin datos' })).status, 400);
   const fam = await mk({ program_id: 'amigos', kind: 'personal', name: 'Tía Carmen', phone: '415 222 3333', email: 'Carmen@Correo.test' });
   assert.match(fam.wa, /^https:\/\/wa\.me\/524152223333\?text=Hola%20T%C3%ADa%2C/);
   assert.equal(fam.max_uses, 1); assert.equal(fam.requires_approval, false);
@@ -190,6 +190,16 @@ test('invites: personal (one use), multi-use with max uses, expiry, revoke, appr
   assert.equal(ok.status, 303); assert.match(ok.location, /^\/c\/[A-Za-z0-9_-]{24}\?ok=nuevo$/);
   const p = DB.db.prepare("SELECT * FROM club_people WHERE name = 'Tía Carmen'").get();
   assert.equal(p.birthday, '07-03'); assert.equal(p.phone, '524152223333');
+  // WhatsApp-only invite: only that number gets the card, and the email is still asked (for Notas del Viñedo).
+  const wa = await mk({ program_id: 'amigos', kind: 'personal', name: 'Primo Juan', phone: '415 444 5555' });
+  const wtok = wa.url.split('/c/i/')[1];
+  const wform = (await call(null, 'GET', '/c/i/' + wtok)).text;
+  assert.doesNotMatch(wform, /444 5555/, 'the invited number is never shown'); assert.match(wform, /Notas del Viñedo/);
+  const wbad = await call(null, 'POST', '/c/i/' + wtok, form({ name: 'Otro', phone: '415 111 0000', email: 'x@correo.test', terms: '1' }));
+  assert.equal(wbad.status, 400); assert.match(wbad.text, /WhatsApp no coincide/);
+  const wnoemail = await call(null, 'POST', '/c/i/' + wtok, form({ name: 'Primo Juan', phone: '415 444 5555', terms: '1' }));
+  assert.equal(wnoemail.status, 400); assert.match(wnoemail.text, /Escribe tu correo/);
+  assert.equal((await call(null, 'POST', '/c/i/' + wtok, form({ name: 'Primo Juan', phone: '(415) 444-5555', email: 'juan@correo.test', terms: '1' }))).status, 303);
   assert.match((await call(null, 'GET', ok.location)).text, /25% en vino/);
   assert.match((await call(null, 'GET', '/c/i/' + tok)).text, /ya se usó/, 'one use only');
   assert.equal((await call(null, 'POST', '/c/i/' + tok, form({ name: 'Otra', phone: '4150000000', terms: '1' }))).status, 410);
