@@ -9,6 +9,13 @@ Newest night first. Each entry: time, what changed and why, files, screenshots (
   width. It changes how the room "looks" to the crew, so I didn't do it. Prototype it next run? (yes / no)
 - **"rellenar +5 d" under each barrel**: on the phone the line under the barrel is the most useful one (late or not) but
   long. OK to shorten it to just **"+5 d"** in the ring's colour on phones, with the legend explaining it? Or keep the word?
+- **Chip "Tinto" en la tarjeta** (e.g. on a rosé or the Orange Moscato): it shows the barrel's *Tipo* (what the barrel is
+  used for), not the wine. Rename the chip on the card to **"Barrica de tinto"** (and "Tipo" in Datos to **"Uso de la
+  barrica"**)? Or is Tipo meant to follow the wine? I left it as is.
+- **Bottom nav in English** ("Wines", "Protocols", "Agregar" is already Spanish): tonight only the app-bar title changed
+  ("WINES" → "BODEGA"). OK to make the nav Spanish too on Night 2 ("Bodega", "Protocolos")?
+- **SO₂ colours differ**: the barrel card calls 12.4 ppm yellow (goal 20, low < 12), Lista shows it green (low < 10). Which
+  thresholds are right? I'll make them match once you say.
 
 ## 2026-11-06 · Night 1 — Barricas on the phone
 
@@ -42,3 +49,30 @@ Biggest phone problems, worst first:
   (block at the end). Screens: `01-phone-chrome-mapa`, `04-phone-lista` (unchanged, checked), `06-desktop-mapa` (unchanged).
 - Risk: low; CSS plus one display-only function. Checked: no horizontal scroll at 390, Mover flow still picks sections
   on the map, desktop unchanged apart from the outline. Mock fonts were loaded locally so screenshots match the real fonts.
+
+### Run 2 (≈01:00 Central) — barrel card, Lista
+Checked run 1 at 390×844 first: map tap areas, front-view text and the compact chrome all hold; no horizontal scroll;
+desktop unchanged. Nothing to fix from run 1. Found one old bug on the way: empty barrels showed "vacía" in red in the SO₂ tile (fixed below).
+- **Barrel card: banner says when it's due, tiles stop repeating it.** The red/yellow banner now reads "Toca rellenar ·
+  15 d tarde — tocaba el 22 oct 26" (or "Relleno al día — el próximo toca el …") instead of repeating the last date that the
+  Relleno tile already shows; the tile keeps "hace 45 d / 22 sep 26 / llenada …". SO₂ tile: shorter lines
+  ("10 nov 25 · hace 361 d", "+7.8 g KMBS · 10 nov 25", "meta 20 ppm" in grey); only what's late is red, not every line.
+  On phones there are two wide tiles instead of three narrow ones; the barrel's age and "tostado ?" move to the line under
+  the card (they repeated "hecha en 2019"). Desktop keeps three tiles with the same calmer text.
+  Files: `cellar/app/barricas.html` (`panel()` template, CSS block "staging night 1 run 2"). Screens: `08-phone-barrel-card-top`, `10-desktop-barrel-card`.
+- **Barrel card: glove-size controls, no iOS zoom.** "+" on the tiles 26→36px (≈46px hit area), × close 31→44px, the wine
+  name picker has a 44px hit area, tabs (Datos / Mantenimiento / Historial / Etiqueta) 36→44px, Notas textarea 15→16px
+  (iOS zoomed in on it), checkboxes 13→22px in Mantenimiento, dates in Registros no longer break over two lines.
+  Phones only. Screen: `09-phone-barrel-card-mant`.
+- **Lista on phones: tabs not covered, rows line up, numbers labelled.** The "Ordenar" select covered "Vacías"; on phones the
+  sort is now in **Filtros → Ordenar por** (same options; desktop keeps the select). Every row has the same right column,
+  so the wine names and "Toca · hace N d" line up row to row; the right column says **"SO₂ 12.4"** and **"📍 9.3"** (no reading
+  → nothing instead of "—"); long wine names wrap instead of being cut; 22px checkboxes; the wine dot sits on the name line
+  (desktop too). Files: `cellar/app/cellar-room.js` (sort buttons in the Filtros sheet + their click; SO₂ / 📍 labels),
+  `cellar/app/cellar-room.css` (block at the end). Screens: `11-phone-lista`, `12-desktop-lista`, `13-phone-lista-filtros`,
+  `14-phone-lista-bulk` (the "after" is sorted by Número because the test used the new sort buttons).
+- **App bar "WINES" → "BODEGA"** on phones (`cellar/app/mobile.js`, one word). Screen: `11-phone-lista`.
+- Checked, not changed: **Mover** at 390px — the dark bar ("Moviendo 010 · … Toca un lugar vacío (verde)") is readable,
+  buttons are 44px, Cancelar is always there. Left for the next run with Poner barrica / Editar pasillo.
+- Risk: low. Display only, plus one JS change in Lista (sort buttons in the Filtros sheet write the same `C.sortB` the
+  select writes). `node --check` on the touched scripts; no horizontal scroll at 390; desktop card and Lista checked.
