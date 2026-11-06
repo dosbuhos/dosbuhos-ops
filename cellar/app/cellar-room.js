@@ -222,7 +222,7 @@
   }
   // ---------- Lista: one row per barrel, select rows, bulk actions (v1.9) ----------
   C.selB = C.selB || new Set(); C.openB = C.openB || new Set();
-  const SORTS = [['type', 'Tipo de vino'], ['wine', 'Vino'], ['vint', 'Añada'], ['loc', 'Ubicación'], ['mant', 'Mantenimiento'], ['num', 'Número']];
+  const SORTS = [['type', 'Tipo de vino'], ['wine', 'Vino'], ['vint', 'Añada'], ['loc', 'Ubicación'], ['mant', 'Mantenimiento'], ['coop', 'Tonelería'], ['num', 'Número']];
   const typeOf = b => { const st = stateOf(b); if (st === 'confirm') return 'confirm'; if (st === 'empty') return 'empty'; return lotGroup(b.lot) || useOf(b) || 'other'; };
   const TYPE_N = { red: 'Tintos', white: 'Blancos', orange: 'Naranjas', rose: 'Rosados', sparkling: 'Espumosos', port: 'Oporto', vermouth: 'Vermut', other: 'Con vino (sin tipo)', confirm: 'Por confirmar', empty: 'Vacías' };
   const TYPE_O = ['red', 'rose', 'orange', 'white', 'sparkling', 'port', 'vermouth', 'other', 'confirm', 'empty'];
@@ -249,9 +249,10 @@
     // sort + group
     const sortBy = C.sortB || 'type';
     const numCmp = (a, b) => (+a.code || 0) - (+b.code || 0);
-    const cmp = { num: numCmp, wine: (a, b) => lotName(a.lot).localeCompare(lotName(b.lot), 'es') || numCmp(a, b), vint: (a, b) => (+vintB(b) || 0) - (+vintB(a) || 0) || numCmp(a, b), loc: (a, b) => locShort(a).localeCompare(locShort(b), 'es', { numeric: true }) || numCmp(a, b), mant: (a, b) => (mantDays(b) ?? 9999) - (mantDays(a) ?? 9999) || numCmp(a, b), type: (a, b) => lotName(a.lot).localeCompare(lotName(b.lot), 'es') || numCmp(a, b) }[sortBy];
+    const coopK = b => (b.cooperage || '').trim();
+    const cmp = { coop: (a, b) => (!coopK(a)) - (!coopK(b)) || coopK(a).localeCompare(coopK(b), 'es') || (+a.year || 0) - (+b.year || 0) || numCmp(a, b), num: numCmp, wine: (a, b) => lotName(a.lot).localeCompare(lotName(b.lot), 'es') || numCmp(a, b), vint: (a, b) => (+vintB(b) || 0) - (+vintB(a) || 0) || numCmp(a, b), loc: (a, b) => locShort(a).localeCompare(locShort(b), 'es', { numeric: true }) || numCmp(a, b), mant: (a, b) => (mantDays(b) ?? 9999) - (mantDays(a) ?? 9999) || numCmp(a, b), type: (a, b) => lotName(a.lot).localeCompare(lotName(b.lot), 'es') || numCmp(a, b) }[sortBy];
     bs = bs.slice().sort(cmp);
-    const groupKey = sortBy === 'type' ? b => typeOf(b) : sortBy === 'vint' ? b => (stateOf(b) === 'empty' ? 'empty' : vintB(b) || 'Sin añada') : sortBy === 'wine' ? b => (b.lot ? lotName(b.lot) : TYPE_N[typeOf(b)]) : null;
+    const groupKey = sortBy === 'type' ? b => typeOf(b) : sortBy === 'vint' ? b => (stateOf(b) === 'empty' ? 'empty' : vintB(b) || 'Sin añada') : sortBy === 'wine' ? b => (b.lot ? lotName(b.lot) : TYPE_N[typeOf(b)]) : sortBy === 'coop' ? b => coopK(b) || 'Sin tonelería' : null;
     const gname = k => TYPE_N[k] || String(k);
     const ids = new Set(bs.map(b => b.id)); for (const id of [...C.selB]) if (!C.barrels.some(b => b.id === id)) C.selB.delete(id);
     const nSel = C.selB.size, allOn = bs.length && bs.every(b => C.selB.has(b.id));
@@ -286,7 +287,7 @@
     if (!groupKey) body = bs.map(row).join('');
     else {
       const by = new Map(); for (const b of bs) { const k = groupKey(b); if (!by.has(k)) by.set(k, []); by.get(k).push(b); }
-      const keys = [...by.keys()].sort((a, b) => sortBy === 'type' ? TYPE_O.indexOf(a) - TYPE_O.indexOf(b) : sortBy === 'vint' ? (a === 'empty') - (b === 'empty') || (+b || 0) - (+a || 0) : String(a).localeCompare(String(b), 'es'));
+      const keys = [...by.keys()].sort((a, b) => sortBy === 'type' ? TYPE_O.indexOf(a) - TYPE_O.indexOf(b) : sortBy === 'vint' ? (a === 'empty') - (b === 'empty') || (+b || 0) - (+a || 0) : sortBy === 'coop' ? (a === 'Sin tonelería') - (b === 'Sin tonelería') || String(a).localeCompare(String(b), 'es') : String(a).localeCompare(String(b), 'es'));
       for (const k of keys) { const list = by.get(k), on = list.every(b => C.selB.has(b.id)); body += `<div class="cr-tg" role="row"><div class="cr-tgh"><b>${esc(sortBy === 'vint' && k === 'empty' ? 'Vacías' : gname(k))}</b> <small>${list.length}</small></div><label class="cr-tgsel"><input type="checkbox" data-bselg="${esc(list.map(b => b.id).join(','))}"${on ? ' checked' : ''}> <span>Elegir todas</span></label></div>` + list.map(row).join(''); }
     }
     return h + `<div class="cr-table" role="table" aria-label="Barricas">${head}${body}</div>`;
