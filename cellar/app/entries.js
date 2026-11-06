@@ -311,7 +311,7 @@
   const fmtTxt = fs => (fs || []).map(f => (f.bottles == null || f.bottles === '' ? '?' : (+f.bottles).toLocaleString('es-MX')) + ' × ' + (f.ml >= 1000 ? f.ml / 1000 + ' L' : f.ml + ' mL')).join(' + ');
   function bottlingRuns(lots) {
     const runs = [];
-    for (const l of lots) for (const b of (l.bottlings || [])) runs.push(Object.assign({ lot: l }, b));
+    for (const l of lots) (l.bottlings || []).forEach((b, i) => runs.push(Object.assign({ lot: l, __i: i }, b)));
     return runs.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }
   async function renderBottling(lotsIn) {
@@ -324,18 +324,59 @@
     const n = document.getElementById('wmBottleN'); if (n) n.textContent = runs.length || '';
     const total = runs.reduce((s, r) => s + (r.bottles || 0), 0), liters = runs.reduce((s, r) => s + (+r.liters || 0), 0);
     const dot = l => `<i class="bt-dot" style="background:${GC[(l || {}).group] || '#9aa5b1'}"></i>`;
-    let h = `<div class="bt-head"><b>${runs.length} embotellado${runs.length === 1 ? '' : 's'}</b> · ${total.toLocaleString('es-MX')}${runs.some(r => r.bottles == null) ? '+ ?' : ''} botellas · ${fmtL(liters)} L${open.length ? ` · <b>${open.length} programado${open.length > 1 ? 's' : ''}</b>` : ''}</div>`;
+    const canW = !!(E.me && E.me.canWrite);
+    let h = `${canW ? '<button type="button" class="btn sm bt-add" data-btadd>+ Agregar embotellado</button>' : ''}<div class="bt-head"><b>${runs.length} embotellado${runs.length === 1 ? '' : 's'}</b> · ${total.toLocaleString('es-MX')}${runs.some(r => r.bottles == null) ? '+ ?' : ''} botellas · ${fmtL(liters)} L${open.length ? ` · <b>${open.length} programado${open.length > 1 ? 's' : ''}</b>` : ''}</div>`;
     if (open.length) h += `<h3 class="cr-gh">Próximos <small>órdenes abiertas</small></h3><div class="bt-up">${open.map(m => { const l = lotById(m.lot), b = m.bottle || {};
       return `<article class="bt-card"><div class="bt-d">${esc(dmy(m.date))}</div><div>${dot(l)}<b>${esc((l || {}).name || m.tab)}</b><small>${esc(m.from || '')}${m.liters ? ' · ~' + fmtL(m.liters) + ' L' : ''}</small>
         <span class="bt-m">${b.bottles ? '~' + (+b.bottles).toLocaleString('es-MX') + ' × ' : ''}${b.format || 750} mL · ${esc(FILTL[b.filter] || 'Sin filtrar')} · ${esc(b.closure || '')}${b.so2 ? ' · SO₂ ' + b.so2 : ''}</span></div>
         <span class="bt-t">${esc(m.tab)}, fila ${m.row}</span></article>`; }).join('')}</div>`;
     h += `<h3 class="cr-gh">Embotellado <small>lo más reciente primero</small></h3>`;
     if (!runs.length) h += `<div class="cr-empty">Todavía no hay embotellados registrados. Se crean con «Agregar → Trasiego · mezcla · embotellado → Embotellado» y se cierran desde «Anotar resultados» al terminar.</div>`;
-    else h += `<div class="bt-wrap"><table class="bt-tbl"><thead><tr><th>Fecha</th><th>Vino</th><th>Botellas</th><th>Litros</th><th>Merma</th><th>Filtración</th><th>SO₂ libre / total</th><th>Lote</th></tr></thead><tbody>${runs.map(r => `<tr>
+    else h += `<div class="bt-wrap"><table class="bt-tbl"><thead><tr><th>Fecha</th><th>Vino</th><th>Botellas</th><th>Litros</th><th>Merma</th><th>Filtración</th><th>SO₂ libre / total</th><th>Lote</th></tr></thead><tbody>${runs.map(r => `<tr class="${canW ? 'bt-ed' : ''}${r.bottles == null || !r.date ? ' bt-q' : ''}" ${canW ? `data-bt="${esc(r.lot.id)}|${r.__i}" tabindex="0" role="button" aria-label="Editar embotellado"` : ''}>
       <td class="n">${esc(dmy(r.date))}</td><td>${dot(r.lot)}<b>${esc(r.wine || r.lot.name)}</b>${r.sourceEmpty === false ? ' <span class="bt-part">parcial</span>' : ''}<small>${esc(r.from || '')}</small></td>
       <td class="n">${esc(fmtTxt(r.formats))}</td><td class="n">${r.liters == null || r.liters === '' ? '?' : fmtL(r.liters)}</td><td class="n">${r.loss ? fmtL(r.loss) + ' L' : '—'}</td>
       <td>${esc(FILTL[r.filter] || r.filter || '—')}</td><td class="n">${esc((r.fso2 || '—') + ' / ' + (r.tso2 || '—'))}</td><td class="n">${esc(r.lotno || '—')}</td></tr>`).join('')}</tbody></table></div>`;
+    if (canW && runs.some(r => r.bottles == null || !r.date)) h += `<p class="en-hint">Toca un renglón con <b>?</b> para anotar lo que falta.</p>`;
     box.innerHTML = h;
+    box.querySelectorAll('[data-bt]').forEach(tr => { const go = () => { const [lid, i] = tr.dataset.bt.split('|'); openBottle(lid, +i); }; tr.onclick = go; tr.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
+    const add = box.querySelector('[data-btadd]'); if (add) add.onclick = () => openBottle('', -1);
+  }
+  // Edit / add one bottling record (anyone who can write; Eric/Diane can also delete it)
+  function openBottle(lotId, i) {
+    const lot = E.lots.find(l => l.id === lotId), r = lot && i >= 0 ? (lot.bottlings || [])[i] || {} : {}, crew = E.me && E.me.role === 'crew';
+    let ov = $('#btSheet'); if (!ov) { ov = document.createElement('div'); ov.className = 'overlay en-ov'; ov.id = 'btSheet'; document.body.appendChild(ov); }
+    const fmts = (r.formats && r.formats.length ? r.formats : [{ ml: 750, bottles: null }]);
+    const fmtRow = f => `<div class="en-row2 bt-fr"><label>Formato<select data-fml>${[187, 375, 500, 750, 1500, 3000].map(m => `<option value="${m}"${+f.ml === m ? ' selected' : ''}>${m >= 1000 ? m / 1000 + ' L' : m + ' mL'}</option>`).join('')}</select></label><label>Botellas<input data-fb inputmode="numeric" value="${f.bottles == null ? '' : esc(f.bottles)}" placeholder="?"></label></div>`;
+    const lotSel = lot ? `<p><b>${esc(r.wine || lot.name)}</b> <small>${esc((lot.sheet && lot.sheet[0] && lot.sheet[0].tab) || '')}</small></p>`
+      : `<label>Vino / lote<select id="btLot"><option value="">Elige…</option>${E.lots.filter(l => !l.archived && l.group !== 'routine').map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</select></label>`;
+    ov.innerHTML = `<form class="sheet en-form" novalidate><h2>${i >= 0 ? 'Embotellado' : 'Agregar embotellado'}</h2>${XBTN}
+      ${lotSel}
+      <div class="en-row2"><label>Fecha<input type="date" id="btDate" value="${esc(r.date || '')}"></label><label>De dónde salió<input id="btFrom" value="${esc(r.from || '')}" placeholder="BBL 100, STL-200…"></label></div>
+      <div id="btFmts">${fmts.map(fmtRow).join('')}</div><button type="button" class="btn sm" id="btAddFmt">+ otro formato</button>
+      <div class="en-row2"><label>Litros<input id="btL" inputmode="decimal" value="${r.liters == null ? '' : esc(r.liters)}" placeholder="se calcula"></label><label>Merma (L)<input id="btLoss" inputmode="decimal" value="${r.loss == null ? '' : esc(r.loss)}"></label></div>
+      <div class="en-row2"><label>Filtración<select id="btFil">${Object.entries(FILTL).map(([k, t]) => `<option value="${k}"${(r.filter || 'none') === k ? ' selected' : ''}>${t}</option>`).join('')}</select></label><label>Tapa<input id="btClo" value="${esc(r.closure || '')}" placeholder="Corcho, corcholata…"></label></div>
+      <div class="en-row2"><label>SO₂ libre<input id="btFs" inputmode="decimal" value="${esc(r.fso2 || '')}"></label><label>SO₂ total<input id="btTs" inputmode="decimal" value="${esc(r.tso2 || '')}"></label></div>
+      <div class="en-row2"><label>Nº de lote<input id="btNo" value="${esc(r.lotno || '')}"></label></div>
+      <label>Nota<textarea id="btNote" rows="2">${esc(r.note || '')}</textarea></label>
+      <div class="err" id="btErr" role="alert"></div>
+      <div class="actions">${i >= 0 && !crew ? '<button type="button" class="btn danger" id="btDel">Borrar</button>' : '<span></span>'}<div class="right"><button type="button" class="btn" data-btclose>Cancelar</button><button type="submit" class="btn primary" id="btSave">Guardar</button></div></div></form>`;
+    ov.hidden = false; document.documentElement.classList.add('m-modal');
+    const close = () => { ov.hidden = true; document.documentElement.classList.remove('m-modal'); };
+    $('[data-btclose]', ov).onclick = close;
+    $('#btAddFmt', ov).onclick = () => $('#btFmts', ov).insertAdjacentHTML('beforeend', fmtRow({ ml: 750, bottles: null }));
+    const send = async body => {
+      const err = $('#btErr', ov), btn = $('#btSave', ov); err.textContent = ''; btn.disabled = true;
+      try { const out = await post('/api/bottlings', body); const l = E.lots.find(x => x.id === body.lot); if (l) l.bottlings = out.bottlings; close(); toast('Embotellado guardado'); renderBottling(); window.dispatchEvent(new CustomEvent('cellar:refresh')); }
+      catch (x) { err.textContent = x.message; btn.disabled = false; }
+    };
+    if ($('#btDel', ov)) { let armed = false; $('#btDel', ov).onclick = e => { if (!armed) { armed = true; e.target.textContent = '¿Borrar? Toca otra vez'; return; } send({ lot: lotId, i, remove: true }); }; }
+    $('form', ov).addEventListener('submit', e => {
+      e.preventDefault();
+      const lid = lot ? lotId : ($('#btLot', ov) || {}).value; if (!lid) { $('#btErr', ov).textContent = 'Elige el vino / lote.'; return; }
+      const formats = $$('.bt-fr', ov).map(x => ({ ml: $('[data-fml]', x).value, bottles: $('[data-fb]', x).value.trim() === '' ? null : $('[data-fb]', x).value.trim() }));
+      send({ lot: lid, i, rec: { date: $('#btDate', ov).value, from: $('#btFrom', ov).value, formats, liters: $('#btL', ov).value.trim() === '' ? null : $('#btL', ov).value, loss: $('#btLoss', ov).value.trim() === '' ? null : $('#btLoss', ov).value,
+        filter: $('#btFil', ov).value, closure: $('#btClo', ov).value, fso2: $('#btFs', ov).value, tso2: $('#btTs', ov).value, lotno: $('#btNo', ov).value, note: $('#btNote', ov).value, wine: r.wine || '' } });
+    });
   }
   window.addEventListener('cellar:bottling', e => renderBottling((e.detail || {}).lots));
   // Keep the tab's count fresh even before someone opens it.

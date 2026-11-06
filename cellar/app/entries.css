@@ -142,3 +142,7 @@
 .mv-btl{display:flex;flex-direction:column;gap:8px;margin:6px 0}
 .mv-so2{display:flex;flex-direction:column;gap:4px;font-size:13px}
 @media (max-width:760px){#wmode{display:flex;overflow-x:auto;max-width:100%}}
+.bt-add{float:right;margin:0 0 6px 8px}
+.bt-tbl tr.bt-ed{cursor:pointer}.bt-tbl tr.bt-ed:hover td{background:color-mix(in srgb,var(--accent,#5c1f33) 6%,transparent)}
+.bt-tbl tr.bt-q td{background:#fff6e0}.bt-tbl tr.bt-q td:first-child{box-shadow:inset 3px 0 0 #d79a1f}
+#btSheet .bt-fr{margin-bottom:0}#btSheet input,#btSheet select,#btSheet textarea{font-size:16px}

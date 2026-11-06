@@ -283,6 +283,37 @@ export async function movesRoute(request, env, p, user) {
       return J(await createMove(env, await request.json(), user));
     }
     if (p === '/api/moves/complete' && request.method === 'POST') return J(await completeMove(env, await request.json(), user));
+    if (p === '/api/bottlings' && request.method === 'POST') return J(await saveBottling(env, await request.json(), user));
     return J({ message: 'Not found' }, 404);
   } catch (e) { return J({ message: e.message || String(e) }, e.status || 500); }
+}
+
+// Edit or add one bottling record on a lot (Embotellado → tap a row, or "+ Agregar embotellado").
+// Anyone who can write (crew included) fills in what was bottled: date, bottles per format, liters, loss, filter,
+// closure, SO₂, lot number, note. Each save keeps who and when (edits[]). Only Eric/Diane delete a record.
+export async function saveBottling(env, b, user) {
+  const lot = await get(env, 'lots', cell(b.lot)); if (!lot) throw fail('No encuentro ese vino / lote.', 404);
+  const list = Array.isArray(lot.bottlings) ? lot.bottlings.slice() : [];
+  const i = b.i == null || b.i === '' ? -1 : +b.i;
+  if (i >= list.length || (i < -1)) throw fail('Ese embotellado ya no existe; recarga la página.', 409);
+  if (b.remove) { if (user.crew) throw fail('Solo Eric o Diane borran un embotellado.', 403); if (i < 0) throw fail('Nada que borrar.'); list.splice(i, 1); }
+  else {
+    const r = b.rec || {}, n = (v) => { const x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(x) ? x : null; };
+    const date = cell(r.date); if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw fail('Fecha no válida.');
+    const formats = (Array.isArray(r.formats) ? r.formats : []).map(f => ({ ml: Math.round(n(f.ml) || 750), bottles: n(f.bottles) == null ? null : Math.round(n(f.bottles)) })).filter(f => f.ml > 0).slice(0, 6);
+    if (!formats.length) formats.push({ ml: 750, bottles: null });
+    const known = formats.every(f => f.bottles != null), bottles = known ? formats.reduce((s, f) => s + f.bottles, 0) : null;
+    let liters = n(r.liters); if (liters == null && known) liters = Math.round(formats.reduce((s, f) => s + f.bottles * f.ml, 0) / 100) / 10;
+    const prev = i >= 0 ? list[i] : { move: '', sourceEmpty: true, left: 0, by: user.initials };
+    const rec = Object.assign({}, prev, { date, formats, bottles, liters, loss: n(r.loss), fso2: cell(r.fso2).slice(0, 10), tso2: cell(r.tso2).slice(0, 10), lotno: cell(r.lotno).slice(0, 30),
+      filter: ['none', 'pad', 'sterile', 'both'].includes(r.filter) ? r.filter : (prev.filter || 'none'), closure: cell(r.closure).slice(0, 40), from: cell(r.from).slice(0, 80) || prev.from || '',
+      wine: cell(r.wine).slice(0, 80) || prev.wine || '', note: cell(r.note).slice(0, 400) });
+    if (!rec.wine) delete rec.wine;
+    rec.edits = (prev.edits || []).concat({ by: user.initials || '', at: new Date().toISOString() }).slice(-20);
+    if (i >= 0) list[i] = rec; else list.push(rec);
+  }
+  lot.bottlings = list;
+  if (list.length && lot.bottled) { const last = list.slice().sort((a, c) => String(c.date).localeCompare(String(a.date)))[0]; if (last.bottles != null && last.sourceEmpty !== false) lot.ubi = 'Embotellado' + (last.date ? ' ' + dm(last.date) : '') + ' · ' + last.bottles + ' botellas'; }
+  const { id: _x, ...data } = lot; await put(env, 'lots', cell(b.lot), data);
+  return { ok: true, bottlings: list };
 }
