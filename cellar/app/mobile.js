@@ -32,7 +32,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
   [400, 1200, 3000].forEach(ms => setTimeout(recheck, ms));
   if (!mq.matches) return; // desktop / tablet: leave the page as it is
-  const TITLES = { weeks: 'Órdenes', orders: 'Órdenes', wines: 'Wines', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
+  const TITLES = { weeks: 'Órdenes', orders: 'Órdenes', wines: 'Bodega', labs: 'Labs', protocols: 'Protocols', blends: 'Trials', learn: 'Learn', audit: 'Audit', 'vy-season': 'Season', 'vy-harvest': 'Harvest', 'vy-prune': 'Pruning', 'vy-blocks': 'Blocks', 'vy-treat': 'Treatments' };
   const SEARCH = { protocols: '.pl-q' }; // Wines and Trials have their own search + Filtros bar (below)
   const html = document.documentElement;
 
