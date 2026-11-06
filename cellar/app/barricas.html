@@ -362,6 +362,11 @@ html.embedmap body.bopen .facecol{min-height:0}
   #panel .steps{gap:0}#panel .steps label.chk{min-height:40px;align-items:center}
 }
 
+/* ---- staging night 1 run 3: Editar pasillo — glove-size + and × on phones, a one-line hint ---- */
+.aehint{flex-basis:100%;margin:6px 0 0;font-size:13px;color:var(--soft);text-align:center}
+.ains .ahit,.arm .ahit{fill:transparent!important;stroke:none!important}
+.ains.big circle{stroke-width:2.5}.ains.big text{font-size:26px}.arm.big text{font-size:17px}
+.ains.big:active circle{fill:#d6eadb}
 </style>
 </head>
 <body>
@@ -569,14 +574,20 @@ function drawYard(sec,g,host){const free=g.ids.filter(x=>!yOcc(x)&&(!S.move||x!=
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
   if(!ids.length)el('text',{x:W/2,y:H/2+4,class:'wl','text-anchor':'middle'},svg).textContent='No hay barricas en el área de prensa';
   ids.forEach((id,j)=>drawBarrel(svg,id,5+YX*(j%3)+YX/2,6+Math.floor(j/3)*(GY-4)+R+4,R))}
-function drawAisle(sec,g,host){const ids=g.ids.filter(shown),ed=S.aedit&&!S.move,PX=ed?26:0,W=Math.max(1,ids.length)*(GX+PX)+10+PX,H=TOP+GY+FOOT;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
-  el('line',{x1:2,x2:W-2,y1:TOP+GY-4,y2:TOP+GY-4,stroke:'var(--line)','stroke-width':3},svg);
+function drawAisle(sec,g,host){const ids=g.ids.filter(shown),ed=S.aedit&&!S.move,
+  // phones, editing: wrap into rows of 3 with wide "+" gaps, so the "+" and "×" stay big enough for a gloved thumb (one row they came out ~12px)
+  ph=ed&&matchMedia('(max-width:600px)').matches,C=ph?3:Math.max(1,ids.length),PX=ed?(ph?44:26):0,RH=GY+FOOT,rows=Math.max(1,Math.ceil(ids.length/C)),
+  W=Math.min(C,Math.max(1,ids.length))*(GX+PX)+10+PX,H=TOP+GY+FOOT+(rows-1)*RH;const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H},host);
+  for(let r=0;r<rows;r++)el('line',{x1:2,x2:W-2,y1:TOP+GY-4+r*RH,y2:TOP+GY-4+r*RH,stroke:'var(--line)','stroke-width':3},svg);
   // editing an aisle: a "+" before, between and after the barrels adds a spot there; an empty added spot can be taken away
-  const plus=(x,after)=>{const b=el('g',{class:'ains',tabindex:0,role:'button','aria-label':'Agregar un lugar aquí','data-after':after==null?'':after},svg);el('circle',{cx:x,cy:TOP+GY/2-10,r:11},b);el('text',{x,y:TOP+GY/2-5.5},b).textContent='+'};
-  if(ed)plus(5+PX/2,null);
-  ids.forEach((id,j)=>{const cx=5+PX+(GX+PX)*j+GX/2;drawBarrel(svg,id,cx,TOP+GY/2-10,R);el('text',{class:'rack-id',x:cx,y:TOP+GY+19},svg).textContent=COL[id]||'';
-    if(ed){plus(cx+GX/2+PX/2,id);const q=POS[id];if(q.b&&q.b.added&&isFree(id)){const x=el('g',{class:'arm',tabindex:0,role:'button','aria-label':'Quitar este lugar','data-arm':id},svg);el('circle',{cx:cx+R-2,cy:TOP+GY/2-10-R+2,r:8},x);el('text',{x:cx+R-2,y:TOP+GY/2-10-R+6},x).textContent='×'}}});
-  if(ed){svg.querySelectorAll('.ains').forEach(n=>n.onclick=ev=>{ev.stopPropagation();addSlot(sec,g,n.dataset.after||null)});svg.querySelectorAll('.arm').forEach(n=>n.onclick=ev=>{ev.stopPropagation();removeSlot(g,n.dataset.arm)})}}
+  const plus=(x,y,after)=>{const b=el('g',{class:'ains'+(ph?' big':''),tabindex:0,role:'button','aria-label':'Agregar un lugar aquí','data-after':after==null?'':after},svg);
+    if(ph)el('rect',{class:'ahit',x:x-(PX+16)/2,y:y-GY/2+4,width:PX+16,height:GY-6},b);el('circle',{cx:x,cy:y,r:ph?17:11},b);el('text',{x,y:y+(ph?7.5:5.5)},b).textContent='+'};
+  if(ed)plus(5+PX/2,TOP+GY/2-10,null);
+  ids.forEach((id,j)=>{const col=j%C,oy=Math.floor(j/C)*RH,cx=5+PX+(GX+PX)*col+GX/2,cy=TOP+GY/2-10+oy;
+    if(ph&&col===0&&j)plus(5+PX/2,cy,ids[j-1]);
+    drawBarrel(svg,id,cx,cy,R);el('text',{class:'rack-id',x:cx,y:TOP+GY+19+oy},svg).textContent=COL[id]||'';
+    if(ed){if(!ph||col<C-1||j===ids.length-1)plus(cx+GX/2+PX/2,cy,id);const q=POS[id];if(q.b&&q.b.added&&isFree(id)){const x=el('g',{class:'arm'+(ph?' big':''),tabindex:0,role:'button','aria-label':'Quitar este lugar','data-arm':id},svg);if(ph)el('circle',{class:'ahit',cx:cx+R-2,cy:cy-R+2,r:24},x);el('circle',{cx:cx+R-2,cy:cy-R+2,r:ph?13:8},x);el('text',{x:cx+R-2,y:cy-R+(ph?8:6)},x).textContent='×'}}});
+  if(ed){svg.querySelectorAll('.ains').forEach(n=>n.onclick=ev=>{ev.stopPropagation();addSlot(sec,g,n.dataset.after||null)});svg.querySelectorAll('.arm').forEach(n=>n.onclick=ev=>{ev.stopPropagation();removeSlot(g,n.dataset.arm)});}}
 // aisle spots: the order is saved per aisle group ("order-QA0"); new spots get ids like QA0-n1
 function aBase(sec,g){return sec.id+'A'+sec.groups.indexOf(g)}
 function mkSlot(sec,g,id){POS[id]={sec,g,rack:id,lv:1,side:'',b:{spare:true,added:true},aisle:true};RACKS[id]={sec,g,aisle:true};return id}
@@ -736,7 +747,8 @@ function draw(){numberAisles();rebuildRev();
   const vw=VIEW(),sec=vw.S,w=$('wall');w.innerHTML='';S._rk=0;
   $('secname').textContent=vw.amph?'Ánforas':vw.S.id==='X'?(n=>'Área de prensa · '+(n===1?'1 barrica':n+' barricas'))(vw.racks.filter(yOcc).length):vw.name+(vw.S.id==='P'||vw.S.id==='Q'?' · ':' · columnas ')+vw.colsFn();
   $('secnote').innerHTML=sec.id==='X'?'Barricas paradas fuera de la bodega, 3 de ancho':`Parado ${sec.stand}, mirando al <b>${sec.facing}</b>`;
-  {const ae=$('aedit'),isA=(sec.id==='P'||sec.id==='Q')&&!S.move;ae.hidden=!isA;ae.textContent=S.aedit?'Listo':'Editar pasillo';ae.classList.toggle('on',!!S.aedit);ae.onclick=()=>{S.aedit=!S.aedit;draw()};if(!isA)S.aedit=false}
+  {const ae=$('aedit'),isA=(sec.id==='P'||sec.id==='Q')&&!S.move;ae.hidden=!isA;ae.textContent=S.aedit?'Listo':'Editar pasillo';ae.classList.toggle('on',!!S.aedit);ae.onclick=()=>{S.aedit=!S.aedit;draw()};if(!isA)S.aedit=false;
+   let ah=$('aehint');if(!ah){ah=document.createElement('p');ah.id='aehint';ah.className='aehint';ae.after(ah)}ah.hidden=!S.aedit;ah.textContent='Toca + para agregar un lugar. × quita un lugar vacío que agregaste. Toca Listo al terminar.'}
   $('edgeL').textContent=sec.left?'← '+sec.left:'';$('edgeR').textContent=sec.right?sec.right+' →':'';
   const mid=kind=>{const m=document.createElement('div');m.className='amph-wrap faded';if(kind==='amph'){m.style.flexDirection='row';amph(m,'AN-02');amph(m,'AN-01')}else door(m);w.appendChild(m)};
   if(vw.amph){const d=document.createElement('div');d.className='grp';d.innerHTML='<div class="racks"></div>';w.appendChild(d);for(const n of ['AN-02','AN-01'])drawAmphPos(d.lastChild,n)}
