@@ -260,25 +260,14 @@
     const row = b => {
       const stt = stateOf(b), g = lotGroup(b.lot), u = useOf(b), col = b.lot ? (GCOL[g] || '#9aa5b1') : stt === 'confirm' ? '#d79a1f' : 'transparent';
       const wine = b.discarded ? '<span class="cr-disc">✕ Descartada</span>' : b.lot ? esc(lotName(b.lot)) : stt === 'confirm' ? `<span class="cr-cf">Por confirmar</span>${b.paper && b.paper.last ? ` <small>papel: ${esc(b.paper.last)}</small>` : ''}` : '<span class="cr-none">Vacía</span>';
-      // phones: one information column (BBL nº · vino / tonelería / SO₂ + relleno) and a ▾ that opens the details in place
-      const m = mantOf(b), md = mantDays(b), x = C.so2 && C.so2[String(+b.code)], r = x && x.so2, open = C.openB.has(b.id);
+      // phones: two dense lines — BBL nº · vino · 📍 lugar / tonelería · SO₂ · relleno; tapping the row opens the card
+      const m = mantOf(b), md = mantDays(b), x = C.so2 && C.so2[String(+b.code)], r = x && x.so2;
       const coop = [b.cooperage, b.wood, b.year].filter(Boolean).join(' · ');
-      const so2T = r ? `<span class="c-pso2${/^</.test(r.v) || +r.v < 10 ? ' low' : ''}${daysOld(r.d) > 14 ? ' old' : ''}">SO₂ <b>${esc(r.v)}</b> · hace ${daysOld(r.d)} d</span>` : b.lot ? '<span class="c-pso2 none">SO₂ sin lectura</span>' : '';
-      const fillT = `<span class="c-pfill${!m || md > MANT_DAYS ? ' due' : ''}">${b.lot ? 'Relleno' : 'Mant.'} ${m ? (md > MANT_DAYS ? 'tarde · ' : '') + 'hace ' + md + ' d' : 'sin registro'}</span>`;
-      const P = m ? (PROTO[m.proto] || {}) : {};
-      const det = open ? `<dl class="c-pdet">
-          <dt>Ubicación</dt><dd>${b.loc ? '📍 ' + esc(locShort(b)) : 'sin ubicación'}</dd>
-          ${vintB(b) ? `<dt>Añada</dt><dd>${esc(vintB(b))}</dd>` : ''}
-          <dt>Barrica</dt><dd>${esc([b.cooperage, b.wood, b.year, b.toast ? 'tostado ' + b.toast : '', u ? USE[u] : ''].filter(Boolean).join(' · ') || '—')}</dd>
-          <dt>Último mant.</dt><dd>${m ? esc((P.n || 'registro') + ' · ' + fmtD(String(m.at).slice(0, 10))) : 'sin registro'}</dd>
-          ${r ? `<dt>SO₂ libre</dt><dd>${esc(r.v)} ppm · ${esc(fmtD(r.d))}</dd>` : ''}
-          ${b.notes ? `<dt>Notas</dt><dd>${esc(b.notes)}</dd>` : ''}
-        </dl><button type="button" class="btn sm c-pcard" data-bcard="${esc(b.id)}">Abrir tarjeta</button>` : '';
-      const ph = `<div class="c-ph"><div class="c-ph1"><b>BBL ${esc(bn(b.code))}</b><i class="cr-wdot" style="background:${col}"></i><span>${wine}</span></div>
-          <div class="c-ph2">${coop ? esc(coop) : '<span class="cr-dim">tonelería ?</span>'}</div>
-          <div class="c-ph3">${so2T}${fillT}</div>${det}</div>
-        <button type="button" class="c-pexp" data-bexp="${esc(b.id)}" aria-expanded="${open}" aria-label="${open ? 'Ocultar' : 'Ver'} detalles">▾</button>`;
-      return `<div class="cr-tr${C.selB.has(b.id) ? ' sel' : ''}${open ? ' open' : ''}" data-bbrow="${esc(b.id)}" role="row">
+      const so2T = r ? `<span class="c-pso2${/^</.test(r.v) || +r.v < 10 ? ' low' : ''}${daysOld(r.d) > 14 ? ' old' : ''}">SO₂ <b>${esc(r.v)}</b></span>` : b.lot ? '<span class="c-pso2 none">SO₂ —</span>' : '';
+      const fillT = `<span class="c-pfill${!m || md > MANT_DAYS ? ' due' : ''}">${b.lot ? 'Relleno' : 'Mant.'}${m ? (md > MANT_DAYS ? ' tarde' : '') + ' ' + md + ' d' : ' —'}</span>`;
+      const ph = `<div class="c-ph"><div class="c-ph1"><b>BBL&#8239;${esc(bn(b.code))}</b><i class="cr-wdot" style="background:${col}"></i><span class="c-phw">${wine}</span>${b.loc ? `<span class="c-phl">📍${esc(locShort(b))}</span>` : ''}</div>
+          <div class="c-ph2">${fillT}${so2T}${coop ? `<span class="c-pcoop">${esc(coop)}</span>` : '<span class="c-pcoop cr-dim">tonelería ?</span>'}</div></div>`;
+      return `<div class="cr-tr${C.selB.has(b.id) ? ' sel' : ''}" data-bbrow="${esc(b.id)}" role="row">
         <label class="cr-td c-sel" aria-label="Seleccionar ${esc(bn(b.code))}"><input type="checkbox" data-bsel="${esc(b.id)}"${C.selB.has(b.id) ? ' checked' : ''}></label>
         <div class="cr-td c-num"><b>${esc(bn(b.code))}</b></div>
         <div class="cr-td c-wine"><i class="cr-wdot" style="background:${col}"></i><span>${wine}</span>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
@@ -814,8 +803,6 @@
     if (e.target.closest('.c-sel,.cr-tg label')) return; // checkboxes: handled on change
     if (e.target.closest('[data-cselnone]')) { C.selB.clear(); render(); return; }
     if (e.target.closest('[data-cbulkgo]')) { const v = (C.root.querySelector('[data-cbulk]') || {}).value; if (v) bulk(v); return; }
-    const bx = e.target.closest('[data-bexp]'); if (bx) { const id = bx.dataset.bexp; if (C.openB.has(id)) C.openB.delete(id); else C.openB.add(id); render(); return; }
-    const bcd = e.target.closest('[data-bcard]'); if (bcd) { openCard(bcd.dataset.bcard); return; }
     const br = e.target.closest('[data-bbrow]'); if (br && !e.target.closest('select,input,button')) { openCard(br.dataset.bbrow); return; }
     if (e.target.matches && e.target.matches('[data-cpanelbg]')) { C.panel = false; render(); return; }
     const pn = e.target.closest('[data-cpanel]'); if (pn) { C.panel = !C.panel; C.more = false; render(); return; }
