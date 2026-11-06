@@ -136,7 +136,7 @@ header,.prog{max-width:900px;margin-left:auto;margin-right:auto;justify-content:
 
 /* tight layout: everything on one phone screen */
 body{padding-block:8px 24px}header{margin-bottom:0}h1{font-size:22px}.prog{margin:4px auto 8px}
-.lay{gap:8px}.mmbox{padding:3px 2px}
+.lay{gap:8px}.mmbox{padding:3px 2px}.mmpr{margin-top:8px}
 .facecol{padding:8px 10px}.facecol .edges{border:0;padding:0;margin:0;font-size:11px}
 .facecol .wall{padding:2px 0 0;gap:6px;overflow-x:hidden}.wall .racks{gap:4px}
 .secfoot{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:2px 10px;border-top:1px solid var(--line);padding-top:6px;margin-top:4px;width:100%}
@@ -307,7 +307,8 @@ body.cardonly .facecol .bcard{margin:0;border:0;border-radius:0}
 /* ---- phones: thumbs, not mice ---- */
 @media (max-width:600px){
   body{padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
-  .facecol{padding:8px 6px}
+  .facecol{padding:8px 3px}
+  html.embedmap body{padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
   .seg2{margin:0 10px;width:auto;max-width:none;display:grid;grid-template-columns:repeat(4,1fr)}.seg2 button{padding:9px 4px;font-size:13.5px}
   .bc2{padding:12px 12px 10px}.bnum{font-size:30px;min-width:66px;padding:8px}
   .bwho h3{font-size:18px}
@@ -380,7 +381,7 @@ html.embedmap body.bopen .facecol{min-height:0}
 <div class="mvbar" id="mvbar" hidden></div><div class="snack" id="snack" role="status" hidden></div>
 <div class="dlg" id="dlg" hidden></div>
 <div class="lay">
- <aside class="mmcol"><div class="mmbox"><div id="mm"></div></div></aside>
+ <aside class="mmcol"><div class="mmbox"><div id="mm"></div></div><div class="mmbox mmpr" id="mmpr" hidden></div></aside>
  <section class="facecol">
   <div class="edges"><span id="edgeL"></span><span id="edgeR"></span></div>
   <div class="wall" id="wall"></div>
@@ -682,7 +683,7 @@ function barrelTop(g,el,x,y,w,h){const along=w>h; // long axis along u
     else el('line',{y1:y+h*f,y2:y+h*f,x1:x+e*(f<.2||f>.8?1.1:.35),x2:x+w-e*(f<.2||f>.8?1.1:.35),class:'hoop'},g)}}
 // column number centred in each barrel (left→right as seen standing in front of the face)
 function labelTop(g,el,it,sec,cls){const b=g.__b||[];if(!it.id){el('text',{x:it.x+it.w/2,y:it.y+it.h/2+0.11,class:cls},g).textContent=it.name;return}
-  if(b.length===1){const yard=POS[it.id]&&POS[it.id].sec.id==='X',t=yard?String((S.conf[it.id]&&S.conf[it.id].num)||'?'):String(COL[it.id]||'');el('text',Object.assign({x:b[0].x+b[0].w/2,y:b[0].y+b[0].h/2+(yard?0.085:0.11),class:cls},yard?{style:'font-size:.22px'}:t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t;return}
+  if(b.length===1){const yard=POS[it.id]&&POS[it.id].sec.id==='X',t=yard?String((S.conf[it.id]&&S.conf[it.id].num)||'?'):String(COL[it.id]||'');el('text',Object.assign({x:b[0].x+b[0].w/2,y:b[0].y+b[0].h/2+(yard?b[0].h*0.16:0.11),class:cls},yard?{style:`font-size:${(b[0].w*0.42).toFixed(3)}px`}:t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t;return}
   const flip=FACE[sec.id].du<0;b.forEach((r,j)=>{const sd=(j===0)!==flip?'I':'D',t=String(COL[it.id+sd]);el('text',Object.assign({x:r.x+r.w/2,y:r.y+r.h/2+0.11,class:cls},t.length>3?{style:'font-size:.19px'}:{}),g).textContent=t})}
 function drawItemTop(g,el,it){const p=0.04;
   if(it.kind==='amph'){el('circle',{cx:it.x+it.w/2,cy:it.y+it.h/2,r:AW/2-0.04,class:'amph'},g);return}
@@ -705,27 +706,40 @@ const VIEW=()=>VIEWS.find(v=>v.id===S.view);
 // on phones the room fills the card: no side labels, the frame hugs the south wall and the crush pad
 const MMPH=()=>matchMedia('(max-width:600px)').matches;
 function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W,ph=MMPH();
-  const svg=el('svg',{viewBox:ph?`-0.32 -0.85 ${L+2.47} ${W+1.75}`:`-1.0 -0.85 ${L+3.65} ${W+1.75}`,class:'mmsvg','aria-label':'Plano del cuarto de barricas'},h);
+  const svg=el('svg',{viewBox:ph?`-0.32 -0.85 ${L+0.64} ${W+1.75}`:`-1.0 -0.85 ${L+3.65} ${W+1.75}`,class:'mmsvg','aria-label':'Plano del cuarto de barricas'},h);
   drawRoom(svg,el);
-  {const pg=el('g',{class:'mm-face mm-pr'+(S.view==='X'?' on':''),'data-s':'X',tabindex:0,role:'button','aria-label':'Área de prensa'},svg);
+  if(!ph){const pg=el('g',{class:'mm-face mm-pr'+(S.view==='X'?' on':''),'data-s':'X',tabindex:0,role:'button','aria-label':'Área de prensa'},svg);
    el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pz'},pg);
    if(!ph)el('text',{x:L+2.42,y:W/2,class:'lbl',transform:`rotate(90 ${L+2.42} ${W/2})`},svg).textContent='ÁREA DE PRENSA · NORTE'}
   const groups={};for(const v of VIEWS)groups[v.id]=el('g',{class:'mm-face'+(v.id===S.view?' on':''),'data-s':v.id,tabindex:0,role:'button','aria-label':v.name},svg);
   const deco=el('g',{class:'mm-deco'},svg);
-  for(const sec of SECTIONS)for(const it of layout(sec)){if(it.kind==='door')continue;const host=it.id?groups[VOF[it.id]]:it.kind==='amph'?groups.AN:deco;
+  for(const sec of SECTIONS){if(ph&&sec.id==='X')continue;for(const it of layout(sec)){if(it.kind==='door')continue;const host=it.id?groups[VOF[it.id]]:it.kind==='amph'?groups.AN:deco;
       const gi=el('g',{class:'it'+(S.selRack&&S.selRack===it.id?' sel':'')},host);drawItemTop(gi,el,it);
-      labelTop(gi,el,it,sec,'mm-id')}
+      labelTop(gi,el,it,sec,'mm-id')}}
   if(S.view!=='X'&&S.view!=='XX'){const vw=VIEW(),sec=vw.S,items=layout(sec).filter(i=>vw.amph?i.kind==='amph':vw.racks.includes(i.id)),e=EYE[sec.id];
     const u=(Math.min(...items.map(i=>i.x))+Math.max(...items.map(i=>i.x+i.w)))/2,y0=Math.min(...items.map(i=>i.y)),y1=Math.max(...items.map(i=>i.y+i.h)),side=e.v>(y0+y1)/2,dv=side?-1:1;
     const r=0.36,v=side?y1+0.1+r:y0-0.1-r,tip=v+dv*r,base=v-dv*r*0.7; // a small triangle pointing at the face, "TÚ" inside
     el('path',{d:`M${u} ${tip} L${u+r*1.05} ${base} L${u-r*1.05} ${base} Z`,class:'mm-eye'},svg);
     el('text',{x:u,y:v-dv*0.04+0.07,class:'mm-eyet'},svg).textContent='TÚ'}
   // while moving, the whole crush pad is one big drop target (first free spot)
-  if(S.move){const L=ROOM.L,W=ROOM.W,hit=el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pzhit'},svg);
+  if(S.move&&!ph){const L=ROOM.L,W=ROOM.W,hit=el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pzhit'},svg);
     hit.onclick=ev=>{ev.stopPropagation();if(S.move.fill)return;const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y&&S.move.from!==y)pickTarget(y)}}
   svg.querySelectorAll('[data-yc]').forEach(n=>{n.style.cursor='pointer';n.onclick=ev=>{ev.stopPropagation();const id=n.dataset.yc;if(S.move){if(S.move.fill?occ(id):isFree(id))pickTarget(id);return}S.view='X';S.sec='X';select(id,true)}});
   svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>{pick(n.dataset.s);if(!S.move)focusFace()};n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}});
-  mmHits(svg)}
+  mmHits(svg);padPh()}
+// phones: the crush pad is its own card under the room — a horizontal grey bar with its barrels in rows, same scale
+function padPh(){const box=$('mmpr');if(!box)return;box.innerHTML='';const ph=MMPH();box.hidden=!ph;if(!ph)return;
+  const L=ROOM.L,Wd=L+0.64,secX=SECTIONS.find(x=>x.id==='X'),ids=secX.groups[0].ids.filter(yOcc),Z=0.86,ST=0.98,N=Math.max(1,Math.floor((Wd-0.2)/ST)),rows=Math.max(1,Math.ceil(ids.length/N)),top=0.52,H=top+rows*ST+0.1;
+  const svg=el('svg',{viewBox:`-0.32 0 ${Wd} ${H}`,class:'mmsvg','aria-label':'Área de prensa'},box);
+  const pg=el('g',{class:'mm-face mm-pr'+(S.view==='X'?' on':''),'data-s':'X',tabindex:0,role:'button','aria-label':'Área de prensa'},svg);
+  el('rect',{x:-0.26,y:0.04,width:Wd-0.12,height:H-0.08,rx:0.1,class:'pz'},pg);
+  el('text',{x:-0.1,y:0.34,class:'lbl',style:'text-anchor:start'},pg).textContent='ÁREA DE PRENSA'+(ids.length?' · '+ids.length+' barrica'+(ids.length===1?'':'s'):' · vacía');
+  ids.forEach((id,j)=>{const it={kind:'end',id,x:-0.12+(j%N)*ST,y:top+Math.floor(j/N)*ST,w:Z,h:Z};
+    const gi=el('g',{class:'it'+(S.selRack&&S.selRack===id?' sel':'')},pg);drawItemTop(gi,el,it);labelTop(gi,el,it,secX,'mm-id')});
+  if(S.move){const hit=el('rect',{x:-0.26,y:0.04,width:Wd-0.12,height:H-0.08,class:'pzhit'},svg);
+    hit.onclick=ev=>{ev.stopPropagation();if(S.move.fill)return;const y=secX.groups[0].ids.find(isFree);if(y&&S.move.from!==y)pickTarget(y)}}
+  svg.querySelectorAll('[data-yc]').forEach(n=>{n.style.cursor='pointer';n.onclick=ev=>{ev.stopPropagation();const id=n.dataset.yc;if(S.move){if(S.move.fill?occ(id):isFree(id))pickTarget(id);return}S.view='X';S.sec='X';select(id,true)}});
+  pg.onclick=()=>{pick('X');if(!S.move)focusFace()};pg.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick('X')}}}
 // a bigger, invisible tap area behind each section of the room map (half the gap to its neighbours at most, so two
 // sections never share a spot); the selected section shows it as a green outline
 function mmHits(svg){const fs=[...svg.querySelectorAll('.mm-face')].map(n=>{let b;try{b=n.getBBox()}catch(e){}return b&&b.width?{n,x:b.x,y:b.y,w:b.width,h:b.height}:null}).filter(Boolean),P=0.45;

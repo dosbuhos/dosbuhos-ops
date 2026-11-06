@@ -4,22 +4,24 @@ Newest first. One line per change: date · what · why · commit. Each run reads
 
 ## Próximas mejoras (running upgrade list — Eric picks, one at a time)
 Size S/M/L · ⚑ = needs Eric's decision first.
-1. Órdenes del día on phones: bigger rows, action at thumb reach, "Anotar resultados" one tap, Cerradas/Canceladas folded · the crew's main screen · M
-2. Spanish everywhere on phones: bottom nav (Wines → Bodega, Protocols → Protocolos), search placeholder ("Find a wine, lot or…"), "Live from Excellovint", "Refresh", "Target", "ML progress" on wine cards · S · ⚑ (d)
-3. Front-view labels fit before the web font loads on slow 4G (fallback font sized to match Barlow Condensed) · S
-4. Barrel card tabs stay pinned at the top while scrolling on phones · S
-5. One SO₂ "low" cutoff everywhere (card < 12 vs Lista < 10) · S · ⚑ (e)
-6. Wine cards (Vinos) on phones: tighter tiles, no empty ML-progress bar when there's no data · M
-7. Full phone audit with real data at 320/360/412 px (and big system text): every screen, fix any overlap/run-on · M
-8. Room map rotated 90° on phones (~2.5× bigger) · M · ⚑ (a)
-9. "rellenar +5 d" → "+5 d" on phones · S · ⚑ (b)
-10. "Tinto" chip → "Barrica de tinto" · S · ⚑ (c)
-11. Rondas from the map: one date/person, tap barrels to mark topped or SO₂ read · L
-12. Recording a rack updates both barrels on the map (source empty, destination filled) — check, then fix if needed · M
-13. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
-14. Slow-connection states: loading, empty and error messages that say what to do · M
+1. Work orders as accordions: a one-line heading (what + where), tap to open the numbered steps, "Anotar aquí" in its own box; split automatically from today's text at (1) (2) (3)… — no change to the sheet · much less scrolling for the crew · M
+2. Órdenes del día on phones: bigger rows, action at thumb reach, "Anotar resultados" one tap, Cerradas/Canceladas folded · the crew's main screen · M
+3. Spanish everywhere on phones: bottom nav (Wines → Bodega, Protocols → Protocolos), search placeholder ("Find a wine, lot or…"), "Live from Excellovint", "Refresh", "Target", "ML progress" on wine cards · S · ⚑ (d)
+4. Front-view labels fit before the web font loads on slow 4G (fallback font sized to match Barlow Condensed) · S
+5. Barrel card tabs stay pinned at the top while scrolling on phones · S
+6. One SO₂ "low" cutoff everywhere (card < 12 vs Lista < 10) · S · ⚑ (e)
+7. Wine cards (Vinos) on phones: tighter tiles, no empty ML-progress bar when there's no data · M
+8. Full phone audit with real data at 320/360/412 px (and big system text): every screen, fix any overlap/run-on · M
+9. Room map rotated 90° on phones (~2.5× bigger) · M · ⚑ (a)
+10. "rellenar +5 d" → "+5 d" on phones · S · ⚑ (b)
+11. "Tinto" chip → "Barrica de tinto" · S · ⚑ (c)
+12. Rondas from the map: one date/person, tap barrels to mark topped or SO₂ read · L
+13. Recording a rack updates both barrels on the map (source empty, destination filled) — check, then fix if needed · M
+14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
+15. Slow-connection states: loading, empty and error messages that say what to do · M
 
 ## 2026-11-06 (later) — phone fixes from Eric's screenshots
+- Room map and front view nearly edge to edge on phones (cards ~8px from the screen edge); crush pad is its own card under the room — grey bar, its barrels bigger, tap one to open its card, whole bar is the drop target when moving · more map, two clear places · barricas.html, cellar-room.css
 - Vinos/Tanques/Barricas/Embotellado never overlap: count under the label on narrow phones, row scrolls if system text is very large, selected tab kept in view · labels were running into each other · mobile.css
 - Room map fills its card on phones: no SUR / ÁREA DE PRENSA side labels, frame hugs the walls and crush pad, thinner padding (~10% bigger) · wasted space beside the room · barricas.html
 
