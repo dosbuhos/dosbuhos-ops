@@ -339,6 +339,13 @@ html.embedmap body.bopen .facecol{min-height:0}
 .pend{background:#fbf1dc;border:1.5px solid #d79a1f;color:#7a5200;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px}
 
 .whob{font-size:12.5px;color:var(--soft)}.whob b{color:var(--ink)}#dbst{text-align:center;margin:0 0 6px}
+/* ---- staging night 1: room map — bigger tap areas, a clear selected section ---- */
+.mm-hit{fill:transparent;stroke:none;stroke-width:0;pointer-events:fill}.mm-eye{pointer-events:none}
+.mm-face.on .mm-hit{fill:color-mix(in srgb,var(--ok) 14%,transparent);stroke:var(--ok);stroke-width:.07}
+.mm-face:active .mm-hit{fill:color-mix(in srgb,var(--ok) 22%,transparent)}
+@media (max-width:600px){
+  .mm-id{font-size:.36px}.mm-id[style]{font-size:.21px!important}
+}
 
 </style>
 </head>
@@ -684,7 +691,16 @@ function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
   if(S.move){const L=ROOM.L,W=ROOM.W,hit=el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pzhit'},svg);
     hit.onclick=ev=>{ev.stopPropagation();if(S.move.fill)return;const y=SECTIONS.find(x=>x.id==='X').groups[0].ids.find(isFree);if(y&&S.move.from!==y)pickTarget(y)}}
   svg.querySelectorAll('[data-yc]').forEach(n=>{n.style.cursor='pointer';n.onclick=ev=>{ev.stopPropagation();const id=n.dataset.yc;if(S.move){if(S.move.fill?occ(id):isFree(id))pickTarget(id);return}S.view='X';S.sec='X';select(id,true)}});
-  svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>{pick(n.dataset.s);if(!S.move)focusFace()};n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}})}
+  svg.querySelectorAll('.mm-face').forEach(n=>{n.onclick=()=>{pick(n.dataset.s);if(!S.move)focusFace()};n.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(n.dataset.s)}}});
+  mmHits(svg)}
+// a bigger, invisible tap area behind each section of the room map (half the gap to its neighbours at most, so two
+// sections never share a spot); the selected section shows it as a green outline
+function mmHits(svg){const fs=[...svg.querySelectorAll('.mm-face')].map(n=>{let b;try{b=n.getBBox()}catch(e){}return b&&b.width?{n,x:b.x,y:b.y,w:b.width,h:b.height}:null}).filter(Boolean),P=0.45;
+  for(const a of fs){let t=P,bt=P,l=P,r=P;
+    for(const b of fs){if(b===a)continue;const ox=a.x<b.x+b.w+P&&b.x<a.x+a.w+P,oy=a.y<b.y+b.h+P&&b.y<a.y+a.h+P;
+      if(ox){if(b.y>=a.y+a.h)bt=Math.min(bt,(b.y-a.y-a.h)/2);if(b.y+b.h<=a.y)t=Math.min(t,(a.y-b.y-b.h)/2)}
+      if(oy){if(b.x>=a.x+a.w)r=Math.min(r,(b.x-a.x-a.w)/2);if(b.x+b.w<=a.x)l=Math.min(l,(a.x-b.x-b.w)/2)}}
+    a.n.insertBefore(el('rect',{class:'mm-hit',x:a.x-l,y:a.y-t,width:a.w+l+r,height:a.h+t+bt,rx:0.12}),a.n.firstChild)}}
 // tapping a stack on the map brings its front view up (the map is one tap away with ↑ Mapa); inside the cellar app the page scrolls too
 function toParent(){try{if(parent!==window)parent.postMessage({type:'bm:focus'},location.origin)}catch(e){}}
 function scrollToEl(el){if(!el)return;if(window.__embedScroll)return window.__embedScroll(el);el.scrollIntoView({behavior:'smooth',block:'start'})}
