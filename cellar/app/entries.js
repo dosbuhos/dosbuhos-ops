@@ -423,7 +423,7 @@
     if (!E.labsOn) { ov.innerHTML = `<div class="sheet"><h2>Subir lab</h2><p>Subida de laboratorio aún no activada.</p><div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cerrar</button></div></div></div>`; $('[data-lclose]', ov).onclick = closeLab; return; }
     if (L.hash) return readLab(ov);
     ov.innerHTML = `<div class="sheet en-lab"><h2>Subir lab</h2>${XBTN}
-      <p class="en-hint">PDF de Uva y Vino o San Lucas, o una foto clara de la hoja. Claude lee cada muestra y tú confirmas antes de guardar.</p>
+      <p class="en-hint">PDF de Uva y Vino o San Lucas, o una foto clara de la hoja. Claude lee cada muestra y la guarda sola en su lote; solo te pregunta las que no sabe dónde van.</p>
       <label class="btn primary en-pick">Elegir PDF o foto<input type="file" accept="application/pdf,image/*" hidden id="labFile"></label>
       <div class="err" id="labErr" role="alert"></div>
       <div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cancelar</button></div></div></div>`;
@@ -441,6 +441,23 @@
     let x;
     try { x = await post('/api/labs/extract', { hash: L.hash }); }
     catch (e) { ov.innerHTML = `<div class="sheet"><h2>Subir lab</h2><div class="err">${esc(e.message)}</div><div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cerrar</button></div></div></div>`; $('[data-lclose]', ov).onclick = closeLab; return; }
+    // Automatic: every sample Claude matched to a lot is saved right away (the server skips ones already saved from this file).
+    // Only samples it could not place are shown for review.
+    const auto = x.samples.filter(s => s.tab && !s.dup), rest = x.samples.filter(s => !s.tab && !s.dup);
+    let autoN = 0, autoTabs = [];
+    if (auto.length) {
+      try {
+        const r = await post('/api/labs/save', { hash: L.hash, lab: x.lab || 'Uva y Vino', report_date: x.report_date || '', samples: auto.map(s => ({ label: s.label, tab: s.tab, ubi: s.ubi, sampled: s.sampled, values: s.values, extras: s.extras })) });
+        const ok = (r.saved || []).filter(z => !z.dup); autoN = ok.length; autoTabs = [...new Set(ok.map(z => z.tab).filter(Boolean))];
+        E.labsAt = 0; renderReports(); refreshLotPanels(); window.dispatchEvent(new CustomEvent('cellar:refresh'));
+      } catch (e) { rest.unshift(...auto); toast('No se pudo guardar automático: ' + e.message); }
+    }
+    if (!rest.length) {
+      const d = x.samples.length - autoN;
+      closeLab(); toast(autoN ? autoN + ' muestra' + (autoN === 1 ? '' : 's') + ' guardada' + (autoN === 1 ? '' : 's') + ' en ' + autoTabs.join(', ') + (d ? ' · ' + d + ' ya estaba' + (d === 1 ? '' : 'n') : '') : 'Este reporte ya estaba guardado completo.');
+      return;
+    }
+    x.samples = rest;
     L.x = x;
     const tabOpts = sel => `<option value="">— no guardar —</option>` + (x.tabs || []).map(t => `<option${t === sel ? ' selected' : ''}>${esc(t)}</option>`).join('');
     const card = (s, i) => {
@@ -454,7 +471,7 @@
     };
     ov.innerHTML = `<form class="sheet en-lab en-form" data-dirty="1" novalidate><h2>Confirmar resultados</h2>${XBTN}
       <div class="en-row2"><label>Laboratorio<input id="labName" value="${esc(x.lab || 'Uva y Vino')}"></label><label>Fecha del reporte<input id="labDate" type="date" value="${esc(x.report_date || '')}"></label></div>
-      <p class="en-hint">${x.samples.length} muestra${x.samples.length === 1 ? '' : 's'}. Revisa el lote y la vasija de cada una; las que dejes en «no guardar» no se guardan. Los parámetros que no conocemos se guardan como «otro».</p>
+      <p class="en-hint">${autoN ? '<b>Ya se guardaron ' + autoN + ' automáticamente</b> (' + esc(autoTabs.join(', ')) + '). ' : ''}${x.samples.length} muestra${x.samples.length === 1 ? '' : 's'} sin lote claro. Revisa el lote y la vasija de cada una; las que dejes en «no guardar» no se guardan. Los parámetros que no conocemos se guardan como «otro».</p>
       ${x.samples.map(card).join('')}
       <div class="err" id="labErr" role="alert"></div>
       <div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cancelar</button><button type="submit" class="btn primary" id="labSave">Guardar ${x.samples.filter(s => !s.dup).length} muestras</button></div></div></form>`;

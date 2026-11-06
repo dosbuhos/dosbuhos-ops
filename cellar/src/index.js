@@ -7,7 +7,7 @@ import { xlRoute, sync } from './xl.js';
 import { pushPurchase, pullPurchases } from './compras.js';
 import { readInventory, addMovement, saveItem } from './inventario.js';
 import { mcpRoute } from './mcp.js';
-import { entriesRoute } from './entries.js';
+import { entriesRoute, autoLabs } from './entries.js';
 import { movesRoute } from './moves.js';
 import { VERSION_LABEL, APP_NAME, APP_SHORT } from './version.js';
 import { crewSheetsGuard, staffName, staffTags } from './guard.js';
@@ -23,6 +23,7 @@ export default {
     if (env.STAGING === '1') return; // staging never syncs, reviews or writes to Google
     // 18:00 / 22:00 / 01:00 UTC = 12:00, 16:00, 19:00 in San Miguel (UTC−6): Claude reviews every active wine (src/review.js).
     if (event.cron && event.cron !== '*/5 * * * *') { ctx.waitUntil(reviewAll(env).catch(e => console.log('review failed', e && e.message))); return; }
+    ctx.waitUntil(autoLabs(env).catch(e => console.log('auto labs failed', e && e.message)));
     if (env.GOOGLE_SA_JSON) { ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); ctx.waitUntil(pullPurchases(env).catch(e => console.log('compras pull failed', e && e.message))); } },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;

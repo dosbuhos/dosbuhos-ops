@@ -244,3 +244,29 @@ export async function entriesRoute(request, env, p, url, user) {
   } catch (e) { return J({ message: String(e.message || e) }, e.status && e.status < 600 ? e.status : 500); }
   return null;
 }
+
+// Lab reports uploaded but never read (for example the page was closed while Claude was reading it):
+// every 5-minute cron picks up to one such file from the last 7 days, reads it and saves every sample it can place
+// in a lot. Samples already saved from the same file are skipped by /api/labs/save, so nothing is duplicated.
+// One try per file (f.auto marks it); samples it can't place wait in Labs → Reportes for a person.
+export async function autoLabs(env) {
+  if (!env.LABS || !env.ANTHROPIC_API_KEY) return;
+  const week = Date.now() - 7 * 864e5;
+  const files = (await list(env, 'labfiles')).filter(f => !(f.report && f.report.samples && f.report.samples.length) && !f.auto && Date.parse(f.at || 0) > week);
+  const f = files[0]; if (!f) return;
+  const hash = f.id || f.hash; if (!hash) return;
+  const base = await get(env, 'labfiles', hash); if (!base) return;
+  base.auto = { at: new Date().toISOString(), status: 'reading' }; await put(env, 'labfiles', hash, base);
+  const user = { canWrite: true, initials: f.by || 'AUTO' }, u = new URL('https://cellar.local/');
+  const call = async (path, body) => { const r = await entriesRoute(new Request('https://cellar.local' + path, { method: 'POST', body: JSON.stringify(body) }), env, path, u, user); if (r.status >= 300) throw new Error((r.body && r.body.message) || 'error ' + r.status); return r.body; };
+  try {
+    const x = await call('/api/labs/extract', { hash });
+    const samples = (x.samples || []).filter(s => s.tab && !s.dup).map(s => ({ label: s.label, tab: s.tab, ubi: s.ubi, sampled: s.sampled, values: s.values, extras: s.extras }));
+    const r = samples.length ? await call('/api/labs/save', { hash, lab: x.lab || 'Uva y Vino', report_date: x.report_date || '', samples }) : { saved: [] };
+    const after = await get(env, 'labfiles', hash) || base;
+    after.auto = { at: new Date().toISOString(), status: 'done', saved: (r.saved || []).filter(z => !z.dup).length, unplaced: (x.samples || []).filter(s => !s.tab).length };
+    await put(env, 'labfiles', hash, after);
+  } catch (e) {
+    const after = await get(env, 'labfiles', hash) || base; after.auto = { at: new Date().toISOString(), status: 'failed', err: String(e.message || e).slice(0, 200) }; await put(env, 'labfiles', hash, after);
+  }
+}
