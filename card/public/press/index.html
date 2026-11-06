@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Press kit · Dos Búhos</title>
+<meta name="description" content="Dos Búhos press kit — story, fact sheet, wines and tasting notes, recognition, photos and contacts.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  @font-face{font-family:"Cormorant Garamond";font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-400-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:500;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:400;font-style:italic;font-display:swap;src:url(/fonts/cormorant-garamond-latin-400-italic.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:300;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-300-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-400-normal.woff2) format("woff2")}
+  :root{--bg:#0a0a0a;--ink:#f5f0e8;--warm:#c8b090;--dim:#7d7466;--line:#2a2724;--card:#121110;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--ink);font-family:Lato,system-ui,sans-serif;font-weight:300;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  html:not([lang=es]) .es{display:none !important}
+  html[lang=es] .en{display:none !important}
+  .wrap{max-width:720px;margin:0 auto;padding:calc(var(--sat) + 14px) 20px calc(var(--sab) + 50px)}
+  .bar{display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+  .bar a{color:var(--dim);text-decoration:none;padding:10px 0}
+  .bar button{background:none;border:0;color:var(--dim);font:inherit;letter-spacing:inherit;cursor:pointer;padding:10px 0}
+  .bar button.on{color:var(--ink)}
+  .bar .lang{display:flex;gap:16px}
+  header{text-align:center;padding:22px 0 6px}
+  header img.logo{width:200px;height:auto;display:block;margin:0 auto 26px}
+  header h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:30px;letter-spacing:.14em;text-transform:uppercase;line-height:1.1}
+  header .tag{margin-top:12px;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19px;color:var(--dim)}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;margin-top:22px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase}
+  nav.toc a{color:var(--warm);text-decoration:none;border:1px solid var(--line);padding:8px 10px}
+  section{margin-top:46px}
+  h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.3em;text-transform:uppercase;color:var(--warm);margin-bottom:14px}
+  p{font-size:15.5px;color:#d9d1c4;margin-bottom:12px}
+  p.lead{font-family:"Cormorant Garamond",Georgia,serif;font-size:21px;color:var(--ink);line-height:1.4}
+  .short{border:1px solid var(--line);padding:14px 16px;font-size:14px;color:#bdb4a6}
+  .short b{display:block;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:400;margin-bottom:6px}
+  .copybtn{margin-top:10px;background:none;border:1px solid var(--line);color:var(--warm);font:inherit;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;padding:9px 12px;cursor:pointer}
+  dl{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;border-top:1px solid var(--line)}
+  dt{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding-top:12px}
+  dd{font-size:14.5px;color:#d9d1c4;padding:10px 0 10px;border-bottom:1px solid var(--line)}
+  dl dt{border-bottom:1px solid var(--line)}
+  .wine{padding:16px 0;border-bottom:1px solid var(--line)}
+  .wine:first-of-type{border-top:1px solid var(--line)}
+  .wine h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24px;letter-spacing:.02em;line-height:1.15}
+  .wine .meta{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--warm);margin:4px 0 8px}
+  .wine p{font-size:14.5px;margin-bottom:6px}
+  .wine p.pair{color:var(--dim)}
+  .wine p.todo{color:var(--dim);font-style:italic}
+  .medal{display:flex;gap:14px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+  .medal b{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:20px;white-space:nowrap;min-width:92px}
+  .medal span{font-size:14px;color:#bdb4a6}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-weight:400;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:8px 8px 8px 0;border-bottom:1px solid var(--line)}
+  td{padding:10px 8px 10px 0;border-bottom:1px solid var(--line);vertical-align:top;color:#d9d1c4}
+  td:first-child{font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;color:var(--ink);white-space:nowrap}
+  .photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .photos a{display:block;min-width:0;text-decoration:none}
+  .photos img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--card)}
+  .photos span{display:block;font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.3}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  .btn{display:flex;align-items:center;justify-content:center;min-height:50px;padding:12px 14px;border:1px solid var(--ink);color:var(--ink);text-decoration:none;font-size:12px;letter-spacing:.2em;text-transform:uppercase;text-align:center}
+  .btn.full{grid-column:1/-1}
+  footer{margin-top:56px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:.22em;text-transform:uppercase}
+  footer img{width:40px;opacity:.7;display:block;margin:0 auto 18px}
+  @media (min-width:600px){.photos{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a href="/#page">‹ <span class="en">Back</span><span class="es">Volver</span></a>
+    <div class="lang"><button id="l-en" class="on" onclick="setLang('en')">EN</button><button id="l-es" onclick="setLang('es')">ES</button></div>
+  </div>
+
+  <header>
+    <img class="logo" src="/icons/logo.png" alt="Dos Búhos">
+    <h1><span class="en">Press kit</span><span class="es">Kit de prensa</span></h1>
+    <div class="tag"><span class="en">Certified organic wine at 6,500 feet · San Miguel de Allende, México</span><span class="es">Vino orgánico certificado a 2,000 m · San Miguel de Allende, México</span></div>
+    <nav class="toc">
+      <a href="#story"><span class="en">Story</span><span class="es">Historia</span></a>
+      <a href="#facts"><span class="en">Facts</span><span class="es">Datos</span></a>
+      <a href="#people"><span class="en">People</span><span class="es">Equipo</span></a>
+      <a href="#wines"><span class="en">Wines</span><span class="es">Vinos</span></a>
+      <a href="#awards"><span class="en">Recognition</span><span class="es">Premios</span></a>
+      <a href="#visit"><span class="en">Visit</span><span class="es">Visita</span></a>
+      <a href="#photos"><span class="en">Photos</span><span class="es">Fotos</span></a>
+      <a href="#contact"><span class="en">Contact</span><span class="es">Contacto</span></a>
+    </nav>
+  </header>
+
+  <section id="story">
+    <h2 class="en">The story in 150 words</h2><h2 class="es">La historia en 150 palabras</h2>
+    <div class="en">
+      <p class="lead">Dos Búhos is a family winery at 6,500 feet in the high desert of central Mexico — three hours north of Mexico City, and nothing like Baja.</p>
+      <p>Higinio and Diane Maycotte planted the first vines in 2006 at the foot of the dormant volcano Palo Huérfano, on land the family had already farmed organically for decades: pears, peaches, vegetables. Nobody could tell them what would grow at that altitude, so they planted twelve varieties and let the land decide.</p>
+      <p>Twenty vintages later the answers are in the bottle: an Aglianico that keeps its acid through long, cold nights; a Chenin Blanc with limestone tension; an orange wine from Moscato Giallo. Certified organic by Oregon Tilth since 2014 and fermented with native yeasts in amphora and neutral oak, the wines are poured at Pujol, Quintonil, Nobu and Rosewood and imported to the United States. Four generations work the land. The motto: better wines for a better world.</p>
+      <div class="short"><b>Short version</b><span id="short-en">A family winery at 6,500 feet in central Mexico, organic since before the vines, making Aglianico, Chenin Blanc and orange wine at the foot of a sleeping volcano. Poured at Pujol and Quintonil; imported to the US.</span><br><button class="copybtn" onclick="copyText('short-en',this)">Copy</button></div>
+    </div>
+    <div class="es">
+      <p class="lead">Dos Búhos es una bodega familiar a 2,000 metros de altura en el altiplano de Guanajuato, a tres horas de la Ciudad de México.</p>
+      <p>Higinio y Diane Maycotte plantaron las primeras vides en 2006 al pie del volcán dormido Palo Huérfano, en una tierra que la familia ya cultivaba orgánicamente desde hacía décadas: perales, duraznos, hortalizas. Nadie sabía qué variedades funcionarían a esta altitud, así que sembraron doce y dejaron que la tierra decidiera.</p>
+      <p>Veinte vendimias después las respuestas están en la botella: un Aglianico que conserva su acidez gracias a las noches frías; un Chenin Blanc con tensión mineral; un vino naranja de Moscato Giallo. Certificados orgánicos por Oregon Tilth desde 2014, con levaduras nativas, ánforas y barrica neutra, los vinos se sirven en Pujol, Quintonil, Nobu y Rosewood y se exportan a Estados Unidos. Cuatro generaciones trabajan esta tierra. El lema: mejores vinos para un mejor mundo.</p>
+      <div class="short"><b>Versión corta</b><span id="short-es">Bodega familiar a 2,000 m en el altiplano de Guanajuato, orgánica desde antes del vino, con Aglianico, Chenin Blanc y vino naranja al pie de un volcán dormido. En las mesas de Pujol y Quintonil; exportación a EE. UU.</span><br><button class="copybtn" onclick="copyText('short-es',this)">Copiar</button></div>
+    </div>
+  </section>
+
+  <section id="facts">
+    <h2 class="en">Fact sheet</h2><h2 class="es">Ficha de datos</h2>
+    <dl>
+      <dt class="en">Winery</dt><dt class="es">Bodega</dt><dd>Bodega Dos Búhos · Comercializadora Dos Búhos, S. de R.L. de C.V.</dd>
+      <dt class="en">Where</dt><dt class="es">Dónde</dt><dd>Km 6, Carretera San Miguel de Allende–Querétaro, Guanajuato, México · <span class="en">3 h from Mexico City</span><span class="es">a 3 h de CDMX</span></dd>
+      <dt class="en">Altitude</dt><dt class="es">Altitud</dt><dd>2,000 m / 6,500 ft · <span class="en">at the foot of the dormant volcano Palo Huérfano</span><span class="es">al pie del volcán dormido Palo Huérfano</span></dd>
+      <dt class="en">Climate &amp; soil</dt><dt class="es">Clima y suelo</dt><dd><span class="en">High desert: hot days, cold nights, slow ripening, natural acidity. Volcanic soil.</span><span class="es">Altiplano: días cálidos, noches frías, maduración lenta, acidez natural. Suelo volcánico.</span></dd>
+      <dt class="en">First vines</dt><dt class="es">Primeras vides</dt><dd>2006 · Higinio &amp; Diane Maycotte · <span class="en">twelve varieties planted as a trial</span><span class="es">doce variedades plantadas a prueba</span></dd>
+      <dt class="en">Grapes</dt><dt class="es">Uvas</dt><dd>Aglianico, Tempranillo, Syrah, Grenache, Cabernet Sauvignon, Cabernet Franc, Merlot, Malbec, Montepulciano · Chenin Blanc, Sauvignon Blanc, Sémillon, Moscato Giallo · <span class="en">all estate-grown</span><span class="es">todas de la finca</span></dd>
+      <dt class="en">Farming</dt><dt class="es">Cultivo</dt><dd><span class="en">Organic for 30+ years. USDA Organic (NOP) certified by Oregon Tilth since 2014 — one of very few in Mexico.</span><span class="es">Orgánico desde hace más de 30 años. Certificación USDA Organic (NOP) por Oregon Tilth desde 2014 — una de muy pocas en México.</span></dd>
+      <dt class="en">Cellar</dt><dt class="es">Bodega</dt><dd><span class="en">Native yeast, spontaneous fermentation, amphora and neutral oak, minimal intervention, low sulfites.</span><span class="es">Levaduras nativas, fermentación espontánea, ánforas y barrica neutra, mínima intervención, bajos sulfitos.</span></dd>
+      <dt class="en">Flagship</dt><dt class="es">Insignia</dt><dd>Aglianico Gran Reserva · <span class="en">two barrels a vintage, two years in barrel</span><span class="es">dos barricas por cosecha, dos años en barrica</span></dd>
+      <dt class="en">Where poured</dt><dt class="es">Dónde se sirve</dt><dd>Pujol, Quintonil, Nobu, Rosewood, Sud 777, Californios, Mixtli, Alteño, Esmé, Live Aqua</dd>
+      <dt>United States</dt><dd><span class="en">Imported by La Competencia; Texas through Casa 1524.</span><span class="es">Importado por La Competencia; en Texas a través de Casa 1524.</span></dd>
+      <dt class="en">On the estate</dt><dt class="es">En la finca</dt><dd><span class="en">Restaurant and tasting room, El Jardín del Vino, the chapel (ContemploMX immersive art), wine club El Círculo, estate olive oil.</span><span class="es">Restaurante y sala de cata, El Jardín del Vino, la capilla (ContemploMX arte inmersivo), club de vino El Círculo, aceite de oliva del rancho.</span></dd>
+      <dt>Web</dt><dd><a href="https://dosbuhos.com">dosbuhos.com</a> · <a href="https://www.instagram.com/vinedodosbuhos">@vinedodosbuhos</a></dd>
+    </dl>
+  </section>
+
+  <section id="people">
+    <h2 class="en">The family and the team</h2><h2 class="es">La familia y el equipo</h2>
+    <table>
+      <tr><td>Higinio Maycotte</td><td><span class="en">Grape grower, founder. The farmer; planted the first vines in 2006 on land the family had worked for generations.</span><span class="es">Viticultor, fundador. El agricultor; plantó las primeras vides en 2006 en una tierra trabajada por generaciones.</span></td></tr>
+      <tr><td>Diane Maycotte</td><td><span class="en">Winemaker. Trained at Texas Tech and UC Davis; native-yeast, low-intervention winemaking since the first vintage.</span><span class="es">Enóloga. Formada en Texas Tech y UC Davis; vinificación con levaduras nativas y mínima intervención desde la primera cosecha.</span></td></tr>
+      <tr><td>Eric Maycotte</td><td><span class="en">Owner, winemaking team. Second generation; runs the cellar, the restaurant and the business; built the US import route.</span><span class="es">Propietario, equipo de vinificación. Segunda generación; dirige bodega, restaurante y negocio; abrió la exportación a EE. UU.</span></td></tr>
+      <tr><td>Melanie Harris</td><td><span class="en">Head of Events &amp; Community. Weddings, private dinners, the Winegarden and the Bodega de Arte.</span><span class="es">Directora de Eventos y Comunidad. Bodas, cenas privadas, el Winegarden y la Bodega de Arte.</span></td></tr>
+      <tr><td>Michael Dunlop</td><td><span class="en">Food &amp; Beverage Director. Kitchen direction, bar program, service standards.</span><span class="es">Director de Alimentos y Bebidas. Dirección de cocina, programa de bar, estándares de servicio.</span></td></tr>
+      <tr><td>Eduardo "Lalo" López Torres</td><td><span class="en">Chef. Cooking from the Bajío: the huerta, local ranches, estate olive oil.</span><span class="es">Chef. Cocina del Bajío: la huerta, ranchos locales, aceite de oliva del rancho.</span></td></tr>
+    </table>
+  </section>
+
+  <section id="wines">
+    <h2 class="en">The wines — current tasting notes</h2><h2 class="es">Los vinos — notas de cata actuales</h2>
+    <div class="wine"><h3>Aglianico Gran Reserva</h3><div class="meta">100% Aglianico · vintage ____ · two years in barrel</div><p><span class="en">Black fruit, cardamom, clove, volcanic minerality; high natural acidity, long finish.</span><span class="es">Fruta negra, cardamomo, clavo, mineralidad volcánica; acidez natural alta, final largo.</span></p><p class="pair"><span class="en">Lamb, smoked ribs, aged cheeses · ~50 cases (two barrels)</span><span class="es">Cordero, costillas ahumadas, quesos añejos · ~50 cajas (dos barricas)</span></p><p class="todo">[Diane to confirm notes and élevage]</p></div>
+<div class="wine"><h3>Tempranillo Gran Reserva</h3><div class="meta">100% Tempranillo · vintage ____ · Gold, Bacchus 2026</div><p class="todo">[notes pending]</p></div>
+<div class="wine"><h3>Chenin Blanc</h3><div class="meta">100% Chenin Blanc · vintage ____ · stainless steel, 6 months on lees · 12.5%</div><p><span class="en">Asian pear, yellow apple, white flowers, a whisper of honey. Bright acidity, limestone and herbal notes, textured finish.</span><span class="es">Pera asiática, manzana amarilla, flores blancas, un toque de miel. Acidez vibrante, notas de caliza y hierbas, final con textura.</span></p><p class="pair"><span class="en">Oysters, spring salads, roasted Camembert · ~170 cases</span><span class="es">Ostiones, ensaladas de primavera, Camembert horneado · ~170 cajas</span></p></div>
+<div class="wine"><h3>Sauvignon Blanc</h3><div class="meta">100% Sauvignon Blanc · vintage ____</div><p class="todo">[notes pending]</p></div>
+<div class="wine"><h3>Grenache</h3><div class="meta">100% Grenache · vintage ____ · Grand Gold, Concours Mondial de Bruxelles 2024</div><p class="todo">[notes pending]</p></div>
+<div class="wine"><h3>Espontáneo · orange wine</h3><div class="meta">Moscato Giallo on skins · vintage ____ · Gold, Bacchus 2026</div><p><span class="en">Deep orange with amber and copper glints. Candied orange, kumquat, citrus and lychee over fine honey notes. Dry and balanced, long fresh finish, a saline edge.</span><span class="es">Naranja intenso con destellos ámbar y cobrizos. Naranja cristalizada, kumquat, cítricos y lichi sobre finas notas de miel. Seco y equilibrado, final largo y fresco, un toque salino.</span></p><p class="pair"><span class="en">Sushi, sashimi, tempura, citrus salads, aged cheeses, curry, paella, duck à l'orange</span><span class="es">Sushi, sashimi, tempura, ensaladas cítricas, quesos maduros, curry, paella, pato a la naranja</span></p></div>
+<div class="wine"><h3>Pet Nat</h3><div class="meta">Moscato Giallo · vintage ____ · ancestral method · Gold, LA International 2025</div><p class="todo">[notes pending]</p></div>
+<div class="wine"><h3>1524 Espumoso Rosé Brut</h3><div class="meta">45% Tempranillo, 45% Syrah, 10% Cabernet Franc · vintage ____ · traditional method, 9 months on lees · 12.5%</div><p><span class="en">Ripe peach, dried strawberry and apricot with a saline sea-spray lift. Fine, persistent bubbles, a hint of agave honey, bright dry finish.</span><span class="es">Durazno maduro, fresa deshidratada y chabacano con un toque salino. Burbuja fina y persistente, un dejo de miel de agave, final seco y vibrante.</span></p><p class="pair"><span class="en">Soft cheeses, Serrano ham, charcuterie, berry-and-goat-cheese salads</span><span class="es">Quesos suaves, jamón serrano, charcutería, ensaladas de frutos rojos y queso de cabra</span></p></div>
+<div class="wine"><h3>Mosaico Blanco</h3><div class="meta">Sauvignon Blanc 62%, Sémillon 24%, Moscato 14% · vintage ____</div><p class="todo">[notes pending]</p></div>
+<div class="wine"><h3>Efímero</h3><div class="meta">The blended collection — a mother-and-son project · blends per release</div><p class="todo">[current blends and notes pending]</p></div>
+<div class="wine"><h3>Vermouth · Vin d'Orange Amère · Vino Dulce</h3><div class="meta">Vermouth on a Tempranillo–Syrah base</div><p class="todo">[notes pending]</p></div>
+    <p style="margin-top:12px;color:var(--dim);font-size:13px"><span class="en">Serve whites and sparkling at 8–12 °C, reds at 16–18 °C.</span><span class="es">Servir blancos y espumosos a 8–12 °C, tintos a 16–18 °C.</span></p>
+  </section>
+
+  <section id="awards">
+    <h2 class="en">Recognition</h2><h2 class="es">Reconocimientos</h2>
+    <p><span class="en">Every medal and score since 2021, newest first. The tables matter more than the medals: Pujol and Quintonil are Michelin-starred; the rest are rooms whose sommeliers chose us for their own lists.</span><span class="es">Todas las medallas y puntuaciones desde 2021, de la más reciente a la más antigua. Las mesas pesan más que las medallas: Pujol y Quintonil tienen estrella Michelin; el resto son salas cuyos sommeliers nos eligieron para sus cartas.</span></p>
+    <table><tr><th class="en">Wine</th><th class="es">Vino</th><th class="en">Award</th><th class="es">Premio</th><th class="en">Competition</th><th class="es">Concurso</th></tr><tr><td>Grenache 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td>Aglianico 2022</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td>Anaranjado 2023</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td>Sauvignon Blanc 2024</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td>1524 Moscato Giallo 2025</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td>Tempranillo 2022</td><td><span class="en">Gold</span><span class="es">Oro</span></td><td>Bacchus · Unión Española de Catadores 2026</td></tr>
+<tr><td>Anaranjado 2023</td><td><span class="en">Gold</span><span class="es">Oro</span></td><td>Bacchus · Unión Española de Catadores 2026</td></tr>
+<tr><td>Chenin Blanc 2024</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
+<tr><td>Aglianico 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
+<tr><td>Tempranillo 2022</td><td><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
+<tr><td>Aglianico 2020</td><td><span class="en">97 pts</span><span class="es">97 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td>Tempranillo 2022</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td>Cabernet Franc Gran Reserva 2022</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td>1524 Mosaico 2023</td><td><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td>Chenin Blanc 2024</td><td><span class="en">89 pts</span><span class="es">89 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td>Grenache Gran Reserva 2021</td><td><span class="en">88 pts</span><span class="es">88 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td>Tempranillo 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
+<tr><td>Sauvignon Blanc 2024</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
+<tr><td>Moscato Giallo Pet Nat 2022</td><td><span class="en">Gold</span><span class="es">Oro</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
+<tr><td>Espumoso Rosado 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
+<tr><td>Aglianico 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
+<tr><td>Grenache 2019</td><td><span class="en">Grand Gold</span><span class="es">Gran Oro</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td>Anaranjado 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td>1524 Espumoso Blanco 2022</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td>Grenache 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td>Chenin Blanc 2022</td><td><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2024</td></tr>
+<tr><td>1524 Espumoso Rosé 2022</td><td><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Tempranillo 2020</td><td><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>1524 Espumoso Blanco 2022</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Cabernet Sauvignon 2020</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Selección Especial 2017</td><td><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Chardonnay 2021</td><td><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Sauvignon Blanc 2020</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Tempranillo 2016</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Aglianico 2015</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Moscato Giallo Pet Nat 2021</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Espumoso Rosado 2020</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Chenin Blanc 2022</td><td><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Grenache 2020</td><td><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td>Moscato Giallo Pet Nat 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2023</td></tr>
+<tr><td>Sauvignon Blanc 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2022</td></tr>
+<tr><td>Cabernet Sauvignon 2017</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2021</td></tr></table>
+  </section>
+
+  <section id="visit">
+    <h2 class="en">Visit</h2><h2 class="es">Visítanos</h2>
+    <dl>
+      <dt class="en">Tours &amp; tastings</dt><dt class="es">Visitas y catas</dt><dd><span class="en">Guided walk through vineyard and cellar, four-wine tasting. Barrel-room and chapel experiences on request.</span><span class="es">Recorrido guiado por viñedo y bodega, cata de cuatro vinos. Experiencias en sala de barricas y capilla bajo pedido.</span></dd>
+      <dt class="en">Restaurant</dt><dt class="es">Restaurante</dt><dd><span class="en">Lunch among the vines: cooking from the Bajío — the huerta, local ranches, estate olive oil — paired with the estate wines. Fixed menus and wine flights on weekends.</span><span class="es">Comida entre las vides: cocina del Bajío — la huerta, ranchos locales, aceite de oliva del rancho — maridada con los vinos de la casa. Menús fijos y vuelos de vino los fines de semana.</span> · <a href="https://www.opentable.com/s?term=Dos%20B%C3%BAhos">OpenTable</a></dd>
+      <dt>El Jardín del Vino</dt><dd><span class="en">The outdoor wine garden: wines by the glass, draft wine cocktails, antojos.</span><span class="es">El jardín del vino al aire libre: vinos por copa, cocteles de vino de barril, antojos.</span></dd>
+      <dt class="en">Events</dt><dt class="es">Eventos</dt><dd><span class="en">The Winegarden, the Bodega de Arte, the chapel. Seated dinners, open wine bar, custom-label bottles.</span><span class="es">El Winegarden, la Bodega de Arte, la capilla. Cenas, barra libre de vino, botellas con etiqueta personalizada.</span></dd>
+      <dt class="en">Getting here</dt><dt class="es">Cómo llegar</dt><dd>Km 6, Carretera San Miguel de Allende–Querétaro · <a href="https://maps.google.com/?q=Bodega+Dos+Buhos+San+Miguel+de+Allende"><span class="en">Map</span><span class="es">Mapa</span></a></dd>
+    </dl>
+  </section>
+
+  <section id="photos">
+    <h2 class="en">Photos</h2><h2 class="es">Fotos</h2>
+    <p><span class="en">Tap to open; press-and-hold to save. Print resolution and bottle shots on request.</span><span class="es">Toca para abrir; mantén presionado para guardar. Alta resolución y fotos de botella bajo pedido.</span> <span class="en">Credit: Dos Búhos.</span><span class="es">Crédito: Dos Búhos.</span></p>
+    <div class="photos" id="photo-grid"></div>
+    <div class="btnrow">
+      <a class="btn full" href="https://dosbuhos.com/materiales-de-mercadotecnia/"><span class="en">Logos &amp; marketing materials</span><span class="es">Logos y materiales de mercadotecnia</span></a>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2 class="en">Press contact</h2><h2 class="es">Contacto de prensa</h2>
+    <dl>
+      <dt>Eric Maycotte</dt><dd><span class="en">Owner</span><span class="es">Propietario</span> · <a href="mailto:eric@dosbuhos.com">eric@dosbuhos.com</a></dd>
+      <dt>Diana González</dt><dd><span class="en">Marketing, images</span><span class="es">Mercadotecnia, imágenes</span> · <a href="mailto:marketing@dosbuhos.com">marketing@dosbuhos.com</a></dd>
+      <dt class="en">Winery</dt><dt class="es">Bodega</dt><dd><a href="mailto:reservaciones@dosbuhos.com">reservaciones@dosbuhos.com</a> · <a href="https://wa.me/524151247583">WhatsApp +52 415 124 7583</a></dd>
+    </dl>
+  </section>
+
+  <footer>
+    <img src="/icons/mono-light.png" alt="">
+    Dos Búhos · San Miguel de Allende
+  </footer>
+</div>
+<script>
+  const PHOTOS = [{"f": "photos/harvest.jpg", "en": "Harvest at dawn", "es": "Vendimia al amanecer", "w": 1083, "h": 1400}, {"f": "photos/planting.jpg", "en": "Planting the first vines, 2006", "es": "Plantando las primeras vides, 2006", "w": 1400, "h": 1050}, {"f": "photos/family-road.jpg", "en": "Four generations on this road", "es": "Cuatro generaciones en este camino", "w": 1400, "h": 641}, {"f": "photos/cellar.jpg", "en": "Amphora, native-yeast ferments, barrels, sheep", "es": "Ánforas, fermentaciones con levadura nativa, barricas, borregos", "w": 1286, "h": 1256}, {"f": "photos/harvest-bin.jpg", "en": "Chenin Blanc into the bin", "es": "Chenin Blanc a la tina", "w": 952, "h": 1265}, {"f": "photos/glasses.jpg", "en": "Espontáneo, our orange wine", "es": "Espontáneo, nuestro vino naranja", "w": 1331, "h": 1181}, {"f": "photos/tasting.jpg", "en": "The tasting room", "es": "La sala de cata", "w": 1308, "h": 1203}, {"f": "photos/grandfather.jpg", "en": "The land before the vines", "es": "La tierra antes de las vides", "w": 981, "h": 1400}, {"f": "photos/community.jpg", "en": "Feed The Hungry at the winery", "es": "Feed The Hungry en la bodega", "w": 1400, "h": 641}, {"f": "photos/vineyard-talk.jpg", "en": "In the vineyard", "es": "En el viñedo", "w": 1400, "h": 912}, {"f": "photos/winegarden-night.jpg", "en": "The Winegarden at night", "es": "El Winegarden de noche", "w": 1080, "h": 571}, {"f": "photos/bodega-arte.jpg", "en": "Bodega de Arte, set for dinner", "es": "La Bodega de Arte, lista para cenar", "w": 1275, "h": 648}, {"f": "photos/lunch-table.jpg", "en": "Lunch under the trees", "es": "Comida bajo los árboles", "w": 1400, "h": 708}, {"f": "photos/wedding-toast.jpg", "en": "A toast in the Bodega de Arte", "es": "Un brindis en la Bodega de Arte", "w": 1400, "h": 1020}, {"f": "photos/hacienda.jpg", "en": "The whole estate, yours for a day", "es": "La hacienda completa, por un día", "w": 1400, "h": 740}, {"f": "photos/recorrido.jpg", "en": "The vineyard walk", "es": "El recorrido", "w": 1400, "h": 740}, {"f": "photos/pouring.jpg", "en": "Espontáneo, poured", "es": "Espontáneo, al servir", "w": 790, "h": 399}, {"f": "photos/petanque.jpg", "en": "Pétanque in the garden", "es": "Petanca en el jardín", "w": 858, "h": 434}];
+  const ph = document.getElementById("photo-grid");
+  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.target = '_blank'; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt=""><span><span class="en">${p.en}</span><span class="es">${p.es}</span></span>`; ph.appendChild(a); });
+  function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
+  try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
+  function copyText(id, btn){ const t = document.getElementById(id).textContent; try { navigator.clipboard.writeText(t).then(() => { btn.textContent = document.documentElement.lang === 'es' ? 'Copiado' : 'Copied'; }); } catch(e){} }
+  if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); } catch(e){} }
+</script>
+</body>
+</html>

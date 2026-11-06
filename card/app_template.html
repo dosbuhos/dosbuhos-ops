@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dos Búhos</title>
+<meta name="description" content="Bodega Dos Búhos — certified organic wine at 6,500 ft, San Miguel de Allende, México. Visit, taste, reserve, buy.">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dos Búhos">
+<link id="manifest" rel="manifest" href="/manifest-dosbuhos.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  @font-face{font-family:"Cormorant Garamond";font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-400-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:500;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:600;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:400;font-style:italic;font-display:swap;src:url(/fonts/cormorant-garamond-latin-400-italic.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:300;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-300-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-400-normal.woff2) format("woff2")}
+  :root{--bg:#0a0a0a;--ink:#f5f0e8;--warm:#c8b090;--dim:#7d7466;--line:#2a2724;--card:#121110;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--ink);font-family:Lato,system-ui,sans-serif;font-weight:300;line-height:1.5;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+  a{color:inherit}
+  html:not([lang=es]) .es{display:none !important}
+  html[lang=es] .en{display:none !important}
+
+  /* ---------- stage / flip ---------- */
+  #stage{position:relative;min-height:100vh;min-height:100dvh}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .7s cubic-bezier(.4,0,.2,1)}
+  html:not(.open) body{overflow:hidden;height:100vh;height:100dvh}
+  #front{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;overflow:auto;transform:perspective(1600px) rotateY(0deg);z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(var(--sat) + 36px) 24px calc(var(--sab) + 30px);cursor:pointer}
+  #back{transform:perspective(1600px) rotateY(180deg);position:relative;z-index:1;visibility:hidden}
+  html.open #front{transform:perspective(1600px) rotateY(-180deg);pointer-events:none}
+  html.open #back{transform:perspective(1600px) rotateY(0deg);visibility:visible;z-index:3}
+
+  /* ---------- card front ---------- */
+  #front .logo{width:min(58vw,250px);height:auto;margin-bottom:38px}
+  #front h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:clamp(28px,8vw,40px);letter-spacing:.14em;text-transform:uppercase;line-height:1.1}
+  #front .role{margin-top:10px;font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
+  #front .org{margin-top:12px;font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;color:var(--dim)}
+  .qrwrap{margin:40px auto 0;width:min(62vw,290px);aspect-ratio:1;background:#fff;border-radius:22px;padding:7.5%;position:relative}
+  .qrwrap svg{width:100%;height:100%;display:block}
+  .qrwrap img{position:absolute;left:50%;top:50%;width:21%;transform:translate(-50%,-50%);background:#fff;padding:5px;box-sizing:content-box}
+  #front .hint{margin-top:34px;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  #front .site{margin-top:28px;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim)}
+
+  /* ---------- page ---------- */
+  .wrap{max-width:560px;margin:0 auto;padding:calc(var(--sat) + 14px) 20px calc(var(--sab) + 50px)}
+  .bar{display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+  .bar button{background:none;border:0;color:var(--dim);font:inherit;letter-spacing:inherit;cursor:pointer;padding:10px 0}
+  .bar button.on{color:var(--ink)}
+  .bar .lang{display:flex;gap:16px}
+  header{text-align:center;padding:22px 0 6px}
+  header img.logo{width:200px;height:auto;display:block;margin:0 auto 26px}
+  header .who{margin-top:18px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--warm)}
+  header .who:empty{display:none}
+  header .tag{margin-top:0;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19px;color:var(--dim)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:26px}
+  .btn{display:flex;align-items:center;justify-content:center;min-height:54px;padding:12px 14px;border:1px solid var(--ink);color:var(--ink);text-decoration:none;font-size:12px;letter-spacing:.2em;text-transform:uppercase;text-align:center}
+  .btn.full{grid-column:1/-1}
+  .btn.solid{background:var(--ink);color:var(--bg)}
+  .btn.warm{border-color:var(--warm);color:var(--warm)}
+  section{margin-top:44px}
+  h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.3em;text-transform:uppercase;color:var(--warm);margin-bottom:14px}
+  .list{border-top:1px solid var(--line)}
+  .item{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line)}
+  .item .t{flex:1;min-width:0;color:var(--ink);text-decoration:none}
+  .item b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:22px;letter-spacing:.02em;line-height:1.15}
+  .item span{display:block;font-size:14px;color:var(--dim);margin-top:3px}
+  .item .pill{flex:0 0 auto;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);border:1px solid var(--line);padding:9px 11px;text-decoration:none;white-space:nowrap}
+  p.copy{font-size:15px;color:#bdb4a6;margin-top:14px}
+  .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;text-align:center;margin-top:4px}
+  .stat{padding:16px 6px;border:1px solid var(--line)}
+  .stat b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-size:30px;color:var(--ink);line-height:1}
+  .stat span{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-top:8px}
+  .medal{display:flex;gap:14px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+  .medal b{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:20px;white-space:nowrap;min-width:92px}
+  .medal span{font-size:14px;color:#bdb4a6}
+  .photos{display:grid;gap:14px}
+  .photos figure{margin:0}
+  .photos img{width:100%;height:auto;display:block;background:var(--card)}
+  .photos figcaption{font-size:12px;letter-spacing:.06em;color:var(--dim);margin-top:6px}
+  footer{margin-top:56px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:.22em;text-transform:uppercase}
+  footer img{width:40px;opacity:.7;display:block;margin:0 auto 18px}
+  footer i{display:block;margin-top:14px;font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;letter-spacing:0;text-transform:none}
+
+  /* ---------- accordion menu ---------- */
+  .menu{margin-top:30px;border-top:1px solid var(--line)}
+  .acc{border-bottom:1px solid var(--line)}
+  .acc-h{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:none;border:0;color:var(--ink);text-align:left;padding:17px 0;cursor:pointer;font:inherit}
+  .acc-h .t b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:23px;letter-spacing:.02em;line-height:1.15}
+  .acc-h .t span{display:block;font-size:13.5px;color:var(--dim);margin-top:2px}
+  .chev{flex:0 0 auto;width:10px;height:10px;border-right:1px solid var(--warm);border-bottom:1px solid var(--warm);transform:rotate(45deg);transition:transform .3s;margin-right:4px}
+  .acc.open .chev{transform:rotate(-135deg)}
+  .acc-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.4,0,.2,1)}
+  .acc.open .acc-b{grid-template-rows:1fr}
+  .acc-i{overflow:hidden;min-height:0}
+  .acc-i p{font-size:15px;color:#d9d1c4;margin:12px 0 0}
+  .acc-i p.fine{font-size:12.5px;color:var(--dim)}
+  .acc-i .row{margin-top:14px}
+  .acc-i > .acc-i, .acc.open .acc-i{padding-bottom:22px}
+  img.hero{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;background:var(--card)}
+  .story{margin-top:6px}
+  .story + .story{margin-top:26px}
+  .story img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--card)}
+  .story img.wide{aspect-ratio:16/7}
+  .story h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24px;letter-spacing:.02em;margin-top:12px;line-height:1.15}
+  .story p{margin-top:6px}
+  .wlist{border-top:1px solid var(--line)}
+  .wlist.hidden{display:none}
+  .wlist.hidden.on{display:block}
+  .wlist .w{padding:12px 0;border-bottom:1px solid var(--line)}
+  .wlist .w b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:21px;line-height:1.15}
+  .wlist .w span{display:block;font-size:13.5px;color:var(--dim);margin-top:2px}
+  .wlist .grp{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--warm);padding:14px 0 4px}
+  .more{display:block;width:100%;margin-top:10px;background:none;border:1px solid var(--line);color:var(--warm);font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:11px;cursor:pointer}
+  .more.on{color:var(--dim)}
+  .photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .photos a{display:block;min-width:0}
+  .photos img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--card)}
+  .photos span{display:block;font-size:11px;color:var(--dim);margin-top:4px;line-height:1.3}
+
+  /* ---------- carousel ---------- */
+  .car{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:0;margin:0 -20px;padding:0 20px;scroll-padding:0 20px}
+  .car::-webkit-scrollbar{display:none}
+  .car .slide{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;box-sizing:border-box;padding-right:20px}
+  .car .slide:last-child{padding-right:0}
+  .car img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--card)}
+  .car h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:23px;letter-spacing:.02em;margin-top:12px;line-height:1.15}
+  .car p{margin-top:5px;min-height:4.6em}
+  .carnav{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+  .carnav button{background:none;border:1px solid var(--line);color:var(--warm);width:44px;height:36px;font-size:22px;line-height:1;cursor:pointer;font-family:"Cormorant Garamond",Georgia,serif}
+  .carnav button:disabled{opacity:.3}
+  .dots{display:flex;gap:7px}
+  .dots i{width:6px;height:6px;border-radius:50%;background:var(--line);display:block;transition:background .2s}
+  .dots i.on{background:var(--warm)}
+
+  /* wine cards */
+  .car.wines .slide{padding-right:20px}
+  .wcard{border:1px solid var(--warm);padding:22px 20px 20px;min-height:300px;display:flex;flex-direction:column;background:linear-gradient(180deg,#141210,#0d0c0b)}
+  .wcard .kind{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
+  .wcard h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:30px;line-height:1.05;margin-top:8px;letter-spacing:.01em}
+  .wcard .grape{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:17px;color:var(--dim);margin-top:4px}
+  .wcard p{font-size:14.5px;color:#d9d1c4;margin-top:14px;min-height:0}
+  .wcard .pair{font-size:13px;color:var(--dim);margin-top:10px}
+  .wcard .award{margin-top:auto;padding-top:14px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--warm)}
+  .wcard .num{position:absolute;right:38px;top:16px;font-family:"Cormorant Garamond",Georgia,serif;font-size:13px;color:var(--dim);letter-spacing:.1em}
+  .car.wines .slide{position:relative}
+  /* photo carousel */
+  .car.photos img{aspect-ratio:4/3}
+  .car.photos span{display:block;font-size:12px;letter-spacing:.06em;color:var(--dim);margin-top:8px}
+  /* contact card */
+  .contact{border:1px solid var(--line);padding:4px 16px}
+  .contact .c{padding:14px 0;border-bottom:1px solid var(--line)}
+  .contact .c:last-child{border-bottom:0}
+  .contact b{display:block;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--warm);margin-bottom:6px;font-weight:400}
+  .contact a,.contact span{display:block;font-size:15px;color:var(--ink);text-decoration:none;line-height:1.5}
+  .contact span.en,.contact span.es{color:var(--dim);font-size:13.5px}
+
+  /* awards */
+  .stats.awards{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0 16px}
+  .stats.awards .stat{padding:12px 4px}
+  .stats.awards .stat b{font-size:26px}
+  .acard{border:1px solid var(--line);padding:18px 18px 16px;min-height:250px;background:var(--card);position:relative}
+  .acard img{position:absolute;right:16px;top:14px;width:46px;height:46px;object-fit:contain}
+  .acard .comp{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--warm);padding-right:60px;line-height:1.5}
+  .acard .yr{font-family:"Cormorant Garamond",Georgia,serif;font-size:34px;font-weight:500;line-height:1.1;margin-top:4px}
+  .acard .ln{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .acard .ln:last-child{border-bottom:0}
+  .acard .ln b{font-weight:400;color:var(--ink)}
+  .acard .ln i{font-style:normal;color:var(--warm);white-space:nowrap;letter-spacing:.06em}
+  .acard .ln i.gg,.acard .ln i.g{color:#e3c27a}
+  .acard .more{font-size:12px;color:var(--dim);margin-top:8px}
+  /* fullscreen photo viewer */
+  #viewer{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:50}
+  #viewer.on{display:flex}
+  #viewer img{max-width:100%;max-height:100%;object-fit:contain}
+  #viewer .x{position:absolute;top:calc(var(--sat) + 14px);right:18px;color:#fff;font-size:12px;letter-spacing:.2em;text-transform:uppercase;background:none;border:0}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ================= CARD FRONT ================= -->
+  <div id="front" class="face" onclick="openPage()">
+    <img class="logo" src="/icons/logo.png" alt="Dos Búhos">
+    <h1 id="f-name">Dos Búhos</h1>
+    <div class="role" id="f-role"></div>
+    <div class="org" id="f-org">Bodega Dos Búhos · San Miguel de Allende, México</div>
+    <div class="qrwrap"><svg id="f-qr" viewBox="0 0 37 37" shape-rendering="crispEdges"><path fill="#0a0a0a" d=""/></svg><img src="/icons/mono-dark.png" alt=""></div>
+    <div class="hint"><span class="en">Tap to open</span><span class="es">Toca para abrir</span></div>
+    <div class="site">dosbuhos.com</div>
+  </div>
+
+  <!-- ================= PAGE ================= -->
+  <div id="back" class="face">
+  <div class="wrap">
+    <div class="bar">
+      <button onclick="closePage()">‹ <span class="en">Card</span><span class="es">Tarjeta</span></button>
+      <div class="lang"><button id="l-en" class="on" onclick="setLang('en')">EN</button><button id="l-es" onclick="setLang('es')">ES</button></div>
+    </div>
+
+    <header>
+      <img class="logo" src="/icons/logo.png" alt="Dos Búhos">
+      <div class="tag"><span class="en">Certified organic wine at 6,500 feet</span><span class="es">Vino orgánico certificado a 2,000 metros</span></div>
+      <div class="who" id="p-who"></div>
+    </header>
+
+    <div class="row">
+      <a class="btn solid full" id="p-vcf" href="/vcf/dosbuhos.vcf" download><span class="en">Save contact</span><span class="es">Guardar contacto</span></a>
+      <a class="btn" id="p-wa" href="#">WhatsApp</a>
+      <a class="btn" id="p-mail" href="#">Email</a>
+      <a class="btn warm full" href="__OPENTABLE__"><span class="en">Reserve a table · OpenTable</span><span class="es">Reservar mesa · OpenTable</span></a>
+    </div>
+
+    <div class="menu">
+
+      <!-- ABOUT -->
+      <div class="acc" id="acc-about">
+        <button class="acc-h" onclick="toggle('acc-about')"><span class="t"><b class="en">About us</b><b class="es">Quiénes somos</b><span class="en">The story in seven pictures</span><span class="es">La historia en siete imágenes</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car" data-car>
+            <div class="slide"><img loading="lazy" src="/photos/harvest.jpg" alt=""><h4 class="en">Wine at 6,500 feet</h4><h4 class="es">Vino a 2,000 metros</h4><p class="en">At the foot of a sleeping volcano, in the high desert of central Mexico. Three hours north of Mexico City. Not Baja.</p><p class="es">Al pie de un volcán dormido, en el altiplano de Guanajuato. A tres horas de la Ciudad de México.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/planting.jpg" alt=""><h4 class="en">The bet</h4><h4 class="es">La apuesta</h4><p class="en">2006. No wine tradition left in the region. Nobody knew what would grow here, so Higinio and Diane planted twelve varieties and let the land vote.</p><p class="es">2006. Sin tradición vinícola viva en la región. Nadie sabía qué crecería aquí, así que Higinio y Diane plantaron doce variedades y dejaron que la tierra decidiera.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/vineyard-talk.jpg" alt=""><h4 class="en">What the land said</h4><h4 class="es">Lo que dijo la tierra</h4><p class="en">Hot days, cold nights, volcanic ground. Slow ripening and an acidity you can't get in a warm region. Fifty wineries on the altiplano now; twenty years ago, almost none.</p><p class="es">Días cálidos, noches frías, suelo volcánico. Maduración lenta y una acidez que no existe en regiones cálidas. Hoy hay cincuenta bodegas en el altiplano; hace veinte años, casi ninguna.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/harvest-bin.jpg" alt=""><h4 class="en">The ones that won</h4><h4 class="es">Las que ganaron</h4><p class="en">Aglianico — southern Italy's volcanic red, stubborn about holding its acid; two barrels a year. Chenin Blanc, the acidity engine. An orange wine from Moscato Giallo.</p><p class="es">Aglianico — el tinto volcánico del sur de Italia, que no suelta su acidez; dos barricas al año. Chenin Blanc, el motor de acidez. Un vino naranja de Moscato Giallo.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/cellar.jpg" alt=""><h4 class="en">How we make it</h4><h4 class="es">Cómo lo hacemos</h4><p class="en">Organic before the vines. Oregon Tilth certified since 2014. Native yeast, spontaneous fermentation, amphora and neutral oak, as little sulfur as we can get away with.</p><p class="es">Orgánicos desde antes del vino. Certificación Oregon Tilth desde 2014. Levaduras nativas, fermentación espontánea, ánforas y barrica neutra, el mínimo de sulfitos.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/glasses.jpg" alt=""><h4 class="en">Where we're poured</h4><h4 class="es">Dónde nos sirven</h4><p class="en">Pujol, Quintonil, Nobu, Rosewood. Grand Gold in Brussels, Gold at Bacchus and Los Angeles. Imported to the United States.</p><p class="es">Pujol, Quintonil, Nobu, Rosewood. Gran Oro en Bruselas, Oro en Bacchus y Los Ángeles. Exportación a Estados Unidos.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/family-road.jpg" alt=""><h4 class="en">Four generations</h4><h4 class="es">Cuatro generaciones</h4><p class="en">The father farms it. The mother makes the wine. The son runs the cellar and the restaurant. Better wines for a better world.</p><p class="es">El padre cultiva. La madre hace el vino. El hijo lleva la bodega y el restaurante. Mejores vinos para un mejor mundo.</p></div>
+          </div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn full" href="__PRESSKIT__"><span class="en">Press kit &amp; fact sheet</span><span class="es">Kit de prensa y ficha</span></a></div>
+        </div></div>
+      </div>
+
+      <!-- TOURS -->
+      <div class="acc" id="acc-tours">
+        <button class="acc-h" onclick="toggle('acc-tours')"><span class="t"><b class="en">Tours &amp; tastings</b><b class="es">Visitas y catas</b><span class="en">Vineyard, cellar, four wines</span><span class="es">Viñedo, bodega, cuatro vinos</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car" data-car>
+            <div class="slide"><img loading="lazy" src="/photos/recorrido.jpg" alt=""><h4 class="en">The vineyard walk</h4><h4 class="es">El recorrido</h4><p class="en">Twelve varieties at 6,500 feet, the volcano behind you, sheep in the rows. We walk the vines with the people who make the wine.</p><p class="es">Doce variedades a 2,000 metros, el volcán detrás, borregos entre las hileras. Caminamos el viñedo con quien hace el vino.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/cellar.jpg" alt=""><h4 class="en">The cellar</h4><h4 class="es">La bodega</h4><p class="en">Amphora, native-yeast ferments, neutral oak. Taste from barrel when there's something worth tasting.</p><p class="es">Ánforas, fermentaciones con levadura nativa, barrica neutra. Cata de barrica cuando hay algo que valga la pena.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/pouring.jpg" alt=""><h4 class="en">Four wines at the table</h4><h4 class="es">Cuatro vinos en la mesa</h4><p class="en">Daily, by reservation, 45 minutes to an hour. Two, three or four glasses; a non-alcoholic version too. Barrel-room and chapel experiences on request.</p><p class="es">Diario, con reservación, de 45 minutos a una hora. Dos, tres o cuatro copas; también versión sin alcohol. Sala de barricas y capilla bajo pedido.</p></div>
+          </div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn" href="__TOURS__"><span class="en">Book a tour</span><span class="es">Reservar visita</span></a><a class="btn" href="https://wa.me/__WA_VISITS__">WhatsApp</a></div>
+        </div></div>
+      </div>
+
+      <!-- RESTAURANT -->
+      <div class="acc" id="acc-rest">
+        <button class="acc-h" onclick="toggle('acc-rest')"><span class="t"><b class="en">The restaurant</b><b class="es">El restaurante</b><span class="en">Lunch among the vines</span><span class="es">Comida entre las vides</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car" data-car>
+            <div class="slide"><img loading="lazy" src="/photos/lunch-table.jpg" alt=""><h4 class="en">A table from the Bajío</h4><h4 class="es">Una mesa del Bajío</h4><p class="en">Fire, the huerta, local ranches, our own olive oil — paired with the estate wines. Fixed menus and wine flights on weekends.</p><p class="es">Fuego, la huerta, ranchos locales, nuestro aceite de oliva — maridado con los vinos de la casa. Menús fijos y vuelos de vino los fines de semana.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/bar-truck.jpg" alt=""><h4>El Jardín del Vino</h4><p class="en">The wine garden: wines by the glass, draft wine cocktails, antojos. Walk in.</p><p class="es">El jardín del vino: vinos por copa, cocteles de vino de barril, antojos. Sin reservación.</p></div>
+          </div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn warm full" href="__OPENTABLE__"><span class="en">Reserve on OpenTable</span><span class="es">Reservar en OpenTable</span></a></div>
+        </div></div>
+      </div>
+
+      <!-- EVENTS -->
+      <div class="acc" id="acc-events">
+        <button class="acc-h" onclick="toggle('acc-events')"><span class="t"><b class="en">Weddings &amp; events</b><b class="es">Bodas y eventos</b><span class="en">Bodega de Arte, Winegarden, the whole estate</span><span class="es">Bodega de Arte, Winegarden, la hacienda completa</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car" data-car>
+            <div class="slide"><img loading="lazy" src="/photos/wedding-toast.jpg" alt=""><h4 class="en">It will be an honor</h4><h4 class="es">Será un honor recibirlos</h4><p class="en">An event at Dos Búhos isn't served, it's cooked for you: fire, the huerta, our wines, and a team that opens the winery just for your group.</p><p class="es">Un evento en Dos Búhos no se sirve: se cocina para ustedes. Fuego, huerta, nuestros vinos y un equipo que abre la bodega solo para su grupo.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/bodega-arte.jpg" alt=""><h4>Bodega de Arte</h4><p class="en">The reception hall: up to 150 guests, suspended lights, iron chandeliers. Furniture, linens, glassware, on-site coordination included.</p><p class="es">El salón de recepción: hasta 150 invitados, luces suspendidas, candelabros de hierro. Mobiliario, mantelería, cristalería y coordinación en sitio incluidos.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/winegarden-night.jpg" alt=""><h4>Winegarden</h4><p class="en">The pavilion among vines and olive trees, up to 250 guests. Sunset dinners, music, dancing under the arches.</p><p class="es">El pabellón entre vides y olivos, hasta 250 invitados. Cenas al atardecer, música, baile bajo los arcos.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/hacienda.jpg" alt=""><h4 class="en">The whole estate</h4><h4 class="es">Hacienda completa</h4><p class="en">Restaurant, Bodega de Arte, Winegarden, gardens and vineyard — all yours for weddings, company days and family celebrations.</p><p class="es">Restaurante, Bodega de Arte, Winegarden, jardines y viñedo — toda la finca para bodas, eventos de empresa y celebraciones familiares.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/lunch-table.jpg" alt=""><h4 class="en">The kitchen</h4><h4 class="es">La cocina</h4><p class="en">Three-course plated menus (Esencial, Selección, Reserva), parrilladas at the center of the table, canapés, a street-fair snack bar. From $342 per person.</p><p class="es">Menús de tres tiempos (Esencial, Selección, Reserva), parrilladas al centro de la mesa, canapés, barra botanera de feria. Desde $342 por persona.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/bar-truck.jpg" alt=""><h4 class="en">The bar</h4><h4 class="es">La barra</h4><p class="en">Open wine bar by the hour with the estate wines, craft beer and non-alcoholic drinks. Gran Reserva tier available.</p><p class="es">Barra libre por horas con los vinos de la casa, cerveza artesanal y bebidas sin alcohol. Nivel Gran Reserva disponible.</p></div>
+            <div class="slide"><img loading="lazy" src="/photos/custom-label.jpg" alt=""><h4 class="en">The details</h4><h4 class="es">Los detalles</h4><p class="en">Vineyard walk and tasting for your guests, bottles with your own label, pétanque and cornhole in the garden.</p><p class="es">Recorrido y degustación para sus invitados, botellas con su propia etiqueta, petanca y cornhole en el jardín.</p></div>
+          </div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn warm full" href="https://wa.me/__WA_EVENTS__"><span class="en">Ask for a quote · WhatsApp</span><span class="es">Cotizar · WhatsApp</span></a><a class="btn full" href="mailto:eventos@dosbuhos.com">eventos@dosbuhos.com</a></div>
+        </div></div>
+      </div>
+
+      <!-- WINES -->
+      <div class="acc" id="acc-wines">
+        <button class="acc-h" onclick="toggle('acc-wines')"><span class="t"><b class="en">The wines</b><b class="es">Los vinos</b><span class="en">Swipe through the cellar</span><span class="es">Recorre la bodega</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car wines" data-car id="wine-car"></div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn full" href="__SHOP__"><span class="en">Buy wine · online store</span><span class="es">Comprar vino · tienda en línea</span></a><a class="btn" href="https://wa.me/__WA_SALES__"><span class="en">Order by WhatsApp</span><span class="es">Pedir por WhatsApp</span></a><a class="btn" href="__NOTES__"><span class="en">Tasting notes</span><span class="es">Notas de cata</span></a></div>
+          <p class="fine en">In the United States: imported by La Competencia; Texas through Casa 1524.</p>
+          <p class="fine es">En Estados Unidos: importado por La Competencia; en Texas a través de Casa 1524.</p>
+        </div></div>
+      </div>
+
+      <!-- WINE CLUB -->
+      <div class="acc" id="acc-club">
+        <button class="acc-h" onclick="toggle('acc-club')"><span class="t"><b>El Círculo Dos Búhos</b><span class="en">The wine club</span><span class="es">El club de vino</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car" data-car>
+            <div class="slide"><img loading="lazy" src="/photos/grapes.jpg" alt=""><h4 class="en">First in line</h4><h4 class="es">Primero en la fila</h4><p class="en">Members get the allocated wines before anyone — the Aglianico among them — delivered to the door, plus tastings, the members' lounge and a place at the table when something special opens.</p><p class="es">Los socios reciben primero los vinos asignados — el Aglianico entre ellos — a domicilio, además de catas, el lounge de socios y un lugar en la mesa cuando se abre algo especial.</p></div>
+          </div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn warm full" href="__CLUB__"><span class="en">Join El Círculo</span><span class="es">Unirme al Círculo</span></a></div>
+        </div></div>
+      </div>
+
+      <!-- RECOGNITION -->
+      <div class="acc" id="acc-awards">
+        <button class="acc-h" onclick="toggle('acc-awards')"><span class="t"><b class="en">Recognition</b><b class="es">Reconocimientos</b><span class="en">Brussels, Bacchus, Los Angeles — and the tables</span><span class="es">Bruselas, Bacchus, Los Ángeles — y las mesas</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <p class="en" style="margin-top:4px">Twenty-three medals and nineteen scores since 2021, from the altiplano to Brussels. The medals we're proud of; the tables we're prouder of — Pujol, Quintonil, Nobu, Rosewood chose us with their own money.</p>
+          <p class="es" style="margin-top:4px">Veintitrés medallas y diecinueve puntuaciones desde 2021, del altiplano a Bruselas. De las medallas estamos orgullosos; de las mesas, más — Pujol, Quintonil, Nobu, Rosewood nos eligieron con su propio dinero.</p>
+          <div class="stats awards"><div class="stat"><b>1</b><span class="en">Grand Gold</span><span class="es">Gran Oro</span></div><div class="stat"><b>3</b><span class="en">Gold</span><span class="es">Oro</span></div><div class="stat"><b>13</b><span class="en">Silver</span><span class="es">Plata</span></div><div class="stat"><b>97</b><span class="en">top score</span><span class="es">puntuación máxima</span></div></div>
+          <div class="car awardsc" data-car id="award-car"></div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+        </div></div>
+      </div>
+
+      <!-- PHOTOS -->
+      <div class="acc" id="acc-photos">
+        <button class="acc-h" onclick="toggle('acc-photos')"><span class="t"><b class="en">Photos</b><b class="es">Fotos</b><span class="en">The place, quickly</span><span class="es">El lugar, en un vistazo</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car photos" data-car id="photo-car"></div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+        </div></div>
+      </div>
+
+      <!-- CONTACT -->
+      <div class="acc" id="acc-contact">
+        <button class="acc-h" onclick="toggle('acc-contact')"><span class="t"><b class="en">Contact us</b><b class="es">Contacto</b><span class="en">Reservations, events, how to get here</span><span class="es">Reservaciones, eventos, cómo llegar</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="contact">
+            <div class="c"><b class="en">Reservations &amp; tours</b><b class="es">Reservaciones y visitas</b><a href="https://wa.me/__WA_VISITS__">WhatsApp +52 415 124 7583</a><a href="mailto:reservaciones@dosbuhos.com">reservaciones@dosbuhos.com</a></div>
+            <div class="c"><b class="en">Weddings &amp; events</b><b class="es">Bodas y eventos</b><a href="https://wa.me/__WA_EVENTS__">WhatsApp +52 415 139 0978</a><a href="mailto:eventos@dosbuhos.com">eventos@dosbuhos.com</a></div>
+            <div class="c"><b class="en">Where</b><b class="es">Dónde</b><span>Km 6, Carretera San Miguel de Allende–Querétaro · San Miguel de Allende, Guanajuato</span><span class="en">3 h from Mexico City · 1 h from Querétaro airport</span><span class="es">A 3 h de CDMX · 1 h del aeropuerto de Querétaro</span></div>
+            <div class="c"><b class="en">Hours</b><b class="es">Horario</b><span>__HOURS__</span></div>
+          </div>
+          <div class="row"><a class="btn full" href="__MAPS__"><span class="en">Open in Maps</span><span class="es">Abrir en Maps</span></a><a class="btn" href="__INSTAGRAM__">Instagram</a><a class="btn" href="https://dosbuhos.com">dosbuhos.com</a></div>
+        </div></div>
+      </div>
+
+      <!-- PRESS -->
+      <div class="acc" id="acc-press">
+        <button class="acc-h" onclick="toggle('acc-press')"><span class="t"><b class="en">Press &amp; trade</b><b class="es">Prensa y comercio</b><span class="en">Press kit, fact sheet, tasting notes</span><span class="es">Kit de prensa, ficha, notas de cata</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="row"><a class="btn full" href="__PRESSKIT__"><span class="en">Press kit</span><span class="es">Kit de prensa</span></a><a class="btn full" href="__NOTES__"><span class="en">Tasting notes</span><span class="es">Notas de cata</span></a></div>
+        </div></div>
+      </div>
+
+    </div>
+
+    <footer>
+      <img src="/icons/mono-light.png" alt="">
+      Dos Búhos · San Miguel de Allende
+      <i class="en">Better wines for a better world</i><i class="es">Mejores vinos para un mejor mundo</i>
+    </footer>
+  </div>
+  </div>
+</div>
+
+<div id="viewer" onclick="this.classList.remove('on')"><img id="v-img" alt=""><button class="x">✕</button></div>
+
+<script>
+const PEOPLE = __PEOPLE__;
+const QR = __QR__;
+const PHOTOS = __PHOTOS__;
+
+function person(){
+  const seg = location.pathname.replace(/^\/+|\/+$/g,'').toLowerCase();
+  if (PEOPLE[seg]) return seg;
+  try { const s = localStorage.getItem('person'); if (s && PEOPLE[s]) return s; } catch(e){}
+  return 'dosbuhos';
+}
+const who = person();
+try { localStorage.setItem('person', who); } catch(e){}
+const P = PEOPLE[who];
+document.getElementById('f-name').textContent = P.name;
+if (who !== 'dosbuhos') document.getElementById('f-org').textContent = 'Bodega Dos Búhos · San Miguel de Allende, México';
+document.getElementById('f-role').innerHTML = P.role ? `<span class="en">${P.role.en}</span><span class="es">${P.role.es}</span>` : '';
+document.getElementById('p-who').innerHTML = P.role ? `${P.name} · <span class="en">${P.role.en}</span><span class="es">${P.role.es}</span>` : '';
+const q = QR[who]; const svg = document.getElementById('f-qr'); svg.setAttribute('viewBox', `0 0 ${q.n} ${q.n}`); svg.querySelector('path').setAttribute('d', q.d);
+document.getElementById('p-vcf').href = `/vcf/${who}.vcf`;
+document.getElementById('p-wa').href = `https://wa.me/${P.whatsapp}`;
+document.getElementById('p-mail').href = `mailto:${P.email}`;
+document.getElementById('manifest').href = `/manifest-${who}.webmanifest`;
+document.title = (who === 'dosbuhos' ? 'Dos Búhos' : P.name + ' · Dos Búhos');
+
+const WINES = __WINES_JS__;
+const wc = document.getElementById('wine-car');
+WINES.forEach((w, i) => { const d = document.createElement('div'); d.className = 'slide';
+  d.innerHTML = `<div class="wcard"><span class="num">${i+1} / ${WINES.length}</span><div class="kind"><span class="en">${w.kind_en}</span><span class="es">${w.kind_es}</span></div><h4>${w.name}</h4><div class="grape">${w.grape}</div><p><span class="en">${w.en}</span><span class="es">${w.es}</span></p>${w.pair_en ? `<div class="pair"><span class="en">${w.pair_en}</span><span class="es">${w.pair_es}</span></div>` : ''}${w.medal ? `<div class="award">${w.medal}</div>` : `<div class="award"></div>`}</div>`;
+  wc.appendChild(d); });
+const AWARDS = __AWARDS_JS__;
+const MEDAL = {gg:['Grand Gold','Gran Oro'],g:['Gold','Oro'],s:['Silver','Plata'],b:['Bronze','Bronce'],m:['CMB Merit','CMB Merit']};
+const ac = document.getElementById('award-car');
+AWARDS.forEach(a => { const d = document.createElement('div'); d.className = 'slide';
+  const lines = a.items.slice(0, 6).map(([w, m]) => { const mm = MEDAL[m]; const lab = mm ? `<span class="en">${mm[0]}</span><span class="es">${mm[1]}</span>` : m; return `<div class="ln"><b>${w}</b><i class="${mm ? m : 'p'}">${lab}</i></div>`; }).join('');
+  const more = a.items.length > 6 ? `<div class="more"><span class="en">+ ${a.items.length - 6} more in the press kit</span><span class="es">+ ${a.items.length - 6} más en el kit de prensa</span></div>` : '';
+  d.innerHTML = `<div class="acard">${a.icon ? `<img src="/icons/${a.icon}.png" alt="">` : ''}<div class="comp">${a.comp}</div><div class="yr">${a.year && a.comp !== 'Puntos 2027' ? a.year : (a.comp === 'Puntos 2027' ? '2027' : '')}</div>${lines}${more}</div>`;
+  ac.appendChild(d); });
+const pc = document.getElementById('photo-car');
+PHOTOS.forEach(p => { const d = document.createElement('div'); d.className = 'slide';
+  d.innerHTML = `<img loading="lazy" src="/${p.f}" alt=""><span><span class="en">${p.en}</span><span class="es">${p.es}</span></span>`;
+  d.querySelector('img').addEventListener('click', () => { document.getElementById('v-img').src = '/' + p.f; document.getElementById('viewer').classList.add('on'); });
+  pc.appendChild(d); });
+// accordion: one open at a time
+function toggle(id){ const el = document.getElementById(id); const was = el.classList.contains('open');
+  document.querySelectorAll('.acc.open').forEach(a => a.classList.remove('open'));
+  if (!was) { el.classList.add('open'); setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120); } }
+// carousels: scroll-snap + dots + arrows
+document.querySelectorAll('[data-car]').forEach(car => {
+  const slides = [...car.children]; const nav = car.nextElementSibling; const dots = nav.querySelector('.dots');
+  slides.forEach((_, i) => { const d = document.createElement('i'); if (i === 0) d.classList.add('on'); d.addEventListener('click', () => go(i)); dots.appendChild(d); });
+  const w = () => car.clientWidth; const idx = () => Math.round(car.scrollLeft / w());
+  const go = i => car.scrollTo({ left: Math.max(0, Math.min(slides.length - 1, i)) * w(), behavior: 'smooth' });
+  nav.querySelector('.prev').addEventListener('click', () => go(idx() - 1));
+  nav.querySelector('.next').addEventListener('click', () => go(idx() + 1));
+  const upd = () => { const i = idx(); [...dots.children].forEach((d, j) => d.classList.toggle('on', j === i)); nav.querySelector('.prev').disabled = i === 0; nav.querySelector('.next').disabled = i === slides.length - 1; };
+  car.addEventListener('scroll', () => { clearTimeout(car._t); car._t = setTimeout(upd, 60); }); upd();
+});
+// flip
+function openPage(){ document.documentElement.classList.add('open'); window.scrollTo(0,0); try{ history.replaceState(null,'',location.pathname + '#page'); }catch(e){} }
+function closePage(){ document.documentElement.classList.remove('open'); window.scrollTo(0,0); try{ history.replaceState(null,'',location.pathname); }catch(e){} }
+if (location.hash === '#page') document.documentElement.classList.add('open');
+
+// language
+function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
+try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
+
+// offline
+if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); } catch(e){} }
+</script>
+</body>
+</html>

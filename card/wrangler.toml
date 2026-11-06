@@ -1,0 +1,10 @@
+name = "card"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+not_found_handling = "single-page-application"
+
+# Later, once dosbuhos.com DNS is on Cloudflare:
+# routes = [{ pattern = "hola.dosbuhos.com", custom_domain = true }]

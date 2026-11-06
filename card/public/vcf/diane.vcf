@@ -1,0 +1,12 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Maycotte;Diane;;;
+FN:Diane Maycotte
+ORG:Bodega Dos Búhos
+TITLE:Winemaker
+EMAIL;TYPE=INTERNET:enologia@dosbuhos.com
+TEL;TYPE=WORK:+524151247583
+URL:https://card.dos-buhos.workers.dev/diane
+ADR;TYPE=WORK:;;Km 6 Carretera San Miguel de Allende–Querétaro;San Miguel de Allende;Guanajuato;;México
+NOTE:Certified organic wine at 6,500 ft, San Miguel de Allende, Mexico.
+END:VCARD
