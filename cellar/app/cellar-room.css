@@ -308,7 +308,7 @@
 /* ---- v1.9: map (iframe) is the default view; the list is a table for bulk actions ---- */
 .cr-mapslot { margin: 0 -4px; }
 .cr-mapframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; overflow: hidden; }
-@media (max-width: 700px) { .cr-mapslot { margin: 0 calc(-1 * max(12px, env(safe-area-inset-left, 0px))); }  } /* cards end ~8px from the screen edge */
+@media (max-width: 700px) { .cr-mapslot { margin: 0; }  } /* the page gutter (--m-gut) is the map cards' margin too */
 dialog.cr-card { padding: 0; border: 0; border-radius: 14px; width: min(680px, 100vw); height: min(92dvh, 1100px); max-height: none; max-width: 100vw; overflow: hidden; background: var(--paper); box-shadow: 0 20px 60px rgba(0,0,0,.3); }
 dialog.cr-card::backdrop { background: rgba(20,23,25,.45); }
 dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
@@ -353,7 +353,7 @@ dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
   .c-vint, .c-spec { display: none; }
   .c-wine .cr-use-t { display: none; }
   .cr-so2v { font-size: 13px; } .c-so2 small { display: none; }
-  .cr-bulk { top: 0; border-radius: 0; margin: 0 -10px 8px; }
+  .cr-bulk { top: 0; border-radius: 0; margin: 0 calc(-1 * var(--m-gut, 10px)) 8px; }
   .cr-bulk select { flex: 1 1 auto; }
 }
 .cr-td { align-items: flex-start; text-align: left; } .c-sel { align-items: center; } .c-wine { justify-content: flex-start; }
@@ -403,4 +403,40 @@ dialog.cr-card iframe { width: 100%; height: 100%; border: 0; display: block; }
   .c-num b { font-size: 16px; }
   .c-sel input, .cr-tg input { width: 22px; height: 22px; }
   .cr-tg { padding: 10px; } .cr-tg label { min-height: 28px; }
+}
+
+/* ---- v1.12: Lista on phones, rebuilt — one clear toolbar, visible sort, readable two-line rows ---- */
+.c-meta { display: contents; }
+.cr-more-l, .cr-sortln { display: none; }
+.cr-tg { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cr-tgh b { font-size: 14px; } .cr-tgsel { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+@media (max-width: 760px) {
+  .cr-tool1 { gap: 6px; margin: 6px 0; }
+  .cr-tool1 .cr-search { flex: 1 1 auto; min-width: 0; min-height: 44px; }
+  .cr-tool1 .cr-search input { font-size: 16px; min-width: 0; }
+  .cr-tool1 .cr-fbtn { min-height: 44px; padding: 0 12px; gap: 6px; }
+  .cr-tool1 .cr-fbtn span { display: inline !important; }
+  .cr-tool1 .cr-more { width: auto; height: 44px; border-radius: 999px; padding: 0 14px; font: 600 14px var(--f-body); }
+  .cr-more-i { display: none; } .cr-more-l { display: inline; }
+  html.m-cv-on #cellarView .cr-view { display: none !important; }     /* Mapa / Lista live in the app bar */
+  .cr-subbar { flex-wrap: wrap; row-gap: 2px; }
+  .cr-subbar .cr-status2 { flex: 1 1 100%; }
+  .cr-sortln { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 2px; border: 0; background: none; color: var(--muted); font: 500 13px var(--f-body); }
+  .cr-sortln b { color: var(--ink); font-weight: 600; }
+  .cr-table { border-radius: 10px; }
+  .cr-tg { padding: 8px 10px; min-height: 40px; }
+  .cr-tgsel input { width: 22px; height: 22px; }
+  .cr-table .cr-tr { display: grid; grid-template-columns: 40px 52px minmax(0, 1fr); grid-template-areas: "sel num wine" "sel num meta"; column-gap: 0; row-gap: 3px; min-height: 64px; padding: 10px 8px 10px 0; align-items: center; }
+  .cr-table .cr-tr .c-sel { grid-area: sel; justify-content: center; }
+  .cr-table .cr-tr .c-num { grid-area: num; align-self: center; }
+  .cr-table .cr-tr .c-num b { font-size: 17px; }
+  .cr-table .cr-tr .c-wine { grid-area: wine; padding: 0; min-width: 0; flex-wrap: nowrap; }
+  .cr-table .cr-tr .c-wine > span:first-of-type { font-size: 15.5px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+  .cr-table .cr-tr .c-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; padding-left: 18px; min-width: 0; font-size: 13px; }
+  .cr-table .cr-tr .c-meta > .cr-td { display: inline-flex; flex-direction: row; align-items: baseline; gap: 3px; padding: 0 !important; text-align: left !important; white-space: nowrap; overflow: visible; font-size: 13px; color: var(--muted); grid-area: auto; justify-content: flex-start; visibility: visible; }
+  .cr-table .cr-tr .c-meta > .c-mant { order: -1; color: var(--ink); }
+  .cr-table .cr-tr .c-meta > .c-so2:has(> .cr-dim) { display: none; }
+  .cr-table .cr-tr .c-meta small { display: none; }
+  .cr-table .cr-tr .c-vint, .cr-table .cr-tr .c-spec { display: none; }
+  .cr-table .cr-tr.cr-th { display: none; }
 }

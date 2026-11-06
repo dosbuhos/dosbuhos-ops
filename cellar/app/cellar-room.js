@@ -190,10 +190,10 @@
     if (C.tab === 'barrels') {
       const n = nFilters();
       tool = `<div class="cr-tool cr-tool1">${tabs}
-        <label class="cr-search">${ICON_S}<input type="search" class="cr-q" placeholder="Buscar" value="${esc(C.q)}" aria-label="Buscar barrica"></label>
+        <label class="cr-search">${ICON_S}<input type="search" class="cr-q" placeholder="Buscar barrica, vino, lugar" value="${esc(C.q)}" aria-label="Buscar barrica"></label>
         <button type="button" class="cr-fbtn${n ? ' on' : ''}" data-cpanel aria-expanded="${C.panel}">${ICON_F}<span>Filtros</span>${n ? `<b>${n}</b>` : ''}</button>
         ${C.canWrite || C.crew ? `<button type="button" class="btn sm cr-mantb" data-ca="mant">Registro masivo</button>` : ''}
-        <span class="cr-morew"><button type="button" class="cr-more" data-cmore aria-expanded="${C.more}" aria-label="Más opciones">⋯</button>${C.more ? `<div class="cr-menu" role="menu">
+        <span class="cr-morew"><button type="button" class="cr-more" data-cmore aria-expanded="${C.more}" aria-label="Más opciones"><i class="cr-more-i" aria-hidden="true">⋯</i><span class="cr-more-l">Más</span></button>${C.more ? `<div class="cr-menu" role="menu">
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="new">+ Nueva barrica</button>` : ''}
           ${C.canWrite ? `<button type="button" role="menuitem" data-ca="import">Importar inventario</button>` : ''}
           ${C.canWrite || C.crew ? `<button type="button" role="menuitem" data-ca="mant">Registro de mantenimiento masivo</button>` : ''}
@@ -243,7 +243,7 @@
     const st = [['all', 'Todas'], ['full', 'Con vino'], ['empty', 'Vacías'], ['due', 'Toca mantenimiento']].concat(counts.confirm ? [['confirm', 'Por confirmar']] : []);
     const fchips = st.map(([k, l]) => `<button type="button" data-cf="${k}" aria-pressed="${C.filter === k}"><span>${l}</span><small>${counts[k]}</small></button>`).join('');
     const chips = []; for (const u of C.uses) chips.push(['use:' + u, u === 'none' ? 'Sin tipo' : USE[u]]); for (const v of C.vints) chips.push(['vint:' + v, v === 'old' ? 'Añadas anteriores' : 'Añada ' + v]); if (C.noloc) chips.push(['loc', 'Sin ubicación']);
-    let h = `<div class="cr-subbar"><div class="cr-status cr-status2" role="group" aria-label="Estado">${fchips}</div><label class="cr-lsort"><span>Ordenar</span><select data-csort>${SORTS.map(([k, l]) => `<option value="${k}"${k === (C.sortB || 'type') ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>` +
+    let h = `<div class="cr-subbar"><div class="cr-status cr-status2" role="group" aria-label="Estado">${fchips}</div><button type="button" class="cr-sortln" data-cpanel>Orden: <b>${esc((SORTS.find(x => x[0] === (C.sortB || 'type')) || SORTS[0])[1])}</b> ▾</button><label class="cr-lsort"><span>Ordenar</span><select data-csort>${SORTS.map(([k, l]) => `<option value="${k}"${k === (C.sortB || 'type') ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>` +
       (chips.length ? `<div class="cr-chips2">${chips.map(([k, l]) => `<button type="button" class="cr-fchip" data-cclear="${k}">${esc(l)} <b aria-hidden="true">×</b></button>`).join('')}<button type="button" class="cr-clear" data-cclear="all">Quitar filtros</button></div>` : '') + (C.panel ? filterPanel() : '');
     if (!C.barrels.length) return h + `<div class="cr-empty"><strong>Todavía no hay barricas registradas.</strong>Usa «Importar» o «+ Barrica».</div>`;
     // sort + group
@@ -265,9 +265,11 @@
         <div class="cr-td c-num"><b>${esc(bn(b.code))}</b></div>
         <div class="cr-td c-wine"><i class="cr-wdot" style="background:${col}"></i><span>${wine}</span>${u ? `<span class="cr-use-t" style="--u:${USE_C[u]}">${USE[u]}</span>` : ''}</div>
         <div class="cr-td c-vint">${esc(vintB(b) || '')}</div>
+        <div class="c-meta">
         <div class="cr-td c-loc">${b.loc ? '<i class="cr-ph-l" aria-hidden="true">📍 </i>' + esc(locShort(b)) : '<span class="cr-dim">sin ubicación</span>'}</div>
         <div class="cr-td c-so2"><i class="cr-ph-l">SO₂ </i>${so2Cell(b)}</div>
         <div class="cr-td c-mant">${mantCell(b)}</div>
+        </div>
         <div class="cr-td c-spec">${esc([b.cooperage, b.wood, b.year, b.toast ? 'T ' + b.toast : ''].filter(Boolean).join(' · ')) || '<span class="cr-dim">—</span>'}</div>
       </div>`;
     };
@@ -277,7 +279,7 @@
     else {
       const by = new Map(); for (const b of bs) { const k = groupKey(b); if (!by.has(k)) by.set(k, []); by.get(k).push(b); }
       const keys = [...by.keys()].sort((a, b) => sortBy === 'type' ? TYPE_O.indexOf(a) - TYPE_O.indexOf(b) : sortBy === 'vint' ? (a === 'empty') - (b === 'empty') || (+b || 0) - (+a || 0) : String(a).localeCompare(String(b), 'es'));
-      for (const k of keys) { const list = by.get(k), on = list.every(b => C.selB.has(b.id)); body += `<div class="cr-tg" role="row"><label><input type="checkbox" data-bselg="${esc(list.map(b => b.id).join(','))}"${on ? ' checked' : ''}> <b>${esc(sortBy === 'vint' && k === 'empty' ? 'Vacías' : gname(k))}</b> <small>${list.length}</small></label></div>` + list.map(row).join(''); }
+      for (const k of keys) { const list = by.get(k), on = list.every(b => C.selB.has(b.id)); body += `<div class="cr-tg" role="row"><div class="cr-tgh"><b>${esc(sortBy === 'vint' && k === 'empty' ? 'Vacías' : gname(k))}</b> <small>${list.length}</small></div><label class="cr-tgsel"><input type="checkbox" data-bselg="${esc(list.map(b => b.id).join(','))}"${on ? ' checked' : ''}> <span>Elegir todas</span></label></div>` + list.map(row).join(''); }
     }
     return h + `<div class="cr-table" role="table" aria-label="Barricas">${head}${body}</div>`;
   }

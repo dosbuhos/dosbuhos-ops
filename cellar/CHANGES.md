@@ -20,6 +20,11 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-06 (afternoon) — Lista on phones rebuilt, slimmer gutters
+- Phones: side gutter 6px everywhere (was 12px), map cards use the same gutter · more content per screen · mobile.css
+- Barricas: Mapa / Lista toggle in the app bar on phones · list starts higher, toolbar has room · mobile.js
+- Lista on phones: toolbar = search + "Filtros" + "Más" (labelled, 44px); "Orden: Tipo de vino ▾" visible above the list (opens Filtros); group headers are plain headings with "Elegir todas" on the right; rows are two clear lines — number + wine, then status · 📍 place · SO₂ (no reading → hidden), no overlaps · cellar-room.js/css
+
 ## 2026-11-06 (later) — phone fixes from Eric's screenshots
 - Room map and front view nearly edge to edge on phones (cards ~8px from the screen edge); crush pad is its own card under the room — grey bar, its barrels bigger, tap one to open its card, whole bar is the drop target when moving · more map, two clear places · barricas.html, cellar-room.css
 - Vinos/Tanques/Barricas/Embotellado never overlap: count under the label on narrow phones, row scrolls if system text is very large, selected tab kept in view · labels were running into each other · mobile.css
