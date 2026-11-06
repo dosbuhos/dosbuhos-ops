@@ -26,6 +26,15 @@ export default {
     if (env.GOOGLE_SA_JSON) { ctx.waitUntil(sync(env).catch(e => console.log('sync failed', e && e.message))); ctx.waitUntil(pullPurchases(env).catch(e => console.log('compras pull failed', e && e.message))); } },
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
+    // Staging preview (the `staging` branch published by Workers Builds at <branch>-cellar.<sub>.workers.dev): same data and
+    // secrets as production, so it is READ-ONLY — every save is refused here, the app shows as viewer, and a banner says so.
+    // Production hosts (cellar.dos-buhos.workers.dev, the Hub) never match, so this is a no-op if it ever reaches main.
+    const preview = /^[a-z0-9-]+-cellar\./i.test(url.hostname);
+    if (preview) {
+      env = Object.assign({}, env, { STAGING: '1', PREVIEW: '1' });
+      if (!/^(GET|HEAD)$/.test(request.method) && !p.startsWith('/auth/'))
+        return J({ code: 'read_only', message: 'Staging: solo lectura. Aquí no se guarda nada; los cambios se hacen en la app normal.' }, 403);
+    }
     // App-managed users (Settings → Users), alongside the ALLOWED_EMAILS secret.
     // App users change rarely: read them from D1 at most once a minute per Worker instance, not on every request.
     env.__users = await appUserList(env);
@@ -44,7 +53,7 @@ export default {
       if (p.startsWith('/api/')) return J({ code: 'revoked', message: 'Sign in again.' }, 401);
       return loginPage(env, url);
     }
-    const canWrite = open || !isViewer(env, email);
+    const canWrite = env.PREVIEW !== '1' && (open || !isViewer(env, email));
     try {
       const initials = open ? 'EM' : initialsFor(env, email);
       const admin = open || isAdmin(env, email);
@@ -162,7 +171,7 @@ export default {
     if ((h.get('content-type') || '').includes('text/html')) {
       // One version, stored in src/version.js, stamped into every page's footer.
       let html = (await res.text()).split('__APP_VERSION__').join(VERSION_LABEL);
-      if (env.STAGING === '1') html = html.replace(/<body([^>]*)>/i, '<body$1><div style="position:fixed;z-index:2147483647;top:0;left:50%;transform:translateX(-50%);background:#e0a526;color:#2b2118;font:700 11px/1 system-ui;letter-spacing:.12em;padding:4px 10px 5px;border-radius:0 0 8px 8px;pointer-events:none">STAGING · copia de prueba</div>');
+      if (env.STAGING === '1') html = html.replace(/<body([^>]*)>/i, '<body$1><div style="position:fixed;z-index:2147483647;top:0;left:50%;transform:translateX(-50%);background:#e0a526;color:#2b2118;font:700 11px/1 system-ui;letter-spacing:.12em;padding:4px 10px 5px;border-radius:0 0 8px 8px;pointer-events:none">STAGING · copia de prueba' + (env.PREVIEW === '1' ? ' · solo lectura' : '') + '</div>');
       h.delete('content-length');
       return new Response(html, { status: res.status, headers: h });
     }

@@ -7,7 +7,9 @@ production. Goal: on a phone, this becomes the best cellar app there is — fast
 
 ## Hard rules (never break these)
 1. **Work only on the `staging` branch.** Never commit to, merge into, or push `main`. Never deploy production.
-   Staging deploys from `staging` as the `cellar-staging` worker (`npx wrangler deploy --env staging`).
+   Staging is a **read-only preview of the real app**: Cloudflare Workers Builds publishes every push to `staging` at
+   `https://staging-cellar.dos-buhos.workers.dev` (real data, every save refused — see the `preview` guard at the top of
+   `cellar/src/index.js`). Nothing else to deploy. (The separate `cellar-staging` worker env is unused.)
 2. **No writes to real data or outside systems.** Don't run SQL against the production D1 (`b1bae952…`), don't call
    Google Sheets / Excellovint, don't send messages or emails. Test with the local mock (below) only.
 3. **Never create, change or delete cellar work orders or plan items**, not even in text — propose them in the review.
