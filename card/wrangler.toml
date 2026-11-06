@@ -6,5 +6,4 @@ workers_dev = true
 directory = "./public"
 not_found_handling = "single-page-application"
 
-# Later, once dosbuhos.com DNS is on Cloudflare:
-# routes = [{ pattern = "hola.dosbuhos.com", custom_domain = true }]
+routes = [{ pattern = "hola.dosbuhos.com", custom_domain = true }]

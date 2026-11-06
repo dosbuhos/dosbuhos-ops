@@ -7,7 +7,7 @@ os.makedirs(os.path.join(PUB, "icons"), exist_ok=True)
 os.makedirs(os.path.join(PUB, "vcf"), exist_ok=True)
 
 # ---------------- CONFIG (edit here) ----------------
-BASE = "https://card.dos-buhos.workers.dev"
+BASE = "https://hola.dosbuhos.com"
 WA_MAIN = "524151247583"            # TODO verify — winery line from public listing
 LINKS = {
     "OPENTABLE": "https://www.opentable.com/s?term=Dos%20B%C3%BAhos",  # TODO replace with the restaurant's direct OpenTable link (+ your source tag)
