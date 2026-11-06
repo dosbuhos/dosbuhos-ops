@@ -75,6 +75,7 @@ input:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-
 .stepper output { text-align: center; font-size: 20px; }
 .err { color: var(--bad); font-weight: 500; }
 ol.how { margin: 6px 0 0; padding-left: 22px; } ol.how li { margin: 4px 0; }
+.otw { margin: 10px 0; display: flex; justify-content: center; min-height: 40px; } .otw iframe { max-width: 100%; }
 footer { margin: 34px 0 0; text-align: center; font-size: 15px; color: var(--muted); }
 footer .mark { color: var(--wine); font-size: 13px; }
 .valid { margin: 12px 0 0; font-size: 16px; font-style: italic; color: var(--gold-soft); }
@@ -147,6 +148,9 @@ function page({ title, body, head = '', manifest = '' }) {
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dos Búhos">${manifest}
 ${FONTS}<style>${CSS}</style>${head}</head><body><main>${body}</main></body></html>`;
 }
+// OpenTable (restaurant 1258120). restref + ot_source keep club bookings in "Your Network" (no per-cover fee).
+const OT_TABLE_URL = 'https://www.opentable.com.mx/r/bodega-dos-buhos-reservations-san-miguel-de-allende-1?restref=1258120&amp;lang=es-MX&amp;ot_source=Restaurant%20website';
+const OT_WIDGET_SRC = 'https://www.opentable.com.mx/widget/reservation/loader?rid=1258120&type=standard&theme=tall&color=1&dark=false&iframe=true&domain=commx&lang=es-MX&newtab=false&ot_source=Restaurant%20website';
 const foot = `<footer><div class="mark">Dos Búhos</div>Bodega · Restaurante · San Miguel de Allende<br><a href="/c/terminos">Términos del club</a></footer>`;
 
 export function isClubPublic(p) { return p === '/c' || p.startsWith('/c/'); }
@@ -237,13 +241,10 @@ ${blocked ? '<div class="note bad">Esta tarjeta no está activa. Si crees que es
 ${blocked ? '' : st.expired.map(x => `<div class="note warn"><b>Tu membresía ${e(x.program)} venció el ${e(fmtLong(x.expires_on))}.</b> Sus beneficios ya no aparecen aquí. ${x.pay_url ? `Renuévala en línea y el equipo la reactiva.<a class="btn sm" href="${e(x.pay_url)}" target="_blank" rel="noopener">Renovar ${x.fee_mxn ? '· ' + C.money(x.fee_mxn) : ''}</a>` : 'Escríbenos para renovarla.'}</div>`).join('')}
 ${items ? `<section><h2>Tus beneficios</h2><ul class="benefits">${items}</ul>${unconfirmed ? '<p class="small"><sup>*</sup> Por confirmar: el equipo te confirma al aplicarlo.</p>' : ''}</section>` : ''}
 ${levelHtml}${annHtml}${pendHtml}
-${blocked ? '' : `<details><summary>Voy a ir</summary><div>
-  <form method="post" action="/c/${e(person.card_code)}/voy">
-    <div class="two"><label>Día<input type="date" name="day" required min="${day}" max="${C.addDays(day, 90)}" value="${day}"></label>
-    <label>Hora (opcional)<input type="time" name="time" step="900"></label></div>
-    <label>¿Cuántas personas?</label>${stepper('party', 2, 1, 20)}
-    <label>Reservación de OpenTable a nombre de<input name="reservation_name" maxlength="80" value="${e(person.name)}" autocomplete="name"></label>
-    <button class="btn" type="submit">Avisar al equipo</button></form></div></details>
+${blocked ? '' : `<details id="reservar"><summary>Reservar mesa</summary><div>
+  <p class="small" style="margin:6px 0 0">Reserva aquí con OpenTable. Al llegar, muestra tu tarjeta para tu descuento.</p>
+  <div id="otw" class="otw"></div>
+  <a class="btn ghost sm" href="${OT_TABLE_URL}" target="_blank" rel="noopener">Abrir en OpenTable</a></div></details>
 <details><summary>Sumar una compra</summary><div>
   <p class="small" style="margin:6px 0 0">¿Compraste vino en tienda, en línea o en un restaurante de San Miguel? Sube tu ticket y lo sumamos a tu nivel.</p>
   <form id="buy"><label>Monto (MXN)<input name="amount" inputmode="decimal" required placeholder="1,250"></label>
@@ -261,6 +262,8 @@ ${foot}
 <script>
 ${STEPPER_JS}
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/c/sw.js', { scope: '/c/' }).catch(() => {});
+const rv = document.getElementById('reservar');
+if (rv) rv.addEventListener('toggle', () => { const w = document.getElementById('otw'); if (!rv.open || w.dataset.on) return; w.dataset.on = '1'; const s = document.createElement('script'); s.src = ${JSON.stringify(OT_WIDGET_SRC)}; w.appendChild(s); });
 const mc = document.getElementById('mc');
 if (mc) { const t = () => { const on = mc.classList.toggle('flip'); mc.setAttribute('aria-pressed', String(on)); }; mc.addEventListener('click', t); mc.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); t(); } }); }
 const f = document.getElementById('buy');
