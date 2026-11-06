@@ -182,7 +182,7 @@ body.bopen .facecol{min-height:calc(100dvh - 16px)}.facecol{scroll-margin-top:8p
 .qa{display:flex;flex-wrap:wrap;gap:6px}.qa button{flex:1 1 auto}
 .qa-x{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--paper);border-radius:9px;padding:8px 10px}.qa-x label{flex:1 1 140px;font:600 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.08em}
 .qa-x input,.qa-x select{font:500 15px var(--f-b);padding:7px 8px;border:1px solid var(--line);border-radius:7px;background:var(--sheet);color:var(--ink);width:100%;box-sizing:border-box}
-.ident{margin:0;font-size:12.5px;color:var(--soft)}
+.ident{margin:0;font-size:12.5px;color:var(--soft)}.ident .idph{display:none}@media (max-width:600px){.ident .idph{display:inline}.ident .miss{color:var(--warn);font-weight:600;text-decoration:underline dotted;cursor:pointer}}
 #fw2{margin-top:6px;font:500 15px var(--f-b);padding:8px 9px;border:1px solid var(--line);border-radius:7px;width:100%;box-sizing:border-box}
 
 .bc3{border-left:6px solid var(--c);padding:12px 14px 12px;display:flex;flex-direction:column;gap:10px}
@@ -349,6 +349,22 @@ html.embedmap body.bopen .facecol{min-height:0}
   .bbl .num{font-size:20px}.bbl .pos.so{font-size:12px}
   .bbl .wl{font:600 12.5px var(--f-d);letter-spacing:.01em}
   .bbl .late{font:700 12.5px var(--f-d);letter-spacing:.02em;transform:translateY(2.5px)}
+}
+/* ---- staging night 1 run 2: barrel card — calmer tiles, glove-size controls ---- */
+.tile.bad span{color:var(--soft);font-weight:400}.tile span.tadd{color:var(--ink);font-weight:600}.tile.bad span.late,.tile span.late{color:#b3261e;font-weight:600}
+.tile .tgoal{color:var(--soft)!important;font-weight:400!important}
+.hrow time{white-space:nowrap}
+@media (max-width:600px){
+  .tplus{width:36px;height:36px;top:4px;right:4px;font-size:22px}.tplus::after{content:"";position:absolute;inset:-5px}
+  .tile:has(.tplus) small{min-height:36px;padding-right:38px}
+  .bc2 .x,#qax .qx{min-width:44px;min-height:44px}
+  .bh{padding-right:50px}.wpick{position:relative}.wpick::after{content:"";position:absolute;inset:-11px -6px}
+  /* two wide tiles read better than three narrow ones; the barrel's age and toast go on the line under the card */
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles>.tile.na:last-child{display:none}
+  .seg2 button{min-height:44px}
+  .bcard textarea,#panel textarea{font-size:16px}
+  #panel label.chk input[type=checkbox]{width:22px;height:22px;flex:none}
+  #panel .steps{gap:0}#panel .steps label.chk{min-height:40px;align-items:center}
 }
 
 </style>
@@ -960,16 +976,16 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
       <div class="bwho"><button type="button" class="wpick${!empty&&!wine?' unk':''}" data-q="wine" aria-label="Cambiar vino"><h3>${esc(empty?'Vacía':(wine||'¿vino?'))}</h3><em>▾</em></button>
         <div class="chips"><span class="chip pos">📍 ${CODE(cd)}</span>${use?`<span class="chip" style="--b:${use[1]}">${use[0]}</span>`:''}<span class="chip">${empty?'Vacía':'Llena'}</span>${c?.confirm?'<span class="chip warn">Por confirmar</span>':''}${D?._b?.discarded?'<span class="chip disc">✕ Descartada</span>':''}${!c&&hint?'<span class="chip warn">Foto: '+esc(hint)+'?</span>':''}</div></div>
       <button type="button" class="x" id="fx" aria-label="Cerrar">×</button></div>
-    ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${dzc?'no toca mantenimiento':doneToday?'':jd?`último ${fd(jd)} · hace ${jAgo} d`:''}</span><em>›</em></button>`
+    ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${dzc?'no toca mantenimiento':doneToday||!jd?'':(jSt!=='ok'?'tocaba el ':'el próximo toca el ')+fd(new Date(Date.parse(jd)+JOB_DAYS*864e5).toISOString().slice(0,10))}</span><em>›</em></button>`
       :`<button type="button" class="mline unk" data-gotab="res"><b>¿Qué barrica es?</b><span>Escribe el número en Datos para ver su mantenimiento</span><em>›</em></button>`}
     ${num?'':'<!--'}<div class="tiles">
-      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span class="${so&&soAgo>SO2_OLD?'late':''}">${empty?'vacía':so?'medido '+fd(so.date)+' · hace '+soAgo+' d':'sin lectura'}</span>${!empty&&addA?`<span class="tadd${dago(addA.date)>SO2_OLD?' late':''}">${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS agregados el ${fd(addA.date)}</span>`:''}${!empty&&so?`<span class="tgoal${soV<SO2_OK?' late':''}">meta ≈ ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
-      <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span class="${jSt!=='ok'&&!dzc?'late':''}">${jd?fd(jd)+(jSt!=='ok'&&!dzc?' · '+(jAgo-JOB_DAYS)+' d tarde':''):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
+      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span class="${!empty&&so&&soAgo>SO2_OLD?'late':''}">${empty?'vacía':so?fd(so.date)+' · hace '+soAgo+' d':'sin lectura'}</span>${!empty&&addA?`<span class="tadd${dago(addA.date)>SO2_OLD?' late':''}">+${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS · ${fd(addA.date)}</span>`:''}${!empty&&so?`<span class="tgoal">meta ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
+      <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span>${jd?fd(jd):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
       <div class="tile na"><small>Barrica</small><b>${age==null?'—':age+'<i> años</i>'}</b><span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></div>
     </div>${num?'':'-->'}
     <div class="qa"><button type="button" data-q="move">Mover</button></div>
     <div class="qa-x" id="qax" hidden></div>
-    <p class="ident" ${num?'':'hidden'}>${[coopV,woodV,(c?.year||D?.year)?'hecha en '+(c?.year||D?.year):'',(c?.size||D?.size||225)+' L'].filter(Boolean).join(' · ')}</p>
+    <p class="ident" ${num?'':'hidden'}>${[coopV,woodV,(c?.year||D?.year)?'hecha en '+(c?.year||D?.year):'',(c?.size||D?.size||225)+' L'].filter(Boolean).join(' · ')}<span class="idph">${age==null?'':' · '+age+' años'} · <span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></span></p>
   </div>
    <div class="seg2" role="tablist">${[['res','Datos'],['mant','Mantenimiento'],['hist','Historial'],['qr','Etiqueta']].map(([k,t])=>`<button type="button" data-t="${k}" aria-pressed="${tab===k}">${t}</button>`).join('')}</div>`;
   let body='';
