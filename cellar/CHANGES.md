@@ -2,6 +2,27 @@
 
 Newest first. One line per change: date · what · why · commit. Each run reads this first.
 
+## Próximas mejoras (running upgrade list — Eric picks, one at a time)
+Size S/M/L · ⚑ = needs Eric's decision first.
+1. Órdenes del día on phones: bigger rows, action at thumb reach, "Anotar resultados" one tap, Cerradas/Canceladas folded · the crew's main screen · M
+2. Spanish everywhere on phones: bottom nav (Wines → Bodega, Protocols → Protocolos), search placeholder ("Find a wine, lot or…"), "Live from Excellovint", "Refresh", "Target", "ML progress" on wine cards · S · ⚑ (d)
+3. Front-view labels fit before the web font loads on slow 4G (fallback font sized to match Barlow Condensed) · S
+4. Barrel card tabs stay pinned at the top while scrolling on phones · S
+5. One SO₂ "low" cutoff everywhere (card < 12 vs Lista < 10) · S · ⚑ (e)
+6. Wine cards (Vinos) on phones: tighter tiles, no empty ML-progress bar when there's no data · M
+7. Full phone audit with real data at 320/360/412 px (and big system text): every screen, fix any overlap/run-on · M
+8. Room map rotated 90° on phones (~2.5× bigger) · M · ⚑ (a)
+9. "rellenar +5 d" → "+5 d" on phones · S · ⚑ (b)
+10. "Tinto" chip → "Barrica de tinto" · S · ⚑ (c)
+11. Rondas from the map: one date/person, tap barrels to mark topped or SO₂ read · L
+12. Recording a rack updates both barrels on the map (source empty, destination filled) — check, then fix if needed · M
+13. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
+14. Slow-connection states: loading, empty and error messages that say what to do · M
+
+## 2026-11-06 (later) — phone fixes from Eric's screenshots
+- Vinos/Tanques/Barricas/Embotellado never overlap: count under the label on narrow phones, row scrolls if system text is very large, selected tab kept in view · labels were running into each other · mobile.css
+- Room map fills its card on phones: no SUR / ÁREA DE PRENSA side labels, frame hugs the walls and crush pad, thinner padding (~10% bigger) · wasted space beside the room · barricas.html
+
 ## 2026-11-06 — phone UX from the staging night, ported to production
 - Room map: invisible bigger tap areas per section, green outline on the selected one, TÚ no longer blocks taps, bigger column numbers on phones · easier to hit with gloves · 5aed69b
 - Front view on phones: lines under each barrel in Barlow Condensed, larger · readable at arm's length · afbfb24
