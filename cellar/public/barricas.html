@@ -458,7 +458,7 @@ const COL={},REV={};{let n=0;for(const sid of ['O','C','E']){const sec=SECTIONS.
 // aisles: just count what's there, left to right (south → north): PE-1, PE-2… / PO-1, PO-2…
 function numberAisles(){for(const [sid,pre] of [['P','PE-'],['Q','PO-'],['X','AP-']]){let k=0;for(const g of SECTIONS.find(x=>x.id===sid).groups)for(const id of g.ids){const c=S.conf&&S.conf[id];if((c&&c.empty&&!c.num&&!c.here)||(!c&&POS[id].b&&POS[id].b.spare)){COL[id]='';continue}COL[id]=pre+(++k)}}}
 // the two ánforas are positions too (their wine can be updated)
-for(const [n,cap] of [['AN-02',900],['AN-01',1000]])POS[n]={sec:SECTIONS[0],g:{label:'Ánforas'},rack:n,lv:1,side:'',amph:true,b:{n,w:null,d:cap+' L · Excellovint: vacía'}};
+for(const [n,cap] of [['AN-01',1000],['AN-02',900]])POS[n]={sec:SECTIONS[0],g:{label:'Ánforas'},rack:n,lv:1,side:'',amph:true,b:{n,w:null,d:cap+' L · Excellovint: vacía'}};
 function CODE(id){const q=POS[id];if(!q||q.virtual)return 'sin ubicación';if(q.amph)return id;if(q.aisle)return COL[q.rack]||'—';return q.punch?COL[q.rack]+'.1':COL[q.rack+q.side]+'.'+q.lv}
 // aisle numbers are dynamic, so aisle records are keyed by their slot id, not by PE-n
 function refKey(id){return POS[id].virtual||POS[id].aisle?id:CODE(id)}
@@ -590,7 +590,7 @@ const yOcc=id=>!!(S.conf[id]&&(S.conf[id].num||S.conf[id].here));
 function layout(sec){if(sec.id==='X'){const L=ROOM.L;return sec.groups[0].ids.map((id,j)=>({kind:'end',id,x:L+0.36+(j%3)*0.57,y:0.12+Math.floor(j/3)*0.62,w:0.52,h:0.52})).filter(it=>yOcc(it.id))}
   const f=FACE[sec.id],items=[];let t=0;
   sec.groups.forEach((g,gi)=>{
-    if(gi===1&&sec.mid==='amph'){t=Math.max(t,5.3);for(const n of ['AN-02','AN-01']){items.push({kind:'amph',name:n,t0:t+0.05,t1:t+0.05+AW});t+=AW+0.15}
+    if(gi===1&&sec.mid==='amph'){t=Math.max(t,5.3);for(const n of ['AN-01','AN-02']){items.push({kind:'amph',name:n,t0:t+0.05,t1:t+0.05+AW});t+=AW+0.15}
       t=ROOM.L-0.1-(3*RW+2*GAP)} // ánforas line up with the puncheons; columns 7–12 sit against the north wall
     if(gi===1&&sec.mid==='door'){items.push({kind:'door',t0:t,t1:t+1.95});t+=1.95+GAP}
     if(g.aisle){if(g.start)t=g.start-f.u;for(const id of g.ids){if(!shown(id))continue;items.push({kind:'one',id,t0:t,t1:t+(RW-0.04)/2+0.04});t+=(RW-0.04)/2+0.06}return}
@@ -652,8 +652,8 @@ const VIEWS=[{id:'OS',sec:'O',gi:[0],after:'amph',name:'Pared oeste · sur'},{id
   {id:'CS',sec:'C',gi:[0],name:'Isla · sur'},{id:'CP',sec:'C',gi:[1,2],name:'Isla · puncheons'},{id:'CN',sec:'C',gi:[3,4],name:'Isla · norte'},
   {id:'EN',sec:'E',gi:[0],after:'door',name:'Pared este · norte'},{id:'ES',sec:'E',gi:[1],before:'door',name:'Pared este · sur'},{id:'X',sec:'X',gi:[0],name:'Área de prensa'},{id:'QS',sec:'Q',gi:[0],name:'Pasillo oeste · sur'},{id:'QN',sec:'Q',gi:[1],name:'Pasillo oeste · norte'},{id:'PS',sec:'P',gi:[0],name:'Pasillo este · sur'},{id:'PN',sec:'P',gi:[1],name:'Pasillo este · norte'}];
 VIEWS.splice(1,0,{id:'AN',sec:'O',gi:[],amph:true,name:'Ánforas'});
-for(const v of VIEWS){v.S=SECTIONS.find(x=>x.id===v.sec);v.racks=v.amph?['AN-02','AN-01']:[];for(const i of v.gi){const g=v.S.groups[i];if(g.aisle)v.racks.push(...g.ids);else if(g.punch)v.racks.push(g.punch.id);else v.racks.push(...Object.keys(g.racks))}
-  v.colsFn=()=>{const cols=v.amph?['AN-02','AN-01']:v.racks.flatMap(r=>RACKS[r].aisle?[COL[r]]:RACKS[r].g.punch?[COL[r]]:[COL[r+'I'],COL[r+'D']]).filter(Boolean);return cols.length?cols[0]+(cols.length>1?'–'+cols[cols.length-1]:''):'vacío'}}
+for(const v of VIEWS){v.S=SECTIONS.find(x=>x.id===v.sec);v.racks=v.amph?['AN-01','AN-02']:[];for(const i of v.gi){const g=v.S.groups[i];if(g.aisle)v.racks.push(...g.ids);else if(g.punch)v.racks.push(g.punch.id);else v.racks.push(...Object.keys(g.racks))}
+  v.colsFn=()=>{const cols=v.amph?['AN-01','AN-02']:v.racks.flatMap(r=>RACKS[r].aisle?[COL[r]]:RACKS[r].g.punch?[COL[r]]:[COL[r+'I'],COL[r+'D']]).filter(Boolean);return cols.length?cols[0]+(cols.length>1?'–'+cols[cols.length-1]:''):'vacío'}}
 const VOF={};for(const v of VIEWS)for(const r of v.racks)VOF[r]=v.id;
 const VIEW=()=>VIEWS.find(v=>v.id===S.view);
 function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
@@ -702,8 +702,8 @@ function draw(){numberAisles();rebuildRev();
   $('secnote').innerHTML=sec.id==='X'?'Barricas paradas fuera de la bodega, 3 de ancho':`Parado ${sec.stand}, mirando al <b>${sec.facing}</b>`;
   {const ae=$('aedit'),isA=(sec.id==='P'||sec.id==='Q')&&!S.move;ae.hidden=!isA;ae.textContent=S.aedit?'Listo':'Editar pasillo';ae.classList.toggle('on',!!S.aedit);ae.onclick=()=>{S.aedit=!S.aedit;draw()};if(!isA)S.aedit=false}
   $('edgeL').textContent=sec.left?'← '+sec.left:'';$('edgeR').textContent=sec.right?sec.right+' →':'';
-  const mid=kind=>{const m=document.createElement('div');m.className='amph-wrap faded';if(kind==='amph'){m.style.flexDirection='row';amph(m,'AN-02');amph(m,'AN-01')}else door(m);w.appendChild(m)};
-  if(vw.amph){const d=document.createElement('div');d.className='grp';d.innerHTML='<div class="racks"></div>';w.appendChild(d);for(const n of ['AN-02','AN-01'])drawAmphPos(d.lastChild,n)}
+  const mid=kind=>{const m=document.createElement('div');m.className='amph-wrap faded';if(kind==='amph'){m.style.flexDirection='row';amph(m,'AN-01');amph(m,'AN-02')}else door(m);w.appendChild(m)};
+  if(vw.amph){const d=document.createElement('div');d.className='grp';d.innerHTML='<div class="racks"></div>';w.appendChild(d);for(const n of ['AN-01','AN-02'])drawAmphPos(d.lastChild,n)}
   vw.gi.map(i=>sec.groups[i]).forEach(g=>{
     const d=document.createElement('div');d.className='grp';d.innerHTML=`<div class="racks"></div>`;w.appendChild(d);const host=d.lastChild;
     if(g.yard){if(S.move)drawYard(sec,g,host);else if(!S.sel||POS[S.sel].sec.id!=='X'){const m=document.createElement('p');m.className='yhint';m.textContent=vw.racks.some(yOcc)?'Toca una barrica del área de prensa en el mapa para abrir su tarjeta.':'No hay barricas en el área de prensa.';host.appendChild(m)}}else if(g.aisle)drawAisle(sec,g,host);else if(g.punch)drawPunch(sec,g,host);else for(const r in g.racks)drawRack(sec,g,r,host)});
