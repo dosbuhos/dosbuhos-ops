@@ -317,4 +317,18 @@
   const checkModal = () => html.classList.toggle('m-modal', modals.some(m => !m.hidden));
   modals.forEach(m => new MutationObserver(checkModal).observe(m, { attributes: true, attributeFilter: ['hidden'] }));
   checkModal();
+
+  // ---- Barricas: Mapa / Lista sit in the app bar, so the list starts higher and the toolbar has room ----
+  { const cv = document.createElement('div'); cv.className = 'm-cview'; cv.setAttribute('role', 'group'); cv.setAttribute('aria-label', 'Vista'); cv.hidden = true;
+    cv.innerHTML = '<button type="button" data-mcv="map">Mapa</button><button type="button" data-mcv="barrels">Lista</button>';
+    bar.insertBefore(cv, bar.querySelector('[data-m="search"]'));
+    const cvw = document.getElementById('cellarView');
+    const syncCv = () => { const src = cvw && !cvw.hidden ? cvw.querySelector('.cr-view') : null, on = !!src && currentView() === 'wines';
+      cv.hidden = !on; html.classList.toggle('m-cv-on', on);
+      if (on) cv.querySelectorAll('[data-mcv]').forEach(b => { const t = src.querySelector(`[data-ct="${b.dataset.mcv}"]`); b.setAttribute('aria-pressed', String(!!t && t.getAttribute('aria-selected') === 'true')); }); };
+    cv.addEventListener('click', e => { const b = e.target.closest('[data-mcv]'); if (!b || !cvw) return; const t = cvw.querySelector(`.cr-view [data-ct="${b.dataset.mcv}"]`); if (t) t.click(); setTimeout(syncCv, 0); });
+    if (cvw) new MutationObserver(syncCv).observe(cvw, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-selected'] });
+    const wv = document.getElementById('winesView'); if (wv) new MutationObserver(syncCv).observe(wv, { attributes: true, attributeFilter: ['hidden'] });
+    document.addEventListener('click', () => setTimeout(syncCv, 0));
+    syncCv(); }
 })();
