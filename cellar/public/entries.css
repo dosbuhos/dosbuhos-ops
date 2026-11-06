@@ -146,3 +146,4 @@
 .bt-tbl tr.bt-ed{cursor:pointer}.bt-tbl tr.bt-ed:hover td{background:color-mix(in srgb,var(--accent,#5c1f33) 6%,transparent)}
 .bt-tbl tr.bt-q td{background:#fff6e0}.bt-tbl tr.bt-q td:first-child{box-shadow:inset 3px 0 0 #d79a1f}
 #btSheet .bt-fr{margin-bottom:0}#btSheet input,#btSheet select,#btSheet textarea{font-size:16px}
+#btSheet label{display:block}#btSheet textarea{display:block;width:100%;box-sizing:border-box}
