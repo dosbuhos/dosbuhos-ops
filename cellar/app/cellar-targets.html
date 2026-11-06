@@ -4437,7 +4437,7 @@ Return ONLY JSON with this shape:
     $("wmProdN").textContent = productionLots().length || "";
     $("wmCellarN").textContent = window.cellarFullBarrels != null ? window.cellarFullBarrels : ""; // barrels holding wine (cellar-room.js)
     $("wmTankN").textContent = window.cellarFullTanks != null ? window.cellarFullTanks : "";
-    document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.wm === S.wmode)));
+    document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.wm === S.wmode))); { const sel = document.querySelector("#wmode [aria-selected=\"true\"]"), wm = $("wmode"); if (sel && wm && wm.scrollWidth > wm.clientWidth) wm.scrollLeft = Math.max(0, sel.offsetLeft - (wm.clientWidth - sel.offsetWidth) / 2); }
     $("cellarView").hidden = !cellar || bottledV; $("bottleView").hidden = !bottledV;
     $("stats").hidden = cellar; $("src").hidden = cellar; document.querySelector("#winesView .tbl-wrap").hidden = cellar;
     $("groups").hidden = cellar; $("wineCtl").hidden = cellar || S.view !== "wines";
