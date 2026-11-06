@@ -37,7 +37,7 @@
   // Tabs people can write to, labelled by wine: "Chenin (tank wine) · L11 - CB".
   function tabOptions(sel) {
     const seen = new Map();
-    for (const l of E.lots) for (const s of (l.sheet || [])) { if (!s.tab) continue; const name = l.id === 'all' ? 'Bodega (todos)' : l.name; seen.set(s.tab, (seen.get(s.tab) ? seen.get(s.tab) + ' / ' : '') + name); }
+    for (const l of E.lots) for (const s of (l.sheet || [])) { if (!s.tab) continue; const name = l.id === 'all' ? 'Bodega (todos)' : l.name, cur = seen.get(s.tab); if (l.id === 'all' || cur === 'Bodega (todos)') seen.set(s.tab, 'Bodega (todos)'); else seen.set(s.tab, (cur ? cur + ' / ' : '') + name); }
     const tabs = [...seen.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     return `<option value="">Elige el vino / lote…</option>` + tabs.map(t => `<option value="${esc(t)}"${t === sel ? ' selected' : ''}>${esc(seen.get(t))} · ${esc(t)}</option>`).join('');
   }
@@ -51,7 +51,7 @@
     for (const l of E.lots) for (const s of (l.sheet || [])) {
       if (!s.tab || l.archived || s.archived) continue; const cur = m.get(s.tab);
       const name = l.id === 'all' ? 'Bodega (todos)' : l.name;
-      if (cur) cur.name += ' / ' + name; else m.set(s.tab, { tab: s.tab, name, group: l.group || '', ubi: l.ubi || '' });
+      if (l.id === 'all') { if (cur) cur.name = name, cur.group = l.group || ''; else m.set(s.tab, { tab: s.tab, name, group: l.group || '', ubi: '' }); } else if (cur) { if (cur.name !== 'Bodega (todos)') cur.name += ' / ' + name; } else m.set(s.tab, { tab: s.tab, name, group: l.group || '', ubi: l.ubi || '' });
     }
     return [...m.values()].sort((a, b) => a.tab.localeCompare(b.tab, undefined, { numeric: true }));
   }
