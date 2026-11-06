@@ -136,7 +136,7 @@ header,.prog{max-width:900px;margin-left:auto;margin-right:auto;justify-content:
 
 /* tight layout: everything on one phone screen */
 body{padding-block:8px 24px}header{margin-bottom:0}h1{font-size:22px}.prog{margin:4px auto 8px}
-.lay{gap:8px}.mmbox{padding:6px}
+.lay{gap:8px}.mmbox{padding:3px 2px}
 .facecol{padding:8px 10px}.facecol .edges{border:0;padding:0;margin:0;font-size:11px}
 .facecol .wall{padding:2px 0 0;gap:6px;overflow-x:hidden}.wall .racks{gap:4px}
 .secfoot{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:2px 10px;border-top:1px solid var(--line);padding-top:6px;margin-top:4px;width:100%}
@@ -669,7 +669,7 @@ function drawRoom(svg,el){const L=ROOM.L,W=ROOM.W,T=0.25;
   // labels
   el('text',{x:L/2,y:-0.42,class:'lbl'},g).textContent='PARED OESTE · ÁNFORAS';
   el('text',{x:L/2,y:W+0.68,class:'lbl'},g).textContent='PARED ESTE · PUERTA';
-  el('text',{x:-0.55,y:W/2,class:'lbl',transform:`rotate(-90 -0.55 ${W/2})`},g).textContent='SUR';
+  if(!MMPH())el('text',{x:-0.55,y:W/2,class:'lbl',transform:`rotate(-90 -0.55 ${W/2})`},g).textContent='SUR';
   return g}
 // barrels seen from above: a pair per rack, oriented the way they actually lie
 function barrelTop(g,el,x,y,w,h){const along=w>h; // long axis along u
@@ -702,12 +702,14 @@ for(const v of VIEWS){v.S=SECTIONS.find(x=>x.id===v.sec);v.racks=v.amph?['AN-01'
   v.colsFn=()=>{const cols=v.amph?['AN-01','AN-02']:v.racks.flatMap(r=>RACKS[r].aisle?[COL[r]]:RACKS[r].g.punch?[COL[r]]:[COL[r+'I'],COL[r+'D']]).filter(Boolean);return cols.length?cols[0]+(cols.length>1?'–'+cols[cols.length-1]:''):'vacío'}}
 const VOF={};for(const v of VIEWS)for(const r of v.racks)VOF[r]=v.id;
 const VIEW=()=>VIEWS.find(v=>v.id===S.view);
-function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W;
-  const svg=el('svg',{viewBox:`-1.0 -0.85 ${L+3.65} ${W+1.75}`,class:'mmsvg','aria-label':'Plano del cuarto de barricas'},h);
+// on phones the room fills the card: no side labels, the frame hugs the south wall and the crush pad
+const MMPH=()=>matchMedia('(max-width:600px)').matches;
+function minimap(){const h=$('mm');h.innerHTML='';const L=ROOM.L,W=ROOM.W,ph=MMPH();
+  const svg=el('svg',{viewBox:ph?`-0.32 -0.85 ${L+2.47} ${W+1.75}`:`-1.0 -0.85 ${L+3.65} ${W+1.75}`,class:'mmsvg','aria-label':'Plano del cuarto de barricas'},h);
   drawRoom(svg,el);
   {const pg=el('g',{class:'mm-face mm-pr'+(S.view==='X'?' on':''),'data-s':'X',tabindex:0,role:'button','aria-label':'Área de prensa'},svg);
    el('rect',{x:L+0.3,y:-0.25,width:1.8,height:W+0.5,class:'pz'},pg);
-   el('text',{x:L+2.42,y:W/2,class:'lbl',transform:`rotate(90 ${L+2.42} ${W/2})`},svg).textContent='ÁREA DE PRENSA · NORTE'}
+   if(!ph)el('text',{x:L+2.42,y:W/2,class:'lbl',transform:`rotate(90 ${L+2.42} ${W/2})`},svg).textContent='ÁREA DE PRENSA · NORTE'}
   const groups={};for(const v of VIEWS)groups[v.id]=el('g',{class:'mm-face'+(v.id===S.view?' on':''),'data-s':v.id,tabindex:0,role:'button','aria-label':v.name},svg);
   const deco=el('g',{class:'mm-deco'},svg);
   for(const sec of SECTIONS)for(const it of layout(sec)){if(it.kind==='door')continue;const host=it.id?groups[VOF[it.id]]:it.kind==='amph'?groups.AN:deco;
@@ -770,6 +772,7 @@ function draw(){numberAisles();rebuildRev();
 function fitWall(){const w=$('wall'),svgs=[...w.querySelectorAll(':scope svg')];svgs.forEach(v=>{v.style.width=v.getAttribute('width')+'px'});
   const need=w.scrollWidth,have=w.clientWidth-2;if(need<=have)return;const k=have/need;svgs.forEach(v=>{v.style.width=(v.getAttribute('width')*k)+'px';v.style.height='auto'})}
 addEventListener('resize',()=>fitWall());
+try{matchMedia('(max-width:600px)').addEventListener('change',()=>minimap())}catch(e){}
 // "↑ Mapa" shows once the map has scrolled away
 {const b=$('totop');b.onclick=()=>scrollTo({top:0,behavior:'smooth'});
  try{new IntersectionObserver(es=>{b.hidden=es[0].isIntersecting},{threshold:0.15}).observe(document.querySelector('.mmbox'))}catch(e){addEventListener('scroll',()=>{b.hidden=scrollY<200})}}
