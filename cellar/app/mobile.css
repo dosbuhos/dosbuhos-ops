@@ -510,3 +510,13 @@ html.w-cellar .mf-bar, html.w-cellar .mf-chips { display: none !important; }
   /* no reading at all → no tile (the "Last lab" tile already says "No lab yet") */
   .wt tr.w td.mlc:has(.mlb.dash), .wt tr.w td[data-l="Total SO₂"]:has(> .none:first-child) { display: none !important; }
 }
+/* ---- staging night 1: compact Bodega chrome on phones — same controls, less height, every label fits ---- */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  #winesView:has(> #cellarView:not([hidden])) { gap: 6px; }
+  #winesView:has(> #cellarView:not([hidden])) > #wmode { margin-bottom: 0 !important; }
+  #wmode button { flex: 1 1 auto; min-width: 0; min-height: 38px; padding: 0 6px; font-size: 14px; white-space: nowrap; }
+  #wmode button small { margin-left: 3px; }
+  #cellarView .cr { gap: 6px; }
+  #cellarView .cr > .cr-view { margin: 0; }
+  #cellarView .cr > .cr-view button { min-height: 38px; padding: 0 18px; font-size: 14.5px; }
+}
