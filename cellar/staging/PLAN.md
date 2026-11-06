@@ -3,13 +3,13 @@
 One night at a time. Eric approves each morning before the next night runs.
 Nights 1–2: usability and display only, phone first — no new features. Later nights are proposals until approved.
 
-## Night 1 — Barricas on the phone (UX/UI only) · status: scheduled
+## Night 1 — Barricas on the phone (UX/UI only) · status: in progress (run 1 of 3 done)
 Screens: Bodega → Barricas → Mapa (room map, front view, barrel card with its 4 tabs, crush pad, ánfora card, Mover flow,
 Editar pasillo) and → Lista (table rows, filters sheet, bulk bar, Registro masivo sheet).
-- [ ] App chrome on phones: Vineyard/Winery bars + Vinos/Tanques/Barricas/Embotellado + Mapa/Lista eat ~40% of the screen
+- [x] App chrome on phones (run 1: labels fit, tighter gaps, 38px Mapa/Lista; more height could be saved — see backlog): Vineyard/Winery bars + Vinos/Tanques/Barricas/Embotellado + Mapa/Lista eat ~40% of the screen
       before any barrel shows. Make it compact on phones (collapse, condense, sticky where it helps) without hiding anything.
-- [ ] Room map at 390px: barrel numbers/labels are tiny; make sections easier to hit (bigger hit areas, clearer selected state).
-- [ ] Front view at 390px: everything is scaled down to fit; check legibility of number, SO₂, wine line, "+N d" — consider a
+- [x] Room map at 390px (run 1: tap areas 26–37px, selected outline, bigger numbers; rotation asked in Preguntas): barrel numbers/labels are tiny; make sections easier to hit (bigger hit areas, clearer selected state).
+- [x] Front view at 390px (run 1: larger condensed type under barrels; swipe not needed for now): everything is scaled down to fit; check legibility of number, SO₂, wine line, "+N d" — consider a
       better minimum scale with horizontal swipe, or larger type, whichever reads better.
 - [ ] Barrel card: order of information (what must be seen first?), tile density, status line wording, tab bar reachable with
       the thumb, form fields 16px+ (no iOS zoom), clear save feedback.
@@ -45,3 +45,10 @@ Contrast, font sizes, screen readers, first-run help in Spanish for the crew, co
 
 ## Backlog (findings for later nights)
 - Bottling: edit / add bottlings in Embotellado, and "embotellar este lote" (archive lot → bottling record). Eric asked for it.
+- Lista (phone): status tabs run under the "Tipo de vino" select ("Vacías" cut); wine dot and status line misaligned;
+  right column (SO₂ / place) unlabeled. Next run.
+- Barrel card: SO₂ tile has 5 lines of small red text; "Toca rellenar" banner and Relleno tile repeat each other; a
+  rosé shows the "Tinto" chip (data or display? check on Night 5).
+- Phone app bar says "WINES" inside Barricas — should name the screen in Spanish.
+- Chrome: "Registrando como … cambiar" (inside the map frame) could sit on the Mapa/Lista row to save another ~24px.
+- Room map rotated 90° on phones (~2.5× bigger) — waiting for Eric.

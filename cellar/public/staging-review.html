@@ -1,0 +1,49 @@
+<!doctype html><html lang="es" data-theme="light"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Revisión de staging</title><style>
+body{margin:0;font:15px/1.5 system-ui,sans-serif;color:#2b3330;background:#f6f5f1}main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 4px}h2{font-size:18px;margin:24px 0 8px}h3{font-size:16px;margin:18px 0 6px}
+li{margin:4px 0 4px 18px}code{background:#ebe8df;padding:1px 4px;border-radius:4px}
+figure{margin:14px 0;background:#fff;border:1px solid #e2ded3;border-radius:12px;padding:10px}figcaption{font-weight:600;margin-bottom:6px}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}.pair img{width:100%;border:1px solid #ddd;border-radius:8px}
+small{color:#78827d}.log{background:#fff;border:1px solid #e2ded3;border-radius:12px;padding:6px 16px}
+</style></head><body><main><h1>Revisión de staging</h1><p>Lo que se cambió de noche en la copia de prueba. Nada de esto está en la app real todavía.</p>
+<div class="log"><h2>Staging changelog</h2>
+<p>Newest night first. Each entry: time, what changed and why, files, screenshots (<code>review/&lt;date&gt;/</code>).</p>
+<h3>Preguntas para Eric</h3>
+<li><b>Mapa del cuarto girado en el teléfono?</b> At 390px the room map is ~20px per metre, so a barrel is ~14px and the</li>
+<p>section rows are 16–19px tall. Tonight&#x27;s bigger tap areas help (26–37px), but the real fix would be drawing the room</p>
+<p>rotated 90° on phones (south at the top, west wall on the right): it would be ~2.5× bigger and fill the screen</p>
+<p>width. It changes how the room &quot;looks&quot; to the crew, so I didn&#x27;t do it. Prototype it next run? (yes / no)</p>
+<li><b>&quot;rellenar +5 d&quot; under each barrel</b>: on the phone the line under the barrel is the most useful one (late or not) but</li>
+<p>long. OK to shorten it to just <b>&quot;+5 d&quot;</b> in the ring&#x27;s colour on phones, with the legend explaining it? Or keep the word?</p>
+<h3>2026-11-06 · Night 1 — Barricas on the phone</h3>
+<h4>Run 1 (≈23:00 Central) — audit</h4>
+<p>Before screenshots: <code>review/2026-11-06/*-before.png</code> (390×844 and 1300×900, mock data).</p>
+<p>Biggest phone problems, worst first:</p>
+<li><b>Room map is too small to hit.</b> Each section (a wall run, an aisle row) is a 16–19px strip on a 390px screen, the</li>
+<p>column numbers are ~6px, and the green &quot;TÚ&quot; marker sits on top of the gap between sections and swallows taps. With gloves</p>
+<p>you hit the wrong section or nothing.</p>
+<li><b>Front view text is ~5px.</b> The wall is scaled to ~63% to fit 6 columns, so the wine line and &quot;rellenar +N d&quot; under</li>
+<p>each barrel come out at ~5px — unreadable at arm&#x27;s length. The barrel number (~11px) is OK.</p>
+<li><b>Chrome before the first barrel</b>: app bar + Vinos/Tanques/Barricas/Embotellado + Mapa/Lista + &quot;Registrando como&quot;</li>
+<p>≈ 215px (25% of the screen) before the map; &quot;Embotellado&quot; is cut off at the right edge; Mapa/Lista buttons are 28px tall.</p>
+<li><b>Lista</b>: the status tabs (Todas / Con vino / Vacías…) run under the &quot;Tipo de vino&quot; select and &quot;Vacías&quot; is cut; the</li>
+<p>wine dot and the status line don&#x27;t line up; the right column (last SO₂ / place) has no label.</p>
+<li><b>Barrel card</b>: the SO₂ tile packs 5 lines of 11px red text; &quot;Toca rellenar · 15 d tarde&quot; and the Relleno tile say the</li>
+<p>same thing twice; the header shows &quot;Llena&quot; and &quot;Tinto&quot; as two chips for a rosé (&quot;Rosado Cab Franc&quot; → &quot;Tinto&quot;).</p>
+<li>App bar says <b>&quot;WINES&quot;</b> (English) while you&#x27;re in Barricas.</li>
+<h4>Run 1 — changes</h4>
+<li><b>Room map: bigger tap areas, clear selected section.</b> Each section of the map now has an invisible tap area around</li>
+<p>it (up to ~9px on each side, never more than half the gap to its neighbour, so two sections never overlap); the</p>
+<p>selected one shows it as a light green box with a green outline. The &quot;TÚ&quot; marker no longer blocks taps. Column numbers</p>
+<p>on phones are ~20% bigger. Tap rows went from 16–19px to 26–37px tall. Desktop gets the same outline.</p>
+<p>Files: <code>cellar/app/barricas.html</code> (<code>mmHits()</code> after <code>minimap()</code>, CSS block &quot;staging night 1&quot;). Screens: <code>02-phone-room-map</code>, <code>07-desktop-room</code>.</p>
+<li><b>Front view: readable lines under the barrels on phones.</b> Wine line and &quot;rellenar +N d&quot; use the narrow Barlow</li>
+<p>Condensed face at a larger size (≈8px on screen instead of ≈5px), SO₂ number and barrel number a bit bigger. CSS only,</p>
+<p>≤600px only. Screen: <code>03-phone-front-view</code>.</p>
+<li><b>Compact Bodega chrome on phones.</b> Vinos/Tanques/Barricas/Embotellado now all fit (Embotellado was cut), tighter gaps,</li>
+<p>and Mapa/Lista buttons are 38px tall instead of 28px. The map starts 12px higher. Files: <code>cellar/app/mobile.css</code></p>
+<p>(block at the end). Screens: <code>01-phone-chrome-mapa</code>, <code>04-phone-lista</code> (unchanged, checked), <code>06-desktop-mapa</code> (unchanged).</p>
+<li>Risk: low; CSS plus one display-only function. Checked: no horizontal scroll at 390, Mover flow still picks sections</li>
+<p>on the map, desktop unchanged apart from the outline. Mock fonts were loaded locally so screenshots match the real fonts.</p></div><section><h2>2026-11-06</h2><figure><figcaption>01-phone-chrome-mapa</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/01-phone-chrome-mapa-before.png" alt="01-phone-chrome-mapa antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/01-phone-chrome-mapa-after.png" alt="01-phone-chrome-mapa después"></div></div></figure><figure><figcaption>02-phone-room-map</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/02-phone-room-map-before.png" alt="02-phone-room-map antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/02-phone-room-map-after.png" alt="02-phone-room-map después"></div></div></figure><figure><figcaption>03-phone-front-view</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/03-phone-front-view-before.png" alt="03-phone-front-view antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/03-phone-front-view-after.png" alt="03-phone-front-view después"></div></div></figure><figure><figcaption>04-phone-lista</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/04-phone-lista-before.png" alt="04-phone-lista antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/04-phone-lista-after.png" alt="04-phone-lista después"></div></div></figure><figure><figcaption>05-phone-barrel-card</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/05-phone-barrel-card-before.png" alt="05-phone-barrel-card antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/05-phone-barrel-card-after.png" alt="05-phone-barrel-card después"></div></div></figure><figure><figcaption>06-desktop-mapa</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/06-desktop-mapa-before.png" alt="06-desktop-mapa antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/06-desktop-mapa-after.png" alt="06-desktop-mapa después"></div></div></figure><figure><figcaption>07-desktop-room</figcaption><div class="pair"><div><small>antes</small><img loading="lazy" src="staging-review/2026-11-06/07-desktop-room-before.png" alt="07-desktop-room antes"></div><div><small>después</small><img loading="lazy" src="staging-review/2026-11-06/07-desktop-room-after.png" alt="07-desktop-room después"></div></div></figure></section></main></body></html>
