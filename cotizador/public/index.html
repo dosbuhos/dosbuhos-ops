@@ -191,7 +191,8 @@
 
 <!-- ================= PROPUESTA ================= -->
 <div id="prop">
-  <div class="pp-bar"><button onclick="document.body.classList.remove('prop')">‹ Editar</button><button onclick="document.body.classList.toggle('det')" id="detbtn">+ Detalle</button><button onclick="window.print()">PDF · Imprimir</button></div>
+  <div class="pp-bar"><button onclick="document.body.classList.remove('prop')">‹ Editar</button><button onclick="document.body.classList.toggle('det')" id="detbtn">+ Detalle</button><button onclick="makePDF(this)">PDF</button></div>
+  <form id="pdfform" method="post" action="/pdf" target="_blank" hidden><input type="hidden" name="q" id="pdfq"></form>
   <div class="page">
     <div class="hd"><img src="/icons/logo-dark.png" alt="Dos Búhos"><div class="k">Su cotización</div></div>
     <h1>Su cotización</h1>
@@ -331,22 +332,43 @@ function itinerary(F) {
   if (F.bq) S.push(["Al despedirse", "Para llevar a casa", `${F.bq} botellas de obsequio de nuestra bodega.`]);
   return S;
 }
+function spaceText(S) {
+  const SN = { bodega: "La Bodega de Arte", garden: "El Winegarden" };
+  if (S.s === "rest") return "Una mesa en nuestro restaurante, en horario regular, hasta 3 horas.";
+  if (!S.s) return "";
+  return (S.est ? `La hacienda completa en exclusiva, con ${SN[S.s].toLowerCase()} como espacio principal` : `${SN[S.s]} en exclusiva para su grupo`) + `, abierta fuera de nuestro horario regular · ${S.h || 3} horas.\n\nEstacionamiento y sanitarios atendidos; mobiliario, mantelería, cristalería y vajilla, y coordinación en sitio.` + (S.desc ? "\n\nCon cortesía de la casa en la renta del espacio." : "");
+}
 function showProp() {
   const { F, S, grand, pax } = recalc();
   const g = id => String($(id).value || "").trim();
   const a = [g("cv_cliente"), g("cv_evento")].filter(Boolean).join(" · "), b = [g("cv_fecha"), g("cv_hora"), pax ? `${pax} invitados` : ""].filter(Boolean).join(" · ");
   $("r_evento").textContent = a + (a && b ? "\n" : "") + b;
   $("r_it").innerHTML = itinerary(F).map(([t, h, d]) => `<div class="tm">${t}</div><div><b>${h}</b><span>${d}</span></div>`).join("") || `<div class="tm"></div><div><span>Captura menú, barra o recorrido para armar la velada.</span></div>`;
-  const SN = { bodega: "La Bodega de Arte", garden: "El Winegarden" }; let sp = "";
-  if (S.s === "rest") sp = "Una mesa en nuestro restaurante, en horario regular, hasta 3 horas.";
-  else if (S.s) sp = (S.est ? `La hacienda completa en exclusiva, con ${SN[S.s].toLowerCase()} como espacio principal` : `${SN[S.s]} en exclusiva para su grupo`) + `, abierta fuera de nuestro horario regular · ${S.h || 3} horas.\n\nEstacionamiento y sanitarios atendidos; mobiliario, mantelería, cristalería y vajilla, y coordinación en sitio.` + (S.desc ? "\n\nCon cortesía de la casa en la renta del espacio." : "");
-  $("r_space").textContent = sp;
+  $("r_space").textContent = spaceText(S);
   $("r_total").textContent = m(grand); $("r_pp").textContent = pax ? `${m(grand / pax)} por invitado · MXN` : ""; $("r_fb_note").textContent = grand ? "Alimentos, bebidas, espacio, servicio e IVA incluidos" : "";
   $("r_min").textContent = $("o_min_note").textContent;
   const det = F.L.concat([["Total alimentos y bebidas", m(F.total), "tot"]]).concat(S.s ? S.L.concat([["Total espacio", m(S.total), "tot"]]) : []);
   $("r_det").innerHTML = det.filter(x => x[2] !== "red").map(([a, b, k]) => `<div class="ln ${k || ""}"><b>${a}</b><i>${b}</i></div>`).join("");
   $("r_notas").textContent = [g("fb_notas"), g("sp_notas")].filter(Boolean).join("\n\n");
   document.body.classList.add("prop"); window.scrollTo(0, 0);
+}
+// Lo que ve la propuesta en PDF (src/proposal.js lo maqueta; el Worker lo imprime con Browser Rendering)
+function proposalData() {
+  const { F, S, grand, pax } = recalc();
+  const g = id => String($(id).value || "").trim();
+  const SN = { bodega: "La Bodega de Arte", garden: "El Winegarden", rest: "El restaurante" };
+  const keep = L => L.filter(x => x[2] !== "red");
+  return { cliente: g("cv_cliente"), evento: g("cv_evento"), fecha: g("cv_fecha"), hora: g("cv_hora"), por: g("cv_por"), pax,
+    hoy: new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }),
+    space: S.s ? { key: S.s, name: SN[S.s], hrs: S.h || 3, est: !!S.est, text: spaceText(S) } : null,
+    it: itinerary(F), fb: { lines: keep(F.L), total: m(F.total) }, sp: S.s ? { lines: S.L, total: m(S.total) } : null,
+    grand: m(grand), pp: pax ? m(grand / pax) : "", minNote: $("o_min_note").textContent,
+    notas: [g("fb_notas"), g("sp_notas")].filter(Boolean).join("\n\n"), detail: document.body.classList.contains("det") };
+}
+function makePDF(btn) {
+  if (!navigator.onLine) { alert("El PDF se genera en línea. Conéctate e inténtalo de nuevo."); return; }
+  $("pdfq").value = JSON.stringify(proposalData()); $("pdfform").submit();
+  if (btn) { const t = btn.textContent; btn.textContent = "Generando…"; btn.disabled = true; setTimeout(() => { btn.textContent = t; btn.disabled = false; }, 6000); }
 }
 function shareWA() {
   const { F, S, grand, pax } = recalc();

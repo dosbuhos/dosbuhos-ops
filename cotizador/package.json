@@ -1,0 +1,7 @@
+{
+  "name": "cotizador",
+  "private": true,
+  "type": "module",
+  "scripts": { "assets": "node scripts/gen-assets.mjs", "deploy": "wrangler deploy" },
+  "dependencies": { "@cloudflare/puppeteer": "^1.4.0" }
+}

@@ -1,9 +1,10 @@
 # Cotizador de eventos
 
-The Acrobat quoter (Cotizador Para Eventos) as a phone app: capture the event, the space and food & beverage; the quote, the per-person price, the minimum-spend check and the internal numbers update as you type; **Propuesta** renders the one-page "Su cotización" (print → PDF) and **WhatsApp** shares a text summary.
+The Acrobat quoter (Cotizador Para Eventos) as a phone app: capture the event, the space and food & beverage; the quote, the per-person price, the minimum-spend check and the internal numbers update as you type; **Propuesta** previews the client view, **PDF** renders the three-page proposal (cover with photo, the evening's rhythm and the space, the investment and next steps) as a real PDF, and **WhatsApp** shares a text summary.
 
 - Worker `cotizador` · static app in `public/` + a small Worker (`src/worker.js`) that gates it with a PIN.
-- Secrets (dashboard → cotizador → Settings → Variables and Secrets): `PIN` — the team's PIN. Without it the app is open. `HUB_SECRET` (= the Hub's `SESSION_SECRET`) lets the Hub's signed proxy header in without a PIN.
+- Secrets (dashboard → cotizador → Settings → Variables and Secrets): `PIN` — the team's PIN. Without it the app is open. `HUB_SECRET` (= the Hub's `SESSION_SECRET`) lets the Hub's signed proxy header in without a PIN. `ANTHROPIC_API_KEY` (optional) — Claude writes the proposal's opening note from the quote; without it a template note is used (`AI_MODEL` var overrides the model, default `claude-haiku-5-5`).
+- PDF: the app posts the computed quote to `POST /pdf` (form field `q`, JSON); `src/proposal.js` lays it out (Letter, 3 pages, fonts and logo embedded from `src/assets.js`, photos from `public/img/`) and the Worker prints it with Browser Rendering (binding `BROWSER`, free plan: 10 browser-minutes a day, a few seconds per PDF). Add `?html=1` to preview the template as HTML. Regenerate `src/assets.js` with `npm run assets` after changing fonts or logos.
 - Deploys on push through Workers Builds (project `cotizador`, root `cotizador`, deploy `npx wrangler deploy`).
 - Prices and rules live in the `P` object at the top of `public/index.html` (menus, bar tiers by hour, minimum spend, space rates and caps, service and IVA). Same logic as the Acrobat form.
 - The quote in progress is kept in the browser (localStorage); "Nueva" clears it. No database yet.
