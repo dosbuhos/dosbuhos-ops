@@ -180,6 +180,7 @@ export async function clubPublic(request, env, url, staffRole) {
     return see(`/c/${code}?ok=cancelada`);
   }
   if (rest === '/compra' && m === 'POST') return receipt(request, env, person);
+  if (rest === '/ticket' && m === 'POST') return ticketQR(request, env, person);
   if (rest === '/datos' && m === 'POST') return guestData(request, env, person);
   const wm = rest.match(/^\/wallet\/(apple|google)$/);
   if (wm && m === 'GET') return wallet(request, env, url, person, wm[1]);
@@ -215,6 +216,7 @@ async function cardPage(env, url, person, ua = '') {
     : ok === 'voy' ? `<div class="note ok"><b>Gracias por avisar.</b> El equipo ya sabe que vienes.</div>`
     : ok === 'cancelada' ? `<div class="note ok">Cancelamos tu aviso.</div>`
     : ok === 'compra' ? `<div class="note ok"><b>Recibimos tu compra.</b> El equipo la revisa y la suma a tu cuenta.</div>`
+    : ok === 'ticket' ? `<div class="note ok"><b>Recibimos tu ticket.</b> Lo confirmamos con el restaurante y se suma solo a tu tarjeta.</div>`
     : ok === 'datos' ? `<div class="note ok">Guardamos tus datos.</div>`
     : ok === 'wallet_error' ? `<div class="note bad">No pudimos preparar la tarjeta para tu cartera. Intenta más tarde; esta tarjeta funciona igual.</div>`
     : ok === 'wallet_off' ? `<div class="note warn">Esta opción todavía no está disponible. Usa esta tarjeta o agrégala a tu pantalla de inicio.</div>` : '';
@@ -236,7 +238,7 @@ async function cardPage(env, url, person, ua = '') {
   const annHtml = ann.results.length ? `<section><h2>Te esperamos</h2>${ann.results.map(a => `<div class="note upcoming"><b>${e(cap(dayWords(a.day)))}${a.time ? ' · ' + e(a.time) : ''}</b>
       <span class="small">${a.party_size} ${a.party_size === 1 ? 'persona' : 'personas'}${a.reservation_name ? ' · reservación a nombre de ' + e(a.reservation_name) : ''}</span>
       <form method="post" action="/c/${e(person.card_code)}/voy/${a.id}/cancelar"><button class="btn ghost sm" type="submit">Cancelar aviso</button></form></div>`).join('')}</section>` : '';
-  const pendHtml = pend.results.length ? `<section><h2>Tus compras</h2><ul class="benefits">${pend.results.map(x => `<li>${C.money(x.amount)} · ${e(C.CHANNELS[x.channel] || x.channel)}<span>${e(fmtShort(x.day))} · ${x.status === 'pending' ? 'en revisión' : x.status === 'approved' ? 'sumada a tu cuenta' : 'no la pudimos sumar; pregunta al equipo'}</span></li>`).join('')}</ul></section>` : '';
+  const pendHtml = pend.results.length ? `<section><h2>Tus compras</h2><ul class="benefits">${pend.results.map(x => `<li>${x.amount > 0 ? C.money(x.amount) : 'Ticket escaneado'} · ${e(C.CHANNELS[x.channel] || x.channel)}<span>${e(fmtShort(x.day))} · ${x.status === 'pending' ? 'en revisión' : x.status === 'approved' ? 'sumada a tu cuenta' : 'no la pudimos sumar; pregunta al equipo'}</span></li>`).join('')}</ul></section>` : '';
   const body = `${flash ? `<div id="flash">${flash.replace('</div>', '<button type="button" class="x" aria-label="Cerrar" onclick="this.closest(\'#flash\').remove()">×</button></div>')}</div>` : ''}
 ${memberCard(person, st, link, blocked)}
 ${blocked ? '' : walletButtons(env, person.card_code, ua)}
@@ -249,14 +251,19 @@ ${blocked ? '' : `<details id="reservar"><summary>Reservar mesa</summary><div>
   <p class="small" style="margin:6px 0 0">Reserva aquí con OpenTable. Al llegar, muestra tu tarjeta para tu descuento.</p>
   <div id="otw" class="otw"></div>
   <a class="btn ghost sm" href="${OT_TABLE_URL}" target="_blank" rel="noopener">Abrir en OpenTable</a></div></details>
-<details><summary>Sumar una compra</summary><div>
-  <p class="small" style="margin:6px 0 0">¿Compraste vino en tienda, en línea o en un restaurante de San Miguel? Sube tu ticket y lo sumamos a tu nivel.</p>
+<details id="ticket"${ok === 'ticket' ? ' open' : ''}><summary>Sumar mi ticket</summary><div>
+  <p class="small" style="margin:6px 0 0">Toma una foto del código QR de facturación de tu ticket de Dos Búhos. Nosotros leemos el total y la fecha; no tienes que escribir nada.</p>
+  <label class="btn" for="qrfile" style="margin-top:10px">Escanear el QR del ticket</label>
+  <input id="qrfile" type="file" accept="image/*" capture="environment" hidden>
+  <p class="small" id="qrmsg" role="status" style="margin:8px 0 0"></p>
+  <p class="small" style="margin:8px 0 0">Solo cuentas que tú pagaste, una por mesa.</p>
+  <details style="margin-top:10px"><summary class="small">¿Compraste vino en otro lugar?</summary><div>
   <form id="buy"><label>Monto (MXN)<input name="amount" inputmode="decimal" required placeholder="1,250"></label>
     <div class="two"><label>Fecha<input type="date" name="day" required max="${day}" min="${C.addDays(day, -90)}" value="${day}"></label>
-    <label>Dónde<select name="channel"><option value="tienda">Tienda</option><option value="en_linea">En línea</option><option value="restaurante">Restaurante</option><option value="experiencias">Experiencias</option><option value="punto_externo">Otro lugar</option></select></label></div>
+    <label>Dónde<select name="channel"><option value="en_linea">En línea</option><option value="punto_externo">Otro restaurante o tienda</option></select></label></div>
     <label>Foto del ticket<input type="file" name="photo" accept="image/*" capture="environment" required></label>
     <p class="err" id="buyerr" role="alert"></p>
-    <button class="btn" type="submit">Enviar compra</button></form></div></details>`}
+    <button class="btn" type="submit">Enviar compra</button></form></div></details></div></details>`}
 ${blocked ? '' : await datosHtml(env, person, st, ok)}
 <details${ok === 'nuevo' ? ' open' : ''}><summary>Agregar a pantalla de inicio</summary><div>
   <p style="margin:6px 0 0"><b>iPhone</b> (Safari)</p><ol class="how"><li>Toca el botón Compartir <span aria-hidden="true">⬆︎</span>.</li><li>Elige <b>Agregar a inicio</b>.</li></ol>
@@ -289,6 +296,23 @@ if (rv) rv.addEventListener('toggle', () => { const w = document.getElementById(
 addEventListener('resize', fitOT);
 const mc = document.getElementById('mc');
 if (mc) { const t = () => { const on = mc.classList.toggle('flip'); mc.setAttribute('aria-pressed', String(on)); }; mc.addEventListener('click', t); mc.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); t(); } }); }
+// "Sumar mi ticket": read the QR from a photo (BarcodeDetector where the phone has it, jsQR otherwise) and send only its text.
+const qf = document.getElementById('qrfile'), qm = document.getElementById('qrmsg');
+async function readQR(file) {
+  const bmp = await createImageBitmap(file);
+  if ('BarcodeDetector' in window) { try { const d = await new BarcodeDetector({ formats: ['qr_code'] }).detect(bmp); if (d[0]) return d[0].rawValue; } catch (_) {} }
+  if (!window.jsQR) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  for (const side of [1600, 1000, 700]) { const k = Math.min(1, side / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); const x = c.getContext('2d'); x.drawImage(bmp, 0, 0, c.width, c.height);
+    const r = window.jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height); if (r) return r.data; }
+  return null; }
+if (qf) qf.addEventListener('change', async () => { const file = qf.files[0]; if (!file) return; qm.textContent = 'Leyendo el código…';
+  try { const qr = await readQR(file); qf.value = '';
+    if (!qr) { qm.textContent = 'No pudimos leer el código. Acércate al QR, con buena luz, e intenta de nuevo.'; return; }
+    const r = await fetch(location.pathname.replace(/\\/$/, '') + '/ticket', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ qr }) });
+    const b = await r.json().catch(() => ({})); if (!r.ok) { qm.textContent = b.message || 'No se pudo enviar. Intenta de nuevo.'; return; }
+    location.href = location.pathname + '?ok=ticket';
+  } catch (x) { qm.textContent = 'No se pudo leer la foto. Intenta de nuevo.'; } });
 const f = document.getElementById('buy');
 if (f) f.addEventListener('submit', async ev => {
   ev.preventDefault();
@@ -449,6 +473,23 @@ async function receipt(request, env, person) {
   const r = await env.DB.prepare("INSERT INTO club_purchases (person_id, day, amount, channel, status, source, has_photo, created_by, created_at) VALUES (?, ?, ?, ?, 'pending', 'guest', 1, 'invitado', ?)")
     .bind(person.id, b.day, amount, channel, now).run();
   await env.DB.prepare('INSERT INTO club_photos (purchase_id, content_type, data, bytes, created_at) VALUES (?, ?, ?, ?, ?)').bind(r.meta.last_row_id, mm[1], mm[2], Math.round(mm[2].length * .75), now).run();
+  return J({ ok: true });
+}
+
+// "Sumar mi ticket": the guest's phone reads the Parrot factura QR and sends its text. We keep it as a pending
+// purchase (amount 0) until the Parrot sync looks the ticket up and fills in the real total and date.
+// One ticket, one card: the QR text is the key.
+async function ticketQR(request, env, person) {
+  if (person.status !== 'active') return J({ message: 'Esta tarjeta no está activa.' }, 403);
+  const b = await form(request);
+  const qr = String(b.qr || '').trim();
+  if (qr.length < 6 || qr.length > 1000) return J({ message: 'Ese código no parece de un ticket. Intenta con el QR de facturación.' }, 400);
+  const dup = await env.DB.prepare("SELECT person_id FROM club_purchases WHERE source = 'qr' AND note = ? AND status <> 'rejected' LIMIT 1").bind(qr).first();
+  if (dup) return J({ message: dup.person_id === person.id ? 'Este ticket ya está en tu tarjeta.' : 'Este ticket ya está registrado en otra tarjeta. Si es un error, avísanos.' }, 409);
+  const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM club_purchases WHERE person_id = ? AND status = 'pending'").bind(person.id).first();
+  if ((open?.n || 0) >= 10) return J({ message: 'Ya tienes 10 tickets por confirmar. Espera a que se confirmen.' }, 429);
+  await env.DB.prepare("INSERT INTO club_purchases (person_id, day, amount, channel, status, source, note, has_photo, created_by, created_at) VALUES (?, ?, 0, 'restaurante', 'pending', 'qr', ?, 0, 'invitado', ?)")
+    .bind(person.id, C.today(), qr, Date.now()).run();
   return J({ ok: true });
 }
 

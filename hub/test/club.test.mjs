@@ -266,6 +266,20 @@ test('register a visit: counts decrement per person, cannot overspend, undo with
 });
 
 // ---------- receipts and levels ----------
+test('"Sumar mi ticket": the scanned QR is kept once, per card; a second scan is recognized', async () => {
+  const { DB, call } = await setup();
+  const a = addPerson(DB, 'Ana QR', { programs: [] }), b = addPerson(DB, 'Beto QR', { programs: [] });
+  const qr = 'https://factura.parrot.rest/abc123XYZ';
+  assert.equal((await call(null, 'POST', `/c/${a.code}/ticket`, { qr })).status, 200);
+  const again = await call(null, 'POST', `/c/${a.code}/ticket`, { qr });
+  assert.equal(again.status, 409); assert.match(again.text, /ya está en tu tarjeta/);
+  const other = await call(null, 'POST', `/c/${b.code}/ticket`, { qr });
+  assert.equal(other.status, 409); assert.match(other.text, /otra tarjeta/);
+  assert.equal((await call(null, 'POST', `/c/${a.code}/ticket`, { qr: 'x' })).status, 400);
+  const card = await call(null, 'GET', `/c/${a.code}`);
+  assert.match(card.text, /Ticket escaneado/); assert.match(card.text, /Sumar mi ticket/);
+});
+
 test('level from spend: visits + approved receipts + subscription charges; pending and rejected receipts do not count', async () => {
   const { DB, call } = await setup();
   const g = addPerson(DB, 'Rita Recibos', { programs: [] });

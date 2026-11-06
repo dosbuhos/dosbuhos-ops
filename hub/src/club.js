@@ -733,7 +733,7 @@ async function hoy(env, url, user, admin, origin, day) {
     env.DB.prepare(`SELECT a.*, p.name, p.phone, p.vip AS pvip, p.staff_note FROM club_announcements a JOIN club_people p ON p.id = a.person_id WHERE a.day = ? AND a.cancelled_at IS NULL ORDER BY a.time = '', a.time`).bind(day).all(),
     env.DB.prepare(`SELECT v.*, p.name, p.vip AS pvip, p.staff_note, b.name AS brought_by_name FROM club_visits v JOIN club_people p ON p.id = v.person_id LEFT JOIN club_people b ON b.id = v.brought_by
       WHERE v.day = ? AND v.undone_at IS NULL ORDER BY v.created_at DESC`).bind(day).all(),
-    env.DB.prepare(`SELECT u.id, u.person_id, u.day, u.amount, u.channel, u.has_photo, u.created_at, p.name FROM club_purchases u JOIN club_people p ON p.id = u.person_id WHERE u.status = 'pending' ORDER BY u.created_at`).all(),
+    env.DB.prepare(`SELECT u.id, u.person_id, u.day, u.amount, u.channel, u.has_photo, u.created_at, p.name FROM club_purchases u JOIN club_people p ON p.id = u.person_id WHERE u.status = 'pending' AND u.source <> 'qr' ORDER BY u.created_at`).all(),
     env.DB.prepare(`SELECT r.id, r.phone, r.reason, r.created_at, p.id AS person_id, p.name, p.card_code FROM club_card_requests r JOIN club_people p ON p.id = r.person_id WHERE r.handled_at IS NULL ORDER BY r.created_at`).all(),
     admin ? env.DB.prepare(`SELECT m.id, m.person_id, m.program_id, m.created_at, p.name, p.phone, p.pro_type, g.name AS program FROM club_memberships m JOIN club_people p ON p.id = m.person_id
       JOIN club_programs g ON g.id = m.program_id WHERE m.status = 'pending' ORDER BY m.created_at`).all() : { results: [] },
