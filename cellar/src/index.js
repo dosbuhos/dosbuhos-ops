@@ -29,7 +29,7 @@ export default {
     // Staging preview (the `staging` branch published by Workers Builds at <branch>-cellar.<sub>.workers.dev): same data and
     // secrets as production, so it is READ-ONLY — every save is refused here, the app shows as viewer, and a banner says so.
     // Production hosts (cellar.dos-buhos.workers.dev, the Hub) never match, so this is a no-op if it ever reaches main.
-    const preview = /^[a-z0-9-]+-cellar\./i.test(url.hostname);
+    const preview = env.PREVIEW === '1' || /^[a-z0-9-]+-cellar\./i.test(url.hostname); // PREVIEW var: set in wrangler.jsonc "previews"
     if (preview) {
       env = Object.assign({}, env, { STAGING: '1', PREVIEW: '1' });
       if (!/^(GET|HEAD)$/.test(request.method) && !p.startsWith('/auth/'))

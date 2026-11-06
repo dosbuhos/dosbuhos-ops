@@ -19,6 +19,23 @@
     "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
     "AI_MODEL": "claude-sonnet-5-5"
   },
+  // Worker Previews (`npx wrangler preview`, run by Workers Builds for the `staging` branch → staging-cellar.dos-buhos.workers.dev):
+  // the REAL data, read-only. src/index.js refuses every save on *-cellar.* hosts and opens the app as viewer.
+  // Preview secrets (dashboard → cellar → Settings → Previews, or `npx wrangler preview secret put NAME`):
+  // GOOGLE_CLIENT_SECRET (same OAuth client), SESSION_SECRET (any long random string), ALLOWED_EMAILS and ADMIN_EMAILS (Eric only).
+  // Optional: GOOGLE_SA_JSON for the work-order/Excellovint screens (reads only; writes are refused anyway).
+  "previews": {
+    "vars": {
+      "PUBLIC": "0",
+      "STAGING": "1",
+      "PREVIEW": "1",
+      "SHEET_ID": "1DFvcD1i73vaVQqjw05vBnqmX_sYd9xTZze5H7ImGqsU",
+      "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
+      "AI_MODEL": "claude-sonnet-5-5"
+    },
+    "d1_databases": [{ "binding": "DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42" }],
+    "r2_buckets": [{ "binding": "LABS", "bucket_name": "cellar-labs" }]
+  },
   // Staging copy (cellar-staging): its own D1 + R2, no crons, never writes to Google Sheets (SHEETS_MOCK), only Eric signs in.
   // Deployed from the `staging` branch with: npx wrangler deploy --env staging. Data refresh: POST /api/staging/seed (admin).
   "env": {
