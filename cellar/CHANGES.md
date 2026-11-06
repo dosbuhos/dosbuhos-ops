@@ -21,6 +21,7 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
 ## 2026-11-06 (afternoon) — Lista on phones rebuilt, slimmer gutters
+- Barrel card from the Lista: phone Back closes the card (was leaving the app); × is a quiet 38px round button aligned with the barrel number; card fills the screen width on phones · v1.12.3 · cellar-room.js, barricas.html
 - Lista opens on "Con vino" (not every barrel incl. empties) · Eric · cellar-room.js
 - Lista rows on phones (v1.12.2, replaces the ▾ version): two dense lines — "BBL 039 ● Aglianico 2026  📍9.3" / "Relleno tarde 44 d · SO₂ 12  Darnajou · Francesa · 2019" (tonelería wraps to a 3rd line only on very narrow screens); no ▾, tapping the row opens the card · Eric found the details panel not useful · cellar-room.js/css
 - (superseded) Lista rows on phones: one information column — "BBL 083 · Aglianico 2026", tonelería (cooperage · wood · year), SO₂ (value + age, red when low) and relleno (red when late); ▾ opens location, añada, barrel details, last maintenance, notes and "Abrir tarjeta" in place · location moved into the details · cellar-room.js/css

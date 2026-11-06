@@ -173,7 +173,8 @@ body.bopen .facecol{min-height:calc(100dvh - 16px)}.facecol{scroll-margin-top:8p
 .bnum{font:700 34px/1 var(--f-m);letter-spacing:-.02em;padding:8px 10px;border-radius:10px;background:var(--c);color:var(--ci);min-width:74px;text-align:center}
 .bwho{min-width:0;display:flex;flex-direction:column;gap:5px}.bwho h3{font:700 20px/1.15 var(--f-b);margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font:600 12px var(--f-b);padding:2px 8px;border-radius:12px;border:1.5px solid var(--b,var(--line));color:var(--b,var(--ink))}.chip.pos{border-color:var(--ink);font-family:var(--f-m)}
-.bh .x{position:absolute;right:0;top:0;padding:2px 9px;font-size:18px}
+.bh .x{position:absolute;right:-4px;top:-4px;width:38px;height:38px;padding:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--soft);font:400 24px/1 var(--f-b);display:flex;align-items:center;justify-content:center}
+.bh .x::after{content:"";position:absolute;inset:-4px}.bh .x:active{background:color-mix(in srgb,var(--ink) 14%,transparent)}
 .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tile{border-radius:9px;padding:8px 10px;background:var(--paper);display:flex;flex-direction:column;gap:1px;border-top:4px solid var(--line)}
 .tile small{font:700 10px var(--f-b);text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}
@@ -278,7 +279,7 @@ body{padding-block:6px 28px}
 .bmtools{display:flex;justify-content:flex-end;max-width:900px;margin:0 auto 6px}
 .bmtools button{font-size:13px;padding:7px 12px}
 body.cardonly .bmtools,body.cardonly .mmcol,body.cardonly .edges,body.cardonly .wall,body.cardonly .secfoot,body.cardonly .totop{display:none!important}
-body.cardonly{padding-block:0 20px}body.cardonly .facecol{border:0;padding:0;background:none;min-height:0!important}
+body.cardonly{padding-block:0 20px}@media (max-width:600px){body.cardonly{padding-left:0;padding-right:0}}body.cardonly .facecol{border:0;padding:0;background:none;min-height:0!important}
 body.cardonly .facecol .bcard{margin:0;border:0;border-radius:0}
 .chip.warn{border-color:var(--warn);color:var(--warn)}
 #dbst:empty{display:none}
@@ -358,7 +359,7 @@ html.embedmap body.bopen .facecol{min-height:0}
 @media (max-width:600px){
   .tplus{width:36px;height:36px;top:4px;right:4px;font-size:22px}.tplus::after{content:"";position:absolute;inset:-5px}
   .tile:has(.tplus) small{min-height:36px;padding-right:38px}
-  .bc2 .x,#qax .qx{min-width:44px;min-height:44px}
+  #qax .qx{min-width:44px;min-height:44px}
   .bh{padding-right:50px}.wpick{position:relative}.wpick::after{content:"";position:absolute;inset:-11px -6px}
   /* two wide tiles read better than three narrow ones; the barrel's age and toast go on the line under the card */
   .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles>.tile.na:last-child{display:none}

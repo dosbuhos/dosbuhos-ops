@@ -332,9 +332,11 @@
   // ---------- the barrel card (same page as the map: /barricas.html?b=NNN) ----------
   function openCard(id, tab) {
     const b = C.barrels.find(x => x.id === id); if (!b) return;
-    let d = $('#crCard'); if (!d) { d = document.createElement('dialog'); d.id = 'crCard'; d.className = 'cr-card'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); d.addEventListener('close', () => { d.innerHTML = ''; if (C.dirty) { C.dirty = false; refresh(); } }); }
+    let d = $('#crCard'); if (!d) { d = document.createElement('dialog'); d.id = 'crCard'; d.className = 'cr-card'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); d.addEventListener('close', () => { d.innerHTML = ''; if (d.dataset.hist === '1') { d.dataset.hist = ''; try { history.back(); } catch (e) {} } if (C.dirty) { C.dirty = false; refresh(); } });
+      // the phone's Back button closes the card instead of leaving the app
+      window.addEventListener('popstate', () => { if (d.open) { d.dataset.hist = ''; d.close(); } }); }
     d.innerHTML = `<iframe title="Barrica ${esc(bn(b.code))}" src="/barricas.html?b=${encodeURIComponent(b.code)}${tab ? '&tab=' + tab : ''}"></iframe>`;
-    if (!d.open) d.showModal();
+    if (!d.open) { d.showModal(); try { history.pushState({ crCard: id }, ''); d.dataset.hist = '1'; } catch (e) {} }
   }
   let mapFrame = null;
   // One scroll for the whole page: the map frame is as tall as its content, and is told which part of it is on screen.
