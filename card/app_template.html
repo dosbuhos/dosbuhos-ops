@@ -53,8 +53,29 @@
   .bar button{background:none;border:0;color:var(--dim);font:inherit;letter-spacing:inherit;cursor:pointer;padding:10px 0}
   .bar button.on{color:var(--ink)}
   .bar .lang{display:flex;gap:16px}
-  header{text-align:center;padding:22px 0 6px}
-  header img.logo{width:200px;height:auto;display:block;margin:0 auto 26px}
+  header{text-align:center;padding:14px 0 0}
+  header .hero{position:relative;height:min(40vh,320px);margin:0 -20px;overflow:hidden;background:var(--card)}
+  header .hero > img:first-child{width:100%;height:100%;object-fit:cover;object-position:center 58%;display:block}
+  header .hero .fade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,10,.45) 0%,rgba(10,10,10,0) 38%,rgba(10,10,10,.55) 72%,var(--bg) 100%)}
+  header .hero img.logo{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:200px;height:auto;filter:drop-shadow(0 2px 10px rgba(0,0,0,.6))}
+  header .tag{margin-top:6px}
+  header .cue{margin-top:16px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:6px}
+  header .cue i{width:9px;height:9px;border-right:1px solid var(--dim);border-bottom:1px solid var(--dim);transform:rotate(45deg);animation:cue 2s ease-in-out infinite}
+  @keyframes cue{0%,100%{transform:translateY(0) rotate(45deg);opacity:.45}50%{transform:translateY(5px) rotate(45deg);opacity:1}}
+  button.btn{background:none;font-family:inherit;font-weight:inherit;cursor:pointer}
+  #save{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;z-index:40;align-items:flex-end;justify-content:center}
+  #save.on{display:flex}
+  #save .sheet{width:100%;max-width:560px;background:var(--card);border-top:1px solid var(--line);padding:18px 20px calc(var(--sab) + 22px)}
+  #save .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  #save .sh b{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24px}
+  #save .sh .x{background:none;border:0;color:var(--dim);font-size:18px;cursor:pointer;padding:6px}
+  #save .opt{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:var(--ink);font-family:inherit;font-weight:300;padding:14px 0;cursor:pointer}
+  #save .opt.static{cursor:default}
+  #save .opt[hidden]{display:none}
+  #save .opt b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:20px;line-height:1.15}
+  #save .opt span{display:block;font-size:13.5px;color:var(--dim);margin-top:3px;word-break:break-all}
+  #save .opt svg{vertical-align:-2px;margin:0 1px}
+  #save .note{border-top:1px solid var(--line);padding-top:12px;font-size:12.5px;color:var(--dim)}
   header .who{margin-top:18px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--warm)}
   header .who:empty{display:none}
   header .tag{margin-top:0;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19px;color:var(--dim)}
@@ -204,16 +225,17 @@
     </div>
 
     <header>
-      <img class="logo" src="/icons/logo.png" alt="Dos Búhos">
+      <div class="hero"><img src="/photos/harvest.jpg" alt=""><div class="fade"></div><img class="logo" src="/icons/logo.png" alt="Dos Búhos"></div>
       <div class="tag"><span class="en">Certified organic wine at 6,500 feet</span><span class="es">Vino orgánico certificado a 2,000 metros</span></div>
       <div class="who" id="p-who"></div>
+      <div class="cue"><span class="en">Scroll for more</span><span class="es">Desliza para ver más</span><i></i></div>
     </header>
 
     <div class="row">
       <a class="btn solid full" id="p-vcf" href="/vcf/dosbuhos.vcf" download><span class="en">Save contact</span><span class="es">Guardar contacto</span></a>
       <a class="btn" id="p-wa" href="#">WhatsApp</a>
       <a class="btn" id="p-mail" href="#">Email</a>
-      <a class="btn warm full" href="__OPENTABLE__"><span class="en">Reserve a table · OpenTable</span><span class="es">Reservar mesa · OpenTable</span></a>
+      <button class="btn warm full" id="p-save" onclick="openSave()"><span class="en">Save this page</span><span class="es">Guardar esta página</span></button>
     </div>
 
     <div class="menu">
@@ -359,6 +381,18 @@
   </div>
 </div>
 
+<div id="save" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="sheet">
+    <div class="sh"><b class="en">Save this page</b><b class="es">Guardar esta página</b><button class="x" onclick="document.getElementById('save').classList.remove('on')">✕</button></div>
+    <button class="opt" id="s-install" hidden onclick="doInstall()"><b class="en">Add to Home Screen</b><b class="es">Añadir a pantalla de inicio</b><span class="en">Opens like an app, works offline</span><span class="es">Se abre como app, funciona sin conexión</span></button>
+    <div class="opt static" id="s-ios" hidden><b class="en">Add to Home Screen or Bookmarks</b><b class="es">Añadir a inicio o a favoritos</b><span class="en">In Safari, tap Share <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> at the bottom, then “Add to Home Screen” or “Add Bookmark”.</span><span class="es">En Safari, toca Compartir <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> abajo y luego “Añadir a pantalla de inicio” o “Añadir marcador”.</span></div>
+    <div class="opt static" id="s-android" hidden><b class="en">Add to Home screen</b><b class="es">Añadir a pantalla de inicio</b><span class="en">In Chrome, tap ⋮ at the top right, then “Add to Home screen”.</span><span class="es">En Chrome, toca ⋮ arriba a la derecha y luego “Añadir a pantalla de inicio”.</span></div>
+    <button class="opt" id="s-share" onclick="doShare()"><b class="en">Send the link to yourself</b><b class="es">Enviarte el enlace</b><span class="en">By message, mail or notes</span><span class="es">Por mensaje, correo o notas</span></button>
+    <button class="opt" id="s-copy" onclick="doCopy(this)"><b class="en">Copy link</b><b class="es">Copiar enlace</b><span class="en" id="s-url"></span><span class="es" id="s-url2"></span></button>
+    <p class="note"><span class="en">Saving the contact also keeps this link in the contact card.</span><span class="es">Al guardar el contacto, este enlace queda en la ficha del contacto.</span></p>
+  </div>
+</div>
+
 <div id="viewer" onclick="this.classList.remove('on')"><img id="v-img" alt=""><button class="x">✕</button></div>
 
 <script>
@@ -420,6 +454,22 @@ document.querySelectorAll('[data-car]').forEach(car => {
   car.addEventListener('scroll', () => { clearTimeout(car._t); car._t = setTimeout(upd, 60); }); upd();
 });
 // flip
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function pageURL(){ return location.origin + '/' + (who === 'dosbuhos' ? '' : who); }
+function openSave(){
+  const u = pageURL(); document.getElementById('s-url').textContent = u; document.getElementById('s-url2').textContent = u;
+  document.getElementById('s-install').hidden = !(installEvt && !standalone);
+  document.getElementById('s-ios').hidden = !(isIOS && !standalone);
+  document.getElementById('s-android').hidden = !(!isIOS && !installEvt && !standalone && /Android/.test(navigator.userAgent));
+  document.getElementById('s-share').hidden = !navigator.share;
+  document.getElementById('save').classList.add('on');
+}
+async function doInstall(){ if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch(e){} installEvt = null; document.getElementById('save').classList.remove('on'); }
+async function doShare(){ try { await navigator.share({ title: document.title, text: P.name + ' · Bodega Dos Búhos', url: pageURL() }); } catch(e){} }
+async function doCopy(btn){ try { await navigator.clipboard.writeText(pageURL()); btn.querySelector('b.en').textContent = 'Copied'; btn.querySelector('b.es').textContent = 'Copiado'; setTimeout(() => { btn.querySelector('b.en').textContent = 'Copy link'; btn.querySelector('b.es').textContent = 'Copiar enlace'; }, 1800); } catch(e){ prompt('Link', pageURL()); } }
 function openPage(){ document.documentElement.classList.add('open'); window.scrollTo(0,0); try{ history.replaceState(null,'',location.pathname + '#page'); }catch(e){} }
 function closePage(){ document.documentElement.classList.remove('open'); window.scrollTo(0,0); try{ history.replaceState(null,'',location.pathname); }catch(e){} }
 if (location.hash === '#page') document.documentElement.classList.add('open');

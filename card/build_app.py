@@ -24,7 +24,7 @@ LINKS = {
 }
 PEOPLE = {
     "dosbuhos": {"name": "Dos Búhos", "role": None, "first": "", "last": "", "title": "", "email": "reservaciones@dosbuhos.com", "whatsapp": WA_MAIN},
-    "eric":     {"name": "Eric Maycotte",     "role": {"en": "Owner · Winemaking team", "es": "Propietario · Equipo de vinificación"}, "first": "Eric", "last": "Maycotte", "title": "Owner", "email": "eric@dosbuhos.com", "whatsapp": WA_MAIN},
+    "eric":     {"name": "Eric Maycotte",     "role": {"en": "Owner · Winemaking team", "es": "Propietario · Equipo de vinificación"}, "first": "Eric", "last": "Maycotte", "title": "Owner", "email": "cabosari@dosbuhos.com", "whatsapp": "15127042059"},
     "diane":    {"name": "Diane Maycotte",    "role": {"en": "Winemaker", "es": "Enóloga"}, "first": "Diane", "last": "Maycotte", "title": "Winemaker", "email": "enologia@dosbuhos.com", "whatsapp": WA_MAIN},
     "higinio":  {"name": "Higinio Maycotte",  "role": {"en": "Grape grower · Founder", "es": "Viticultor · Fundador"}, "first": "Higinio", "last": "Maycotte", "title": "Grape grower", "email": "info@dosbuhos.com", "whatsapp": WA_MAIN},
     "melanie":  {"name": "Melanie Harris",    "role": {"en": "Head of Events & Community", "es": "Directora de Eventos y Comunidad"}, "first": "Melanie", "last": "Harris", "title": "Head of Events & Community", "email": "eventos@dosbuhos.com", "whatsapp": WA_MAIN},
@@ -161,7 +161,7 @@ os.makedirs(os.path.join(PUB, "press"), exist_ok=True)
 open(os.path.join(PUB, "press", "index.html"), "w", encoding="utf-8").write(press)
 
 # service worker
-precache = ["/", "/index.html", "/press/", "/press/index.html", "/icons/logo.png", "/icons/mono-dark.png", "/icons/mono-light.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"] + [f"/fonts/{f}" for f in os.listdir(os.path.join(PUB, "fonts"))] + \
+precache = ["/", "/index.html", "/press/", "/press/index.html", "/icons/logo.png", "/photos/harvest.jpg", "/icons/mono-dark.png", "/icons/mono-light.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"] + [f"/fonts/{f}" for f in os.listdir(os.path.join(PUB, "fonts"))] + \
            [f"/manifest-{k}.webmanifest" for k in PEOPLE] + [f"/vcf/{k}.vcf" for k in PEOPLE] + ["/" + p["f"] for p in PHOTOS]
 sw = """// Dos Búhos card — offline first, refresh in background
 const VERSION = 'v__VER__';
