@@ -18,8 +18,12 @@ const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), { 
 // Reads a secret that may be a plain Worker secret (string) or a Secrets Store binding (object with get()).
 async function secret(v) { try { return typeof v === 'string' ? v : (v && typeof v.get === 'function' ? (await v.get()) || '' : ''); } catch (e) { return ''; } }
 
+const DIAG = { binding: '', key: '', api: '' };   // last run, for ?html=1 debugging (never the key itself)
 async function aiNote(d, env) {
-  const apiKey = await secret(env.ANTHROPIC_API_KEY);
+  const v = env.ANTHROPIC_API_KEY;
+  DIAG.binding = v === undefined ? 'missing' : typeof v === 'string' ? 'string' : (v && typeof v.get === 'function' ? 'secrets-store' : typeof v);
+  let apiKey = '';
+  try { apiKey = await secret(v); DIAG.key = apiKey ? `ok(${apiKey.length})` : 'empty'; } catch (e) { DIAG.key = 'error: ' + (e && e.message); }
   if (!apiKey) return '';
   const facts = {
     cliente: d.cliente, evento: d.evento, fecha: d.fecha, hora: d.hora, invitados: d.pax,
@@ -38,11 +42,12 @@ async function aiNote(d, env) {
         messages: [{ role: 'user', content: 'Datos de la cotización (JSON):\n' + JSON.stringify(facts) }],
       }),
     });
-    if (!r.ok) return '';
+    DIAG.api = String(r.status);
+    if (!r.ok) { DIAG.api += ' ' + (await r.text()).slice(0, 200); return ''; }
     const j = await r.json();
     const txt = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join(' ').trim();
     return txt.length > 20 && txt.length < 700 ? txt : '';
-  } catch (e) { return ''; } finally { clearTimeout(t); }
+  } catch (e) { DIAG.api = 'error: ' + (e && e.message); return ''; } finally { clearTimeout(t); }
 }
 
 const safeName = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\- ]+/g, '').trim().slice(0, 60);
@@ -79,7 +84,7 @@ export default {
         const note = url.searchParams.get('noai') ? '' : await aiNote(d, env);
         stage = 'plantilla';
         const html = proposalHTML(d, url.origin, note);
-        if (url.searchParams.get('html')) return new Response(html, { headers: { 'content-type': 'text/html;charset=utf-8', 'x-note': note ? 'ai' : 'template' } });   // template preview
+        if (url.searchParams.get('html')) return new Response(html, { headers: { 'content-type': 'text/html;charset=utf-8', 'x-note': note ? 'ai' : 'template', 'x-ai-diag': encodeURIComponent(JSON.stringify(DIAG)) } });   // template preview
         if (!env.BROWSER) return new Response('Browser Rendering no está configurado (binding BROWSER).', { status: 500 });
         stage = 'navegador';
         const browser = await puppeteer.launch(env.BROWSER);
