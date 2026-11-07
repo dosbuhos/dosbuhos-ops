@@ -74,19 +74,27 @@ export default {
         if (ct.includes('application/json')) d = await request.json();
         else { const fd = await request.formData(); d = JSON.parse(String(fd.get('q') || '{}')); }
       } catch (e) { return new Response('Cotización inválida', { status: 400 }); }
-      const note = await aiNote(d, env);
-      const html = proposalHTML(d, url.origin, note);
-      if (url.searchParams.get('html')) return new Response(html, { headers: { 'content-type': 'text/html;charset=utf-8' } });   // template preview
-      if (!env.BROWSER) return new Response('Browser Rendering no está configurado (binding BROWSER).', { status: 500 });
-      const browser = await puppeteer.launch(env.BROWSER);
+      let stage = 'nota';
       try {
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
-        await page.evaluateHandle('document.fonts.ready');
-        const pdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
-        const name = `Dos Buhos - Propuesta${d.cliente ? ' - ' + safeName(d.cliente) : ''}.pdf`;
-        return new Response(pdf, { headers: { 'content-type': 'application/pdf', 'content-disposition': `inline; filename="${name}"`, 'cache-control': 'no-store' } });
-      } finally { await browser.close(); }
+        const note = url.searchParams.get('noai') ? '' : await aiNote(d, env);
+        stage = 'plantilla';
+        const html = proposalHTML(d, url.origin, note);
+        if (url.searchParams.get('html')) return new Response(html, { headers: { 'content-type': 'text/html;charset=utf-8', 'x-note': note ? 'ai' : 'template' } });   // template preview
+        if (!env.BROWSER) return new Response('Browser Rendering no está configurado (binding BROWSER).', { status: 500 });
+        stage = 'navegador';
+        const browser = await puppeteer.launch(env.BROWSER);
+        try {
+          const page = await browser.newPage();
+          await page.setContent(html, { waitUntil: 'networkidle0' });
+          await page.evaluateHandle('document.fonts.ready');
+          stage = 'pdf';
+          const pdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
+          const name = `Dos Buhos - Propuesta${d.cliente ? ' - ' + safeName(d.cliente) : ''}.pdf`;
+          return new Response(pdf, { headers: { 'content-type': 'application/pdf', 'content-disposition': `inline; filename="${name}"`, 'cache-control': 'no-store', 'x-note': note ? 'ai' : 'template' } });
+        } finally { try { await browser.close(); } catch (e) {} }
+      } catch (e) {
+        return new Response(`No se pudo generar el PDF (${stage}): ${e && e.message ? e.message : e}\n\nInténtalo de nuevo en un momento; si persiste, avísale a Eric.`, { status: 500, headers: { 'content-type': 'text/plain;charset=utf-8' } });
+      }
     }
 
     if (!ok && (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/sw.js')) {
