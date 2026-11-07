@@ -37,7 +37,7 @@ async function aiNote(d, env) {
       method: 'POST', signal: ctrl.signal,
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: env.AI_MODEL || 'claude-haiku-5-5', max_tokens: 300,
+        model: env.AI_MODEL || 'claude-haiku-5-5', max_tokens: 220,
         system: 'Escribes la nota de apertura de una propuesta de evento de Bodega Dos Búhos, viñedo orgánico certificado y restaurante en San Miguel de Allende. Voz: cálida, concreta, de la casa; como quien recibe a un amigo. Sin superlativos, sin adjetivos de relleno, sin frases de marketing, sin emojis, sin signos de exclamación. Español de México, trato de usted. Entre dos y tres frases, máximo 70 palabras, un solo párrafo, sin encabezado ni despedida. Menciona uno o dos elementos concretos de la cotización (el espacio, el menú, la barra o el recorrido) y, si hay nombre, dirígete al cliente por su nombre.',
         messages: [{ role: 'user', content: 'Datos de la cotización (JSON):\n' + JSON.stringify(facts) }],
       }),
@@ -45,8 +45,11 @@ async function aiNote(d, env) {
     DIAG.api = String(r.status);
     if (!r.ok) { DIAG.api += ' ' + (await r.text()).slice(0, 200); return ''; }
     const j = await r.json();
-    const txt = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join(' ').trim();
-    return txt.length > 20 && txt.length < 700 ? txt : '';
+    let txt = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join(' ').replace(/\s+/g, ' ').trim();
+    txt = txt.replace(/^["“«]|["”»]$/g, '').trim();
+    if (txt.length > 620) { const cut = txt.slice(0, 620).lastIndexOf('. '); txt = cut > 200 ? txt.slice(0, cut + 1) : txt; }   // keep it to a cover-sized paragraph
+    DIAG.api += ` len=${txt.length}`;
+    return txt.length > 20 ? txt : '';
   } catch (e) { DIAG.api = 'error: ' + (e && e.message); return ''; } finally { clearTimeout(t); }
 }
 
