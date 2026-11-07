@@ -15,8 +15,12 @@ function cookie(req, name) { const m = (req.headers.get('cookie') || '').match(n
 const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', ...extra } });
 
 // Opening note for the cover. With ANTHROPIC_API_KEY set, Claude writes 2–3 plain sentences from the quote; otherwise the template.
+// Reads a secret that may be a plain Worker secret (string) or a Secrets Store binding (object with get()).
+async function secret(v) { try { return typeof v === 'string' ? v : (v && typeof v.get === 'function' ? (await v.get()) || '' : ''); } catch (e) { return ''; } }
+
 async function aiNote(d, env) {
-  if (!env.ANTHROPIC_API_KEY) return '';
+  const apiKey = await secret(env.ANTHROPIC_API_KEY);
+  if (!apiKey) return '';
   const facts = {
     cliente: d.cliente, evento: d.evento, fecha: d.fecha, hora: d.hora, invitados: d.pax,
     espacio: d.space?.est ? 'la hacienda completa en exclusiva' : d.space?.name, horas: d.space?.hrs,
@@ -27,7 +31,7 @@ async function aiNote(d, env) {
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', signal: ctrl.signal,
-      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: env.AI_MODEL || 'claude-haiku-5-5', max_tokens: 300,
         system: 'Escribes la nota de apertura de una propuesta de evento de Bodega Dos Búhos, viñedo orgánico certificado y restaurante en San Miguel de Allende. Voz: cálida, concreta, de la casa; como quien recibe a un amigo. Sin superlativos, sin adjetivos de relleno, sin frases de marketing, sin emojis, sin signos de exclamación. Español de México, trato de usted. Entre dos y tres frases, máximo 70 palabras, un solo párrafo, sin encabezado ni despedida. Menciona uno o dos elementos concretos de la cotización (el espacio, el menú, la barra o el recorrido) y, si hay nombre, dirígete al cliente por su nombre.',
