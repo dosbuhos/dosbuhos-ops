@@ -94,7 +94,8 @@ export default {
         const browser = await puppeteer.launch(env.BROWSER);
         try {
           const page = await browser.newPage();
-          await page.setContent(html, { waitUntil: 'networkidle0' });
+          page.setDefaultNavigationTimeout(20000);
+          await page.setContent(html, { waitUntil: 'load' });   // everything is inline (fonts, logos, photos): no network needed
           await page.evaluateHandle('document.fonts.ready');
           stage = 'pdf';
           const pdf = await page.pdf({ format: 'letter', printBackground: true, preferCSSPageSize: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });

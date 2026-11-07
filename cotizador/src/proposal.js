@@ -1,6 +1,7 @@
 // Proposal PDF template — three Letter pages rendered by Browser Rendering (see worker.js /pdf).
 // Takes the quote the app computed (public/index.html → proposalData()) and returns a self-contained HTML document.
-import { FONT_CSS, LOGO_DARK, LOGO_LIGHT } from './assets.js';
+import { FONT_CSS, LOGO_DARK, LOGO_LIGHT, PHOTOS } from './assets.js';
+const photo = f => PHOTOS[f] || '';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const para = s => esc(s).split(/\n\s*\n/).filter(Boolean).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
@@ -25,9 +26,9 @@ export function introText(d) {
 export function proposalHTML(d, base, note) {
   const sp = SPACE[d.space?.key] || null;
   const isBoda = /boda|wedding|matrimonio/i.test(d.evento || '');
-  const cover = `${base}/img/${isBoda ? 'wedding-toast.jpg' : 'hacienda.jpg'}`;
+  const cover = photo(isBoda ? 'wedding-toast.jpg' : 'hacienda.jpg');
   const used = new Set([isBoda ? 'wedding-toast.jpg' : 'hacienda.jpg', sp ? sp.photo : '']);
-  const pick = (...cands) => { const c = cands.find(x => !used.has(x)); used.add(c); return `${base}/img/${c}`; };
+  const pick = (...cands) => { const c = cands.find(x => !used.has(x)); used.add(c); return photo(c); };
   const title = d.cliente || d.evento || 'Su evento';
   const sub = [d.evento && d.cliente ? d.evento : '', d.fecha, d.hora, d.pax ? `${d.pax} invitados` : ''].filter(Boolean).join('  ·  ');
   const hasTour = (d.it || []).some(r => /recorrido/i.test(r[1]));
@@ -149,7 +150,7 @@ h3{font-size:14pt;color:#5c1e33;margin:.24in 0 .1in}
     <div class="it">${(d.it || []).length ? d.it.map(([t, h, x]) => `<div class="t">${esc(t)}&nbsp;</div><div class="d"><b>${esc(h)}</b><span>${esc(x)}</span></div>`).join('') : `<div class="t">&nbsp;</div><div class="d"><span>Afinamos juntos el menú, la barra y los tiempos.</span></div>`}</div>
     <h2 style="margin-top:0">El espacio<small>${esc(sp ? sp.name : 'Por definir')}</small></h2>
     <div class="spc">
-      <div><div class="im" style="background-image:url('${base}/img/${sp ? sp.photo : (hasTour ? 'recorrido.jpg' : 'hacienda.jpg')}')"></div><div class="cap">${esc(sp ? sp.cap : 'Bodega Dos Búhos')}</div></div>
+      <div><div class="im" style="background-image:url('${photo(sp ? sp.photo : (hasTour ? 'recorrido.jpg' : 'hacienda.jpg'))}')"></div><div class="cap">${esc(sp ? sp.cap : 'Bodega Dos Búhos')}</div></div>
       <div>${para(d.space?.text || 'Elegimos juntos el espacio que mejor le vaya a su grupo: la Bodega de Arte, el Winegarden o una mesa en nuestro restaurante.')}
         ${incl.length ? `<div class="inc">${incl.map(x => `<div>${esc(x)}</div>`).join('')}</div>` : ''}</div>
     </div>
