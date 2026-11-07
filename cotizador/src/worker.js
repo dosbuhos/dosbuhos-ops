@@ -45,6 +45,7 @@ async function aiNote(d, env) {
     DIAG.api = String(r.status);
     if (!r.ok) { DIAG.api += ' ' + (await r.text()).slice(0, 200); return ''; }
     const j = await r.json();
+    DIAG.shape = JSON.stringify({ type: j.type, stop: j.stop_reason, model: j.model, blocks: (j.content || []).map(c => c.type), err: j.error }).slice(0, 300);
     let txt = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join(' ').replace(/\s+/g, ' ').trim();
     txt = txt.replace(/^["“«]|["”»]$/g, '').trim();
     if (txt.length > 620) { const cut = txt.slice(0, 620).lastIndexOf('. '); txt = cut > 200 ? txt.slice(0, cut + 1) : txt; }   // keep it to a cover-sized paragraph
