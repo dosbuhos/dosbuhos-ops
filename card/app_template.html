@@ -245,6 +245,13 @@
   #ib .ib-t b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:18px}
   #ib #ib-go{background:#1a1a1a;color:#f5f0e8;border:0;font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:12px 14px;cursor:pointer}
   #ib .ib-x{background:none;border:0;color:#6b6358;font-size:16px;padding:6px;cursor:pointer}
+  #qzm{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center}
+  #qzm.on{display:flex}
+  #qzm .qzm-in{position:relative;width:100%;max-width:520px;max-height:92vh;max-height:92dvh;overflow:auto;padding-bottom:var(--sab,0px)}
+  #qzm .qz{margin:0;border:0;border-top:1px solid var(--line);padding:26px 20px 24px}
+  #qzm .qzm-x{position:absolute;top:10px;right:10px;z-index:2;background:none;border:0;color:var(--dim);font-size:18px;padding:10px;cursor:pointer}
+  @media (min-width:600px){ #qzm{align-items:center} #qzm .qz{border:1px solid var(--line)} }
+  button.btn{background:none;font:inherit;cursor:pointer;width:100%}
   .qz{margin-top:22px;padding:20px 18px 18px;border:1px solid var(--line);background:var(--card)}
   .qz h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24px}
   .qz-s{font-size:13.5px;color:var(--dim);margin-top:4px}
@@ -259,6 +266,7 @@
   .qz-n{font-size:13.5px;color:#cfc6b8;margin-top:12px;line-height:1.5}
   .qz-f{font-size:12px;color:var(--dim);margin:12px 0 14px;line-height:1.5}
   .dots.count{font-family:"Cormorant Garamond",Georgia,serif;font-size:16px;letter-spacing:.12em;color:var(--dim)}
+  .pl-img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;margin:4px 0 14px}
   .quotes{margin-top:18px;display:grid;gap:14px}
   .quotes blockquote{margin:0;padding:16px 18px;border-left:2px solid var(--warm);background:var(--card)}
   .quotes blockquote p{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;line-height:1.35;color:var(--ink)}
@@ -278,6 +286,25 @@
 </style>
 </head>
 <body>
+<div id="qzm" onclick="if(event.target===this)qzClose()"><div class="qzm-in">
+<button class="qzm-x" onclick="qzClose()" aria-label="close">✕</button>
+          <div class="qz" id="qz">
+            <h4 class="en">A quick estimate</h4><h4 class="es">Una estimación rápida</h4>
+            <p class="qz-s en">Three taps. Friday to Sunday, five hours, food and open wine bar.</p><p class="qz-s es">Tres toques. Viernes a domingo, cinco horas, comida y barra libre de vino.</p>
+            <div class="qz-l"><span class="en">1 · Guests</span><span class="es">1 · Invitados</span></div>
+            <div class="qz-c" data-k="pax"><button data-v="30">30</button><button data-v="50">50</button><button data-v="80">80</button><button data-v="120">120</button><button data-v="200">200</button></div>
+            <div class="qz-l"><span class="en">2 · Where</span><span class="es">2 · Dónde</span></div>
+            <div class="qz-c" data-k="sp"><button data-v="rest"><span class="en">Restaurant</span><span class="es">Restaurante</span></button><button data-v="bodega">Bodega de Arte</button><button data-v="garden">Winegarden</button></div>
+            <div class="qz-l"><span class="en">3 · Menu</span><span class="es">3 · Menú</span></div>
+            <div class="qz-c" data-k="m"><button data-v="es">Esencial</button><button data-v="se"><span class="en">Selección</span><span class="es">Selección</span></button><button data-v="re">Reserva</button></div>
+            <div class="qz-r" id="qz-r" hidden>
+              <div class="qz-t" id="qz-t"></div><div class="qz-pp" id="qz-pp"></div>
+              <div class="qz-n" id="qz-n"></div>
+              <p class="qz-f en">* An estimate, not a quote. Our events team confirms availability, the date and the final details before anything is booked.</p><p class="qz-f es">* Es una estimación, no una cotización. Nuestro equipo de eventos confirma disponibilidad, fecha y detalles finales antes de reservar.</p>
+              <a class="btn warm full" id="qz-go" target="_blank" rel="noopener"><span class="en">Send this to our events team</span><span class="es">Enviar a nuestro equipo de eventos</span></a>
+            </div>
+          </div>
+</div></div>
 <div id="stage">
 
   <!-- ================= CARD FRONT ================= -->
@@ -382,22 +409,7 @@
             <div class="slide"><img loading="lazy" src="/photos/custom-label.jpg" alt=""><h4 class="en">Your own label</h4><h4 class="es">Su propia etiqueta</h4><p class="en">Our wine, your label: a wedding date, a company, a thank-you. From 24 bottles, $499 each with tax included, and a gift that still means something a year later.</p><p class="es">Nuestro vino con su etiqueta: una fecha de boda, una empresa, un agradecimiento. Desde 24 botellas, $499 cada una con IVA incluido, y un regalo que sigue significando algo un año después.</p></div>
           </div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
-          <div class="qz" id="qz">
-            <h4 class="en">A quick estimate</h4><h4 class="es">Una estimación rápida</h4>
-            <p class="qz-s en">Three taps. Friday to Sunday, five hours, food and open wine bar.</p><p class="qz-s es">Tres toques. Viernes a domingo, cinco horas, comida y barra libre de vino.</p>
-            <div class="qz-l"><span class="en">1 · Guests</span><span class="es">1 · Invitados</span></div>
-            <div class="qz-c" data-k="pax"><button data-v="30">30</button><button data-v="50">50</button><button data-v="80">80</button><button data-v="120">120</button><button data-v="200">200</button></div>
-            <div class="qz-l"><span class="en">2 · Where</span><span class="es">2 · Dónde</span></div>
-            <div class="qz-c" data-k="sp"><button data-v="rest"><span class="en">Restaurant</span><span class="es">Restaurante</span></button><button data-v="bodega">Bodega de Arte</button><button data-v="garden">Winegarden</button></div>
-            <div class="qz-l"><span class="en">3 · Menu</span><span class="es">3 · Menú</span></div>
-            <div class="qz-c" data-k="m"><button data-v="es">Esencial</button><button data-v="se"><span class="en">Selección</span><span class="es">Selección</span></button><button data-v="re">Reserva</button></div>
-            <div class="qz-r" id="qz-r" hidden>
-              <div class="qz-t" id="qz-t"></div><div class="qz-pp" id="qz-pp"></div>
-              <div class="qz-n" id="qz-n"></div>
-              <p class="qz-f en">* An estimate, not a quote. Our events team confirms availability, the date and the final details before anything is booked.</p><p class="qz-f es">* Es una estimación, no una cotización. Nuestro equipo de eventos confirma disponibilidad, fecha y detalles finales antes de reservar.</p>
-              <a class="btn warm full" id="qz-go" target="_blank" rel="noopener"><span class="en">Send this to our events team</span><span class="es">Enviar a nuestro equipo de eventos</span></a>
-            </div>
-          </div>
+          <div class="row"><button class="btn full" onclick="qzOpen()"><span class="en">Quick estimate · 3 taps</span><span class="es">Estimación rápida · 3 toques</span></button></div>
           <div class="row"><a class="btn warm full" href="https://wa.me/__WA_EVENTS__"><span class="en">Ask for a quote · WhatsApp</span><span class="es">Cotizar · WhatsApp</span></a><a class="btn full" href="mailto:eventos@dosbuhos.com">eventos@dosbuhos.com</a></div>
         </div></div>
       </div>
@@ -426,6 +438,19 @@
             <div class="slide"><img loading="lazy" src="/photos/glasses.jpg" alt=""><h4 class="en">Choose your circle</h4><h4 class="es">Elige tu círculo</h4><p class="en">Pay by card, securely; we write to you to schedule the first case. Four shipments minimum in Bronce and Plata, six months in Oro; pause one a year (two in Oro). Círculo Diamante is by invitation.</p><p class="es">Paga con tarjeta de forma segura; te escribimos para agendar la primera caja. Mínimo de cuatro envíos en Bronce y Plata, seis meses en Oro; pausa uno al año (dos en Oro). El Círculo Diamante es por invitación.</p><div class="row"><a class="btn" href="https://buy.stripe.com/3cI28s5Ip6N758q2cq4800a" target="_blank" rel="noopener">Bronce</a><a class="btn" href="https://buy.stripe.com/14AeVe1s9fjD0Sa7wK48009" target="_blank" rel="noopener">Plata</a><a class="btn solid full" href="https://buy.stripe.com/8x2aEY1s9dbv1WedV848008" target="_blank" rel="noopener"><span class="en">Oro · our recommendation</span><span class="es">Oro · nuestra recomendación</span></a><a class="btn full" href="https://wa.me/__WA_MAIN__"><span class="en">Diamante · ask us by WhatsApp</span><span class="es">Diamante · pregúntanos por WhatsApp</span></a></div></div>
           </div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+        </div></div>
+      </div>
+
+      <!-- PRIVATE LABEL -->
+      <div class="acc" id="acc-pl">
+        <button class="acc-h" onclick="toggle('acc-pl')"><span class="t"><b class="en">Private label</b><b class="es">Etiqueta privada</b><span class="en">Our wine, your name on the bottle</span><span class="es">Nuestro vino, tu nombre en la botella</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <img class="pl-img" loading="lazy" src="/photos/custom-label.jpg" alt="">
+          <p class="en">For restaurants, hotels and companies that want a house wine with their own name on it. The wine is ours: certified organic, grown and made at the estate. We help choose the blend for your table, bottle it under your label and keep it in supply, in runs sized to what you actually pour.</p>
+          <p class="es">Para restaurantes, hoteles y empresas que quieren un vino de la casa con su propio nombre. El vino es nuestro: orgánico certificado, cultivado y hecho en la finca. Te ayudamos a elegir el vino para tu mesa, lo embotellamos con tu etiqueta y lo mantenemos en surtido, en tirajes a la medida de lo que realmente sirves.</p>
+          <p class="en">Every program is put together by hand, so there is no price list. Write to Eric and he'll walk you through it.</p>
+          <p class="es">Cada programa se arma a mano, así que no hay lista de precios. Escríbele a Eric y te lo explica.</p>
+          <div class="row"><a class="btn warm" href="https://wa.me/15127042059?text=Hola%20Eric%2C%20me%20gustar%C3%ADa%20saber%20m%C3%A1s%20del%20programa%20de%20etiqueta%20privada%20de%20Dos%20B%C3%BAhos.%20/%20Hi%20Eric%2C%20I%27d%20like%20to%20know%20more%20about%20the%20Dos%20B%C3%BAhos%20private%20label%20program." target="_blank" rel="noopener">WhatsApp · Eric</a><a class="btn" href="mailto:cabosari@dosbuhos.com?subject=Etiqueta%20privada%20%C2%B7%20Private%20label">Email</a></div>
         </div></div>
       </div>
 
@@ -580,6 +605,8 @@ function closeViewer(e){ if (e && e.target && (e.target.id === 'v-vid' || e.targ
     r.hidden = false;
   }
   window.qzRecalc = calc;
+  window.qzOpen = () => { document.getElementById('qzm').classList.add('on'); document.documentElement.style.overflow = 'hidden'; };
+  window.qzClose = () => { document.getElementById('qzm').classList.remove('on'); document.documentElement.style.overflow = ''; };
 })();
 const wc = document.getElementById('wine-car');
 const MXN = n => '$' + n.toLocaleString('en-US');
