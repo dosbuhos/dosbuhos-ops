@@ -59,8 +59,8 @@
   header .hero .fade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,10,.45) 0%,rgba(10,10,10,0) 38%,rgba(10,10,10,.55) 72%,var(--bg) 100%)}
   header .hero img.logo{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:200px;height:auto;filter:drop-shadow(0 2px 10px rgba(0,0,0,.6))}
   header .tag{margin-top:6px}
-  header .cue{margin-top:16px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:6px}
-  header .cue i{width:9px;height:9px;border-right:1px solid var(--dim);border-bottom:1px solid var(--dim);transform:rotate(45deg);animation:cue 2s ease-in-out infinite}
+  .cue{margin:26px 0 -10px;cursor:pointer;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:6px}
+  .cue i{width:9px;height:9px;border-right:1px solid var(--dim);border-bottom:1px solid var(--dim);transform:rotate(45deg);animation:cue 2s ease-in-out infinite}
   @keyframes cue{0%,100%{transform:translateY(0) rotate(45deg);opacity:.45}50%{transform:translateY(5px) rotate(45deg);opacity:1}}
   button.btn{background:none;font-family:inherit;font-weight:inherit;cursor:pointer}
   #save{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;z-index:40;align-items:flex-end;justify-content:center}
@@ -162,16 +162,40 @@
   .dots i.on{background:var(--warm)}
 
   /* wine cards */
-  .car.wines .slide{padding-right:20px}
-  .wcard{border:1px solid var(--warm);padding:22px 20px 20px;min-height:300px;display:flex;flex-direction:column;background:linear-gradient(180deg,#141210,#0d0c0b)}
-  .wcard .kind{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
-  .wcard h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:30px;line-height:1.05;margin-top:8px;letter-spacing:.01em}
-  .wcard .grape{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:17px;color:var(--dim);margin-top:4px}
-  .wcard p{font-size:14.5px;color:#d9d1c4;margin-top:14px;min-height:0}
-  .wcard .pair{font-size:13px;color:var(--dim);margin-top:10px}
-  .wcard .award{margin-top:auto;padding-top:14px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--warm)}
-  .wcard .num{position:absolute;right:38px;top:16px;font-family:"Cormorant Garamond",Georgia,serif;font-size:13px;color:var(--dim);letter-spacing:.1em}
-  .car.wines .slide{position:relative}
+  .car.wines .slide{padding-right:20px;position:relative}
+  .wcard{background:#f5f0e8;color:#1a1a1a;padding:18px 18px 16px;display:flex;flex-direction:column;min-height:300px}
+  .wcard .lab{height:168px;display:flex;align-items:center;justify-content:center;margin:0 -4px 14px}
+  .wcard .lab img{max-height:168px;max-width:100%;width:auto;object-fit:contain;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+  .wcard .lab.none{font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;color:#8a5138;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+  .wcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .wcard .kind{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#8a5138}
+  .wcard .num{font-family:"Cormorant Garamond",Georgia,serif;font-size:13px;color:#8d8477;letter-spacing:.1em;white-space:nowrap}
+  .wcard h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:26px;line-height:1.05;margin-top:6px;letter-spacing:.01em;color:#1a1a1a}
+  .wcard .grape{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:15.5px;color:#6b6045;margin-top:3px}
+  .wcard p{font-size:14px;line-height:1.5;color:#2b2420;margin-top:12px}
+  .wcard .medals{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;min-height:0}
+  .wcard .medals span{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6b6045;border:1px solid #d9cfb8;padding:5px 8px;border-radius:999px;background:#fbf8f2}
+  .wcard .medals span img{width:14px;height:14px;object-fit:contain}
+  .wcard .medals span.gg,.wcard .medals span.g{border-color:#c8a24a;color:#7a5a12}
+  .wcard .buy{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px;border-top:1px solid #e4dccb;margin-top:14px}
+  .wcard .price{font-family:"Cormorant Garamond",Georgia,serif;font-size:24px;color:#1a1a1a}
+  .wcard .price small{font-family:Lato,sans-serif;font-size:10px;letter-spacing:.2em;color:#8d8477;margin-left:6px}
+  .wcard .buy a{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#f5f0e8;background:#1a1a1a;padding:12px 16px;text-decoration:none}
+  .car.wines .slide .wcard{min-height:0}
+  .inc3{display:grid;gap:6px;margin-top:12px}
+  .inc3 span{font-size:13px;color:var(--ink);padding-left:16px;position:relative}
+  .inc3 span:before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;background:var(--warm);border-radius:50%}
+  .lvl{border:1px solid var(--line);padding:20px 18px 18px;background:var(--card)}
+  .lvl.oro{border-color:var(--warm)}
+  .lvl .k{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
+  .lvl h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:30px;line-height:1.05;margin-top:8px}
+  .lvl .cad{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:16px;color:var(--dim);margin-top:3px}
+  .lvl .pr{font-family:"Cormorant Garamond",Georgia,serif;font-size:34px;line-height:1;margin-top:14px;color:var(--ink)}
+  .lvl .pr small{display:block;font-family:Lato,sans-serif;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:6px}
+  .lvl ul{list-style:none;margin:14px 0 16px;display:grid;gap:8px}
+  .lvl li{font-size:13.5px;color:#d9d1c4;padding-left:16px;position:relative}
+  .lvl li:before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;background:var(--warm);border-radius:50%}
+  .lvl .btn{margin-top:4px}
   /* photo carousel */
   .car.photos img{aspect-ratio:4/3}
   .car.photos span{display:block;font-size:12px;letter-spacing:.06em;color:var(--dim);margin-top:8px}
@@ -230,7 +254,6 @@
         <img class="logo" src="/icons/logo.png" alt="Dos Búhos"></div>
       <div class="tag"><span class="en">Certified organic wine at 6,500 feet</span><span class="es">Vino orgánico certificado a 2,000 metros</span></div>
       <div class="who" id="p-who"></div>
-      <div class="cue"><span class="en">Scroll for more</span><span class="es">Desliza para ver más</span><i></i></div>
     </header>
 
     <div class="row">
@@ -239,6 +262,7 @@
       <a class="btn" id="p-mail" href="#">Email</a>
       <button class="btn warm full" id="p-save" onclick="openSave()"><span class="en">Save this page</span><span class="es">Guardar esta página</span></button>
     </div>
+    <div class="cue" onclick="document.querySelector('.menu').scrollIntoView({behavior:'smooth',block:'start'})"><span class="en">Scroll for more</span><span class="es">Desliza para ver más</span><i></i></div>
 
     <div class="menu">
 
@@ -311,11 +335,11 @@
 
       <!-- WINES -->
       <div class="acc" id="acc-wines">
-        <button class="acc-h" onclick="toggle('acc-wines')"><span class="t"><b class="en">The wines</b><b class="es">Los vinos</b><span class="en">Swipe through the cellar</span><span class="es">Recorre la bodega</span></span><span class="chev"></span></button>
+        <button class="acc-h" onclick="toggle('acc-wines')"><span class="t"><b class="en">The wines</b><b class="es">Los vinos</b><span class="en">Nineteen labels, with notes and prices</span><span class="es">Diecinueve etiquetas, con notas y precios</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
           <div class="car wines" data-car id="wine-car"></div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
-          <div class="row"><a class="btn full" href="__SHOP__"><span class="en">Buy wine · online store</span><span class="es">Comprar vino · tienda en línea</span></a><a class="btn" href="https://wa.me/__WA_SALES__"><span class="en">Order by WhatsApp</span><span class="es">Pedir por WhatsApp</span></a><a class="btn" href="__NOTES__"><span class="en">Tasting notes</span><span class="es">Notas de cata</span></a></div>
+          <div class="row"><a class="btn warm full" href="__SHOP__" target="_blank" rel="noopener"><span class="en">The whole cellar · online store</span><span class="es">Toda la bodega · tienda en línea</span></a></div>
           <p class="fine en">In the United States: imported by La Competencia; Texas through Casa 1524.</p>
           <p class="fine es">En Estados Unidos: importado por La Competencia; en Texas a través de Casa 1524.</p>
         </div></div>
@@ -323,17 +347,19 @@
 
       <!-- WINE CLUB -->
       <div class="acc" id="acc-club">
-        <button class="acc-h" onclick="toggle('acc-club')"><span class="t"><b>El Círculo Dos Búhos</b><span class="en">The wine club</span><span class="es">El club de vino</span></span><span class="chev"></span></button>
+        <button class="acc-h" onclick="toggle('acc-club')"><span class="t"><b>El Círculo Dos Búhos</b><span class="en">The wine club · what we drink at home</span><span class="es">El club de vino · lo que bebemos en casa</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
-          <div class="car" data-car>
-            <div class="slide"><img loading="lazy" src="/photos/grapes.jpg" alt=""><h4 class="en">First in line</h4><h4 class="es">Primero en la fila</h4><p class="en">Members get the allocated wines before anyone — the Aglianico among them — delivered to the door, plus tastings, the members' lounge and a place at the table when something special opens.</p><p class="es">Los socios reciben primero los vinos asignados — el Aglianico entre ellos — a domicilio, además de catas, el lounge de socios y un lugar en la mesa cuando se abre algo especial.</p></div>
+          <div class="car club" data-car>
+            <div class="slide"><img loading="lazy" src="/photos/bodega-arte.jpg" alt=""><h4 class="en">A place at our table</h4><h4 class="es">Un lugar en nuestra mesa</h4><p class="en">Every week we open the cellar: comparative tastings on Fridays, dinners, the harvest. The club is for people who like a good table and want a seat at ours. We send you what we drink at home, at member prices, and we keep you a place, for you and your guests, in the members' areas.</p><p class="es">Cada semana abrimos la bodega: catas comparativas los viernes, cenas, la vendimia. El club es para quienes disfrutan la buena mesa y quieren un lugar en la nuestra. Te mandamos lo que bebemos nosotros, a precio de socio, y te guardamos sitio, para ti y tus invitados, en las áreas de socios.</p><div class="inc3"><span class="en">Cases chosen by the winery</span><span class="es">Cajas curadas por la bodega</span><span class="en">Free delivery in San Miguel</span><span class="es">Envío sin costo en San Miguel</span><span class="en">Discounts on wine and the restaurant</span><span class="es">Descuento en vinos y restaurante</span></div></div>
+            <div class="slide"><div class="lvl"><div class="k"><span class="en">Three rhythms, the same table · 1 of 3</span><span class="es">Tres ritmos, la misma mesa · 1 de 3</span></div><h4>Círculo Bronce</h4><div class="cad"><span class="en">6 bottles every 3 months · 24 a year</span><span class="es">6 botellas cada 3 meses · 24 al año</span></div><div class="pr">$3,600 <small><span class="en">MXN / quarter · $600 a bottle</span><span class="es">MXN / trimestre · $600 por botella</span></small></div><ul><li><span class="en">15% off wine · 10% off the restaurant · 10% off events</span><span class="es">15% en vinos · 10% en restaurante · 10% en eventos</span></li><li><span class="en">4 courtesy tastings a year · Friday tastings at 20% off</span><span class="es">4 catas de cortesía al año · catas de los viernes al 20%</span></li><li><span class="en">3 Gran Reservas in your cases a year</span><span class="es">3 Gran Reservas en tus cajas al año</span></li><li><span class="en">Members' areas with your guests · a tasting on your birthday</span><span class="es">Áreas de socios con invitados · una cata en tu cumpleaños</span></li></ul><a class="btn solid full" href="https://buy.stripe.com/3cI28s5Ip6N758q2cq4800a" target="_blank" rel="noopener"><span class="en">Join Bronce</span><span class="es">Unirme a Bronce</span></a></div></div>
+            <div class="slide"><div class="lvl"><div class="k"><span class="en">Three rhythms, the same table · 2 of 3</span><span class="es">Tres ritmos, la misma mesa · 2 de 3</span></div><h4>Círculo Plata</h4><div class="cad"><span class="en">12 bottles every 3 months · 48 a year</span><span class="es">12 botellas cada 3 meses · 48 al año</span></div><div class="pr">$6,450 <small><span class="en">MXN / quarter · $538 a bottle</span><span class="es">MXN / trimestre · $538 por botella</span></small></div><ul><li><span class="en">20% off wine · 10% off the restaurant · 20% off events</span><span class="es">20% en vinos · 10% en restaurante · 20% en eventos</span></li><li><span class="en">8 courtesy tastings a year · harvest mornings included</span><span class="es">8 catas de cortesía al año · mañanas de vendimia incluidas</span></li><li><span class="en">10 Gran Reservas in your cases a year · launches a day early</span><span class="es">10 Gran Reservas en tus cajas al año · lanzamientos un día antes</span></li><li><span class="en">Members' areas with your guests · a tasting on your birthday</span><span class="es">Áreas de socios con invitados · una cata en tu cumpleaños</span></li></ul><a class="btn solid full" href="https://buy.stripe.com/14AeVe1s9fjD0Sa7wK48009" target="_blank" rel="noopener"><span class="en">Join Plata</span><span class="es">Unirme a Plata</span></a></div></div>
+            <div class="slide"><div class="lvl oro"><div class="k"><span class="en">Our recommendation · 3 of 3 · only 50 members</span><span class="es">Nuestra recomendación · 3 de 3 · solo 50 socios</span></div><h4>Círculo Oro</h4><div class="cad"><span class="en">6 bottles every month · 72 a year</span><span class="es">6 botellas cada mes · 72 al año</span></div><div class="pr">$3,200 <small><span class="en">MXN / month · $533 a bottle</span><span class="es">MXN / mes · $533 por botella</span></small></div><ul><li><span class="en">20% off wine · 10% off the restaurant · 30% off events</span><span class="es">20% en vinos · 10% en restaurante · 30% en eventos</span></li><li><span class="en">10 courtesy tastings · Friday tastings free · the barrel room twice a year</span><span class="es">10 catas de cortesía · catas de los viernes sin costo · sala de barricas dos veces al año</span></li><li><span class="en">14 Gran Reservas a year · one Aglianico and three Chenin held for you · launches a week early</span><span class="es">14 Gran Reservas al año · un Aglianico y tres Chenin apartados · lanzamientos una semana antes</span></li><li><span class="en">Two seats at Contemplo and the blending workshop · $5,000 credit at the pavilion · a tasting and a bottle on your birthday</span><span class="es">Dos lugares en Contemplo y en el taller de mezcla · $5,000 de crédito en el Pabellón · cata y botella en tu cumpleaños</span></li></ul><a class="btn solid full" href="https://buy.stripe.com/8x2aEY1s9dbv1WedV848008" target="_blank" rel="noopener"><span class="en">Join Oro</span><span class="es">Unirme a Oro</span></a></div></div>
+            <div class="slide"><img loading="lazy" src="/photos/glasses.jpg" alt=""><h4 class="en">Choose your circle</h4><h4 class="es">Elige tu círculo</h4><p class="en">Pay by card, securely; we write to you to schedule the first case. Four shipments minimum in Bronce and Plata, six months in Oro; pause one a year (two in Oro). Círculo Diamante is by invitation.</p><p class="es">Paga con tarjeta de forma segura; te escribimos para agendar la primera caja. Mínimo de cuatro envíos en Bronce y Plata, seis meses en Oro; pausa uno al año (dos en Oro). El Círculo Diamante es por invitación.</p><div class="row"><a class="btn" href="https://buy.stripe.com/3cI28s5Ip6N758q2cq4800a" target="_blank" rel="noopener">Bronce</a><a class="btn" href="https://buy.stripe.com/14AeVe1s9fjD0Sa7wK48009" target="_blank" rel="noopener">Plata</a><a class="btn solid full" href="https://buy.stripe.com/8x2aEY1s9dbv1WedV848008" target="_blank" rel="noopener"><span class="en">Oro · our recommendation</span><span class="es">Oro · nuestra recomendación</span></a><a class="btn full" href="https://wa.me/__WA_MAIN__"><span class="en">Diamante · ask us by WhatsApp</span><span class="es">Diamante · pregúntanos por WhatsApp</span></a></div></div>
           </div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
-          <div class="row"><a class="btn warm full" href="__CLUB__"><span class="en">Join El Círculo</span><span class="es">Unirme al Círculo</span></a></div>
         </div></div>
       </div>
 
-      <!-- RECOGNITION -->
       <div class="acc" id="acc-awards">
         <button class="acc-h" onclick="toggle('acc-awards')"><span class="t"><b class="en">Recognition</b><b class="es">Reconocimientos</b><span class="en">Brussels, Bacchus, Los Angeles — and the tables</span><span class="es">Bruselas, Bacchus, Los Ángeles — y las mesas</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
@@ -428,8 +454,10 @@ document.title = (who === 'dosbuhos' ? 'Dos Búhos' : P.name + ' · Dos Búhos')
 
 const WINES = __WINES_JS__;
 const wc = document.getElementById('wine-car');
+const MXN = n => '$' + n.toLocaleString('en-US');
 WINES.forEach((w, i) => { const d = document.createElement('div'); d.className = 'slide';
-  d.innerHTML = `<div class="wcard"><span class="num">${i+1} / ${WINES.length}</span><div class="kind"><span class="en">${w.kind_en}</span><span class="es">${w.kind_es}</span></div><h4>${w.name}</h4><div class="grape">${w.grape}</div><p><span class="en">${w.en}</span><span class="es">${w.es}</span></p>${w.pair_en ? `<div class="pair"><span class="en">${w.pair_en}</span><span class="es">${w.pair_es}</span></div>` : ''}${w.medal ? `<div class="award">${w.medal}</div>` : `<div class="award"></div>`}</div>`;
+  const medals = (w.awards || []).map(([t, ic]) => { const cls = /grand gold/i.test(t) ? 'gg' : /gold|oro/i.test(t) ? 'g' : ''; const icon = (ic === 'cmb' || ic === 'bacchus' || ic === 'la') ? `<img src="/icons/${ic}.png" alt="">` : ''; return `<span class="${cls}">${icon}${t}</span>`; }).join('');
+  d.innerHTML = `<div class="wcard">${w.label ? `<div class="lab"><img loading="lazy" src="/labels/${w.label}.jpg" alt="${w.name}"></div>` : `<div class="lab none">${w.name}</div>`}<div class="top"><div class="kind"><span class="en">${w.kind_en}</span><span class="es">${w.kind_es}</span></div><span class="num">${i+1} / ${WINES.length}</span></div><h4>${w.name}</h4><div class="grape">${w.grape}</div><p><span class="en">${w.en}</span><span class="es">${w.es}</span></p>${medals ? `<div class="medals">${medals}</div>` : ''}<div class="buy"><div class="price">${MXN(w.price)}<small>MXN</small></div><a href="${w.url}" target="_blank" rel="noopener"><span class="en">Buy</span><span class="es">Comprar</span></a></div></div>`;
   wc.appendChild(d); });
 const AWARDS = __AWARDS_JS__;
 const MEDAL = {gg:['Grand Gold','Gran Oro'],g:['Gold','Oro'],s:['Silver','Plata'],b:['Bronze','Bronce'],m:['CMB Merit','CMB Merit']};
@@ -466,7 +494,7 @@ document.querySelectorAll('[data-car]').forEach(car => {
 });
 // flip
 let installEvt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+window.addEventListener('beforeinstallprompt', e => { installEvt = e; });   // no preventDefault: Chrome shows its own install banner on first visit; the button reuses the event
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 function pageURL(){ return location.origin + '/' + (who === 'dosbuhos' ? '' : who); }
@@ -479,7 +507,7 @@ function openSave(){
   document.getElementById('s-share').hidden = !navigator.share;
   document.getElementById('save').classList.add('on');
 }
-async function doInstall(){ if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch(e){} installEvt = null; document.getElementById('save').classList.remove('on'); }
+async function doInstall(){ if (!installEvt) return; try { installEvt.prompt(); await installEvt.userChoice; } catch(e) { document.getElementById('s-install').hidden = true; document.getElementById('s-android').hidden = false; return; } installEvt = null; document.getElementById('save').classList.remove('on'); }
 async function doShare(){ try { await navigator.share({ title: document.title, text: P.name + ' · Bodega Dos Búhos', url: pageURL() }); } catch(e){} }
 async function doCopy(btn){ try { await navigator.clipboard.writeText(pageURL()); btn.querySelector('b.en').textContent = 'Copied'; btn.querySelector('b.es').textContent = 'Copiado'; setTimeout(() => { btn.querySelector('b.en').textContent = 'Copy link'; btn.querySelector('b.es').textContent = 'Copiar enlace'; }, 1800); } catch(e){ prompt('Link', pageURL()); } }
 function openPage(){ document.documentElement.classList.add('open'); window.scrollTo(0,0); try{ history.replaceState(null,'',location.pathname + '#page'); }catch(e){} }
