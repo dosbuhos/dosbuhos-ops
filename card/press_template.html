@@ -60,6 +60,11 @@
   .photos a{display:block;min-width:0;text-decoration:none}
   .photos img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--card)}
   .photos span{display:block;font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.3}
+  .photos .lr{display:inline-block;margin-top:5px;font-style:normal;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--warm);border:1px solid var(--line);padding:3px 6px}
+  .quotes{display:grid;gap:14px;margin-top:14px}
+  .quotes blockquote{margin:0;padding:14px 16px;border-left:2px solid var(--warm);background:var(--card)}
+  .quotes blockquote p{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;line-height:1.35}
+  .quotes cite{display:block;margin-top:8px;font-style:normal;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
   .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
   .btn{display:flex;align-items:center;justify-content:center;min-height:50px;padding:12px 14px;border:1px solid var(--ink);color:var(--ink);text-decoration:none;font-size:12px;letter-spacing:.2em;text-transform:uppercase;text-align:center}
   .btn.full{grid-column:1/-1}
@@ -149,6 +154,12 @@
     <h2 class="en">Recognition</h2><h2 class="es">Reconocimientos</h2>
     <p><span class="en">Every medal and score since 2021, newest first. The tables matter more than the medals: Pujol and Quintonil are Michelin-starred; the rest are rooms whose sommeliers chose us for their own lists.</span><span class="es">Todas las medallas y puntuaciones desde 2021, de la más reciente a la más antigua. Las mesas pesan más que las medallas: Pujol y Quintonil tienen estrella Michelin; el resto son salas cuyos sommeliers nos eligieron para sus cartas.</span></p>
     __AWARDS_TABLE__
+    <h3 class="en" style="margin-top:22px">What they've written</h3><h3 class="es" style="margin-top:22px">Lo que han escrito</h3>
+    <div class="quotes">
+      <blockquote><p class="en">Probably one of the best wineries in Mexico. While Valle de Guadalupe is the country's most acclaimed wine region, Dos Búhos sits in relatively unknown San Miguel de Allende, at 2,000 metres, farming sustainably and making wine with minimal intervention.</p><p class="es">Probablemente una de las mejores bodegas de México. Mientras que Valle de Guadalupe es la región vinícola más aclamada del país, Dos Búhos se encuentra en el relativamente desconocido San Miguel de Allende, a 2,000 metros, con agricultura sostenible y vinificación de mínima intervención.</p><cite>Robert Vernick · Wine Terroir</cite></blockquote>
+      <blockquote><p class="en">Some say San Miguel de Allende has some of the best soil for the vine in the whole country. This winery is the proof.</p><p class="es">Algunos aseguran que la región de San Miguel de Allende cuenta con uno de los suelos más idóneos para el cultivo de la vid de todo el país. Esta bodega es la prueba.</p><cite>Alejandra Naranjo · Food &amp; Wine</cite></blockquote>
+      <blockquote><p class="en">Dos Búhos is a dream and a collective journey: what began as a restlessness to create something tangible, unique and lasting opened the doors to this fascinating labyrinth of creativity, passion and diversity.</p><p class="es">Dos Búhos es un sueño y un viaje colectivo en donde lo que despertó hace tiempo como una inquietud para crear algo tangible, único y duradero, abrió las puertas a este fascinante laberinto de creatividad, pasión y diversidad.</p><cite>Arturo Bodenstedt · Guía de Vinos Mexicanos</cite></blockquote>
+    </div>
   </section>
 
   <section id="visit">
@@ -188,7 +199,7 @@
 <script>
   const PHOTOS = __PHOTOS__;
   const ph = document.getElementById("photo-grid");
-  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.target = '_blank'; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt=""><span><span class="en">${p.en}</span><span class="es">${p.es}</span></span>`; ph.appendChild(a); });
+  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.target = '_blank'; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
   function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
   try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
   function copyText(id, btn){ const t = document.getElementById(id).textContent; try { navigator.clipboard.writeText(t).then(() => { btn.textContent = document.documentElement.lang === 'es' ? 'Copiado' : 'Copied'; }); } catch(e){} }
