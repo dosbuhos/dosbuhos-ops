@@ -261,6 +261,14 @@
   .qz-c button{flex:1 1 auto;min-width:56px;background:none;border:1px solid var(--line);color:var(--ink);font:inherit;font-size:14px;padding:11px 10px;cursor:pointer}
   .qz-c button.on{background:var(--ink);color:#0a0a0a;border-color:var(--ink)}
   .qz-c button:disabled{opacity:.3;cursor:default}
+  .qz-in{display:block;width:100%;margin-top:8px;background:none;border:1px solid var(--line);color:var(--ink);font:inherit;font-size:16px;padding:11px 12px;border-radius:0;color-scheme:dark}
+  .qz-in:focus{outline:none;border-color:var(--warm)}
+  textarea.qz-in{resize:vertical}
+  .qz-row{display:flex;gap:12px;align-items:center}.qz-row .qz-in{flex:1}
+  .qz-ck{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:14px;white-space:nowrap}
+  .qz-miss{color:#e7a37a;font-size:13px;margin:16px 0 0}
+  #qz .btn{margin-top:20px}
+  .qz-mail{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--dim)}
   .qz-r{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
   .qz-t{font-family:"Cormorant Garamond",Georgia,serif;font-size:34px;line-height:1}
   .qz-pp{font-size:13px;color:var(--dim);margin-top:6px;letter-spacing:.04em}
@@ -289,22 +297,29 @@
 <body>
 <div id="qzm" onclick="if(event.target===this)qzClose()"><div class="qzm-in">
 <button class="qzm-x" onclick="qzClose()" aria-label="close">✕</button>
-          <div class="qz" id="qz">
-            <h4 class="en">A quick estimate</h4><h4 class="es">Una estimación rápida</h4>
-            <p class="qz-s en">Three taps. Friday to Sunday, five hours, food and open wine bar.</p><p class="qz-s es">Tres toques. Viernes a domingo, cinco horas, comida y barra libre de vino.</p>
-            <div class="qz-l"><span class="en">1 · Guests</span><span class="es">1 · Invitados</span></div>
-            <div class="qz-c" data-k="pax"><button data-v="30">30</button><button data-v="50">50</button><button data-v="80">80</button><button data-v="120">120</button><button data-v="200">200</button></div>
-            <div class="qz-l"><span class="en">2 · Where</span><span class="es">2 · Dónde</span></div>
-            <div class="qz-c" data-k="sp"><button data-v="rest"><span class="en">Restaurant</span><span class="es">Restaurante</span></button><button data-v="bodega">Bodega de Arte</button><button data-v="garden">Winegarden</button></div>
-            <div class="qz-l"><span class="en">3 · Menu</span><span class="es">3 · Menú</span></div>
-            <div class="qz-c" data-k="m"><button data-v="es">Esencial</button><button data-v="se"><span class="en">Selección</span><span class="es">Selección</span></button><button data-v="re">Reserva</button></div>
-            <div class="qz-r" id="qz-r" hidden>
-              <div class="qz-t" id="qz-t"></div><div class="qz-pp" id="qz-pp"></div>
-              <div class="qz-n" id="qz-n"></div>
-              <p class="qz-f en">* An estimate, not a quote. Our events team confirms availability, the date and the final details before anything is booked.</p><p class="qz-f es">* Es una estimación, no una cotización. Nuestro equipo de eventos confirma disponibilidad, fecha y detalles finales antes de reservar.</p>
-              <a class="btn warm full" id="qz-go" target="_blank" rel="noopener"><span class="en">Send this to our events team</span><span class="es">Enviar a nuestro equipo de eventos</span></a>
-            </div>
-          </div>
+          <form class="qz" id="qz" onsubmit="return false">
+            <h4 class="en">Tell us about your event</h4><h4 class="es">Cuéntanos de tu evento</h4>
+            <p class="qz-s en">A minute of taps. We'll turn it into a WhatsApp message for our events team, and they reply with options and a formal quote.</p><p class="qz-s es">Un minuto de toques. Lo convertimos en un mensaje de WhatsApp para nuestro equipo de eventos, que te responde con opciones y una cotización formal.</p>
+            <div class="qz-l"><span class="en">1 · Occasion</span><span class="es">1 · Ocasión</span></div>
+            <div class="qz-c" data-k="occ"><button type="button" data-v="Boda|Wedding"><span class="en">Wedding</span><span class="es">Boda</span></button><button type="button" data-v="Evento corporativo|Corporate event"><span class="en">Corporate</span><span class="es">Corporativo</span></button><button type="button" data-v="Cumpleaños / celebración|Birthday / celebration"><span class="en">Celebration</span><span class="es">Celebración</span></button><button type="button" data-v="Cena privada|Private dinner"><span class="en">Private dinner</span><span class="es">Cena privada</span></button><button type="button" data-v="Otro|Other"><span class="en">Other</span><span class="es">Otro</span></button></div>
+            <div class="qz-l"><span class="en">2 · Date</span><span class="es">2 · Fecha</span></div>
+            <div class="qz-row"><input type="date" id="qz-date" class="qz-in"><label class="qz-ck"><input type="checkbox" id="qz-flex"> <span class="en">Flexible</span><span class="es">Flexible</span></label></div>
+            <div class="qz-l"><span class="en">3 · Guests</span><span class="es">3 · Invitados</span></div>
+            <input type="number" id="qz-pax" class="qz-in" inputmode="numeric" min="2" max="400" placeholder="80">
+            <div class="qz-l"><span class="en">4 · Time of day</span><span class="es">4 · Horario</span></div>
+            <div class="qz-c" data-k="time"><button type="button" data-v="Mediodía|Midday"><span class="en">Midday</span><span class="es">Mediodía</span></button><button type="button" data-v="Tarde|Afternoon"><span class="en">Afternoon</span><span class="es">Tarde</span></button><button type="button" data-v="Noche|Evening"><span class="en">Evening</span><span class="es">Noche</span></button></div>
+            <div class="qz-l"><span class="en">5 · Space</span><span class="es">5 · Espacio</span></div>
+            <div class="qz-c" data-k="sp"><button type="button" data-v="Restaurante|Restaurant"><span class="en">Restaurant</span><span class="es">Restaurante</span></button><button type="button" data-v="Bodega de Arte|Bodega de Arte">Bodega de Arte</button><button type="button" data-v="Winegarden|Winegarden">Winegarden</button><button type="button" data-v="Que nos recomienden|Recommend one"><span class="en">Recommend one</span><span class="es">Recomiéndenme</span></button></div>
+            <div class="qz-l"><span class="en">6 · What you'd like · pick any</span><span class="es">6 · Qué te interesa · elige varios</span></div>
+            <div class="qz-c" data-k="want" data-multi="1"><button type="button" data-v="Ceremonia en la capilla|Ceremony in the chapel"><span class="en">Chapel ceremony</span><span class="es">Ceremonia en capilla</span></button><button type="button" data-v="Comida o cena|Lunch or dinner"><span class="en">Lunch / dinner</span><span class="es">Comida / cena</span></button><button type="button" data-v="Barra libre de vino|Open wine bar"><span class="en">Open wine bar</span><span class="es">Barra libre de vino</span></button><button type="button" data-v="Copa de bienvenida|Welcome glass"><span class="en">Welcome glass</span><span class="es">Copa de bienvenida</span></button><button type="button" data-v="Recorrido y cata|Tour and tasting"><span class="en">Tour &amp; tasting</span><span class="es">Recorrido y cata</span></button><button type="button" data-v="Botellas de regalo|Gift bottles"><span class="en">Gift bottles</span><span class="es">Botellas de regalo</span></button></div>
+            <div class="qz-l"><span class="en">7 · Your name</span><span class="es">7 · Tu nombre</span></div>
+            <input type="text" id="qz-name" class="qz-in" autocomplete="name">
+            <div class="qz-l"><span class="en">8 · Anything else · optional</span><span class="es">8 · Algo más · opcional</span></div>
+            <textarea id="qz-notes" class="qz-in" rows="3"></textarea>
+            <p class="qz-miss" id="qz-miss" hidden></p>
+            <a class="btn warm full" id="qz-go" target="_blank" rel="noopener" href="#"><span class="en">Send to our events team · WhatsApp</span><span class="es">Enviar al equipo de eventos · WhatsApp</span></a>
+            <a class="qz-mail" id="qz-mail" href="#"><span class="en">or send it by email</span><span class="es">o enviarlo por correo</span></a>
+          </form>
 </div></div>
 <div id="stage">
 
@@ -410,8 +425,7 @@
             <div class="slide"><img loading="lazy" src="/photos/custom-label.jpg" alt=""><h4 class="en">Your own label</h4><h4 class="es">Su propia etiqueta</h4><p class="en">Our wine, your label: a wedding date, a company, a thank-you. From 24 bottles, $499 each with tax included, and a gift that still means something a year later.</p><p class="es">Nuestro vino con su etiqueta: una fecha de boda, una empresa, un agradecimiento. Desde 24 botellas, $499 cada una con IVA incluido, y un regalo que sigue significando algo un año después.</p></div>
           </div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
-          <div class="row"><button class="btn full" onclick="qzOpen()"><span class="en">Quick estimate · 3 taps</span><span class="es">Estimación rápida · 3 toques</span></button></div>
-          <div class="row"><a class="btn warm full" href="https://wa.me/__WA_EVENTS__"><span class="en">Ask for a quote · WhatsApp</span><span class="es">Cotizar · WhatsApp</span></a><a class="btn full" href="mailto:eventos@dosbuhos.com">eventos@dosbuhos.com</a></div>
+          <div class="row"><button class="btn warm full" onclick="qzOpen()"><span class="en">Ask for a quote</span><span class="es">Pedir cotización</span></button><a class="btn full" href="mailto:eventos@dosbuhos.com">eventos@dosbuhos.com</a></div>
         </div></div>
       </div>
 
@@ -574,40 +588,36 @@ VIDEOS.forEach(v => { const d = document.createElement('div'); d.className = 'sl
 function playVideo(v){ const vw = document.getElementById('viewer'), im = document.getElementById('v-img'), vid = document.getElementById('v-vid'), fr = document.getElementById('v-frm');
   im.hidden = true; if (v.embed) { fr.src = v.embed; fr.hidden = false; vid.hidden = true; } else { vid.src = v.src; vid.hidden = false; fr.hidden = true; vid.play().catch(() => {}); } vw.classList.add('on'); }
 function closeViewer(e){ if (e && e.target && (e.target.id === 'v-vid' || e.target.id === 'v-frm')) return; const vw = document.getElementById('viewer'), vid = document.getElementById('v-vid'), fr = document.getElementById('v-frm'); vid.pause(); vid.removeAttribute('src'); vid.load(); fr.src = ''; vid.hidden = true; fr.hidden = true; document.getElementById('v-img').hidden = false; vw.classList.remove('on'); }
-// ---- quick event estimate (same price rules as the internal cotizador; Fri–Sun, 5 h, menu + open bar) ----
+// ---- event intake: no prices, it just writes the WhatsApp message for the events team ----
 (() => {
-  const Q = { pax: 0, sp: '', m: '' }, H = 5, IVA = 0.16, SERV = 0.15, MINIMO = 30000 + (H - 3) * 5000;
-  const MENU = { es: [342, 'Esencial'], se: [470, 'Selección'], re: [640, 'Reserva'] };
-  const BAR = { es: 790, se: 790, re: 1105 };   // 5 h open bar · Reserva gets the Gran Reserva bar
-  const SP = { bodega: { rate: 179, cap: 125000, std: 7, max: 150, name: 'Bodega de Arte' }, garden: { rate: 119, cap: 95000, std: 8, max: 250, name: 'Winegarden' }, rest: { max: 60, name: 'Restaurante' } };
-  const fmt = v => '$' + (Math.round(v / 500) * 500).toLocaleString('en-US');
   const box = document.getElementById('qz'); if (!box) return;
-  box.querySelectorAll('.qz-c').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return;
-    Q[g.dataset.k] = g.dataset.k === 'pax' ? +b.dataset.v : b.dataset.v; [...g.children].forEach(x => x.classList.toggle('on', x === b)); calc(); }));
-  function calc() {
-    // grey out spaces too small for the guest count
-    box.querySelectorAll('[data-k=sp] button').forEach(b => { b.disabled = !!Q.pax && Q.pax > SP[b.dataset.v].max; if (b.disabled && Q.sp === b.dataset.v) { Q.sp = ''; b.classList.remove('on'); } });
-    const r = document.getElementById('qz-r'); if (!(Q.pax && Q.sp && Q.m)) { r.hidden = true; return; }
-    const es = document.documentElement.lang === 'es', pax = Q.pax, [mp, mn] = MENU[Q.m];
-    let fb = (mp + BAR[Q.m]) * pax, space = 0, note = [];
-    if (Q.sp !== 'rest') {
-      const s = SP[Q.sp]; space = pax >= 100 ? s.cap : Math.min(s.rate * Math.max(pax, 30) * H, s.cap);
-      if (fb < MINIMO) { note.push(es ? `Incluye el consumo mínimo de ${fmt(MINIMO)} para abrir el espacio solo para ustedes.` : `Includes the ${fmt(MINIMO)} food & beverage minimum to open the space just for you.`); fb = MINIMO; }
-    } else note.push(es ? 'El restaurante en horario regular no cobra renta (hasta 3 horas).' : 'The restaurant during regular hours carries no rental (up to 3 hours).');
-    const total = fb * (1 + SERV) * (1 + IVA) + space * (1 + IVA);
-    note.unshift(es ? `${mn} de tres tiempos y barra libre ${Q.m === 're' ? 'Gran Reserva' : 'de vino'} por 5 horas, con servicio e IVA.` : `${mn} three-course menu and ${Q.m === 're' ? 'Gran Reserva ' : ''}open wine bar for 5 hours, service and tax included.`);
-    if (Q.sp !== 'rest') note.push(es ? 'De lunes a jueves la renta es menor.' : 'Monday to Thursday the rental is lower.');
-    document.getElementById('qz-t').textContent = (es ? 'Aprox. ' : 'About ') + fmt(total) + ' MXN';
-    document.getElementById('qz-pp').textContent = (es ? '≈ ' : '≈ ') + fmt(total / pax) + (es ? ' por persona · ' : ' per person · ') + pax + (es ? ' invitados' : ' guests');
-    document.getElementById('qz-n').textContent = note.join(' ');
-    const msg = es ? `Hola, me interesa un evento en Dos Búhos: ${pax} invitados, ${SP[Q.sp].name}, menú ${mn}. La estimación de la app fue ${fmt(total)} MXN. ¿Qué fechas tienen?`
-                   : `Hi, I'm interested in an event at Dos Búhos: ${pax} guests, ${SP[Q.sp].name}, ${mn} menu. The app estimated about ${fmt(total)} MXN. What dates do you have?`;
-    document.getElementById('qz-go').href = 'https://wa.me/__WA_EVENTS__?text=' + encodeURIComponent(msg);
-    r.hidden = false;
+  const Q = { occ: '', time: '', sp: '', want: [] }, $ = id => document.getElementById(id);
+  const es = () => document.documentElement.lang === 'es', pick = v => v.split('|')[es() ? 0 : 1];
+  box.querySelectorAll('.qz-c').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const k = g.dataset.k;
+    if (g.dataset.multi) { b.classList.toggle('on'); Q[k] = [...g.querySelectorAll('.on')].map(x => x.dataset.v); }
+    else { Q[k] = b.dataset.v; [...g.children].forEach(x => x.classList.toggle('on', x === b)); } }));
+  ['input','click'].forEach(t => box.addEventListener(t, e => { if (!e.target.closest('#qz-go,#qz-mail')) $('qz-miss').hidden = true; }));
+  $('qz-flex').addEventListener('change', e => { $('qz-date').disabled = e.target.checked; });
+  function fmtDate(v) { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(es() ? 'es-MX' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+  function build() {
+    const E = es(), pax = parseInt($('qz-pax').value, 10), date = $('qz-date').value, flex = $('qz-flex').checked, name = $('qz-name').value.trim(), notes = $('qz-notes').value.trim(), miss = [];
+    if (!Q.occ) miss.push(E ? 'ocasión' : 'occasion'); if (!date && !flex) miss.push(E ? 'fecha' : 'date'); if (!(pax > 0)) miss.push(E ? 'invitados' : 'guests'); if (!name) miss.push(E ? 'nombre' : 'name');
+    if (miss.length) { $('qz-miss').textContent = (E ? 'Falta: ' : 'Missing: ') + miss.join(', '); $('qz-miss').hidden = false; return null; }
+    $('qz-miss').hidden = true;
+    const dt = date ? fmtDate(date) + (flex ? (E ? ' (flexible)' : ' (flexible)') : '') : (E ? 'flexible' : 'flexible');
+    const L = E ? [`Hola, soy ${name}. Me interesa un evento en Dos Búhos.`, '', `• Ocasión: ${pick(Q.occ)}`, `• Fecha: ${dt}`, `• Invitados: ${pax}`]
+                : [`Hi, I'm ${name}. I'm interested in an event at Dos Búhos.`, '', `• Occasion: ${pick(Q.occ)}`, `• Date: ${dt}`, `• Guests: ${pax}`];
+    if (Q.time) L.push((E ? '• Horario: ' : '• Time: ') + pick(Q.time));
+    if (Q.sp) L.push((E ? '• Espacio: ' : '• Space: ') + pick(Q.sp));
+    if (Q.want.length) L.push((E ? '• Nos interesa: ' : '• Interested in: ') + Q.want.map(pick).join(', '));
+    if (notes) L.push('', notes);
+    L.push('', E ? '¿Qué opciones y fechas tienen?' : 'What options and dates do you have?');
+    return L.join('\n');
   }
-  window.qzRecalc = calc;
-  window.qzOpen = () => { document.getElementById('qzm').classList.add('on'); document.documentElement.style.overflow = 'hidden'; };
-  window.qzClose = () => { document.getElementById('qzm').classList.remove('on'); document.documentElement.style.overflow = ''; };
+  $('qz-go').addEventListener('click', e => { const m = build(); if (!m) { e.preventDefault(); return; } e.currentTarget.href = 'https://wa.me/__WA_EVENTS__?text=' + encodeURIComponent(m); });
+  $('qz-mail').addEventListener('click', e => { const m = build(); if (!m) { e.preventDefault(); return; } e.currentTarget.href = 'mailto:eventos@dosbuhos.com?subject=' + encodeURIComponent(es() ? 'Evento en Dos Búhos' : 'Event at Dos Búhos') + '&body=' + encodeURIComponent(m); });
+  window.qzOpen = () => { $('qzm').classList.add('on'); document.documentElement.style.overflow = 'hidden'; };
+  window.qzClose = () => { $('qzm').classList.remove('on'); document.documentElement.style.overflow = ''; };
 })();
 const wc = document.getElementById('wine-car');
 const MXN = n => '$' + n.toLocaleString('en-US');
@@ -687,7 +697,7 @@ function closePage(){ document.documentElement.classList.remove('open'); window.
 if (location.hash === '#page') document.documentElement.classList.add('open');
 
 // language
-function setLang(l){ setTimeout(() => window.qzRecalc && window.qzRecalc(), 0); document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
+function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
 try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
 
 // offline
