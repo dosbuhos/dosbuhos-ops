@@ -32,6 +32,32 @@
   nav.toc{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;margin-top:22px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase}
   nav.toc a{color:var(--warm);text-decoration:none;border:1px solid var(--line);padding:8px 10px}
   section{margin-top:46px}
+  .dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+  .dl .full{grid-column:1/-1}
+  .btn.warm{border-color:var(--warm);color:var(--warm)}
+  section.acc{margin-top:0;border-top:1px solid var(--line)}
+  section.acc:last-of-type{border-bottom:1px solid var(--line)}
+  section.acc > h2{cursor:pointer;margin:0;padding:20px 28px 20px 0;position:relative}
+  section.acc > h2::after{content:"";position:absolute;right:4px;top:50%;width:8px;height:8px;border-right:1px solid var(--warm);border-bottom:1px solid var(--warm);transform:translateY(-70%) rotate(45deg);transition:transform .25s}
+  section.acc.open > h2::after{transform:translateY(-30%) rotate(-135deg)}
+  section.acc:not(.open) > :not(h2){display:none}
+  section.acc.open{padding-bottom:22px}
+  .accwrap{margin-top:34px}
+  html.print .bar, html.print .dl, html.print .btnrow, html.print .copybtn{display:none !important}
+  html.print section.acc > :not(h2){display:block}
+  html.print section.acc > .photos{display:grid}
+  html.print section.acc > h2::after{display:none}
+  html.print section.acc{break-inside:auto;padding-bottom:10px}
+  html.print .photos img{break-inside:avoid}
+  html.print{--bg:#fbf8f2;--card:#f1ebe0;--ink:#1a1a1a;--dim:#6b6358;--warm:#8a5a2b;--line:#d9cfbe;background:#fbf8f2}
+  html.print body{background:#fbf8f2;color:#1a1a1a}
+  html.print p, html.print dd, html.print td, html.print .medal span, html.print .quotes blockquote p{color:#2b2420}
+  html.print .wrap{padding:0}
+  html.print .short{color:#3a332c}
+  html.print header img.logo{filter:invert(1)}
+  html.print footer, html.print .foot{break-before:avoid}
+  @page{size:Letter;margin:14mm}
+
   h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.3em;text-transform:uppercase;color:var(--warm);margin-bottom:14px}
   p{font-size:15.5px;color:#d9d1c4;margin-bottom:12px}
   p.lead{font-family:"Cormorant Garamond",Georgia,serif;font-size:21px;color:var(--ink);line-height:1.4}
@@ -84,16 +110,11 @@
     <img class="logo" src="/icons/logo.png" alt="Dos Búhos">
     <h1><span class="en">Press kit</span><span class="es">Kit de prensa</span></h1>
     <div class="tag"><span class="en">Certified organic wine at 6,500 feet · San Miguel de Allende, México</span><span class="es">Vino orgánico certificado a 2,000 m · San Miguel de Allende, México</span></div>
-    <nav class="toc">
-      <a href="#story"><span class="en">Story</span><span class="es">Historia</span></a>
-      <a href="#facts"><span class="en">Facts</span><span class="es">Datos</span></a>
-      <a href="#people"><span class="en">People</span><span class="es">Equipo</span></a>
-      <a href="#wines"><span class="en">Wines</span><span class="es">Vinos</span></a>
-      <a href="#awards"><span class="en">Recognition</span><span class="es">Premios</span></a>
-      <a href="#visit"><span class="en">Visit</span><span class="es">Visita</span></a>
-      <a href="#photos"><span class="en">Photos</span><span class="es">Fotos</span></a>
-      <a href="#contact"><span class="en">Contact</span><span class="es">Contacto</span></a>
-    </nav>
+    <div class="dl">
+      <a class="btn warm" href="/docs/Dos-Buhos-Press-Kit-EN.pdf" target="_blank">PDF · English</a>
+      <a class="btn warm" href="/docs/Dos-Buhos-Kit-de-Prensa-ES.pdf" target="_blank">PDF · Español</a>
+      <a class="btn full" href="/docs/Dos-Buhos-Press-Photos.zip" download><span class="en">All photos · ZIP</span><span class="es">Todas las fotos · ZIP</span></a>
+    </div>
   </header>
 
   <section id="story">
@@ -203,6 +224,14 @@
   const ph = document.getElementById("photo-grid");
   PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.target = '_blank'; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
   function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
+  (function(){
+    const q = new URLSearchParams(location.search);
+    if (q.get('print')) { document.documentElement.classList.add('print'); if (q.get('lang')) setLang(q.get('lang')); }
+    const secs = [...document.querySelectorAll('main section, .wrap > section')];
+    secs.forEach((sec, i) => { sec.classList.add('acc'); if (i === 0) sec.classList.add('open');
+      const hs = sec.querySelectorAll(':scope > h2'); hs.forEach(h => h.addEventListener('click', () => sec.classList.toggle('open'))); });
+    if (secs[0]) secs[0].insertAdjacentHTML('beforebegin', '<div class="accwrap"></div>');
+  })();
   try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
   function copyText(id, btn){ const t = document.getElementById(id).textContent; try { navigator.clipboard.writeText(t).then(() => { btn.textContent = document.documentElement.lang === 'es' ? 'Copiado' : 'Copied'; }); } catch(e){} }
   if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); } catch(e){} }
