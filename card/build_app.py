@@ -135,9 +135,6 @@ VIDEOS = [
     {"title_en": "Dos Búhos — an introduction", "title_es": "Dos Búhos — introducción",
      "blurb_en": "Who we are and why we farm this way, in one minute.", "blurb_es": "Quiénes somos y por qué cultivamos así, en un minuto.",
      "poster": "/videos/introduccion.jpg", "src": "/videos/introduccion.mp4", "embed": "", "dur": "0:57"},
-    {"title_en": "Certified organic", "title_es": "Certificación orgánica",
-     "blurb_en": "What the certification means on the ground. Coming soon.", "blurb_es": "Qué significa la certificación en el campo. Muy pronto.",
-     "poster": "/photos/planting.jpg", "src": "", "embed": "", "dur": ""},
 ]
 PHOTOS = [
     # order: freshest first, most-used shots last (community / Feed The Hungry removed)
