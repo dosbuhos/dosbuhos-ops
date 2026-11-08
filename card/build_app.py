@@ -11,7 +11,7 @@ BASE = "https://hola.dosbuhos.com"
 WA_MAIN = "524151247583"            # TODO verify — winery line from public listing
 LINKS = {
     "OPENTABLE": "https://www.opentable.com/s?term=Dos%20B%C3%BAhos",  # TODO replace with the restaurant's direct OpenTable link (+ your source tag)
-    "TOURS": "https://dosbuhos.com",      # TODO tours/tastings page
+    "TOURS": "https://www.opentable.com/s?term=Dos%20B%C3%BAhos",  # tours are booked on OpenTable too — TODO replace with the direct link + ref tag (same as OPENTABLE)
     "EVENTS": "https://dosbuhos.com",     # TODO events page
     "SHOP": "https://dosbuhos.com",       # TODO online store
     "CLUB": "https://dosbuhos.com",       # TODO wine club page
