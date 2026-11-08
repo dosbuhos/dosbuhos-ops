@@ -157,6 +157,17 @@ PHOTOS = [
     {"f": "photos/recorrido.jpg", "en": "The vineyard walk", "es": "El recorrido"},
     {"f": "photos/pouring.jpg", "en": "Espontáneo, poured", "es": "Espontáneo, al servir"},
     {"f": "photos/petanque.jpg", "en": "Pétanque in the garden", "es": "Petanca en el jardín"},
+    # Alexis Bello photo set (Pixieset, 2026)
+    {"f": "photos/ab-garden-chapel.jpg", "pos": "50% 40%", "en": "The garden and the chapel", "es": "El jardín y la capilla"},
+    {"f": "photos/ab-chapel-fountain.jpg", "pos": "50% 55%", "en": "The chapel courtyard", "es": "El patio de la capilla"},
+    {"f": "photos/ab-bar-bottles-chapel.jpg", "pos": "50% 62%", "en": "Gran Reserva at the bar", "es": "Gran Reserva en la barra"},
+    {"f": "photos/ab-cellar-founders.jpg", "pos": "50% 40%", "en": "In the cellar", "es": "En la bodega"},
+    {"f": "photos/ab-barrel-racks.jpg", "pos": "50% 45%", "en": "The barrel room", "es": "La sala de barricas"},
+    {"f": "photos/ab-barrel-chalk.jpg", "en": "Petite Syrah, 2026, in barrel", "es": "Petite Syrah 2026 en barrica"},
+    {"f": "photos/ab-barrel-dark.jpg", "en": "Barrels at rest", "es": "Barricas en reposo"},
+    {"f": "photos/ab-barrel-monogram.jpg", "en": "The house monogram", "es": "El monograma de la casa"},
+    {"f": "photos/ab-wine-shop.jpg", "pos": "50% 40%", "en": "The wine shop", "es": "La tienda de vinos"},
+    {"f": "photos/ab-wood-sign.jpg", "en": "Dos Búhos", "es": "Dos Búhos"},
     # from the 2024 experiences dossier collage — small source files; lowres=True shows a "hi-res on request" tag in the press kit until originals replace them
     {"f": "photos/chapel-facade.jpg", "pos": "50% 10%", "en": "The chapel", "es": "La capilla", "lowres": True},
     {"f": "photos/higinio-orange-truck.jpg", "pos": "50% 28%", "en": "Higinio and the orange truck", "es": "Higinio y la camioneta naranja", "lowres": True},
