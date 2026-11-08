@@ -8,7 +8,7 @@ routes = [{ pattern = "hola.dosbuhos.com", custom_domain = true }]
 directory = "./public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/media/*"]
+run_worker_first = ["/media/*", "/videos/*"]
 
 [[r2_buckets]]
 binding = "MEDIA"

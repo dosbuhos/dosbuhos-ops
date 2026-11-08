@@ -8,6 +8,19 @@ const cors = { 'access-control-allow-origin': '*', 'access-control-allow-methods
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // /videos/* are static assets; add byte-range support (Safari needs 206 to play video)
+    if (url.pathname.startsWith('/videos/') && url.pathname.endsWith('.mp4')) {
+      const res = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));
+      if (!res.ok) return res;
+      const buf = await res.arrayBuffer(); const size = buf.byteLength;
+      const h = new Headers({ 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'cache-control': 'public, max-age=86400' });
+      const m = /bytes=(\d*)-(\d*)/.exec(req.headers.get('range') || '');
+      if (m) { let start = m[1] === '' ? size - Number(m[2]) : Number(m[1]); let end = m[1] !== '' && m[2] !== '' ? Number(m[2]) : size - 1;
+        start = Math.max(0, start); end = Math.min(end, size - 1);
+        h.set('content-range', `bytes ${start}-${end}/${size}`); h.set('content-length', String(end - start + 1));
+        return new Response(req.method === 'HEAD' ? null : buf.slice(start, end + 1), { status: 206, headers: h }); }
+      h.set('content-length', String(size)); return new Response(req.method === 'HEAD' ? null : buf, { headers: h });
+    }
     if (!url.pathname.startsWith('/media/')) return env.ASSETS.fetch(req);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
