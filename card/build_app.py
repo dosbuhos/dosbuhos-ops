@@ -158,16 +158,16 @@ PHOTOS = [
     {"f": "photos/pouring.jpg", "en": "Espontáneo, poured", "es": "Espontáneo, al servir"},
     {"f": "photos/petanque.jpg", "en": "Pétanque in the garden", "es": "Petanca en el jardín"},
     # from the 2024 experiences dossier collage — small source files; lowres=True shows a "hi-res on request" tag in the press kit until originals replace them
-    {"f": "photos/chapel-facade.jpg", "pos": "50% 18%", "en": "The chapel", "es": "La capilla", "lowres": True},
-    {"f": "photos/higinio-orange-truck.jpg", "pos": "50% 30%", "en": "Higinio and the orange truck", "es": "Higinio y la camioneta naranja", "lowres": True},
+    {"f": "photos/chapel-facade.jpg", "pos": "50% 10%", "en": "The chapel", "es": "La capilla", "lowres": True},
+    {"f": "photos/higinio-orange-truck.jpg", "pos": "50% 28%", "en": "Higinio and the orange truck", "es": "Higinio y la camioneta naranja", "lowres": True},
     {"f": "photos/kids-grapes.jpg", "pos": "50% 35%", "en": "Harvest, all ages", "es": "Vendimia para todas las edades", "lowres": True},
-    {"f": "photos/fountain-courtyard.jpg", "pos": "50% 50%", "en": "The hacienda courtyard", "es": "El patio de la hacienda", "lowres": True},
+    {"f": "photos/fountain-courtyard.jpg", "pos": "50% 22%", "en": "The hacienda courtyard", "es": "El patio de la hacienda", "lowres": True},
     {"f": "photos/candle-sparkling.jpg", "pos": "50% 45%", "en": "An evening in the Winegarden", "es": "Una noche en el Winegarden", "lowres": True},
     {"f": "photos/event-table-courtyard.jpg", "pos": "50% 55%", "en": "A table set in the courtyard", "es": "Mesa puesta en el patio", "lowres": True},
-    {"f": "photos/cross-fountain-pergola.jpg", "pos": "50% 45%", "en": "The Winegarden fountain", "es": "La fuente del Winegarden", "lowres": True},
+    {"f": "photos/cross-fountain-pergola.jpg", "pos": "50% 25%", "en": "The Winegarden fountain", "es": "La fuente del Winegarden", "lowres": True},
     {"f": "photos/welcome-bicycle.jpg", "pos": "50% 55%", "en": "Welcome", "es": "Bienvenidos", "lowres": True},
     {"f": "photos/engagement-couple.jpg", "pos": "50% 30%", "en": "She said yes, in the vines", "es": "Dijo que sí, entre las vides", "lowres": True},
-    {"f": "photos/orange-wine-table.jpg", "pos": "50% 40%", "en": "Espontáneo at the table", "es": "Espontáneo en la mesa", "lowres": True},
+    {"f": "photos/orange-wine-table.jpg", "pos": "50% 62%", "en": "Espontáneo at the table", "es": "Espontáneo en la mesa", "lowres": True},
     {"f": "photos/vineyard-grapes-woman.jpg", "pos": "50% 28%", "en": "Tasting from the vine", "es": "Probando de la vid", "lowres": True},
 ]
 # ----------------------------------------------------
