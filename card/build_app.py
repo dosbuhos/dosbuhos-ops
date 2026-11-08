@@ -127,6 +127,10 @@ AWARDS = [
   {"comp":"Concours Mondial de Bruxelles · México","year":2021,"icon":"cmb","items":[["Cabernet Sauvignon 2017","s"]]},
 ]
 
+# Videos — placeholder until the films are uploaded. Each: title (en/es), blurb (en/es), poster (image in public/), and either src (mp4/HLS URL, e.g. Cloudflare Stream/R2) or embed (YouTube/Vimeo embed URL); dur optional. Empty src+embed = "coming soon" card.
+VIDEOS = [
+    {"title_en": "The vineyard, in motion", "title_es": "El viñedo, en movimiento", "blurb_en": "Short films from the estate. The first ones land soon.", "blurb_es": "Cortos desde la finca. Los primeros llegan pronto.", "poster": "/photos/vineyard-talk.jpg", "src": "", "embed": "", "dur": ""},
+]
 PHOTOS = [
     {"f": "photos/harvest.jpg", "en": "Harvest at dawn", "es": "Vendimia al amanecer"},
     {"f": "photos/planting.jpg", "en": "Planting the first vines, 2006", "es": "Plantando las primeras vides, 2006"},
@@ -165,7 +169,7 @@ tpl = open(os.path.join(ROOT, "app_template.html"), encoding="utf-8").read()
 html = tpl
 for k, v in LINKS.items():
     html = html.replace("__" + k + "__", v)
-html = html.replace("__AWARDS_JS__", json.dumps(AWARDS, ensure_ascii=False)).replace("__WINES_JS__", json.dumps(WINES_APP, ensure_ascii=False)).replace("__PEOPLE__", json.dumps(PEOPLE, ensure_ascii=False)).replace("__QR__", json.dumps(qr)).replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False))
+html = html.replace("__AWARDS_JS__", json.dumps(AWARDS, ensure_ascii=False)).replace("__WINES_JS__", json.dumps(WINES_APP, ensure_ascii=False)).replace("__VIDEOS_JS__", json.dumps(VIDEOS, ensure_ascii=False)).replace("__PEOPLE__", json.dumps(PEOPLE, ensure_ascii=False)).replace("__QR__", json.dumps(qr)).replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False))
 open(os.path.join(PUB, "index.html"), "w", encoding="utf-8").write(html)
 
 # manifests

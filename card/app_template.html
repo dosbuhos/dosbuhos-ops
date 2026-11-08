@@ -163,9 +163,10 @@
 
   /* wine cards */
   .car.wines .slide{padding-right:20px;position:relative}
-  .wcard{background:#f5f0e8;color:#1a1a1a;padding:18px 18px 16px;display:flex;flex-direction:column;min-height:300px}
-  .wcard .lab{height:168px;display:flex;align-items:center;justify-content:center;margin:0 -4px 14px}
-  .wcard .lab img{max-height:168px;max-width:100%;width:auto;object-fit:contain;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+  .wcard{background:#f5f0e8;color:#1a1a1a;padding:0 18px 16px;display:flex;flex-direction:column;min-height:300px}
+  /* label "stage": a warm linen panel so dark and light labels both sit softly, no letterboxing */
+  .wcard .lab{height:204px;display:flex;align-items:center;justify-content:center;margin:0 -18px 16px;padding:18px 22px;background:linear-gradient(180deg,#ece5d7 0%,#e2d8c5 100%)}
+  .wcard .lab img{aspect-ratio:auto;width:auto;height:auto;max-height:100%;max-width:100%;object-fit:contain;background:transparent;box-shadow:0 14px 30px rgba(60,40,20,.2),0 1px 2px rgba(0,0,0,.12)}
   .wcard .lab.none{font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;color:#8a5138;letter-spacing:.06em;text-transform:uppercase;text-align:center}
   .wcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .wcard .kind{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#8a5138}
@@ -225,6 +226,19 @@
   #viewer{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:50}
   #viewer.on{display:flex}
   #viewer img{max-width:100%;max-height:100%;object-fit:contain}
+  #viewer video,#viewer iframe{width:100%;max-height:100%;aspect-ratio:16/9;border:0;background:#000}
+  #viewer video[hidden],#viewer iframe[hidden],#viewer img[hidden]{display:none}
+  .vcard{position:relative;background:var(--card);border:1px solid var(--line)}
+  .vcard .poster{position:relative;aspect-ratio:16/9;background:#1a1a1a center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .vcard .poster .play{width:58px;height:58px;border-radius:50%;border:1px solid rgba(245,240,232,.7);display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.45)}
+  .vcard .poster .play i{width:0;height:0;border-left:16px solid var(--ink);border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px}
+  .vcard .poster.soon{cursor:default}
+  .vcard .poster.soon .play{opacity:.45}
+  .vcard .poster .tag{position:absolute;top:12px;left:12px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm);background:rgba(10,10,10,.6);padding:5px 9px}
+  .vcard .poster .dur{position:absolute;bottom:10px;right:12px;font-size:11px;letter-spacing:.1em;color:var(--ink);background:rgba(10,10,10,.6);padding:3px 7px}
+  .vcard .vt{padding:14px 16px 16px}
+  .vcard .vt h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:22px;line-height:1.1}
+  .vcard .vt p{font-size:13.5px;color:var(--dim);margin-top:4px}
   #viewer .x{position:absolute;top:calc(var(--sat) + 14px);right:18px;color:#fff;font-size:12px;letter-spacing:.2em;text-transform:uppercase;background:none;border:0}
 </style>
 </head>
@@ -379,6 +393,15 @@
         </div></div>
       </div>
 
+      <!-- VIDEOS -->
+      <div class="acc" id="acc-videos">
+        <button class="acc-h" onclick="toggle('acc-videos')"><span class="t"><b class="en">Videos</b><b class="es">Videos</b><span class="en">Short films from the vineyard</span><span class="es">Cortos desde el viñedo</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car videos" data-car id="video-car"></div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+        </div></div>
+      </div>
+
       <!-- CONTACT -->
       <div class="acc" id="acc-contact">
         <button class="acc-h" onclick="toggle('acc-contact')"><span class="t"><b class="en">Contact us</b><b class="es">Contacto</b><span class="en">Reservations, events, how to get here</span><span class="es">Reservaciones, eventos, cómo llegar</span></span><span class="chev"></span></button>
@@ -425,7 +448,7 @@
   </div>
 </div>
 
-<div id="viewer" onclick="this.classList.remove('on')"><img id="v-img" alt=""><button class="x">✕</button></div>
+<div id="viewer" onclick="closeViewer(event)"><img id="v-img" alt=""><video id="v-vid" controls playsinline preload="metadata" hidden></video><iframe id="v-frm" hidden allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe><button class="x">✕</button></div>
 
 <script>
 const PEOPLE = __PEOPLE__;
@@ -453,6 +476,15 @@ document.getElementById('manifest').href = `/manifest-${who}.webmanifest`;
 document.title = (who === 'dosbuhos' ? 'Dos Búhos' : P.name + ' · Dos Búhos');
 
 const WINES = __WINES_JS__;
+const VIDEOS = __VIDEOS_JS__;
+// Videos: {title_en,title_es,blurb_en,blurb_es,poster,src (mp4/hls url) | embed (youtube/vimeo embed url),dur}. Empty src+embed = coming soon.
+const vc = document.getElementById('video-car');
+VIDEOS.forEach(v => { const d = document.createElement('div'); d.className = 'slide'; const soon = !(v.src || v.embed);
+  d.innerHTML = `<div class="vcard"><div class="poster${soon ? ' soon' : ''}" style="background-image:url('${v.poster || ''}')"${soon ? '' : ` onclick="playVideo(${JSON.stringify(v).replace(/"/g, '&quot;')})"`}>${soon ? '<span class="tag"><span class="en">Coming soon</span><span class="es">Muy pronto</span></span>' : ''}<div class="play"><i></i></div>${v.dur ? `<span class="dur">${v.dur}</span>` : ''}</div><div class="vt"><h4><span class="en">${v.title_en}</span><span class="es">${v.title_es}</span></h4><p><span class="en">${v.blurb_en || ''}</span><span class="es">${v.blurb_es || ''}</span></p></div></div>`;
+  vc.appendChild(d); });
+function playVideo(v){ const vw = document.getElementById('viewer'), im = document.getElementById('v-img'), vid = document.getElementById('v-vid'), fr = document.getElementById('v-frm');
+  im.hidden = true; if (v.embed) { fr.src = v.embed; fr.hidden = false; vid.hidden = true; } else { vid.src = v.src; vid.hidden = false; fr.hidden = true; vid.play().catch(() => {}); } vw.classList.add('on'); }
+function closeViewer(e){ if (e && e.target && (e.target.id === 'v-vid' || e.target.id === 'v-frm')) return; const vw = document.getElementById('viewer'), vid = document.getElementById('v-vid'), fr = document.getElementById('v-frm'); vid.pause(); vid.removeAttribute('src'); vid.load(); fr.src = ''; vid.hidden = true; fr.hidden = true; document.getElementById('v-img').hidden = false; vw.classList.remove('on'); }
 const wc = document.getElementById('wine-car');
 const MXN = n => '$' + n.toLocaleString('en-US');
 WINES.forEach((w, i) => { const d = document.createElement('div'); d.className = 'slide';
