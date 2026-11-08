@@ -40,7 +40,12 @@
   #front h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:clamp(28px,8vw,40px);letter-spacing:.14em;text-transform:uppercase;line-height:1.1}
   #front .role{margin-top:10px;font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
   #front .org{margin-top:12px;font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;color:var(--dim)}
-  .qrwrap{margin:40px auto 0;width:min(62vw,290px);aspect-ratio:1;background:#fff;border-radius:22px;padding:7.5%;position:relative}
+  /* contact in plain type so a photo of the card is enough; the QR is the upgrade */
+  #front .fc{margin-top:16px;font-size:12.5px;letter-spacing:.12em;color:var(--ink);line-height:1.9}
+  #front .fc span{display:block}
+  #front .fc .w::before{content:"WhatsApp  ";font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
+  #front .fc .e{letter-spacing:.06em}
+  .qrwrap{margin:30px auto 0;width:min(62vw,290px);aspect-ratio:1;background:#fff;border-radius:22px;padding:7.5%;position:relative}
   .qrwrap svg{width:100%;height:100%;display:block}
   .qrwrap img{position:absolute;left:50%;top:50%;width:21%;transform:translate(-50%,-50%);background:#fff;padding:5px;box-sizing:content-box}
   #front .hint{margin-top:34px;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);animation:pulse 2.4s ease-in-out infinite}
@@ -165,8 +170,8 @@
   .car.wines .slide{padding-right:20px;position:relative}
   .wcard{background:#f5f0e8;color:#1a1a1a;padding:0 18px 16px;display:flex;flex-direction:column;min-height:300px}
   /* label "stage": a warm linen panel so dark and light labels both sit softly, no letterboxing */
-  .wcard .lab{height:204px;display:flex;align-items:center;justify-content:center;margin:0 -18px 16px;padding:18px 22px;background:linear-gradient(180deg,#ece5d7 0%,#e2d8c5 100%)}
-  .wcard .lab img{aspect-ratio:auto;width:auto;height:auto;max-height:100%;max-width:100%;object-fit:contain;background:transparent;box-shadow:0 14px 30px rgba(60,40,20,.2),0 1px 2px rgba(0,0,0,.12)}
+  .wcard .lab{height:236px;display:flex;align-items:flex-end;justify-content:center;margin:0 -18px 16px;padding:0 22px;background:linear-gradient(180deg,#ede6d8 0%,#e2d8c5 100%);overflow:hidden}
+  .wcard .lab img{aspect-ratio:auto;width:auto;height:100%;max-width:100%;object-fit:contain;object-position:bottom;background:transparent;filter:drop-shadow(0 6px 14px rgba(60,40,20,.28))}
   .wcard .lab.none{font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;color:#8a5138;letter-spacing:.06em;text-transform:uppercase;text-align:center}
   .wcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .wcard .kind{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#8a5138}
@@ -251,6 +256,7 @@
     <h1 id="f-name">Dos Búhos</h1>
     <div class="role" id="f-role"></div>
     <div class="org" id="f-org">Bodega Dos Búhos · San Miguel de Allende, México</div>
+    <div class="fc" id="f-contact"></div>
     <div class="qrwrap"><svg id="f-qr" viewBox="0 0 37 37" shape-rendering="crispEdges"><path fill="#0a0a0a" d=""/></svg><img src="/icons/mono-dark.png" alt=""></div>
     <div class="hint"><span class="en">Tap to open</span><span class="es">Toca para abrir</span></div>
     <div class="site">dosbuhos.com</div>
@@ -465,6 +471,9 @@ const who = person();
 try { localStorage.setItem('person', who); } catch(e){}
 const P = PEOPLE[who];
 document.getElementById('f-name').textContent = P.name;
+(() => { const d = (P.whatsapp || '').replace(/\D/g, ''); let ph = d;
+  if (d.length === 11 && d[0] === '1') ph = `+1 ${d.slice(1,4)} ${d.slice(4,7)} ${d.slice(7)}`; else if (d.length === 12 && d.startsWith('52')) ph = `+52 ${d.slice(2,5)} ${d.slice(5,8)} ${d.slice(8)}`; else if (d.length === 13 && d.startsWith('521')) ph = `+52 ${d.slice(3,6)} ${d.slice(6,9)} ${d.slice(9)}`;
+  document.getElementById('f-contact').innerHTML = `<span class="w">${ph}</span><span class="e">${P.email}</span>`; })();
 if (who !== 'dosbuhos') document.getElementById('f-org').textContent = 'Bodega Dos Búhos · San Miguel de Allende, México';
 document.getElementById('f-role').innerHTML = P.role ? `<span class="en">${P.role.en}</span><span class="es">${P.role.es}</span>` : '';
 document.getElementById('p-who').innerHTML = P.role ? `${P.name} · <span class="en">${P.role.en}</span><span class="es">${P.role.es}</span>` : '';
@@ -489,7 +498,7 @@ const wc = document.getElementById('wine-car');
 const MXN = n => '$' + n.toLocaleString('en-US');
 WINES.forEach((w, i) => { const d = document.createElement('div'); d.className = 'slide';
   const medals = (w.awards || []).map(([t, ic]) => { const cls = /grand gold/i.test(t) ? 'gg' : /gold|oro/i.test(t) ? 'g' : ''; const icon = (ic === 'cmb' || ic === 'bacchus' || ic === 'la') ? `<img src="/icons/${ic}.png" alt="">` : ''; return `<span class="${cls}">${icon}${t}</span>`; }).join('');
-  d.innerHTML = `<div class="wcard">${w.label ? `<div class="lab"><img loading="lazy" src="/labels/${w.label}.jpg" alt="${w.name}"></div>` : `<div class="lab none">${w.name}</div>`}<div class="top"><div class="kind"><span class="en">${w.kind_en}</span><span class="es">${w.kind_es}</span></div><span class="num">${i+1} / ${WINES.length}</span></div><h4>${w.name}</h4><div class="grape">${w.grape}</div><p><span class="en">${w.en}</span><span class="es">${w.es}</span></p>${medals ? `<div class="medals">${medals}</div>` : ''}<div class="buy"><div class="price">${MXN(w.price)}<small>MXN</small></div><a href="${w.url}" target="_blank" rel="noopener"><span class="en">Buy</span><span class="es">Comprar</span></a></div></div>`;
+  d.innerHTML = `<div class="wcard">${w.label ? `<div class="lab"><img loading="lazy" src="/bottles/${w.label}.webp" alt="${w.name}"></div>` : `<div class="lab none">${w.name}</div>`}<div class="top"><div class="kind"><span class="en">${w.kind_en}</span><span class="es">${w.kind_es}</span></div><span class="num">${i+1} / ${WINES.length}</span></div><h4>${w.name}</h4><div class="grape">${w.grape}</div><p><span class="en">${w.en}</span><span class="es">${w.es}</span></p>${medals ? `<div class="medals">${medals}</div>` : ''}<div class="buy"><div class="price">${MXN(w.price)}<small>MXN</small></div><a href="${w.url}" target="_blank" rel="noopener"><span class="en">Buy</span><span class="es">Comprar</span></a></div></div>`;
   wc.appendChild(d); });
 const AWARDS = __AWARDS_JS__;
 const MEDAL = {gg:['Grand Gold','Gran Oro'],g:['Gold','Oro'],s:['Silver','Plata'],b:['Bronze','Bronce'],m:['CMB Merit','CMB Merit']};
