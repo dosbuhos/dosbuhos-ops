@@ -20,7 +20,7 @@ LINKS = {
     "INSTAGRAM": "https://www.instagram.com/vinedodosbuhos",
     "MAPS": "https://maps.google.com/?q=Bodega+Dos+Buhos+San+Miguel+de+Allende",
     "WA_VISITS": WA_MAIN, "WA_EVENTS": "524151390978", "WA_SALES": WA_MAIN,
-    "HOURS": "Wed–Sun 12:00–18:00 · TODO confirm",
+    "HOURS": "Wed–Thu 11–17 · Fri–Sun 11–18",
 }
 PEOPLE = {
     "dosbuhos": {"name": "Dos Búhos", "role": None, "first": "", "last": "", "title": "", "email": "reservaciones@dosbuhos.com", "whatsapp": WA_MAIN},
@@ -104,7 +104,7 @@ open(os.path.join(PUB, "index.html"), "w", encoding="utf-8").write(html)
 
 # manifests
 for k, p in PEOPLE.items():
-    m = {"name": (p["name"] + " · Dos Búhos") if k != "dosbuhos" else "Dos Búhos", "short_name": "Dos Búhos" if k == "dosbuhos" else p["first"],
+    m = {"name": "Dos Búhos" if k == "dosbuhos" else f"Dos Búhos · {p['name']}", "short_name": "Dos Búhos",
          "start_url": "/" + ("" if k == "dosbuhos" else k), "scope": "/", "display": "standalone", "background_color": "#0a0a0a", "theme_color": "#0a0a0a",
          "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}]}
     json.dump(m, open(os.path.join(PUB, f"manifest-{k}.webmanifest"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -172,6 +172,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return; // fonts etc.: network, browser cache
+  if (url.pathname === '/version.json') return; // always live
   const isNav = e.request.mode === 'navigate';
   const key = isNav ? (url.pathname.startsWith('/press') ? '/press/index.html' : '/index.html') : e.request;
   e.respondWith(caches.open(VERSION).then(async c => {
@@ -186,7 +187,11 @@ self.addEventListener('fetch', e => {
 });
 """
 import time
-sw = sw.replace("__VER__", time.strftime("%Y%m%d%H%M")).replace("__PRECACHE__", json.dumps(precache))
+VER = time.strftime("%Y%m%d%H%M")
+sw = sw.replace("__VER__", VER).replace("__PRECACHE__", json.dumps(precache))
+with open(os.path.join(PUB, "version.json"), "w") as f: f.write(json.dumps({"v": VER}))
+with open(os.path.join(PUB, "index.html"), "r", encoding="utf-8") as f: _h = f.read()
+with open(os.path.join(PUB, "index.html"), "w", encoding="utf-8") as f: f.write(_h.replace("__VER__", VER))
 open(os.path.join(PUB, "sw.js"), "w").write(sw)
 
 open(os.path.join(PUB, "_headers"), "w").write("""/vcf/*
@@ -196,6 +201,8 @@ open(os.path.join(PUB, "_headers"), "w").write("""/vcf/*
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache
+/version.json
+  Cache-Control: no-store
 /*.webmanifest
   Content-Type: application/manifest+json
 """)

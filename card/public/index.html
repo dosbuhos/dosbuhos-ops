@@ -337,9 +337,8 @@
       <div class="acc" id="acc-awards">
         <button class="acc-h" onclick="toggle('acc-awards')"><span class="t"><b class="en">Recognition</b><b class="es">Reconocimientos</b><span class="en">Brussels, Bacchus, Los Angeles — and the tables</span><span class="es">Bruselas, Bacchus, Los Ángeles — y las mesas</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
-          <p class="en" style="margin-top:4px">Twenty-three medals and nineteen scores since 2021, from the altiplano to Brussels. The medals we're proud of; the tables we're prouder of — Pujol, Quintonil, Nobu, Rosewood chose us with their own money.</p>
-          <p class="es" style="margin-top:4px">Veintitrés medallas y diecinueve puntuaciones desde 2021, del altiplano a Bruselas. De las medallas estamos orgullosos; de las mesas, más — Pujol, Quintonil, Nobu, Rosewood nos eligieron con su propio dinero.</p>
-          <div class="stats awards"><div class="stat"><b>1</b><span class="en">Grand Gold</span><span class="es">Gran Oro</span></div><div class="stat"><b>3</b><span class="en">Gold</span><span class="es">Oro</span></div><div class="stat"><b>13</b><span class="en">Silver</span><span class="es">Plata</span></div><div class="stat"><b>97</b><span class="en">top score</span><span class="es">puntuación máxima</span></div></div>
+          <p class="en" style="margin-top:4px">We enter a few competitions a year and keep the medals in a drawer. A handful we take out: a Grand Gold in Brussels for the Grenache, Gold at Bacchus for the Tempranillo and the orange wine, Gold in Los Angeles for the Pet Nat, 97 points for the Aglianico. The tables we're prouder of: Pujol, Quintonil, Nobu and Rosewood chose us with their own money.</p>
+          <p class="es" style="margin-top:4px">Entramos a pocos concursos al año y guardamos las medallas en un cajón. Unas cuantas las sacamos: Gran Oro en Bruselas para el Grenache, Oro en Bacchus para el Tempranillo y el vino naranja, Oro en Los Ángeles para el Pet Nat, 97 puntos para el Aglianico. De las mesas estamos más orgullosos: Pujol, Quintonil, Nobu y Rosewood nos eligieron con su propio dinero.</p>
           <div class="car awardsc" data-car id="award-car"></div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
         </div></div>
@@ -361,8 +360,8 @@
           <div class="contact">
             <div class="c"><b class="en">Reservations &amp; tours</b><b class="es">Reservaciones y visitas</b><a href="https://wa.me/524151247583">WhatsApp +52 415 124 7583</a><a href="mailto:reservaciones@dosbuhos.com">reservaciones@dosbuhos.com</a></div>
             <div class="c"><b class="en">Weddings &amp; events</b><b class="es">Bodas y eventos</b><a href="https://wa.me/524151390978">WhatsApp +52 415 139 0978</a><a href="mailto:eventos@dosbuhos.com">eventos@dosbuhos.com</a></div>
-            <div class="c"><b class="en">Where</b><b class="es">Dónde</b><span>Km 6, Carretera San Miguel de Allende–Querétaro · San Miguel de Allende, Guanajuato</span><span class="en">3 h from Mexico City · 1 h from Querétaro airport</span><span class="es">A 3 h de CDMX · 1 h del aeropuerto de Querétaro</span></div>
-            <div class="c"><b class="en">Hours</b><b class="es">Horario</b><span>Wed–Sun 12:00–18:00 · TODO confirm</span></div>
+            <div class="c"><b class="en">Where</b><b class="es">Dónde</b><a href="https://maps.google.com/?q=Bodega+Dos+Buhos+San+Miguel+de+Allende">Km 6, Carretera San Miguel de Allende–Querétaro · San Miguel de Allende, Guanajuato</a><span class="en">3 h from Mexico City · 1 h from Querétaro airport</span><span class="es">A 3 h de CDMX · 1 h del aeropuerto de Querétaro</span></div>
+            <div class="c"><b class="en">Hours</b><b class="es">Horario</b><span class="en">Wednesday &amp; Thursday 11–5 · Friday to Sunday 11–6</span><span class="es">Miércoles y jueves 11–17 · Viernes a domingo 11–18</span></div>
           </div>
           <div class="row"><a class="btn full" href="https://maps.google.com/?q=Bodega+Dos+Buhos+San+Miguel+de+Allende"><span class="en">Open in Maps</span><span class="es">Abrir en Maps</span></a><a class="btn" href="https://www.instagram.com/vinedodosbuhos">Instagram</a><a class="btn" href="https://dosbuhos.com">dosbuhos.com</a></div>
         </div></div>
@@ -449,7 +448,11 @@ PHOTOS.forEach(p => { const d = document.createElement('div'); d.className = 'sl
 function jump(id){ const el = document.getElementById(id); if (!el.classList.contains('open')) toggle(id); else el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 function toggle(id){ const el = document.getElementById(id); const was = el.classList.contains('open');
   document.querySelectorAll('.acc.open').forEach(a => a.classList.remove('open'));
-  if (!was) { el.classList.add('open'); setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120); } }
+  if (!was) { el.classList.add('open');
+    // wait for the grid transitions (this one opening, another closing above it) before scrolling, or the target moves mid-scroll
+    const body = el.querySelector('.acc-b'); let done = false;
+    const go = () => { if (done) return; done = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    body.addEventListener('transitionend', go, { once: true }); setTimeout(go, 520); } }
 // carousels: scroll-snap + dots + arrows
 document.querySelectorAll('[data-car]').forEach(car => {
   const slides = [...car.children]; const nav = car.nextElementSibling; const dots = nav.querySelector('.dots');
@@ -488,6 +491,14 @@ function setLang(l){ document.documentElement.lang = l; document.getElementById(
 try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
 
 // offline
+// Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
+const APP_VER = '202611071832'; let lastCheck = 0;
+async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
+  try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
+    if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+window.addEventListener('pageshow', e => { if (e.persisted) checkVersion(); });
+setTimeout(checkVersion, 4000);
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); had = true; }); } catch(e){} }
 </script>
 </body>
