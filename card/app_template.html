@@ -239,6 +239,12 @@
   #viewer video,#viewer iframe{width:100%;max-height:100%;aspect-ratio:16/9;border:0;background:#000}
   #viewer video[hidden],#viewer iframe[hidden],#viewer img[hidden]{display:none}
   .slink{display:inline-block;margin-top:12px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--warm);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:4px}
+  #ib{position:fixed;left:12px;right:12px;bottom:calc(var(--sab, 0px) + 12px);z-index:50;display:flex;align-items:center;gap:10px;background:#f5f0e8;color:#1a1a1a;padding:12px 12px 12px 16px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  #ib[hidden]{display:none}
+  #ib .ib-t{flex:1;font-size:13px;line-height:1.35}
+  #ib .ib-t b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:18px}
+  #ib #ib-go{background:#1a1a1a;color:#f5f0e8;border:0;font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:12px 14px;cursor:pointer}
+  #ib .ib-x{background:none;border:0;color:#6b6358;font-size:16px;padding:6px;cursor:pointer}
   .qz{margin-top:22px;padding:20px 18px 18px;border:1px solid var(--line);background:var(--card)}
   .qz h4{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24px}
   .qz-s{font-size:13.5px;color:var(--dim);margin-top:4px}
@@ -632,6 +638,19 @@ function openSave(){
   document.getElementById('s-share').hidden = !navigator.share;
   document.getElementById('save').classList.add('on');
 }
+
+// first visit: our own install banner (Android uses the browser's install prompt; iPhone gets the Share → Add to Home Screen hint)
+function ibClose(){ document.getElementById('ib').hidden = true; try { localStorage.setItem('ibDone', '1'); } catch(e){} }
+async function ibInstall(){ if (installEvt) { try { installEvt.prompt(); await installEvt.userChoice; } catch(e){} installEvt = null; ibClose(); } else ibClose(); }
+function ibShow(){ let done = false; try { done = !!localStorage.getItem('ibDone'); } catch(e){}
+  if (done || standalone) return; const b = document.getElementById('ib'), sub = document.getElementById('ib-sub'), go = document.getElementById('ib-go');
+  if (installEvt) { sub.innerHTML = '<span class="en">One tap, no app store.</span><span class="es">Un toque, sin tienda de apps.</span>'; go.hidden = false; }
+  else if (isIOS) { sub.innerHTML = '<span class="en">Tap Share, then “Add to Home Screen”.</span><span class="es">Toca Compartir y luego “Agregar a inicio”.</span>'; go.hidden = true; }
+  else return;
+  b.hidden = false; }
+window.addEventListener('beforeinstallprompt', () => setTimeout(ibShow, 1200));
+window.addEventListener('appinstalled', ibClose);
+setTimeout(() => { if (isIOS) ibShow(); }, 2500);
 async function doInstall(){ if (!installEvt) return; try { installEvt.prompt(); await installEvt.userChoice; } catch(e) { document.getElementById('s-install').hidden = true; document.getElementById('s-android').hidden = false; return; } installEvt = null; document.getElementById('save').classList.remove('on'); }
 async function doShare(){ try { await navigator.share({ title: document.title, text: P.name + ' · Bodega Dos Búhos', url: pageURL() }); } catch(e){} }
 async function doCopy(btn){ try { await navigator.clipboard.writeText(pageURL()); btn.querySelector('b.en').textContent = 'Copied'; btn.querySelector('b.es').textContent = 'Copiado'; setTimeout(() => { btn.querySelector('b.en').textContent = 'Copy link'; btn.querySelector('b.es').textContent = 'Copiar enlace'; }, 1800); } catch(e){ prompt('Link', pageURL()); } }
@@ -654,5 +673,6 @@ window.addEventListener('pageshow', e => { if (e.persisted) checkVersion(); });
 setTimeout(checkVersion, 4000);
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); had = true; }); } catch(e){} }
 </script>
+<div id="ib" hidden><div class="ib-t"><b><span class="en">Keep this card on your phone</span><span class="es">Guarda esta tarjeta en tu teléfono</span></b><span id="ib-sub"></span></div><button id="ib-go" onclick="ibInstall()"><span class="en">Install</span><span class="es">Instalar</span></button><button class="ib-x" onclick="ibClose()" aria-label="close">✕</button></div>
 </body>
 </html>
