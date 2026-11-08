@@ -242,8 +242,8 @@ rows = []
 for a in AWARDS:
     for wine, med in a["items"]:
         en, es = MED.get(med, (med, med))
-        rows.append(f'<tr><td>{wine}</td><td><span class="en">{en}</span><span class="es">{es}</span></td><td>{a["comp"]}{(" " + str(a["year"])) if a["year"] and a["comp"] != "Puntos 2027" else ""}</td></tr>')
-press = press.replace("__AWARDS_TABLE__", "<table><tr><th class=\"en\">Wine</th><th class=\"es\">Vino</th><th class=\"en\">Award</th><th class=\"es\">Premio</th><th class=\"en\">Competition</th><th class=\"es\">Concurso</th></tr>" + "\n".join(rows) + "</table>")
+        rows.append(f'<tr><td class="w">{wine}</td><td class="m"><span class="en">{en}</span><span class="es">{es}</span></td><td>{a["comp"]}{(" " + str(a["year"])) if a["year"] and a["comp"] != "Puntos 2027" else ""}</td></tr>')
+press = press.replace("__AWARDS_TABLE__", "<table class=\"aw\"><tr><th class=\"en\">Wine</th><th class=\"es\">Vino</th><th class=\"en\">Award</th><th class=\"es\">Premio</th><th class=\"en\">Competition</th><th class=\"es\">Concurso</th></tr>" + "\n".join(rows) + "</table>")
 press = press.replace("__WINES__", "\n".join(wine_html(w) for w in WINES)).replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False))
 press = press.replace("__OPENTABLE__", LINKS["OPENTABLE"]).replace("__MAPS__", LINKS["MAPS"]).replace("__WA_MAIN__", WA_MAIN).replace("__PRESS_EMAIL__", PRESS_EMAIL).replace("__MARKETING_EMAIL__", MARKETING_EMAIL)
 os.makedirs(os.path.join(PUB, "press"), exist_ok=True)

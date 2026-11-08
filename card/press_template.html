@@ -56,6 +56,20 @@
   html.print .short{color:#3a332c}
   html.print header img.logo{filter:invert(1)}
   html.print footer, html.print .foot{break-before:avoid}
+  /* mobile: tables become stacked rows so nothing runs off screen */
+  @media (max-width:640px){
+    table, tbody, tr, td{display:block;width:100%}
+    table th{display:none !important}
+    table tr{padding:12px 0;border-bottom:1px solid var(--line)}
+    table td{border:0;padding:0}
+    table.aw td.w{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;color:var(--ink)}
+    table.aw td.m, table.aw td:last-child{display:inline;font-size:13px;color:var(--dim)}
+    table.aw td.m::after{content:" · "}
+    table.team td:first-child{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;color:var(--ink);margin-bottom:2px}
+    table.team td:last-child{font-size:14px}
+  }
+  /* desktop: wider reading column, photos in four */
+  @media (min-width:1024px){ .wrap{max-width:860px} .photos{grid-template-columns:repeat(4,minmax(0,1fr)) !important} }
   @page{size:Letter;margin:14mm}
 
   h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.3em;text-transform:uppercase;color:var(--warm);margin-bottom:14px}
@@ -154,7 +168,7 @@
 
   <section id="people">
     <h2 class="en">The family and the team</h2><h2 class="es">La familia y el equipo</h2>
-    <table>
+    <table class="team">
       <tr><td>Higinio Maycotte</td><td><span class="en">Grape grower, founder. The farmer; planted the first vines in 2006 on land the family had worked for generations.</span><span class="es">Viticultor, fundador. El agricultor; plantó las primeras vides en 2006 en una tierra trabajada por generaciones.</span></td></tr>
       <tr><td>Diane Maycotte</td><td><span class="en">Winemaker. Trained at Texas Tech and UC Davis; native-yeast, low-intervention winemaking since the first vintage.</span><span class="es">Enóloga. Formada en Texas Tech y UC Davis; vinificación con levaduras nativas y mínima intervención desde la primera cosecha.</span></td></tr>
       <tr><td>Eric Maycotte</td><td><span class="en">Owner, winemaking team. Second generation; runs the cellar, the restaurant and the business; built the US import route.</span><span class="es">Propietario, equipo de vinificación. Segunda generación; dirige bodega, restaurante y negocio; abrió la exportación a EE. UU.</span></td></tr>

@@ -56,6 +56,20 @@
   html.print .short{color:#3a332c}
   html.print header img.logo{filter:invert(1)}
   html.print footer, html.print .foot{break-before:avoid}
+  /* mobile: tables become stacked rows so nothing runs off screen */
+  @media (max-width:640px){
+    table, tbody, tr, td{display:block;width:100%}
+    table th{display:none !important}
+    table tr{padding:12px 0;border-bottom:1px solid var(--line)}
+    table td{border:0;padding:0}
+    table.aw td.w{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;color:var(--ink)}
+    table.aw td.m, table.aw td:last-child{display:inline;font-size:13px;color:var(--dim)}
+    table.aw td.m::after{content:" · "}
+    table.team td:first-child{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;color:var(--ink);margin-bottom:2px}
+    table.team td:last-child{font-size:14px}
+  }
+  /* desktop: wider reading column, photos in four */
+  @media (min-width:1024px){ .wrap{max-width:860px} .photos{grid-template-columns:repeat(4,minmax(0,1fr)) !important} }
   @page{size:Letter;margin:14mm}
 
   h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.3em;text-transform:uppercase;color:var(--warm);margin-bottom:14px}
@@ -154,7 +168,7 @@
 
   <section id="people">
     <h2 class="en">The family and the team</h2><h2 class="es">La familia y el equipo</h2>
-    <table>
+    <table class="team">
       <tr><td>Higinio Maycotte</td><td><span class="en">Grape grower, founder. The farmer; planted the first vines in 2006 on land the family had worked for generations.</span><span class="es">Viticultor, fundador. El agricultor; plantó las primeras vides en 2006 en una tierra trabajada por generaciones.</span></td></tr>
       <tr><td>Diane Maycotte</td><td><span class="en">Winemaker. Trained at Texas Tech and UC Davis; native-yeast, low-intervention winemaking since the first vintage.</span><span class="es">Enóloga. Formada en Texas Tech y UC Davis; vinificación con levaduras nativas y mínima intervención desde la primera cosecha.</span></td></tr>
       <tr><td>Eric Maycotte</td><td><span class="en">Owner, winemaking team. Second generation; runs the cellar, the restaurant and the business; built the US import route.</span><span class="es">Propietario, equipo de vinificación. Segunda generación; dirige bodega, restaurante y negocio; abrió la exportación a EE. UU.</span></td></tr>
@@ -176,48 +190,48 @@
   <section id="awards">
     <h2 class="en">Recognition</h2><h2 class="es">Reconocimientos</h2>
     <p><span class="en">Every medal and score since 2021, newest first. The tables matter more than the medals: Pujol and Quintonil are Michelin-starred; the rest are rooms whose sommeliers chose us for their own lists.</span><span class="es">Todas las medallas y puntuaciones desde 2021, de la más reciente a la más antigua. Las mesas pesan más que las medallas: Pujol y Quintonil tienen estrella Michelin; el resto son salas cuyos sommeliers nos eligieron para sus cartas.</span></p>
-    <table><tr><th class="en">Wine</th><th class="es">Vino</th><th class="en">Award</th><th class="es">Premio</th><th class="en">Competition</th><th class="es">Concurso</th></tr><tr><td>Grenache 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
-<tr><td>Aglianico 2022</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
-<tr><td>Anaranjado 2023</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
-<tr><td>Sauvignon Blanc 2024</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
-<tr><td>1524 Moscato Giallo 2025</td><td><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
-<tr><td>Tempranillo 2022</td><td><span class="en">Gold</span><span class="es">Oro</span></td><td>Bacchus · Unión Española de Catadores 2026</td></tr>
-<tr><td>Anaranjado 2023</td><td><span class="en">Gold</span><span class="es">Oro</span></td><td>Bacchus · Unión Española de Catadores 2026</td></tr>
-<tr><td>Chenin Blanc 2024</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
-<tr><td>Aglianico 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
-<tr><td>Tempranillo 2022</td><td><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
-<tr><td>Aglianico 2020</td><td><span class="en">97 pts</span><span class="es">97 pts</span></td><td>Puntos 2027</td></tr>
-<tr><td>Tempranillo 2022</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Puntos 2027</td></tr>
-<tr><td>Cabernet Franc Gran Reserva 2022</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Puntos 2027</td></tr>
-<tr><td>1524 Mosaico Tinto 2023</td><td><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Puntos 2027</td></tr>
-<tr><td>Chenin Blanc 2024</td><td><span class="en">89 pts</span><span class="es">89 pts</span></td><td>Puntos 2027</td></tr>
-<tr><td>Grenache Gran Reserva 2021</td><td><span class="en">88 pts</span><span class="es">88 pts</span></td><td>Puntos 2027</td></tr>
-<tr><td>Tempranillo 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
-<tr><td>Sauvignon Blanc 2024</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
-<tr><td>Moscato Giallo Pet Nat 2022</td><td><span class="en">Gold</span><span class="es">Oro</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
-<tr><td>Espumoso Rosado 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
-<tr><td>Aglianico 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
-<tr><td>Grenache 2019</td><td><span class="en">Grand Gold</span><span class="es">Gran Oro</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
-<tr><td>Anaranjado 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
-<tr><td>1524 Espumoso Blanco 2022</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
-<tr><td>Grenache 2020</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
-<tr><td>Chenin Blanc 2022</td><td><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2024</td></tr>
-<tr><td>1524 Espumoso Rosé 2022</td><td><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Tempranillo 2020</td><td><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>1524 Espumoso Blanco 2022</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Cabernet Sauvignon 2020</td><td><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Selección Especial 2017</td><td><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Chardonnay 2021</td><td><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Sauvignon Blanc 2020</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Tempranillo 2016</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Aglianico 2015</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Moscato Giallo Pet Nat 2021</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Espumoso Rosado 2020</td><td><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Chenin Blanc 2022</td><td><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Grenache 2020</td><td><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td>Moscato Giallo Pet Nat 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2023</td></tr>
-<tr><td>Sauvignon Blanc 2021</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2022</td></tr>
-<tr><td>Cabernet Sauvignon 2017</td><td><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2021</td></tr></table>
+    <table class="aw"><tr><th class="en">Wine</th><th class="es">Vino</th><th class="en">Award</th><th class="es">Premio</th><th class="en">Competition</th><th class="es">Concurso</th></tr><tr><td class="w">Grenache 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td class="w">Aglianico 2022</td><td class="m"><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td class="w">Anaranjado 2023</td><td class="m"><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td class="w">Sauvignon Blanc 2024</td><td class="m"><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td class="w">1524 Moscato Giallo 2025</td><td class="m"><span class="en">CMB Merit</span><span class="es">CMB Merit</span></td><td>Concours Mondial de Bruxelles 2026</td></tr>
+<tr><td class="w">Tempranillo 2022</td><td class="m"><span class="en">Gold</span><span class="es">Oro</span></td><td>Bacchus · Unión Española de Catadores 2026</td></tr>
+<tr><td class="w">Anaranjado 2023</td><td class="m"><span class="en">Gold</span><span class="es">Oro</span></td><td>Bacchus · Unión Española de Catadores 2026</td></tr>
+<tr><td class="w">Chenin Blanc 2024</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
+<tr><td class="w">Aglianico 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
+<tr><td class="w">Tempranillo 2022</td><td class="m"><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
+<tr><td class="w">Aglianico 2020</td><td class="m"><span class="en">97 pts</span><span class="es">97 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td class="w">Tempranillo 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td class="w">Cabernet Franc Gran Reserva 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td class="w">1524 Mosaico Tinto 2023</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td class="w">Chenin Blanc 2024</td><td class="m"><span class="en">89 pts</span><span class="es">89 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td class="w">Grenache Gran Reserva 2021</td><td class="m"><span class="en">88 pts</span><span class="es">88 pts</span></td><td>Puntos 2027</td></tr>
+<tr><td class="w">Tempranillo 2020</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
+<tr><td class="w">Sauvignon Blanc 2024</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
+<tr><td class="w">Moscato Giallo Pet Nat 2022</td><td class="m"><span class="en">Gold</span><span class="es">Oro</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
+<tr><td class="w">Espumoso Rosado 2020</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
+<tr><td class="w">Aglianico 2020</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
+<tr><td class="w">Grenache 2019</td><td class="m"><span class="en">Grand Gold</span><span class="es">Gran Oro</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td class="w">Anaranjado 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td class="w">1524 Espumoso Blanco 2022</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td class="w">Grenache 2020</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
+<tr><td class="w">Chenin Blanc 2022</td><td class="m"><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2024</td></tr>
+<tr><td class="w">1524 Espumoso Rosé 2022</td><td class="m"><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Tempranillo 2020</td><td class="m"><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">1524 Espumoso Blanco 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Cabernet Sauvignon 2020</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Selección Especial 2017</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Chardonnay 2021</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Sauvignon Blanc 2020</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Tempranillo 2016</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Aglianico 2015</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Moscato Giallo Pet Nat 2021</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Espumoso Rosado 2020</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Chenin Blanc 2022</td><td class="m"><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Grenache 2020</td><td class="m"><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
+<tr><td class="w">Moscato Giallo Pet Nat 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2023</td></tr>
+<tr><td class="w">Sauvignon Blanc 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2022</td></tr>
+<tr><td class="w">Cabernet Sauvignon 2017</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2021</td></tr></table>
     <h3 class="en" style="margin-top:22px">What they've written</h3><h3 class="es" style="margin-top:22px">Lo que han escrito</h3>
     <div class="quotes">
       <blockquote><p class="en">Probably one of the best wineries in Mexico. While Valle de Guadalupe is the country's most acclaimed wine region, Dos Búhos sits in relatively unknown San Miguel de Allende, at 2,000 metres, farming sustainably and making wine with minimal intervention.</p><p class="es">Probablemente una de las mejores bodegas de México. Mientras que Valle de Guadalupe es la región vinícola más aclamada del país, Dos Búhos se encuentra en el relativamente desconocido San Miguel de Allende, a 2,000 metros, con agricultura sostenible y vinificación de mínima intervención.</p><cite>Robert Vernick · Wine Terroir</cite></blockquote>

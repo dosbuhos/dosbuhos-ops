@@ -239,6 +239,7 @@
   #viewer video,#viewer iframe{width:100%;max-height:100%;aspect-ratio:16/9;border:0;background:#000}
   #viewer video[hidden],#viewer iframe[hidden],#viewer img[hidden]{display:none}
   .slink{display:inline-block;margin-top:12px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--warm);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .dots.count{font-family:"Cormorant Garamond",Georgia,serif;font-size:16px;letter-spacing:.12em;color:var(--dim)}
   .quotes{margin-top:18px;display:grid;gap:14px}
   .quotes blockquote{margin:0;padding:16px 18px;border-left:2px solid var(--warm);background:var(--card)}
   .quotes blockquote p{font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;line-height:1.35;color:var(--ink)}
@@ -543,14 +544,15 @@ function toggle(id){ const el = document.getElementById(id); const was = el.clas
 // carousels: scroll-snap + dots + arrows
 document.querySelectorAll('[data-car]').forEach(car => {
   const slides = [...car.children]; const nav = car.nextElementSibling; const dots = nav.querySelector('.dots');
-  slides.forEach((_, i) => { const d = document.createElement('i'); if (i === 0) d.classList.add('on'); d.addEventListener('click', () => go(i)); dots.appendChild(d); });
+  const many = slides.length > 9; if (many) dots.classList.add('count');
+  if (!many) slides.forEach((_, i) => { const d = document.createElement('i'); if (i === 0) d.classList.add('on'); d.addEventListener('click', () => go(i)); dots.appendChild(d); });
   // use real slide offsets: the track has side padding, so clientWidth is not the slide stride (that drift skipped slides mid-carousel)
   const pos = i => slides[i].offsetLeft - slides[0].offsetLeft;
   const idx = () => { let best = 0, d = Infinity; slides.forEach((_, i) => { const k = Math.abs(pos(i) - car.scrollLeft); if (k < d) { d = k; best = i; } }); return best; };
   const go = i => car.scrollTo({ left: pos(Math.max(0, Math.min(slides.length - 1, i))), behavior: 'smooth' });
   nav.querySelector('.prev').addEventListener('click', () => go(idx() - 1));
   nav.querySelector('.next').addEventListener('click', () => go(idx() + 1));
-  const upd = () => { const i = idx(); [...dots.children].forEach((d, j) => d.classList.toggle('on', j === i)); nav.querySelector('.prev').disabled = i === 0; nav.querySelector('.next').disabled = i === slides.length - 1; };
+  const upd = () => { const i = idx(); if (many) dots.textContent = `${i + 1} / ${slides.length}`; [...dots.children].forEach((d, j) => d.classList.toggle('on', j === i)); nav.querySelector('.prev').disabled = i === 0; nav.querySelector('.next').disabled = i === slides.length - 1; };
   car.addEventListener('scroll', () => { clearTimeout(car._t); car._t = setTimeout(upd, 60); }); upd();
 });
 // flip
@@ -581,7 +583,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611080840'; let lastCheck = 0;
+const APP_VER = '202611080842'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
