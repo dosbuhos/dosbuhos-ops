@@ -255,6 +255,12 @@
   #ib .ib-t b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:18px}
   #ib #ib-go{background:#1a1a1a;color:#f5f0e8;border:0;font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:12px 14px;cursor:pointer}
   #ib .ib-x{background:none;border:0;color:#6b6358;font-size:16px;padding:6px;cursor:pointer}
+  :root{color-scheme:dark}
+  html{scrollbar-width:thin;scrollbar-color:#3a352e transparent}
+  ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#3a352e;border-radius:3px}
+  #qzm .qzm-in{scrollbar-width:none;-webkit-mask-image:linear-gradient(#000 calc(100% - 28px),transparent);mask-image:linear-gradient(#000 calc(100% - 28px),transparent)}
+  #qzm .qzm-in::-webkit-scrollbar{display:none}
+  #qzm .qz{padding-bottom:44px}
   #qzm{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center}
   #qzm.on{display:flex}
   #qzm .qzm-in{position:relative;width:100%;max-width:520px;max-height:92vh;max-height:92dvh;overflow:auto;padding-bottom:var(--sab,0px)}
@@ -711,7 +717,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611081119'; let lastCheck = 0;
+const APP_VER = '202611081147'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
