@@ -163,7 +163,7 @@ open(os.path.join(PUB, "press", "index.html"), "w", encoding="utf-8").write(pres
 # service worker
 precache = ["/", "/index.html", "/press/", "/press/index.html", "/icons/logo.png", "/photos/harvest.jpg", "/icons/mono-dark.png", "/icons/mono-light.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"] + [f"/fonts/{f}" for f in os.listdir(os.path.join(PUB, "fonts"))] + \
            [f"/manifest-{k}.webmanifest" for k in PEOPLE] + [f"/vcf/{k}.vcf" for k in PEOPLE] + ["/" + p["f"] for p in PHOTOS]
-sw = """// Dos Búhos card — offline first, refresh in background
+sw = """// Dos Búhos card — pages network-first with cache fallback; assets cache-first, refreshed in background
 const VERSION = 'v__VER__';
 const PRECACHE = __PRECACHE__;
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting())); });
@@ -177,7 +177,11 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.open(VERSION).then(async c => {
     const cached = await c.match(key);
     const net = fetch(e.request).then(r => { if (r && r.ok) c.put(key, r.clone()); return r; }).catch(() => null);
-    return cached || (await net) || (isNav ? c.match(key) : Response.error());
+    if (isNav) {   // pages: network first (fresh after a deploy), cache if offline or slow
+      const fresh = await Promise.race([net, new Promise(res => setTimeout(() => res(null), 2500))]);
+      return fresh || cached || (await net) || Response.error();
+    }
+    return cached || (await net) || Response.error();
   }));
 });
 """

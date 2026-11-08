@@ -387,6 +387,7 @@
     <button class="opt" id="s-install" hidden onclick="doInstall()"><b class="en">Add to Home Screen</b><b class="es">Añadir a pantalla de inicio</b><span class="en">Opens like an app, works offline</span><span class="es">Se abre como app, funciona sin conexión</span></button>
     <div class="opt static" id="s-ios" hidden><b class="en">Add to Home Screen or Bookmarks</b><b class="es">Añadir a inicio o a favoritos</b><span class="en">In Safari, tap Share <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> at the bottom, then “Add to Home Screen” or “Add Bookmark”.</span><span class="es">En Safari, toca Compartir <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> abajo y luego “Añadir a pantalla de inicio” o “Añadir marcador”.</span></div>
     <div class="opt static" id="s-android" hidden><b class="en">Add to Home screen</b><b class="es">Añadir a pantalla de inicio</b><span class="en">In Chrome, tap ⋮ at the top right, then “Add to Home screen”.</span><span class="es">En Chrome, toca ⋮ arriba a la derecha y luego “Añadir a pantalla de inicio”.</span></div>
+    <div class="opt static" id="s-installed" hidden><b class="en">Installed as an app on this phone</b><b class="es">Instalada como app en este teléfono</b><span class="en">You're already in it. Below, ways to pass the link on.</span><span class="es">Ya estás en ella. Abajo, formas de pasar el enlace.</span></div>
     <button class="opt" id="s-share" onclick="doShare()"><b class="en">Send the link to yourself</b><b class="es">Enviarte el enlace</b><span class="en">By message, mail or notes</span><span class="es">Por mensaje, correo o notas</span></button>
     <button class="opt" id="s-copy" onclick="doCopy(this)"><b class="en">Copy link</b><b class="es">Copiar enlace</b><span class="en" id="s-url"></span><span class="es" id="s-url2"></span></button>
     <p class="note"><span class="en">Saving the contact also keeps this link in the contact card.</span><span class="es">Al guardar el contacto, este enlace queda en la ficha del contacto.</span></p>
@@ -464,6 +465,7 @@ function openSave(){
   document.getElementById('s-install').hidden = !(installEvt && !standalone);
   document.getElementById('s-ios').hidden = !(isIOS && !standalone);
   document.getElementById('s-android').hidden = !(!isIOS && !installEvt && !standalone && /Android/.test(navigator.userAgent));
+  document.getElementById('s-installed').hidden = !standalone;
   document.getElementById('s-share').hidden = !navigator.share;
   document.getElementById('save').classList.add('on');
 }
@@ -479,7 +481,7 @@ function setLang(l){ document.documentElement.lang = l; document.getElementById(
 try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navigator.language||'').toLowerCase().indexOf('es') === 0) setLang('es'); } catch(e){}
 
 // offline
-if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); } catch(e){} }
+if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); had = true; }); } catch(e){} }
 </script>
 </body>
 </html>
