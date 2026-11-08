@@ -193,7 +193,7 @@ open(os.path.join(PUB, "index.html"), "w", encoding="utf-8").write(html)
 
 # manifests
 for k, p in PEOPLE.items():
-    m = {"name": "Dos Búhos" if k == "dosbuhos" else f"Dos Búhos · {p['name']}", "short_name": "Dos Búhos",
+    m = {"name": "Dos Búhos Business Card", "short_name": "Business Card",
          "start_url": "/" + ("" if k == "dosbuhos" else k), "scope": "/", "display": "standalone", "background_color": "#0a0a0a", "theme_color": "#0a0a0a",
          "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}]}
     json.dump(m, open(os.path.join(PUB, f"manifest-{k}.webmanifest"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
