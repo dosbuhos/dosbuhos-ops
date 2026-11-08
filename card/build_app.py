@@ -305,6 +305,8 @@ open(os.path.join(PUB, "_headers"), "w").write("""/vcf/*
   Cache-Control: no-store
 /*.webmanifest
   Content-Type: application/manifest+json
+/photos/*
+  Access-Control-Allow-Origin: *
 """)
 
 print("built", len(html), "bytes;", len(precache), "precached")
