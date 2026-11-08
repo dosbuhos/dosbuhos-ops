@@ -478,9 +478,9 @@
           <img class="pl-img" loading="lazy" src="/photos/ab-barrel-monogram.jpg" style="object-position:50% 50%" alt="">
           <p class="en">For restaurants, hotels and companies that want a house wine with their own name on it. The wine is ours: certified organic, grown and made at the estate. We help choose the blend for your table, bottle it under your label and keep it in supply, in runs sized to what you actually pour.</p>
           <p class="es">Para restaurantes, hoteles y empresas que quieren un vino de la casa con su propio nombre. El vino es nuestro: orgánico certificado, cultivado y hecho en la finca. Te ayudamos a elegir el vino para tu mesa, lo embotellamos con tu etiqueta y lo mantenemos en surtido, en tirajes a la medida de lo que realmente sirves.</p>
-          <p class="en">Every program is put together by hand, so there is no price list. Write to Eric and he'll walk you through it.</p>
-          <p class="es">Cada programa se arma a mano, así que no hay lista de precios. Escríbele a Eric y te lo explica.</p>
-          <div class="row"><a class="btn warm" href="https://wa.me/15127042059?text=Hola%20Eric%2C%20me%20gustar%C3%ADa%20saber%20m%C3%A1s%20del%20programa%20de%20etiqueta%20privada%20de%20Dos%20B%C3%BAhos.%20/%20Hi%20Eric%2C%20I%27d%20like%20to%20know%20more%20about%20the%20Dos%20B%C3%BAhos%20private%20label%20program." target="_blank" rel="noopener">WhatsApp · Eric</a><a class="btn" href="mailto:cabosari@dosbuhos.com?subject=Etiqueta%20privada%20%C2%B7%20Private%20label">Email</a></div>
+          <p class="en">Every program is put together by hand, so there is no price list. Write to us and we'll walk you through it.</p>
+          <p class="es">Cada programa se arma a mano, así que no hay lista de precios. Escríbenos y te lo explicamos.</p>
+          <div class="row"><a class="btn warm" href="https://wa.me/15127042059?text=Hola%2C%20me%20gustar%C3%ADa%20saber%20m%C3%A1s%20del%20programa%20de%20etiqueta%20privada%20de%20Dos%20B%C3%BAhos.%20/%20Hi%2C%20I%27d%20like%20to%20know%20more%20about%20the%20Dos%20B%C3%BAhos%20private%20label%20program." target="_blank" rel="noopener">WhatsApp</a><a class="btn" href="mailto:cabosari@dosbuhos.com?subject=Etiqueta%20privada%20%C2%B7%20Private%20label">Email</a></div>
         </div></div>
       </div>
 
@@ -717,7 +717,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611081405'; let lastCheck = 0;
+const APP_VER = '202611081407'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
