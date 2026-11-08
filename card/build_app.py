@@ -127,9 +127,17 @@ AWARDS = [
   {"comp":"Concours Mondial de Bruxelles · México","year":2021,"icon":"cmb","items":[["Cabernet Sauvignon 2017","s"]]},
 ]
 
-# Videos — placeholder until the films are uploaded. Each: title (en/es), blurb (en/es), poster (image in public/), and either src (mp4/HLS URL, e.g. Cloudflare Stream/R2) or embed (YouTube/Vimeo embed URL); dur optional. Empty src+embed = "coming soon" card.
+# Videos — poster may be a remote URL (YouTube thumb) with a local fallback layered under it. Each: title (en/es), blurb (en/es), poster (image in public/), and either src (mp4/HLS URL, e.g. Cloudflare Stream/R2) or embed (YouTube/Vimeo embed URL); dur optional. Empty src+embed = "coming soon" card.
 VIDEOS = [
-    {"title_en": "The vineyard, in motion", "title_es": "El viñedo, en movimiento", "blurb_en": "Short films from the estate. The first ones land soon.", "blurb_es": "Cortos desde la finca. Los primeros llegan pronto.", "poster": "/photos/vineyard-talk.jpg", "src": "", "embed": "", "dur": ""},
+    {"title_en": "Bodega Dos Búhos, San Miguel de Allende", "title_es": "Bodega Dos Búhos, San Miguel de Allende",
+     "blurb_en": "A visit from Guía de Vinos Mexicanos: the vineyard, the cellar, the people.", "blurb_es": "Una visita de Guía de Vinos Mexicanos: el viñedo, la bodega, la gente.",
+     "poster": "https://i.ytimg.com/vi/F3VZHRI4G6o/hqdefault.jpg", "fallback": "/photos/cellar.jpg", "src": "", "embed": "https://www.youtube-nocookie.com/embed/F3VZHRI4G6o?rel=0&modestbranding=1&playsinline=1&autoplay=1", "dur": ""},
+    {"title_en": "Dos Búhos — an introduction", "title_es": "Dos Búhos — introducción",
+     "blurb_en": "Who we are and why we farm this way. Coming soon.", "blurb_es": "Quiénes somos y por qué cultivamos así. Muy pronto.",
+     "poster": "/photos/vineyard-talk.jpg", "src": "", "embed": "", "dur": ""},
+    {"title_en": "Certified organic", "title_es": "Certificación orgánica",
+     "blurb_en": "What the certification means on the ground. Coming soon.", "blurb_es": "Qué significa la certificación en el campo. Muy pronto.",
+     "poster": "/photos/planting.jpg", "src": "", "embed": "", "dur": ""},
 ]
 PHOTOS = [
     {"f": "photos/harvest.jpg", "en": "Harvest at dawn", "es": "Vendimia al amanecer"},
