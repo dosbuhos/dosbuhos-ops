@@ -45,7 +45,7 @@
   #front .fc span{display:block}
   #front .fc .w::before{content:"WhatsApp  ";font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--warm)}
   #front .fc .e{letter-spacing:.06em}
-  .qrwrap{margin:30px auto 0;width:min(62vw,290px);aspect-ratio:1;background:#fff;border-radius:22px;padding:7.5%;position:relative}
+  .qrwrap{margin:30px auto 0;width:min(62vw,290px);aspect-ratio:1;background:#fff;border-radius:22px;padding:calc(min(62vw,290px) * .075);box-sizing:border-box;position:relative}
   .qrwrap svg{width:100%;height:100%;display:block}
   .qrwrap img{position:absolute;left:50%;top:50%;width:21%;transform:translate(-50%,-50%);background:#fff;padding:5px;box-sizing:content-box}
   #front .hint{margin-top:34px;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);animation:pulse 2.4s ease-in-out infinite}
@@ -717,7 +717,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611081154'; let lastCheck = 0;
+const APP_VER = '202611081156'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
