@@ -1,0 +1,965 @@
+{
+ "lang": "en",
+ "wines": [
+  {
+   "title": "Sauvignon Blanc 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nThe wine undergoes maceration in contact with the lees for six months in stainless steel tanks and is clarified through racking before bottling."
+    ],
+    [
+     "Tasting Notes",
+     "A beautiful straw-yellow hue with golden reflections, bright and elegant. It offers fresh aromas with notes of Eureka lemon, pineapple, tangerine, and white peach, complemented by delicate floral fragrances such as magnolia and orange blossom. On the palate, you’ll find hints of caramelized citrus, followed by a persistent floral finish that leaves a fresh and harmonious sensation."
+    ],
+    [
+     "Pairing",
+     "Perfect with fish and seafood, whether in carpaccio or ceviche, as well as pasta with creamy sauces, seafood pasta, mussels \"à la marinière,\" and fresh oysters."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Sauvignon Blanc"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "3408 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/00.jpg",
+   "color": "#ffc000"
+  },
+  {
+   "title": "Mosaico Blanco 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nThe wine undergoes maceration in contact with the lees for 6 months in stainless steel tanks and is clarified through racking before bottling."
+    ],
+    [
+     "Tasting Notes",
+     "With an attractive straw-yellow hue and greenish reflections, it is bright and fresh. Vibrant aromas of citrus, peach, pineapple, and apple are complemented by subtle notes of white flowers, adding elegance and freshness. Expressive flavors of pineapple and passion fruit, with a hint of green peppers that enhance its character and balance."
+    ],
+    [
+     "Pairing",
+     "Ideal for fish and seafood, whether in carpaccio or ceviche."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "60% Sauvignon Blanc · 25% Semillon · 14% Muscat"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "3145 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/01.jpg",
+   "color": "#92d050"
+  },
+  {
+   "title": "Chenin Blanc 2023",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nThe wine undergoes maceration in contact with the lees for 6 months in stainless steel tanks and is clarified through racking before bottling."
+    ],
+    [
+     "Tasting Notes",
+     "Our Chenin Blanc displays an attractive light yellow hue, bright and luminous. Fresh aromas with notes of citrus, passion fruit, starfruit, and pineapple, complemented by a subtle touch of licorice that adds depth. Enveloping flavors of juicy peach, tropical pineapple, and a delicate hint of vanilla provide balance and a silky texture."
+    ],
+    [
+     "Pairing",
+     "Ideal for fish and seafood, fresh cheeses, and salads."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Chenin Blanc"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "2864 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/02.jpg",
+   "color": "#f4b081"
+  },
+  {
+   "title": "Semillon 2021",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nThe wine undergoes maceration in contact with the lees for 6 months in stainless steel tanks and is clarified through racking before bottling."
+    ],
+    [
+     "Tasting Notes",
+     "With a beautiful light yellow hue, bright and refreshing. Fresh and fruity aromas with notes of green apple, green peppers, and peach, offering a balance between freshness and smoothness. Vibrant entry with hints of citrus and white flowers, leaving a light and aromatic sensation on the palate."
+    ],
+    [
+     "Pairing",
+     "Ideal for dishes with grilled fish, grilled salmon, herb-infused chicken, or pastas with mushrooms or spinach."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Semillon"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "1240 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/03.jpg",
+   "color": "#cc9b00"
+  },
+  {
+   "title": "Chardonnay 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nMalolactic fermentation takes place, followed by aging for 6 months in cold stainless steel tanks in contact with the lees for stabilization.\nThe wine is then aged for 6 months in second-use French oak barrels.\nClarification is achieved through racking."
+    ],
+    [
+     "Tasting Notes",
+     "Golden, bright, and crystalline, reflecting its elegance and freshness. Enveloping aromas of citrus such as orange, delicate notes of orange blossom, and a subtle hint of vanilla and butter, adding warmth and smoothness. Juicy flavors of orange, pineapple, and peach, complemented by a subtle note of vanilla, giving a silky and balanced finish."
+    ],
+    [
+     "Pairing",
+     "White fish tiradito with mint and dill, crème brûlée dessert, and/or fettuccine pasta."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Chardonnay"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "455 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/04.jpg",
+   "color": "#bfbfbf"
+  },
+  {
+   "title": "Moscato Giallo 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting at dawn, followed by cold fermentation in stainless steel tanks.\nMalolactic fermentation and aging for 6 months in stainless steel tanks at low temperatures, in contact with its lees for stabilization."
+    ],
+    [
+     "Tasting Notes",
+     "In this wine, we find bright lemon-yellow tones.\nIt has a medium-high intensity reminiscent of yellow lemon, tropical fruits such as kiwi and lychee, and white flowers like orange blossom.\nOn the palate, it presents a light alcohol content, with a moderate aftertaste featuring notes of yellow lemon, kiwi, and chamomile."
+    ],
+    [
+     "Pairing",
+     "Perfect to pair with dishes such as charcoal-grilled oysters, buttered lobster, and pasta with mussels."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Moscato Giallo"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "998 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Transparent bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/05.jpg",
+   "color": "#a8d08c"
+  },
+  {
+   "title": "1524 Rosé 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting at dawn, followed by a short maceration in contact with the skins for 24 hours. Cold fermentation in stainless steel tanks.\nMalolactic fermentation and aging for 6 months in cold stainless steel tanks in contact with its lees for stabilization."
+    ],
+    [
+     "Tasting Notes",
+     "We can find bright and crystalline salmon tones.\nWith medium aromatic intensity, featuring notes of currant, strawberries, and even floral hints of geranium.\nOn the palate, the flavors confirm the aromas, resulting in a well-balanced wine with pleasant acidity and a refreshing finish."
+    ],
+    [
+     "Pairing",
+     "Perfect to pair with shrimp pasta, smoked salmon in a tangy red berry sauce, crab pâté toasts, and even lentil hummus.\n."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "50% Tempranillo · 50% Syrah · 10% Cabernet Franc"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "2427 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Transparent bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/06.jpg",
+   "color": "#ffcccc"
+  },
+  {
+   "title": "1524 Espumoso Rosé 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "Dos Búhos has created a Sparkling Rosé Brut.\nIts salmon-pink color comes from a blend of Syrah, Tempranillo, and Cabernet Franc.\nShort maceration in contact with the skins for less than 24 hours.\nMade using the traditional Champenoise method, it remained in contact with its lees for 9 months."
+    ],
+    [
+     "Tasting Notes",
+     "This wine has a beautiful salmon-pink hue with copper highlights.\nOn the nose, it reveals delightful aromas of fresh strawberries, peach, red apple, and delicate rose petals.\nOn the palate, we find flavors of strawberries, roses, and cranberries, with a citrus touch of grapefruit and a bright acidity."
+    ],
+    [
+     "Pairing",
+     "Ideal to pair with desserts such as strawberries with chocolate, smoked peaches with Camembert cheese, or even Linguine pasta with beetroot or tuna sashimi."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "50% Tempranillo · 50% Syrah · 10% Cabernet Franc"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "5313 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Transparent bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/07.jpg",
+   "color": "#f070a1"
+  },
+  {
+   "title": "1524 Espumoso Blanco 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvests at dawn of our Moscato Giallo grapes.\nProduced using the traditional Champenoise method, aged on its lees for 9 months."
+    ],
+    [
+     "Tasting Notes",
+     "We find lemon yellow tones, bright, crystalline, and clean.\nIt has a medium-high intensity where we appreciate citrus notes of lemon, tropical fruits like starfruit, kiwi, and white melon.\nOn the palate, we detect lemon zest, green pear, dehydrated pineapple, and dehydrated grapes."
+    ],
+    [
+     "Pairing",
+     "Ideal to pair with appetizers such as fish canapés or green salads with grapes, kiwis, and pineapple, white fish with fine herbs, or even desserts like panna cotta with tropical fruits."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Moscato Giallo"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "1200 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Transparent bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/08.jpg",
+   "color": "#339933"
+  },
+  {
+   "title": "Espontáneo Pet-Nat 2023",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nMalolactic fermentation occurs, and the wine is aged for 6 months in cold stainless steel tanks in contact with its lees for stabilization.\nAn ancestral method is used, initiating a second fermentation in the bottle, resulting in our Pet Nat with bubbles."
+    ],
+    [
+     "Tasting Notes",
+     "With a light golden yellow color, reflecting gold and amber, the wine offers intense and expressive aromas with notes of exotic fruits such as lychee, kiwi, yellow and white peach, starfruit, and pineapple, accompanied by a subtle hint of orange blossom. On the palate, it is vibrant and citrusy, evolving into enveloping flavors of caramel, honey, acacia flower, and crystallized lemon."
+    ],
+    [
+     "Pairing",
+     "Perfect to pair with fish ceviche with mango, golden sashimi with ginger and lime blossom, vegetable tempura, battered shrimp, and lemon tiramisu."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Moscato Giallo"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "2600 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/09.jpg",
+   "color": "#f2c23c"
+  },
+  {
+   "title": "Espontáneo Anaranjado 2023",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold fermentation in stainless steel tanks.\nAlcoholic fermentation with native yeasts takes place in stainless steel tanks.\nMaceration lasts for 6 months in stainless steel tanks with skins and seeds.\nAging occurs in second-use French oak barrels for 12 months on its lees.\nClarification is achieved through racking."
+    ],
+    [
+     "Tasting Notes",
+     "With a beautiful orange hue and ochre reflections, it presents delicate aromas of crystallized Japanese orange, accompanied by citrus notes, magnolia flower, and a subtle hint of honey. It has a dry character that highlights the citrus, but with the juiciness of a freshly bitten mandarin directly from the tree. Its persistence on the palate is exceptional."
+    ],
+    [
+     "Pairing",
+     "Ideal for Japanese cuisine, fish sushi, sashimi, or tempura-fried dishes. It has enough character to pair with savory dishes, and it goes wonderfully with paella."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Moscato Giallo"
+    ],
+    [
+     "Wine Profile",
+     "12.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "8° to 12°C"
+    ],
+    [
+     "Recommended Aging",
+     "3 years"
+    ],
+    [
+     "Production",
+     "1274 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/10.jpg",
+   "color": "#ff9900"
+  },
+  {
+   "title": "Mosaico 2022",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold maceration for 24 hours, with manual pumpovers three times a day to extract maximum flavor and color.\nAfter fermentation, we leave the wine in post-fermentation maceration for 7 days to achieve greater complexity.\nFinally, it ages for 12 months in first-use French oak barrels, refining through a natural clarification process by racking."
+    ],
+    [
+     "Tasting Notes",
+     "This wine has a red-violet hue with enveloping aromas of apple, raspberry, and blueberry, complemented by subtle spicy notes of clove and cinnamon, and a delightful touch of dark chocolate. It has intense flavors of spices, wood, and black fruits, with a slight smoky note that adds depth and character."
+    ],
+    [
+     "Pairing",
+     "BBQ ribs, grilled sea bass, cold cuts pizza, and it can even be paired with apple strudel."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "50% Tempranillo · 50% Syrah"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "5387 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/11.jpg",
+   "color": "#c55a11"
+  },
+  {
+   "title": "1524 Tempranillo 2021",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We perform manual harvesting in the early morning, followed by cold maceration for 24 hours, with manual punchdowns three times a day to extract maximum flavor and color. After fermentation, the wine is left in post-fermentation maceration for 7 days to achieve greater complexity. Finally, it ages for 12 months in new American oak barrels, refining through a natural clarification process by racking."
+    ],
+    [
+     "Tasting Notes",
+     "It has beautiful purple tones, clean and bright.\nWith delightful aromas of red fruits such as cherry, blueberry, pomegranate, flowers like hibiscus and violet, we can also find spicy notes like black pepper and clove, finishing with oak notes such as bitter chocolate, smoke, and leather.\nOn the palate, we can confirm its aromatic complexity, highlighting hibiscus, cherry, and bitter chocolate."
+    ],
+    [
+     "Pairing",
+     "This wine is perfect to pair with dishes such as confit duck with a red fruit sauce, crispy cochinita pibil tacos with purple onion, smoked pork in hibiscus sauce, or BBQ ribs."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Tempranillo"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "4523 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/12.jpg",
+   "color": "#323e4f"
+  },
+  {
+   "title": "Tempranillo 2020",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by a cold maceration for 24 hours. This is followed by manual pump-overs three times a day to extract maximum flavor and color.\nAfter fermentation, the wine undergoes post-fermentative maceration for 7 days to achieve greater complexity.\nFinally, it is aged for 24 months in first-use French oak barrels, refining naturally through racking clarification."
+    ],
+    [
+     "Tasting Notes",
+     "Our Tempranillo showcases intense plum tones with violet hues.\nIt offers enveloping aromas of blackberry, purple plum, and fig, complemented by subtle notes of damp earth, rosemary, and a hint of cocoa.\nOn the palate, juicy cherry and blackberry flavors harmonize beautifully with dried plum and a light touch of oak."
+    ],
+    [
+     "Pairing",
+     "Perfect for grilled red meats, red enchiladas, cochinita pibil, duck with guajillo sauce, and even a chocolate mousse."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Tempranillo"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "571 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/13.jpg",
+   "color": "#000000"
+  },
+  {
+   "title": "Grenache 2020",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold maceration for 24 hours. The must undergoes manual pump-overs three times a day to extract maximum flavor and color.\nAfter fermentation, the wine remains in post-fermentative maceration for 7 days to achieve greater complexity.\nFinally, it is aged for 24 months in first-use French oak barrels, refining naturally through racking."
+    ],
+    [
+     "Tasting Notes",
+     "Our Grenache displays a garnet hue with ruby reflections and medium intensity.\nPleasant aromas of red fruits such as cherry and dried strawberry, complemented by delicate notes of violet, rose, and hibiscus.\nFresh and vibrant on the palate, with youthful red fruit flavors, raspberry, and a subtle herbal touch."
+    ],
+    [
+     "Pairing",
+     "Perfect with cured meats and charcuterie, tuna with guajillo and ancho chili sauce, or salmon with hibiscus reduction. Also pairs wonderfully with chocolate or red fruit desserts."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Grenache"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "840 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/14.jpg",
+   "color": "#660066"
+  },
+  {
+   "title": "Cabernet Sauvignon 2021",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold maceration for 24 hours. The must undergoes manual pump-overs three times a day to extract maximum flavor and color.\nAfter fermentation, the wine remains in post-fermentative maceration for 7 days to achieve greater complexity.\nFinally, it is aged for 24 months in first-use French oak barrels, refining naturally through racking."
+    ],
+    [
+     "Tasting Notes",
+     "Our Cabernet Sauvignon presents an attractive deep plum-violet hue with cherry-red highlights.\nIt offers enveloping aromas of coconut, cinnamon, blackberry, and black cherry, complemented by hints of plum, cassis, and a touch of vanilla.\nOn the palate, it has youthful, vibrant tannins with an astringent texture. Flavors of black cherry, cassis, and blackberry stand out, accompanied by vegetal nuances and a subtle herbal touch."
+    ],
+    [
+     "Pairing",
+     "Perfect with mole negro, huitlacoche, charcoal-grilled meats, and aged cheeses like Comté. Also pairs beautifully with dark chocolate desserts or creamy coffee-based treats."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Cabernet Sauvignon"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "840 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/15.jpg",
+   "color": "#cc0000"
+  },
+  {
+   "title": "Cabernet Franc 2021",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold maceration for 24 hours. The must undergoes manual pump-overs three times a day to extract maximum flavor and color.\nAfter fermentation, the wine remains in post-fermentative maceration for 7 days to achieve greater complexity.\nFinally, it is aged for 24 months in first-use French oak barrels, refining naturally through racking."
+    ],
+    [
+     "Tasting Notes",
+     "This wine showcases beautiful intense violet and red hues.\nFresh aromas of mint and dried leaves, with earthy notes of damp soil. Subtle hints of green pepper, caramelized strawberry in balsamic, coffee, and a sweet touch of tobacco are also present.\nA harmonious combination of black and red fruits that evolves into spices and delicate toasted notes."
+    ],
+    [
+     "Pairing",
+     "Perfect for slow-cooked meats, chili-based sauces with wine reduction, charcoal-grilled cuts, and fire-roasted vegetables and seafood."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Cabernet Franc"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "840 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/16.jpg",
+   "color": "#a50021"
+  },
+  {
+   "title": "Aglianico 2021",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold maceration for 24 hours. The must undergoes manual pump-overs three times a day to extract maximum flavor and color.\nAfter fermentation, the wine remains in post-fermentative maceration for 7 days to achieve greater complexity.\nFinally, it is aged for 24 months in first-use French oak barrels, refining naturally through racking."
+    ],
+    [
+     "Tasting Notes",
+     "With a distinctive violet hue and deep purple intensity.\nSeductive aromas of blueberry, truffle, and plum, intertwined with notes of incense, black raspberry, and a subtle hint of cocoa.\nOn the palate, it is vibrant and astringent, with a pronounced presence of black fruits, spices, and elegant toasted nuances."
+    ],
+    [
+     "Pairing",
+     "Perfect for charcoal-grilled meats, wine reduction sauces, and fire-grilled seafood with chili-based sauces."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Aglianico"
+    ],
+    [
+     "Wine Profile",
+     "13.5% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "586 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/17.jpg",
+   "color": "#993366"
+  },
+  {
+   "title": "Selección Especial 2020",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "We carry out manual harvesting in the early morning, followed by cold maceration for 24 hours. The must undergoes manual pump-overs three times a day to extract maximum flavor and color.\nAfter fermentation, the wine remains in post-fermentative maceration for 7 days to achieve greater complexity.\nFinally, it is aged for 24 months in first-use French oak barrels, naturally refining through racking."
+    ],
+    [
+     "Tasting Notes",
+     "This wine showcases a bright purple hue with deep violet reflections.\nIntense aromas of plum and blackberry, complemented by notes of chocolate, coffee, black pepper, blackcurrant, and dried cranberries.\nOn the palate, it offers enveloping and long-lasting toasted notes of coffee and cocoa, followed by a persistent presence of candied black fruits, such as blackberry and cassis."
+    ],
+    [
+     "Pairing",
+     "Perfect for charcoal-grilled cuts, game meats, lamb, sea bass in morel sauce, black mole, chocolate lava cake, and coffee ice cream."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "33.33% Aglianico · 33.33% Cabernet Franc · 33.33% Cabernet Sauvignon"
+    ],
+    [
+     "Wine Profile",
+     "13% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "893 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/18.jpg",
+   "color": "#2e75b5"
+  },
+  {
+   "title": "1524 Montepulciano",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "For this wine, we follow a traditional fortification process by adding grappa before the must finishes fermentation, preserving the residual sugar characteristic of this wine style.\nWe hand-harvest in the early morning.\nAged for 2 years in first-use Hungarian oak barrels."
+    ],
+    [
+     "Tasting Notes",
+     "A deep ruby-red hue with bright copper reflections.\nAromas of caramel, dark chocolate, vanilla, anise, blackberry, and plum jam, along with floral hints of roses and violets.\nOn the palate, it is sweet, with flavors of caramel and black fruit preserves."
+    ],
+    [
+     "Pairing",
+     "Traditionally enjoyed with desserts like tiramisu or crème brûlée. For a unique experience, it pairs beautifully with dishes like enmoladas, pipián, or even aged cheeses for a delightful contrast."
+    ]
+   ],
+   "specs": [
+    [
+     "Varietals",
+     "100% Montepulciano"
+    ],
+    [
+     "Wine Profile",
+     "14% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "7 years"
+    ],
+    [
+     "Production",
+     "285 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Amber bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/19.jpg",
+   "color": "#660066"
+  },
+  {
+   "title": "1524 Vin d’Orange Amères",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "A bitter wine inspired by the style of southern France, ideal as a digestif to extend the after-dinner conversation and savor every moment.\nCrafted from our rosé wine, macerated with oranges for three months, and fortified with a touch of vodka."
+    ],
+    [
+     "Tasting Notes",
+     "An elegant salmon-rose hue with orange reflections, evoking the warmth of sunset.\nFresh and vibrant citrus aromas, featuring notes of orange and grapefruit, accompanied by a subtle floral hint that adds delicacy and balance.\nIntense and refreshing flavors, marked by the liveliness of bitter citrus. Its dry and bright profile envelops the palate, leaving a fresh and persistent sensation that invites continued enjoyment."
+    ],
+    [
+     "Pairing",
+     "Perfect for crafting cocktails like a spritz, pairing with oyster and seafood platters, or even a red berry parfait."
+    ]
+   ],
+   "specs": [
+    [
+     "Wine Profile",
+     "14% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "526 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Transparent bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/20.jpg",
+   "color": "#fc3f04"
+  },
+  {
+   "title": "1524 Vermouth",
+   "place": "San Miguel de Allende, Guanajuato, México.\nValle de la Independencia.",
+   "sections": [
+    [
+     "Winemaking Process",
+     "Made from our Tempranillo red wine base, macerated with 32 spices during fermentation for 15 days.\nIt is then aged in second-use French oak barrels."
+    ],
+    [
+     "Tasting Notes",
+     "A brilliant, clean, and crisp ruby-red hue.\nIntense spiced aromas such as star anise, clove, wormwood, and cinnamon.\nOn the palate, a blend of spices and fruitiness unfolds, featuring notes of cherry, hibiscus, blackberry, cinnamon, cardamom, black pepper, clove, and anise."
+    ],
+    [
+     "Pairing",
+     "Ideal for Negroni preparation, though traditionally enjoyed as a digestif served over ice with an orange peel."
+    ]
+   ],
+   "specs": [
+    [
+     "Wine Profile",
+     "14% Alcohol"
+    ],
+    [
+     "Serving Temperature",
+     "15° to 17°C"
+    ],
+    [
+     "Recommended Aging",
+     "5 years"
+    ],
+    [
+     "Production",
+     "420 bottles"
+    ]
+   ],
+   "packaging_label": "Packaging",
+   "packaging": "Transparent bottle 750ml – Agglomerated cork – Box of 12 bottles.",
+   "bottle": "bottles/21.jpg",
+   "color": "#d41d0a"
+  }
+ ]
+}
