@@ -146,7 +146,6 @@ PHOTOS = [
     {"f": "photos/cellar.jpg", "en": "Amphora, native-yeast ferments, barrels, sheep", "es": "Ánforas, fermentaciones con levadura nativa, barricas, borregos"},
     {"f": "photos/harvest-bin.jpg", "en": "Chenin Blanc into the bin", "es": "Chenin Blanc a la tina"},
     {"f": "photos/glasses.jpg", "en": "Espontáneo, our orange wine", "es": "Espontáneo, nuestro vino naranja"},
-    {"f": "photos/tasting.jpg", "en": "The tasting room", "es": "La sala de cata"},
     {"f": "photos/grandfather.jpg", "en": "The land before the vines", "es": "La tierra antes de las vides"},
     {"f": "photos/community.jpg", "en": "Feed The Hungry at the winery", "es": "Feed The Hungry en la bodega"},
     {"f": "photos/vineyard-talk.jpg", "en": "In the vineyard", "es": "En el viñedo"},
