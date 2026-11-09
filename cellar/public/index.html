@@ -1278,7 +1278,14 @@ body { background-image: none !important; font-family: var(--f-body); }
 .bp-so { font-weight: 700; display: block; }
 .bp-now { min-width: 170px; } .bp-n { line-height: 1.45; } .bp-n small { color: #66707a; } .bp-n.old { color: #8a6d00; } .bp-n.bad { color: #8a1c1c; } .bp-n.ok b, .bp-n.ok { color: #1f5e2a; }
 .bp-also { color: #66707a; }
-.bp-q { min-width: 200px; } .bp-flag { margin-top: 6px; padding: 6px 8px; background: #fff4e0; border-left: 3px solid #b06a00; border-radius: 4px; }
+.bp-flag { padding: 8px 10px; background: #fff4e0; border-left: 3px solid #b06a00; border-radius: 4px; line-height: 1.4; }
+/* Pendientes + Claude's suggestions: a full-width row under each wine, cards side by side (Eric, Nov 9) */
+.bp-tbl tr.bp-r:has(+ .bp-r2) > * { border-bottom: 0; }
+.bp-r2 > td { padding: 0 8px 12px; }
+.bp-r2.g-white > td { border-left: 4px solid #d8b43c; } .bp-r2.g-rose > td { border-left: 4px solid #e0849a; } .bp-r2.g-orange > td { border-left: 4px solid #d9822b; }
+.bp-q { position: sticky; left: 8px; max-width: min(1180px, calc(100vw - 48px)); }
+.bp-qt { padding: 6px 0 8px; color: #2b3033; line-height: 1.45; }
+.bp-flags { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .bp-foot { font-size: 12px; color: #66707a; margin-top: 8px; }
 .bp-dlg { max-width: 640px; width: calc(100% - 24px); border: 0; border-radius: 12px; padding: 16px; }
 .bp-dlg form { display: grid; gap: 10px; } .bp-dlg label { display: grid; gap: 4px; font-weight: 600; font-size: 13px; }
@@ -4440,17 +4447,17 @@ Return ONLY JSON with this shape:
     h += `<div class="bp-rev"><div class="bp-rev-h"><b>Al día</b> <small>Claude revisa cada vino a las 12:00, 16:00 y 19:00${run ? " · última: " + esc(lrWhen(run.at)) : ""}. Sus sugerencias para esta tabla aparecen en Pendientes.</small></div></div>`;
     const rows = S.bplan.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
     if (!rows.length) { box.innerHTML = h + `<div class="cr-empty">Todavía no hay plan de embotellado.</div>`; return; }
-    h += `<div class="bp-wrap"><table class="bp-tbl"><thead><tr><th>Vino · fecha</th><th>Ahora <small>en vivo</small></th><th>Proteína</th><th>Placas</th><th>Estéril</th><th>SO₂ mantener</th><th>SO₂ al embotellar</th><th>Pendientes</th></tr></thead><tbody>`;
+    h += `<div class="bp-wrap"><table class="bp-tbl"><thead><tr><th>Vino · fecha</th><th>Ahora <small>en vivo</small></th><th>Proteína</th><th>Placas</th><th>Estéril</th><th>SO₂ mantener</th><th>SO₂ al embotellar</th></tr></thead><tbody>`;
     for (const [g, gl] of BP_GROUPS) {
       const rs = rows.filter(r => r.group === g); if (!rs.length) continue;
-      h += `<tr class="bp-grp"><th colspan="8">${gl} <small>${rs.length}</small></th></tr>`;
+      h += `<tr class="bp-grp"><th colspan="7">${gl} <small>${rs.length}</small></th></tr>`;
       for (const r of rs) {
         const fl = flags.filter(f => f.id === r.id);
         h += `<tr class="bp-r g-${esc(g)}" data-bpid="${esc(r.id)}"><th scope="row"><b>${esc(r.name)}</b><span class="bp-v">${esc(r.vessel || "")}</span><span class="bp-dt">${esc(r.date || "")}</span>${can ? `<button type="button" class="btn sm bp-ed" data-bped="${esc(r.id)}">Editar</button>` : ""}</th>` +
           `<td class="bp-now">${bpNow(r)}</td><td>${bpCell(r.protein)}</td><td>${bpCell(r.pad)}</td><td>${bpCell(r.sterile)}</td>` +
           `<td><span class="bp-so">${esc(r.hold || "—")}</span>${r.holdNote ? `<p>${esc(r.holdNote)}</p>` : ""}</td>` +
           `<td><span class="bp-so">${esc(bpGet(r, "so2.v") || "—")}</span>${bpGet(r, "so2.hd") ? `<span class="bp-hd">${esc(r.so2.hd)}</span>` : ""}${bpGet(r, "so2.p") ? `<p>${esc(r.so2.p)}</p>` : ""}</td>` +
-          `<td class="bp-q">${esc(r.q || "")}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><i>${esc(f.field || "")} → ${esc(f.suggest)}</i>${can ? ` <button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Aplicar</button>` : ""}` : ""}</div>`).join("")}</td></tr>`;
+          `</tr>` + (r.q || fl.length ? `<tr class="bp-r2 g-${esc(g)}"><td colspan="7"><div class="bp-q">${r.q ? `<div class="bp-qt"><b>Pendientes:</b> ${esc(r.q)}</div>` : ""}${fl.length ? `<div class="bp-flags">` : ""}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><i>${esc(f.field || "")} → ${esc(f.suggest)}</i>${can ? ` <button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Aplicar</button>` : ""}` : ""}</div>`).join("")}${fl.length ? `</div>` : ""}</div></td></tr>` : "");
       }
     }
     h += `</tbody></table></div><p class="bp-foot">Proteína según las pruebas filtradas (serie de bentonita 30/10–2/11); las pruebas de calor del 20/10 sin filtrar leen de más y no cuentan. Molecular = libre ÷ (1 + 10^(pH − 1.81)). Gramos KMBS = (meta − libre) × L ÷ 576.</p>`;
