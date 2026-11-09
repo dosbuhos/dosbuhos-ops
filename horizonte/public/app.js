@@ -171,7 +171,7 @@ async function syncNow() {
   syncing = false; paintSync();
 }
 async function whoami() {
-  try { const r = await fetch('/api/me', { cache: 'no-store' }); const j = await r.json(); S.me = j.email || null; S.setup = j.setup !== false; }
+  try { const r = await fetch('/api/me', { cache: 'no-store' }); const j = await r.json(); S.me = j.email || null; S.setup = j.setup !== false; if (j.clientId) S.clientId = j.clientId; }
   catch { /* offline: keep working locally */ }
   paintSync(); if (S.me) syncNow();
 }
@@ -577,15 +577,32 @@ function boardSheet(id) {
 <div class="foot">${b && b.id !== 'backlog' ? `<button class="link" style="font-size:14px;color:var(--now)" data-act="delboard" data-bid="${b.id}">Delete board</button>` : '<span></span>'}<button class="bigbtn dark" style="padding:0 20px" data-act="saveboard" data-bid="${b?.id || ''}">Save</button></div>`, { board: id });
 }
 function settingsSheet() {
+  setTimeout(mountGoogleButton, 0);
   const s = syncState();
   openSheet(`<div class="grab"></div><div style="font-size:20px;font-weight:700">Settings</div>
 <div class="grp"><div class="eyebrow">Account</div>
 ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? ' · ' + new Date(S.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</span></div><div class="row"><button class="bigbtn" style="flex:1" data-act="syncnow">Sync now</button><a class="bigbtn" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit" href="/auth/logout">Sign out</a></div>`
-  : S.setup ? `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sign in to sync between phone and computer.</div><a class="bigbtn dark" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/auth/google">Sign in with Google</a>`
+  : S.setup ? `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sign in to sync between phone and computer and load your boards.</div><div id="gsi" style="min-height:44px;display:flex;justify-content:center"></div><div id="gsimsg" class="muted" style="font-size:13px"></div>`
   : `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sync turns on once Google sign-in is set up for Horizonte.</div>`}</div>
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
 <div class="row"><button class="bigbtn" style="flex:1" data-act="export">Export all data</button><button class="bigbtn" style="flex:1" data-act="close">Close</button></div>`, { settings: true });
+}
+
+// Sign in with Google button (Google Identity Services). Only needs the public client id.
+function loadGsi() { return window.google?.accounts?.id ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); }); }
+async function mountGoogleButton() {
+  const box = $('#gsi'); if (!box || S.me) return;
+  if (!S.clientId) { await whoami(); if (!S.clientId) { $('#gsimsg').textContent = 'Connect to the internet to sign in.'; return; } }
+  try { await loadGsi(); } catch { $('#gsimsg').textContent = 'Could not reach Google. Check your connection.'; return; }
+  google.accounts.id.initialize({ client_id: S.clientId, use_fedcm_for_button: true, callback: async (resp) => {
+    $('#gsimsg') && ($('#gsimsg').textContent = 'Signing in…');
+    const r = await fetch('/auth/gsi', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential: resp.credential }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { $('#gsimsg') && ($('#gsimsg').textContent = j.error || 'Sign-in failed.'); return; }
+    S.me = j.email; toast('Signed in · loading your boards'); closeSheet(); render(); await syncNow(); render();
+  } });
+  google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: Math.min(320, box.clientWidth || 320) });
 }
 
 // ── toast ─────────────────────────────────────────────────────

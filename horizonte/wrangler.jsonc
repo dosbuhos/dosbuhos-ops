@@ -23,7 +23,6 @@
     // Same OAuth client as the Hub; add https://horizonte.dos-buhos.workers.dev/auth/callback as a redirect URI.
     "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com"
   }
-  // Secrets (Cloudflare dashboard → horizonte → Settings → Variables and secrets):
-  // GOOGLE_CLIENT_SECRET  same value the Hub uses
-  // SESSION_SECRET        optional; without it sessions are signed with GOOGLE_CLIENT_SECRET
+  // No secrets needed: sign-in uses the Google button (ID token checked against Google's public keys).
+  // Google Cloud client "Cellar calendar" must list https://horizonte.dos-buhos.workers.dev as an Authorized JavaScript origin.
 }

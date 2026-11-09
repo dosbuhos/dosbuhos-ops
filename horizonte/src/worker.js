@@ -9,11 +9,30 @@ const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 const cookie = (name, value, maxAge) => `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
-async function hmac(env, data) {
-  const secret = env.SESSION_SECRET || env.GOOGLE_CLIENT_SECRET; // SESSION_SECRET optional: falls back to the client secret
-  if (!secret) throw new Error('no signing secret');
-  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return b64u(await crypto.subtle.sign('HMAC', key, enc.encode(data)));
+const b64bytes = (str) => Uint8Array.from(atob(str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((str.length + 3) % 4)), c => c.charCodeAt(0));
+const b64json = (str) => JSON.parse(new TextDecoder().decode(b64bytes(str)));
+const newSid = () => b64u(crypto.getRandomValues(new Uint8Array(32)));
+
+// Verifies a Google ID token (from the Sign in with Google button) against Google's public keys. No client secret needed.
+async function verifyGoogleIdToken(token, clientId) {
+  const [h, p, sig] = String(token).split('.');
+  if (!h || !p || !sig) throw new Error('malformed token');
+  const header = b64json(h), payload = b64json(p);
+  const jwks = await (await fetch('https://www.googleapis.com/oauth2/v3/certs', { cf: { cacheTtl: 3600, cacheEverything: true } })).json();
+  const jwk = (jwks.keys || []).find(k => k.kid === header.kid);
+  if (!jwk || header.alg !== 'RS256') throw new Error('unknown signing key');
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+  if (!await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64bytes(sig), enc.encode(`${h}.${p}`))) throw new Error('bad signature');
+  if (payload.aud !== clientId) throw new Error('wrong audience');
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss)) throw new Error('wrong issuer');
+  if (!(payload.exp * 1000 > Date.now())) throw new Error('expired');
+  return payload;
+}
+async function startSession(request, env, email) {
+  const sid = newSid();
+  await env.DB.prepare('INSERT INTO sessions (id, email, created_at, expires_at) VALUES (?, ?, ?, ?)')
+    .bind(sid, email, Date.now(), Date.now() + DAYS * 864e5).run();
+  return cookie(COOKIE, sid, DAYS * 86400);
 }
 function getCookie(request, name) {
   const m = (request.headers.get('Cookie') || '').match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
@@ -22,11 +41,8 @@ function getCookie(request, name) {
 
 async function currentUser(request, env) {
   if (env.DEV_USER && /^(localhost|127\.0\.0\.1)$/.test(new URL(request.url).hostname)) return { email: env.DEV_USER };
-  const v = getCookie(request, COOKIE);
-  if (!v || !(env.SESSION_SECRET || env.GOOGLE_CLIENT_SECRET)) return null;
-  const [sid, exp, sig] = v.split('|');
-  if (!sid || !exp || Number(exp) < Date.now() / 1000) return null;
-  if (sig !== await hmac(env, `${sid}|${exp}`)) return null;
+  const sid = getCookie(request, COOKIE);
+  if (!sid || sid.length < 40) return null;
   const row = await env.DB.prepare('SELECT email FROM sessions WHERE id = ? AND expires_at > ?').bind(sid, Date.now()).first();
   if (!row || row.email !== String(env.OWNER_EMAIL).toLowerCase()) return null;
   return { email: row.email, sid };
@@ -57,18 +73,21 @@ async function auth(request, env, url) {
     const p = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(tok.id_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))));
     const email = String(p.email || '').toLowerCase();
     if (p.aud !== env.GOOGLE_CLIENT_ID || !p.email_verified || email !== String(env.OWNER_EMAIL).toLowerCase()) return page(`${email || 'This account'} can't use Horizonte.`);
-    const sid = crypto.randomUUID();
-    const exp = Math.floor(Date.now() / 1000) + DAYS * 86400;
-    await env.DB.prepare('INSERT INTO sessions (id, email, created_at, expires_at, ua) VALUES (?, ?, ?, ?, ?)')
-      .bind(sid, email, Date.now(), exp * 1000, (request.headers.get('user-agent') || '').slice(0, 200)).run();
     const headers = new Headers({ location: '/' });
-    headers.append('set-cookie', cookie(COOKIE, `${sid}|${exp}|${await hmac(env, `${sid}|${exp}`)}`, DAYS * 86400));
+    headers.append('set-cookie', await startSession(request, env, email));
     headers.append('set-cookie', cookie(STATE, '', 0));
     return new Response(null, { status: 302, headers });
   }
+  if (url.pathname === '/auth/gsi' && request.method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    let p; try { p = await verifyGoogleIdToken(body.credential, env.GOOGLE_CLIENT_ID); } catch (e) { return json({ error: `Google sign-in failed (${e.message})` }, 401); }
+    const email = String(p.email || '').toLowerCase();
+    if (!p.email_verified || email !== String(env.OWNER_EMAIL).toLowerCase()) return json({ error: `${email || 'This account'} can't use Horizonte.` }, 403);
+    return new Response(JSON.stringify({ email }), { headers: { 'content-type': 'application/json', 'set-cookie': await startSession(request, env, email) } });
+  }
   if (url.pathname === '/auth/logout') {
     const v = getCookie(request, COOKIE);
-    if (v) await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(v.split('|')[0]).run();
+    if (v) await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(v).run();
     return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': cookie(COOKIE, '', 0) } });
   }
   return null;
@@ -121,7 +140,7 @@ export default {
     if (url.pathname === '/api/import') return importOps(request, env);
     if (url.pathname.startsWith('/api/')) {
       const user = await currentUser(request, env).catch(() => null);
-      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: !!env.GOOGLE_CLIENT_SECRET }, user ? 200 : 401);
+      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID }, user ? 200 : 401);
       if (!user) return json({ error: 'sign in' }, 401);
       if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env);
       return json({ error: 'not found' }, 404);

@@ -4,7 +4,7 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 
 - Worker `horizonte`, D1 `horizonte`, live at horizonte.dos-buhos.workers.dev
 - Local-first: the app keeps every task in the device's IndexedDB and works offline; changes queue in an outbox and sync through `POST /api/sync` (field-by-field, latest edit wins — `src/merge.js`)
-- Sign-in: Google, only `OWNER_EMAIL`. Uses the Hub's OAuth client; needs the secret `GOOGLE_CLIENT_SECRET` (`SESSION_SECRET` optional) and the redirect URI `https://horizonte.dos-buhos.workers.dev/auth/callback` in Google Cloud. Without them the app still works on one device, without sync
+- Sign-in: the Sign in with Google button (Google Identity Services), only `OWNER_EMAIL`. Uses the Hub's OAuth client id, no secret: the Worker checks the ID token against Google's public keys and keeps a random session id in D1. Needs `https://horizonte.dos-buhos.workers.dev` as an Authorized JavaScript origin on the client. Without sign-in the app still works on one device
 - Front end: plain JS, no build step (`public/app.js`, `public/app.css`), Geist self-hosted, service worker for offline start
 - Desktop ≥900 px: list panel + timeline (Hours / Days / Weeks / Months / Quarters / Years), drag and drop. Phone: Today / Plan / Capture / Boards / Inbox, schedule sheet, swipe right = done, swipe left = schedule, hold + drag = week rail
 
