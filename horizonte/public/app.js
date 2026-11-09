@@ -20,6 +20,7 @@ const I = {
   plan: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>`,
   boards: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><rect x="4" y="4" width="6" height="16" rx="1.5"/><rect x="14" y="4" width="6" height="10" rx="1.5"/></svg>`,
   inbox: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M4 13l3-8h10l3 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg>`,
+  side: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
   chev: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   down: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
 };
@@ -320,13 +321,13 @@ function deskTitle() {
 function renderDesk() {
   return `<div class="d">
 <header class="top">
-<button class="brand" data-act="settings" title="Settings">Horizonte</button>
+<div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">Horizonte</button></div>
 <nav class="seg" aria-label="Zoom level">${ZOOMS.map(([z, l], i) => `<button aria-pressed="${S.ui.zoom === z}" data-zoom="${z}" title="${l} (${i + 1})">${l}</button>`).join('')}</nav>
 <div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button></div>
 <div class="title">${esc(deskTitle())}</div>
 <div class="right"><button data-sync class="dot" data-act="settings"></button></div>
 </header>
-<div class="main">${renderPanel()}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
+<div class="main">${S.ui.panelHidden ? '' : renderPanel()}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
 }
 function sources() {
   const out = [['inbox', `Inbox · ${inboxTasks().length}`]];
@@ -337,18 +338,30 @@ function sources() {
   return out;
 }
 function renderPanel() {
-  const src = S.ui.src, srcs = sources();
-  if (!srcs.some(s => s[0] === src)) S.ui.src = 'inbox';
-  const board = S.ui.src.startsWith('b:') ? S.boards.get(S.ui.src.slice(2)) : null;
-  const addLabel = board ? `Add to ${board.name}` : S.ui.src === 'week' ? 'Add to this week' : S.ui.src === 'month' ? 'Add to this month' : 'Add to Inbox';
+  const srcs = sources();
+  if (!srcs.some(x => x[0] === S.ui.src)) S.ui.src = 'inbox';
   const od = overdueTasks().filter(t => t.pri === 'target').length;
-  return `<aside class="panel" aria-label="Task lists" data-drop="list">
-${od ? `<button class="banner" data-act="review"><span>${od} unfinished target${od > 1 ? 's' : ''} from earlier days</span>Review</button>` : ''}
-<div class="chips">${srcs.map(([k, l]) => `<button class="chip" aria-pressed="${S.ui.src === k}" data-src="${k}" ${k.startsWith('b:') ? `data-drop="board:${k.slice(2)}"` : k === 'inbox' ? 'data-drop="board:"' : ''}>${esc(l)}</button>`).join('')}<button class="chip add" data-act="newboard" aria-label="New board">+ Board</button></div>
+  const banner = od ? `<button class="banner" data-act="review"><span>${od} unfinished target${od > 1 ? 's' : ''} from earlier days</span>Review</button>` : '';
+  if (S.ui.panelView !== 'list') {
+    const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span>${esc(name)}</span><span class="n">${n}</span>${I.chev}</button>`;
+    const wk = placedOn(isoWeek(todayK())).filter(isOpen).length, mo = placedOn(periodOf('month', todayK())).filter(isOpen).length, ov = overdueTasks().length;
+    const boards = boardsSorted().map(b => row('b:' + b.id, b.name, boardTasks(b.id).filter(isOpen).length || '', 'board:' + b.id)).join('');
+    return `<aside class="panel" aria-label="Task lists">${banner}
+<div class="navgroup">${row('inbox', 'Inbox', inboxTasks().length || '', 'board:')}${ov ? row('overdue', 'Overdue', ov) : ''}${row('week', 'This week', wk || '')}${mo ? row('month', 'This month', mo) : ''}</div>
+<div class="navhead"><span class="eyebrow">Boards</span><button class="link" data-act="newboard">+ New board</button></div>
+<div class="navgroup">${boards}</div>
+<div class="hint"><span>Drop a task on a board to move it there</span></div></aside>`;
+  }
+  const board = S.ui.src.startsWith('b:') ? S.boards.get(S.ui.src.slice(2)) : null;
+  const name = board ? board.name : (srcs.find(x => x[0] === S.ui.src)?.[1] || 'Inbox').replace(/ · \d+$/, '');
+  const addLabel = board ? `Add to ${board.name}` : S.ui.src === 'week' ? 'Add to this week' : S.ui.src === 'month' ? 'Add to this month' : 'Add to Inbox';
+  const n = board ? boardTasks(board.id).filter(isOpen).length : S.ui.src === 'overdue' ? overdueTasks().length : S.ui.src === 'week' ? placedOn(isoWeek(todayK())).filter(isOpen).length : S.ui.src === 'month' ? placedOn(periodOf('month', todayK())).filter(isOpen).length : inboxTasks().length;
+  return `<aside class="panel" aria-label="${esc(name)}" data-drop="list">${banner}
+<div class="listhead"><button class="link back" data-act="panelnav">${I.left} All lists</button>${board ? `<button class="link" data-act="editboard" data-bid="${board.id}">Edit board</button>` : ''}</div>
+<div class="listtitle"><b>${esc(name)}</b><span class="muted">${n}</span></div>
 <div class="qa"><label for="qa">${esc(addLabel)}</label><input id="qa" type="text" placeholder="Type a task and press Enter" autocomplete="off" enterkeyhint="done"></div>
 <div class="hint"><span>Drag onto any day, hour or horizon</span><button class="link" data-act="sort">Sort: ${S.ui.sort}</button></div>
 ${renderPanelList(board)}
-${board ? `<div class="hint"><span></span><button class="link" data-act="editboard" data-bid="${board.id}">Edit board</button></div>` : ''}
 </aside>`;
 }
 function renderPanelList(board) {
@@ -644,7 +657,7 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act],[data-zoom],[data-src],[data-tab],[data-mzoom]'); if (!el) return;
   const card = e.target.closest('[data-tid]'), tid = card?.dataset.tid;
   if (el.dataset.zoom) { S.ui.zoom = el.dataset.zoom; S.ui.pk = null; render(); if (S.ui.zoom === 'hours') scrollHoursToNow(); return; }
-  if (el.dataset.src) { S.ui.src = el.dataset.src; render(); return; }
+  if (el.dataset.src) { S.ui.src = el.dataset.src; S.ui.panelView = 'list'; render(); const p = $('.panel'); if (p) p.scrollTop = 0; return; }
   if (el.dataset.tab) { S.ui.mtab = el.dataset.tab; if (el.dataset.tab !== 'boards') S.ui.board = null; render(); $('.mm') && ($('.mm').scrollTop = 0); return; }
   if (el.dataset.mzoom) { S.ui.mzoom = el.dataset.mzoom; render(); return; }
   const act = el.dataset.act, st = sheetState;
@@ -661,6 +674,8 @@ document.addEventListener('click', (e) => {
       S.ui.manchor = z === 'days' ? addDays(S.ui.manchor, 7 * n) : periodRange(shiftPeriod(periodOf({ weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z], S.ui.manchor), 8 * n))[0];
       render(); $('.mm').scrollTop = 0; return; }
     case 'mtoday': S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
+    case 'panelnav': S.ui.panelView = 'nav'; render(); return;
+    case 'togglepanel': S.ui.panelHidden = !S.ui.panelHidden; render(); return;
     case 'sort': { const m = ['manual', 'priority', 'age', 'duration']; S.ui.sort = m[(m.indexOf(S.ui.sort) + 1) % m.length]; render(); return; }
     case 'toggle': S.ui.open[el.dataset.key] = !S.ui.open[el.dataset.key]; render(); return;
     case 'addto': S.ui.adding = el.dataset.k; render(); $(`#ia-${CSS.escape(el.dataset.k)}`)?.focus(); return;
@@ -695,7 +710,7 @@ document.addEventListener('click', (e) => {
     case 'saveboard': { const name = $('#bname').value.trim(); if (!name) { $('#bname').focus(); return; }
       const secs = $('#bsecs').value.split('\n').map(s => s.trim()).filter(Boolean); const id = el.dataset.bid || rid('b_');
       put('board', id, el.dataset.bid ? { name, sections: secs } : { name, sections: secs, color: '', o: Date.now(), archived: false });
-      closeSheet(); if (!el.dataset.bid) { S.ui.src = 'b:' + id; S.ui.board = id; } render(); return; }
+      closeSheet(); if (!el.dataset.bid) { S.ui.src = 'b:' + id; S.ui.board = id; S.ui.panelView = 'list'; } render(); return; }
     case 'delboard': { const id = el.dataset.bid; batch(g => { put('board', id, { del: new Date().toISOString() }, { group: g }); boardTasks(id).forEach(t => put('task', t.id, { board: '', section: '' }, { group: g })); });
       closeSheet(); S.ui.board = null; S.ui.src = 'inbox'; render(); toast('Board deleted; its tasks moved to Inbox', true); return; }
     case 'openboard': S.ui.board = el.dataset.bid; render(); $('.mm').scrollTop = 0; return;
@@ -742,8 +757,8 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'n' || k === 'N') { e.preventDefault(); $('#qa')?.focus(); }
   else if (k === 'd' || k === 'D') { e.preventDefault(); captureSheet(captureDest()); }
   else if (k === 't' || k === 'T') $('[data-act=today]')?.click();
-  else if (k === '[' || k === ']') { const s = sources().map(x => x[0]); S.ui.src = s[(s.indexOf(S.ui.src) + (k === ']' ? 1 : s.length - 1)) % s.length]; render(); }
-  else if (k === '\\') { $('.panel')?.classList.toggle('collapsed'); }
+  else if (k === '[' || k === ']') { const s = sources().map(x => x[0]); S.ui.src = s[(s.indexOf(S.ui.src) + (k === ']' ? 1 : s.length - 1)) % s.length]; S.ui.panelView = 'list'; render(); }
+  else if (k === '\\') { S.ui.panelHidden = !S.ui.panelHidden; render(); }
 });
 document.addEventListener('focusout', (e) => { if (e.target.dataset?.addto && !e.target.value.trim()) setTimeout(() => { if (S.ui.adding === e.target.dataset.addto && !document.activeElement?.dataset?.addto) { S.ui.adding = null; render(); } }, 120); });
 
