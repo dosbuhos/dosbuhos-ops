@@ -68,6 +68,15 @@ svg { flex: none; }
 .card .sub { font-size: 12px; font-weight: 600; color: var(--warn); }
 .card .meta { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .card .star { margin-top: 1px; }
+.card.meeting { background: var(--blue); color: #fff; border: 0; padding-left: 12px; align-items: center; }
+.card.meeting .lk { display: flex; flex: none; }
+.card.meeting .t { font-weight: 600; }
+.card.meeting .meta { color: #fff; font-weight: 700; }
+.card.meeting.done { opacity: 0.55; }
+.card.meeting.done .t { text-decoration: line-through; }
+.m .card.meeting { min-height: 52px; }
+.m .card.meeting .meta { font-size: 15px; }
+.sheet .kindseg button { min-height: 36px; }
 .appt { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--blue); color: #fff; }
 .appt .when { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
 .appt .t { font-weight: 600; }

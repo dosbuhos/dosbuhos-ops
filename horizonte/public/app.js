@@ -203,10 +203,13 @@ function dayLoad(k) { return placedOn(k).reduce((s, t) => s + (t.dur || 30), 0);
 const workMin = () => Math.max(60, toMin(S.prefs.dayEnd) - toMin(S.prefs.dayStart));
 function dayParts(k) {
   const all = placedOn(k), open = all.filter(isOpen), done = all.filter(t => !isOpen(t));
-  const targets = sortList(all.filter(t => t.pri === 'target'));
-  const timed = sortList(open.filter(t => t.at && t.pri !== 'target'), 'manual').sort((a, b) => toMin(a.at) - toMin(b.at));
-  const rest = sortList(open.filter(t => !t.at && t.pri !== 'target'), 'priority');
-  return { all, open, done, targets, timed, rest, doneNonTarget: done.filter(t => t.pri !== 'target') };
+  const isM = (t) => t.kind === 'meeting';
+  const meetings = all.filter(isM).sort((a, b) => (a.at ? toMin(a.at) : 9999) - (b.at ? toMin(b.at) : 9999));
+  const tasks = all.filter(t => !isM(t));
+  const targets = sortList(tasks.filter(t => t.pri === 'target'));
+  const timed = sortList(open.filter(t => !isM(t) && t.at && t.pri !== 'target'), 'manual').sort((a, b) => toMin(a.at) - toMin(b.at));
+  const rest = sortList(open.filter(t => !isM(t) && !t.at && t.pri !== 'target'), 'priority');
+  return { all, open, done, meetings, targets, timed, rest, doneNonTarget: done.filter(t => t.pri !== 'target' && !isM(t)) };
 }
 function whenText(t) {
   if (!t.when) return '';
@@ -220,10 +223,20 @@ function newTask(fields) {
   put('task', id, { title: '', notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: 30, when: null, at: '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now(), ...fields });
   return id;
 }
+// Quick-add shortcuts inside a line: "@meeting" (or @mtg) makes it a meeting; "5pm", "5:30pm", "17:00" set a start time.
+function parseQuick(line, fields) {
+  const out = {}; let title = ' ' + line + ' ';
+  if (/\s@(meeting|mtg|reunion|reunión)\b/i.test(title)) { out.kind = 'meeting'; out.dur = 60; title = title.replace(/\s@(meeting|mtg|reunion|reunión)\b/ig, ' '); }
+  let m = title.match(/\s(\d{1,2})(?::(\d{2}))?\s?(am|pm)(?=\s)/i) || title.match(/\s([01]?\d|2[0-3]):([0-5]\d)(?=\s)/);
+  if (m) { let h = Number(m[1]) % (m[3] ? 12 : 24); if (m[3] && m[3].toLowerCase() === 'pm') h += 12; out.at = `${pad(h)}:${m[2] || '00'}`; title = title.replace(m[0], ' ');
+    if (!(fields.when && kindOf(fields.when) === 'day')) out.when = todayK(); }
+  out.title = title.replace(/\s+/g, ' ').trim() || line.trim();
+  return out;
+}
 function addLines(text, fields) {
   const lines = String(text).split(/\n+/).map(s => s.replace(/^\s*[-*•]\s*/, '').trim()).filter(Boolean);
-  batch(g => lines.forEach((title, i) => { const id = rid('t_');
-    put('task', id, { title, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: 30, when: null, at: '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now() + i, ...fields }, { group: g }); }));
+  batch(g => lines.forEach((line, i) => { const id = rid('t_');
+    put('task', id, { title: line, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: 30, when: null, at: '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now() + i, ...fields, ...parseQuick(line, fields) }, { group: g }); }));
   return lines.length;
 }
 function toggleDone(id) {
@@ -251,7 +264,16 @@ function capped(key, list, render) { // long lists show the first 100, then a bu
   return h;
 }
 const isDesk = () => matchMedia('(min-width: 900px)').matches;
+function meetingHTML(t, opts = {}) {
+  const done = t.status === 'done';
+  const range = t.at ? `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 60)))}` : 'No time set';
+  const meta = opts.sched ? (whenText(t) || 'Not scheduled') : range;
+  return `<div class="card meeting ${done ? 'done' : ''}" data-tid="${t.id}" style="${opts.style || ''}" title="Meeting">
+<span class="lk">${I.lock(opts.mobile ? 16 : 14)}</span>
+<div class="body" data-act="open"><span class="t">${esc(t.title) || 'Untitled meeting'}</span></div><span class="meta">${esc(meta)}</span></div>`;
+}
 function cardHTML(t, opts = {}) {
+  if (t.kind === 'meeting') return meetingHTML(t, opts);
   const pri = t.pri || 'normal', done = t.status === 'done';
   const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : ''].join(' ');
   const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : '';
@@ -379,6 +401,7 @@ function dayCol(k) {
   }
   head = `<div class="head"><div><b>${label}</b>${today ? ' <span class="pill">Today</span>' : ''}</div><span class="small">${loadText(k)}</span></div>${meterHTML(k)}`;
   let body = '';
+  for (const x of P.meetings) body += cardHTML(x);
   for (const x of P.timed) body += cardHTML(x, { meta: clock(x.at) });
   if (P.targets.length) body += `<div class="eyebrow">Targets · ${P.targets.filter(x => !isOpen(x)).length} of ${Math.max(P.targets.length, S.prefs.cap)}</div>` + P.targets.map(x => cardHTML(x, { meta: x.at && isOpen(x) ? clock(x.at) : undefined })).join('');
   if (P.rest.length) body += (P.targets.length ? `<div class="eyebrow">If there's time</div>` : '') + P.rest.map(x => cardHTML(x)).join('');
@@ -402,7 +425,7 @@ ${range ? `<div class="small">${range}</div>` : ''}${body}<div class="dropzone">
 const HPX = 56; const H0 = () => Math.max(0, Math.min(toMin(S.prefs.dayStart) / 60 - 2, 7)); const H1 = () => Math.min(24, Math.max(toMin(S.prefs.dayEnd) / 60 + 4, 20));
 function renderHours() {
   const days = [S.ui.hday, addDays(S.ui.hday, 1)], h0 = H0(), h1 = H1();
-  const heads = days.map(k => { const P = dayParts(k), untimed = [...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen);
+  const heads = days.map(k => { const P = dayParts(k), untimed = [...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen);
     return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:center"><div><b>${dayShort(k)}</b>${k === todayK() ? ' <span class="pill">Today</span>' : ''}</div><span class="small" style="font-size:12px;color:var(--ink-2)">${loadText(k)}</span></div>
 <div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
@@ -416,7 +439,7 @@ function renderHours() {
     return `<div class="grid" data-drop="slot:${k}" style="height:${(h1 - h0) * HPX}px">${cards}${now}</div>`;
   }).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks: drag to move, drag the bottom edge to change length. Google Calendar appointments will show as solid blocks once Calendar is connected.</div></div>`;
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Drag to move, drag the bottom edge to change length.</div></div>`;
 }
 function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   const items = list.map(t => ({ id: t.id, s: toMin(t.at), e: toMin(t.at) + (t.dur || 30) })).sort((a, b) => a.s - b.s || b.e - a.e);
@@ -442,8 +465,9 @@ function mToday() {
   let body = '';
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} unfinished from earlier days</span>Review</button>`;
   if (P.targets.length) body += `<div class="eyebrow">Targets · ${tgDone} of ${Math.max(P.targets.length, S.prefs.cap)}</div>` + P.targets.map(t => mcard(t, { meta: t.at && isOpen(t) ? clock(t.at) : '' })).join('');
-  if (P.timed.length) body += `<div class="eyebrow ${P.targets.length ? 'gap' : ''}">Schedule</div>` + P.timed.map(t => mcard(t, { meta: clock(t.at) })).join('');
-  if (P.rest.length) body += `<div class="eyebrow ${P.targets.length || P.timed.length ? 'gap' : ''}">${P.targets.length || P.timed.length ? "If there's time" : 'Today'}</div>` + P.rest.map(t => mcard(t)).join('');
+  if (P.meetings.length) body += `<div class="eyebrow ${P.targets.length ? 'gap' : ''}">Appointments</div>` + P.meetings.map(t => mcard(t)).join('');
+  if (P.timed.length) body += `<div class="eyebrow ${P.targets.length || P.meetings.length ? 'gap' : ''}">Schedule</div>` + P.timed.map(t => mcard(t, { meta: clock(t.at) })).join('');
+  if (P.rest.length) body += `<div class="eyebrow ${P.targets.length || P.timed.length || P.meetings.length ? 'gap' : ''}">${P.targets.length || P.timed.length || P.meetings.length ? "If there's time" : 'Today'}</div>` + P.rest.map(t => mcard(t)).join('');
   if (!P.all.length) body += `<div class="empty">Nothing planned today. Tap + to dump what's on your mind.</div>`;
   if (P.doneNonTarget.length) body += mDoneToggle('d' + k, P.doneNonTarget);
   const pct = Math.round(dayLoad(k) / workMin() * 100);
@@ -459,10 +483,10 @@ const MZ = [['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarte
 function mPlan() {
   const z = S.ui.mzoom; let body = '';
   const head = (k, label, extra) => `<div class="dayhead" data-drop="${kindOf(k) === 'day' ? 'day' : 'period'}:${k}"><b>${esc(label)}</b>${extra}<button class="plain" aria-label="Add to ${esc(label)}" data-act="capture" data-k="${k}">${I.plus(22)}</button></div>`;
-  const items = (k, list) => { const key = 'm' + k, lim = S.ui.open[key] ? 999 : 3; let s = list.slice(0, lim).map(t => mcard(t, { meta: t.at && isOpen(t) ? clock(t.at) : undefined })).join('');
+  const items = (k, list) => { const key = 'm' + k, lim = S.ui.open[key] ? 999 : 3; let s = list.slice(0, lim).map(t => mcard(t, { meta: t.at && isOpen(t) && t.kind !== 'meeting' ? clock(t.at) : undefined })).join('');
     if (list.length > lim) s += `<button class="showmore" data-act="toggle" data-key="${key}">Show ${list.length - lim} more</button>`; return s; };
   if (z === 'days') {
-    for (let i = 0; i < 14; i++) { const k = addDays(S.ui.manchor, i), P = dayParts(k), list = [...P.timed, ...P.targets.filter(isOpen), ...P.rest];
+    for (let i = 0; i < 14; i++) { const k = addDays(S.ui.manchor, i), P = dayParts(k), list = [...P.meetings.filter(isOpen), ...P.timed, ...P.targets.filter(isOpen), ...P.rest];
       const isT = k === todayK(); const load = P.all.length ? loadText(k) : 'Nothing planned';
       body += head(k, dayShort(k), `${isT ? '<span class="pill">Today</span>' : ''}<span class="small">${load}</span>`) + items(k, list); }
   } else {
@@ -531,13 +555,14 @@ function taskSheet(id, view = 'main') {
   const pri = t.pri || 'normal';
   openSheet(`<div class="grab"></div>
 <div style="display:flex;flex-direction:column;gap:2px"><textarea class="ttl" rows="1" data-field="title" aria-label="Task name">${esc(t.title)}</textarea><div style="font-size:13px;color:var(--ink-2)">${esc(where)}</div></div>
+<div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.lock(14)}Meeting</button></div>
 <div class="grp"><div class="eyebrow">When</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
-<div class="grp"><div class="eyebrow">Time, optional</div><div class="row">
+<div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
 <button class="bigbtn" style="flex:1">${t.at ? `Starts ${clockAP(t.at)}` : 'Add a start time'}<input class="overlay-input" type="time" step="900" data-act="picktime" value="${t.at || ''}" aria-label="Start time"></button>
 ${t.at ? `<button class="bigbtn" style="padding:0 12px" data-act="cleartime" aria-label="Remove time">✕</button>` : ''}
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
-<div class="grp"><div class="eyebrow">Priority</div><div class="seg">
+<div class="grp" ${t.kind === 'meeting' ? 'style="display:none"' : ''}><div class="eyebrow">Priority</div><div class="seg">
 <button data-act="pri" data-p="target" aria-pressed="${pri === 'target'}">${I.star(15)}Target</button><button data-act="pri" data-p="normal" aria-pressed="${pri === 'normal'}">Normal</button><button data-act="pri" data-p="someday" aria-pressed="${pri === 'someday'}">Someday</button></div></div>
 <button class="boardrow" data-act="sheetboard"><span><span style="color:var(--ink-2)">Board</span>&nbsp;&nbsp;<b style="font-weight:600">${esc(bd ? bd.name + (t.section ? ' · ' + t.section : '') : 'Inbox')}</b></span>${I.chev}</button>
 ${t.notes || S.ui.notesOpen === id ? `<textarea class="notes" data-field="notes" placeholder="Notes">${esc(t.notes || '')}</textarea>` : `<button class="link" style="align-self:flex-start;font-size:14px" data-act="notes">Add notes</button>`}
@@ -551,7 +576,7 @@ function sheetField(el) { // title and notes save on change
 }
 function captureSheet(dest = {}) {
   const label = dest.board ? S.boards.get(dest.board)?.name : dest.when ? periodLabel(dest.when, true) : 'Inbox';
-  openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:20px;font-weight:700">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one task per line</div></div>
+  openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:20px;font-weight:700">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one task per line · add @meeting 5pm for a meeting</div></div>
 <textarea class="dump" id="dump" autofocus placeholder="What's on your mind?" enterkeyhint="enter"></textarea>
 <button class="bigbtn dark" data-act="savecapture">Add</button>`, { capture: dest });
 }
@@ -649,6 +674,15 @@ document.addEventListener('click', (e) => {
     case 'cleartime': put('task', st.id, { at: '' }); render(); taskSheet(st.id); return;
     case 'dur': { const t = S.tasks.get(st.id); put('task', st.id, { dur: Math.max(15, Math.min(480, (t.dur || 30) + Number(el.dataset.d))) }); render(); taskSheet(st.id); return; }
     case 'pri': put('task', st.id, { pri: el.dataset.p }); render(); taskSheet(st.id); return;
+    case 'kind': { const t = S.tasks.get(st.id); if (!t) return;
+      if (el.dataset.v === 'meeting') { const f = { kind: 'meeting' };
+        if (!t.at) { const n = new Date(); f.at = `${pad(Math.min(23, n.getHours() + 1))}:00`; }
+        if (kindOf(t.when) !== 'day') f.when = todayK();
+        if ((t.dur || 30) < 60) f.dur = 60;
+        put('task', st.id, f); render(); taskSheet(st.id);
+        if (!t.at) { try { $('.sheet [data-act=picktime]').showPicker(); } catch {} } }
+      else { put('task', st.id, { kind: '' }); render(); taskSheet(st.id); }
+      return; }
     case 'sheetboard': taskSheet(st.id, 'board'); return;
     case 'sheetback': taskSheet(st.id); return;
     case 'setboard': put('task', st.id, { board: el.dataset.b, section: el.dataset.s }); render(); taskSheet(st.id); return;
