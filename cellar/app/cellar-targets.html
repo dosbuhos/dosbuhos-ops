@@ -1276,7 +1276,25 @@ body { background-image: none !important; font-family: var(--f-body); }
 .bp-r2.g-white > td { border-left: 4px solid #d8b43c; } .bp-r2.g-rose > td { border-left: 4px solid #e0849a; } .bp-r2.g-orange > td { border-left: 4px solid #d9822b; }
 .bp-q { position: sticky; left: 8px; max-width: min(1180px, calc(100vw - 48px)); }
 .bp-qt { padding: 6px 0 8px; color: #2b3033; line-height: 1.45; }
-.bp-flags { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.bp-flags { display: flex; flex-direction: column; gap: 6px; }
+.bp-flag { display: flex; align-items: center; gap: 12px; }
+.bp-fx { flex: 1 1 auto; min-width: 0; } .bp-sg { display: block; margin-top: 2px; }
+.bp-fa { flex: none; display: flex; gap: 6px; } .bp-fa .ghost { background: transparent; border: 1px solid #c9cfd3; color: #4a5154; }
+/* Phones: each wine becomes a card; the columns that don't fit wrap underneath, each with its own label (Eric, Nov 9) */
+@media (max-width: 760px) {
+  .bp-tbl { min-width: 0; } .bp-tbl thead { display: none; }
+  .bp-tbl, .bp-tbl tbody { display: block; width: 100%; }
+  .bp-tbl tr.bp-grp { display: block; } .bp-tbl tr.bp-grp th { display: block; }
+  .bp-tbl tr.bp-r { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid #e6e8ea; }
+  .bp-tbl tr.bp-r > * { display: block; border-bottom: 0; min-width: 0; }
+  .bp-tbl tr.bp-r > th[scope] { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .bp-tbl tr.bp-r > th[scope] b { width: 100%; } .bp-tbl tr.bp-r > th[scope] .bp-ed { margin: 0 0 0 auto; }
+  .bp-tbl tr.bp-r > td.bp-now { grid-column: 1 / -1; }
+  .bp-tbl td[data-l]::before { content: attr(data-l); display: block; font: 700 10.5px var(--f-body, system-ui); text-transform: uppercase; letter-spacing: .05em; color: #66707a; margin-bottom: 4px; }
+  .bp-tbl tr.bp-r2 { display: block; } .bp-tbl tr.bp-r2 > td { display: block; }
+  .bp-q { position: static; max-width: none; }
+  .bp-flag { flex-wrap: wrap; } .bp-fa { margin-left: auto; }
+}
 .bp-foot { font-size: 12px; color: #66707a; margin-top: 8px; }
 .bp-dlg { max-width: 640px; width: calc(100% - 24px); border: 0; border-radius: 12px; padding: 16px; }
 .bp-dlg form { display: grid; gap: 10px; } .bp-dlg label { display: grid; gap: 4px; font-weight: 600; font-size: 13px; }
@@ -1646,14 +1664,15 @@ var SheetParse = (function () {
   const LAB_WHO = /LAB|SAN ?LUC|UYV|UVA Y VINO/i;
   const LAB_NOTE = /ANALYSIS UVA Y VINO|VILLA SAN LUCAS|SAN LUCAS #|LAB RESULT/i;
 
-  function summarize(rows) {
+  function summarize(rows, hint) {
     const list = (rows || []).map((x, i) => ({ x, i }))
       .sort((p, q) => (p.x.d || "") < (q.x.d || "") ? -1 : (p.x.d || "") > (q.x.d || "") ? 1 : p.i - q.i)
       .map(o => o.x);
     const hist = { ph: [], at: [], am: [], sl: [], st: [], aa: [], alc: [], rs: [], heat: [], lac: [] };
     const adds = [], racks = [], sugar = [];
     // Free SO2 per vessel (a barrel or the tank): last reading + every addition since, so the number shown is what's in the wine now.
-    const fv = {}, vKey = u => { const m = String(u || "").toUpperCase().match(/^\s*(?:½\s*)?B(?:BL|ARRICA)?\s*#?\s*(\d+)\s*$/); return m ? "B" + (+m[1]) : String(u || "").trim().toUpperCase(); };
+    const fv = {}, gone = {}, vKey = u => { const x = String(u || "").toUpperCase().replace(/\(.*?\)/g, "").trim(), m = x.match(/^(?:½\s*)?B(?:BL|ARRICA)?\s*#?\s*(\d+)$/); return m ? "B" + (+m[1]) : x.replace(/\s+/g, " "); };
+    const IFADD = /\bIF (SHORT|NEEDED|LOW|NECESSARY)\b|\bSI (FALTA|HACE FALTA|ES NECESARIO|SALE BAJO)\b|\bSOLO SI\b|\bONLY IF\b/i;
     let lastLab = "", vessel = "", vol = null, volDate = "", afEnd = "", noMlf = "";
     let bent = null;
     const log = [];
@@ -1692,7 +1711,11 @@ var SheetParse = (function () {
         if (sg) { sugar.push(sg); measured = true; }
         const a = so2Add(r, vol);
         if (a) { adds.push(a);
-          if (!a.skip && a.v > 0) { const k = vKey(r.u), hit = fv[k] ? [fv[k]] : Object.values(fv); for (const x of hit) if (x.d <= a.d) x.add += a.v; } }
+          // only to the vessel it was made in; a lot-wide row (no vessel) counts for every vessel; "if short, add…" is a plan, not an addition
+          if (!a.skip && a.v > 0 && !IFADD.test(r.n)) { const k = vKey(r.u), hit = fv[k] ? [fv[k]] : k ? [] : Object.values(fv); for (const x of hit) if (x.d <= a.d) x.add += a.v; } }
+        // racked out of a vessel ("RACKED VC-03 → VC-04"): its old reading no longer describes the wine
+        { const rk = /RACK|TRASEG|TRASIEG|→/i.test(r.n) ? (String(r.u || "") + " " + r.n).toUpperCase().match(/\b([A-Z]{1,3}-?\d{1,3}|PUNCH\s*\d)\s*→/) : null;
+          if (rk && r.d) gone[vKey(rk[1])] = r.d; }
       }
       // Every row with a note or a reading is a log entry (readings-only rows included).
       if (r.n || ["volf", "ph", "bx", "tp", "at", "am", "sl", "st", "aa"].some(k => r[k] != null)) log.push(r);
@@ -1710,7 +1733,8 @@ var SheetParse = (function () {
     const latest = {};
     for (const k in hist) latest[k] = hist[k].length ? hist[k][hist[k].length - 1] : null;
     { // Free SO2 now: vessels read within 3 weeks of the newest reading, each = its reading + additions since ("~" = estimate)
-      const all = Object.values(fv); if (all.length) {
+      const want = hint && hint.vessels && hint.vessels.length ? hint.vessels.map(vKey).filter(k => fv[k]) : [];
+      const all = (want.length ? want.map(k => fv[k]) : Object.entries(fv).filter(([k, x]) => !(gone[k] && gone[k] >= x.d)).map(([, x]) => x)); if (all.length) {
         const top = all.reduce((m, x) => x.d > m ? x.d : m, ""), cut = new Date(Date.parse(top) - 21 * 864e5).toISOString().slice(0, 10);
         const cur = all.filter(x => x.d >= cut), est = cur.some(x => x.add > 0), val = cur.reduce((t, x) => t + x.v + x.add, 0) / cur.length;
         const raw = est ? "~" + Math.round(val) : cur.length > 1 ? String(Math.round(val * 10) / 10) : (latest.sl && latest.sl.d === top ? latest.sl.raw : String(val));
@@ -2034,7 +2058,9 @@ var SheetParse = (function () {
     if (!rows) return null;
     const m = sumMemo.get(l.id);
     if (m && m.rows === rows) return m.sum;
-    const sum = SheetParse.summarize(rows);
+    const U = String(l.ubi || "").toUpperCase(), vessels = U.match(/\b(?:VC|TK|T)-?\d{1,3}\b|\bPUNCH\s*\d\b/g) || [];
+    for (const m of U.matchAll(/\bB(?:BLS?|ARRICAS?)?\s*#?\s*((?:\d{1,3}\s*(?:,|\+|Y|&)\s*)*\d{1,3})\b/g)) for (const n of m[1].match(/\d+/g)) vessels.push("BBL " + n);
+    const sum = SheetParse.summarize(rows, { vessels });
     sumMemo.set(l.id, { rows, sum });
     return sum;
   }
@@ -4442,7 +4468,15 @@ Return ONLY JSON with this shape:
     if (S.bmode === "done") { box.innerHTML = h + `<div id="bottleDone"></div>`; window.dispatchEvent(new CustomEvent("cellar:bottling", { detail: { lots: S.lots } })); return; }
     const run = S.lrev._run;
     const flags = [];
-    for (const [lid, r] of Object.entries(S.lrev)) (r.suggest || []).forEach((sg, k) => { const m = String(sg.field || "").split("."); if (m[0] === "bottling" && !sg.done) flags.push({ id: m[1], field: m.slice(2).join("."), issue: sg.issue, suggest: sg.value, lot: lid, k }); });
+    // Hide a suggestion that is already true: the field (or, for the vessel, the wine's own location) already says it.
+    const nrm = x => String(x == null ? "" : x).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const stale = (row, field, val) => { if (!row || val == null || val === "") return false; const v = nrm(val); if (!v) return false;
+      const cur = nrm(bpGet(row, field)); if (cur && cur.includes(v)) return true;
+      if (field === "vessel") return (row.lots || []).some(id => { const l = S.lots.find(x => x.id === id); return l && nrm(l.ubi).includes(v); });
+      return false; };
+    for (const [lid, r] of Object.entries(S.lrev)) (r.suggest || []).forEach((sg, k) => { const m = String(sg.field || "").split("."); if (m[0] !== "bottling" || sg.done) return;
+      const field = m.slice(2).join("."), row = S.bplan.find(x => x.id === m[1]); if (stale(row, field, sg.value)) return;
+      flags.push({ id: m[1], field, issue: sg.issue, suggest: sg.value, lot: lid, k }); });
     h += `<div class="bp-rev"><div class="bp-rev-h"><b>Up to date</b> <small>Claude reviews every wine at 12:00, 16:00 and 19:00${run ? " · last: " + esc(lrWhen(run.at)) : ""}. Its suggestions appear under each wine.</small></div></div>`;
     const rows = S.bplan.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
     if (!rows.length) { box.innerHTML = h + `<div class="cr-empty">No bottling plan yet.</div>`; return; }
@@ -4452,11 +4486,11 @@ Return ONLY JSON with this shape:
       h += `<tr class="bp-grp"><th colspan="7">${gl} <small>${rs.length}</small></th></tr>`;
       for (const r of rs) {
         const fl = flags.filter(f => f.id === r.id);
-        h += `<tr class="bp-r g-${esc(g)}" data-bpid="${esc(r.id)}"><th scope="row"><b>${esc(r.name)}</b><span class="bp-v">${esc(r.vessel || "")}</span><span class="bp-dt">${esc(r.date || "")}</span>${can ? `<button type="button" class="btn sm bp-ed" data-bped="${esc(r.id)}">Editar</button>` : ""}</th>` +
-          `<td class="bp-now">${bpNow(r)}</td><td>${bpCell(r.protein, "protein")}</td><td>${bpCell(r.pad, "pad")}</td><td>${bpCell(r.sterile, "sterile")}</td>` +
-          `<td><span class="bp-so">${esc(r.hold || "—")}</span>${r.holdNote ? `<p><b>Why:</b> ${esc(r.holdNote)}</p>` : ""}</td>` +
-          `<td><span class="bp-so">${esc(bpGet(r, "so2.v") || "—")}</span>${bpGet(r, "so2.hd") ? `<span class="bp-hd">${esc(r.so2.hd)}</span>` : ""}${bpGet(r, "so2.p") ? `<p><b>Why:</b> ${esc(r.so2.p)}</p>` : ""}</td>` +
-          `</tr>` + (r.q || fl.length ? `<tr class="bp-r2 g-${esc(g)}"><td colspan="7"><div class="bp-q">${r.q ? `<div class="bp-qt"><b>Open questions:</b> ${esc(r.q)}</div>` : ""}${fl.length ? `<div class="bp-flags">` : ""}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><span class="bp-sg">Suggested change to <b>${esc(BP_FIELD[f.field] || f.field || "")}</b>: <i>${esc(f.suggest)}</i></span>${can ? ` <button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Apply</button>` : ""}` : ""}</div>`).join("")}${fl.length ? `</div>` : ""}</div></td></tr>` : "");
+        h += `<tr class="bp-r g-${esc(g)}" data-bpid="${esc(r.id)}"><th scope="row"><b>${esc(r.name)}</b><span class="bp-v">${esc(((r.lots || []).map(id => S.lots.find(x => x.id === id)).find(l => l && l.ubi) || {}).ubi || r.vessel || "")}</span><span class="bp-dt">${esc(r.date || "")}</span>${can ? `<button type="button" class="btn sm bp-ed" data-bped="${esc(r.id)}">Editar</button>` : ""}</th>` +
+          `<td class="bp-now" data-l="Now">${bpNow(r)}</td><td data-l="Protein stability">${bpCell(r.protein, "protein")}</td><td data-l="Pad filtration">${bpCell(r.pad, "pad")}</td><td data-l="Sterile filtration">${bpCell(r.sterile, "sterile")}</td>` +
+          `<td data-l="Free SO₂ to hold now"><span class="bp-so">${esc(r.hold || "—")}</span>${r.holdNote ? `<p><b>Why:</b> ${esc(r.holdNote)}</p>` : ""}</td>` +
+          `<td data-l="Free SO₂ at bottling"><span class="bp-so">${esc(bpGet(r, "so2.v") || "—")}</span>${bpGet(r, "so2.hd") ? `<span class="bp-hd">${esc(r.so2.hd)}</span>` : ""}${bpGet(r, "so2.p") ? `<p><b>Why:</b> ${esc(r.so2.p)}</p>` : ""}</td>` +
+          `</tr>` + (r.q || fl.length ? `<tr class="bp-r2 g-${esc(g)}"><td colspan="7"><div class="bp-q">${r.q ? `<div class="bp-qt"><b>Open questions:</b> ${esc(r.q)}</div>` : ""}${fl.length ? `<div class="bp-flags">` : ""}${fl.map(f => `<div class="bp-flag"><div class="bp-fx"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<span class="bp-sg">Suggested change to <b>${esc(BP_FIELD[f.field] || f.field || "")}</b>: <i>${esc(f.suggest)}</i></span>` : ""}</div>${can ? `<div class="bp-fa">${f.suggest ? `<button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Apply</button>` : ""}<button type="button" class="btn sm ghost" data-lrdismiss="${esc(f.lot)}" data-k="${f.k}">Dismiss</button></div>` : ""}</div>`).join("")}${fl.length ? `</div>` : ""}</div></td></tr>` : "");
       }
     }
     h += `</tbody></table></div><p class="bp-foot">Protein stability comes from the filtered heat tests (bentonite series Oct 30 – Nov 2); the unfiltered Oct 20 heat tests read high and don't count. Molecular SO₂ = free ÷ (1 + 10^(pH − 1.81)). KMBS grams = (target − free) × liters ÷ 576. "~" = estimate: last reading + SO₂ added since.</p>`;

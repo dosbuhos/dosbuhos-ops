@@ -20,6 +20,13 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Path to bottle: Claude rows, Dismiss, phones, stale suggestions; SO₂ estimate per vessel · v1.15.4
+- Claude's suggestions are full-width rows (text left, Apply + Dismiss on the right) instead of side-by-side cards · Eric
+- Dismiss button on every suggestion (marks it done/dismissed, like the wine card's)
+- Phones: each wine is a card; the columns that didn't fit now wrap underneath with their own labels, no sideways scroll
+- Suggestions that are already true are hidden (the field — or for the vessel, the wine's own location — already says it); the vessel shown comes from the wine's location, so it can't drift from the Wines tab · Eric: stale "vessel" suggestion
+- Free SO₂ estimate fixes (SB tank showed ~42, real 16): an addition counts only for the vessel it was made in; "if short, add…" is a plan, not an addition; a vessel racked out ("VC-03 → VC-04") drops out; each wine only averages the vessels in its own location (SB tank = VC-04, not the puncheon) · cellar-targets.html
+
 ## 2026-11-09 — Path to bottle in plain words, one language · v1.15.3
 - Every step says the action ("Needs bentonite · 20–40 g/hL", "Protein stable: no bentonite", "Pad filter · after bentonite", "Sterile filter at bottling") with a "Why:" line, instead of a green "sí" pill under a Spanish header; headers, readings (Free SO₂, Malic, VA, Heat test Δ … NTU), tabs, footer and the edit dialog all in English (the notes are English) · Eric: Spanish/English mix and "sí" were confusing
 - Claude's suggestions name the field in words ("Suggested change to SO₂ to hold (note)") instead of holdNote / protein.p
