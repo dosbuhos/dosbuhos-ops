@@ -341,7 +341,7 @@ function renderPanel() {
   const srcs = sources();
   if (!srcs.some(x => x[0] === S.ui.src)) S.ui.src = 'inbox';
   const od = overdueTasks().filter(t => t.pri === 'target').length;
-  const banner = od ? `<button class="banner" data-act="review"><span>${od} unfinished target${od > 1 ? 's' : ''} from earlier days</span>Review</button>` : '';
+  const banner = signinBanner() + (od ? `<button class="banner" data-act="review"><span>${od} unfinished target${od > 1 ? 's' : ''} from earlier days</span>Review</button>` : '');
   if (S.ui.panelView !== 'list') {
     const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span>${esc(name)}</span><span class="n">${n}</span>${I.chev}</button>`;
     const wk = placedOn(isoWeek(todayK())).filter(isOpen).length, mo = placedOn(periodOf('month', todayK())).filter(isOpen).length, ov = overdueTasks().length;
@@ -464,9 +464,13 @@ function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
 function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl'); if (!tl) return; const n = new Date(); tl.scrollTop = Math.max(0, (n.getHours() - 1 - H0()) * HPX); }); }
 
 // ── rendering: mobile ─────────────────────────────────────────
+function signinBanner() {
+  return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
+}
 function renderMobile() {
   const tab = S.ui.mtab, n = inboxTasks().length;
-  const main = tab === 'plan' ? mPlan() : tab === 'boards' ? mBoards() : tab === 'inbox' ? mInbox() : mToday();
+  let main = tab === 'plan' ? mPlan() : tab === 'boards' ? mBoards() : tab === 'inbox' ? mInbox() : mToday();
+  const sb = signinBanner(); if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
   const btn = (k, label, icon) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${icon(tab === k ? 2.2 : 2)}${label}</button>`;
   return `<div class="m">${main}
 <nav class="tabs" aria-label="Main">${btn('today', 'Today', I.today)}${btn('plan', 'Plan', I.plan)}<button class="cap" aria-label="Capture a task" data-act="capture">${I.plus(26, 2.5)}</button>${btn('boards', 'Boards', I.boards)}${btn('inbox', `Inbox${n ? ' · ' + n : ''}`, I.inbox)}</nav></div>`;
