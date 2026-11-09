@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Path to bottle in plain words, one language · v1.15.3
+- Every step says the action ("Needs bentonite · 20–40 g/hL", "Protein stable: no bentonite", "Pad filter · after bentonite", "Sterile filter at bottling") with a "Why:" line, instead of a green "sí" pill under a Spanish header; headers, readings (Free SO₂, Malic, VA, Heat test Δ … NTU), tabs, footer and the edit dialog all in English (the notes are English) · Eric: Spanish/English mix and "sí" were confusing
+- Claude's suggestions name the field in words ("Suggested change to SO₂ to hold (note)") instead of holdNote / protein.p
+
 ## 2026-11-09 — Ruta a botella: Pendientes + Claude's notes under each wine · v1.15.2
 - The Pendientes column is gone; each wine gets a full-width row underneath with the pending questions and Claude's suggestions as cards side by side (wrapping), instead of a tall stacked column · Eric · cellar-targets.html
 

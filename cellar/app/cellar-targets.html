@@ -1261,7 +1261,11 @@ body { background-image: none !important; font-family: var(--f-body); }
 .bp-ed { margin-top: 6px; }
 .bp-pill { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #fff; padding: 1px 6px; border-radius: 4px; margin-right: 6px; background: #8c959e; }
 .bp-pill.yes { background: #2e7d32; } .bp-pill.no { background: #8c959e; } .bp-pill.maybe { background: #b06a00; } .bp-pill.tbd { background: #2f6690; }
-.bp-hd { font-weight: 600; } .bp-tbl p { margin: 4px 0 0; color: #3f4548; line-height: 1.4; }
+.bp-hd { font-weight: 600; }
+.bp-act { display: block; font-weight: 700; font-size: 13.5px; padding-left: 9px; border-left: 4px solid #8c959e; line-height: 1.35; }
+.bp-act.k-yes { border-color: #2e7d32; } .bp-act.k-no { border-color: #8c959e; } .bp-act.k-maybe { border-color: #b06a00; } .bp-act.k-tbd { border-color: #2f6690; }
+.bp-det { display: block; font-weight: 500; color: #2b3033; }
+.bp-tbl p b { font-weight: 600; color: #1f2422; } .bp-sg { display: block; margin-top: 4px; } .bp-tbl p { margin: 4px 0 0; color: #3f4548; line-height: 1.4; }
 .bp-so { font-weight: 700; display: block; }
 .bp-now { min-width: 170px; } .bp-n { line-height: 1.45; } .bp-n small { color: #66707a; } .bp-n.old { color: #8a6d00; } .bp-n.bad { color: #8a1c1c; } .bp-n.ok b, .bp-n.ok { color: #1f5e2a; }
 .bp-also { color: #66707a; }
@@ -4402,66 +4406,74 @@ Return ONLY JSON with this shape:
   // Plan per wine lives in coll "bottling" (Eric/Diane edit it); "Ahora" is read live from each linked lot's Excellovint rows;
   // Claude reviews the plan against the latest rows 3×/day (coll "bottling_review", doc "latest") and leaves suggestions.
   S.bmode = recall("bmode", "path") === "done" ? "done" : "path"; S.bplan = []; S.breview = null;
-  const BP_PILL = { yes: "Sí", no: "No", maybe: "Opcional", tbd: "Probar antes" };
-  const BP_GROUPS = [["white", "Blancos"], ["rose", "Rosados"], ["orange", "Naranjas"], ["sparkling", "Espumosos"]];
+  const BP_PILL = { yes: "Yes", no: "No", maybe: "Optional", tbd: "Test first" };
+  // Each step says what to do in words (Eric, Nov 9: "sí" pills under Spanish headers were unreadable)
+  const BP_ACT = {
+    protein: { yes: "Needs bentonite", no: "Protein stable: no bentonite", maybe: "Bentonite optional", tbd: "Heat test first" },
+    pad: { yes: "Pad filter", no: "No pad filtration", maybe: "Pad filter if hazy", tbd: "Decide after settling" },
+    sterile: { yes: "Sterile filter at bottling", no: "No sterile filtration", maybe: "Sterile filter optional", tbd: "Decide before bottling" } };
+  const BP_FIELD = { holdNote: "SO₂ to hold (note)", hold: "SO₂ to hold", "so2.v": "SO₂ at bottling", "so2.p": "SO₂ at bottling (note)", "so2.hd": "SO₂ at bottling", "protein.p": "Protein (note)", "protein.hd": "Protein", "pad.p": "Pad filtration (note)", "pad.hd": "Pad filtration", "sterile.p": "Sterile filtration (note)", "sterile.hd": "Sterile filtration", q: "Open questions", vessel: "Vessel", date: "Bottling date" };
+  const BP_GROUPS = [["white", "Whites"], ["rose", "Rosés"], ["orange", "Oranges"], ["sparkling", "Sparkling"]];
   const bpGet = (o, path) => path.split(".").reduce((x, k) => (x == null ? x : x[k]), o);
   function bpMol(free, ph) { const f = parseFloat(String(free).replace("<", "")), p = parseFloat(ph); return isFinite(f) && isFinite(p) ? f / (1 + Math.pow(10, p - 1.81)) : null; }
   function bpNow(r) {
     const lots = (r.lots || []).map(id => S.lots.find(l => l.id === id)).filter(Boolean);
-    if (!lots.length) return `<span class="none">Sin lote ligado</span>`;
+    if (!lots.length) return `<span class="none">No lot linked</span>`;
     const l = lots[0], s = summary(l);
-    if (!s) return `<span class="none">Cargando…</span>`;
+    if (!s) return `<span class="none">Loading…</span>`;
     const L = s.latest, out = [];
     const d = p => p && p.d ? ` <small>${esc(shortDate(p.d))}</small>` : "";
-    if (L.sl) { const m = bpMol(L.sl.raw, L.ph && L.ph.v); const old = daysAgo(L.sl.d) > 14; out.push(`<div class="bp-n${old ? " old" : ""}"><b>SO₂ libre ${esc(L.sl.raw)}</b>${m != null ? ` · ${m.toFixed(2)} mol` : ""}${d(L.sl)}</div>`); }
-    else out.push(`<div class="bp-n old"><b>SO₂ libre: sin lectura</b></div>`);
+    if (L.sl) { const m = bpMol(L.sl.raw, L.ph && L.ph.v); const old = daysAgo(L.sl.d) > 14; out.push(`<div class="bp-n${old ? " old" : ""}"><b>Free SO₂ ${esc(L.sl.raw)}</b>${m != null ? ` · ${m.toFixed(2)} mol` : ""}${d(L.sl)}</div>`); }
+    else out.push(`<div class="bp-n old"><b>Free SO₂: no reading</b></div>`);
     if (L.ph) out.push(`<div class="bp-n">pH ${esc(L.ph.raw)}${d(L.ph)}</div>`);
-    if (L.am) out.push(`<div class="bp-n">Málico ${esc(L.am.raw)}${d(L.am)}</div>`);
-    if (L.aa) out.push(`<div class="bp-n">AV ${esc(L.aa.raw)}${d(L.aa)}</div>`);
-    if (L.heat) out.push(`<div class="bp-n ${L.heat.unf ? "old" : L.heat.v > 2 ? "bad" : "ok"}">Calor Δ ${esc(L.heat.raw)} ${L.heat.unf ? "(sin filtrar, no cuenta)" : L.heat.filt ? "(filtrada)" : ""}${d(L.heat)}</div>`);
+    if (L.am) out.push(`<div class="bp-n">Malic ${esc(L.am.raw)}${d(L.am)}</div>`);
+    if (L.aa) out.push(`<div class="bp-n">VA ${esc(L.aa.raw)}${d(L.aa)}</div>`);
+    if (L.heat) out.push(`<div class="bp-n ${L.heat.unf ? "old" : L.heat.v > 2 ? "bad" : "ok"}">Heat test Δ ${esc(L.heat.raw)} NTU ${L.heat.unf ? "(unfiltered, doesn't count)" : L.heat.filt ? "(filtered)" : ""}${d(L.heat)}</div>`);
     if (lots.length > 1) out.push(`<small class="bp-also">+ ${esc(lots.slice(1).map(x => x.name).join(", "))}</small>`);
     return out.join("");
   }
-  function bpCell(c) { c = c || {}; return `${c.k ? `<span class="bp-pill ${esc(c.k)}">${esc(BP_PILL[c.k] || c.pill || c.k)}</span>` : ""}${c.hd ? `<span class="bp-hd">${esc(c.hd)}</span>` : ""}${c.p ? `<p>${esc(c.p)}</p>` : ""}`; }
+  function bpCell(c, col) { c = c || {}; const act = c.k && BP_ACT[col] ? BP_ACT[col][c.k] : "";
+    const hd = c.hd && !/^(required|yes|sí|no)$/i.test(c.hd.trim()) && (!act || act.toLowerCase().indexOf(c.hd.toLowerCase()) < 0) ? c.hd : "";
+    return `${act ? `<span class="bp-act k-${esc(c.k)}">${esc(act)}${hd ? `<span class="bp-det">${esc(hd)}</span>` : ""}</span>` : hd ? `<span class="bp-hd">${esc(hd)}</span>` : ""}${c.p ? `<p><b>Why:</b> ${esc(c.p)}</p>` : ""}`; }
   function renderBottlePath() {
     const box = $("bottleView"); if (!box) return;
     const can = !!(S.canWrite !== false && S.db && !S.isCrew);
-    let h = `<div class="bp-tabs" role="tablist"><button type="button" data-bpm="path" aria-selected="${S.bmode === "path"}">Ruta a botella</button><button type="button" data-bpm="done" aria-selected="${S.bmode === "done"}">Embotellados</button></div>`;
+    let h = `<div class="bp-tabs" role="tablist"><button type="button" data-bpm="path" aria-selected="${S.bmode === "path"}">Path to bottle</button><button type="button" data-bpm="done" aria-selected="${S.bmode === "done"}">Bottled</button></div>`;
     if (S.bmode === "done") { box.innerHTML = h + `<div id="bottleDone"></div>`; window.dispatchEvent(new CustomEvent("cellar:bottling", { detail: { lots: S.lots } })); return; }
     const run = S.lrev._run;
     const flags = [];
     for (const [lid, r] of Object.entries(S.lrev)) (r.suggest || []).forEach((sg, k) => { const m = String(sg.field || "").split("."); if (m[0] === "bottling" && !sg.done) flags.push({ id: m[1], field: m.slice(2).join("."), issue: sg.issue, suggest: sg.value, lot: lid, k }); });
-    h += `<div class="bp-rev"><div class="bp-rev-h"><b>Al día</b> <small>Claude revisa cada vino a las 12:00, 16:00 y 19:00${run ? " · última: " + esc(lrWhen(run.at)) : ""}. Sus sugerencias para esta tabla aparecen en Pendientes.</small></div></div>`;
+    h += `<div class="bp-rev"><div class="bp-rev-h"><b>Up to date</b> <small>Claude reviews every wine at 12:00, 16:00 and 19:00${run ? " · last: " + esc(lrWhen(run.at)) : ""}. Its suggestions appear under each wine.</small></div></div>`;
     const rows = S.bplan.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-    if (!rows.length) { box.innerHTML = h + `<div class="cr-empty">Todavía no hay plan de embotellado.</div>`; return; }
-    h += `<div class="bp-wrap"><table class="bp-tbl"><thead><tr><th>Vino · fecha</th><th>Ahora <small>en vivo</small></th><th>Proteína</th><th>Placas</th><th>Estéril</th><th>SO₂ mantener</th><th>SO₂ al embotellar</th></tr></thead><tbody>`;
+    if (!rows.length) { box.innerHTML = h + `<div class="cr-empty">No bottling plan yet.</div>`; return; }
+    h += `<div class="bp-wrap"><table class="bp-tbl"><thead><tr><th>Wine · bottling date</th><th>Now <small>latest readings</small></th><th>Protein stability <small>bentonite</small></th><th>Pad filtration</th><th>Sterile filtration <small>0.45 µm</small></th><th>Free SO₂ to hold now</th><th>Free SO₂ at bottling</th></tr></thead><tbody>`;
     for (const [g, gl] of BP_GROUPS) {
       const rs = rows.filter(r => r.group === g); if (!rs.length) continue;
       h += `<tr class="bp-grp"><th colspan="7">${gl} <small>${rs.length}</small></th></tr>`;
       for (const r of rs) {
         const fl = flags.filter(f => f.id === r.id);
         h += `<tr class="bp-r g-${esc(g)}" data-bpid="${esc(r.id)}"><th scope="row"><b>${esc(r.name)}</b><span class="bp-v">${esc(r.vessel || "")}</span><span class="bp-dt">${esc(r.date || "")}</span>${can ? `<button type="button" class="btn sm bp-ed" data-bped="${esc(r.id)}">Editar</button>` : ""}</th>` +
-          `<td class="bp-now">${bpNow(r)}</td><td>${bpCell(r.protein)}</td><td>${bpCell(r.pad)}</td><td>${bpCell(r.sterile)}</td>` +
-          `<td><span class="bp-so">${esc(r.hold || "—")}</span>${r.holdNote ? `<p>${esc(r.holdNote)}</p>` : ""}</td>` +
-          `<td><span class="bp-so">${esc(bpGet(r, "so2.v") || "—")}</span>${bpGet(r, "so2.hd") ? `<span class="bp-hd">${esc(r.so2.hd)}</span>` : ""}${bpGet(r, "so2.p") ? `<p>${esc(r.so2.p)}</p>` : ""}</td>` +
-          `</tr>` + (r.q || fl.length ? `<tr class="bp-r2 g-${esc(g)}"><td colspan="7"><div class="bp-q">${r.q ? `<div class="bp-qt"><b>Pendientes:</b> ${esc(r.q)}</div>` : ""}${fl.length ? `<div class="bp-flags">` : ""}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><i>${esc(f.field || "")} → ${esc(f.suggest)}</i>${can ? ` <button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Aplicar</button>` : ""}` : ""}</div>`).join("")}${fl.length ? `</div>` : ""}</div></td></tr>` : "");
+          `<td class="bp-now">${bpNow(r)}</td><td>${bpCell(r.protein, "protein")}</td><td>${bpCell(r.pad, "pad")}</td><td>${bpCell(r.sterile, "sterile")}</td>` +
+          `<td><span class="bp-so">${esc(r.hold || "—")}</span>${r.holdNote ? `<p><b>Why:</b> ${esc(r.holdNote)}</p>` : ""}</td>` +
+          `<td><span class="bp-so">${esc(bpGet(r, "so2.v") || "—")}</span>${bpGet(r, "so2.hd") ? `<span class="bp-hd">${esc(r.so2.hd)}</span>` : ""}${bpGet(r, "so2.p") ? `<p><b>Why:</b> ${esc(r.so2.p)}</p>` : ""}</td>` +
+          `</tr>` + (r.q || fl.length ? `<tr class="bp-r2 g-${esc(g)}"><td colspan="7"><div class="bp-q">${r.q ? `<div class="bp-qt"><b>Open questions:</b> ${esc(r.q)}</div>` : ""}${fl.length ? `<div class="bp-flags">` : ""}${fl.map(f => `<div class="bp-flag"><b>Claude:</b> ${esc(f.issue || "")}${f.suggest ? `<br><span class="bp-sg">Suggested change to <b>${esc(BP_FIELD[f.field] || f.field || "")}</b>: <i>${esc(f.suggest)}</i></span>${can ? ` <button type="button" class="btn sm" data-lrapply="${esc(f.lot)}" data-k="${f.k}">Apply</button>` : ""}` : ""}</div>`).join("")}${fl.length ? `</div>` : ""}</div></td></tr>` : "");
       }
     }
-    h += `</tbody></table></div><p class="bp-foot">Proteína según las pruebas filtradas (serie de bentonita 30/10–2/11); las pruebas de calor del 20/10 sin filtrar leen de más y no cuentan. Molecular = libre ÷ (1 + 10^(pH − 1.81)). Gramos KMBS = (meta − libre) × L ÷ 576.</p>`;
+    h += `</tbody></table></div><p class="bp-foot">Protein stability comes from the filtered heat tests (bentonite series Oct 30 – Nov 2); the unfiltered Oct 20 heat tests read high and don't count. Molecular SO₂ = free ÷ (1 + 10^(pH − 1.81)). KMBS grams = (target − free) × liters ÷ 576. "~" = estimate: last reading + SO₂ added since.</p>`;
     box.innerHTML = h;
   }
   function bpEdit(id) {
     const r = S.bplan.find(x => x.id === id); if (!r) return;
     let d = $("bpDlg"); if (!d) { d = document.createElement("dialog"); d.id = "bpDlg"; d.className = "bp-dlg"; document.body.appendChild(d); }
     const pillSel = (k, v) => `<select name="${k}.k">${["", "yes", "no", "maybe", "tbd"].map(x => `<option value="${x}"${(v || "") === x ? " selected" : ""}>${x ? BP_PILL[x] : "—"}</option>`).join("")}</select>`;
-    const part = (k, lab) => `<fieldset><legend>${lab}</legend>${pillSel(k, bpGet(r, k + ".k"))}<input name="${k}.hd" value="${esc(bpGet(r, k + ".hd") || "")}" placeholder="Resumen"><textarea name="${k}.p" rows="2" placeholder="Por qué">${esc(bpGet(r, k + ".p") || "")}</textarea></fieldset>`;
+    const part = (k, lab) => `<fieldset><legend>${lab}</legend>${pillSel(k, bpGet(r, k + ".k"))}<input name="${k}.hd" value="${esc(bpGet(r, k + ".hd") || "")}" placeholder="Short summary (dose, when)"><textarea name="${k}.p" rows="2" placeholder="Why">${esc(bpGet(r, k + ".p") || "")}</textarea></fieldset>`;
     d.innerHTML = `<form method="dialog"><h3>${esc(r.name)}</h3>
-      <label>Vasija / litros<input name="vessel" value="${esc(r.vessel || "")}"></label><label>Fecha de embotellado<input name="date" value="${esc(r.date || "")}"></label>
-      ${part("protein", "Proteína (bentonita)")}${part("pad", "Filtración con placas")}${part("sterile", "Filtración estéril")}
-      <fieldset><legend>SO₂ a mantener</legend><input name="hold" value="${esc(r.hold || "")}"><textarea name="holdNote" rows="2">${esc(r.holdNote || "")}</textarea></fieldset>
-      <fieldset><legend>SO₂ al embotellar</legend><input name="so2.v" value="${esc(bpGet(r, "so2.v") || "")}"><input name="so2.hd" value="${esc(bpGet(r, "so2.hd") || "")}"><textarea name="so2.p" rows="2">${esc(bpGet(r, "so2.p") || "")}</textarea></fieldset>
-      <label>Pendientes / decisiones<textarea name="q" rows="3">${esc(r.q || "")}</textarea></label>
-      <div class="bp-dlg-a"><button type="button" class="btn" data-bpx>Cancelar</button><button type="submit" class="btn primary">Guardar</button></div></form>`;
+      <label>Vessel / liters<input name="vessel" value="${esc(r.vessel || "")}"></label><label>Bottling date<input name="date" value="${esc(r.date || "")}"></label>
+      ${part("protein", "Protein stability (bentonite)")}${part("pad", "Pad filtration")}${part("sterile", "Sterile filtration")}
+      <fieldset><legend>Free SO₂ to hold now</legend><input name="hold" value="${esc(r.hold || "")}"><textarea name="holdNote" rows="2">${esc(r.holdNote || "")}</textarea></fieldset>
+      <fieldset><legend>Free SO₂ at bottling</legend><input name="so2.v" value="${esc(bpGet(r, "so2.v") || "")}"><input name="so2.hd" value="${esc(bpGet(r, "so2.hd") || "")}"><textarea name="so2.p" rows="2">${esc(bpGet(r, "so2.p") || "")}</textarea></fieldset>
+      <label>Open questions / decisions<textarea name="q" rows="3">${esc(r.q || "")}</textarea></label>
+      <div class="bp-dlg-a"><button type="button" class="btn" data-bpx>Cancel</button><button type="submit" class="btn primary">Save</button></div></form>`;
     d.querySelector("[data-bpx]").onclick = () => d.close();
     d.querySelector("form").onsubmit = async e => {
       e.preventDefault(); const f = e.target, upd = {};
