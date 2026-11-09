@@ -1,0 +1,28 @@
+// Seeds a local `wrangler dev` with sample tasks shaped like the mockups: node test/seed.mjs [base]
+const base = process.argv[2] || 'http://localhost:8799';
+const pad = (n) => String(n).padStart(2, '0'); const dk = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return dk(d); };
+let t = 1; const ops = []; const now = new Date().toISOString();
+const task = (title, f = {}) => ops.push({ k: 'task', id: 'seed' + t, f: { title, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: 30, when: null, at: '', rolls: 0, src: 'seed', created: now, o: t, ...f }, t: String(1e6 + t++) });
+ops.push({ k: 'task', id: 't1', f: { del: now }, t: '9999999' });
+ops.push({ k: 'board', id: 'winery', f: { name: 'Winery', sections: ['Cellar', 'Sales', 'Events'], o: 1 }, t: '1' });
+ops.push({ k: 'board', id: 'casa', f: { name: 'Casa 1524', sections: [], o: 2 }, t: '1' });
+ops.push({ k: 'board', id: 'web', f: { name: 'Website', sections: [], o: 3 }, t: '1' });
+ops.push({ k: 'board', id: 'backlog', f: { name: 'Backlog', sections: [], o: 9999 }, t: '1' });
+['Book flights to San Miguel', 'Send tax documents to accountant'].forEach(x => task(x));
+task('Compare quotes for greenhouse glass', { dur: 45 }); task('Write job post for tasting room host', { dur: 60 }); task('Renew domain for Contemplo', { dur: 15 });
+task('Read the DPZ masterplan notes', { pri: 'someday' }); task('Look into capsule machine suppliers', { pri: 'someday' });
+task('Sign importer agreement', { when: day(-1), pri: 'target', status: 'done' }); task('Finalize harvest report', { when: day(-1), pri: 'target', status: 'done' });
+task('Call label printer', { when: day(-1), pri: 'target', rolls: 2, board: 'winery', section: 'Sales' });
+task('Draft Texas price list', { when: day(0), pri: 'target', dur: 60, at: '11:30', board: 'casa' });
+task('Review bottling schedule', { when: day(0), pri: 'target', status: 'done', dur: 45, at: '09:00', board: 'winery', section: 'Cellar' });
+task('Approve wine club email', { when: day(0), dur: 15 }); task('Reply to wedding inquiry', { when: day(0), dur: 15, board: 'winery', section: 'Events' });
+task('Order garden bed covers', { when: day(0), dur: 30 });
+task('Send samples list to sales reps', { when: day(1), board: 'winery', section: 'Sales' }); task('Update barrel map', { when: day(1), dur: 45, at: '10:00', board: 'winery', section: 'Cellar' });
+task('Plan next week', { when: day(4), dur: 60 }); task('Order corks and capsules', { board: 'winery', section: 'Cellar' });
+task('Follow up with three restaurant buyers', { board: 'winery', section: 'Sales', dur: 60 }); task('Sketch ideas for a harvest dinner', { board: 'winery', section: 'Events', pri: 'someday' });
+const wk = (() => { const d = new Date(); d.setDate(d.getDate() + 7); const x = new Date(d); const dd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dd + 3); const y = x.getFullYear(); const j = new Date(y, 0, 4); const w = 1 + Math.round(((x - j) / 864e5 - 3 + ((j.getDay() + 6) % 7)) / 7); return `${y}-W${pad(w)}`; })();
+task('Prep Bruselas competition entries', { when: wk, dur: 90 }); task('Quarterly tax review', { when: `${new Date().getFullYear()}-Q4`, dur: 120 });
+for (let i = 0; i < 40; i++) task(`Old Timestripe task ${i + 1}`, { board: 'backlog' });
+const r = await fetch(base + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops, cursor: 0 }) });
+console.log(r.status, (await r.json()).cursor);

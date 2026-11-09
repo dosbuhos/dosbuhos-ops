@@ -12,6 +12,7 @@ Internal apps and tools for Bodega Dos Búhos.
 | `ulula/` | Ulula: bodega por recipientes (clon del módulo Bodega de GrapeFlow para compararlo con el Cellar Tracker). Tablero por recipiente, operaciones con estancias de lotes, trazabilidad, análisis, catas. Worker `ulula`, D1 `ulula`, sin login por ahora |
 | `cotizador/` | Cotizador de eventos: la lógica del cotizador de Acrobat (menús, barra por horas, consumo mínimo, renta del espacio, servicio e IVA) como app de celular; propuesta para el cliente en PDF de 3 páginas (Browser Rendering, `POST /pdf`) y resumen por WhatsApp. Worker `cotizador`, PIN (secreto `PIN`) o firma del Hub; secreto opcional `ANTHROPIC_API_KEY` para que Claude escriba la nota de apertura |
 | `card/` | Tarjeta QR · link tree: la tarjeta QR de cada persona del equipo y el mini sitio público (visitas, OpenTable, eventos, vinos, premios, fotos, kit de prensa), EN/ES, instalable y offline. Worker `card`, solo archivos estáticos |
+| `horizonte/` | Horizonte: planificador personal de Eric (reemplazo de Timestripe), fuera del Hub. Tareas, tableros, días y horizontes; funciona sin conexión y sincroniza entre teléfono y computadora. Worker `horizonte`, D1 `horizonte`, Google sign-in solo para Eric |
 | `zoho-inventory/` | Zoho Inventory tracking and automation. First app: sample-bottle tracking for sales reps (Cloudflare Worker) |
 
 Add each new app or tool as its own folder.
