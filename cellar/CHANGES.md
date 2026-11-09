@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Compras: estimated arrival date · v1.16.0
+- Ordered purchases get «Llegada estimada»: «Marcar como pedida» jumps to Pedidas and opens the date picker; the card shows "Llega aprox. el 19 nov" (Cambiar), the badge "Pedida 9 nov · llega ~19 nov", and turns red "Atrasada · debía llegar…" once the date passes; Pedidas sorts by arrival date; also editable in the purchase form · Eric
+- Stored as `eta` on the purchase (app only; the Excellovint Compras tab sync keeps it, it isn't a sheet column) · public/purchases.html
+
 ## 2026-11-09 — Path to bottle: Claude rows, Dismiss, phones, stale suggestions; SO₂ estimate per vessel · v1.15.4
 - Claude's suggestions are full-width rows (text left, Apply + Dismiss on the right) instead of side-by-side cards · Eric
 - Dismiss button on every suggestion (marks it done/dismissed, like the wine card's)
