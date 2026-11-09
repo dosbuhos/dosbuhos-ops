@@ -4,6 +4,8 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Pulls Google Calendar changes every 5 minutes while the app is closed.
+  "triggers": { "crons": ["*/5 * * * *"] },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -23,6 +25,7 @@
     // Same OAuth client as the Hub; add https://horizonte.dos-buhos.workers.dev/auth/callback as a redirect URI.
     "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com"
   }
-  // No secrets needed: sign-in uses the Google button (ID token checked against Google's public keys).
+  // Sign-in needs no secret (Google button; ID token checked against Google's public keys).
+  // Google Calendar sync needs the secret GOOGLE_CLIENT_SECRET (added by Eric in the dashboard) to keep a refresh token.
   // Google Cloud client "Cellar calendar" must list https://horizonte.dos-buhos.workers.dev as an Authorized JavaScript origin.
 }

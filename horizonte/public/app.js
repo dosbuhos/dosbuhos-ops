@@ -619,13 +619,14 @@ function boardSheet(id) {
 <div class="foot">${b && b.id !== 'backlog' ? `<button class="link" style="font-size:14px;color:var(--now)" data-act="delboard" data-bid="${b.id}">Delete board</button>` : '<span></span>'}<button class="bigbtn dark" style="padding:0 20px" data-act="saveboard" data-bid="${b?.id || ''}">Save</button></div>`, { board: id });
 }
 function settingsSheet() {
-  setTimeout(mountGoogleButton, 0);
+  setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0);
   const s = syncState();
   openSheet(`<div class="grab"></div><div style="font-size:20px;font-weight:700">Settings</div>
 <div class="grp"><div class="eyebrow">Account</div>
 ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? ' · ' + new Date(S.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</span></div><div class="row"><button class="bigbtn" style="flex:1" data-act="syncnow">Sync now</button><a class="bigbtn" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit" href="/auth/logout">Sign out</a></div>`
   : S.setup ? `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sign in to sync between phone and computer and load your boards.</div><div id="gsi" style="min-height:44px;display:flex;justify-content:center"></div><div id="gsimsg" class="muted" style="font-size:13px"></div>`
   : `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sync turns on once Google sign-in is set up for Horizonte.</div>`}</div>
+${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
 <div class="row"><button class="bigbtn" style="flex:1" data-act="export">Export all data</button><button class="bigbtn" style="flex:1" data-act="close">Close</button></div>`, { settings: true });
@@ -647,6 +648,30 @@ async function mountGoogleButton() {
   google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: Math.min(320, box.clientWidth || 320) });
 }
 
+// Google Calendar link: meetings go to Google, Google events come back as meetings. Tasks stay in Horizonte.
+async function mountGcal() {
+  const box = $('#gcalbox'); if (!box) return;
+  let st; try { st = await (await fetch('/api/gcal', { cache: 'no-store' })).json(); } catch { box.textContent = 'Connect to the internet to see the calendar link.'; return; }
+  if (!$('#gcalbox')) return;
+  if (!st.available) { box.innerHTML = 'Calendar sync needs one setup step in Cloudflare (the Google client secret).'; return; }
+  if (st.connected) { box.innerHTML = `<div style="color:var(--ink)">Connected to ${esc(st.email || 'Google Calendar')}. Meetings sync both ways; tasks stay here.</div><div class="row" style="margin-top:8px"><button class="bigbtn" style="flex:1" data-act="gcalsync">Sync calendar now</button><button class="bigbtn" style="flex:1" data-act="gcaloff">Disconnect</button></div>`; return; }
+  box.innerHTML = `<div>Send meetings to Google Calendar (with Google's reminders) and show your Google events here. Tasks stay in Horizonte.</div><button class="bigbtn dark" style="width:100%;margin-top:8px" data-act="gcalon">Connect Google Calendar</button>`;
+  S.clientId = S.clientId || st.clientId;
+}
+async function connectGcal() {
+  try { await loadGsi(); } catch { toast('Could not reach Google'); return; }
+  const client = google.accounts.oauth2.initCodeClient({ client_id: S.clientId, scope: 'openid email https://www.googleapis.com/auth/calendar.events', ux_mode: 'popup', select_account: true,
+    callback: async (resp) => {
+      if (resp.error) { toast('Calendar not connected'); return; }
+      const box = $('#gcalbox'); if (box) box.textContent = 'Connecting…';
+      const r = await fetch('/api/gcal/connect', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: resp.code }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { if ($('#gcalbox')) $('#gcalbox').textContent = j.error || 'Could not connect.'; return; }
+      toast('Google Calendar connected'); await syncNow(); mountGcal();
+    } });
+  client.requestCode();
+}
+
 // ── toast ─────────────────────────────────────────────────────
 let toastTimer;
 function toast(msg, withUndo) {
@@ -656,7 +681,7 @@ function toast(msg, withUndo) {
 }
 
 // ── clicks ────────────────────────────────────────────────────
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
   if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); return; }
   const el = e.target.closest('[data-act],[data-zoom],[data-src],[data-tab],[data-mzoom]'); if (!el) return;
   const card = e.target.closest('[data-tid]'), tid = card?.dataset.tid;
@@ -720,6 +745,9 @@ document.addEventListener('click', (e) => {
     case 'openboard': S.ui.board = el.dataset.bid; render(); $('.mm').scrollTop = 0; return;
     case 'boardsback': S.ui.board = null; render(); return;
     case 'settings': settingsSheet(); return;
+    case 'gcalon': connectGcal(); return;
+    case 'gcaloff': await fetch('/api/gcal/disconnect', { method: 'POST' }); mountGcal(); toast('Calendar disconnected'); return;
+    case 'gcalsync': { const b = $('#gcalbox'); if (b) b.style.opacity = .6; await syncNow(); render(); mountGcal(); if (b) b.style.opacity = 1; toast('Calendar synced'); return; }
     case 'syncnow': syncNow().then(() => sheetState?.settings && settingsSheet()); return;
     case 'cap': S.prefs.cap = Math.max(1, Math.min(5, S.prefs.cap + Number(el.dataset.d))); put('pref', 'main', { cap: S.prefs.cap }, { quiet: true }); render(); settingsSheet(); return;
     case 'export': { const blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), tasks: [...S.tasks.values()], boards: [...S.boards.values()], prefs: S.prefs }, null, 2)], { type: 'application/json' });
@@ -880,7 +908,9 @@ function startResize(e) {
 let lastDay = todayK();
 async function start() {
   try { await loadAll(); } catch (err) { console.error('local storage unavailable', err); }
-  ensureDefaults(); render(); whoami();
+  ensureDefaults();
+  try { const zone = Intl.DateTimeFormat().resolvedOptions().timeZone; if (zone && S.prefs.tz !== zone) put('pref', 'main', { tz: zone }, { quiet: true }); } catch {}
+  render(); whoami();
   matchMedia('(min-width: 900px)').addEventListener('change', () => { closeSheet(); render(); });
   addEventListener('online', () => { paintSync(); syncNow(); }); addEventListener('offline', paintSync);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });

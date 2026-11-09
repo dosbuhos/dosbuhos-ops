@@ -2,6 +2,7 @@
 // a server: Google sign-in limited to OWNER_EMAIL, and /api/sync, which stores every device's changes in
 // D1 and hands back what other devices changed. The app itself runs entirely from the device's own copy.
 import { applyOp, validOp } from './merge.js';
+import * as gcal from './gcal.js';
 
 const COOKIE = 'hz_session', STATE = 'hz_state', DAYS = 60;
 const enc = new TextEncoder();
@@ -107,10 +108,15 @@ async function applyOps(env, ops) {
 }
 
 // POST /api/sync { ops: [{k, id, f, t}], cursor } → { cursor, changes: [{k, id, d}] }
-async function sync(request, env) {
+async function sync(request, env, ctx) {
   const body = await request.json().catch(() => null);
   if (!body || !Array.isArray(body.ops) || body.ops.length > 500) return json({ error: 'bad request' }, 400);
   await applyOps(env, body.ops);
+  if (env.GOOGLE_CLIENT_SECRET) {
+    const touched = body.ops.filter(o => o && o.k === 'task' && typeof o.id === 'string').map(o => o.id);
+    if (touched.length) ctx.waitUntil(gcal.pushTasks(env, touched, applyOps).catch(e => console.log('gcal push', e.message)));
+    try { await gcal.pull(env, applyOps); } catch (e) { console.log('gcal pull', e.message); }
+  }
   const cursor = Number(body.cursor) || 0;
   const { results } = await env.DB.prepare('SELECT kind, id, data, seq FROM rec WHERE seq > ? ORDER BY seq LIMIT 2000').bind(cursor).all();
   const last = results.length ? results[results.length - 1].seq : cursor;
@@ -134,7 +140,8 @@ async function importOps(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async scheduled(event, env, ctx) { if (env.GOOGLE_CLIENT_SECRET) ctx.waitUntil(gcal.pull(env, applyOps, { force: true }).catch(e => console.log('cron pull', e.message))); },
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/auth/')) return (await auth(request, env, url)) || new Response('Not found', { status: 404 });
     if (url.pathname === '/api/import') return importOps(request, env);
@@ -142,7 +149,21 @@ export default {
       const user = await currentUser(request, env).catch(() => null);
       if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID }, user ? 200 : 401);
       if (!user) return json({ error: 'sign in' }, 401);
-      if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env);
+      if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env, ctx);
+      if (url.pathname === '/api/gcal' && request.method === 'GET') {
+        const row = await gcal.gcalRow(env);
+        return json({ available: !!env.GOOGLE_CLIENT_SECRET, connected: !!row?.refresh_token, email: row?.email || null, clientId: env.GOOGLE_CLIENT_ID });
+      }
+      if (url.pathname === '/api/gcal/connect' && request.method === 'POST') {
+        if (!env.GOOGLE_CLIENT_SECRET) return json({ error: 'Calendar link needs the GOOGLE_CLIENT_SECRET secret in Cloudflare.' }, 400);
+        const { code } = await request.json().catch(() => ({}));
+        try { const email = await gcal.connect(env, String(code || '')); await gcal.pull(env, applyOps, { force: true }).catch(e => console.log('first pull', e.message));
+          const ids = (await env.DB.prepare("SELECT id FROM rec WHERE kind = 'task' AND json_extract(data, '$.kind') = 'meeting' AND COALESCE(json_extract(data, '$.gev'), '') = ''").all()).results.map(r => r.id);
+          if (ids.length) ctx.waitUntil(gcal.pushTasks(env, ids, applyOps));
+          return json({ ok: true, email }); }
+        catch (e) { return json({ error: e.message }, 400); }
+      }
+      if (url.pathname === '/api/gcal/disconnect' && request.method === 'POST') { await env.DB.prepare('DELETE FROM gcal WHERE id = 1').run(); return json({ ok: true }); }
       return json({ error: 'not found' }, 404);
     }
     return env.ASSETS.fetch(request);
