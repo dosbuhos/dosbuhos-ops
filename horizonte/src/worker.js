@@ -10,8 +10,9 @@ const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, 
 const cookie = (name, value, maxAge) => `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
 async function hmac(env, data) {
-  if (!env.SESSION_SECRET) throw new Error('SESSION_SECRET missing');
-  const key = await crypto.subtle.importKey('raw', enc.encode(env.SESSION_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const secret = env.SESSION_SECRET || env.GOOGLE_CLIENT_SECRET; // SESSION_SECRET optional: falls back to the client secret
+  if (!secret) throw new Error('no signing secret');
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return b64u(await crypto.subtle.sign('HMAC', key, enc.encode(data)));
 }
 function getCookie(request, name) {
@@ -22,7 +23,7 @@ function getCookie(request, name) {
 async function currentUser(request, env) {
   if (env.DEV_USER && /^(localhost|127\.0\.0\.1)$/.test(new URL(request.url).hostname)) return { email: env.DEV_USER };
   const v = getCookie(request, COOKIE);
-  if (!v || !env.SESSION_SECRET) return null;
+  if (!v || !(env.SESSION_SECRET || env.GOOGLE_CLIENT_SECRET)) return null;
   const [sid, exp, sig] = v.split('|');
   if (!sid || !exp || Number(exp) < Date.now() / 1000) return null;
   if (sig !== await hmac(env, `${sid}|${exp}`)) return null;
@@ -41,7 +42,7 @@ function page(msg) {
 async function auth(request, env, url) {
   const redirectUri = `${url.origin}/auth/callback`;
   if (url.pathname === '/auth/google') {
-    if (!env.GOOGLE_CLIENT_SECRET || !env.SESSION_SECRET) return page('Sign-in is not set up yet: the GOOGLE_CLIENT_SECRET and SESSION_SECRET secrets are missing.');
+    if (!env.GOOGLE_CLIENT_SECRET) return page('Sign-in is not set up yet: the GOOGLE_CLIENT_SECRET secret is missing.');
     const state = crypto.randomUUID();
     const q = new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid email profile', state, prompt: 'select_account', login_hint: env.OWNER_EMAIL });
     return new Response(null, { status: 302, headers: { location: 'https://accounts.google.com/o/oauth2/v2/auth?' + q, 'set-cookie': cookie(STATE, state, 600) } });
@@ -120,7 +121,7 @@ export default {
     if (url.pathname === '/api/import') return importOps(request, env);
     if (url.pathname.startsWith('/api/')) {
       const user = await currentUser(request, env).catch(() => null);
-      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: !!(env.GOOGLE_CLIENT_SECRET && env.SESSION_SECRET) }, user ? 200 : 401);
+      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: !!env.GOOGLE_CLIENT_SECRET }, user ? 200 : 401);
       if (!user) return json({ error: 'sign in' }, 401);
       if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env);
       return json({ error: 'not found' }, 404);

@@ -25,5 +25,5 @@
   }
   // Secrets (Cloudflare dashboard → horizonte → Settings → Variables and secrets):
   // GOOGLE_CLIENT_SECRET  same value the Hub uses
-  // SESSION_SECRET        any long random string
+  // SESSION_SECRET        optional; without it sessions are signed with GOOGLE_CLIENT_SECRET
 }
