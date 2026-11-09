@@ -256,6 +256,36 @@ press = press.replace("__OPENTABLE__", LINKS["OPENTABLE"]).replace("__MAPS__", L
 os.makedirs(os.path.join(PUB, "press"), exist_ok=True)
 open(os.path.join(PUB, "press", "index.html"), "w", encoding="utf-8").write(press)
 
+# ---- press library: checklist + downloads at /press/library/ (from press_library.json) ----
+def _lib():
+    import html as H
+    lib = json.load(open(os.path.join(ROOT, "press_library.json"), encoding="utf-8"))
+    def sz(path):
+        f = os.path.join(PUB, path.lstrip("/"))
+        if not os.path.exists(f): return None
+        b = os.path.getsize(f)
+        return f"{b/1048576:.1f} MB" if b >= 1048576 else f"{max(1,b//1024)} KB"
+    out = []; tally = {"have": 0, "partial": 0, "missing": 0}
+    for sec in lib["sections"]:
+        out.append(f"<h2>{H.escape(sec['title'])}</h2>")
+        for it in sec["items"]:
+            st = it["status"]; tally[st] = tally.get(st, 0) + 1
+            files = "".join(f'<a href="{f}" download>{H.escape(f.rsplit("/",1)[-1])}<i>{sz(f) or "missing file"}</i></a>' for f in it.get("files", []))
+            note = f'<p>{H.escape(it["note"])}</p>' if it.get("note") else ""
+            out.append(f'<div class="it {st}"><div class="h"><span class="st">{ {"have":"✓","partial":"◐","missing":"○"}[st] }</span>{H.escape(it["label"])}</div>{note}<div class="f">{files}</div></div>')
+    page = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Press kit library · Dos Búhos</title><style>
+:root{{color-scheme:dark}}body{{margin:0;background:#0a0a0a;color:#f5f0e8;font:15px/1.5 Lato,system-ui,sans-serif}}main{{max-width:760px;margin:0 auto;padding:28px 18px 60px}}
+h1{{font:500 30px/1.1 "Cormorant Garamond",Georgia,serif;margin:0}}.sum{{color:#9a9184;margin:6px 0 20px}}h2{{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#c9a26a;margin:28px 0 8px;font-weight:400}}
+.it{{border:1px solid #2a2724;padding:12px 14px;margin-bottom:8px}}.h{{display:flex;gap:10px}}.st{{width:16px;flex:none}}.have .st{{color:#8fbf7a}}.partial .st{{color:#d9b25a}}.missing .st{{color:#8a8178}}
+.missing .h{{color:#b8b0a4}}.it p{{margin:4px 0 0 26px;color:#9a9184;font-size:13px}}.f{{margin:6px 0 0 26px;display:flex;flex-direction:column;gap:4px}}
+.f a{{color:#f5f0e8;font-size:13px;text-decoration:none;border-bottom:1px solid #2a2724;padding:4px 0;display:flex;justify-content:space-between;gap:10px}}.f a i{{color:#9a9184;font-style:normal;white-space:nowrap}}
+</style></head><body><main><h1>Press kit library</h1><p class="sum">{tally['have']} done · {tally['partial']} partial · {tally['missing']} to do · <a href="/press/" style="color:#c9a26a">press page</a></p>
+{''.join(out)}</main></body></html>"""
+    os.makedirs(os.path.join(PUB, "press", "library"), exist_ok=True)
+    open(os.path.join(PUB, "press", "library", "index.html"), "w", encoding="utf-8").write(page)
+_lib()
+
 # service worker
 precache = ["/", "/index.html", "/press/", "/press/index.html", "/icons/logo.png", "/photos/harvest.jpg", "/icons/mono-dark.png", "/icons/mono-light.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"] + [f"/fonts/{f}" for f in os.listdir(os.path.join(PUB, "fonts"))] + \
            [f"/manifest-{k}.webmanifest" for k in PEOPLE] + [f"/vcf/{k}.vcf" for k in PEOPLE] + ["/" + p["f"] for p in PHOTOS]
@@ -269,6 +299,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return; // fonts etc.: network, browser cache
   if (url.pathname === '/version.json') return; // always live
+  if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.endsWith('.zip')) return; // downloads: straight from the network
   const isNav = e.request.mode === 'navigate';
   const key = isNav ? (url.pathname.startsWith('/press') ? '/press/index.html' : '/index.html') : e.request;
   e.respondWith(caches.open(VERSION).then(async c => {

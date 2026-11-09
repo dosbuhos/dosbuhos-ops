@@ -1,0 +1,30 @@
+{
+  "note": "Press kit library. Status: have / partial / missing. Files are paths under /public.",
+  "sections": [
+    {"title": "1 · Fact sheet", "items": [
+      {"label": "One-page fact sheet (EN/ES)", "status": "partial", "note": "Facts are on the press page; still need hectares, bottles per year, one clean page.", "files": []}]},
+    {"title": "2 · Story", "items": [
+      {"label": "Short story (150 words) and long story (600 words), EN/ES", "status": "partial", "note": "150-word version is on the press page; long version to write.", "files": []}]},
+    {"title": "3 · People", "items": [
+      {"label": "Bios: Higinio, Diane, Eric", "status": "missing", "note": "", "files": []},
+      {"label": "Headshots (hi-res)", "status": "missing", "note": "", "files": []}]},
+    {"title": "4 · Wines", "items": [
+      {"label": "Technical sheets 2025", "status": "have", "note": "", "files": ["/docs/Dos-Buhos-Technical-Sheets-2025-EN.pdf", "/docs/Dos-Buhos-Fichas-Tecnicas-2025-ES.pdf"]},
+      {"label": "Technical sheets 2026", "status": "missing", "note": "", "files": []},
+      {"label": "Bottle packshots (hi-res, white or transparent)", "status": "missing", "note": "", "files": []}]},
+    {"title": "5 · Awards & press", "items": [
+      {"label": "Awards table and press quotes", "status": "have", "note": "On the press page. Add links to the articles.", "files": []}]},
+    {"title": "6 · Photos", "items": [
+      {"label": "Web-size photos (all)", "status": "partial", "note": "Some are low-res and tagged for replacement.", "files": ["/docs/Dos-Buhos-Press-Photos.zip"]},
+      {"label": "Hi-res originals, by folder: estate, vineyard, cellar, people, bottles, restaurant, events", "status": "missing", "note": "", "files": []}]},
+    {"title": "7 · Logos & labels", "items": [
+      {"label": "Logo: vector PDF, SVG, PNG gray / white / black", "status": "have", "note": "", "files": ["/docs/Dos-Buhos-Logos.zip", "/press/files/logos/DosBuhos_Logo_Vector.pdf", "/press/files/logos/DosBuhos_Logo_Gray.svg", "/press/files/logos/DosBuhos_Logo_White.svg", "/press/files/logos/DosBuhos_Logo_Gray.png", "/press/files/logos/DosBuhos_Logo_White.png", "/press/files/logos/DosBuhos_Logo_Black.png"]},
+      {"label": "Front labels", "status": "missing", "note": "", "files": []},
+      {"label": "Brand colors and fonts", "status": "missing", "note": "", "files": []}]},
+    {"title": "8 · Contact & terms", "items": [
+      {"label": "Named press contact", "status": "missing", "note": "", "files": []},
+      {"label": "Photo credits and editorial-use note", "status": "missing", "note": "", "files": []}]},
+    {"title": "Press kit PDFs", "items": [
+      {"label": "Press kit PDF", "status": "have", "note": "Regenerated with make_presskit.py.", "files": ["/docs/Dos-Buhos-Press-Kit-EN.pdf", "/docs/Dos-Buhos-Kit-de-Prensa-ES.pdf"]}]}
+  ]
+}
