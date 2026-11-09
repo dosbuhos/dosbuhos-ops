@@ -719,7 +719,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611091632'; let lastCheck = 0;
+const APP_VER = '202611091646'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }

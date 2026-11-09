@@ -35,9 +35,18 @@
         {
           "label": "Headshots (hi-res)",
           "status": "partial",
-          "note": "Diane done. Still need Higinio and Eric.",
+          "note": "Diane and Eric done. Still need Higinio.",
           "files": [
-            "/press/files/people/DosBuhos_Diane-Maycotte_Headshot.png"
+            "/press/files/people/DosBuhos_Diane-Maycotte_Headshot.png",
+            "/press/files/people/DosBuhos_Eric-Maycotte_Headshot.jpg"
+          ]
+        },
+        {
+          "label": "Candids: people at work",
+          "status": "partial",
+          "note": "Eric at harvest. Add Diane in the cellar, Higinio in the vineyard.",
+          "files": [
+            "/press/files/people/DosBuhos_Eric-Maycotte_Harvest_Candid.jpg"
           ]
         }
       ]
