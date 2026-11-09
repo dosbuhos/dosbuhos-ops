@@ -511,6 +511,10 @@ button.lot-name:hover { text-decoration-color: var(--accent); color: var(--accen
 .tmp.same { background: transparent; color: var(--muted); border-color: var(--rule); }
 .tmp.add-t { background: transparent; color: var(--muted); border: 1px dashed var(--rule); font-weight: 400; }
 .lot-temp { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink); margin-top: 3px; }
+.lot-badge { display: inline-block; margin: 3px 0 2px 0; padding: 1px 7px; border-radius: 5px; font: 700 11.5px var(--f-body, system-ui); letter-spacing: .02em; text-transform: uppercase; vertical-align: 2px; }
+.lot-badge.arch { background: #e8e3d8; color: #5a4a2a; }
+.lot-badge.btl { background: #dcefe0; color: #1f5e2a; }
+.wine .lot-badge { display: block; width: fit-content; }
 .chip.is-done { opacity: .6; }
 .chip.is-done .tick { opacity: 1; }
 .chip.is-done .txt { text-decoration: line-through; }
@@ -4099,6 +4103,16 @@ Return ONLY JSON with this shape:
   function printProto(d) { if (d) printDoc(protoPrintHTML(d), "pp-doc", "Protocol-" + d.title); }
 
   // ---------- All wines ----------
+  // Bold status next to a wine's name: archived / blended into another lot / bottled (Eric, Nov 9)
+  function lotBadge(l) {
+    const into = l.mergedInto && S.lots.find(x => x.id === l.mergedInto);
+    const m = String(l.ubi || "").match(/(?:BLENDED INTO|MEZCLAD[OA] EN|PAS[OÓ] A)\s+(L\d+[\w-]*)/i);
+    if (l.archived) return `<b class="lot-badge arch">Archivado · mezclado en ${esc(into ? into.code || into.name : l.mergedInto || (m ? m[1] : "otro lote"))}</b>`;
+    if (m) return `<b class="lot-badge arch">Archivado · mezclado en ${esc(m[1].toUpperCase())}</b>`;
+    const bt = (l.bottlings || []).filter(b => b.date), last = bt[bt.length - 1], done = (l.path || []).some(p => p.bottle && p.st === "done");
+    if (last && (done || last.sourceEmpty || last.left === 0)) return `<b class="lot-badge btl">Embotellado ${esc(+last.date.slice(8, 10) + "/" + +last.date.slice(5, 7))}${last.bottles ? " · " + esc(last.bottles) + " bot." : ""}</b>`;
+    return "";
+  }
   function val(p, key, extraCls) {
     if (!p) return `<span class="none">—</span>`;
     const age = daysAgo(p.d);
@@ -4280,7 +4294,7 @@ Return ONLY JSON with this shape:
     const v = (k, cls) => (s ? val(L[k], k, cls) : dash);
     const GC = { red: "#7a1f2b", rose: "#e0849a", white: "#d8b43c", orange: "#d9822b", sparkling: "#7fa7b8" };
     let h = `<tr class="w${s ? "" : " nodata"}" data-open="${esc(l.id)}" style="--gc:${GC[l.group] || "#9aa5b1"}">`;
-    h += `<td class="wine"><button type="button" class="wn" data-open="${esc(l.id)}">${esc(l.name)}</button>` +
+    h += `<td class="wine"><button type="button" class="wn" data-open="${esc(l.id)}">${esc(l.name)}</button>${lotBadge(l)}` +
       `<div class="wc">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}</div>` +
       (tempFmt(tempRaw(l, curWeek)) ? `<div class="lot-temp">Target: ${esc(tempFmt(tempRaw(l, curWeek)).text)}</div>` : "") + `</td>`;
     h += cellNum("alc", "Alc %", v("alc"));

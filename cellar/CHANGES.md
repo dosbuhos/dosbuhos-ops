@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Wine list: bold status next to the name · v1.15.1
+- «Archivado · mezclado en L11» (archived lot, or "blended into L11" in its location) and «Embotellado 4/11 · 159 bot.» (bottled, source emptied) shown in bold under the wine name · Eric · cellar-targets.html
+
 ## 2026-11-09 — Data: carbonic pinks split into two wines
 - lots/carb-pinks ("Carbonic pinks (PS + CF)", L13 + L14) is now **Cab Franc carbónico** (L14 only: VC 230 L, 109 L → CF rosé 18/11); new lots/ps-carb **Petite Sirah carbónico (nouveau)** (L13: bottled 4/11, 159 bottles; the bottling record moved here) · Eric: they won't be blended, show them separately
 - Old carb-pinks plan items (blend trial PS+CF, combine in tank, early/standard bottle, weekly sensory) left as they were; Eric to decide whether to close them
