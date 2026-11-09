@@ -131,10 +131,13 @@
     fetch('/api/xl/barrel-so2').then(r => r.ok ? r.json() : null).then(j => { if (j && j.barrels) { C.so2 = j.barrels; if (C.root && C.tab === 'barrels') render(); } }).catch(() => { so2At = 0; });
   }
   const daysOld = iso => iso ? Math.round((Date.now() - new Date(iso + 'T12:00')) / 864e5) : null;
+  // Free SO2 to show: the last reading, or "~" reading + SO2 added since (server: /api/xl/barrel-so2 est)
+  const so2Now = x => { const r = x && x.so2; if (!r) return null; const e = x.est;
+    return e ? { v: '~' + e.v, n: e.v, d: r.d, est: true, tip: 'Lectura ' + e.base + ' (' + fmtD(e.d) + ') + ' + e.add + ' ppm agregados' } : { v: String(r.v), n: parseFloat(String(r.v).replace('<', '')), d: r.d, est: false, tip: '' }; };
   const so2Line = b => {
     const x = C.so2 && C.so2[String(+b.code)]; if (!x || !b.lot) return '';
-    const r = x.so2, a = x.add, old = r && daysOld(r.d) > 14;
-    const rd = r ? `<span class="cr-so2v${old ? ' old' : ''}${/^</.test(r.v) || +r.v < 10 ? ' low' : ''}">SO₂ libre ${esc(r.v)}</span> ${esc(fmtD(r.d))}${a && a.tab === r.tab && a.row === r.row ? ' <small>(antes de agregar)</small>' : ''}` : '<span class="cr-so2v none">SO₂ libre sin lectura</span>';
+    const r = x.so2, a = x.add, old = r && daysOld(r.d) > 14, w = so2Now(x);
+    const rd = r ? `<span class="cr-so2v${old ? ' old' : ''}${(!w.est && /^</.test(r.v)) || w.n < 10 ? ' low' : ''}"${w.est ? ` title="${esc(w.tip)}"` : ''}>SO₂ libre ${esc(w.v)}</span> ${w.est ? '<small>estimado · lectura ' + esc(x.est.base) + ' el ' + esc(fmtD(r.d)) + '</small>' : esc(fmtD(r.d))}` : '<span class="cr-so2v none">SO₂ libre sin lectura</span>';
     const ad = a ? ` · <span class="cr-so2a">+${a.g ? esc(a.g) + ' g' : ''}${a.g && a.ppm ? ' · ' : ''}${a.ppm ? esc(a.ppm) + ' ppm' : ''} ${esc(fmtD(a.d))}</span>` : '';
     return `<div class="cr-sub cr-so2">${rd}${ad}</div>`;
   };
@@ -228,7 +231,7 @@
   const TYPE_O = ['red', 'rose', 'orange', 'white', 'sparkling', 'port', 'vermouth', 'other', 'confirm', 'empty'];
   const vintB = b => { const l = lotById(b.lot); return l ? C.vintageOf(l) : ''; };
   const mantDays = b => { const m = mantOf(b); return m ? Math.round((Date.now() - new Date(m.at)) / 864e5) : null; };
-  const so2Cell = b => { const x = C.so2 && C.so2[String(+b.code)], r = x && x.so2; if (!r || !b.lot) return '<span class="cr-dim">—</span>'; const low = /^</.test(r.v) || +r.v < 10, old = daysOld(r.d) > 14; return `<span class="cr-so2v${low ? ' low' : ''}${old ? ' old' : ''}">${esc(r.v)}</span><small>${esc(fmtD(r.d))}</small>`; };
+  const so2Cell = b => { const x = C.so2 && C.so2[String(+b.code)], r = x && x.so2; if (!r || !b.lot) return '<span class="cr-dim">—</span>'; const w = so2Now(x), low = (!w.est && /^</.test(r.v)) || w.n < 10, old = daysOld(r.d) > 14; return `<span class="cr-so2v${low ? ' low' : ''}${old ? ' old' : ''}"${w.est ? ` title="${esc(w.tip)}"` : ''}>${esc(w.v)}</span><small>${esc(fmtD(r.d))}</small>`; };
   const mantCell = b => { const m = mantOf(b), d = mantDays(b); if (!m) return '<span class="cr-due">Sin registro</span>'; const P = PROTO[m.proto] || {}; return `<span class="${d > MANT_DAYS ? 'cr-due' : ''}"><i class="cr-pdot" style="background:${P.c || '#999'}"></i>${d > MANT_DAYS ? 'Toca · ' : ''}hace ${d} d</span><small>${esc(P.n || '')}</small>`; };
   const locShort = b => b.loc ? (b.locName || locLabel(b.loc)) : '';
   function renderBarrels() {
@@ -264,7 +267,7 @@
       // phones: two dense lines — BBL nº · vino · 📍 lugar / tonelería · SO₂ · relleno; tapping the row opens the card
       const m = mantOf(b), md = mantDays(b), x = C.so2 && C.so2[String(+b.code)], r = x && x.so2;
       const coop = [b.cooperage, b.wood, b.year].filter(Boolean).join(' · ');
-      const so2T = r ? `<span class="c-pso2${/^</.test(r.v) || +r.v < 10 ? ' low' : ''}${daysOld(r.d) > 14 ? ' old' : ''}">SO₂ <b>${esc(r.v)}</b></span>` : b.lot ? '<span class="c-pso2 none">SO₂ —</span>' : '';
+      const so2T = r ? `<span class="c-pso2${(!so2Now(x).est && /^</.test(r.v)) || so2Now(x).n < 10 ? ' low' : ''}${daysOld(r.d) > 14 ? ' old' : ''}">SO₂ <b>${esc(so2Now(x).v)}</b></span>` : b.lot ? '<span class="c-pso2 none">SO₂ —</span>' : '';
       const fillT = `<span class="c-pfill${!m || md > MANT_DAYS ? ' due' : ''}">${b.lot ? 'Relleno' : 'Mant.'}${m ? (md > MANT_DAYS ? ' tarde' : '') + ' ' + md + ' d' : ' —'}</span>`;
       const ph = `<div class="c-ph"><div class="c-ph1"><b>BBL&#8239;${esc(bn(b.code))}</b><i class="cr-wdot" style="background:${col}"></i><span class="c-phw">${wine}</span>${b.loc ? `<span class="c-phl">📍${esc(locShort(b))}</span>` : ''}</div>
           <div class="c-ph2">${fillT}${so2T}${coop ? `<span class="c-pcoop">${esc(coop)}</span>` : '<span class="c-pcoop cr-dim">tonelería ?</span>'}</div></div>`;

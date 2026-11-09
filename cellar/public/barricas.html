@@ -534,13 +534,19 @@ const R=27, GX=76, GY=90, PADL0=20, TOP=6, FOOT=24; // column numbers go under t
 // barrels: to the next maintenance); the line under the wine is the last free-SO2 reading against the ~20 ppm house target.
 const SO2_OK=20,SO2_LOW=12,SO2_OLD=45,JOB_DAYS=30,JOB_GRACE=10;
 function jobCls(ja){return ja==null||ja>JOB_DAYS+JOB_GRACE?'bad':ja>JOB_DAYS?'warn':'ok'}
+// Free SO2 now: newest reading + every addition logged on/after it (KMBS g × 576 ÷ litros). est → shown as "~".
+function so2Now(SO,vol){const so=SO.find(h=>h.fso2!=null&&h.fso2!=='');if(!so)return null;const L=+vol||225,base=parseFloat(String(so.fso2).replace('<','').replace(',','.'));
+  const ppmOf=h=>h.ppm!=null?+h.ppm:h.kmbs_g?(+h.kmbs_g)*576/L:0;let add=0;const seen=new Set();
+  for(const h of SO){if(h.date<so.date)break;if(h.skipped||!(h.kmbs_g||h.ppm))continue;if(h!==so&&h.fso2!=null&&h.fso2!==''&&!h.kmbs_g)continue;
+    const k=h.date+'|'+Math.round(ppmOf(h));if(seen.has(k))continue;seen.add(k);if(h===so&&!(h.applied||h.src==='app'||h.src==='Excellovint'))continue;add+=ppmOf(h)}
+  return add>0&&isFinite(base)?{v:Math.round(base+add),raw:'~'+Math.round(base+add),est:true,base:so.fso2,date:so.date,add:Math.round(add*10)/10}:{v:base,raw:String(so.fso2),est:false,date:so.date}}
 function so2Cls(v,age){return v==null||isNaN(v)?'none':age>SO2_OLD?'old':v<SO2_LOW?'bad':v<SO2_OK?'warn':'ok'}
 function bstat(id){const c=S.conf[id],q=POS[id];if(!q||q.amph)return null;const num=c?.num||q.b?.n||'';if(!num)return null;const D=bdata(num);if(!D)return null;
   const empty=c?!!c.empty:D.fill==='empty';
   const SO=[...((c&&c.so2)||[]),...(D.so2||[])].sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0),so=SO.find(h=>h.fso2!=null&&h.fso2!=='');
   const L=[...((c&&c.logs)||[]),...(D.logs||[])].sort().reverse(),job=L.find(x=>empty?/\|(p1|p2)(\||$)/.test(x):/\|(p3|top|fill)(\||$)/.test(x)),jd=job?job.split('|')[0]:null,ja=dago(jd);
-  const v=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,sa=so?dago(so.date):null;
-  return {empty,so:so?{v,raw:String(so.fso2),age:sa,cls:so2Cls(v,sa)}:null,jd,ja,jcls:jobCls(ja),late:ja==null?null:ja-30}}
+  const w=so?so2Now(SO,D.vol||D.size):null,v=w?w.v:null,sa=so?dago(so.date):null;
+  return {empty,so:so?{v,raw:w.raw,age:sa,cls:so2Cls(v,sa)}:null,jd,ja,jcls:jobCls(ja),late:ja==null?null:ja-30}}
 // empty barrels still say what they are for: the band around the head takes the color of the wine type it holds (tinto, naranja, blanco…)
 const UTINT={red:'#7a1f2b',white:'#d8b43c',orange:'#d9822b',rose:'#e0849a',port:'#4a1622',vermouth:'#6b7a3a'};
 function useTint(id){const c=S.conf[id],q=POS[id],num=c?.num||q?.b?.n||'';const D=num?bdata(num):null;return D&&UTINT[D.use]||null}
@@ -878,7 +884,7 @@ function bdata(num){const b=A.barrels[unpad(num)];if(!b)return null;const l=lotB
   return {coop:b.cooperage||'',wood:b.wood||'',year:b.year?+b.year:null,use:useOf(b),fill:stateOf(b)==='empty'?'empty':'full',size:b.size||'',vol:b.vol||'',wine:l?vintLabel(l):'',wines:b.wines||[],toast:b.toast||'',th:!!b.th,notes:b.notes||'',so2:so2Of(b),logs:(A.lines[unpad(b.code)]||[]).slice().sort().reverse(),_b:b}}
 function so2Of(b){const out=[],code=unpad(b.code);
   for(const h of (b.history||[]))out.push({date:h.date,wine:h.wine,ph:h.ph,fso2:h.fso2,kmbs_g:h.applied||h.kmbs_g?h.kmbs_g:null,skipped:h.skipped,src:h.src||'papel'});
-  for(const x of [code,...(b.formerly||[])].map(n=>A.so2[unpad(n)]).filter(Boolean)){if(x.so2)out.push({date:x.so2.d,fso2:x.so2.v,src:'Excellovint',wine:x.so2.tab});if(x.add&&x.add.g)out.push({date:x.add.d,kmbs_g:+x.add.g||x.add.g,src:'Excellovint',wine:x.add.tab})}
+  for(const x of [code,...(b.formerly||[])].map(n=>A.so2[unpad(n)]).filter(Boolean)){if(x.so2)out.push({date:x.so2.d,fso2:x.so2.v,src:'Excellovint',wine:x.so2.tab});if(x.add&&(x.add.g||x.add.ppm))out.push({date:x.add.d,kmbs_g:x.add.g?+x.add.g||x.add.g:null,ppm:x.add.ppm?+x.add.ppm:null,src:'Excellovint',wine:x.add.tab,row:x.add.row})}
   for(const l of A.logs)if(l.kind==='so2'&&String(l.code)===code)out.push({date:String(l.at).slice(0,10),fso2:l.fso2,ph:l.ph,kmbs_g:l.kmbs_g,kind:l.so2kind,by:l.by,src:'app',_id:l.id});
   return out.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0)}
 async function load(){const st=$('dbst');
@@ -1048,7 +1054,7 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
   const lastM=L.find(x=>/\|(p1|p2|p3|top)/.test(x)),fillE=L.find(x=>x.includes('|fill'));
   const md=lastM?lastM.split('|')[0]:null,mAgo=dago(md),fd0=fillE?fillE.split('|')[0]:null;
   const mSt=mAgo==null?'bad':mAgo>30?'bad':mAgo>24?'warn':'ok';
-  const soAgo=so?dago(so.date):null,soV=so?parseFloat(String(so.fso2).replace('<','').replace(',','.')):null,soC=so2Cls(soV,soAgo),soSt=!so?'bad':soV<SO2_LOW?'bad':soV<SO2_OK?'warn':soC==='old'?'warn':'ok';
+  const soW=so?so2Now(SO,D?.vol||D?.size):null,soAgo=so?dago(so.date):null,soV=soW?soW.v:null,soC=so2Cls(soV,soAgo),soSt=!so?'bad':soV<SO2_LOW?'bad':soV<SO2_OK?'warn':soC==='old'?'warn':'ok';
   const lv=v=>v==null?'—':v;
   // ---- card: who · what's due (full = topping, empty = sulphur/hydration) · readings · barrel · actions
   const toast=c?.toast||D?.toast||'',coopV=c?.coop||D?.coop,woodV=c?.wood||D?.wood,age=D?.year?2026-D.year:null,uses=D&&D.wines?D.wines.length:0;
@@ -1065,7 +1071,7 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
     ${num?`<button type="button" class="mline ${jSt}" data-gotab="mant"><b>${mLine}</b><span>${dzc?'no toca mantenimiento':doneToday||!jd?'':(jSt!=='ok'?'tocaba el ':'el próximo toca el ')+fd(new Date(Date.parse(jd)+JOB_DAYS*864e5).toISOString().slice(0,10))}</span><em>›</em></button>`
       :`<button type="button" class="mline unk" data-gotab="res"><b>¿Qué barrica es?</b><span>Escribe el número en Datos para ver su mantenimiento</span><em>›</em></button>`}
     ${num?'':'<!--'}<div class="tiles">
-      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b>${empty||!so?'—':lv(so.fso2)+'<i> ppm</i>'}</b><span class="${!empty&&so&&soAgo>SO2_OLD?'late':''}">${empty?'vacía':so?fd(so.date)+' · hace '+soAgo+' d':'sin lectura'}</span>${!empty&&addA?`<span class="tadd${dago(addA.date)>SO2_OLD?' late':''}">+${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS · ${fd(addA.date)}</span>`:''}${!empty&&so?`<span class="tgoal">meta ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
+      <div class="tile ${empty?'na':soSt}"><small>SO₂ libre</small><b${soW?.est?` title="Estimado: lectura ${esc(soW.base)} + ${soW.add} ppm agregados"`:''}>${empty||!so?'—':esc(soW.raw)+'<i> ppm</i>'}</b><span class="${!empty&&so&&soAgo>SO2_OLD?'late':''}">${empty?'vacía':so?(soW.est?'estimado · lectura '+esc(soW.base)+' el ':'')+fd(so.date)+' · hace '+soAgo+' d':'sin lectura'}</span>${!empty&&addA?`<span class="tadd${dago(addA.date)>SO2_OLD?' late':''}">+${esc(Math.round(addA.kmbs_g*10)/10)} g KMBS · ${fd(addA.date)}</span>`:''}${!empty&&so?`<span class="tgoal">meta ${SO2_OK} ppm</span>`:''}${empty?'':'<button type="button" class="tplus" data-q="so2" aria-label="Registrar SO₂">+</button>'}</div>
       <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span>${jd?fd(jd):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
       <div class="tile na"><small>Barrica</small><b>${age==null?'—':age+'<i> años</i>'}</b><span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></div>
     </div>${num?'':'-->'}

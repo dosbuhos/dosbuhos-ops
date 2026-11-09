@@ -194,14 +194,24 @@ export async function xlRoute(request, env, p, url, user) {
     for (const r of results) {
       const bs = nums(r.ubi), note = String(r.note || '');
       // Per-barrel values written in the note win ("BBL 87=10.3 PPM").
-      const per = {}; let m; const re = /\bB(?:BL)?\s*#?\s*(\d+)\s*[=:]\s*(<?\s*\d+(?:[.,]\d+)?)\s*(?:PPM|MG)/gi;
+      const per = {}; let m; const re = /\bB(?:BL)?\s*#?\s*(\d+)\b[^=:\n\d]{0,24}[=:]\s*(<?\s*\d+(?:[.,]\d+)?)\s*(?:PPM|MG)/gi; // "BBL 44 CF +TE/SY = 16.7 PPM\"
       while ((m = re.exec(note))) per[String(+m[1])] = m[2].replace(/\s/g, '').replace(',', '.');
-      for (const [c, v] of Object.entries(per)) at(c).so2 = { d: r.date, v, tab: r.tab, row: r.row, n: 1 };
-      if (r.sl !== '' && r.sl != null && bs.length) for (const c of bs) if (!per[c]) at(c).so2 = { d: r.date, v: String(r.sl), tab: r.tab, row: r.row, n: bs.length };
+      // a reading replaces the estimate: additions before it are already in the number
+      for (const [c, v] of Object.entries(per)) { at(c).so2 = { d: r.date, v, tab: r.tab, row: r.row, n: 1 }; at(c).after = []; }
+      if (r.sl !== '' && r.sl != null && bs.length) for (const c of bs) if (!per[c]) { at(c).so2 = { d: r.date, v: String(r.sl), tab: r.tab, row: r.row, n: bs.length }; at(c).after = []; }
       if (bs.length && done(r) && /KMBS|AGREG|AÑADI|ADD\b|ADDED|ADICI[OÓ]N/i.test(note) && !/NO SE AGREG|SOLO MEDIR|NO AGREGAR NADA|NO ADDITION|READING ONLY/i.test(note)) {
         const g = note.match(/(\d+(?:[.,]\d+)?)\s*(?:G|GR|GRS|GRAMOS)\b(?!\s*\/)/i), ppm = note.match(/(?:ADD|AGREG[OÓ]|AGREGAR|AÑADI[OÓ]|SUBIR A)\s+(\d+(?:[.,]\d+)?)\s*(?:PPM|MG\/L)/i);
-        if (g || ppm) for (const c of bs) at(c).add = { d: r.date, g: g ? g[1].replace(',', '.') : '', ppm: ppm ? ppm[1].replace(',', '.') : '', tab: r.tab, row: r.row, n: bs.length };
+        if (g || ppm) for (const c of bs) { const a = at(c).add = { d: r.date, g: g ? g[1].replace(',', '.') : '', ppm: ppm ? ppm[1].replace(',', '.') : '', tab: r.tab, row: r.row, n: bs.length }; (at(c).after = at(c).after || []).push(a); }
       }
+    }
+    // Free SO2 to show: the last reading plus every addition made since (same row = read, then added). "~" = estimate.
+    for (const x of Object.values(out)) {
+      const adds = (x.after || []).filter(a => a.ppm || a.g); delete x.after;
+      if (!x.so2 || !adds.length) continue;
+      const base = parseFloat(String(x.so2.v).replace('<', '').replace(',', '.'));
+      if (!isFinite(base)) continue;
+      const ppm = adds.reduce((t, a) => t + (a.ppm ? +a.ppm : +a.g * 576 / 225), 0);
+      x.est = { v: Math.round(base + ppm), base: x.so2.v, d: x.so2.d, add: Math.round(ppm * 10) / 10, last: adds[adds.length - 1].d };
     }
     return { status: 200, body: { today, barrels: out } };
   }

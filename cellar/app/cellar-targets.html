@@ -1637,6 +1637,8 @@ var SheetParse = (function () {
       .map(o => o.x);
     const hist = { ph: [], at: [], am: [], sl: [], st: [], aa: [], alc: [], rs: [], heat: [], lac: [] };
     const adds = [], racks = [], sugar = [];
+    // Free SO2 per vessel (a barrel or the tank): last reading + every addition since, so the number shown is what's in the wine now.
+    const fv = {}, vKey = u => { const m = String(u || "").toUpperCase().match(/^\s*(?:½\s*)?B(?:BL|ARRICA)?\s*#?\s*(\d+)\s*$/); return m ? "B" + (+m[1]) : String(u || "").trim().toUpperCase(); };
     let lastLab = "", vessel = "", vol = null, volDate = "", afEnd = "", noMlf = "";
     let bent = null;
     const log = [];
@@ -1648,7 +1650,13 @@ var SheetParse = (function () {
         const v = num(r[k]);
         if (v == null) continue;
         hist[k].push({ d: r.d, v, raw: cellStr(r[k]), lab });
+        if (k === "sl" && r.d) fv[vKey(r.u)] = { d: r.d, v, add: 0, lab };
         measured = true;
+      }
+      // Per-barrel free SO2 written in a result note: "BBL 44 CF = 16.7 PPM"
+      if (r.n && r.d && /S[O0]2|SULFIT|RESULTADO/i.test(r.n + " " + (r.u || "")) && !/TOTAL/i.test(r.n)) {
+        const re = /\bB(?:BL)?\s*#?\s*(\d+)\b[^=:\n\d]{0,24}[=:]\s*<?\s*(\d+(?:[.,]\d+)?)\s*(?:PPM|MG)/gi; let m;
+        while ((m = re.exec(r.n))) { const v = num(m[2]); if (v != null) { fv["B" + (+m[1])] = { d: r.d, v, add: 0, lab }; measured = true; } }
       }
       if (r.n) {
         let m;
@@ -1668,7 +1676,8 @@ var SheetParse = (function () {
         const sg = sugarRead(r, lab);
         if (sg) { sugar.push(sg); measured = true; }
         const a = so2Add(r, vol);
-        if (a) adds.push(a);
+        if (a) { adds.push(a);
+          if (!a.skip && a.v > 0) { const k = vKey(r.u), hit = fv[k] ? [fv[k]] : Object.values(fv); for (const x of hit) if (x.d <= a.d) x.add += a.v; } }
       }
       // Every row with a note or a reading is a log entry (readings-only rows included).
       if (r.n || ["volf", "ph", "bx", "tp", "at", "am", "sl", "st", "aa"].some(k => r[k] != null)) log.push(r);
@@ -1685,6 +1694,14 @@ var SheetParse = (function () {
     for (const k in ODD) { const h = hist[k]; for (let i = 1; i < h.length; i++) { const a = h[i - 1].v, b = h[i].v; if (a != null && b != null && isFinite(a) && isFinite(b) && ODD[k](a, b)) h[i].odd = `${h[i - 1].raw} → ${h[i].raw}`; } }
     const latest = {};
     for (const k in hist) latest[k] = hist[k].length ? hist[k][hist[k].length - 1] : null;
+    { // Free SO2 now: vessels read within 3 weeks of the newest reading, each = its reading + additions since ("~" = estimate)
+      const all = Object.values(fv); if (all.length) {
+        const top = all.reduce((m, x) => x.d > m ? x.d : m, ""), cut = new Date(Date.parse(top) - 21 * 864e5).toISOString().slice(0, 10);
+        const cur = all.filter(x => x.d >= cut), est = cur.some(x => x.add > 0), val = cur.reduce((t, x) => t + x.v + x.add, 0) / cur.length;
+        const raw = est ? "~" + Math.round(val) : cur.length > 1 ? String(Math.round(val * 10) / 10) : (latest.sl && latest.sl.d === top ? latest.sl.raw : String(val));
+        latest.sl = { d: top, v: val, raw, lab: cur.every(x => x.lab), est, n: cur.length, base: est ? cur.map(x => x.v).join(" / ") : "" };
+      }
+    }
     // Total SO2 estimate: last measured total plus additions logged after it (or all additions if never measured).
     let so2 = null;
     if (adds.length || latest.st) {
@@ -1766,7 +1783,7 @@ var SheetParse = (function () {
     if (skip && /CONSIDER|CALCULAT|NEED TO|PLAN/.test(n)) return null;
     // ppm amounts; numbers under 2 are a molecular target (0.8), not a dose. "PM" typo accepted.
     const ppm = [];
-    const re = /(ADD(?:ED)?|AGREGA[RD]?O?)?\s*:?\s*(\d+(?:\.\d+)?)\s*P?PM\b(?!\s*MOL)/g;
+    const re = /(ADD(?:ED)?|AGREGA[RD]?O?)?\s*:?\s*(\d+(?:\.\d+)?)\s*(?:P?PM\b|MG\/L)(?!\s*MOL)/g;
     let m;
     while ((m = re.exec(n))) { const v = +m[2]; if (v >= 2) ppm.push({ v, add: !!m[1] }); }
     const pick = ppm.find(x => x.add) || ppm[0];
@@ -2058,7 +2075,7 @@ var SheetParse = (function () {
     document.querySelectorAll(".mnav button").forEach(b => b.setAttribute("aria-current", (b.dataset.mtoday ? S.view === "weeks" : b.dataset.view === S.view || (b.dataset.view === "labs" && S.view === "blends")) ? "page" : "false"));
     if (vyv) {
       $("sub").textContent = "The vineyard year: milestones, what we picked vs. the plan, pruning order and the blocks. Cellar sections are in the ribbon below.";
-      $("legend").innerHTML = `<span>Proposed = a target date to confirm with Diane and the crew</span><span>Harvest days off = first pick vs. the planned pick week</span>`;
+      $("legend").innerHTML = `<span>Proposed = a target date to confirm with Diane and the crew</span><span>Harvest days off = first pick vs. the planned pick week</span><span>~ free SO₂ = estimate: last reading + SO₂ added since</span>`;
     }
     $("tabWines").setAttribute("aria-selected", wines);
     $("tabWeeks").setAttribute("aria-selected", wk);
