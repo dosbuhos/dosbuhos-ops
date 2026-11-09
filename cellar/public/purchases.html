@@ -94,6 +94,9 @@ h2 small{font:500 12px var(--f-b);letter-spacing:0;text-transform:none;color:var
 dialog{border:0;border-radius:20px 20px 0 0;padding:0;width:100%;max-width:none;margin:auto 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.3);max-height:calc(100dvh - 20px)}
 @media (min-width:700px){dialog{border-radius:16px;width:min(520px,calc(100vw - 24px));margin:auto}}
 dialog::backdrop{background:rgba(20,22,24,.45)}
+dialog{position:fixed}
+.dx{position:absolute;top:10px;right:10px;z-index:2;width:38px;height:38px;border:0;border-radius:50%;background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink);font:400 24px/1 var(--f-b);cursor:pointer}
+dialog form h3{padding-right:44px}
 dialog form{padding:10px 16px 0;display:flex;flex-direction:column;gap:12px;max-height:calc(100dvh - 20px);overflow:auto}
 dialog form::before{content:"";display:block;width:40px;height:4px;margin:0 auto;border-radius:2px;background:var(--rule)}
 dialog h3{margin:0;font:700 20px var(--f-d);text-transform:uppercase;color:var(--wine);letter-spacing:.03em}
@@ -173,7 +176,7 @@ body.inv .tabs{display:none}
   <p class="foot">Vive en Excellovint → pestañas <b>Inventarios</b> (productos y stock) e <b>Inventarios - Movimientos</b> (cada entrada, salida y conteo). Stock = último conteo + entradas − salidas.</p>
 </main>
 <button class="fab" id="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="addLbl">Compra</span></button>
-<dialog id="dlg"><form id="f" method="dialog"></form></dialog>
+<dialog id="dlg"><button type="button" class="dx" aria-label="Cerrar">×</button><form id="f" method="dialog"></form></dialog>
 <div class="toast" id="toast" hidden></div>
 <nav class="mnav" aria-label="Secciones">
   <a href="/#weeks"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg></span>Calendar</a>
@@ -286,6 +289,9 @@ body.inv .tabs{display:none}
     const del = f.querySelector('[data-del]'); if (del) del.onclick = async () => { if (!confirm('¿Borrar esta compra?')) return; await api('/' + encodeURIComponent(i.id), 'DELETE'); d.close(); toast('Borrada'); await load(); };
     d.showModal(); setTimeout(() => f.querySelector('[name=item]').focus(), 50);
   }
+  // Every sheet closes with the × or by tapping outside it (Eric, Nov 9)
+  { const d = $('#dlg'); d.querySelector('.dx').onclick = () => d.close();
+    d.addEventListener('click', e => { if (e.target !== d) return; const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close(); }); }
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-st]'); if (t) { S.st = t.dataset.st; S.who = ''; render(); return; }
     const w = e.target.closest('[data-who]'); if (w) { S.who = w.dataset.who; render(); return; }
