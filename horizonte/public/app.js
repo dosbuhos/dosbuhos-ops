@@ -243,6 +243,13 @@ function ensureDefaults() {
 }
 
 // ── rendering: shared ─────────────────────────────────────────
+const CAP = 100;
+function capped(key, list, render) { // long lists show the first 100, then a button for the rest
+  const lim = S.ui.open['cap' + key] ? Infinity : CAP;
+  let h = list.slice(0, lim).map(render).join('');
+  if (list.length > lim) h += `<button class="link" style="align-self:flex-start;font-size:13px;padding:8px 2px" data-act="toggle" data-key="cap${key}">Show ${list.length - lim} more</button>`;
+  return h;
+}
 const isDesk = () => matchMedia('(min-width: 900px)').matches;
 function cardHTML(t, opts = {}) {
   const pri = t.pri || 'normal', done = t.status === 'done';
@@ -324,7 +331,7 @@ ${board ? `<div class="hint"><span></span><button class="link" data-act="editboa
 }
 function renderPanelList(board) {
   const sort = S.ui.sort, src = S.ui.src;
-  const stack = (list, sched) => `<div class="stack">${list.map(t => cardHTML(t, sched ? { sched: !!t.when && isOpen(t), meta: isOpen(t) && t.when ? whenText(t) : undefined } : {})).join('')}</div>`;
+  const stack = (list, sched, key = src) => `<div class="stack">${capped('p' + key, list, t => cardHTML(t, sched ? { sched: !!t.when && isOpen(t), meta: isOpen(t) && t.when ? whenText(t) : undefined } : {}))}</div>`;
   if (board) {
     const all = boardTasks(board.id), open = all.filter(isOpen), done = all.filter(t => !isOpen(t));
     const secs = [''].concat(board.sections || []);
@@ -333,7 +340,7 @@ function renderPanelList(board) {
       const list = sortList(open.filter(t => (t.section || '') === s || (s === '' && t.section && !(board.sections || []).includes(t.section))), sort);
       if (s === '' && !list.length) continue;
       if (s) html += `<div class="eyebrow">${esc(s)} · ${list.length}</div>`;
-      html += stack(list, true);
+      html += stack(list, true, board.id + s);
     }
     if (!open.length) html += `<div class="empty">Nothing on this board. Type above to add.</div>`;
     if (done.length) html += doneToggle('b' + board.id, done);
@@ -479,7 +486,7 @@ function mBoards() {
       if (s === '' && !list.length) continue;
       const key = 's' + b.id + s, closed = S.ui.open[key];
       if (s) body += `<button class="sec eyebrow" data-act="toggle" data-key="${key}" aria-expanded="${!closed}">${esc(s)} · ${list.length} ${closed ? '▸' : '▾'}</button>`;
-      if (!closed) body += list.map(t => mcard(t, { sched: !!t.when, meta: t.when ? whenText(t) : undefined })).join('');
+      if (!closed) body += capped('m' + b.id + s, list, t => mcard(t, { sched: !!t.when, meta: t.when ? whenText(t) : undefined }));
     }
     if (!open.length) body += `<div class="empty">Nothing on this board yet.</div>`;
     if (done.length) body += mDoneToggle('b' + b.id, done);
@@ -495,7 +502,7 @@ function mInbox() {
   const list = sortList(inboxTasks()), od = overdueTasks();
   let body = '';
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
-  body += list.map(t => mcard(t)).join('') || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
+  body += capped('minbox', list, t => mcard(t)) || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
   if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drag onto a day.</div>`;
   return `<header class="mh"><div class="r1"><h1>Inbox${list.length ? ' · ' + list.length : ''}</h1></div></header><main class="mm" data-list="inbox">${body}</main>`;
 }

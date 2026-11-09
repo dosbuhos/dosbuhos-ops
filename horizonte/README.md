@@ -23,3 +23,6 @@ npx wrangler d1 migrations apply horizonte --local
 npx wrangler dev --port 8799 --var DEV_USER:emaycotte@gmail.com --var SESSION_SECRET:x
 node test/seed.mjs && node test/shots.mjs http://localhost:8799 /tmp/shots
 ```
+
+## Timestripe import (done Nov 9 2026)
+Read from the Timestripe web app in Eric's Chrome (read-only) and posted to `POST /api/import` with a one-time token from `import_tokens` (deleted after). Mapping: own boards → boards (buckets → sections); open board tasks → same board; past-dated open day/week/month/quarter goals with no board → **Backlog**, original date in notes; future goals keep their placement; Life horizon → Someday; recurring tasks collapsed to one; completed and untitled tasks skipped. Imported ids are `ts_<timestripe id>`, so a re-run updates instead of duplicating. Not imported: "Feature Requests" (a public board he follows) and "⭐️ Garden Project" (owned by another account).
