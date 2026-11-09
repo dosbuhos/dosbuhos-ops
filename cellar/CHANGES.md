@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Compras: progress dots in the stage's color · v1.16.1
+- Sin pedir → red dot; Pedida → amber dot and line; Recibida → green dots and line (was black) · Eric · public/purchases.html
+
 ## 2026-11-09 — Compras: estimated arrival date · v1.16.0
 - Ordered purchases get «Llegada estimada»: «Marcar como pedida» jumps to Pedidas and opens the date picker; the card shows "Llega aprox. el 19 nov" (Cambiar), the badge "Pedida 9 nov · llega ~19 nov", and turns red "Atrasada · debía llegar…" once the date passes; Pedidas sorts by arrival date; also editable in the purchase form · Eric
 - Stored as `eta` on the purchase (app only; the Excellovint Compras tab sync keeps it, it isn't a sheet column) · public/purchases.html

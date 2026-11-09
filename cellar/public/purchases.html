@@ -73,7 +73,10 @@ h2 small{font:500 12px var(--f-b);letter-spacing:0;text-transform:none;color:var
 .steps li::after{content:'';position:absolute;top:7px;left:-50%;width:100%;height:2px;background:var(--rule)}
 .steps li:first-child::after{display:none}
 .steps li.past::before{background:var(--muted);border-color:var(--muted)}.steps li.past::after,.steps li.now::after{background:var(--muted)}
-.steps li.now{color:var(--ink)}.steps li.now::before{background:var(--ink);border-color:var(--ink);box-shadow:0 0 0 3px #fff,0 0 0 4px var(--ink)}
+.steps li.now{color:var(--ink)}.steps li.now::before{background:var(--sc);border-color:var(--sc);box-shadow:0 0 0 3px #fff,0 0 0 4px var(--sc)}
+/* the dot and the line fill in the stage's color: sin pedir red → pedida amber → recibida green (Eric, Nov 9) */
+.steps{--sc:var(--ink)}.steps.s-open{--sc:var(--red)}.steps.s-ordered{--sc:#d9a400}.steps.s-received{--sc:var(--green)}
+.steps li.past::before{background:var(--sc);border-color:var(--sc)}.steps li.past::after,.steps li.now::after{background:var(--sc)}
 .pc .act{flex-wrap:wrap}.pc .act .btn.next{flex:1 1 100%}.pc .act .btn.sq{flex:0 0 44px}
 .btn.next{background:var(--paper);border:2px solid var(--ink);color:var(--ink)}
 .btn{min-height:44px;border:1px solid var(--rule);background:var(--paper);border-radius:12px;padding:0 14px;font:600 15px var(--f-b);color:var(--ink);cursor:pointer}
@@ -202,7 +205,7 @@ body.inv .tabs{display:none}
   const stBadge = i => { const st = i.status || 'open';
     return st === 'received' ? `<span class="stb s-rec">✓ Recibida${i.receivedAt ? ' ' + fmt(i.receivedAt) : ''}</span>` : st === 'ordered' ? (isLate(i) ? `<span class="stb s-late">Atrasada · debía llegar ${esc(fmtD(i.eta))}</span>` : `<span class="stb s-ord">Pedida${i.orderedAt ? ' ' + fmt(i.orderedAt) : ''} · ${i.eta ? 'llega ~' + esc(fmtD(i.eta)) : 'por llegar'}</span>`) : `<span class="stb s-open">Sin pedir todavía</span>`; };
   const steps = i => { const k = ['open', 'ordered', 'received'].indexOf(i.status || 'open');
-    return `<ol class="steps" aria-label="Estado">${['Sin pedir', 'Pedida', 'Recibida'].map((l, n) => `<li class="${n < k ? 'past' : n === k ? 'now' : ''}">${l}</li>`).join('')}</ol>`; };
+    return `<ol class="steps s-${['open', 'ordered', 'received'][k]}" aria-label="Estado">${['Sin pedir', 'Pedida', 'Recibida'].map((l, n) => `<li class="${n < k ? 'past' : n === k ? 'now' : ''}">${l}</li>`).join('')}</ol>`; };
   function render() {
     document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.st === S.st));
     const by = st => S.items.filter(i => (i.status || 'open') === st).length;
