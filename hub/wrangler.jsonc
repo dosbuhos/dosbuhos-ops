@@ -24,7 +24,9 @@
     { "binding": "MANTENIMIENTO", "service": "dosbuhos-mantenimiento" },
     { "binding": "SPARK", "service": "spark" },
     { "binding": "WINECLUB", "service": "wineclub" },
-    { "binding": "OPS", "service": "dosbuhos-ops" }
+    { "binding": "OPS", "service": "dosbuhos-ops" },
+    // Personal para eventos (/personal/) is a page of the cotizador Worker; it answers with that page when X-DB-App = personal.
+    { "binding": "COTIZADOR", "service": "cotizador" }
   ],
   "vars": {
     // Same OAuth client as the cellar app ("Cellar calendar", Google Cloud project dos-buhos).

@@ -20,7 +20,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 
 1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → `dosbuhos-ops`.
 2. Project name `hub` (must match `name` in wrangler.jsonc), root directory `hub`, build command empty, deploy command `npx wrangler deploy`.
-3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001–0006 are applied.
+3. Deploy. URL: `https://hub.dos-buhos.workers.dev`. Every push to `main` that touches `hub/` redeploys. Database migrations are not applied by the build: run `npm run db:remote` (or apply the new file in `migrations/` from Claude) before pushing code that needs them. 0001–0009 are applied.
 
 ## One-time setup
 
@@ -41,7 +41,7 @@ Once dosbuhos.com's DNS is on Cloudflare: uncomment `routes` in `wrangler.jsonc`
 
 1. Copy `lib/hub-auth.js` into the app; call `hubUser(request, env)` instead of its own login. Set secret `HUB_SECRET` on the app = the Hub's `SESSION_SECRET` so the header signature is checked.
 2. Make the app work under a prefix: `withPrefix(request)` gives `/cellar`; use it in front of absolute links and `fetch()` paths.
-3. In the Hub's `wrangler.jsonc` the binding already exists (CELLAR, HUERTO, MANTENIMIENTO, SPARK, WINECLUB, OPS); in Admin → Apps set the app's mode to `proxy`.
+3. In the Hub's `wrangler.jsonc` the binding already exists (CELLAR, HUERTO, MANTENIMIENTO, SPARK, WINECLUB, OPS, COTIZADOR); in Admin → Apps set the app's mode to `proxy`.
 4. When it works, set `"workers_dev": false` on the app so the Hub is the only way in.
 
 Roles: Hub admins are admins in every app. Everyone else gets `admin`, `editor` or `viewer` per app; the app decides what each role may do.

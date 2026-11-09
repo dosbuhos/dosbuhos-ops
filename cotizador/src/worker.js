@@ -59,11 +59,23 @@ const safeName = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').r
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const who = await hubUser(request, env);   // set when proxied through the Hub (signed with HUB_SECRET)
+
+    // Personal para eventos: Google sign-in through the Hub only, never the PIN. The Hub proxies /personal/… to this
+    // Worker with X-DB-App = personal; the page lives at public/personal.html. A direct hit on workers.dev goes to the Hub.
+    const personalPaths = ['/', '/index.html', '/personal', '/personal.html'];
+    if (who && request.headers.get('X-DB-App') === 'personal' && personalPaths.includes(url.pathname)) {
+      return env.ASSETS.fetch(new Request(new URL('/personal.html', request.url), request));
+    }
+    if (url.pathname === '/personal' || url.pathname === '/personal.html') {
+      return Response.redirect((env.HUB_ORIGIN || 'https://apps.dosbuhos.com') + '/personal/', 302);
+    }
+
     const locked = !!env.PIN;
     let ok = !locked;
     if (locked) {
       if (cookie(request, 'cz') === await sign('ok', env.PIN)) ok = true;
-      else if (await hubUser(request, env)) ok = true;   // proxied through the Hub, signed with HUB_SECRET
+      else if (who) ok = true;   // proxied through the Hub
     }
     if (url.pathname === '/login' && request.method === 'POST') {
       const body = await request.json().catch(() => ({}));
@@ -107,13 +119,9 @@ export default {
       }
     }
 
-    // Pages behind the PIN: the quoter and the staffing calculator (/personal). The gate is served at the requested
-    // path, so after the PIN it reloads the same page.
-    const gated = ['/', '/index.html', '/sw.js', '/personal', '/personal.html'];
-    if (!ok && gated.includes(url.pathname)) {
+    if (!ok && (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/sw.js')) {
       return env.ASSETS.fetch(new Request(new URL('/gate.html', request.url), request));
     }
-    if (url.pathname === '/personal') return env.ASSETS.fetch(new Request(new URL('/personal.html', request.url), request));
     return env.ASSETS.fetch(request);
   },
 };
