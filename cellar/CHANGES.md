@@ -20,6 +20,15 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Changing a barrel number on the map (Paris's report) · v1.13.0
+- Bug: putting a number on a map spot placed the new barrel there but left the old one on the same spot (5 spots ended up with 2 barrels: 18.3, 19.1, 29.2, 29.4, 33.1), so the map kept showing the old number and the old number couldn't be placed where it belongs; the form also copied the old barrel's tonelería/año/wine onto the new number · barricas.html
+- Now, when the number on a spot changes, the app asks: "Aquí está la N (es otra barrica)" → N moves here with its own history, the old one goes to "sin ubicación · por confirmar"; or "Es la misma barrica: su número correcto es N" → renumbered, all its history moves with it (only if N has no record of its own) · Eric
+- If N was registered on another spot, that spot keeps a "barrica sin número" marker · one barrel per spot is enforced on save
+- Spots with 2 registered barrels show "¿Cuál está aquí?" with one button per number
+- Barrel specs are written only when edited, never copied from the barrel that was there
+- New POST /api/barrels/rename (crew allowed): moves the registry doc, every barrel_log record, map markers; keeps `formerly` + `renamed` on the barrel so old QR tags, searches, Excellovint lines and SO₂ under the old number still find it · src/moves.js
+- Historial: "Antes: BBL X"; admins get "otra barrica" on each record to move a record logged under the wrong number
+
 ## 2026-11-06 (afternoon) — Lista on phones rebuilt, slimmer gutters
 - Lista: sort by Tonelería (grouped by cooper, then barrel year; no cooper last) — desktop select and phone Filtros · v1.12.4
 - Barrel card from the Lista: phone Back closes the card (was leaving the app); × is a quiet 38px round button aligned with the barrel number; card fills the screen width on phones · v1.12.3 · cellar-room.js, barricas.html

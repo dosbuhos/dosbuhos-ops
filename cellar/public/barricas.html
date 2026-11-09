@@ -232,6 +232,14 @@ body.mv{padding-bottom:90px}body.mv .totop{display:none}
 .bbl.drop .rim{stroke:var(--ok)!important;stroke-width:4!important;stroke-dasharray:5 3}.bbl.drop .head{fill:#d6eadb!important}
 .bbl.target .rim{stroke:var(--ok)!important;stroke-width:6!important;stroke-dasharray:none}.bbl.target .head{fill:var(--ok)!important}
 .cands .cl{width:100%;font-size:12.5px;color:var(--soft)}
+.cands.dbl .cl{color:var(--bad,#b3261e);font-weight:600}
+.rnq{display:flex;flex-direction:column;gap:8px;padding:10px;border:1.5px solid var(--oak-rim);border-radius:10px;background:color-mix(in srgb,var(--oak-rim) 6%,transparent)}
+.rnq-h{margin:0;font-size:14.5px}
+.rnq-o{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border-radius:8px;font:inherit;line-height:1.3}
+.rnq-o b{font-size:14.5px}.rnq-o span{font-size:12.5px;color:var(--soft);font-weight:400}
+.rnq-o[disabled]{opacity:.55}
+.rlf{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%;margin-top:4px;font-size:13px}.rlf input{width:70px}.rlf i{color:var(--bad,#b3261e);font-style:normal}
+.cr-log .rl{margin-left:6px;font-size:12px}
 .bcard form.grid label.chk{flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font:500 14px var(--f-b);color:var(--ink);align-self:end;padding-bottom:10px}.bcard form.grid label.chk input{width:20px;height:20px}
 .dlg{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:16px}
 .dlg-b{background:var(--sheet);border-radius:12px;padding:16px;width:min(380px,100%);display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.3)}.dlg-b h3{margin:0;font:700 19px var(--f-b)}
@@ -858,18 +866,19 @@ function rebuild(){for(const k in WINES)if(k.startsWith('L:'))delete WINES[k];
     const line=[String(l.at).slice(0,10),l.proto,String(ex).replace(/\|/g,'/'),by].join('|').replace(/\|+$/,'');(A.lines[l.code]=A.lines[l.code]||[]).push(line);A.byLine[line]=l.id;if(l.src==='app')A.appLine[line]=1}}
 // a barrel with no position in the room (opened from the list) gets a virtual position
 function virtualFor(code){const id='B:'+code;POS[id]={sec:SECTIONS[0],g:{label:''},rack:null,lv:0,side:'',b:null,virtual:true};const b=A.barrels[code];if(b)S.conf[id]=confOfBarrel(b);return id}
-function posOfCode(code){code=unpad(code);for(const cd in S.conf)if(S.conf[cd].code===code&&!POS[cd].virtual)return cd;return virtualFor(code)}
+function posOfCode(code){code=unpad(code);if(!A.barrels[code]&&A.alias&&A.alias[code])code=A.alias[code];for(const cd in S.conf)if(S.conf[cd].code===code&&!POS[cd].virtual)return cd;const b=A.barrels[code];if(b&&b.loc&&REV[b.loc])return REV[b.loc]; // two barrels registered on one spot: open the spot (it asks which one is there)
+  return virtualFor(code)}
 function locName(cd){const q=POS[cd];if(!q||q.virtual)return '';if(q.amph)return cd;if(q.sec.id==='X')return 'Área de prensa';const v=VIEWS.find(v=>v.id===VOF[q.rack]);return CODE(cd)+(v?' · '+v.name:'')}
 function bdata(num){const b=A.barrels[unpad(num)];if(!b)return null;const l=lotById(b.lot);
   return {coop:b.cooperage||'',wood:b.wood||'',year:b.year?+b.year:null,use:useOf(b),fill:stateOf(b)==='empty'?'empty':'full',size:b.size||'',vol:b.vol||'',wine:l?vintLabel(l):'',wines:b.wines||[],toast:b.toast||'',th:!!b.th,notes:b.notes||'',so2:so2Of(b),logs:(A.lines[unpad(b.code)]||[]).slice().sort().reverse(),_b:b}}
 function so2Of(b){const out=[],code=unpad(b.code);
   for(const h of (b.history||[]))out.push({date:h.date,wine:h.wine,ph:h.ph,fso2:h.fso2,kmbs_g:h.applied||h.kmbs_g?h.kmbs_g:null,skipped:h.skipped,src:h.src||'papel'});
-  const x=A.so2[code];if(x){if(x.so2)out.push({date:x.so2.d,fso2:x.so2.v,src:'Excellovint',wine:x.so2.tab});if(x.add&&x.add.g)out.push({date:x.add.d,kmbs_g:+x.add.g||x.add.g,src:'Excellovint',wine:x.add.tab})}
+  for(const x of [code,...(b.formerly||[])].map(n=>A.so2[unpad(n)]).filter(Boolean)){if(x.so2)out.push({date:x.so2.d,fso2:x.so2.v,src:'Excellovint',wine:x.so2.tab});if(x.add&&x.add.g)out.push({date:x.add.d,kmbs_g:+x.add.g||x.add.g,src:'Excellovint',wine:x.add.tab})}
   for(const l of A.logs)if(l.kind==='so2'&&String(l.code)===code)out.push({date:String(l.at).slice(0,10),fso2:l.fso2,ph:l.ph,kmbs_g:l.kmbs_g,kind:l.so2kind,by:l.by,src:'app',_id:l.id});
   return out.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0)}
 async function load(){const st=$('dbst');
   const [b,l,g,p,ls,me,x]=await Promise.all(['barrels','lots','barrel_log','barrel_pos','barrel_lists'].map(c=>api(c).catch(()=>({rows:[]}))).concat([fetch('/api/me').then(r=>r.json()).catch(()=>({})),fetch('/api/xl/barrel-so2').then(r=>r.ok?r.json():{}).catch(()=>({}))]));
-  A.barrels={};for(const r of rowsOf(b))A.barrels[unpad(r.code||r.id)]=r;
+  A.barrels={};A.alias={};for(const r of rowsOf(b)){A.barrels[unpad(r.code||r.id)]=r;for(const f of r.formerly||[])A.alias[unpad(f)]=unpad(r.code||r.id)}
   A.lots=rowsOf(l).filter(x=>x.group!=='routine');A.logs=rowsOf(g);A.pos={};for(const r of rowsOf(p))A.pos[r.id]=r;
   for(const r of rowsOf(ls))if(Array.isArray(r.items))S.lists[r.id]=r.items;
   A.me=me||{};A.so2=(x&&x.barrels)||{};A.canWrite=!!A.me.canWrite;A.crew=A.me.role==='crew';A.ok=true;st.textContent=A.canWrite?'':'Solo lectura';setTimeout(()=>{whoBar();if(A.canWrite&&A.crew&&!person())askWho()},0);
@@ -942,26 +951,55 @@ async function setWine(cd,lot,isE){if(noWrite())return;const c=S.conf[cd]||{},b=
   const k=refKey(cd),old=A.pos[k]?Object.assign({},A.pos[k]):null;delete (old||{}).id;
   await putPos(cd,Object.assign({},old||{},{num:c.code||'',here:true,empty:!!isE,lot:isE?'':lot,wine:'',free:false,pos:CODE(cd),by:me(),at:new Date().toISOString()}));
   rebuild();keep(()=>{draw();panel()});tellParent();snack(isE?'Marcada vacía':'Vino: '+lotName(lot),async()=>{await putPos(cd,old);reload()})}
-async function save(cd,d){const fs=$('fs');if(noWrite())return;const q=POS[cd],k=refKey(cd),code=unpad(d.num),now=new Date().toISOString();
+// Saving the Datos form. The number on a spot can change for two different reasons, and the app asks which:
+//  'other'  : a different barrel is here (the usual case). N moves here with its own history; the barrel that was
+//             registered here goes to "sin ubicación · por confirmar". The wine at the spot stays with the spot (goes to N).
+//  'rename' : same physical barrel, its number was wrong. Renumbered on the server; its whole history moves with it.
+// Barrel specs (tonelería, madera, año…) are written only when they were edited, so one barrel's data never gets copied onto another.
+const SPEC=[['size','size',v=>+v||''],['coop','cooperage'],['wood','wood'],['year','year'],['use','use'],['toast','toast'],['th','th',v=>!!v],['note','notes']];
+const atSpot=k=>Object.values(A.barrels).filter(b=>b.loc===k);
+async function save(cd,d,mode){const fs=$('fs');if(noWrite())return;const q=POS[cd],k=refKey(cd),code=unpad(d.num),now=new Date().toISOString();
   if(q.amph){await putPos(cd,{num:cd,wine:d.wine,empty:d.empty,here:true,by:me(),at:now});fs.textContent='Guardado ✓';reload();return}
   if(!d.empty&&!code&&!d.lot){fs.textContent='Escribe el número, el vino o marca "vacía".';return}
+  const c=S.conf[cd],cur=c&&c.reg?c.code:'',b0=code&&A.barrels[code],far=b0&&b0.loc&&b0.loc!==k&&!q.virtual&&REV[b0.loc]?REV[b0.loc]:null;
+  if(!mode&&code&&!q.virtual&&((cur&&cur!==code)||far))return askRenum(cd,d,cur,code,far);
   fs.textContent='Guardando…';
   try{
-    if(code){let b=A.barrels[code];
-      if(b&&b.loc&&b.loc!==k&&!q.virtual&&REV[b.loc]){fs.textContent='La '+pad(code)+' está en '+locName(REV[b.loc])+'. Usa «Mover» desde su tarjeta.';return}
-      const lot=d.empty?'':(d.lot||''),patch={code,size:+d.size||'',cooperage:d.coop||'',wood:d.wood||'',year:d.year||'',use:d.use||'',toast:d.toast||'',th:!!d.th,notes:d.note||'',fill:d.empty?'empty':'full',lot,vol:d.vol?+String(d.vol).replace(',','.')||d.vol:'',by:me(),at:now};
+    if(mode==='rename'){const r=await fetch('/api/barrels/rename',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({from:cur,to:code,by:me()})});
+      const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||'no se pudo renumerar');await load();mode='same'}
+    if(code){let b=A.barrels[code];const init=d._init||{};
+      const lot=d.empty?'':(d.lot||''),patch={code,fill:d.empty?'empty':'full',lot,vol:d.vol?+String(d.vol).replace(',','.')||d.vol:'',by:me(),at:now};
+      for(const [f,key,cv] of SPEC)if(!b||d[f]!==init[f])patch[key]=cv?cv(d[f]):(d[f]||'');
       if(!q.virtual){patch.loc=k;patch.locName=locName(cd)}
       if(lot)patch.status='occupied2026';
       if(b&&needsConfirm(b)&&(lot||d.empty))patch.confirmed={state:d.empty?'empty':'other',wine:d.empty?'':lotName(lot),by:me(),at:now};
       if(b&&needsConfirm(b)&&!lot&&!d.empty){delete patch.fill;delete patch.lot}
       if(!b){if(A.crew){await putPos(cd,{num:code,lot,empty:!!d.empty,here:true,pos:CODE(cd),by:me(),at:now});fs.textContent='Guardado ✓ (la barrica '+pad(code)+' no está en el registro: pídele a Eric o Diane que la den de alta)';reload();return}
         await api('barrels/'+enc(code),'PUT',patch);await logEvent(code,'new','Registrada'+(lot?' con '+lotName(lot):' vacía')+(patch.loc?' en '+patch.locName:''))}
-      else{await api('barrels/'+enc(b.id||code),'PATCH',patch);
-        if(patch.loc&&b.loc!==patch.loc)await logEvent(code,'move',(b.locName||b.loc||'sin ubicación')+' → '+patch.locName);
-        if(patch.lot!==undefined&&(b.lot||'')!==patch.lot)await logEvent(code,patch.lot?'fill':'empty',patch.lot?'Llenada con '+lotName(patch.lot):'Vaciada (antes: '+lotName(b.lot)+')')}
+      else{const from=far?locName(far):(b.locName||b.loc||'sin ubicación');
+        await api('barrels/'+enc(b.id||code),'PATCH',patch);
+        if(patch.loc&&b.loc!==patch.loc)await logEvent(code,'move',from+' → '+patch.locName);
+        if(patch.lot!==undefined&&(b.lot||'')!==patch.lot)await logEvent(code,patch.lot?'fill':'empty',patch.lot?'Llenada con '+lotName(patch.lot):'Vaciada (antes: '+lotName(b.lot)+')');
+        // N came from a spot where it was registered by mistake: that spot still has a barrel, number unknown
+        if(far&&!A.pos[refKey(far)])await putPos(far,{num:'',lot:b.lot||'',empty:stateOf(b)==='empty',here:true,pos:CODE(far),by:me(),at:now,note:'Aquí estaba registrada la '+pad(code)+' por error'})}
+      // one barrel per spot: whatever else was registered here leaves it (por confirmar dónde está y qué tiene)
+      if(!q.virtual)for(const o of atSpot(k)){const oc=unpad(o.code||o.id);if(oc===code)continue;
+        await api('barrels/'+enc(o.id||oc),'PATCH',{loc:'',locName:'',lot:'',fill:'',status:'confirm',confirmed:null,by:me(),at:now});
+        await logEvent(oc,'move',(o.locName||locName(cd))+' → sin ubicación (ahí está la '+pad(code)+'; por confirmar dónde está y qué tiene)')}
       if(A.pos[k]&&!q.virtual)await putPos(cd,null)}
     else await putPos(cd,{num:'',lot:d.empty?'':(d.lot||''),empty:!!d.empty,here:true,pos:CODE(cd),by:me(),at:now});
     fs.textContent='Guardado ✓';await reload()}catch(e){fs.textContent='No se guardó ('+(e.message||'error')+'). Intenta otra vez.'}}
+// The number changed: ask whether it is another barrel or the same barrel with the wrong number.
+function askRenum(cd,d,cur,code,far){const box=$('rnq');if(!box)return;const N=pad(code),X=cur?pad(cur):'',hasN=!!A.barrels[code];
+  box.hidden=false;$('fs').textContent='';
+  box.innerHTML=`<p class="rnq-h">${X?`Cambiaste la <b>${X}</b> por la <b>${N}</b>. ¿Qué pasó?`:`La <b>${N}</b> está registrada en <b>${esc(locName(far))}</b>. ¿Está aquí?`}</p>
+   <button type="button" class="rnq-o" data-rq="other"><b>${X?`Aquí está la ${N} (es otra barrica)`:`Sí, la ${N} está aquí`}</b>
+     <span>La ${N} se pone aquí con su propio historial${X?`. La ${X} queda <i>sin ubicación · por confirmar</i>`:''}.${far?` En ${esc(locName(far))} queda una barrica sin número.`:''}${!hasN&&A.crew?' La '+N+' no está en el registro: Eric o Diane la dan de alta.':''}</span></button>
+   ${X?`<button type="button" class="rnq-o" data-rq="rename" ${hasN?'disabled':''}><b>Es la misma barrica: su número correcto es ${N}</b>
+     <span>${hasN?`No se puede: la ${N} ya tiene su propio registro, así que es otra barrica.`:`Se renumera la ${X} → ${N} y todo su historial (mantenimiento, SO₂, movimientos) se va con ella.`}</span></button>`:''}
+   <button type="button" class="lnk" data-rq="">Cancelar</button>`;
+  box.querySelectorAll('[data-rq]').forEach(x=>x.onclick=()=>{box.hidden=true;box.innerHTML='';if(x.dataset.rq)save(cd,d,x.dataset.rq)});
+  box.scrollIntoView({block:'nearest'})}
 async function addSo2(cd,e){if(noWrite())return;const c=S.conf[cd]||{};if(!c.code||!A.barrels[c.code]){snack('Primero pon el número de la barrica en Datos.');return}
   const id=await logEvent(c.code,'so2',e.so2kind==='add'?'Adición de SO₂: KMBS '+e.kmbs_g+' g':'Lectura SO₂ libre '+e.fso2+' ppm'+(e.ph?' · pH '+e.ph:''),Object.assign({src:'app'},e,{at:e.date+'T12:00:00.000Z',by:e.by||me()}));
   rebuild();keep(()=>{draw();panel()});tellParent();
@@ -969,16 +1007,27 @@ async function addSo2(cd,e){if(noWrite())return;const c=S.conf[cd]||{};if(!c.cod
 
 // ---- Historial: the cellar app's history (wines from the sheet, paper SO2, maintenance and moves, Excellovint)
 const XRK=[['volf','Vol'],['ph','pH'],['at','AT'],['am','Málico'],['sl','SO₂ L'],['st','SO₂ T'],['aa','AV']];
-const LOGTAG={move:'Movida',fill:'Llenada',empty:'Vaciada',new:'Alta',vol:'Volumen',spec:'Datos',so2:'SO₂',delete:'Borrada'};
+const LOGTAG={rename:'Renumerada',move:'Movida',fill:'Llenada',empty:'Vaciada',new:'Alta',vol:'Volumen',spec:'Datos',so2:'SO₂',delete:'Borrada'};
 async function histInto(host,code){const b=A.barrels[code];if(!b){host.innerHTML='<p class="cr-none">Sin historial: esta barrica no está en el registro.</p>';return}
   host.innerHTML='<p class="cr-none">Cargando historial…</p>';
-  const xl=await fetch('/api/xl/barrel?code='+enc(code)).then(r=>r.json()).catch(()=>({rows:[]}));
+  // a renumbered barrel: Excellovint lines written under its old number(s) before the change are its own too
+  const olds=b.formerly||[],cut=b.renamed&&String(b.renamed.at).slice(0,10)||'9999';
+  const xls=await Promise.all([code,...olds].map(n=>fetch('/api/xl/barrel?code='+enc(n)).then(r=>r.json()).catch(()=>({rows:[]}))));
+  const seen=new Set(),xl={rows:xls.flatMap((x,i)=>(x.rows||[]).filter(r=>(!i||String(r.date||'')<cut)&&!seen.has(r.tab+'|'+r.row)&&seen.add(r.tab+'|'+r.row))).sort((x,y)=>String(y.date||'').localeCompare(String(x.date||'')))};
   const mine=A.logs.filter(l=>String(l.code)===String(code)).sort((x,y)=>String(y.at).localeCompare(String(x.at))),xrows=xl.rows||[],ph=b.history||[];
   const hist=(b.wines||[]).length?`<h4>Historial de vinos <small>hoja</small></h4><p class="cr-help">${(b.wines||[]).map(c=>esc(wineCode(c))).join(' → ')}${b.sheet&&b.sheet.state?` · según la hoja: <b>${b.sheet.state==='full'?'llena':'vacía'}</b> (${esc(fd(b.sheet.d))})`:''}</p>`:'';
   const paper=(b.flag?`<p class="cr-flag">⚠ ${esc(b.flag)}</p>`:'')+(b.confirmed?`<p class="cr-help">Confirmado por ${esc(b.confirmed.by||'')} ${fd(b.confirmed.at)}: ${esc(b.confirmed.state==='same'?'sigue con '+(b.confirmed.wine||''):b.confirmed.state==='empty'?'embotellada / vacía':b.confirmed.wine||'')}</p>`:'')+
     `<h4>Registros en papel (SO₂) <small>${ph.length}</small></h4>`+(ph.length?`<ul class="cr-log">${ph.map(r=>`<li><span class="cr-ld">${fd(r.date)}</span><span class="cr-lk">${esc(r.wine||'')}</span>${[r.ph!=null?'pH '+r.ph:'',r.fso2!=null?'SO₂L '+r.fso2:'',r.kmbs_g!=null?'KMBS '+r.kmbs_g+' g':'',r.skipped?'omitido (ya en meta)':r.applied?'añadido':''].filter(Boolean).map(esc).join(' · ')}${r.note&&!/^(Añadido|OMITIR)/.test(r.note)?' · '+esc(r.note):''}<small>${esc(r.src||'')}</small></li>`).join('')}</ul>`:'<p class="cr-none">Sin registros en papel.</p>');
-  host.innerHTML=hist+paper+`<h4>Mantenimiento y movimientos <small>${mine.length}</small></h4>`+(mine.length?`<ul class="cr-log">${mine.map(r=>{const P=r.kind==='mant'&&PR[r.proto];return `<li><span class="cr-ld">${fd(r.at)}</span><span class="cr-lk ${esc(r.kind)}"${P?` style="background:${P[2]};color:#fff"`:''}>${esc(P?P[0]:LOGTAG[r.kind]||r.kind)}</span>${esc(r.text||'')}<small>${esc(r.by||'')}</small></li>`}).join('')}</ul>`:'<p class="cr-none">Nada todavía.</p>')+
-    `<h4>En Excellovint <small>${xrows.length}</small></h4>`+(xrows.length?`<div class="xlog">${xrows.map(r=>`<article class="xe${r.ini?' is-done':r.asig?' is-open':''}"><div class="xe-h"><span class="xe-d">${esc(r.date?fd(r.date):r.date_raw||'')}</span><span class="xe-u">${esc(r.tab)}${r.ubi?' · '+esc(r.ubi):''}</span>${r.ini?`<span class="xe-st done">Hecha · ${esc(r.ini)}</span>`:r.asig?`<span class="xe-st open">Abierta · ${esc(r.asig)}</span>`:''}</div><div class="xe-b">${XRK.some(([k])=>r[k])?`<div class="xe-r">${XRK.filter(([k])=>r[k]).map(([k,l])=>`<span><i>${l}</i>${esc(r[k])}</span>`).join('')}</div>`:''}${r.note?`<p class="xe-n">${esc(r.note)}</p>`:''}</div></article>`).join('')}</div>`:'<p class="cr-none">Ninguna línea de Excellovint menciona esta barrica (busca «BBL '+esc(code)+'»).</p>')}
+  const was=olds.length?`<p class="cr-help">Antes: <b>${olds.map(n=>'BBL '+esc(pad(n))).join(', ')}</b>${b.renamed?` · renumerada por ${esc(b.renamed.by||'')} ${fd(b.renamed.at)}`:''}</p>`:'';
+  host.innerHTML=was+hist+paper+`<h4>Mantenimiento y movimientos <small>${mine.length}</small></h4>`+(mine.length?`<ul class="cr-log">${mine.map(r=>{const P=r.kind==='mant'&&PR[r.proto];return `<li><span class="cr-ld">${fd(r.at)}</span><span class="cr-lk ${esc(r.kind)}"${P?` style="background:${P[2]};color:#fff"`:''}>${esc(P?P[0]:LOGTAG[r.kind]||r.kind)}</span>${esc(r.text||'')}<small>${esc(r.by||'')}${r.moved&&r.was?' · pasado de la '+esc(pad(r.was)):''}</small>${!A.crew&&A.canWrite&&r.kind!=='rename'?`<button type="button" class="lnk rl" data-rl="${esc(r.id)}" title="Este registro fue de otra barrica">otra barrica</button>`:''}</li>`}).join('')}</ul>`:'<p class="cr-none">Nada todavía.</p>')+
+    `<h4>En Excellovint <small>${xrows.length}</small></h4>`+(xrows.length?`<div class="xlog">${xrows.map(r=>`<article class="xe${r.ini?' is-done':r.asig?' is-open':''}"><div class="xe-h"><span class="xe-d">${esc(r.date?fd(r.date):r.date_raw||'')}</span><span class="xe-u">${esc(r.tab)}${r.ubi?' · '+esc(r.ubi):''}</span>${r.ini?`<span class="xe-st done">Hecha · ${esc(r.ini)}</span>`:r.asig?`<span class="xe-st open">Abierta · ${esc(r.asig)}</span>`:''}</div><div class="xe-b">${XRK.some(([k])=>r[k])?`<div class="xe-r">${XRK.filter(([k])=>r[k]).map(([k,l])=>`<span><i>${l}</i>${esc(r[k])}</span>`).join('')}</div>`:''}${r.note?`<p class="xe-n">${esc(r.note)}</p>`:''}</div></article>`).join('')}</div>`:'<p class="cr-none">Ninguna línea de Excellovint menciona esta barrica (busca «BBL '+esc(code)+'»).</p>');
+  // admin: a record logged under this number that really happened to another barrel (e.g. while numbers were mixed up on the map)
+  host.querySelectorAll('[data-rl]').forEach(x=>x.onclick=()=>{const li=x.closest('li');if(li.querySelector('.rlf'))return;
+    li.insertAdjacentHTML('beforeend',`<span class="rlf">¿De qué barrica fue? <input inputmode="numeric" maxlength="4" placeholder="000"> <button type="button" class="pri">Pasar</button> <button type="button" class="lnk">Cancelar</button> <i></i></span>`);
+    const f=li.querySelector('.rlf'),inp=f.querySelector('input'),[go,no]=f.querySelectorAll('button');inp.focus();no.onclick=()=>f.remove();
+    go.onclick=async()=>{const n=unpad(inp.value);if(!n||n===String(code)){f.querySelector('i').textContent='Escribe otro número.';return}if(!A.barrels[n]){f.querySelector('i').textContent='La '+pad(n)+' no está en el registro.';return}
+      go.disabled=true;try{await api('barrel_log/'+enc(x.dataset.rl),'PATCH',{code:n,was:String(code),moved:{by:me(),at:new Date().toISOString()}});const l=A.logs.find(l=>l.id===x.dataset.rl);if(l){l.code=n;l.was=String(code);l.moved={by:me()}}
+        rebuild();histInto(host,code);tellParent()}catch(e){go.disabled=false;f.querySelector('i').textContent='No se pudo ('+(e.message||'error')+').'}}})}
 
 function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;return}if(!A.ok){p.hidden=false;p.innerHTML='<p class="cr-none" style="padding:14px">Cargando…</p>';return}p.hidden=false;const q=POS[cd],b=q.b,c=S.conf[cd],v=view(cd);
   if(q.amph)return amphPanel(p,cd,c);
@@ -1054,6 +1103,8 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
      <label>Tipo<select id="fus">${['',...Object.keys(USE)].map(k=>`<option value="${k}" ${D?.use===k?'selected':''}>${k?USE[k][0]:''}</option>`).join('')}</select></label>
      <label class="w3">Notas<textarea id="fno" rows="2">${esc(D?.notes||'')}</textarea></label>
      ${b?.c&&b.c.length&&!num?`<div class="cands w3"><span class="cl">¿Es alguna de estas? Toca para poner el número:</span>${b.c.map(x=>`<button type="button" data-n="${x}">${x}</button>`).join('')}</div>`:''}
+     ${(()=>{const two=q.virtual?[]:atSpot(refKey(cd));return two.length>1?`<div class="cands dbl w3"><span class="cl">⚠ Esta posición tiene ${two.length} barricas registradas. ¿Cuál está aquí?</span>${two.map(x=>`<button type="button" data-pick="${esc(unpad(x.code||x.id))}">${esc(pad(x.code||x.id))}</button>`).join('')}</div>`:''})()}
+     <div class="rnq w3" id="rnq" hidden></div>
      <div class="btns w3"><button type="submit" class="pri">Guardar</button><span class="status" id="fs"></span></div></form>`+discBlock(D)}
   else if(tab==='hist'){body=`<div class="hist" id="histh"></div>`}
   else{const url=location.origin+'/b/'+unpad(num);body=`<div class="lab"><div class="lab-c"><div class="lab-n">BBL ${esc(num||'?')}</div><div id="qr"></div><small>Dos Búhos</small></div>
@@ -1118,13 +1169,14 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
       const patch=k==='fill'?{fill:fillW||lotId}:k==='p1'?{empty:true}:null;
       const undo=logEdit(cd,{add:line,patch});if(undo)snack(`${(PR[k]||[''])[0]==='Llena · mensual'||(PR[k]||[''])[0]==='Vacía · mensual'?'Mensual':PR[k][0]} registrado · ${fd(d)}`,undo)}}
   if(tab!=='res')return;
-  p.querySelectorAll('.cands button').forEach(x=>x.onclick=()=>{$('fn').value=x.dataset.n;$('fn').dispatchEvent(new Event('input'))});
-  $('fn').oninput=()=>{const k=unpad($('fn').value),bb=A.barrels[k];$('fs').textContent=!k?'':!bb?'No está en el registro.':bb.loc&&bb.loc!==refKey(cd)?'Esa barrica está en '+(REV[bb.loc]?locName(REV[bb.loc]):bb.locName||bb.loc)+'.':'En el registro: '+(lotName(bb.lot)||'vacía')};
+  p.querySelectorAll('.cands button[data-n]').forEach(x=>x.onclick=()=>{$('fn').value=x.dataset.n;$('fn').dispatchEvent(new Event('input'))});
+  $('fn').oninput=()=>{const k=unpad($('fn').value),bb=A.barrels[k];$('fs').textContent=!k?'':!bb?'No está en el registro.':bb.loc&&bb.loc!==refKey(cd)?'Registrada en '+(REV[bb.loc]?locName(REV[bb.loc]):bb.locName||bb.loc)+'. Al guardar te pregunto qué pasó.':'En el registro: '+(lotName(bb.lot)||'vacía')};
   const rec=()=>({num:pad($('fn').value),lot:$('fw').value==='__otro'?'':$('fw').value,empty:$('ffill').value==='empty',note:$('fno').value.trim(),vol:$('fvol').value.trim(),
      here:true,size:$('fsz').value.trim(),coop:$('fco').value.trim(),wood:$('fwd').value,year:$('fyr').value.trim(),use:$('fus').value,toast:$('fto').value,th:$('fth').checked,
      });
   $('fw').addEventListener('change',()=>{if($('fw').value==='')$('ffill').value='empty';else if($('fw').value!=='__otro')$('ffill').value='full'});$('ffill').onchange=()=>{if($('ffill').value==='empty')$('fw').value=''};
-  $('f').onsubmit=e=>{e.preventDefault();save(cd,rec())};
+  const init=rec();$('f').onsubmit=e=>{e.preventDefault();save(cd,Object.assign(rec(),{_init:init}))};
+  p.querySelectorAll('[data-pick]').forEach(x=>x.onclick=()=>save(cd,Object.assign(rec(),{_init:init,num:pad(x.dataset.pick)}),'other'));
   const B=D&&D._b;
   if($('dz1'))$('dz1').onclick=()=>{$('dz2').hidden=false;$('dz1').hidden=true;$('dzw').focus()};
   if($('dzno'))$('dzno').onclick=()=>{$('dz2').hidden=true;$('dz1').hidden=false};

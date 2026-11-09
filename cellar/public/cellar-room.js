@@ -233,7 +233,7 @@
   const locShort = b => b.loc ? (b.locName || locLabel(b.loc)) : '';
   function renderBarrels() {
     const q = C.q.trim().toLowerCase();
-    let bs = C.barrels.filter(b => !q || (b.code + ' ' + bn(b.code) + ' ' + lotName(b.lot) + ' ' + locShort(b) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '')).toLowerCase().includes(q));
+    let bs = C.barrels.filter(b => !q || (b.code + ' ' + bn(b.code) + ' ' + lotName(b.lot) + ' ' + locShort(b) + ' ' + (b.cooperage || '') + ' ' + (b.toast || '') + ' ' + (b.year || '') + ' ' + (b.notes || '') + ' ' + (b.formerly || []).map(n => n + ' ' + bn(n)).join(' ')).toLowerCase().includes(q));
     if (C.vints.size) bs = bs.filter(b => { if (stateOf(b) === 'empty' || stateOf(b) === 'confirm') return true; const l = lotById(b.lot); return l ? vintOK(l) : false; });
     if (C.uses.size) bs = bs.filter(b => C.uses.has(useOf(b) || 'none'));
     if (C.noloc) bs = bs.filter(b => !b.loc);
