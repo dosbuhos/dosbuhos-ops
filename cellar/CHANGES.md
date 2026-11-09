@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Compras: arrival-date editor full size + "no estimate" · v1.16.2
+- The Llegada estimada editor uses full-size controls (date field full width, Guardar / Cancelar same height as the other buttons) · Eric
+- New «No sabemos todavía (sin fecha estimada)»: the card shows "Llegada: sin fecha estimada" with «Poner fecha», never late, sorted last (eta = "none") · public/purchases.html
+
 ## 2026-11-09 — Compras: progress dots in the stage's color · v1.16.1
 - Sin pedir → red dot; Pedida → amber dot and line; Recibida → green dots and line (was black) · Eric · public/purchases.html
 

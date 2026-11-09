@@ -66,6 +66,9 @@ h2 small{font:500 12px var(--f-b);letter-spacing:0;text-transform:none;color:var
 .eta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;font:600 13.5px var(--f-b);color:var(--muted)}
 .eta b{color:var(--ink)}.eta.late b{color:var(--red)}.eta input{font:inherit;padding:6px 8px;border:1px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--ink)}
 .eta .btn{min-height:36px;padding:0 12px;font-size:13.5px}
+.eta.edit{display:grid;grid-template-columns:1fr 1fr;gap:8px}.eta.edit label{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;font:700 11.5px var(--f-m);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.eta.edit input{width:100%;box-sizing:border-box;min-height:44px;font:600 16px var(--f-b);border-radius:12px;padding:0 12px}
+.eta.edit .btn{min-height:44px;font-size:15px}.eta.edit [data-etanone]{grid-column:1/-1}
 .stb.s-rec{background:var(--green-bg);color:var(--green);border:1.5px solid #bcdcb9}
 .steps{display:flex;list-style:none;margin:10px 0 0;padding:0;gap:0;font:600 11.5px var(--f-b);color:var(--muted)}
 .steps li{flex:1;position:relative;padding-top:18px;text-align:center;line-height:1.2}
@@ -191,8 +194,9 @@ body.inv .tabs{display:none}
   // Estimated arrival (eta, YYYY-MM-DD): set when it's ordered, so everyone knows when it should get here (Eric, Nov 9)
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   const fmtD = ymd => ymd ? fmt(ymd + 'T12:00:00') : '';
-  const isLate = i => (i.status || 'open') === 'ordered' && i.eta && i.eta < today();
-  const etaLine = i => (i.status || 'open') !== 'ordered' ? '' : `<div class="eta${isLate(i) ? ' late' : ''}" data-etabox>${i.eta ? `${isLate(i) ? 'Atrasada: debía llegar el' : 'Llega aprox. el'} <b>${esc(fmtD(i.eta))}</b> <button class="btn ghost" data-eta>Cambiar</button>` : `<span>Sin fecha de llegada</span> <button class="btn next" data-eta>Poner fecha de llegada</button>`}</div>`;
+  const hasEta = i => /^\d{4}-\d{2}-\d{2}$/.test(i.eta || ''), noEta = i => i.eta === 'none';
+  const isLate = i => (i.status || 'open') === 'ordered' && hasEta(i) && i.eta < today();
+  const etaLine = i => (i.status || 'open') !== 'ordered' ? '' : `<div class="eta${isLate(i) ? ' late' : ''}" data-etabox>${hasEta(i) ? `${isLate(i) ? 'Atrasada: debía llegar el' : 'Llega aprox. el'} <b>${esc(fmtD(i.eta))}</b> <button class="btn ghost" data-eta>Cambiar</button>` : noEta(i) ? `<span>Llegada: <b>sin fecha estimada</b></span> <button class="btn ghost" data-eta>Poner fecha</button>` : `<span>Sin fecha de llegada</span> <button class="btn next" data-eta>Poner fecha de llegada</button>`}</div>`;
   const api = async (path, method, body) => { const r = await fetch('/api/db/purchases' + path, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || 'Error ' + r.status); return j; };
 
   async function load(pull) {
@@ -203,7 +207,7 @@ body.inv .tabs{display:none}
   }
   // Status is shown, never implied by a button: a badge (where it is now) + a 3-step line (Sin pedir → Pedida → Recibida).
   const stBadge = i => { const st = i.status || 'open';
-    return st === 'received' ? `<span class="stb s-rec">✓ Recibida${i.receivedAt ? ' ' + fmt(i.receivedAt) : ''}</span>` : st === 'ordered' ? (isLate(i) ? `<span class="stb s-late">Atrasada · debía llegar ${esc(fmtD(i.eta))}</span>` : `<span class="stb s-ord">Pedida${i.orderedAt ? ' ' + fmt(i.orderedAt) : ''} · ${i.eta ? 'llega ~' + esc(fmtD(i.eta)) : 'por llegar'}</span>`) : `<span class="stb s-open">Sin pedir todavía</span>`; };
+    return st === 'received' ? `<span class="stb s-rec">✓ Recibida${i.receivedAt ? ' ' + fmt(i.receivedAt) : ''}</span>` : st === 'ordered' ? (isLate(i) ? `<span class="stb s-late">Atrasada · debía llegar ${esc(fmtD(i.eta))}</span>` : `<span class="stb s-ord">Pedida${i.orderedAt ? ' ' + fmt(i.orderedAt) : ''} · ${hasEta(i) ? 'llega ~' + esc(fmtD(i.eta)) : 'por llegar'}</span>`) : `<span class="stb s-open">Sin pedir todavía</span>`; };
   const steps = i => { const k = ['open', 'ordered', 'received'].indexOf(i.status || 'open');
     return `<ol class="steps s-${['open', 'ordered', 'received'][k]}" aria-label="Estado">${['Sin pedir', 'Pedida', 'Recibida'].map((l, n) => `<li class="${n < k ? 'past' : n === k ? 'now' : ''}">${l}</li>`).join('')}</ol>`; };
   function render() {
@@ -213,7 +217,7 @@ body.inv .tabs{display:none}
     const pool = S.items.filter(i => (i.status || 'open') === S.st);
     const people = [...new Set(pool.map(i => i.asig).filter(Boolean))].sort();
     $('#who').innerHTML = people.length > 1 ? ['', ...people].map(p => `<button data-who="${esc(p)}" aria-pressed="${S.who === p}">${p || 'Todos'}</button>`).join('') : '';
-    const rows = pool.filter(i => !S.who || i.asig === S.who).sort((a, b) => ['high', 'medium', 'low'].indexOf(a.pri || 'medium') - ['high', 'medium', 'low'].indexOf(b.pri || 'medium') || (S.st === 'ordered' ? String(a.eta || '9999').localeCompare(String(b.eta || '9999')) : 0) || String(b.at).localeCompare(String(a.at)));
+    const rows = pool.filter(i => !S.who || i.asig === S.who).sort((a, b) => ['high', 'medium', 'low'].indexOf(a.pri || 'medium') - ['high', 'medium', 'low'].indexOf(b.pri || 'medium') || (S.st === 'ordered' ? String(hasEta(a) ? a.eta : '9999').localeCompare(String(hasEta(b) ? b.eta : '9999')) : 0) || String(b.at).localeCompare(String(a.at)));
     let h = '';
     for (const p of ['high', 'medium', 'low']) {
       const g = rows.filter(i => (i.pri || 'medium') === p); if (!g.length) continue;
@@ -236,14 +240,14 @@ body.inv .tabs{display:none}
       <div class="g2"><label>Cantidad<input name="qty" value="${esc(i ? i.qty : '')}" placeholder="2 cajas"></label><label>Dónde<select name="where">${WHERE.map(w => `<option value="${w}"${(i ? i.where : '') === w ? ' selected' : ''}>${w || '—'}</option>`).join('')}</select></label></div>
       <label>Prioridad<div class="seg">${['high', 'medium', 'low'].map(p => `<label><input type="radio" name="pri" value="${p}"${(i ? i.pri : 'medium') === p ? ' checked' : ''}><span>${PRI[p]}</span></label>`).join('')}</div></label>
       <label>Asignar a<select name="asig">${CREW.map(c => `<option${(i ? i.asig : (S.me.initials || 'EM')) === c ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
-      ${i && (i.status || 'open') === 'ordered' ? `<label>Llegada estimada<input type="date" name="eta" value="${esc(i.eta || '')}"></label>` : ''}
+      ${i && (i.status || 'open') === 'ordered' ? `<label>Llegada estimada<input type="date" name="eta" value="${esc(hasEta(i) ? i.eta : '')}"></label>` : ''}
       <label>Notas / enlace<textarea name="notes" placeholder="Marca, modelo, proveedor, link…">${esc(i ? i.notes : '')}</textarea></label>
       <div class="err" id="err"></div>
       <div class="row">${i ? `<button type="button" class="btn danger" data-del>Borrar</button>` : ''}<button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn primary" id="ok">Guardar</button></div>`;
     const d = $('#dlg');
     f.onsubmit = async e => {
       e.preventDefault(); const fd = new FormData(f); const ok = $('#ok'); ok.disabled = true;
-      const body = { item: String(fd.get('item')).trim(), qty: String(fd.get('qty')).trim(), where: fd.get('where'), pri: fd.get('pri') || 'medium', asig: fd.get('asig'), notes: String(fd.get('notes')).trim() }; if (fd.has('eta')) body.eta = String(fd.get('eta') || '');
+      const body = { item: String(fd.get('item')).trim(), qty: String(fd.get('qty')).trim(), where: fd.get('where'), pri: fd.get('pri') || 'medium', asig: fd.get('asig'), notes: String(fd.get('notes')).trim() }; if (fd.has('eta') && (fd.get('eta') || !noEta(i))) body.eta = String(fd.get('eta') || '');
       try {
         if (i) await api('/' + encodeURIComponent(i.id), 'PATCH', body);
         else await api('/' + encodeURIComponent('p' + Date.now().toString(36)), 'PUT', Object.assign(body, { status: 'open', by: S.me.initials || '', at: new Date().toISOString() }));
@@ -272,9 +276,11 @@ body.inv .tabs{display:none}
       return;
     }
     if (e.target.closest('[data-eta]') && it) { const box = card.querySelector('[data-etabox]');
-      box.innerHTML = `<label>Llegada estimada <input type="date" min="${today()}" value="${esc(it.eta || '')}"></label><button class="btn next" data-etaok>Guardar</button><button class="btn ghost" data-etax>Cancelar</button>`;
+      box.classList.add('edit');
+      box.innerHTML = `<label>Llegada estimada <input type="date" min="${today()}" value="${esc(hasEta(it) ? it.eta : '')}"></label><button class="btn next" data-etaok>Guardar</button><button class="btn ghost" data-etax>Cancelar</button><button class="btn ghost" data-etanone>No sabemos todavía (sin fecha estimada)</button>`;
       const inp = box.querySelector('input'); inp.focus(); try { inp.showPicker && inp.showPicker(); } catch (_) {}
       box.querySelector('[data-etax]').onclick = ev => { ev.stopPropagation(); render(); };
+      box.querySelector('[data-etanone]').onclick = async ev => { ev.stopPropagation(); try { await api('/' + encodeURIComponent(it.id), 'PATCH', { eta: 'none' }); toast('Sin fecha estimada'); await load(); } catch (err) { toast(err.message); } };
       box.querySelector('[data-etaok]').onclick = async ev => { ev.stopPropagation(); const v = inp.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { inp.focus(); return; }
         try { await api('/' + encodeURIComponent(it.id), 'PATCH', { eta: v }); toast('Llegada estimada: ' + fmtD(v)); await load(); } catch (err) { toast(err.message); } };
       return; }
