@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Work orders on computers: text full width, controls underneath · v1.14.1
+- Prioridad · Asignado · Estado moved under the order text, in one line next to «Anotar resultados y notas» (like the phone); the order reads as one wide paragraph instead of a narrow column · Eric · cellar-targets.html (CSS grid; «Anotar» button is now a direct child of the row, phones unchanged)
+
 ## 2026-11-09 — Barrel card: position vs. the barrel's own record · v1.14.0
 - Position actions are buttons at the top: «Mover» (barrel goes elsewhere, history goes with it) and «No es esta barrica» (another barrel is physically on this spot: type its number; it comes with its own history, the old one goes to "por confirmar") · Eric: moving and editing the number must be separate
 - Datos is now a read-only "ficha" (número, contenido, tonelería, madera, año, tamaño, tostado, tipo, notas) with «Editar ficha»; the number can't be typed over in the edit form
