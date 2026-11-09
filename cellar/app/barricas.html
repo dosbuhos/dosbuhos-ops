@@ -232,6 +232,11 @@ body.mv{padding-bottom:90px}body.mv .totop{display:none}
 .bbl.drop .rim{stroke:var(--ok)!important;stroke-width:4!important;stroke-dasharray:5 3}.bbl.drop .head{fill:#d6eadb!important}
 .bbl.target .rim{stroke:var(--ok)!important;stroke-width:6!important;stroke-dasharray:none}.bbl.target .head{fill:var(--ok)!important}
 .cands .cl{width:100%;font-size:12.5px;color:var(--soft)}
+.ficha{padding:12px 14px 14px;display:flex;flex-direction:column;gap:12px}.ficha dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin:0}
+.ficha dt{font:600 10.5px var(--f-b);text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}.ficha dd{margin:2px 0 0;font:500 15px/1.3 var(--f-b);overflow-wrap:anywhere}.ficha .fw{grid-column:1/-1}
+.ficha .fnum{font:700 18px var(--f-m)}.ficha .fnum small{font:500 12px var(--f-b);color:var(--soft)}.ficha .miss{color:var(--soft)}
+.fixn{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:15px}.fixn #fixb{flex:1 1 100%;display:flex;flex-direction:column;gap:6px;padding:10px;border:1.5px solid var(--oak-rim);border-radius:10px}
+.ntx{margin:0;font-size:13.5px;line-height:1.35}
 .cands.dbl .cl{color:var(--bad,#b3261e);font-weight:600}
 .rnq{display:flex;flex-direction:column;gap:8px;padding:10px;border:1.5px solid var(--oak-rim);border-radius:10px;background:color-mix(in srgb,var(--oak-rim) 6%,transparent)}
 .rnq-h{margin:0;font-size:14.5px}
@@ -958,7 +963,8 @@ async function setWine(cd,lot,isE){if(noWrite())return;const c=S.conf[cd]||{},b=
 // Barrel specs (tonelería, madera, año…) are written only when they were edited, so one barrel's data never gets copied onto another.
 const SPEC=[['size','size',v=>+v||''],['coop','cooperage'],['wood','wood'],['year','year'],['use','use'],['toast','toast'],['th','th',v=>!!v],['note','notes']];
 const atSpot=k=>Object.values(A.barrels).filter(b=>b.loc===k);
-async function save(cd,d,mode){const fs=$('fs');if(noWrite())return;const q=POS[cd],k=refKey(cd),code=unpad(d.num),now=new Date().toISOString();
+async function save(cd,d,mode){const fs=$('fs')||{set textContent(v){if(v&&v!=='Guardando…')snack(v)}}; // from the card's top buttons there is no form status line
+  if(noWrite())return;const q=POS[cd],k=refKey(cd),code=unpad(d.num),now=new Date().toISOString();
   if(q.amph){await putPos(cd,{num:cd,wine:d.wine,empty:d.empty,here:true,by:me(),at:now});fs.textContent='Guardado ✓';reload();return}
   if(!d.empty&&!code&&!d.lot){fs.textContent='Escribe el número, el vino o marca "vacía".';return}
   const c=S.conf[cd],cur=c&&c.reg?c.code:'',b0=code&&A.barrels[code],far=b0&&b0.loc&&b0.loc!==k&&!q.virtual&&REV[b0.loc]?REV[b0.loc]:null;
@@ -968,7 +974,7 @@ async function save(cd,d,mode){const fs=$('fs');if(noWrite())return;const q=POS[
     if(mode==='rename'){const r=await fetch('/api/barrels/rename',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({from:cur,to:code,by:me()})});
       const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||'no se pudo renumerar');await load();mode='same'}
     if(code){let b=A.barrels[code];const init=d._init||{};
-      const lot=d.empty?'':(d.lot||''),patch={code,fill:d.empty?'empty':'full',lot,vol:d.vol?+String(d.vol).replace(',','.')||d.vol:'',by:me(),at:now};
+      const lot=d.empty?'':(d.lot||''),patch={code,fill:d.empty?'empty':'full',lot,by:me(),at:now};if(!b||d.vol!==init.vol)patch.vol=d.vol?+String(d.vol).replace(',','.')||d.vol:'';
       for(const [f,key,cv] of SPEC)if(!b||d[f]!==init[f])patch[key]=cv?cv(d[f]):(d[f]||'');
       if(!q.virtual){patch.loc=k;patch.locName=locName(cd)}
       if(lot)patch.status='occupied2026';
@@ -989,6 +995,7 @@ async function save(cd,d,mode){const fs=$('fs');if(noWrite())return;const q=POS[
       if(A.pos[k]&&!q.virtual)await putPos(cd,null)}
     else await putPos(cd,{num:'',lot:d.empty?'':(d.lot||''),empty:!!d.empty,here:true,pos:CODE(cd),by:me(),at:now});
     fs.textContent='Guardado ✓';await reload()}catch(e){fs.textContent='No se guardó ('+(e.message||'error')+'). Intenta otra vez.'}}
+function spotRec(cd,n){const c=S.conf[cd]||{},D=c.code?bdata(c.code):null,r={num:pad(n),lot:c.empty?'':(c.lot||''),empty:!!c.empty,vol:'',size:D?.size||'',coop:D?.coop||'',wood:D?.wood||'',year:D?.year?String(D.year):'',use:D?.use||'',toast:D?.toast||'',th:!!D?.th,note:D?.notes||''};r._init=Object.assign({},r);return r}
 // The number changed: ask whether it is another barrel or the same barrel with the wrong number.
 function askRenum(cd,d,cur,code,far){const box=$('rnq');if(!box)return;const N=pad(code),X=cur?pad(cur):'',hasN=!!A.barrels[code];
   box.hidden=false;$('fs').textContent='';
@@ -1062,7 +1069,7 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
       <div class="tile ${jSt}">${empty?'':'<button type="button" class="tplus" data-q="topq" aria-label="Registrar relleno">+</button>'}<small>${empty?'Mantenimiento':'Relleno'}</small><b>${jd?'hace '+jAgo+' d':'—'}</b><span>${jd?fd(jd):'sin registro'}</span>${!empty&&fd0?`<span>llenada ${fd(fd0)}</span>`:''}</div>
       <div class="tile na"><small>Barrica</small><b>${age==null?'—':age+'<i> años</i>'}</b><span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></div>
     </div>${num?'':'-->'}
-    <div class="qa"><button type="button" data-q="move">Mover</button></div>
+    <div class="qa"><button type="button" data-q="move">Mover</button>${c?.reg&&!q.virtual&&A.canWrite?'<button type="button" data-q="notthis">No es esta barrica</button>':''}</div>
     <div class="qa-x" id="qax" hidden></div>
     <p class="ident" ${num?'':'hidden'}>${[coopV,woodV,(c?.year||D?.year)?'hecha en '+(c?.year||D?.year):'',(c?.size||D?.size||225)+' L'].filter(Boolean).join(' · ')}<span class="idph">${age==null?'':' · '+age+' años'} · <span class="${toast?'':'miss'}" data-go="res">${toast?'tostado '+esc(toast):'tostado ?'}</span></span></p>
   </div>
@@ -1092,8 +1099,20 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
        return `<div class="hrow"><time>${fd(d)}</time><span class="tag" style="background:${P[2]};color:#fff">${P[0]}</span><span class="ht">${esc(t||'')}${who?` <i>· ${esc(who)}</i>`:''}</span>${mine.has(x)?`<button type="button" class="rm" data-rm="${esc(x)}" aria-label="Borrar registro">×</button>`:''}</div>`}).join(''):'<p class="mut">Sin registros.</p>'}
      <p class="mut sm">Los registros de la hoja de papel no se pueden borrar aquí.</p>
     </div>`}
-  else if(tab==='res'){body=`<form id="f" class="grid">
-     <label>Nº barrica<input id="fn" inputmode="numeric" maxlength="4" value="${esc(num)}" placeholder="000"></label>
+  else if(tab==='res'&&c?.reg&&S.edit!==cd){const tl=x=>x||'<span class="miss">—</span>';
+    body=`<div class="ficha"><dl>
+      <div><dt>Nº barrica</dt><dd class="fnum">${esc(pad(c.code))}${D?._b?.formerly?.length?` <small>antes ${D._b.formerly.map(n=>esc(pad(n))).join(', ')}</small>`:''}</dd></div>
+      <div><dt>Contenido</dt><dd>${empty?'Vacía':esc(wine||'—')}${D?.vol&&!empty?' · '+esc(D.vol)+' L':''}</dd></div>
+      <div><dt>Tonelería</dt><dd>${tl(esc(coopV||''))}</dd></div><div><dt>Madera</dt><dd>${tl(esc(woodV||''))}</dd></div>
+      <div><dt>Año</dt><dd>${tl(esc(D?.year||''))}</dd></div><div><dt>Tamaño</dt><dd>${esc(D?.size||225)} L</dd></div>
+      <div><dt>Tostado</dt><dd>${tl(esc(toast))}${D?.th?' · cabezas':''}</dd></div><div><dt>Tipo</dt><dd>${tl(esc(USE[D?.use]?USE[D.use][0]:''))}</dd></div>
+      ${D?.notes?`<div class="fw"><dt>Notas</dt><dd>${esc(D.notes)}</dd></div>`:''}</dl>
+      ${A.canWrite?'<button type="button" class="bigb" id="fedit">Editar ficha</button>':''}</div>`+discBlock(D)}
+  else if(tab==='res'){const fix=c?.reg;body=`<form id="f" class="grid">
+     ${fix?`<div class="w3 fixn"><span>Barrica <b>${esc(pad(c.code))}</b></span><button type="button" class="lnk" id="fixn">Corregir número</button>
+       <div id="fixb" hidden><label>Número correcto<input id="fn" inputmode="numeric" maxlength="4" value="${esc(num)}" placeholder="000"></label>
+       <p class="mut sm">Solo si es <b>la misma barrica</b> y su número está mal: todo su historial (mantenimiento, SO₂, movimientos) pasa al número nuevo. Si en esta posición hay <i>otra</i> barrica, usa «No es esta barrica» arriba.</p></div></div>`
+       :`<label>¿Qué barrica está aquí?<input id="fn" inputmode="numeric" maxlength="4" value="${esc(num)}" placeholder="000"></label>`}
      <label>Llenado<select id="ffill"><option value="full" ${!empty?'selected':''}>Llena</option><option value="empty" ${empty?'selected':''}>Vacía</option></select></label>
      <label class="w2">Vino<select id="fw" data-list="wine">${sel('wine',empty?'':lotId,'— vacía —')}</select></label><label>Litros<input id="fvol" inputmode="decimal" value="${esc(D?.vol||'')}" placeholder="${esc(D?.size||225)}"></label><label>Tamaño (L)<input id="fsz" inputmode="numeric" value="${esc(D?.size||'')}" placeholder="225"></label>
      <label>Tonelería<select id="fco" data-list="coop">${sel('coop',c?.coop||D?.coop||'')}</select></label>
@@ -1105,7 +1124,7 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
      ${b?.c&&b.c.length&&!num?`<div class="cands w3"><span class="cl">¿Es alguna de estas? Toca para poner el número:</span>${b.c.map(x=>`<button type="button" data-n="${x}">${x}</button>`).join('')}</div>`:''}
      ${(()=>{const two=q.virtual?[]:atSpot(refKey(cd));return two.length>1?`<div class="cands dbl w3"><span class="cl">⚠ Esta posición tiene ${two.length} barricas registradas. ¿Cuál está aquí?</span>${two.map(x=>`<button type="button" data-pick="${esc(unpad(x.code||x.id))}">${esc(pad(x.code||x.id))}</button>`).join('')}</div>`:''})()}
      <div class="rnq w3" id="rnq" hidden></div>
-     <div class="btns w3"><button type="submit" class="pri">Guardar</button><span class="status" id="fs"></span></div></form>`+discBlock(D)}
+     <div class="btns w3"><button type="submit" class="pri">Guardar</button>${fix?'<button type="button" id="fcancel">Cancelar</button>':''}<span class="status" id="fs"></span></div></form>`+discBlock(D)}
   else if(tab==='hist'){body=`<div class="hist" id="histh"></div>`}
   else{const url=location.origin+'/b/'+unpad(num);body=`<div class="lab"><div class="lab-c"><div class="lab-n">BBL ${esc(num||'?')}</div><div id="qr"></div><small>Dos Búhos</small></div>
      <p class="mut">Al escanear el QR se abre esta barrica. El contenido no va impreso: siempre se lee lo actual. Para imprimir varias: Lista → ⋯ → Imprimir etiquetas QR.</p></div>`}
@@ -1143,6 +1162,10 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
     if(k==='wine'){ax.hidden=false;ax.innerHTML=`<label>¿Qué tiene?<select id="qw" data-list="wine"><option value="__vacia" ${empty?'selected':''}>Vacía</option>${sel('wine',empty?'':lotId).replace('<option value=""','<option value="" disabled')}</select></label><button type="button" class="pri" id="qwok">Guardar</button><button type="button" class="qx" aria-label="Cancelar">×</button>`;closeX();wireOtro(ax);
       $('qwok').onclick=()=>{const w=$('qw').value;if(!w)return;ax.hidden=true;setWine(cd,w==='__vacia'?'':w,w==='__vacia')};return}
     if(k==='move'){startMove(cd);return}
+    // the number on this spot is wrong: another barrel is physically here (position only; no records change)
+    if(k==='notthis'){const X=pad(c.code);ax.hidden=false;ax.innerHTML=`<p class="qfull ntx">¿Qué barrica está aquí en lugar de la <b>${esc(X)}</b>? La que pongas trae su propio historial; la ${esc(X)} queda <i>sin ubicación · por confirmar</i>.</p><label>Nº de la barrica aquí<input id="ntn" inputmode="numeric" maxlength="4" placeholder="000" autocomplete="off"></label><button type="button" class="pri" id="ntok">Poner aquí</button><button type="button" class="qx" aria-label="Cancelar">×</button><span class="status qfull" id="ntst"></span>`;closeX();
+      const inp=$('ntn');inp.focus();inp.oninput=()=>{const n=unpad(inp.value),bb=A.barrels[n];$('ntst').textContent=!n?'':n===c.code?'Es la misma.':!bb?'La '+pad(n)+' no está en el registro'+(A.crew?' (Eric o Diane la dan de alta).':'; se dará de alta.'):bb.loc&&REV[bb.loc]&&bb.loc!==refKey(cd)?'Registrada en '+locName(REV[bb.loc])+': ahí quedará una barrica sin número.':'Sin ubicación en el registro.'};
+      $('ntok').onclick=()=>{const n=unpad(inp.value);if(!n||n===c.code){$('ntst').textContent='Escribe otro número.';return}ax.hidden=true;S.edit=false;save(cd,spotRec(cd,n),'other')};return}
     if(false){ax.hidden=false;ax.innerHTML=`<label>Mover a<input id="mto" placeholder="ej. 9.4, PE-2 o prensa" autocomplete="off"></label><button type="button" class="pri" id="mok">Mover</button><button type="button" class="qx" aria-label="Cancelar">×</button><span class="status" id="mst"></span>`;closeX();
       $('mto').focus();$('mok').onclick=()=>{const t=$('mto').value.trim().toUpperCase().replace(/\s+/g,'');if(!t)return;if(!/^PRENSA$/.test(t)&&!REV[t]){$('mst').textContent='No existe '+t;return}addLog(cd,'move',t)}}});
   $('fx').onclick=()=>{if(S.cardOnly&&parent!==window){try{parent.postMessage({type:'bm:close'},location.origin)}catch(e){}return}S.sel=null;S.selRack=null;document.body.classList.remove('bopen');draw();panel()};
@@ -1169,19 +1192,27 @@ function panel(){const p=$('panel'),cd=S.sel;if(!cd||!POS[cd]){p.hidden=true;ret
       const patch=k==='fill'?{fill:fillW||lotId}:k==='p1'?{empty:true}:null;
       const undo=logEdit(cd,{add:line,patch});if(undo)snack(`${(PR[k]||[''])[0]==='Llena · mensual'||(PR[k]||[''])[0]==='Vacía · mensual'?'Mensual':PR[k][0]} registrado · ${fd(d)}`,undo)}}
   if(tab!=='res')return;
-  p.querySelectorAll('.cands button[data-n]').forEach(x=>x.onclick=()=>{$('fn').value=x.dataset.n;$('fn').dispatchEvent(new Event('input'))});
-  $('fn').oninput=()=>{const k=unpad($('fn').value),bb=A.barrels[k];$('fs').textContent=!k?'':!bb?'No está en el registro.':bb.loc&&bb.loc!==refKey(cd)?'Registrada en '+(REV[bb.loc]?locName(REV[bb.loc]):bb.locName||bb.loc)+'. Al guardar te pregunto qué pasó.':'En el registro: '+(lotName(bb.lot)||'vacía')};
-  const rec=()=>({num:pad($('fn').value),lot:$('fw').value==='__otro'?'':$('fw').value,empty:$('ffill').value==='empty',note:$('fno').value.trim(),vol:$('fvol').value.trim(),
-     here:true,size:$('fsz').value.trim(),coop:$('fco').value.trim(),wood:$('fwd').value,year:$('fyr').value.trim(),use:$('fus').value,toast:$('fto').value,th:$('fth').checked,
-     });
-  $('fw').addEventListener('change',()=>{if($('fw').value==='')$('ffill').value='empty';else if($('fw').value!=='__otro')$('ffill').value='full'});$('ffill').onchange=()=>{if($('ffill').value==='empty')$('fw').value=''};
-  const init=rec();$('f').onsubmit=e=>{e.preventDefault();save(cd,Object.assign(rec(),{_init:init}))};
-  p.querySelectorAll('[data-pick]').forEach(x=>x.onclick=()=>save(cd,Object.assign(rec(),{_init:init,num:pad(x.dataset.pick)}),'other'));
   const B=D&&D._b;
   if($('dz1'))$('dz1').onclick=()=>{$('dz2').hidden=false;$('dz1').hidden=true;$('dzw').focus()};
   if($('dzno'))$('dzno').onclick=()=>{$('dz2').hidden=true;$('dz1').hidden=false};
   if($('dzok'))$('dzok').onclick=()=>setDisc(B,{by:me(),at:new Date().toISOString(),why:$('dzw').value.trim()});
   if($('dzback'))$('dzback').onclick=()=>setDisc(B,null);
+  if($('fedit'))$('fedit').onclick=()=>{S.edit=cd;keep(()=>panel())};
+  if(!$('f'))return;
+  if($('fcancel'))$('fcancel').onclick=()=>{S.edit=false;keep(()=>panel())};
+  if($('fixn'))$('fixn').onclick=()=>{$('fixb').hidden=false;$('fixn').hidden=true;$('fn').focus();$('fn').select()};
+  const fixC=c?.reg?c.code:'';
+  p.querySelectorAll('.cands button[data-n]').forEach(x=>x.onclick=()=>{$('fn').value=x.dataset.n;$('fn').dispatchEvent(new Event('input'))});
+  $('fn').oninput=()=>{const k=unpad($('fn').value),bb=A.barrels[k];if(fixC){$('fs').textContent=!k||k===fixC?'':bb?'La '+pad(k)+' ya tiene su propio registro: es otra barrica.':'Al guardar: '+pad(fixC)+' → '+pad(k)+', con todo su historial.';return}$('fs').textContent=!k?'':!bb?'No está en el registro.':bb.loc&&bb.loc!==refKey(cd)?'Registrada en '+(REV[bb.loc]?locName(REV[bb.loc]):bb.locName||bb.loc)+'. Al guardar te pregunto qué pasó.':'En el registro: '+(lotName(bb.lot)||'vacía')};
+  const rec=()=>({num:pad($('fn').value),lot:$('fw').value==='__otro'?'':$('fw').value,empty:$('ffill').value==='empty',note:$('fno').value.trim(),vol:$('fvol').value.trim(),
+     here:true,size:$('fsz').value.trim(),coop:$('fco').value.trim(),wood:$('fwd').value,year:$('fyr').value.trim(),use:$('fus').value,toast:$('fto').value,th:$('fth').checked,
+     });
+  $('fw').addEventListener('change',()=>{if($('fw').value==='')$('ffill').value='empty';else if($('fw').value!=='__otro')$('ffill').value='full'});$('ffill').onchange=()=>{if($('ffill').value==='empty')$('fw').value=''};
+  const init=rec();$('f').onsubmit=e=>{e.preventDefault();const d=Object.assign(rec(),{_init:init});
+    // editing a registered barrel's ficha: the number changes only through "Corregir número" (a renumber)
+    if(fixC){const n=unpad(d.num);if(n&&n!==fixC){if(A.barrels[n]){$('fs').textContent='La '+pad(n)+' ya tiene su propio registro: es otra barrica. Usa «No es esta barrica» arriba.';return}S.edit=false;return save(cd,d,'rename')}S.edit=false;return save(cd,d,'same')}
+    save(cd,d)};
+  p.querySelectorAll('[data-pick]').forEach(x=>x.onclick=()=>save(cd,Object.assign(rec(),{_init:init,num:pad(x.dataset.pick)}),'other'));
 }
 // Discarded ("ya no sirve"): only admins mark it; the barrel keeps its history and can go back into circulation
 function discBlock(D){const b=D&&D._b;if(!b)return '';const dz=b.discarded,adm=A.me&&A.me.role==='admin';

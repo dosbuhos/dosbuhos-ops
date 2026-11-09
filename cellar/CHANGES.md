@@ -20,6 +20,13 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Barrel card: position vs. the barrel's own record · v1.14.0
+- Position actions are buttons at the top: «Mover» (barrel goes elsewhere, history goes with it) and «No es esta barrica» (another barrel is physically on this spot: type its number; it comes with its own history, the old one goes to "por confirmar") · Eric: moving and editing the number must be separate
+- Datos is now a read-only "ficha" (número, contenido, tonelería, madera, año, tamaño, tostado, tipo, notas) with «Editar ficha»; the number can't be typed over in the edit form
+- Fixing a number is its own link inside Editar ficha: «Corregir número» (same barrel, wrong number → renumber, whole history moves); refused if that number already has a record
+- Only an empty / unnumbered spot asks «¿Qué barrica está aquí?» with a free number field
+- Litros (vol) written only when edited, like the specs · barricas.html
+
 ## 2026-11-09 — Changing a barrel number on the map (Paris's report) · v1.13.0
 - Bug: putting a number on a map spot placed the new barrel there but left the old one on the same spot (5 spots ended up with 2 barrels: 18.3, 19.1, 29.2, 29.4, 33.1), so the map kept showing the old number and the old number couldn't be placed where it belongs; the form also copied the old barrel's tonelería/año/wine onto the new number · barricas.html
 - Now, when the number on a spot changes, the app asks: "Aquí está la N (es otra barrica)" → N moves here with its own history, the old one goes to "sin ubicación · por confirmar"; or "Es la misma barrica: su número correcto es N" → renumbered, all its history moves with it (only if N has no record of its own) · Eric
