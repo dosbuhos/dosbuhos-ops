@@ -284,6 +284,7 @@ export async function movesRoute(request, env, p, user) {
     }
     if (p === '/api/moves/complete' && request.method === 'POST') return J(await completeMove(env, await request.json(), user));
     if (p === '/api/bottlings' && request.method === 'POST') return J(await saveBottling(env, await request.json(), user));
+    if (p === '/api/barrels/rename' && request.method === 'POST') return J(await renameBarrel(env, await request.json(), user));
     return J({ message: 'Not found' }, 404);
   } catch (e) { return J({ message: e.message || String(e) }, e.status || 500); }
 }
@@ -316,4 +317,30 @@ export async function saveBottling(env, b, user) {
   if (list.length && lot.bottled) { const last = list.slice().sort((a, c) => String(c.date).localeCompare(String(a.date)))[0]; if (last.bottles != null && last.sourceEmpty !== false) lot.ubi = 'Embotellado' + (last.date ? ' ' + dm(last.date) : '') + ' · ' + last.bottles + ' botellas'; }
   const { id: _x, ...data } = lot; await put(env, 'lots', cell(b.lot), data);
   return { ok: true, bottlings: list };
+}
+
+// Renumber a barrel: same physical barrel, its number was wrong (painted wrong, typo in the registry).
+// Everything that belongs to the barrel moves with it: the registry doc (specs, paper SO2 history), every barrel_log
+// record (maintenance, SO2, moves) and map markers. The old number stays in `formerly` so old tags, Excellovint lines
+// and searches still find it. Refused if the new number already has its own record (that is a different barrel).
+export async function renameBarrel(env, b, user) {
+  const un = (v) => cell(v).replace(/\D/g, '').replace(/^0+/, '');
+  const from = un(b.from), to = un(b.to);
+  if (!from || !to) throw fail('Faltan los números.');
+  if (from === to) throw fail('Es el mismo número.');
+  const cur = await get(env, 'barrels', from); if (!cur) throw fail('La barrica ' + from + ' no está en el registro.', 404);
+  const clash = await env.DB.prepare("SELECT id FROM docs WHERE coll = 'barrels' AND (id = ? OR json_extract(data, '$.code') = ?)").bind(to, to).first();
+  if (clash) throw fail('La ' + to + ' ya tiene su propio registro: es otra barrica.', 409);
+  const now = Date.now(), at = new Date(now).toISOString(), by = cell(b.by) || user.initials || '';
+  const data = Object.assign({}, cur, { code: to, formerly: [...new Set([...(Array.isArray(cur.formerly) ? cur.formerly : []), from])], renamed: { from, by, acct: user.initials || '', at } });
+  const pad = (n) => n.padStart(3, '0');
+  const logId = 'b' + to + '-' + now.toString(36) + 'rn';
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('barrels', ?, ?, ?)").bind(to, JSON.stringify(data), now),
+    env.DB.prepare("DELETE FROM docs WHERE coll = 'barrels' AND id = ?").bind(from),
+    env.DB.prepare("UPDATE docs SET data = json_set(data, '$.code', ?, '$.was', ?), updated_at = ? WHERE coll = 'barrel_log' AND json_extract(data, '$.code') = ?").bind(to, from, now, from),
+    env.DB.prepare("UPDATE docs SET data = json_set(data, '$.num', ?), updated_at = ? WHERE coll = 'barrel_pos' AND json_extract(data, '$.num') IN (?, ?)").bind(pad(to), now, from, pad(from)),
+    env.DB.prepare("INSERT INTO docs (coll, id, data, updated_at) VALUES ('barrel_log', ?, ?, ?)").bind(logId, JSON.stringify({ code: to, at, by, acct: user.initials || '', kind: 'rename', text: 'Renumerada: antes BBL ' + pad(from) + ' (el historial se vino con ella)' }), now),
+  ]);
+  return { ok: true, from, to };
 }

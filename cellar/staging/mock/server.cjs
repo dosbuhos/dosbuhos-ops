@@ -16,6 +16,9 @@ http.createServer((req,res)=>{const u=new URL(req.url,'http://x');let b='';req.o
   if(p==='/api/me')return J(res,{canWrite:true,initials:process.env.ROLE==='crew'?'P/J':'EM',role:process.env.ROLE||'admin'});
   if(p==='/api/xl/barrel-so2')return J(res,{barrels:{'10':{so2:{d:'2026-11-02',v:'12.4',tab:'L05'},add:{d:'2026-11-03',g:'6',tab:'L05'}}}});
   if(p==='/api/xl/barrel')return J(res,{rows:[{tab:'L15 CF ROSE',date:'2026-11-06',ubi:'BBL 44, 48',note:'VIERNES 6/11 TRASEGAR…',asig:'P/J'}]});
+  if(p==='/api/barrels/rename'){const r=JSON.parse(b||'{}'),f=String(+r.from),t=String(+r.to);if(!db.barrels[f])return J(res,{message:'no'},404);if(db.barrels[t])return J(res,{message:'La '+t+' ya tiene su propio registro: es otra barrica.'},409);
+    db.barrels[t]=Object.assign(db.barrels[f],{code:t,formerly:[...(db.barrels[f].formerly||[]),f],renamed:{from:f,by:r.by,at:new Date().toISOString()}});delete db.barrels[f];for(const l of Object.values(db.barrel_log))if(String(l.code)===f){l.code=t;l.was=f}
+    db.barrel_log['b'+t+'-rn']={code:t,at:new Date().toISOString(),by:r.by,kind:'rename',text:'Renumerada: antes BBL '+f};fs.appendFileSync(path.join(__dirname,'writes.log'),'RENAME '+f+'→'+t+'\n');return J(res,{ok:true})}
   const m=p.match(/^\/api\/db\/([^/]+)(?:\/(.+))?$/);if(m){const c=m[1],id=m[2]&&decodeURIComponent(m[2]);db[c]=db[c]||{};
     if(req.method==='GET')return J(res,{rows:Object.entries(db[c]).map(([id,data])=>({id,data}))});
     if(req.method==='DELETE'){delete db[c][id];return J(res,{ok:true})}

@@ -89,7 +89,7 @@ export default {
         const r = await entriesRoute(request, env, p, url, { initials, canWrite, crew, email });
         if (r) return r.raw || J(r.body, r.status);
       }
-      if (p === '/api/moves' || p === '/api/moves/complete' || p === '/api/bottlings') {
+      if (p === '/api/moves' || p === '/api/moves/complete' || p === '/api/bottlings' || p === '/api/barrels/rename') {
         const r = await movesRoute(request, env, p, { initials, canWrite, crew, email });
         return J(r.body, r.status);
       }
