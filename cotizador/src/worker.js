@@ -107,9 +107,13 @@ export default {
       }
     }
 
-    if (!ok && (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/sw.js')) {
+    // Pages behind the PIN: the quoter and the staffing calculator (/personal). The gate is served at the requested
+    // path, so after the PIN it reloads the same page.
+    const gated = ['/', '/index.html', '/sw.js', '/personal', '/personal.html'];
+    if (!ok && gated.includes(url.pathname)) {
       return env.ASSETS.fetch(new Request(new URL('/gate.html', request.url), request));
     }
+    if (url.pathname === '/personal') return env.ASSETS.fetch(new Request(new URL('/personal.html', request.url), request));
     return env.ASSETS.fetch(request);
   },
 };

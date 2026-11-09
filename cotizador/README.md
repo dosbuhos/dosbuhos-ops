@@ -8,3 +8,4 @@ The Acrobat quoter (Cotizador Para Eventos) as a phone app: capture the event, t
 - Deploys on push through Workers Builds (project `cotizador`, root `cotizador`, deploy `npx wrangler deploy`).
 - Prices and rules live in the `P` object at the top of `public/index.html` (menus, bar tiers by hour, minimum spend, space rates and caps, service and IVA). Same logic as the Acrobat form.
 - The quote in progress is kept in the browser (localStorage); "Nueva" clears it. No database yet.
+- `/personal` — staffing calculator (Personal para eventos): guests + format → slots by role (meseros 1:10–25 by format, bar, líder, cocina per Lalo's counts, lavaloza, estacionamiento), internals vs externals, labor cost at a flat hourly rate, the service-fee split (50/50 piso·cocina, each side pays its own externals, remainder per head) and a requisición text to copy or share by WhatsApp. Rules live in the `R` object at the top of `public/personal.html`. Same PIN as the quoter.

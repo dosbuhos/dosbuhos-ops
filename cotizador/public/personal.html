@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Personal para eventos · Dos Búhos</title>
+<meta name="theme-color" content="#5c1e33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  @font-face{font-family:"Cormorant Garamond";font-weight:500;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2")}
+  @font-face{font-family:"Cormorant Garamond";font-weight:600;font-style:normal;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:300;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-300-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/lato-latin-400-normal.woff2) format("woff2")}
+  :root{--bg:#f6f2e7;--paper:#fffef8;--ink:#2b2420;--wine:#5c1e33;--wine2:#7a2a45;--gold:#a0783a;--muted:#7d7466;--line:#e4dccb;--red:#b8302a;--green:#2f5e2a;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--ink);font-family:Lato,system-ui,sans-serif;font-weight:300;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .top{background:var(--wine);color:#f6f2e7;padding:calc(var(--sat) + 14px) 18px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  .top img{height:26px;display:block}
+  .top .t{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.85}
+  .top a,.top button{white-space:nowrap;background:none;border:1px solid rgba(246,242,231,.4);color:#f6f2e7;font:inherit;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:7px 10px;text-decoration:none;cursor:pointer}
+  .wrap{max-width:640px;margin:0 auto;padding:18px 16px calc(var(--sab) + 150px)}
+  h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:26px;color:var(--wine);margin:26px 0 10px;line-height:1.1}
+  h2 small{display:block;font-family:Lato,sans-serif;font-weight:300;font-size:13px;color:var(--muted);margin-top:2px}
+  .card{background:var(--paper);border:1px solid var(--line);padding:14px 14px 4px}
+  .f{display:flex;flex-direction:column;gap:5px;padding:9px 0 12px;border-bottom:1px solid var(--line)}
+  .f:last-child{border-bottom:0}
+  .f label{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .f input,.f select{width:100%;font:inherit;font-size:16px;font-weight:400;color:var(--ink);background:#fff;border:1px solid var(--line);padding:11px 12px;border-radius:0;-webkit-appearance:none;appearance:none}
+  .f select{background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:36px}
+  .f input:focus,.f select:focus{outline:2px solid var(--wine2);outline-offset:-1px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row2 .f{border-bottom:0}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .sw:last-child{border-bottom:0}
+  .sw span{font-size:15px}
+  .sw span small{display:block;font-size:12px;color:var(--muted)}
+  .tog{position:relative;width:46px;height:26px;flex:0 0 auto}
+  .tog input{opacity:0;width:0;height:0}
+  .tog i{position:absolute;inset:0;background:#d9d1c0;border-radius:26px;transition:.2s}
+  .tog i:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .tog input:checked + i{background:var(--wine)}
+  .tog input:checked + i:before{transform:translateX(20px)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 12px}
+  .chips button{background:#fff;border:1px solid var(--line);color:var(--wine);font:inherit;font-size:13px;padding:7px 12px;cursor:pointer}
+  .chips button:active{background:#f1ebdd}
+  /* lines */
+  .lines{background:var(--paper);border:1px solid var(--line)}
+  .ln{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14.5px;align-items:baseline}
+  .ln:last-child{border-bottom:0}
+  .ln b{font-weight:400;color:var(--ink)}
+  .ln i{font-style:normal;white-space:nowrap;color:var(--ink)}
+  .ln.sub b,.ln.sub i{color:var(--muted);font-size:13.5px}
+  .ln.tot{background:#f1ebdd}
+  .ln.tot b{font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-weight:500;color:var(--wine)}
+  .ln.tot i{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-weight:600;color:var(--wine)}
+  .ln.red b,.ln.red i{color:var(--red)}
+  .ln .d{display:block;font-size:12px;color:var(--muted)}
+  .ln.h b,.ln.h i{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  /* slot grid */
+  .grid{display:grid;grid-template-columns:1fr 54px 54px 68px;background:var(--paper);border:1px solid var(--line)}
+  .grid > div{padding:10px 10px;border-bottom:1px solid var(--line);font-size:14.5px;display:flex;align-items:center;min-height:44px}
+  .grid .nm{flex-direction:column;align-items:flex-start;justify-content:center;gap:1px}
+  .grid .nm small{font-size:11.5px;color:var(--muted);font-weight:300;line-height:1.3}
+  .grid .num{justify-content:flex-end;font-weight:400;font-variant-numeric:tabular-nums}
+  .grid .hd{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:#f1ebdd;min-height:0;padding-top:8px;padding-bottom:8px}
+  .grid .hd.num{font-weight:300}
+  .grid .sec{grid-column:1 / -1;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);padding-top:12px;padding-bottom:4px;border-bottom:0;min-height:0}
+  .grid .tt{background:#f1ebdd;font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-weight:600;color:var(--wine)}
+  .grid .ext{color:var(--wine2)}
+  .grid .zero{color:var(--muted)}
+  .note{font-size:13px;color:var(--muted);padding:10px 2px;white-space:pre-line}
+  .alert{background:#fbe9e7;border:1px solid #efc4c0;color:var(--red);padding:12px 14px;font-size:13.5px;margin-top:12px;white-space:pre-line}
+  .ok{background:#eaf2e6;border:1px solid #cfe0c6;color:var(--green);padding:12px 14px;font-size:13.5px;margin-top:12px;white-space:pre-line}
+  .warn{background:#fbf3e3;border:1px solid #ead9b3;color:#7a5a1e;padding:12px 14px;font-size:13.5px;margin-top:12px;white-space:pre-line}
+  /* per-person */
+  .pp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .pp .box{background:var(--paper);border:1px solid var(--line);padding:12px 14px}
+  .pp .k{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .pp .v{font-family:"Cormorant Garamond",Georgia,serif;font-size:28px;font-weight:600;color:var(--wine);line-height:1.1;margin-top:4px}
+  .pp .s{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:pre-line}
+  /* requisición */
+  pre.req{background:#fff;border:1px solid var(--line);padding:14px;font:inherit;font-size:13.5px;white-space:pre-wrap;line-height:1.5;color:var(--ink)}
+  .textarea{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:#fff;border:1px solid var(--line);padding:10px 12px;min-height:56px;border-radius:0}
+  /* dock */
+  .dock{position:fixed;left:0;right:0;bottom:0;background:var(--wine);color:#f6f2e7;padding:12px 16px calc(var(--sab) + 12px);z-index:6;box-shadow:0 -6px 18px rgba(0,0,0,.18)}
+  .dock .in{max-width:640px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .dock .tt{font-family:"Cormorant Garamond",Georgia,serif;font-size:30px;font-weight:600;line-height:1}
+  .dock .pp2{font-size:11.5px;opacity:.85;margin-top:3px}
+  .dock button{background:#f6f2e7;color:var(--wine);border:0;font:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:12px 14px;cursor:pointer;white-space:nowrap}
+  .dock button.sec{background:none;color:#f6f2e7;border:1px solid rgba(246,242,231,.45)}
+  .btns{display:flex;gap:8px}
+  .fine{font-size:12px;color:var(--muted);margin-top:14px;border-top:1px solid var(--line);padding-top:10px;white-space:pre-line}
+</style>
+</head>
+<body>
+
+<div class="top"><div><img src="/icons/logo-light.png" alt="Dos Búhos"><div class="t">Personal para eventos</div></div><div class="btns"><a href="/">‹ Cotizador</a><button onclick="resetAll()">Nueva</button></div></div>
+<div class="wrap">
+
+  <h2>El evento<small>La plantilla sale del formato y los invitados</small></h2>
+  <div class="card">
+    <div class="f"><label>Evento</label><input id="ev_nombre" placeholder="MAC · Día del Médico"></div>
+    <div class="f"><label>Invitados</label><input id="ev_pax" type="number" inputmode="numeric" min="0" placeholder="30">
+      <div class="chips"><button type="button" onclick="setPax(30)">30</button><button type="button" onclick="setPax(50)">50</button><button type="button" onclick="setPax(80)">80</button><button type="button" onclick="setPax(100)">100</button><button type="button" onclick="setPax(150)">150</button><button type="button" onclick="setPax(300)">300</button></div>
+    </div>
+    <div class="f"><label>Formato</label><select id="ev_fmt">
+      <option value="formal">Cena servida · formal (1 mesero por 10)</option>
+      <option value="casual">Cena servida · casual (1 por 12)</option>
+      <option value="compartida">Mesa compartida (1 por 15)</option>
+      <option value="parrillada">Parrillada · buffet (1 por 20)</option>
+      <option value="coctel">Cóctel · solo barra y bocados (1 por 25)</option>
+    </select></div>
+    <div class="row2">
+      <div class="f"><label>Tiempos</label><select id="ev_tiempos"><option value="2">2 tiempos</option><option value="3" selected>3 tiempos</option><option value="4">4 o más</option></select></div>
+      <div class="f"><label>Horas del evento</label><input id="ev_hrs" type="number" inputmode="numeric" min="1" placeholder="4"></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>Montaje y cierre (h)</label><input id="ev_setup" type="number" inputmode="numeric" min="0" placeholder="2"><div class="hint">Se suman a las horas del evento</div></div>
+      <div class="f"><label>Horas trabajadas</label><input id="o_hrs" disabled></div>
+    </div>
+    <div class="sw"><span>Colchón de cocina +1<small>Mientras afinamos el servicio de eventos</small></span><label class="tog"><input type="checkbox" id="ev_cc" checked><i></i></label></div>
+    <div class="sw"><span>Colchón de piso +1<small>Un mesero más que la fórmula</small></span><label class="tog"><input type="checkbox" id="ev_cp"><i></i></label></div>
+    <div class="sw"><span>Domingo o día de descanso<small>Solo recordatorio: aplica la prima legal si es mayor</small></span><label class="tog"><input type="checkbox" id="ev_dom"><i></i></label></div>
+  </div>
+
+  <h2>Quiénes somos<small>Internos disponibles para esa noche</small></h2>
+  <div class="card">
+    <div class="row2">
+      <div class="f"><label>Piso internos</label><input id="in_piso" type="number" inputmode="numeric" min="0" placeholder="3"></div>
+      <div class="f"><label>Cocina internos</label><input id="in_cocina" type="number" inputmode="numeric" min="0" placeholder="5"></div>
+    </div>
+    <div class="hint" style="padding:0 0 10px">Cocina incluye lavaloza. Los puestos que no se cubren con internos se cubren con externos.</div>
+  </div>
+
+  <h2>La plantilla<small>Puestos · internos · externos</small></h2>
+  <div class="grid" id="slots"></div>
+  <div id="slot_notes"></div>
+
+  <h2>El dinero<small>Tarifa, consumo y fee de servicio</small></h2>
+  <div class="card">
+    <div class="row2">
+      <div class="f"><label>Tarifa por hora</label><input id="mo_tarifa" type="number" inputmode="numeric" min="0" placeholder="150"><div class="hint">Igual para todos, internos y externos</div></div>
+      <div class="f"><label>Servicio %</label><input id="mo_serv" type="number" inputmode="numeric" min="0" max="30" placeholder="15"></div>
+    </div>
+    <div class="f"><label>Consumo A&B del evento (sin servicio ni IVA)</label><input id="mo_ab" type="number" inputmode="numeric" min="0" placeholder="26760"><div class="hint" id="o_ab_hint"></div></div>
+    <div class="f"><label>Pago a internos</label><select id="mo_pago"><option value="flat">Tarifa plana (misma que externos)</option><option value="legal">Doble tiempo legal (promedio estimado)</option></select><div class="hint">El doble legal promedio es ≈ $127/h piso y $109/h cocina; la tarifa plana debe ser mayor o igual al doble de cada quien.</div></div>
+  </div>
+
+  <h2>Costo de personal<small>Lo que paga la casa</small></h2>
+  <div class="lines" id="cost_lines"></div>
+  <div class="note" id="cost_note"></div>
+
+  <h2>Fee de servicio y bono<small>50/50 piso · cocina; los externos salen de la parte que los necesitó</small></h2>
+  <div class="lines" id="fee_lines"></div>
+  <div id="fee_alert"></div>
+  <div class="pp" id="pp"></div>
+  <div class="fine" id="legal"></div>
+
+  <h2>Requisición<small>Para publicar al equipo · se anotan con Jess (piso) o Lalo (cocina)</small></h2>
+  <div class="card" style="padding-bottom:12px">
+    <div class="f"><label>Fecha y horario de trabajo</label><input id="rq_fecha" placeholder="Viernes 23 de octubre · 8 pm – 2 am"></div>
+    <div class="f"><label>Autoriza</label><input id="rq_aut" placeholder="Michael"></div>
+  </div>
+  <pre class="req" id="req" style="margin-top:10px"></pre>
+</div>
+
+<div class="dock"><div class="in"><div><div class="tt" id="dock_total">$0</div><div class="pp2" id="dock_pp">&nbsp;</div></div><div class="btns"><button class="sec" onclick="copyReq()">Copiar</button><button onclick="shareWA()">WhatsApp</button></div></div></div>
+
+<script>
+// ===================== REGLAS (editar aquí) =====================
+const R = {
+  meseros: { formal: 10, casual: 12, compartida: 15, parrillada: 20, coctel: 25 },   // invitados por mesero
+  meserosMin: 2,
+  barDesde: 40, barCada: 120,            // < 40: los meseros sirven; 40–120: 1 bartender; +1 por cada 120
+  liderDesde: 50, lider2Desde: 150,
+  // Cocina según Lalo (menú de tres tiempos definido): hasta 30 → 3 cocineros; 31–100 → 4. Arriba de 100 es estimado.
+  cocineros: [[30, 3], [100, 4], [200, 5], [300, 6], [9999, 7]],
+  cocinaConfirmadoHasta: 100,
+  lavaloza: [[100, 1], [200, 2], [9999, 3]],   // los platos se rentan; solo se raspa
+  estacionamiento: [[80, 1], [9999, 2]],
+  legalPiso: 127, legalCocina: 109,      // doble tiempo promedio estimado por hora (nómina actual)
+  legalMax: 144,                         // el doble tiempo más alto de la plantilla actual
+  minimo: 30000, minimoHoraExtra: 5000,  // consumo mínimo hasta 3 h; +5,000 por hora adicional
+  rentaPaxHora: 115,                     // renta actual por persona por hora (uso privado, referencia)
+};
+const IDS = ["ev_nombre","ev_pax","ev_fmt","ev_tiempos","ev_hrs","ev_setup","ev_cc","ev_cp","ev_dom","in_piso","in_cocina","mo_tarifa","mo_serv","mo_ab","mo_pago","rq_fecha","rq_aut"];
+const DEF = { ev_hrs: 4, ev_setup: 2, in_piso: 3, in_cocina: 5, mo_tarifa: 150, mo_serv: 15 };
+const $ = id => document.getElementById(id);
+const n = (id, d = 0) => { const raw = $(id).value; if (raw === "" || raw === null) return d; const v = Number(raw); return (isNaN(v) || v < 0) ? d : v; };
+const m = x => (x < 0 ? "-" : "") + "$" + Math.round(Math.abs(x)).toLocaleString("en-US");
+const step = (tbl, pax) => { for (const [lim, v] of tbl) if (pax <= lim) return v; return tbl[tbl.length - 1][1]; };
+const pl = (k, s, p) => k === 1 ? s : p;
+
+function plantilla() {
+  const pax = Math.floor(n("ev_pax")), fmt = $("ev_fmt").value, t = Number($("ev_tiempos").value) || 3;
+  const cc = $("ev_cc").checked, cp = $("ev_cp").checked;
+  let meseros = pax > 0 ? Math.max(R.meserosMin, Math.ceil(pax / R.meseros[fmt])) : 0;
+  if (cp && pax > 0) meseros += 1;
+  const bar = pax >= R.barDesde ? Math.ceil(pax / R.barCada) : 0;
+  const lider = pax >= R.lider2Desde ? 2 : (pax >= R.liderDesde ? 1 : 0);
+  let coc = pax > 0 ? step(R.cocineros, pax) : 0;
+  if (t >= 4) coc += 1;
+  if (t <= 2) coc -= 1;
+  if (fmt === "compartida" || fmt === "coctel") coc -= 1;
+  if (pax > 0) coc = Math.max(2, coc);
+  if (cc && pax > 0) coc += 1;
+  const lav = pax > 0 ? step(R.lavaloza, pax) : 0;
+  const est = pax > 0 ? step(R.estacionamiento, pax) : 0;
+  return { pax, fmt, t, meseros, bar, lider, coc, lav, est, piso: meseros + bar + lider, cocina: coc + lav, cc, cp };
+}
+
+function calc() {
+  const S = plantilla();
+  const hrsEv = n("ev_hrs", DEF.ev_hrs), setup = n("ev_setup", DEF.ev_setup), H = hrsEv + setup;
+  $("o_hrs").value = S.pax ? `${H} h` : "";
+  const inP = Math.min(Math.floor(n("in_piso", DEF.in_piso)), S.piso), inC = Math.min(Math.floor(n("in_cocina", DEF.in_cocina)), S.cocina);
+  const exP = S.piso - inP, exC = S.cocina - inC, exE = S.est;   // estacionamiento se considera externo/apoyo
+  const tarifa = n("mo_tarifa", DEF.mo_tarifa), servPct = n("mo_serv", DEF.mo_serv) / 100, legal = $("mo_pago").value === "legal";
+  const rateP = legal ? R.legalPiso : tarifa, rateC = legal ? R.legalCocina : tarifa;
+
+  // --- plantilla ---
+  const g = $("slots"); g.innerHTML = "";
+  const row = (nm, sub, tot, i, e, cls = "") => {
+    const z = v => v ? "" : " zero";
+    g.insertAdjacentHTML("beforeend", `<div class="nm ${cls}">${nm}${sub ? `<small>${sub}</small>` : ""}</div><div class="num ${cls}${z(tot)}">${tot}</div><div class="num ${cls}${z(i)}">${i}</div><div class="num ${cls}${e ? " ext" : " zero"}">${e}</div>`);
+  };
+  g.insertAdjacentHTML("beforeend", `<div class="hd">Puesto</div><div class="hd num">Total</div><div class="hd num">Casa</div><div class="hd num">Externos</div>`);
+  // distribute internals within piso: líder first (Jess), then meseros, then bar
+  let ip = inP; const iLid = Math.min(S.lider, ip); ip -= iLid; const iMes = Math.min(S.meseros, ip); ip -= iMes; const iBar = Math.min(S.bar, ip);
+  let ic = inC; const iCoc = Math.min(S.coc, ic); ic -= iCoc; const iLav = Math.min(S.lav, ic);
+  g.insertAdjacentHTML("beforeend", `<div class="sec">Piso</div>`);
+  row("Meseros", S.pax ? `1 por ${R.meseros[S.fmt]}${S.cp ? " · +1 colchón" : ""}` : "", S.meseros, iMes, S.meseros - iMes);
+  row("Bar", S.pax ? (S.bar ? `vino y cerveza · 1 por ${R.barCada}` : "los meseros sirven") : "", S.bar, iBar, S.bar - iBar);
+  row("Líder de piso", S.pax ? (S.lider ? "desde 50 invitados" : "no aplica") : "", S.lider, iLid, S.lider - iLid);
+  g.insertAdjacentHTML("beforeend", `<div class="sec">Cocina</div>`);
+  row("Cocineros", S.pax ? `${S.pax <= R.cocinaConfirmadoHasta ? "según Lalo" : "estimado · confirmar con Lalo"}${S.cc ? " · +1 colchón" : ""}` : "", S.coc, iCoc, S.coc - iCoc);
+  row("Lavaloza", S.pax ? "platos rentados" : "", S.lav, iLav, S.lav - iLav);
+  g.insertAdjacentHTML("beforeend", `<div class="sec">Apoyo</div>`);
+  row("Estacionamiento", "", S.est, 0, S.est);
+  const totSlots = S.piso + S.cocina + S.est, totIn = inP + inC, totEx = exP + exC + exE;
+  row("Total", "", totSlots, totIn, totEx, "tt");
+  $("slot_notes").innerHTML = S.pax > R.cocinaConfirmadoHasta ? `<div class="warn">Lalo confirmó la cocina hasta 100 invitados (3 cocineros hasta 30; 4 de 31 a 100). Arriba de eso la cifra es un estimado: confírmala con él antes de publicar.</div>` : "";
+
+  // --- costo de personal (paga la casa) ---
+  const cExP = exP * H * tarifa, cExC = exC * H * tarifa, cExE = exE * H * tarifa;
+  const cInP = inP * H * rateP, cInC = inC * H * rateC;
+  const cExt = cExP + cExC + cExE, cInt = cInP + cInC, cTot = cExt + cInt;
+  const cl = $("cost_lines"); cl.innerHTML = "";
+  const line = (el, b, i, cls = "") => el.insertAdjacentHTML("beforeend", `<div class="ln ${cls}"><b>${b}</b><i>${i}</i></div>`);
+  line(cl, `Externos · ${totEx} × ${H} h × ${m(tarifa)}`, m(cExt));
+  line(cl, `Internos · ${totIn} × ${H} h × ${legal ? "doble legal" : m(tarifa)}`, m(cInt));
+  if (legal) line(cl, `Piso ${m(R.legalPiso)}/h · cocina ${m(R.legalCocina)}/h (promedios)`, "", "sub");
+  line(cl, `Personal del evento<span class="d">${S.pax ? `${m(S.pax ? cTot / S.pax : 0)} por invitado · ${m(S.pax && hrsEv ? cTot / S.pax / hrsEv : 0)} por invitado-hora` : ""}</span>`, m(cTot), "tot");
+  const rentaSug = S.pax && hrsEv ? R.rentaPaxHora + cTot / S.pax / hrsEv : 0;
+  $("cost_note").textContent = S.pax ? `Para recuperarlo en la renta del espacio: ${m(R.rentaPaxHora)} + ${m(cTot / S.pax / hrsEv)} ≈ ${m(rentaSug)} por persona por hora fuera de horario.` : "";
+
+  // --- fee y bono ---
+  const ab = n("mo_ab"), fee = ab * servPct, half = fee / 2;
+  const MIN = R.minimo + Math.max(0, hrsEv - 3) * R.minimoHoraExtra;
+  $("o_ab_hint").textContent = S.pax && ab ? `${m(ab / S.pax)} por invitado · mínimo para ${hrsEv} h: ${m(MIN)}${ab < MIN ? ` · por debajo del mínimo (fee con el mínimo: ${m(MIN * servPct)})` : ""}` : `Mínimo para ${hrsEv} h: ${m(MIN)} · fee con el mínimo: ${m(MIN * servPct)}`;
+  const poolP = half - cExP, poolC = half - cExC;
+  const bonoP = inP > 0 ? Math.max(0, poolP) / inP : 0, bonoC = inC > 0 ? Math.max(0, poolC) / inC : 0;
+  const fl = $("fee_lines"); fl.innerHTML = "";
+  line(fl, `Fee de servicio ${Math.round(servPct * 100)} % de ${m(ab)}`, m(fee));
+  line(fl, "Piso 50 %", m(half), "sub");
+  line(fl, `− externos de piso · ${exP} × ${H} h × ${m(tarifa)}`, exP ? `(${m(cExP)})` : "—", "sub");
+  line(fl, `Bono piso · ${inP} ${pl(inP, "interno", "internos")}`, inP ? `${m(bonoP)} c/u` : "—", poolP < 0 ? "red" : "");
+  line(fl, "Cocina 50 %", m(half), "sub");
+  line(fl, `− externos de cocina · ${exC} × ${H} h × ${m(tarifa)}`, exC ? `(${m(cExC)})` : "—", "sub");
+  line(fl, `Bono cocina · ${inC} ${pl(inC, "interno", "internos")}`, inC ? `${m(bonoC)} c/u` : "—", poolC < 0 ? "red" : "");
+  const short = (poolP < 0 ? -poolP : 0) + (poolC < 0 ? -poolC : 0);
+  let al = "";
+  if (!ab) al = `<div class="warn">Captura el consumo A&B para calcular el fee y el bono.</div>`;
+  else if (short > 0) al = `<div class="alert">El fee de ${poolP < 0 ? "piso" : "cocina"} no alcanza para pagar a sus externos: faltan ${m(short)}, los cubre la casa y ese lado se queda sin bono. Sube el consumo (barra por hora, menú) o revisa la plantilla.</div>`;
+  else if (ab < MIN) al = `<div class="warn">El consumo está por debajo del mínimo de ${m(MIN)}. Con el mínimo el bono sería ${m(((MIN * servPct) / 2 - cExP) / Math.max(1, inP))} piso · ${m(((MIN * servPct) / 2 - cExC) / Math.max(1, inC))} cocina.</div>`;
+  $("fee_alert").innerHTML = al;
+
+  // --- por persona ---
+  const baseP = H * rateP, baseC = H * rateC, nightP = baseP + bonoP, nightC = baseC + bonoC;
+  $("pp").innerHTML = S.pax ? `
+    <div class="box"><div class="k">Mesero interno</div><div class="v">${m(nightP)}</div><div class="s">${m(baseP)} base + ${m(bonoP)} bono\n${m(H ? nightP / H : 0)} por hora</div></div>
+    <div class="box"><div class="k">Cocinero interno</div><div class="v">${m(nightC)}</div><div class="s">${m(baseC)} base + ${m(bonoC)} bono\n${m(H ? nightC / H : 0)} por hora</div></div>
+    <div class="box"><div class="k">Externo</div><div class="v">${m(H * tarifa)}</div><div class="s">${m(tarifa)} × ${H} h · sin bono, sin transporte</div></div>
+    <div class="box"><div class="k">Total al equipo</div><div class="v">${m(cTot + Math.max(0, poolP) + Math.max(0, poolC))}</div><div class="s">personal ${m(cTot)} + bonos ${m(Math.max(0, poolP) + Math.max(0, poolC))}</div></div>` : "";
+  $("legal").textContent = S.pax ? `La tarifa plana de ${m(tarifa)} ${tarifa >= R.legalMax ? "cubre el doble tiempo de toda la plantilla actual (máximo " + m(R.legalMax) + "/h)." : "queda por debajo del doble tiempo de alguien de la plantilla (máximo " + m(R.legalMax) + "/h): para esa persona aplica lo legal."} Si alguien ya lleva 9 horas extra en la semana${$("ev_dom").checked ? ", trabaja en domingo o en su día de descanso" : ""}, aplica lo que marque la ley si es mayor. Horas extra por nómina; bono por evento.` : "";
+
+  // --- requisición ---
+  const nombre = $("ev_nombre").value.trim() || "Evento", fecha = $("rq_fecha").value.trim() || "—", aut = $("rq_aut").value.trim() || "—";
+  const req = S.pax ? [
+    `REQUISICIÓN DE PERSONAL · ${nombre.toUpperCase()}`,
+    `${fecha} · ${S.pax} invitados · ${H} h de trabajo (${hrsEv} h de evento + ${setup} h montaje y cierre)`,
+    ``,
+    `PUESTOS`,
+    `Piso ${S.piso}: ${S.meseros} meseros${S.bar ? ` · ${S.bar} bar` : ""}${S.lider ? ` · ${S.lider} líder${S.lider > 1 ? "es" : ""} de piso` : ""}`,
+    `Cocina ${S.cocina}: ${S.coc} cocineros · ${S.lav} lavaloza`,
+    `Estacionamiento ${S.est}`,
+    ``,
+    `PAGA`,
+    `${m(tarifa)} por hora × ${H} h = ${m(tarifa * H)} (o lo que marque la ley si es mayor), por nómina.`,
+    ab ? `Más bono del fee de servicio, estimado: ${m(bonoP)} piso · ${m(bonoC)} cocina.` : `Más bono del fee de servicio (se publica con el consumo del evento).`,
+    `Externos: misma tarifa, sin bono, sin transporte. Solo Jess o Michael contratan.`,
+    ``,
+    `PARA ANOTARTE`,
+    `Piso con Jess · Cocina con Lalo. Si hay más interesados que lugares: rotación. Lugares sin cubrir cinco días antes se cubren con externos.`,
+    ``,
+    `Costo autorizado: ${totSlots} puestos × ${H} h × ${m(tarifa)} = ${m(totSlots * H * tarifa)} · Autoriza: ${aut}`,
+  ].join("\n") : "Captura los invitados para generar la requisición.";
+  $("req").textContent = req;
+
+  $("dock_total").textContent = m(cTot);
+  $("dock_pp").textContent = S.pax ? `${totSlots} puestos · ${totIn} internos · ${totEx} externos · ${H} h` : "Personal del evento";
+  save();
+}
+
+function setPax(v) { $("ev_pax").value = v; calc(); }
+function copyReq() { navigator.clipboard?.writeText($("req").textContent).then(() => { const b = document.querySelector(".dock .sec"); b.textContent = "Copiado"; setTimeout(() => b.textContent = "Copiar", 1200); }); }
+function shareWA() { window.open("https://wa.me/?text=" + encodeURIComponent($("req").textContent), "_blank"); }
+function save() { const o = {}; IDS.forEach(id => o[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value); localStorage.setItem("personal_v1", JSON.stringify(o)); }
+function load() {
+  let o = {}; try { o = JSON.parse(localStorage.getItem("personal_v1") || "{}"); } catch (e) {}
+  IDS.forEach(id => { if (id in o) { if ($(id).type === "checkbox") $(id).checked = !!o[id]; else $(id).value = o[id]; } });
+  Object.entries(DEF).forEach(([id, v]) => { if ($(id).value === "") $(id).value = v; });
+}
+function resetAll() { localStorage.removeItem("personal_v1"); IDS.forEach(id => { if ($(id).type === "checkbox") $(id).checked = id === "ev_cc"; else $(id).value = ""; }); $("ev_tiempos").value = "3"; Object.entries(DEF).forEach(([id, v]) => $(id).value = v); calc(); }
+IDS.forEach(id => $(id).addEventListener("input", calc));
+load(); calc();
+</script>
+</body>
+</html>
