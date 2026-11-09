@@ -23,7 +23,7 @@ header h1{margin:0;flex:1;font:700 22px/1 var(--f-d);letter-spacing:.05em;text-t
 header a,header button{width:44px;height:44px;border:0;background:transparent;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:12px;text-decoration:none;padding:0}
 header svg{width:24px;height:24px}
 .tabs{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:4;display:flex;background:var(--wine);padding:0 8px}
-.tabs button{flex:1;border:0;background:transparent;color:#e3c9d3;padding:10px 4px 12px;font:600 14px var(--f-b);border-bottom:3px solid transparent}
+.tabs button{flex:1;min-width:0;border:0;background:transparent;color:#e3c9d3;padding:10px 4px 12px;font:600 14px var(--f-b);border-bottom:3px solid transparent}
 .tabs button[aria-selected=true]{color:#fff;border-bottom-color:#fff}
 .tabs small{opacity:.8;font-weight:500;margin-left:4px}
 main{padding:12px 12px 84px;max-width:900px;margin:0 auto}
@@ -155,8 +155,9 @@ body.inv .tabs{display:none}
 </header>
 <div class="modes" role="group"><button data-mode="compras" aria-pressed="true">Compras</button><button data-mode="inv" aria-pressed="false">Inventario<small id="nLow" hidden></small></button></div>
 <nav class="tabs" role="tablist">
-  <button role="tab" data-st="open" aria-selected="true">Sin pedir<small id="nOpen"></small></button>
-  <button role="tab" data-st="ordered" aria-selected="false">Pedidas, por llegar<small id="nOrd"></small></button>
+  <button role="tab" data-st="active" aria-selected="true">Activas<small id="nAct"></small></button>
+  <button role="tab" data-st="open" aria-selected="false">Sin pedir<small id="nOpen"></small></button>
+  <button role="tab" data-st="ordered" aria-selected="false">Por llegar<small id="nOrd"></small></button>
   <button role="tab" data-st="received" aria-selected="false">Recibidas<small id="nRec"></small></button>
 </nav>
 <main id="comprasView">
@@ -188,7 +189,7 @@ body.inv .tabs{display:none}
   const PRI = { high: 'Urgente', medium: 'Normal', low: 'Sin prisa' };
   const WHERE = ['', 'EE. UU.', 'México', 'En línea'];
   const CREW = ['EM', 'D', 'P/J', 'P', 'J'];
-  const S = { st: 'open', who: '', items: [], me: {} };
+  const S = { st: 'active', who: '', items: [], me: {} }; // default: everything not received yet (Eric, Nov 9)
   const toast = t => { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 3000); };
   const fmt = iso => iso ? new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '';
   // Estimated arrival (eta, YYYY-MM-DD): set when it's ordered, so everyone knows when it should get here (Eric, Nov 9)
@@ -213,11 +214,11 @@ body.inv .tabs{display:none}
   function render() {
     document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.st === S.st));
     const by = st => S.items.filter(i => (i.status || 'open') === st).length;
-    $('#nOpen').textContent = by('open') || ''; $('#nOrd').textContent = by('ordered') || ''; $('#nRec').textContent = by('received') || '';
-    const pool = S.items.filter(i => (i.status || 'open') === S.st);
+    $('#nAct').textContent = (by('open') + by('ordered')) || ''; $('#nOpen').textContent = by('open') || ''; $('#nOrd').textContent = by('ordered') || ''; $('#nRec').textContent = by('received') || '';
+    const pool = S.items.filter(i => S.st === 'active' ? (i.status || 'open') !== 'received' : (i.status || 'open') === S.st);
     const people = [...new Set(pool.map(i => i.asig).filter(Boolean))].sort();
     $('#who').innerHTML = people.length > 1 ? ['', ...people].map(p => `<button data-who="${esc(p)}" aria-pressed="${S.who === p}">${p || 'Todos'}</button>`).join('') : '';
-    const rows = pool.filter(i => !S.who || i.asig === S.who).sort((a, b) => ['high', 'medium', 'low'].indexOf(a.pri || 'medium') - ['high', 'medium', 'low'].indexOf(b.pri || 'medium') || (S.st === 'ordered' ? String(hasEta(a) ? a.eta : '9999').localeCompare(String(hasEta(b) ? b.eta : '9999')) : 0) || String(b.at).localeCompare(String(a.at)));
+    const rows = pool.filter(i => !S.who || i.asig === S.who).sort((a, b) => ['high', 'medium', 'low'].indexOf(a.pri || 'medium') - ['high', 'medium', 'low'].indexOf(b.pri || 'medium') || (S.st === 'active' ? ['open', 'ordered'].indexOf(a.status || 'open') - ['open', 'ordered'].indexOf(b.status || 'open') : 0) || (S.st !== 'open' ? String(hasEta(a) ? a.eta : '9999').localeCompare(String(hasEta(b) ? b.eta : '9999')) : 0) || String(b.at).localeCompare(String(a.at)));
     let h = '';
     for (const p of ['high', 'medium', 'low']) {
       const g = rows.filter(i => (i.pri || 'medium') === p); if (!g.length) continue;
@@ -231,7 +232,7 @@ body.inv .tabs{display:none}
           <div class="act">${(i.status || 'open') === 'received' ? `<button class="btn ghost" data-set="open">Reabrir (no llegó bien)</button>` : (i.status || 'open') === 'ordered' ? `<button class="btn next" data-set="received">Marcar como recibida</button><button class="btn ghost" data-set="open">Deshacer: no se pidió</button>` : `<button class="btn next" data-set="ordered">Marcar como pedida</button><button class="btn ghost" data-set="received">Ya llegó: marcar recibida</button>`}<button class="btn sq" data-edit aria-label="Editar">⋯</button></div>
         </article>`).join('') + '</div>';
     }
-    $('#list').innerHTML = h || `<div class="empty">${S.st === 'open' ? 'Nada pendiente. Toca <b>+ Compra</b> para agregar.' : 'Nada aquí.'}</div>`;
+    $('#list').innerHTML = h || `<div class="empty">${S.st === 'open' || S.st === 'active' ? 'Nada pendiente. Toca <b>+ Compra</b> para agregar.' : 'Nada aquí.'}</div>`;
   }
   function openForm(i) {
     const f = $('#f');
@@ -268,7 +269,7 @@ body.inv .tabs{display:none}
       if (v === 'ordered') patch.orderedAt = new Date().toISOString(); if (v === 'received') patch.receivedAt = new Date().toISOString();
       card.style.opacity = .5;
       try { await api('/' + encodeURIComponent(it.id), 'PATCH', patch); toast(v === 'ordered' ? 'Marcada como pedida · pon la fecha de llegada' : v === 'received' ? 'Recibida ✓' : 'Reabierta');
-        if (v === 'ordered') S.st = 'ordered';
+        if (v === 'ordered' && S.st === 'open') S.st = 'ordered';
         await load();
         // just ordered: open its arrival-date picker right away
         if (v === 'ordered') { const c = document.querySelector(`.pc[data-id="${CSS.escape(it.id)}"] [data-eta]`); if (c) { c.scrollIntoView({ block: 'center' }); c.click(); } }

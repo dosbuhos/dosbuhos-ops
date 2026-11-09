@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Compras opens on «Activas» · v1.16.3
+- New default tab «Activas» = everything not received (sin pedir + por llegar), grouped by priority, not-ordered first, then by arrival date; «Pedidas, por llegar» renamed «Por llegar» so the 4 tabs fit; marking ordered from Activas stays on Activas · Eric · public/purchases.html
+
 ## 2026-11-09 — Compras: arrival-date editor full size + "no estimate" · v1.16.2
 - The Llegada estimada editor uses full-size controls (date field full width, Guardar / Cancelar same height as the other buttons) · Eric
 - New «No sabemos todavía (sin fecha estimada)»: the card shows "Llegada: sin fecha estimada" with «Poner fecha», never late, sorted last (eta = "none") · public/purchases.html
