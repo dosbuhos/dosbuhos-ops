@@ -20,6 +20,12 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Compras: providers directory · v1.17.0
+- «Dónde / proveedor» is now free text with suggestions (known providers + every Dónde already used); a new name is added to the new `providers` collection by itself (crew can write it) · Eric: build a provider list as we go
+- Tapping a purchase's provider tag opens its card: contacto, teléfono/WhatsApp, email, web, notas, and how many purchases use it
+- Fix: editing a purchase whose Dónde wasn't one of the 3 fixed options (e.g. "Hector Ortiz…", "HACER VINO") used to blank it
+- Seeded: Hector Ortiz (filters), HACER VINO (Sentia strips), Enología Integral (ML bacteria) · public/purchases.html, src/index.js
+
 ## 2026-11-09 — Compras opens on «Activas» · v1.16.3
 - New default tab «Activas» = everything not received (sin pedir + por llegar), grouped by priority, not-ordered first, then by arrival date; «Pedidas, por llegar» renamed «Por llegar» so the 4 tabs fit; marking ordered from Activas stays on Activas · Eric · public/purchases.html
 
