@@ -301,7 +301,11 @@ self.addEventListener('fetch', e => {
   if (url.pathname === '/version.json') return; // always live
   if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.endsWith('.zip')) return; // downloads: straight from the network
   const isNav = e.request.mode === 'navigate';
-  const key = isNav ? (url.pathname.startsWith('/press') ? '/press/index.html' : '/index.html') : e.request;
+  const P = url.pathname.replace(/\/+$/, '') || '/';
+  const isPress = P === '/press' || P === '/press/index.html';
+  const isCard = P === '/' || P === '/index.html' || /^\/[a-z-]+$/.test(P) && !isPress;
+  if (isNav && !isPress && !isCard) return; // any other page (e.g. /press/library): straight from the network
+  const key = isNav ? (isPress ? '/press/index.html' : '/index.html') : e.request;
   e.respondWith(caches.open(VERSION).then(async c => {
     const cached = await c.match(key);
     const net = fetch(e.request).then(r => { if (r && r.ok) c.put(key, r.clone()); return r; }).catch(() => null);
