@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Data: carbonic pinks split into two wines
+- lots/carb-pinks ("Carbonic pinks (PS + CF)", L13 + L14) is now **Cab Franc carbónico** (L14 only: VC 230 L, 109 L → CF rosé 18/11); new lots/ps-carb **Petite Sirah carbónico (nouveau)** (L13: bottled 4/11, 159 bottles; the bottling record moved here) · Eric: they won't be blended, show them separately
+- Old carb-pinks plan items (blend trial PS+CF, combine in tank, early/standard bottle, weekly sensory) left as they were; Eric to decide whether to close them
+
 ## 2026-11-09 — Free SO₂ shown after additions (estimate "~") · v1.15.0
 - Every free-SO₂ number (wine table, wine card notes, barrel card, map, Lista) = last reading + SO₂ added since, shown as "~24" with "estimado · lectura 8/12/11" · Eric: the CF rosé showed 11 (the reading taken before the Oct 22 addition)
 - Wine table: per vessel (each barrel / tank) reading + its own additions, averaged over vessels read in the last 3 weeks; "ADD 16 MG/L" now counts as an addition (was PPM only), which also fixes the ≈ total SO₂
