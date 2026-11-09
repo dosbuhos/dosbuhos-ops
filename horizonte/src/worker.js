@@ -73,11 +73,8 @@ async function auth(request, env, url) {
   return null;
 }
 
-// POST /api/sync { ops: [{k, id, f, t}], cursor } → { cursor, changes: [{k, id, d}] }
-async function sync(request, env) {
-  const body = await request.json().catch(() => null);
-  if (!body || !Array.isArray(body.ops) || body.ops.length > 500) return json({ error: 'bad request' }, 400);
-  for (const op of body.ops) {
+async function applyOps(env, ops) {
+  for (const op of ops) {
     if (!validOp(op)) continue;
     const row = await env.DB.prepare('SELECT data, vers FROM rec WHERE kind = ? AND id = ?').bind(op.k, op.id).first();
     const cur = row ? { data: JSON.parse(row.data), vers: JSON.parse(row.vers) } : null;
@@ -87,16 +84,40 @@ async function sync(request, env) {
     await env.DB.prepare('INSERT INTO rec (kind, id, data, vers, seq) VALUES (?, ?, ?, ?, ?) ON CONFLICT (kind, id) DO UPDATE SET data = excluded.data, vers = excluded.vers, seq = excluded.seq')
       .bind(op.k, op.id, JSON.stringify(next.data), JSON.stringify(next.vers), seq).run();
   }
+}
+
+// POST /api/sync { ops: [{k, id, f, t}], cursor } → { cursor, changes: [{k, id, d}] }
+async function sync(request, env) {
+  const body = await request.json().catch(() => null);
+  if (!body || !Array.isArray(body.ops) || body.ops.length > 500) return json({ error: 'bad request' }, 400);
+  await applyOps(env, body.ops);
   const cursor = Number(body.cursor) || 0;
   const { results } = await env.DB.prepare('SELECT kind, id, data, seq FROM rec WHERE seq > ? ORDER BY seq LIMIT 2000').bind(cursor).all();
   const last = results.length ? results[results.length - 1].seq : cursor;
   return json({ cursor: last, more: results.length === 2000, changes: results.map(r => ({ k: r.kind, id: r.id, d: JSON.parse(r.data) })) });
 }
 
+// POST /api/import { ops } with header x-import-token: a one-time bulk import (Timestripe), sent from the browser tab that
+// holds the data. Only works while a matching, unexpired row exists in import_tokens.
+const IMPORT_ORIGINS = ['https://timestripe.com'];
+async function importOps(request, env) {
+  const origin = request.headers.get('origin') || '';
+  const cors = { 'access-control-allow-origin': IMPORT_ORIGINS.includes(origin) ? origin : 'null', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, x-import-token', vary: 'origin' };
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  const tok = request.headers.get('x-import-token') || '';
+  const ok = tok.length >= 32 && await env.DB.prepare('SELECT 1 FROM import_tokens WHERE token = ? AND expires_at > ?').bind(tok, Date.now()).first();
+  if (!ok) return new Response('{"error":"forbidden"}', { status: 403, headers: { ...cors, 'content-type': 'application/json' } });
+  const body = await request.json().catch(() => null);
+  if (!body || !Array.isArray(body.ops) || body.ops.length > 500) return new Response('{"error":"bad request"}', { status: 400, headers: cors });
+  await applyOps(env, body.ops);
+  return new Response(JSON.stringify({ ok: true, n: body.ops.length }), { headers: { ...cors, 'content-type': 'application/json' } });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/auth/')) return (await auth(request, env, url)) || new Response('Not found', { status: 404 });
+    if (url.pathname === '/api/import') return importOps(request, env);
     if (url.pathname.startsWith('/api/')) {
       const user = await currentUser(request, env).catch(() => null);
       if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: !!(env.GOOGLE_CLIENT_SECRET && env.SESSION_SECRET) }, user ? 200 : 401);
