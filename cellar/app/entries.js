@@ -107,6 +107,7 @@
         <div class="en-others"></div>
         <button type="button" class="btn sm" data-oadd>+ otro parámetro</button>
       </details>
+      ${o && E.labsOn ? `<div class="en-file"><label class="btn sm en-up">📷 Agregar fotos<input type="file" accept="image/*" multiple hidden data-wop></label><span class="en-wopn"></span></div>` : ''}
       <div class="en-file">${E.labsOn ? `<label class="btn sm en-up">Subir hoja de lab (PDF o foto)<input type="file" accept="application/pdf,image/*" hidden data-fup></label><span class="en-fname"></span>` : `<small class="en-hint">Subida de laboratorio aún no activada.</small>`}</div>
       ${o && !o.ini ? `<label class="rs-done"><input type="checkbox" id="enDone" checked> Marcar la orden como hecha</label>` : ''}
       <div class="err" id="enErr" role="alert"></div>
@@ -134,6 +135,15 @@
     const calcBl = () => { const bl = $('[data-bl]', form); if (!bl) return; const l = $$('.mv-f', form).reduce((s, r) => s + (+$('[data-fml]', r).value || 0) * (+$('[data-fn]', r).value.replace(/[.,\s]/g, '') || 0), 0) / 1000; bl.placeholder = l ? (Math.round(l * 10) / 10) + ' (calculado)' : 'se calcula'; };
     form.addEventListener('input', e => { if (e.target.matches('[data-fn]')) calcBl(); });
     form.addEventListener('change', e => { if (e.target.name === 'mvsrc') $('.mv-left', form).hidden = e.target.value !== 'left'; if (e.target.matches('[data-fml]')) calcBl(); });
+    // Photos for this order: shrunk on the phone (max 1600 px) and uploaded right away, tied to the Excellovint row
+    const wop = $('[data-wop]', form);
+    if (wop) wop.addEventListener('change', async () => {
+      const files = [...wop.files]; if (!files.length) return; const st = $('.en-wopn', form); let ok = 0;
+      for (const f of files) { st.textContent = 'Subiendo ' + (ok + 1) + ' de ' + files.length + '…';
+        try { const blob = await shrink(f); await api('/api/wophotos?tab=' + encodeURIComponent(o.tab) + '&row=' + o.row + '&name=' + encodeURIComponent(f.name || 'foto'), { method: 'POST', headers: { 'content-type': blob.type }, body: blob }); ok++; }
+        catch (err) { st.textContent = 'No se subió ' + (f.name || 'la foto') + ': ' + err.message; return; } }
+      st.textContent = ok + (ok === 1 ? ' foto agregada ✓' : ' fotos agregadas ✓'); E.photosAt = 0; decorateOrders();
+    });
     const fup = $('[data-fup]', form);
     if (fup) fup.addEventListener('change', async () => {
       const f = fup.files[0]; if (!f) return;
@@ -435,14 +445,24 @@
   }
   const label = k => { const p = E.params.find(x => x.k === k); return p ? p.label : k; };
   const valLine = r => Object.entries(r.values || {}).map(([k, v]) => label(k) + ' ' + v).concat((r.others || []).map(o => o.name + ' ' + o.value)).join(' · ');
+  async function shrink(f) {
+    try { const bmp = await createImageBitmap(f), k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      return await new Promise(r => c.toBlob(b => r(b || f), 'image/jpeg', 0.82)); } catch (e) { return f; } }
+  async function photos() {
+    if (E.photos && Date.now() - E.photosAt < 60000) return E.photos;
+    try { E.photos = (await api('/api/wophotos')).rows || []; E.photosAt = Date.now(); } catch (e) { E.photos = E.photos || []; }
+    return E.photos; }
   async function decorateOrders() {
     const slots = $$('.asg-results[data-results]'); if (!slots.length) return;
     await load().catch(() => {});
-    const rows = await entries();
+    const [rows, ph] = await Promise.all([entries(), photos()]);
     for (const s of slots) {
       const [tab, row] = s.dataset.results.split('|');
       const mine = rows.filter(r => r.order && r.order.tab === tab && String(r.order.row) === row);
-      const h = mine.map(r => `<span class="en-res"><b>${esc(dm(r.date))} · ${esc(r.signer)}</b>${r.ubi ? ' · ' + esc(r.ubi) : ''}${valLine(r) ? ' · ' + esc(valLine(r)) : ''}${r.note ? ' · ' + esc(r.note) : ''}</span>`).join('');
+      const pics = ph.filter(x => x.tab === tab && String(x.row) === row).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+      const h = mine.map(r => `<span class="en-res"><b>${esc(dm(r.date))} · ${esc(r.signer)}</b>${r.ubi ? ' · ' + esc(r.ubi) : ''}${valLine(r) ? ' · ' + esc(valLine(r)) : ''}${r.note ? ' · ' + esc(r.note) : ''}</span>`).join('') +
+        (pics.length ? `<span class="en-pics">${pics.map(x => `<a href="/api/wophotos/file?h=${esc(x.h)}" target="_blank" rel="noopener" title="${esc(dm(String(x.at).slice(0, 10)) + ' · ' + (x.by || ''))}"><img src="/api/wophotos/file?h=${esc(x.h)}" alt="Foto de la orden" loading="lazy"></a>`).join('')}</span>` : '');
       if (s.__h !== h) { s.__h = h; s.innerHTML = h; }
     }
   }

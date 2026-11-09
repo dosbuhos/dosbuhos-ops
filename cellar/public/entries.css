@@ -17,6 +17,9 @@
 .en-x { border: 0; background: none; font-size: 20px; color: var(--muted); cursor: pointer; }
 .en-file { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 10px; }
 .en-up { cursor: pointer; }
+.en-pics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.en-pics img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); display: block; }
+.en-wopn { font-size: 13px; color: #4a5154; }
 .en-toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 200; background: #1f1d1b; color: #fff; padding: 10px 16px; font: 600 14px var(--f-body); max-width: calc(100vw - 32px); box-shadow: var(--shadow); }
 .en-toast[hidden] { display: none; }
 /* × close in the top-right of the sheets */

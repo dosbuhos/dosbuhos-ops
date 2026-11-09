@@ -85,7 +85,7 @@ export default {
         return J(r.body, r.status);
       }
       if (p === '/api/chat' && request.method === 'GET') return J({ messages: await chatHistory(env, { initials }) });
-      if (p === '/api/params' || p === '/api/entries' || p.startsWith('/api/labs')) {
+      if (p === '/api/params' || p === '/api/entries' || p.startsWith('/api/labs') || p.startsWith('/api/wophotos')) {
         const r = await entriesRoute(request, env, p, url, { initials, canWrite, crew, email });
         if (r) return r.raw || J(r.body, r.status);
       }

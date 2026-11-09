@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-09 — Photos on work orders · v1.18.0
+- «Anotar resultados» on a work order has «📷 Agregar fotos» (several at once); photos are shrunk on the phone (≤1600 px JPEG), stored in R2 (`wo/…`, same bucket as lab files) with a `wophotos` doc tied to the Excellovint tab + row, and shown as thumbnails under the order (tap = full size) · Eric: fridge-test jar photos
+- New API: GET/POST /api/wophotos, GET /api/wophotos/file?h= · src/entries.js, src/index.js, app/entries.js, app/entries.css
+
 ## 2026-11-09 — Compras: sheets close with × or tapping outside · v1.17.1
 - Every Compras / Inventario sheet (edit purchase, provider, inventory forms) has a × at the top right and closes when you tap outside it; before, only Cancelar worked · Eric · public/purchases.html
 

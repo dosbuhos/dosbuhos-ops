@@ -168,6 +168,34 @@ export async function entriesRoute(request, env, p, url, user) {
       if (!['result', 'note'].includes(b.kind)) return J({ message: 'kind?' }, 400);
       return J(await writeEntry(env, b, user));
     }
+    // Work-order photos (fridge test jars, barrels, tanks…): stored in R2 next to the lab files, tied to an Excellovint row.
+    if (p.startsWith('/api/wophotos')) {
+      if (p === '/api/wophotos' && request.method === 'GET') {
+        const since = url.searchParams.get('since') || '';
+        const rows = (await list(env, 'wophotos')).filter(x => !since || String(x.at || '') >= since).map(x => ({ h: x.id, tab: x.tab, row: x.row, name: x.name, by: x.by, at: x.at }));
+        return J({ rows });
+      }
+      if (!env.LABS) return J({ message: 'Fotos aún no activadas.' }, 503);
+      if (p === '/api/wophotos/file') {
+        const f = await get(env, 'wophotos', url.searchParams.get('h') || ''); if (!f) return J({ message: 'No existe.' }, 404);
+        const obj = await env.LABS.get(f.key); if (!obj) return J({ message: 'No existe.' }, 404);
+        return { raw: new Response(obj.body, { headers: { 'content-type': f.type || 'image/jpeg', 'cache-control': 'private, max-age=86400' } }) };
+      }
+      if (!user.canWrite) return J({ message: 'Solo lectura.' }, 403);
+      if (p === '/api/wophotos' && request.method === 'POST') {
+        const type = (request.headers.get('content-type') || '').split(';')[0];
+        if (!/^image\/(jpeg|png|webp|heic)$/.test(type)) return J({ message: 'Sube una foto (JPG/PNG).' }, 400);
+        const tab = cell(url.searchParams.get('tab')), row = +url.searchParams.get('row') || 0;
+        if (!tab || !row) return J({ message: '¿De qué orden es la foto?' }, 400);
+        const buf = await request.arrayBuffer(); if (buf.byteLength > 12 * 1024 * 1024) return J({ message: 'La foto pasa de 12 MB.' }, 400);
+        const hash = await sha256Hex(buf), key = 'wo/' + hash + '.' + type.split('/')[1];
+        if (!(await get(env, 'wophotos', hash))) await env.LABS.put(key, buf, { httpMetadata: { contentType: type } });
+        const f = { key, tab, row, name: cell(url.searchParams.get('name')).slice(0, 120), type, size: buf.byteLength, by: user.initials || '', at: new Date().toISOString() };
+        await put(env, 'wophotos', hash, f);
+        return J(Object.assign({ h: hash }, f));
+      }
+      return null;
+    }
     if (p.startsWith('/api/labs')) {
       if (p === '/api/labs' && request.method === 'GET') {
         const [labs, files] = await Promise.all([list(env, 'labs'), list(env, 'labfiles')]);
