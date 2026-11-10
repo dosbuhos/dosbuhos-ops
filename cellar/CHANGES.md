@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-10 — Vinos: «Guarda» tab · v1.19.0
+- New tab next to Vinos: «Guarda» lists the older-vintage wines aging in barrel (lots in phase "cellar") in the same wine table, with their numbers and work orders. Vinos keeps only this year's production; Barricas is unchanged · Eric wanted the 2023–25 reds as lot records without breaking the Barricas layout · app/cellar-targets.html
+- Data (no code): new Excellovint tabs L27 CF24, L28 CF25, L29 CS25, L30 MM25 (+ Monte25/MM), L31 MONTE25, L32 MONTE24, L33 MONTE23, L34 GR25 (+ GR25/TE23), L35 AG25, linked to Paris's w-nv-* lots (code + sheet). Named L27+ because every tab filter in the app reads /^L\d/.
+
 ## 2026-11-09 — Photos on work orders · v1.18.0
 - «Anotar resultados» on a work order has «📷 Agregar fotos» (several at once); photos are shrunk on the phone (≤1600 px JPEG), stored in R2 (`wo/…`, same bucket as lab files) with a `wophotos` doc tied to the Excellovint tab + row, and shown as thumbnails under the order (tap = full size) · Eric: fridge-test jar photos
 - New API: GET/POST /api/wophotos, GET /api/wophotos/file?h= · src/entries.js, src/index.js, app/entries.js, app/entries.css

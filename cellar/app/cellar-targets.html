@@ -1371,6 +1371,7 @@ body { background-image: none !important; font-family: var(--f-body); }
   <section class="wines" id="winesView" role="tabpanel" aria-labelledby="tabWines">
     <div class="wmode" id="wmode" role="tablist" aria-label="Vinos, tanques o barricas">
       <button type="button" role="tab" data-wm="prod" aria-selected="true">Vinos <small id="wmProdN"></small></button>
+      <button type="button" role="tab" data-wm="guarda" aria-selected="false" title="Vinos de añadas anteriores en guarda">Guarda <small id="wmGuardaN"></small></button>
       <button type="button" role="tab" data-wm="tanks" aria-selected="false">Tanques <small id="wmTankN"></small></button>
       <button type="button" role="tab" data-wm="cellar" aria-selected="false">Barricas <small id="wmCellarN"></small></button>
       <button type="button" role="tab" data-wm="bottled" aria-selected="false">Embotellado <small id="wmBottleN"></small></button>
@@ -4547,6 +4548,7 @@ Return ONLY JSON with this shape:
     const bottledV = S.wmode === "bottled";
     const cellar = S.wmode === "cellar" || S.wmode === "tanks" || bottledV;
     $("wmProdN").textContent = productionLots().length || "";
+    $("wmGuardaN").textContent = cellarLots().length || "";
     $("wmCellarN").textContent = window.cellarFullBarrels != null ? window.cellarFullBarrels : ""; // barrels holding wine (cellar-room.js)
     $("wmTankN").textContent = window.cellarFullTanks != null ? window.cellarFullTanks : "";
     document.querySelectorAll("#wmode [data-wm]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.wm === S.wmode))); { const sel = document.querySelector("#wmode [aria-selected=\"true\"]"), wm = $("wmode"); if (sel && wm && wm.scrollWidth > wm.clientWidth) wm.scrollLeft = Math.max(0, sel.offsetLeft - (wm.clientWidth - sel.offsetWidth) / 2); }
@@ -4565,7 +4567,7 @@ Return ONLY JSON with this shape:
         : `<tr class="empty-row"><td colspan="15"><strong>No hay lotes archivados.</strong></td></tr>`;
       renderStats([]); return;
     }
-    const all = productionLots();
+    const all = S.wmode === "guarda" ? cellarLots() : productionLots(); // Guarda: older vintages aging (phase "cellar"), same table
     renderStats(all);
     if (!all.length) { body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines yet.</strong><br>Claude adds the cellar's lots here.</td></tr>`; return; }
     let lots = all.filter(l => inGroup(l.group) && matchQ(l) && quickTest(l));
