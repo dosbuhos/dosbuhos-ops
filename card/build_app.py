@@ -184,6 +184,57 @@ tpl = open(os.path.join(ROOT, "app_template.html"), encoding="utf-8").read()
 html = tpl
 for k, v in LINKS.items():
     html = html.replace("__" + k + "__", v)
+# ---- where to find us (press page + card app). Mexico: "Dónde encontrar Dos Búhos en México", CRM + Zoho, cut Nov 10 2026. US: 2026 sales report.
+def L(en, es=None): return (en, es or en)
+WHERE = [
+  {"en": "Mexico", "es": "México", "rows": [
+    (L("Distributors", "Distribuidores"), [
+      L("Cactus Wine (Los Cabos)"), L("Grandes Viñedos de Francia (Mexico City)", "Grandes Viñedos de Francia (CDMX)"), L("Acuyo (Mexico City, Oaxaca)", "Acuyo (CDMX, Oaxaca)"),
+      L("Vivid Distribución (Mexico City)", "Vivid Distribución (CDMX)"), L("La Castellana · Viña del Mar (Cancún, Riviera Maya)"), L("Anónima de Vinos (Mérida, Yucatán)"),
+      L("Viña del Puerto (Puerto Vallarta, Riviera Nayarit)"), L("Vinos PVR (Puerto Vallarta)"), L("Hipervinos (Guadalajara)"), L("Decantum (Puebla, Cholula)"),
+      L("El Chaneque (Oaxaca, Chiapas, Acapulco)"), L("Cuarto de Vinos (Oaxaca)"), L("VINPAR Wine Club (Monterrey)"), L("Corpovino (León, the Bajío)", "Corpovino (León, Bajío)"),
+      L("Wine House (Ciudad Juárez)"), L("Disruptivo Vinos y Espíritus (San Miguel de Allende)"), L("Cava Sautto (San Miguel de Allende)")]),
+    (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
+      (L("San Miguel de Allende"), "Rosewood San Miguel de Allende · Pueblo Bonito · Hacienda El Santuario · Hotel Real de Minas · Our Habitas · Mesón Amelia · Maison Mexique · Hortus (Panio) · Tostevere · Trazo · Pork Belly · Malanquín · Casa Agave · Florios · Amatte · Il Mercantino · Don Valente · Cielo · Naakary · Asador Catalán · Enrike · Local · Selina · Hanks · Aperi · Amapola"),
+      (L("Mexico City", "Ciudad de México"), "Pujol · Rosetta · Quintonil · Nicos · Migrante · Raíz · Mercaderes · Carmela y Sal · Lotti · 88 Cantina · Si Mon · The Lamb · Unicornio · Mesón Santiago · Camino Real · Los Canarios (Hotel Marquis) · Daikoku · Delizia · Pargot · La Soldadera · Marmota · Baldío · Tintico · Común · Josema Enoteca · Querétaro 33 · Deigo · Filigrana · Hotel Volga"),
+      (L("Querétaro &amp; Guanajuato", "Querétaro y Guanajuato"), "Asador de Campo · Hacienda La Laborcilla, Bistro Lounge (Querétaro) · Di María (Guanajuato)"),
+      (L("Coast", "Costa"), "Rosewood Mayakoba (Riviera Maya) · Ventanas al Paraíso (Los Cabos) · Musa (Zihuatanejo) · Praya (Acapulco)"),
+      (L("Elsewhere", "Otras plazas"), "Hotel Rodavento (Valle de Bravo) · Unu (Cholula)")]),
+    (L("Shops", "Tiendas"), [L("Cava Sautto (San Miguel de Allende) · Fiambrería, Cueva del Gourmet, Vyno, Artenda, Charcutería, Gourmetía y Punto (Mexico City) · Blume Deli (Querétaro)", "Cava Sautto (San Miguel de Allende) · Fiambrería, Cueva del Gourmet, Vyno, Artenda, Charcutería, Gourmetía y Punto (CDMX) · Blume Deli (Querétaro)")]),
+    (L("At the winery", "En la bodega"), [L("Shop, restaurant and El Jardín del Vino in San Miguel de Allende, and the online shop", "Tienda, restaurante y El Jardín del Vino en San Miguel de Allende, y la tienda en línea")]),
+  ]},
+  {"en": "United States", "es": "Estados Unidos", "rows": [
+    (L("Importer", "Importador"), [L("La Competencia Imports")]),
+    (L("Distributors", "Distribuidores"), [L(x) for x in ["Alluvial Wine &amp; Spirits (California)", "Compa Spirits (Arizona)", "RNDC (Colorado, Texas)", "RBG Spirits &amp; Wine (Colorado, Texas)", "Maverick Beverage Co. (Illinois, Minnesota)", "Great Lakes Wine &amp; Spirits (Michigan)", "Prime Wine &amp; Spirits / Chalkboard (Georgia)", "Breakthru Beverage / Aspect (Florida)", "Salveto Imports (Virginia)", "VOS Selections (New York)", "Lipman Brothers (Tennessee)"]]),
+    (L("Shops", "Tiendas"), [L("Wally's Wine &amp; Spirits, Northgate Market, Bird Rock Fine Wine, Alta Baja Market (California) · Superior Liquor Market (Colorado) · HOU Wine, Put a Cork In It (Texas)")]),
+    (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
+      (L("California"), "Californios · Finca · The 1894 · San Manuel Casino"),
+      (L("Colorado"), "Alma Fonda Fina · Tamayo · Alteño · Agave Blue · The Crawford Hotel at Denver Union Station"),
+      (L("Texas"), "Mixtli · Caracol · Zaranda · The Dunlavy · Pappas Bros. Steakhouse · Toca Madera · Mayahuel · Maya Maroma · Puerto Cocina · Maria's Mexican Kitchen · The Olive Branch · 1 Hotel Austin")]),
+  ]},
+]
+def _bi(t): return f'<span class="en">{t[0]}</span><span class="es">{t[1]}</span>' if t[0] != t[1] else t[0]
+def _items(items, sep):
+    if items and isinstance(items[0], tuple) and isinstance(items[0][0], tuple):  # grouped by region
+        return "<br>".join(f'<b>{_bi(r)}:</b> {txt}' for r, txt in items)
+    return sep.join(_bi(i) for i in items)
+def where_press():
+    out = ['  <section id="where">', '    <h2 class="en">Where to find us</h2><h2 class="es">Dónde encontrarnos</h2>']
+    for c in WHERE:
+        out.append(f'    <h3>{_bi((c["en"], c["es"]))}</h3>\n    <dl>')
+        for lab, items in c["rows"]:
+            out.append(f'      <dt>{_bi(lab)}</dt><dd>{_items(items, " · ")}</dd>')
+        out.append('    </dl>')
+    out.append('    <p class="cinfo"><span class="en">Accounts as of November 2026. Anywhere else, the winery ships direct.</span><span class="es">Cuentas a noviembre de 2026. En otras plazas, la bodega vende directo.</span></p>\n  </section>')
+    return "\n".join(out)
+def where_app():
+    out = []
+    for c in WHERE:
+        out.append(f'<h4 class="wh-c">{_bi((c["en"], c["es"]))}</h4>')
+        for lab, items in c["rows"]:
+            out.append(f'<div class="wh-r"><div class="wh-l">{_bi(lab)}</div><p>{_items(items, " · ")}</p></div>')
+    return "\n".join(out)
+html = html.replace("__WHERE_APP__", where_app())
 html = html.replace("__AWARDS_JS__", json.dumps(AWARDS, ensure_ascii=False)).replace("__WINES_JS__", json.dumps(WINES_APP, ensure_ascii=False)).replace("__VIDEOS_JS__", json.dumps(VIDEOS, ensure_ascii=False)).replace("__PEOPLE__", json.dumps(PEOPLE, ensure_ascii=False)).replace("__QR__", json.dumps(qr)).replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False))
 open(os.path.join(PUB, "index.html"), "w", encoding="utf-8").write(html)
 
@@ -232,7 +283,10 @@ def wine_html(w):
     if w["pair_en"]: h += f'<p class="pair"><span class="en">{w["pair_en"]}</span><span class="es">{w["pair_es"]}</span></p>'
     if w["todo"]: h += f'<p class="todo">[{w["todo"]}]</p>'
     return h + '</div>'
+
 press = open(os.path.join(ROOT, "press_template.html"), encoding="utf-8").read()
+import re as _re
+press = _re.sub(r"  <section id=\"where\">.*?</section>", lambda m: where_press(), press, count=1, flags=_re.S)
 MED = {"gg":("Grand Gold","Gran Oro"),"g":("Gold","Oro"),"s":("Silver","Plata"),"b":("Bronze","Bronce"),"m":("CMB Merit","CMB Merit")}
 def _aw_cards():
     # one card per competition: medal discs, or big scores for the guide
