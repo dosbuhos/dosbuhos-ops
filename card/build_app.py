@@ -111,12 +111,12 @@ WINES_APP = [
      "price":988,"url":"https://dosbuhos.com/product/vin-dorange/","label":"vin-dorange","awards":[]},
 ]
 
-# Awards — from Dos_Búhos_Premios.xlsx + Puntos 2027 (newest first). medal keys: gg=Grand Gold, g=Gold, s=Silver, b=Bronze, m=CMB Merit, p=points
+# Awards — from Dos_Búhos_Premios.xlsx + Gerschman guide 2027 (newest first). medal keys: gg=Grand Gold, g=Gold, s=Silver, b=Bronze, m=CMB Merit, p=points
 AWARDS = [
   {"comp":"Concours Mondial de Bruxelles","year":2026,"icon":"cmb","items":[["Grenache 2021","s"],["Aglianico 2022","m"],["Anaranjado 2023","m"],["Sauvignon Blanc 2024","m"],["1524 Moscato Giallo 2025","m"]]},
   {"comp":"Bacchus · Unión Española de Catadores","year":2026,"icon":"bacchus","items":[["Tempranillo 2022","g"],["Anaranjado 2023","g"]]},
   {"comp":"Los Angeles International Wine Competition","year":2026,"icon":"la","items":[["Chenin Blanc 2024","s"],["Aglianico 2021","s"],["Tempranillo 2022","b"]]},
-  {"comp":"Puntos 2027","year":2027,"icon":"","items":[["Aglianico 2020","97 pts"],["Tempranillo 2022","93 pts"],["Cabernet Franc Gran Reserva 2022","93 pts"],["1524 Mosaico Tinto 2023","92 pts"],["Chenin Blanc 2024","89 pts"],["Grenache Gran Reserva 2021","88 pts"]]},
+  {"comp":"Guía de Vinos Mexicanos · Rodolfo Gerschman","year":2027,"icon":"","items":[["Aglianico 2020","97 pts"],["Tempranillo 2022","93 pts"],["Cabernet Franc Gran Reserva 2022","93 pts"],["1524 Mosaico Tinto 2023","92 pts"],["Chenin Blanc 2024","89 pts"],["Grenache Gran Reserva 2021","88 pts"]]},
   {"comp":"Concours Mondial de Bruxelles","year":2025,"icon":"cmb","items":[["Tempranillo 2020","s"],["Sauvignon Blanc 2024","s"]]},
   {"comp":"Los Angeles International Wine Competition","year":2025,"icon":"la","items":[["Moscato Giallo Pet Nat 2022","g"],["Espumoso Rosado 2020","s"],["Aglianico 2020","s"]]},
   {"comp":"Concours Mondial de Bruxelles","year":2024,"icon":"cmb","items":[["Grenache 2019","gg"],["Anaranjado 2021","s"],["1524 Espumoso Blanco 2022","s"],["Grenache 2020","s"]]},
@@ -249,7 +249,7 @@ rows = []
 for a in AWARDS:
     for wine, med in a["items"]:
         en, es = MED.get(med, (med, med))
-        rows.append(f'<tr><td class="w">{wine}</td><td class="m"><span class="en">{en}</span><span class="es">{es}</span></td><td>{a["comp"]}{(" " + str(a["year"])) if a["year"] and a["comp"] != "Puntos 2027" else ""}</td></tr>')
+        rows.append(f'<tr><td class="w">{wine}</td><td class="m"><span class="en">{en}</span><span class="es">{es}</span></td><td>{a["comp"]}{(" " + str(a["year"])) if a["year"] else ""}</td></tr>')
 press = press.replace("__AWARDS_TABLE__", "<table class=\"aw\"><tr><th class=\"en\">Wine</th><th class=\"es\">Vino</th><th class=\"en\">Award</th><th class=\"es\">Premio</th><th class=\"en\">Competition</th><th class=\"es\">Concurso</th></tr>" + "\n".join(rows) + "</table>")
 press = press.replace("__WINES__", "\n".join(wine_html(w) for w in WINES)).replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False))
 press = press.replace("__OPENTABLE__", LINKS["OPENTABLE"]).replace("__MAPS__", LINKS["MAPS"]).replace("__WA_MAIN__", WA_MAIN).replace("__PRESS_EMAIL__", PRESS_EMAIL).replace("__MARKETING_EMAIL__", MARKETING_EMAIL)

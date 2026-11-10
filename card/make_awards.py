@@ -11,9 +11,8 @@ def page(L):
     blocks=[]
     for a in AWARDS:
         name=a['comp']
-        if name=='Puntos 2027': name={'en':'Scores · 2027 editions','es':'Puntajes · ediciones 2027'}[L]
-        elif name=='Catadores del Vino Mexicano': name='Guía Catadores del Vino Mexicano'
-        yr=f" {a['year']}" if a['year'] and 'Puntos' not in a['comp'] else ''
+        if name=='Catadores del Vino Mexicano': name='Guía Catadores del Vino Mexicano'
+        yr=f" {a['year']}" if a['year'] else ''
         rows=''.join(f"<tr><td>{w}</td><td class='m {m}'>{(MED[m][i] if m in MED else m)}</td></tr>" for w,m in a['items'])
         blocks.append(f"<section><h2>{name}{yr}</h2><table>{rows}</table></section>")
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>

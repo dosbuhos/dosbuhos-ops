@@ -648,7 +648,7 @@ const ac = document.getElementById('award-car');
 AWARDS.forEach(a => { const d = document.createElement('div'); d.className = 'slide';
   const lines = a.items.slice(0, 6).map(([w, m]) => { const mm = MEDAL[m]; const lab = mm ? `<span class="en">${mm[0]}</span><span class="es">${mm[1]}</span>` : m; return `<div class="ln"><b>${w}</b><i class="${mm ? m : 'p'}">${lab}</i></div>`; }).join('');
   const more = a.items.length > 6 ? `<div class="more"><span class="en">+ ${a.items.length - 6} more in the press kit</span><span class="es">+ ${a.items.length - 6} más en el kit de prensa</span></div>` : '';
-  d.innerHTML = `<div class="acard">${a.icon ? `<img src="/icons/${a.icon}.png" alt="">` : ''}<div class="comp">${a.comp}</div><div class="yr">${a.year && a.comp !== 'Puntos 2027' ? a.year : (a.comp === 'Puntos 2027' ? '2027' : '')}</div>${lines}${more}</div>`;
+  d.innerHTML = `<div class="acard">${a.icon ? `<img src="/icons/${a.icon}.png" alt="">` : ''}<div class="comp">${a.comp}</div><div class="yr">${a.year || ''}</div>${lines}${more}</div>`;
   ac.appendChild(d); });
 const pc = document.getElementById('photo-car');
 PHOTOS.forEach(p => { const d = document.createElement('div'); d.className = 'slide';
