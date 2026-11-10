@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-10 — Vinos: active filter tile stands out; "no wines match" hint in bold · v1.19.2
+- The summary tile you tap to filter (e.g. "No lab in 3+ weeks") now turns light maroon with a maroon border and label when it's on, and the "Clear the search or the filter above" line is bold · Eric lost the wine list to a filter he didn't notice was on · app/cellar-targets.html (CSS + empty-row text)
+
 ## 2026-11-10 — Guarda: barrel numbers on each wine · v1.19.1
 - Each wine row in Guarda shows its barrels under the lot code (BBL 68, 69, …), from the barrel registry (barrels whose wine is that lot) · Eric wanted lot + barrels at a glance · app/cellar-room.js publishes window.cellarBarrelsByLot; app/cellar-targets.html shows it in Guarda only
 

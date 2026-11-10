@@ -573,7 +573,8 @@ button.lot-name:hover { text-decoration-color: var(--accent); color: var(--accen
 .stat span { font-size: 11.5px; color: var(--muted); line-height: 1.2; }
 .stat.warn b { color: var(--decide); }
 .stat.bad b { color: var(--bottle); }
-.stat[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.stat[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.stat[aria-pressed="true"] span { color: var(--accent); font-weight: 600; }
 .stat:disabled { cursor: default; }
 .src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12.5px; color: var(--muted); }
 .src .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
@@ -4587,7 +4588,7 @@ Return ONLY JSON with this shape:
     if (!all.length) { body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines yet.</strong><br>Claude adds the cellar's lots here.</td></tr>`; return; }
     let lots = all.filter(l => inGroup(l.group) && matchQ(l) && quickTest(l));
     if (!lots.length) {
-      body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines match.</strong><br>Clear the search or the filter above to see every wine.</td></tr>`;
+      body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines match.</strong><br><strong>Clear the search or the filter above to see every wine.</strong></td></tr>`;
       return;
     }
     const sorted = sortLots(lots);
