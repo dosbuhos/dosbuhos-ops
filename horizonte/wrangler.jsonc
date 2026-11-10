@@ -22,8 +22,8 @@
   "vars": {
     // Only this Google account can sign in. Eric's personal planner, not part of the Hub.
     "OWNER_EMAIL": "emaycotte@gmail.com",
-    // Same OAuth client as the Hub; add https://horizonte.dos-buhos.workers.dev/auth/callback as a redirect URI.
-    "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com"
+    // Horizonte's own OAuth client ("Horizonte" in Google Cloud project dos-buhos), separate from the Hub's.
+    "GOOGLE_CLIENT_ID": "700169529332-h8g8o6bgvmu96jq77e70da5v51r2oojn.apps.googleusercontent.com"
   }
   // Sign-in needs no secret (Google button; ID token checked against Google's public keys).
   // Google Calendar sync needs the secret GOOGLE_CLIENT_SECRET (added by Eric in the dashboard) to keep a refresh token.
