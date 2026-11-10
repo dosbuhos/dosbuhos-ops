@@ -129,12 +129,17 @@ AWARDS = [
 
 # Videos — poster may be a remote URL (YouTube thumb) with a local fallback layered under it. Each: title (en/es), blurb (en/es), poster (image in public/), and either src (mp4/HLS URL, e.g. Cloudflare Stream/R2) or embed (YouTube/Vimeo embed URL); dur optional. Empty src+embed = "coming soon" card.
 VIDEOS = [
-    {"title_en": "Bodega Dos Búhos, San Miguel de Allende", "title_es": "Bodega Dos Búhos, San Miguel de Allende",
-     "blurb_en": "A visit from Guía de Vinos Mexicanos: the vineyard, the cellar, the people.", "blurb_es": "Una visita de Guía de Vinos Mexicanos: el viñedo, la bodega, la gente.",
-     "poster": "https://i.ytimg.com/vi/F3VZHRI4G6o/hqdefault.jpg", "fallback": "/photos/cellar.jpg", "src": "", "embed": "https://www.youtube-nocookie.com/embed/F3VZHRI4G6o?rel=0&modestbranding=1&playsinline=1&autoplay=1", "dur": ""},
     {"title_en": "Dos Búhos — an introduction", "title_es": "Dos Búhos — introducción",
      "blurb_en": "Who we are and why we farm this way, in one minute.", "blurb_es": "Quiénes somos y por qué cultivamos así, en un minuto.",
      "poster": "/videos/introduccion.jpg", "src": "/videos/introduccion.mp4", "embed": "", "dur": "0:57"},
+    {"title_en": "Bodega Dos Búhos, San Miguel de Allende", "title_es": "Bodega Dos Búhos, San Miguel de Allende",
+     "blurb_en": "A visit from Guía de Vinos Mexicanos: the vineyard, the cellar, the people.", "blurb_es": "Una visita de Guía de Vinos Mexicanos: el viñedo, la bodega, la gente.",
+     "poster": "https://i.ytimg.com/vi/F3VZHRI4G6o/hqdefault.jpg", "fallback": "/photos/cellar.jpg", "src": "", "embed": "https://www.youtube-nocookie.com/embed/F3VZHRI4G6o?rel=0&modestbranding=1&playsinline=1&autoplay=1", "dur": ""},
+    {"title_en": "Rosewood San Miguel de Allende visits Dos Búhos", "title_es": "Rosewood San Miguel de Allende visita Dos Búhos", "blurb_en": "The hotel's own film about the vineyard, the wine and the art.", "blurb_es": "El video del hotel sobre el viñedo, el vino y el arte.", "poster": "/photos/chapel-facade.jpg", "src": "", "embed": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2FRosewoodSanMiguel%2Fvideos%2F2013971269309013%2F&show_text=False&autoplay=True", "dur": "", "vert": False},
+    {"title_en": "El Tragonauta at Dos Búhos", "title_es": "El Tragonauta en Dos Búhos", "blurb_en": "The food-and-travel creator's visit: the wines, the restaurant, the estate.", "blurb_es": "La visita del creador de comida y viajes: los vinos, el restaurante, la finca.", "poster": "/photos/seated-tasting.jpg", "src": "", "embed": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Ftragonautamx%2Fvideos%2F1937412980374900%2F&show_text=False&autoplay=True", "dur": "", "vert": True},
+    {"title_en": "Lunch at the vineyard · @venue.edit", "title_es": "Comida en el viñedo · @venue.edit", "blurb_en": "“Delicious food and a wine that blew my mind.”", "blurb_es": "“Comida deliciosa y un vino que me voló la cabeza.”", "poster": "/photos/lunch-table.jpg", "src": "", "embed": "https://www.tiktok.com/embed/v2/7696264390936399110", "dur": "", "vert": True},
+    {"title_en": "Orange wine and Mexican wine · @tenshisanmiguel415", "title_es": "Vino naranja y vino mexicano · @tenshisanmiguel415", "blurb_en": "A San Miguel local on our orange wine.", "blurb_es": "Una visita local y nuestro vino naranja.", "poster": "/photos/orange-wine-table.jpg", "src": "", "embed": "https://www.tiktok.com/embed/v2/7681487532512742677", "dur": "", "vert": True},
+    {"title_en": "Dos Búhos, San Miguel · @rg.jessi", "title_es": "Dos Búhos, San Miguel · @rg.jessi", "blurb_en": "The vineyard, the restaurant, and dogs welcome.", "blurb_es": "El viñedo, el restaurante y se admiten mascotas.", "poster": "/photos/welcome-bicycle.jpg", "src": "", "embed": "https://www.tiktok.com/embed/v2/7594965291352771857", "dur": "", "vert": True}
 ]
 PHOTOS = [
     # order: freshest first, most-used shots last (community / Feed The Hungry removed)
@@ -217,18 +222,19 @@ WHERE = [
   {"en": "United States", "es": "Estados Unidos", "rows": [
     (L("Importer", "Importador"), [L("La Competencia Imports")]),
     (L("Distributors", "Distribuidores"), [
-      (L("Arizona"), "Compa Spirits"), (L("California"), "Alluvial Wine &amp; Spirits"), (L("Colorado"), "RNDC · RBG Spirits &amp; Wine"),
+      (L("Arizona"), "Compa Spirits"), (L("California"), "Alluvial Wine &amp; Spirits · Atrium Wines"), (L("Colorado"), "RNDC · RBG Spirits &amp; Wine"),
       (L("Florida"), "Breakthru Beverage / Aspect"), (L("Georgia"), "Prime Wine &amp; Spirits / Chalkboard"), (L("Illinois"), "Maverick Beverage Co."),
       (L("Michigan"), "Great Lakes Wine &amp; Spirits"), (L("Minnesota"), "Maverick Beverage Co."), (L("New York, New Jersey, Pennsylvania", "Nueva York, Nueva Jersey, Pensilvania"), "VOS Selections"),
       (L("Tennessee"), "Lipman Brothers"), (L("Texas"), "RNDC · RBG Spirits &amp; Wine"), (L("Virginia"), "Salveto Imports")]),
     (L("Shops", "Tiendas"), [
-      (L("California"), "Wally's Wine &amp; Spirits · Northgate Market · Bird Rock Fine Wine · Alta Baja Market"),
+      (L("California"), "Wally's Wine &amp; Spirits · K&amp;L Wine Merchants · Northgate Market · Bird Rock Fine Wine · Alta Baja Market"),
       (L("Colorado"), "Superior Liquor Market"), (L("Michigan"), "Plum Market · Arbor Farms Market"), (L("Texas"), "HOU Wine · Put a Cork In It")]),
     (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
       (L("California"), "Californios · Finca · Glasspar · The 1894 · San Manuel Casino"),
       (L("Colorado"), "Alma Fonda Fina · Tamayo · Alteño · Agave Blue · The Crawford Hotel at Denver Union Station"),
       (L("Illinois"), "Topolobampo · Esmé · Leña Brava"),
       (L("Michigan"), "Vecino · Selden Standard · Echelon"),
+      (L("New York", "Nueva York"), "St. Mazie (Brooklyn)"),
       (L("Texas"), "Mixtli · Caracol · Zaranda · The Dunlavy · Pappas Bros. Steakhouse · Toca Madera · Mayahuel · Maya Maroma · Puerto Cocina · Maria's Mexican Kitchen · The Olive Branch · 1 Hotel Austin")]),
   ]},
 ]
