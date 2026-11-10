@@ -219,7 +219,7 @@
     <div class="dl">
       <a class="btn warm" href="/docs/Dos-Buhos-Press-Kit-EN.pdf" target="_blank">PDF · English</a>
       <a class="btn warm" href="/docs/Dos-Buhos-Kit-de-Prensa-ES.pdf" target="_blank">PDF · Español</a>
-      <a class="btn" href="/press/library/"><span class="en">Photo library</span><span class="es">Biblioteca de fotos</span></a>
+      <a class="btn" href="#photos" onclick="openPhotos();return false"><span class="en">Photo library</span><span class="es">Biblioteca de fotos</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Press-Photos.zip" download><span class="en">Press photos · ZIP</span><span class="es">Fotos de prensa · ZIP</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Awards-EN.pdf" download><span class="en">Awards · PDF</span><span class="es">Premios · PDF</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Technical-Sheets-2025-EN.pdf" download><span class="en">Tech sheets · PDF</span><span class="es">Fichas técnicas · PDF</span></a>
@@ -473,6 +473,7 @@ window.addEventListener('popstate', () => { if (GV.open) gvHide(); });
   document.addEventListener('keydown', e => { if (!GV.open) return; if (e.key === 'Escape') gvClose(); if (e.key === 'ArrowRight') gvGo(1); if (e.key === 'ArrowLeft') gvGo(-1); });
 })();
   const PHOTOS = __PHOTOS__;
+  function openPhotos(){ const s = document.getElementById('photos'); s.classList.add('open'); galLoad(); setTimeout(() => s.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }
   let GAL = null;
   async function galLoad(){ if (GAL) return; const box = document.getElementById('pg-cats');
     try { GAL = await (await fetch('/press/library/gallery.json')).json(); } catch (e) { return; }

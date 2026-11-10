@@ -400,7 +400,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return; // fonts etc.: network, browser cache
   if (url.pathname === '/version.json') return; // always live
-  if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.endsWith('.zip')) return; // downloads: straight from the network
+  if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.startsWith('/docs/') || url.pathname.endsWith('.zip') || url.pathname.endsWith('.pdf')) return; // downloads: straight from the network
   const isNav = e.request.mode === 'navigate';
   const P = url.pathname.replace(/\/+$/, '') || '/';
   const isPress = P === '/press' || P === '/press/index.html';

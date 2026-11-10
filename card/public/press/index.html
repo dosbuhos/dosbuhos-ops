@@ -219,7 +219,7 @@
     <div class="dl">
       <a class="btn warm" href="/docs/Dos-Buhos-Press-Kit-EN.pdf" target="_blank">PDF · English</a>
       <a class="btn warm" href="/docs/Dos-Buhos-Kit-de-Prensa-ES.pdf" target="_blank">PDF · Español</a>
-      <a class="btn" href="/press/library/"><span class="en">Photo library</span><span class="es">Biblioteca de fotos</span></a>
+      <a class="btn" href="#photos" onclick="openPhotos();return false"><span class="en">Photo library</span><span class="es">Biblioteca de fotos</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Press-Photos.zip" download><span class="en">Press photos · ZIP</span><span class="es">Fotos de prensa · ZIP</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Awards-EN.pdf" download><span class="en">Awards · PDF</span><span class="es">Premios · PDF</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Technical-Sheets-2025-EN.pdf" download><span class="en">Tech sheets · PDF</span><span class="es">Fichas técnicas · PDF</span></a>
@@ -474,6 +474,7 @@ window.addEventListener('popstate', () => { if (GV.open) gvHide(); });
   document.addEventListener('keydown', e => { if (!GV.open) return; if (e.key === 'Escape') gvClose(); if (e.key === 'ArrowRight') gvGo(1); if (e.key === 'ArrowLeft') gvGo(-1); });
 })();
   const PHOTOS = [{"f": "photos/ab-garden-chapel.jpg", "pos": "50% 40%", "en": "The garden and the chapel", "es": "El jardín y la capilla", "w": 1067, "h": 1600}, {"f": "photos/seated-tasting.jpg", "pos": "60% 40%", "en": "Four wines, poured at the table", "es": "Cuatro vinos, servidos en la mesa", "w": 1600, "h": 1067}, {"f": "photos/ab-bar-bottles-chapel.jpg", "pos": "50% 62%", "en": "Gran Reserva at the bar", "es": "Gran Reserva en la barra", "w": 1067, "h": 1600}, {"f": "photos/ab-chapel-fountain.jpg", "pos": "50% 55%", "en": "The chapel courtyard", "es": "El patio de la capilla", "w": 1057, "h": 1586}, {"f": "photos/ab-barrel-chalk.jpg", "en": "Petite Syrah, 2026, in barrel", "es": "Petite Syrah 2026 en barrica", "w": 1600, "h": 1067}, {"f": "photos/ab-cellar-founders.jpg", "pos": "50% 40%", "en": "In the cellar", "es": "En la bodega", "w": 1600, "h": 1067}, {"f": "photos/ab-barrel-racks.jpg", "pos": "50% 45%", "en": "The barrel room", "es": "La sala de barricas", "w": 1067, "h": 1600}, {"f": "photos/ab-wine-shop.jpg", "pos": "50% 40%", "en": "The wine shop", "es": "La tienda de vinos", "w": 1067, "h": 1600}];
+  function openPhotos(){ const s = document.getElementById('photos'); s.classList.add('open'); galLoad(); setTimeout(() => s.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }
   let GAL = null;
   async function galLoad(){ if (GAL) return; const box = document.getElementById('pg-cats');
     try { GAL = await (await fetch('/press/library/gallery.json')).json(); } catch (e) { return; }

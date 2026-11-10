@@ -1,13 +1,13 @@
 // hola.dosbuhos.com — static card app (assets) + /media/* served from R2 (videos).
-const ALLOWED_KEYS = ['introduccion.mp4', 'certificacion.mp4'];   // temporary upload window: only these two objects can be written
-const UP_NONCE = 'HqtC6l33I_iHfWIaVO0oAWVN';                                      // throwaway nonce for the one-time Drive→R2 transfer; removed after
 
 const MIME = { mp4: 'video/mp4', webm: 'video/webm', m4v: 'video/mp4', mov: 'video/quicktime', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', vtt: 'text/vtt' };
-const cors = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, PUT, POST, OPTIONS', 'access-control-allow-headers': 'content-type, x-up, range', 'access-control-expose-headers': 'content-range, content-length, accept-ranges, etag' };
+const cors = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, HEAD, OPTIONS', 'access-control-allow-headers': 'range', 'access-control-expose-headers': 'content-range, content-length, accept-ranges, etag' };
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // one address only: the old *.workers.dev address forwards to hola.dosbuhos.com (same path), so nobody keeps a stale copy
+    if (url.hostname !== 'hola.dosbuhos.com' && url.hostname.endsWith('.workers.dev')) return Response.redirect('https://hola.dosbuhos.com' + url.pathname + url.search, 301);
     // /videos/* are static assets; add byte-range support (Safari needs 206 to play video)
     if (url.pathname.startsWith('/videos/') && url.pathname.endsWith('.mp4')) {
       const res = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));
@@ -23,19 +23,6 @@ export default {
     }
     if (!url.pathname.startsWith('/media/')) return env.ASSETS.fetch(req);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
-
-    // ---- one-time chunked upload (multipart to R2) ----
-    if (url.pathname.startsWith('/media/_up/')) {
-      if (req.headers.get('x-up') !== UP_NONCE) return new Response('no', { status: 403, headers: cors });
-      const key = url.searchParams.get('key'); const op = url.pathname.slice('/media/_up/'.length);
-      if (!ALLOWED_KEYS.includes(key)) return new Response('key not allowed', { status: 400, headers: cors });
-      if (op === 'ping') return new Response('ok', { headers: cors });
-      if (op === 'create' && req.method === 'POST') { const mp = await env.MEDIA.createMultipartUpload(key, { httpMetadata: { contentType: 'video/mp4' } }); return Response.json({ id: mp.uploadId }, { headers: cors }); }
-      if (op === 'part' && req.method === 'PUT') { const mp = env.MEDIA.resumeMultipartUpload(key, url.searchParams.get('id')); const n = Number(url.searchParams.get('n')); const part = await mp.uploadPart(n, req.body); return Response.json(part, { headers: cors }); }
-      if (op === 'complete' && req.method === 'POST') { const mp = env.MEDIA.resumeMultipartUpload(key, url.searchParams.get('id')); const parts = await req.json(); const obj = await mp.complete(parts); return Response.json({ key: obj.key, size: obj.size, etag: obj.httpEtag }, { headers: cors }); }
-      if (op === 'abort' && req.method === 'POST') { const mp = env.MEDIA.resumeMultipartUpload(key, url.searchParams.get('id')); await mp.abort(); return new Response('aborted', { headers: cors }); }
-      return new Response('bad op', { status: 400, headers: cors });
-    }
 
     // ---- serve media with Range support ----
     if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('method', { status: 405 });
