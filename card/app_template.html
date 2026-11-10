@@ -254,6 +254,7 @@
   #gv .gv-tip{position:absolute;left:0;right:0;bottom:calc(var(--sab,0px) + 14px);text-align:center;color:rgba(255,255,255,.6);font:11px Lato,sans-serif;letter-spacing:.12em}
   @media (hover:none){#gv .gv-nav{display:none}}
   #viewer{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:50}
+  .acc-i > a.more{text-decoration:none;text-align:center;box-sizing:border-box}
   .wh-c{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:23px;margin:18px 0 6px}.acc-i .wh-c:first-child{margin-top:4px}
   .wh-r{border-top:1px solid var(--line);padding:10px 0}
   .wh-l{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--warm);margin-bottom:4px}
@@ -490,12 +491,21 @@
           <div class="car wines" data-car id="wine-car"></div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
           <div class="row"><a class="btn warm full" href="__SHOP__" target="_blank" rel="noopener"><span class="en">The whole cellar · online store</span><span class="es">Toda la bodega · tienda en línea</span></a><a class="btn" href="/docs/Dos-Buhos-Technical-Sheets-2025-EN.pdf" target="_blank" rel="noopener"><span class="en">Technical sheets · EN</span><span class="es">Fichas técnicas · EN</span></a><a class="btn" href="/docs/Dos-Buhos-Fichas-Tecnicas-2025-ES.pdf" target="_blank" rel="noopener"><span class="en">Fichas técnicas · ES</span><span class="es">Fichas técnicas · ES</span></a></div>
+          <a class="more" href="#where" onclick="jump('acc-where');return false"><span class="en">Where to find them in Mexico and the US ›</span><span class="es">Dónde encontrarlos en México y EE. UU. ›</span></a>
           <p class="fine en">In the United States: imported by La Competencia.</p>
           <p class="fine es">En Estados Unidos: importado por La Competencia.</p>
         </div></div>
       </div>
 
       <!-- WINE CLUB -->
+      <div class="acc" id="acc-where">
+        <button class="acc-h" onclick="toggle('acc-where')"><span class="t"><b class="en">Where to find our wines</b><b class="es">Dónde encontrar nuestros vinos</b><span class="en">Shops, restaurants and distributors in Mexico and the US</span><span class="es">Tiendas, restaurantes y distribuidores en México y EE. UU.</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+__WHERE_APP__
+          <p class="fine"><span class="en">Accounts as of November 2026.</span><span class="es">Cuentas a noviembre de 2026.</span></p>
+          <div class="row"><a class="btn warm full" href="mailto:cabosari@dosbuhos.com"><span class="en">Not near you? Buy direct</span><span class="es">¿No está cerca? Compra directo</span></a><a class="btn full" href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></div>
+        </div></div>
+      </div>
       <div class="acc" id="acc-club">
         <button class="acc-h" onclick="toggle('acc-club')"><span class="t"><b>El Círculo Dos Búhos</b><span class="en">The wine club · what we drink at home</span><span class="es">El club de vino · lo que bebemos en casa</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
@@ -523,13 +533,6 @@
         </div></div>
       </div>
 
-      <div class="acc" id="acc-where">
-        <button class="acc-h" onclick="toggle('acc-where')"><span class="t"><b class="en">Where to find us</b><b class="es">Dónde encontrarnos</b><span class="en">Mexico and the United States</span><span class="es">México y Estados Unidos</span></span><span class="chev"></span></button>
-        <div class="acc-b"><div class="acc-i">
-__WHERE_APP__
-          <p class="fine"><span class="en">Accounts as of November 2026. Anywhere else, the winery ships direct.</span><span class="es">Cuentas a noviembre de 2026. En otras plazas, la bodega vende directo.</span></p>
-        </div></div>
-      </div>
       <div class="acc" id="acc-awards">
         <button class="acc-h" onclick="toggle('acc-awards')"><span class="t"><b class="en">Recognition</b><b class="es">Reconocimientos</b><span class="en">Brussels, Bacchus, Los Angeles — and the tables</span><span class="es">Bruselas, Bacchus, Los Ángeles — y las mesas</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">

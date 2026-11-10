@@ -196,10 +196,10 @@ WHERE = [
       L("Wine House (Ciudad Juárez)"), L("Disruptivo Vinos y Espíritus (San Miguel de Allende)"), L("Cava Sautto (San Miguel de Allende)")]),
     (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
       (L("San Miguel de Allende"), "Rosewood San Miguel de Allende · Pueblo Bonito · Hacienda El Santuario · Hotel Real de Minas · Our Habitas · Mesón Amelia · Maison Mexique · Hortus (Panio) · Tostevere · Trazo · Pork Belly · Malanquín · Casa Agave · Florios · Amatte · Il Mercantino · Don Valente · Cielo · Naakary · Asador Catalán · Enrike · Local · Selina · Hanks · Aperi · Amapola"),
-      (L("Mexico City", "Ciudad de México"), "Pujol · Rosetta · Quintonil · Nicos · Migrante · Raíz · Mercaderes · Carmela y Sal · Lotti · 88 Cantina · Si Mon · The Lamb · Unicornio · Mesón Santiago · Camino Real · Los Canarios (Hotel Marquis) · Daikoku · Delizia · Pargot · La Soldadera · Marmota · Baldío · Tintico · Común · Josema Enoteca · Querétaro 33 · Deigo · Filigrana · Hotel Volga"),
+      (L("Mexico City", "Ciudad de México"), "Pujol · Rosetta · Quintonil · Sud 777 · Nicos · Migrante · Raíz · Mercaderes · Carmela y Sal · Lotti · 88 Cantina · Si Mon · The Lamb · Unicornio · Mesón Santiago · Camino Real · Los Canarios (Hotel Marquis) · Daikoku · Delizia · Pargot · La Soldadera · Marmota · Baldío · Tintico · Común · Josema Enoteca · Querétaro 33 · Deigo · Filigrana · Hotel Volga"),
       (L("Querétaro &amp; Guanajuato", "Querétaro y Guanajuato"), "Asador de Campo · Hacienda La Laborcilla, Bistro Lounge (Querétaro) · Di María (Guanajuato)"),
-      (L("Coast", "Costa"), "Rosewood Mayakoba (Riviera Maya) · Ventanas al Paraíso (Los Cabos) · Musa (Zihuatanejo) · Praya (Acapulco)"),
-      (L("Elsewhere", "Otras plazas"), "Hotel Rodavento (Valle de Bravo) · Unu (Cholula)")]),
+      (L("Coast", "Costa"), "Rosewood Mayakoba (Riviera Maya) · Arca (Tulum) · Ventanas al Paraíso (Los Cabos) · Musa (Zihuatanejo) · Praya (Acapulco)"),
+      (L("And", "Y además"), "Nobu · Live Aqua · Hotel Rodavento (Valle de Bravo) · Unu (Cholula)")]),
     (L("Shops", "Tiendas"), [L("Cava Sautto (San Miguel de Allende) · Fiambrería, Cueva del Gourmet, Vyno, Artenda, Charcutería, Gourmetía y Punto (Mexico City) · Blume Deli (Querétaro)", "Cava Sautto (San Miguel de Allende) · Fiambrería, Cueva del Gourmet, Vyno, Artenda, Charcutería, Gourmetía y Punto (CDMX) · Blume Deli (Querétaro)")]),
     (L("At the winery", "En la bodega"), [L("Shop, restaurant and El Jardín del Vino in San Miguel de Allende, and the online shop", "Tienda, restaurante y El Jardín del Vino en San Miguel de Allende, y la tienda en línea")]),
   ]},
@@ -225,7 +225,7 @@ def where_press():
         for lab, items in c["rows"]:
             out.append(f'      <dt>{_bi(lab)}</dt><dd>{_items(items, " · ")}</dd>')
         out.append('    </dl>')
-    out.append('    <p class="cinfo"><span class="en">Accounts as of November 2026. Anywhere else, the winery ships direct.</span><span class="es">Cuentas a noviembre de 2026. En otras plazas, la bodega vende directo.</span></p>\n  </section>')
+    out.append('    <p class="cinfo"><span class="en">Accounts as of November 2026. Anywhere else, buy direct from the winery: <a href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></span><span class="es">Cuentas a noviembre de 2026. En otras plazas, compra directo a la bodega: <a href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></span></p>\n  </section>')
     return "\n".join(out)
 def where_app():
     out = []
