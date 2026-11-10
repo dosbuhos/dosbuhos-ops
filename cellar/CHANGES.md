@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-10 — Work orders: past days look and work like today · v1.20.0
+- Looking back with ‹ on Órdenes, each order is a full row again: priority, assigned to, status and «Anotar resultados y notas», with results and photos underneath. Closed orders show «Cerrada (P/J)» in the status and can be reopened; open ones are grouped first. Free notes (rows with no assignment) stay as plain cards. Status reads «Cerrada (…)» instead of «Done (…)» everywhere · Eric needs to add results and notes to past orders · app/cellar-targets.html (asgRowHtml shared by today and past days; asgAll/asgFind look up past rows; edits update the past-day copy)
+
 ## 2026-11-10 — Fix: free SO₂ estimate on the Chenin tank showed ~43 · v1.19.3
 - Vessel names are now matched with or without the leading zero (VC-05 = VC-5 = VC5). The Chenin's recent readings were written "VC-5" and the Sept additions "VC-05", so the estimate took the Sept 16 reading (<8) plus the Sept 22 addition (35) and showed ~43; it now shows the Nov 2 reading, <8 · app/cellar-targets.html (SheetParse vKey)
 

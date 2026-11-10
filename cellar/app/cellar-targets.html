@@ -3308,6 +3308,22 @@ Return ONLY JSON with this shape:
   // Rows come from the live sheet (people with Google Sheets) or the saved copy (guests), with queued edits laid on top.
   function asgRows() {
     const rows = S.sheet.values ? asgRowsLive() : (S.woCache && Array.isArray(S.woCache.rows) ? S.woCache.rows.map(r => Object.assign({}, r)) : []);
+    return asgOverlay(rows).filter(r => r.date <= todayISO && !isEntryRow(r));
+  }
+  // Rows of the past day being looked at (from the app's copy of Excellovint), shaped like today's rows.
+  function asgPastRows() {
+    if (!(S.asgOff < 0)) return [];
+    const P = S.asgPast[iso(addDays(parse(todayISO), S.asgOff))]; if (!P || !P.rows) return [];
+    const wineOf = tab => { const l = S.lots.find(x => (x.sheet || []).some(s2 => s2.tab === tab)); return l ? (l.id === "all" ? "Bodega (todos)" : l.name) : (/^L00/i.test(tab) ? "Bodega (todos)" : tab); };
+    return P.rows.map(r => ({ tab: r.tab, row: +r.row, date: r.date, wine: wineOf(r.tab), ubi: r.ubi || "", note: r.note || "", pri: String(r.pri || "").toUpperCase(), by: r.by || "", asig: r.asig || "", ini: /^UNDO$/i.test(r.ini || "") ? "" : (r.ini || ""), voli: r.voli, volf: r.volf, ph: r.ph, bx: r.bx, tp: r.tp, at: r.at, am: r.am, sl: r.sl, st: r.st, aa: r.aa, over: !r.ini }));   // a closed order isn't "overdue"
+  }
+  // Every work order the screen can act on: today's list plus the past day on screen (results, status, priority work there too).
+  function asgAll() {
+    const rows = asgRows(), seen = new Set(rows.map(r => r.tab + "|" + r.row));
+    return rows.concat(asgOverlay(asgPastRows().filter(r => !seen.has(r.tab + "|" + r.row))));
+  }
+  function asgFind(key) { return asgAll().find(x => x.tab + "|" + x.row === key); }
+  function asgOverlay(rows) {
     for (const q of (S.woQueue || []).filter(q => q.status === "pending" && q.op === "cells").sort((a, b) => String(a.at).localeCompare(String(b.at)))) {
       const r = rows.find(x => x.tab === q.tab && (x.row === q.row || normTxt(x.note) === normTxt(q.note)));
       if (!r) continue;
@@ -3319,7 +3335,7 @@ Return ONLY JSON with this shape:
       if ("date" in c) { const d = SheetParse.parseDate(c.date); if (d) r.date = d; }
       r.pending = true;
     }
-    return rows.filter(r => r.date <= todayISO && !isEntryRow(r));
+    return rows;
   }
   // Rows the app writes as signed records (results, notes, lab results) aren't work orders.
   const ENTRY_RE = /^(■ ARCHIVADO|RESULTADO \(ORDEN|NOTA(:|$)|RESULTADOS (UVA Y VINO|SAN LUCAS|LABORATORIO|INTERNO|[A-Z ]+ \d{1,2}\/\d{1,2}))/;
@@ -3347,7 +3363,7 @@ Return ONLY JSON with this shape:
     }
     return out;
   }
-  // ---- Look back day by day: ‹ › next to the date; past days are read-only, from the app's copy of Excellovint. ----
+  // ---- Look back day by day: ‹ › next to the date; past days use the same rows as today (results, status, priority), from the app's copy of Excellovint. ----
   S.asgOff = 0; S.asgPast = {}; S.asgMode = "day"; S.asgWeekOff = 0;
   const dm = d => { const x = parse(d); return x.getDate() + "/" + (x.getMonth() + 1); };
   window.addEventListener("cellar:asgmode", e => { const m = e.detail && e.detail.mode; S.view = "weeks"; S.span = "asg"; if (m === "today") { S.asgMode = "day"; S.asgOff = 0; S.asgWeekOff = 0; } else if (m) { S.asgMode = m; S.asgWeekOff = 0; } render(); window.scrollTo(0, 0); });
@@ -3372,13 +3388,18 @@ Return ONLY JSON with this shape:
     if (!P) { loadPast(d); el.innerHTML = dayNav() + `<div class="empty">Cargando…</div>`; return; }
     if (P.loading) { el.innerHTML = dayNav() + `<div class="empty">Cargando…</div>`; return; }
     const wineOf = tab => { const l = S.lots.find(x => (x.sheet || []).some(s2 => s2.tab === tab)); return l ? (l.id === "all" ? "Bodega (todos)" : l.name) : tab; };
-    const rows = P.rows.filter(r => asgGroupOK(r.tab)), done = rows.filter(r => r.ini && !/^XX$/i.test(r.ini)), open = rows.filter(r => r.asig && !r.ini), xx = rows.filter(r => /^XX$/i.test(r.ini || "")), notes = rows.filter(r => !r.asig && !r.ini);
+    const rows = asgOverlay(asgPastRows()).filter(r => asgGroupOK(r.tab)), done = rows.filter(r => r.ini && !/^XX$/i.test(r.ini)), open = rows.filter(r => r.asig && !r.ini), xx = rows.filter(r => /^XX$/i.test(r.ini || "")), notes = rows.filter(r => !r.asig && !r.ini);
     const WC = { red: "#7a1f2b", rose: "#e0849a", white: "#d8b43c", orange: "#d9822b", sparkling: "#7fa7b8", routine: "#9aa5b1" };
     const card = (r, cls, st) => `<div class="pd-row ${cls}" style="--wc:${WC[tabGroups(r.tab)[0]] || "#9aa5b1"}"><div class="pd-h"><b>${esc(wineOf(r.tab))}</b><span>${esc(st)}</span></div><div class="pd-s">${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</div><div class="pd-t">${esc(r.note)}</div></div>`;
-    const sec = (title, list, cls, st) => list.length ? `<h3 class="pd-g">${title} <small>${list.length}</small></h3>` + list.map(r => card(r, cls, st(r))).join("") : "";
+    const headRow = `<div class="asg-row asg-head"><span>Fecha</span><span>Vino · lote</span><span>Acción</span><span>Pri</span><span>Asig</span><span>Status</span><span></span></div>`;
+    const sec = (title, list, cls, st) => !list.length ? "" : cls === "note"
+      ? `<h3 class="pd-g">${title} <small>${list.length}</small></h3>` + list.map(r => card(r, cls, st(r))).join("")
+      : `<div class="asg-group${cls === "open" ? "" : " asg-closed"}"><h3>${title} <small>${list.length}</small></h3>` + headRow + list.map(asgRowHtml).join("") + `</div>`;
     el.innerHTML = dayNav() + woFilterBar(false) + `<p class="pd-sum">${woFilterNote(false)}${done.length} hechas · ${open.length} sin cerrar${xx.length ? " · " + xx.length + " canceladas" : ""}${notes.length ? " · " + notes.length + " notas" : ""}</p>` +
-      (rows.length ? sec("Hechas", done, "done", r => "✓ " + r.ini) + sec("Sin cerrar ese día", open, "open", r => r.asig) + sec("Canceladas", xx, "xx", () => "XX") + sec("Notas", notes, "note", () => "")
+      (rows.length ? sec("Sin cerrar ese día", open, "open", r => r.asig) + sec("Cerradas", done, "done", r => "✓ " + r.ini) + sec("Canceladas", xx, "xx", () => "XX") + sec("Notas", notes, "note", () => "")
         : `<div class="empty"><strong>Nada registrado ese día.</strong>${P.err ? esc(P.err) : ""}</div>`);
+    fitAsgText();
+    window.dispatchEvent(new CustomEvent("cellar:asgrendered"));   // results and photos under each order
   }
   // ---- Progress on open work orders (25/50/75 %), kept in the app database "progress" (Excellovint has no column). ----
   S.prog = S.prog || {};
@@ -3458,6 +3479,28 @@ Return ONLY JSON with this shape:
     if (!total) h += `<div class="empty"><strong>Nada planeado esta semana.</strong></div>`;
     el.innerHTML = h;
   }
+  function asgRowHtml(r) {
+    const closed = r => !!r.ini, tm = team(), dis = (S.mcp || S.db) && S.canWrite !== false ? "" : " disabled";
+      let h = "";
+        const key = r.tab + "|" + r.row;
+        const pc = r.pri === "URGENT" ? "urgent" : r.pri === "HIGH" ? "high" : "";
+        const asigOpts = tm.map(([i]) => i); if (r.asig && !asigOpts.includes(r.asig)) asigOpts.unshift(r.asig);
+        const pg = progOf(r);
+        const st = !r.ini ? (pg ? "p" + pg : "open") : /^XX$/i.test(r.ini) ? "xx" : "done";
+        const statusOpts = [["open", "Open"], ["p25", "25%"], ["p50", "50%"], ["p75", "75%"], ["done", st === "done" ? "Cerrada (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")]].concat(S.isCrew ? (st === "xx" ? [["xx", "Cancelada (XX)"]] : []) : [["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]]);
+        const lock = dis || (S.isCrew ? " disabled" : "");   // crew: priority, assignment and wording are Eric's and Diane's
+        h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
+          `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
+          `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
+          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${lock}${S.isCrew ? " readonly" : ""}>${esc(r.note)}</textarea><span class="asg-results" data-results="${esc(key)}"></span></span>` +
+          (dis ? "" : `<button type="button" class="asg-res" data-asgres="${esc(key)}"><span>${RES_ICON}Anotar resultados y notas</span></button>`) +
+          `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${lock}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
+          `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${lock}>${esc(asigLabel(r.asig) || "—")}</button>` +
+          `<select class="asg-st st-${st}" data-asgst="1" aria-label="Status"${dis}>${statusOpts.map(([k, l]) => `<option value="${k}"${k === st ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>` +
+          `<span class="asg-act">${dis || S.isCrew ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Editar orden de trabajo" title="Editar esta orden de trabajo">${EDIT_ICON}</button>`}</span>` +
+          `</div>`;
+            return h;
+  }
   function renderAsg() {
     const el = $("asgView");
     if (S.asgMode === "week") { el.__html = null; renderAsgWeek(el); return; }
@@ -3482,27 +3525,7 @@ Return ONLY JSON with this shape:
         ? `Saved copy from ${esc(S.woCache.at ? stamp(Date.parse(S.woCache.at)) : "earlier")}.`
         : ""}${queued ? ` <b>${queued} change${queued > 1 ? "s" : ""} waiting to sync.</b>` : ""}</p>`;
     if (!rows.length) h += `<div class="empty"><strong>Nothing open</strong>${S.asgWho ? "No open work orders for " + esc(S.asgWho) + "." : "No open work orders."}</div>`;
-    const rowHtml = r => {
-      let h = "";
-        const key = r.tab + "|" + r.row;
-        const pc = r.pri === "URGENT" ? "urgent" : r.pri === "HIGH" ? "high" : "";
-        const asigOpts = tm.map(([i]) => i); if (r.asig && !asigOpts.includes(r.asig)) asigOpts.unshift(r.asig);
-        const pg = progOf(r);
-        const st = !r.ini ? (pg ? "p" + pg : "open") : /^XX$/i.test(r.ini) ? "xx" : "done";
-        const statusOpts = [["open", "Open"], ["p25", "25%"], ["p50", "50%"], ["p75", "75%"], ["done", st === "done" ? "Done (" + r.ini + ")" : "Done" + (r.asig ? " (" + r.asig + ")" : "")]].concat(S.isCrew ? (st === "xx" ? [["xx", "Cancelada (XX)"]] : []) : [["roll", "Roll over → tomorrow"], ["xx", "Cancel (XX)"]]);
-        const lock = dis || (S.isCrew ? " disabled" : "");   // crew: priority, assignment and wording are Eric's and Diane's
-        h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
-          `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
-          `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
-          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${lock}${S.isCrew ? " readonly" : ""}>${esc(r.note)}</textarea><span class="asg-results" data-results="${esc(key)}"></span></span>` +
-          (dis ? "" : `<button type="button" class="asg-res" data-asgres="${esc(key)}"><span>${RES_ICON}Anotar resultados y notas</span></button>`) +
-          `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${lock}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
-          `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${lock}>${esc(asigLabel(r.asig) || "—")}</button>` +
-          `<select class="asg-st st-${st}" data-asgst="1" aria-label="Status"${dis}>${statusOpts.map(([k, l]) => `<option value="${k}"${k === st ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>` +
-          `<span class="asg-act">${dis || S.isCrew ? "" : `<button type="button" class="asg-edit" data-asgedit="${esc(key)}" aria-label="Editar orden de trabajo" title="Editar esta orden de trabajo">${EDIT_ICON}</button>`}</span>` +
-          `</div>`;
-            return h;
-    };
+    const rowHtml = asgRowHtml;
     const groups = {};
     for (const r of rows) (groups[r.asig || "—"] = groups[r.asig || "—"] || []).push(r);
     // Groups: one per assignment as written (a two-person order is one group, "Paris + Jimena"), people first, unassigned last.
@@ -3636,7 +3659,7 @@ Return ONLY JSON with this shape:
   // Write one or more cells of a work-order row, then keep the linked app task in step.
   async function asgWrite(key, ch) {
     const [tab, rowS] = key.split("|"), row0 = +rowS;
-    const r = asgRows().find(x => x.tab === tab && x.row === row0);
+    const r = asgAll().find(x => x.tab === tab && x.row === row0);
     if (!r) return;
     if (!S.mcp) return woQueueAdd({ op: "cells", tab, row: r.row, note: r.note, ch }, r);
     const el = document.querySelector(`[data-asgkey="${CSS.escape(key)}"]`); if (el) el.classList.add("busy");
@@ -3648,6 +3671,7 @@ Return ONLY JSON with this shape:
       const put = async (k, val) => { if (m[k] == null) return; await S.mcp.callTool(GS, "update_values", { spreadsheetId: SHEET_ID, range: q + colLetter(m[k]) + f.row, values: [[val]] }); (vals[f.row - 1] = vals[f.row - 1] || [])[m[k]] = val; };
       for (const [k, val] of Object.entries(ch)) await put(k, val);
       S.sheet.values[tab] = vals;
+      for (const P of Object.values(S.asgPast || {})) for (const x of (P.rows || [])) if (x.tab === tab && +x.row === row0) for (const [k, val] of Object.entries(ch)) x[k] = k === "date" ? SheetParse.parseDate(val) || x.date : val;
       // Mirror the change onto Today's Work Orders right away (the script's own rebuild follows within a minute).
       try { await asgMirror(tab, f.row, ch); } catch (e) {}
       await asgLinkTasks(tab, r.row, r.note, ch, f.row);
@@ -3670,7 +3694,7 @@ Return ONLY JSON with this shape:
   }
   S.rs = null;
   function openRs(key) {
-    const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
+    const r = asgFind(key); if (!r) return;
     const lot = S.lots.find(l => (l.sheet || []).some(x => x.tab === r.tab));
     window.dispatchEvent(new CustomEvent("cellar:results", { detail: { order: { key, tab: r.tab, row: r.row, note: r.note, ubi: r.ubi, wine: r.wine, asig: r.asig, ini: r.ini, lot: lot ? lot.id : "" } } }));
     return;
@@ -3703,7 +3727,7 @@ Return ONLY JSON with this shape:
   // From the results form (entries.js): mark the order done after its results row is saved; re-read after a save.
   window.addEventListener("cellar:orderdone", async e => {
     const d = e.detail || {}; if (!d.key || !d.ini) return;
-    const r = asgRows().find(x => x.tab + "|" + x.row === d.key); if (r) setProg(r, 0);
+    const r = asgFind(d.key); if (r) setProg(r, 0);
     await asgWrite(d.key, { ini: d.ini });
   });
   window.addEventListener("cellar:refresh", () => { try { loadLive(true); } catch (err) {} });
@@ -3713,7 +3737,7 @@ Return ONLY JSON with this shape:
   S.xo = null;
   function openXo(key, focus) {
     if (S.isCrew) { toast("Solo Eric o Diane editan órdenes. Usa «Anotar resultados y notas»."); return; }
-    const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
+    const r = asgFind(key); if (!r) return;
     S.xo = { key, r };
     $("xoTitle").textContent = "Work order";
     $("xoWhere").innerHTML = `<b>${esc(r.wine || r.tab)}</b> · ${esc(r.tab)} · row ${r.row}`;
@@ -3775,7 +3799,7 @@ Return ONLY JSON with this shape:
     if (e.target.matches("[data-asgwine]")) { S.asgWine = e.target.value; store("woWine", S.asgWine); $("asgView").__html = null; render(); return; }
     const rowEl = e.target.closest("[data-asgkey]"); if (!rowEl) return;
     const key = rowEl.dataset.asgkey;
-    const r = asgRows().find(x => x.tab + "|" + x.row === key); if (!r) return;
+    const r = asgFind(key); if (!r) return;
     if (e.target.matches("[data-asgpri]")) { const v = e.target.value; e.target.className = "asg-pri " + (v === "URGENT" ? "urgent" : v === "HIGH" ? "high" : ""); await asgWrite(key, { pri: v }); toast(v + " · " + r.tab); return; }
     if (e.target.matches("[data-asgasig]")) {
       const v = e.target.value;
