@@ -189,24 +189,41 @@ def L(en, es=None): return (en, es or en)
 WHERE = [
   {"en": "Mexico", "es": "México", "rows": [
     (L("Distributors", "Distribuidores"), [
-      L("Cactus Wine (Los Cabos)"), L("Grandes Viñedos de Francia (Mexico City)", "Grandes Viñedos de Francia (CDMX)"), L("Acuyo (Mexico City, Oaxaca)", "Acuyo (CDMX, Oaxaca)"),
-      L("Vivid Distribución (Mexico City)", "Vivid Distribución (CDMX)"), L("La Castellana · Viña del Mar (Cancún, Riviera Maya)"), L("Anónima de Vinos (Mérida, Yucatán)"),
-      L("Viña del Puerto (Puerto Vallarta, Riviera Nayarit)"), L("Vinos PVR (Puerto Vallarta)"), L("Hipervinos (Guadalajara)"), L("Decantum (Puebla, Cholula)"),
-      L("El Chaneque (Oaxaca, Chiapas, Acapulco)"), L("Cuarto de Vinos (Oaxaca)"), L("VINPAR Wine Club (Monterrey)"), L("Corpovino (León, the Bajío)", "Corpovino (León, Bajío)"),
-      L("Wine House (Ciudad Juárez)"), L("Disruptivo Vinos y Espíritus (San Miguel de Allende)"), L("Cava Sautto (San Miguel de Allende)")]),
+      (L("Mexico City", "Ciudad de México"), "Grandes Viñedos de Francia · Acuyo · Vivid Distribución"),
+      (L("San Miguel de Allende"), "Disruptivo Vinos y Espíritus · Cava Sautto"),
+      (L("Los Cabos"), "Cactus Wine"),
+      (L("Cancún &amp; Riviera Maya", "Cancún y Riviera Maya"), "La Castellana · Viña del Mar"),
+      (L("Mérida &amp; Yucatán", "Mérida y Yucatán"), "Anónima de Vinos"),
+      (L("Puerto Vallarta &amp; Riviera Nayarit", "Puerto Vallarta y Riviera Nayarit"), "Viña del Puerto · Vinos PVR"),
+      (L("Guadalajara"), "Hipervinos"),
+      (L("Monterrey"), "VINPAR Wine Club"),
+      (L("León &amp; the Bajío", "León y el Bajío"), "Corpovino"),
+      (L("Puebla &amp; Cholula", "Puebla y Cholula"), "Decantum"),
+      (L("Oaxaca"), "Acuyo · El Chaneque · Cuarto de Vinos"),
+      (L("Chiapas &amp; Acapulco", "Chiapas y Acapulco"), "El Chaneque"),
+      (L("Ciudad Juárez"), "Wine House")]),
     (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
       (L("San Miguel de Allende"), "Rosewood San Miguel de Allende · Pueblo Bonito · Hacienda El Santuario · Hotel Real de Minas · Our Habitas · Mesón Amelia · Maison Mexique · Hortus (Panio) · Tostevere · Trazo · Pork Belly · Malanquín · Casa Agave · Florios · Amatte · Il Mercantino · Don Valente · Cielo · Naakary · Asador Catalán · Enrike · Local · Selina · Hanks · Aperi · Amapola"),
       (L("Mexico City", "Ciudad de México"), "Pujol · Rosetta · Quintonil · Sud 777 · Nicos · Migrante · Raíz · Mercaderes · Carmela y Sal · Lotti · 88 Cantina · Si Mon · The Lamb · Unicornio · Mesón Santiago · Camino Real · Los Canarios (Hotel Marquis) · Daikoku · Delizia · Pargot · La Soldadera · Marmota · Baldío · Tintico · Común · Josema Enoteca · Querétaro 33 · Deigo · Filigrana · Hotel Volga"),
       (L("Querétaro &amp; Guanajuato", "Querétaro y Guanajuato"), "Asador de Campo · Hacienda La Laborcilla, Bistro Lounge (Querétaro) · Di María (Guanajuato)"),
       (L("Coast", "Costa"), "Rosewood Mayakoba (Riviera Maya) · Arca (Tulum) · Ventanas al Paraíso (Los Cabos) · Musa (Zihuatanejo) · Praya (Acapulco)"),
       (L("And", "Y además"), "Nobu · Live Aqua · Hotel Rodavento (Valle de Bravo) · Unu (Cholula)")]),
-    (L("Shops", "Tiendas"), [L("Cava Sautto (San Miguel de Allende) · Fiambrería, Cueva del Gourmet, Vyno, Artenda, Charcutería, Gourmetía y Punto (Mexico City) · Blume Deli (Querétaro)", "Cava Sautto (San Miguel de Allende) · Fiambrería, Cueva del Gourmet, Vyno, Artenda, Charcutería, Gourmetía y Punto (CDMX) · Blume Deli (Querétaro)")]),
+    (L("Shops", "Tiendas"), [
+      (L("San Miguel de Allende"), "Cava Sautto"),
+      (L("Mexico City", "Ciudad de México"), "Fiambrería · Cueva del Gourmet · Vyno · Artenda · Charcutería · Gourmetía y Punto"),
+      (L("Querétaro"), "Blume Deli")]),
     (L("At the winery", "En la bodega"), [L("Shop, restaurant and El Jardín del Vino in San Miguel de Allende, and the online shop", "Tienda, restaurante y El Jardín del Vino en San Miguel de Allende, y la tienda en línea")]),
   ]},
   {"en": "United States", "es": "Estados Unidos", "rows": [
     (L("Importer", "Importador"), [L("La Competencia Imports")]),
-    (L("Distributors", "Distribuidores"), [L(x) for x in ["Alluvial Wine &amp; Spirits (California)", "Compa Spirits (Arizona)", "RNDC (Colorado, Texas)", "RBG Spirits &amp; Wine (Colorado, Texas)", "Maverick Beverage Co. (Illinois, Minnesota)", "Great Lakes Wine &amp; Spirits (Michigan)", "Prime Wine &amp; Spirits / Chalkboard (Georgia)", "Breakthru Beverage / Aspect (Florida)", "Salveto Imports (Virginia)", "VOS Selections (New York)", "Lipman Brothers (Tennessee)"]]),
-    (L("Shops", "Tiendas"), [L("Wally's Wine &amp; Spirits, Northgate Market, Bird Rock Fine Wine, Alta Baja Market (California) · Superior Liquor Market (Colorado) · HOU Wine, Put a Cork In It (Texas)")]),
+    (L("Distributors", "Distribuidores"), [
+      (L("Arizona"), "Compa Spirits"), (L("California"), "Alluvial Wine &amp; Spirits"), (L("Colorado"), "RNDC · RBG Spirits &amp; Wine"),
+      (L("Florida"), "Breakthru Beverage / Aspect"), (L("Georgia"), "Prime Wine &amp; Spirits / Chalkboard"), (L("Illinois"), "Maverick Beverage Co."),
+      (L("Michigan"), "Great Lakes Wine &amp; Spirits"), (L("Minnesota"), "Maverick Beverage Co."), (L("New York", "Nueva York"), "VOS Selections"),
+      (L("Tennessee"), "Lipman Brothers"), (L("Texas"), "RNDC · RBG Spirits &amp; Wine"), (L("Virginia"), "Salveto Imports")]),
+    (L("Shops", "Tiendas"), [
+      (L("California"), "Wally's Wine &amp; Spirits · Northgate Market · Bird Rock Fine Wine · Alta Baja Market"),
+      (L("Colorado"), "Superior Liquor Market"), (L("Texas"), "HOU Wine · Put a Cork In It")]),
     (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
       (L("California"), "Californios · Finca · The 1894 · San Manuel Casino"),
       (L("Colorado"), "Alma Fonda Fina · Tamayo · Alteño · Agave Blue · The Crawford Hotel at Denver Union Station"),
@@ -216,17 +233,11 @@ WHERE = [
 def _bi(t): return f'<span class="en">{t[0]}</span><span class="es">{t[1]}</span>' if t[0] != t[1] else t[0]
 def _items(items, sep):
     if items and isinstance(items[0], tuple) and isinstance(items[0][0], tuple):  # grouped by region
-        return "<br>".join(f'<b>{_bi(r)}:</b> {txt}' for r, txt in items)
+        return "".join(f'<span class="wg"><b>{_bi(r)}</b>{txt}</span>' for r, txt in items)
     return sep.join(_bi(i) for i in items)
 def where_press():
-    out = ['  <section id="where">', '    <h2 class="en">Where to find us</h2><h2 class="es">Dónde encontrarnos</h2>']
-    for c in WHERE:
-        out.append(f'    <h3>{_bi((c["en"], c["es"]))}</h3>\n    <dl>')
-        for lab, items in c["rows"]:
-            out.append(f'      <dt>{_bi(lab)}</dt><dd>{_items(items, " · ")}</dd>')
-        out.append('    </dl>')
-    out.append('    <p class="cinfo"><span class="en">Accounts as of November 2026. Anywhere else, buy direct from the winery: <a href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></span><span class="es">Cuentas a noviembre de 2026. En otras plazas, compra directo a la bodega: <a href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></span></p>\n  </section>')
-    return "\n".join(out)
+    return ('  <section id="where">\n    <h2 class="en">Where to find our wines</h2><h2 class="es">Dónde encontrar nuestros vinos</h2>\n    <div class="wh">' + where_app() +
+            '</div>\n    <p class="cinfo"><span class="en">Accounts as of November 2026. Anywhere else, buy direct from the winery: <a href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></span><span class="es">Cuentas a noviembre de 2026. En otras plazas, compra directo a la bodega: <a href="mailto:cabosari@dosbuhos.com">cabosari@dosbuhos.com</a></span></p>\n  </section>')
 def where_app():
     out = []
     for c in WHERE:

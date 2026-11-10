@@ -131,8 +131,14 @@
   .pb-txt{position:absolute;left:14mm;right:14mm;bottom:9mm;background:rgba(251,248,242,.94);padding:5mm 9mm}
   .pb-k{font-size:8.5pt;letter-spacing:.32em;text-transform:uppercase;color:#8a5a2b;margin:0 0 1.5mm}
   .pb-txt p{margin:0 0 3mm;font-size:10.5pt;line-height:1.5}.pb-txt p:last-child{margin:0}.pb-txt a{color:#8a5a2b}
-  #where h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:20px;margin:16px 0 8px}
-  #where dd b{font-weight:400;color:var(--warm)}
+  .wh-c{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:23px;margin:18px 0 6px}.wh .wh-c:first-child{margin-top:4px}
+  .wh-r{border-top:1px solid var(--line);padding:10px 0}
+  .wh-l{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--warm);margin-bottom:6px}
+  .wh-r p{font-size:14px;line-height:1.5;margin:0}
+  .wg{display:block;padding:3px 0}.wg b{display:block;font-weight:400;font-size:11.5px;letter-spacing:.06em;color:var(--warm)}
+  @media (min-width:640px){.wg{display:grid;grid-template-columns:190px 1fr;gap:12px}.wg b{font-size:13px;letter-spacing:0}}
+  html.print .wg{display:grid;grid-template-columns:45mm 1fr;gap:4mm;break-inside:avoid}html.print .wg b{font-size:9.5pt;letter-spacing:0}
+  #contact dd{overflow-wrap:anywhere}
   #contemplo .cfig{margin:6px 0 14px}.cfig img{width:100%;aspect-ratio:21/9;object-fit:cover;display:block}
   .cinfo{font-size:12.5px;color:var(--dim);letter-spacing:.02em}
   html.print #photos{display:none !important}
