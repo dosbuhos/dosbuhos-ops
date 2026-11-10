@@ -244,6 +244,15 @@
   .acard .ln i.gg,.acard .ln i.g{color:#e3c27a}
   .acard .more{font-size:12px;color:var(--dim);margin-top:8px}
   /* fullscreen photo viewer */
+  #gv{position:fixed;inset:0;background:#000;display:none;z-index:70;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+  #gv.on{display:block}
+  #gv img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%;object-fit:contain;-webkit-touch-callout:default;transition:transform .2s ease,opacity .2s}
+  #gv .gv-bar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:calc(var(--sat,0px) + 10px) 12px 10px 18px;background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0));color:#fff;font:12px/1 Lato,sans-serif;letter-spacing:.18em;z-index:2}
+  #gv .gv-x{width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:20px;line-height:44px;cursor:pointer}
+  #gv .gv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;background:rgba(0,0,0,.25);color:#fff;font-size:28px;cursor:pointer;z-index:2}
+  #gv .gv-p{left:0}#gv .gv-n{right:0}
+  #gv .gv-tip{position:absolute;left:0;right:0;bottom:calc(var(--sab,0px) + 14px);text-align:center;color:rgba(255,255,255,.6);font:11px Lato,sans-serif;letter-spacing:.12em}
+  @media (hover:none){#gv .gv-nav{display:none}}
   #viewer{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:50}
   #pg [hidden]{display:none !important}
   #pg-one{scroll-margin-top:16px}
@@ -588,6 +597,7 @@
   </div>
 </div>
 
+<div id="gv" aria-modal="true" role="dialog"><div class="gv-bar"><span id="gv-c"></span><button class="gv-x" type="button" aria-label="Close">✕</button></div><button class="gv-nav gv-p" type="button" aria-label="Previous">‹</button><img id="gv-img" alt=""><button class="gv-nav gv-n" type="button" aria-label="Next">›</button><div class="gv-tip"><span class="en">Swipe for more · press and hold to save</span><span class="es">Desliza para ver más · mantén presionado para guardar</span></div></div>
 <div id="viewer" onclick="closeViewer(event)"><img id="v-img" alt=""><video id="v-vid" controls playsinline preload="metadata" hidden></video><iframe id="v-frm" hidden allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe><button class="x">✕</button></div>
 
 <script>
@@ -673,6 +683,25 @@ AWARDS.forEach(a => { const d = document.createElement('div'); d.className = 'sl
   const more = a.items.length > 6 ? `<div class="more"><span class="en">+ ${a.items.length - 6} more in the press kit</span><span class="es">+ ${a.items.length - 6} más en el kit de prensa</span></div>` : '';
   d.innerHTML = `<div class="acard">${a.icon ? `<img src="/icons/${a.icon}.png" alt="">` : ''}<div class="comp">${a.comp}</div><div class="yr">${a.year || '<span class="en">Earlier editions</span><span class="es">Ediciones anteriores</span>'}</div>${lines}${more}</div>`;
   ac.appendChild(d); });
+// full-screen photo viewer: swipe, arrows, ✕, and the phone's back button closes it instead of leaving the app
+const GV = { list: [], i: 0, open: false };
+function gvShow(){ const img = document.getElementById('gv-img'); img.style.transform = ''; img.src = GV.list[GV.i];
+  document.getElementById('gv-c').textContent = `${GV.i + 1} / ${GV.list.length}`;
+  [GV.i - 1, GV.i + 1].forEach(j => { if (GV.list[j]) { const p = new Image(); p.src = GV.list[j]; } }); }
+function gvOpen(list, i){ GV.list = list; GV.i = i; gvShow(); document.getElementById('gv').classList.add('on');
+  if (!GV.open) { GV.open = true; try { history.pushState({ gv: 1 }, ''); } catch (e) {} } }
+function gvHide(){ GV.open = false; document.getElementById('gv').classList.remove('on'); document.getElementById('gv-img').removeAttribute('src'); }
+function gvClose(){ if (!GV.open) return; try { history.back(); } catch (e) { gvHide(); } setTimeout(() => { if (GV.open) gvHide(); }, 350); }
+function gvGo(d){ const j = GV.i + d; if (j < 0 || j >= GV.list.length) { const img = document.getElementById('gv-img'); img.style.transform = `translateX(${d * -18}px)`; setTimeout(() => img.style.transform = '', 180); return; } GV.i = j; gvShow(); }
+window.addEventListener('popstate', () => { if (GV.open) gvHide(); });
+(() => { const gv = document.getElementById('gv'); let x0 = null, y0 = 0, t0 = 0;
+  gv.querySelector('.gv-x').onclick = gvClose; gv.querySelector('.gv-p').onclick = () => gvGo(-1); gv.querySelector('.gv-n').onclick = () => gvGo(1);
+  gv.addEventListener('touchstart', e => { if (e.touches.length !== 1) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
+  gv.addEventListener('touchmove', e => { if (x0 === null) return; const dx = e.touches[0].clientX - x0; document.getElementById('gv-img').style.transform = `translateX(${dx}px)`; }, { passive: true });
+  gv.addEventListener('touchend', e => { if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) gvGo(dx < 0 ? 1 : -1); else if (dy > 120 && Math.abs(dy) > Math.abs(dx)) gvClose(); else document.getElementById('gv-img').style.transform = ''; });
+  document.addEventListener('keydown', e => { if (!GV.open) return; if (e.key === 'Escape') gvClose(); if (e.key === 'ArrowRight') gvGo(1); if (e.key === 'ArrowLeft') gvGo(-1); });
+})();
 // photos: categories -> grid -> full-size viewer (press and hold there to save)
 let GAL = null;
 async function galLoad(){ if (GAL) return; const box = document.getElementById('pg-cats');
@@ -682,8 +711,9 @@ async function galLoad(){ if (GAL) return; const box = document.getElementById('
     b.onclick = () => galOpen(i); box.appendChild(b); }); }
 function galOpen(i){ const c = GAL[i], g = document.getElementById('pg-grid'); g.innerHTML = '';
   document.getElementById('pg-t').innerHTML = `<span class="en">${c.en}</span><span class="es">${c.es}</span>`;
-  c.items.forEach(([th, f]) => { const a = document.createElement('a'); a.href = f; a.innerHTML = `<img loading="lazy" src="${th}" alt="">`;
-    a.onclick = e => { e.preventDefault(); const v = document.getElementById('v-img'); v.hidden = false; v.src = f; document.getElementById('viewer').classList.add('on'); };
+  const full = c.items.map(x => x[1]);
+  c.items.forEach(([th, f], k) => { const a = document.createElement('a'); a.href = f; a.innerHTML = `<img loading="lazy" src="${th}" alt="">`;
+    a.onclick = e => { e.preventDefault(); gvOpen(full, k); };
     g.appendChild(a); });
   document.getElementById('pg-cats').hidden = true; document.getElementById('pg-one').hidden = false;
   document.getElementById('pg-one').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
@@ -753,7 +783,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611101600'; let lastCheck = 0;
+const APP_VER = '202611101603'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }

@@ -95,20 +95,29 @@
   }
   html.print .awgrid{display:block !important;column-count:2;column-gap:12px;margin:16px 0 0 !important;padding:0 !important}
   html.print .awc{flex:none;margin-bottom:12px;break-inside:avoid}
-  #pv{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:60}#pv.on{display:flex}#pv img{max-width:100%;max-height:100%;object-fit:contain}#pv button{position:absolute;top:calc(var(--sat,0px) + 12px);right:14px;background:none;border:0;color:#fff;font-size:22px}
+  #gv{position:fixed;inset:0;background:#000;display:none;z-index:70;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+  #gv.on{display:block}
+  #gv img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%;object-fit:contain;-webkit-touch-callout:default;transition:transform .2s ease,opacity .2s}
+  #gv .gv-bar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:calc(var(--sat,0px) + 10px) 12px 10px 18px;background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0));color:#fff;font:12px/1 Lato,sans-serif;letter-spacing:.18em;z-index:2}
+  #gv .gv-x{width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:20px;line-height:44px;cursor:pointer}
+  #gv .gv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;background:rgba(0,0,0,.25);color:#fff;font-size:28px;cursor:pointer;z-index:2}
+  #gv .gv-p{left:0}#gv .gv-n{right:0}
+  #gv .gv-tip{position:absolute;left:0;right:0;bottom:calc(var(--sab,0px) + 14px);text-align:center;color:rgba(255,255,255,.6);font:11px Lato,sans-serif;letter-spacing:.12em}
+  @media (hover:none){#gv .gv-nav{display:none}}
   /* ---- print-only magazine layer ---- */
   .ponly{display:none}
   html.print .ponly{display:block}
   html.print header, html.print footer{display:none}
-  html.print .pcover{margin:-14mm -14mm 0;height:262mm;overflow:hidden;break-after:page;display:flex;flex-direction:column;background:#fbf8f2}
-  .pc-img{width:100%;height:160mm;object-fit:cover;display:block}
-  .pc-txt{padding:12mm 18mm 0;text-align:center}
-  .pc-logo{height:17mm;filter:invert(1)}
-  .pc-kick{font-size:9pt;letter-spacing:.42em;text-transform:uppercase;color:#8a5a2b;margin-top:6mm}
-  .pc-deck{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19pt;line-height:1.25;color:#1a1a1a !important;max-width:150mm;margin:4mm auto 0}
-  .pc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;margin-top:7mm;border-top:1px solid #d9cfbe;padding-top:5mm}
-  .pc-stats b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24pt;line-height:1;color:#8a5a2b}
-  .pc-stats span{display:block;font-size:7.5pt;letter-spacing:.14em;text-transform:uppercase;color:#6b6358;margin-top:2mm}
+  html.print .pcover{margin:-14mm -14mm 0;height:265mm;overflow:hidden;break-after:page;position:relative;display:block;background:#111}
+  .pc-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:56% 50%;display:block}
+  .pcover::before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 48%,rgba(0,0,0,.82) 78%,rgba(0,0,0,.9));z-index:1}
+  .pc-txt{position:absolute;left:0;right:0;top:0;bottom:0;z-index:2;text-align:center;color:#fff}
+  .pc-logo{position:absolute;top:16mm;left:50%;transform:translateX(-50%);height:20mm}
+  .pc-kick{position:absolute;left:0;right:0;bottom:76mm;font-size:10.5pt;letter-spacing:.46em;text-transform:uppercase;color:#f3dfb8;font-weight:400}
+  .pc-deck{position:absolute;left:22mm;right:22mm;bottom:50mm;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:22pt;line-height:1.22;color:#fff !important;margin:0}
+  .pc-stats{position:absolute;left:20mm;right:20mm;bottom:16mm;display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;border-top:1px solid rgba(255,255,255,.35);padding-top:5mm}
+  .pc-stats b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24pt;line-height:1;color:#fff}
+  .pc-stats span{display:block;font-size:7.5pt;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.75);margin-top:2mm}
   html.print .prow{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin:6mm 0 4mm;break-inside:avoid}
   .pf{margin:0;break-inside:avoid}.pf img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
   .pf.wide img{aspect-ratio:21/9}
@@ -184,7 +193,7 @@
 </style>
 </head>
 <body>
-<div id="pv" onclick="this.classList.remove('on')"><img alt=""><button aria-label="close">✕</button></div>
+<div id="gv" aria-modal="true" role="dialog"><div class="gv-bar"><span id="gv-c"></span><button class="gv-x" type="button" aria-label="Close">✕</button></div><button class="gv-nav gv-p" type="button" aria-label="Previous">‹</button><img id="gv-img" alt=""><button class="gv-nav gv-n" type="button" aria-label="Next">›</button><div class="gv-tip"><span class="en">Swipe for more · press and hold to save</span><span class="es">Desliza para ver más · mantén presionado para guardar</span></div></div>
 <div class="wrap">
   <div class="bar">
     <a href="/#page">‹ <span class="en">Back</span><span class="es">Volver</span></a>
@@ -210,7 +219,7 @@
   </header>
 
   <div class="ponly pcover">
-    <img class="pc-img" src="/press/files/photos/07-events-and-experiences/weddings/DosBuhos_Wedding_Bodega-Dos-Buhos_2012_4928px.jpg" style="object-position:45% 60%" alt="">
+    <img class="pc-img" src="/press/files/photos/02-vineyard-and-harvest/DosBuhos_Vineyard_Cosecha_2020_6000px.jpg" alt="">
     <div class="pc-txt">
       <img class="pc-logo" src="/icons/logo.png" alt="Dos Búhos">
       <div class="pc-kick"><span class="en">Press kit · 2026</span><span class="es">Kit de prensa · 2026</span></div>
@@ -305,7 +314,7 @@
     </div>
   </section>
 
-  <div class="ponly pband"><figure class="pf wide"><img src="/press/files/photos/02-vineyard-and-harvest/DosBuhos_Vineyard_Dia-De-Cosecha_2020_6000px.jpg" alt=""><figcaption><span class="en">Harvest day in the Aglianico.</span><span class="es">Día de cosecha en el Aglianico.</span></figcaption></figure></div>
+  <div class="ponly pband"><figure class="pf wide"><img src="/press/files/photos/02-vineyard-and-harvest/DosBuhos_Vineyard_Grapes-Backlit_2020_6000px.jpg" alt=""><figcaption><span class="en">Late light in the vineyard.</span><span class="es">Luz de tarde en el viñedo.</span></figcaption></figure></div>
   <section id="facts">
     <h2 class="en">Fact sheet</h2><h2 class="es">Ficha de datos</h2>
     <dl>
@@ -432,9 +441,28 @@
   </footer>
 </div>
 <script>
+// full-screen photo viewer: swipe, arrows, ✕, and the phone's back button closes it instead of leaving the app
+const GV = { list: [], i: 0, open: false };
+function gvShow(){ const img = document.getElementById('gv-img'); img.style.transform = ''; img.src = GV.list[GV.i];
+  document.getElementById('gv-c').textContent = `${GV.i + 1} / ${GV.list.length}`;
+  [GV.i - 1, GV.i + 1].forEach(j => { if (GV.list[j]) { const p = new Image(); p.src = GV.list[j]; } }); }
+function gvOpen(list, i){ GV.list = list; GV.i = i; gvShow(); document.getElementById('gv').classList.add('on');
+  if (!GV.open) { GV.open = true; try { history.pushState({ gv: 1 }, ''); } catch (e) {} } }
+function gvHide(){ GV.open = false; document.getElementById('gv').classList.remove('on'); document.getElementById('gv-img').removeAttribute('src'); }
+function gvClose(){ if (!GV.open) return; try { history.back(); } catch (e) { gvHide(); } setTimeout(() => { if (GV.open) gvHide(); }, 350); }
+function gvGo(d){ const j = GV.i + d; if (j < 0 || j >= GV.list.length) { const img = document.getElementById('gv-img'); img.style.transform = `translateX(${d * -18}px)`; setTimeout(() => img.style.transform = '', 180); return; } GV.i = j; gvShow(); }
+window.addEventListener('popstate', () => { if (GV.open) gvHide(); });
+(() => { const gv = document.getElementById('gv'); let x0 = null, y0 = 0, t0 = 0;
+  gv.querySelector('.gv-x').onclick = gvClose; gv.querySelector('.gv-p').onclick = () => gvGo(-1); gv.querySelector('.gv-n').onclick = () => gvGo(1);
+  gv.addEventListener('touchstart', e => { if (e.touches.length !== 1) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
+  gv.addEventListener('touchmove', e => { if (x0 === null) return; const dx = e.touches[0].clientX - x0; document.getElementById('gv-img').style.transform = `translateX(${dx}px)`; }, { passive: true });
+  gv.addEventListener('touchend', e => { if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) gvGo(dx < 0 ? 1 : -1); else if (dy > 120 && Math.abs(dy) > Math.abs(dx)) gvClose(); else document.getElementById('gv-img').style.transform = ''; });
+  document.addEventListener('keydown', e => { if (!GV.open) return; if (e.key === 'Escape') gvClose(); if (e.key === 'ArrowRight') gvGo(1); if (e.key === 'ArrowLeft') gvGo(-1); });
+})();
   const PHOTOS = [{"f": "photos/ab-garden-chapel.jpg", "pos": "50% 40%", "en": "The garden and the chapel", "es": "El jardín y la capilla", "w": 1067, "h": 1600}, {"f": "photos/seated-tasting.jpg", "pos": "60% 40%", "en": "Four wines, poured at the table", "es": "Cuatro vinos, servidos en la mesa", "w": 1600, "h": 1067}, {"f": "photos/ab-bar-bottles-chapel.jpg", "pos": "50% 62%", "en": "Gran Reserva at the bar", "es": "Gran Reserva en la barra", "w": 1067, "h": 1600}, {"f": "photos/ab-chapel-fountain.jpg", "pos": "50% 55%", "en": "The chapel courtyard", "es": "El patio de la capilla", "w": 1057, "h": 1586}, {"f": "photos/ab-barrel-chalk.jpg", "en": "Petite Syrah, 2026, in barrel", "es": "Petite Syrah 2026 en barrica", "w": 1600, "h": 1067}, {"f": "photos/ab-cellar-founders.jpg", "pos": "50% 40%", "en": "In the cellar", "es": "En la bodega", "w": 1600, "h": 1067}, {"f": "photos/ab-barrel-racks.jpg", "pos": "50% 45%", "en": "The barrel room", "es": "La sala de barricas", "w": 1067, "h": 1600}, {"f": "photos/ab-wine-shop.jpg", "pos": "50% 40%", "en": "The wine shop", "es": "La tienda de vinos", "w": 1067, "h": 1600}];
   const ph = document.getElementById("photo-grid");
-  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.onclick = e => { e.preventDefault(); const v = document.getElementById('pv'); v.querySelector('img').src = '/' + p.f; v.classList.add('on'); }; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
+  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.onclick = e => { e.preventDefault(); gvOpen(PHOTOS.map(q => '/' + q.f), PHOTOS.indexOf(p)); }; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
   function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
   (function(){
     const q = new URLSearchParams(location.search);

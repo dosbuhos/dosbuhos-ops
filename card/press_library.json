@@ -1305,6 +1305,12 @@
       "title": "Roadmap · after launch",
       "items": [
         {
+          "label": "Publish the press kit on dosbuhos.com: press page, photo library, Contemplo and community sections, where to find us",
+          "status": "missing",
+          "note": "Once the website relaunch is live.",
+          "files": []
+        },
+        {
           "label": "Pare down 07 Events (about 780 photos) to the best 40–60",
           "status": "missing",
           "note": "",
