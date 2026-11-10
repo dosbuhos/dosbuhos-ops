@@ -90,6 +90,26 @@
   .intl{border-left:3px solid var(--gold)}
   .textarea{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:#fff;border:1px solid var(--line);padding:10px 12px;min-height:72px;border-radius:0}
   /* ---------- proposal (client page) ---------- */
+  #list{display:none;background:var(--bg);min-height:100vh}
+  body.list #app{display:none}
+  body.list #list{display:block}
+  .lwrap{max-width:640px;margin:0 auto;padding:14px 16px calc(var(--sab) + 40px)}
+  .search{width:100%;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--line);padding:11px 12px;border-radius:0;-webkit-appearance:none}
+  .qrow{background:var(--paper);border:1px solid var(--line);padding:12px 14px;margin-top:10px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;cursor:pointer}
+  .qrow .a{font-size:15.5px;font-weight:400;color:var(--ink)}
+  .qrow .b{font-size:12.5px;color:var(--muted)}
+  .qrow .v{font-family:"Cormorant Garamond",Georgia,serif;font-size:21px;font-weight:600;color:var(--wine);text-align:right;line-height:1.1}
+  .qrow .acts{grid-column:1 / -1;display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+  .qrow .acts button,.qrow .acts select{font:inherit;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;padding:6px 9px;background:none;border:1px solid var(--line);color:var(--wine);cursor:pointer;-webkit-appearance:none;border-radius:0}
+  .qrow .acts select{text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink);margin-left:auto;padding-right:22px;background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:calc(100% - 12px) 50%,calc(100% - 8px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+  .qrow .acts button.del{color:var(--red);border-color:#efc4c0}
+  .chip{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;border:1px solid var(--line);color:var(--muted);margin-right:6px}
+  .chip.enviada{color:#7a5a1e;border-color:#ead9b3}
+  .chip.confirmada{color:#2f5e2a;border-color:#cfe0c6}
+  .chip.cancelada{color:var(--red);border-color:#efc4c0}
+  .savestat{font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.7;margin-top:3px}
+  .foot{display:flex;gap:16px;justify-content:center;padding:26px 0 0;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+  .foot a{color:var(--wine);text-decoration:none;border-bottom:1px solid var(--line)}
   #prop{display:none;background:#fff}
   body.prop #app{display:none}
   body.prop #prop{display:block}
@@ -143,7 +163,7 @@
 <div id="gate"><form onsubmit="return gateSubmit(event)"><img src="/icons/logo-light.png" alt="Dos Búhos"><input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button>Entrar</button><div class="e" id="gate-e"></div></form></div>
 
 <div id="app">
-  <div class="top"><div><img src="/icons/logo-light.png" alt="Dos Búhos"><div class="t">Cotizador de eventos</div></div><div class="btns"><a href="/guia" style="background:none;border:1px solid rgba(246,242,231,.4);color:#f6f2e7;font:inherit;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:7px 10px;text-decoration:none">Guía</a><a href="/personal" style="background:none;border:1px solid rgba(246,242,231,.4);color:#f6f2e7;font:inherit;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:7px 10px;text-decoration:none">Personal</a><button onclick="document.body.classList.toggle('int');save()">Interno</button><button onclick="resetAll()">Nueva</button></div></div>
+  <div class="top"><div><img src="/icons/logo-light.png" alt="Dos Búhos"><div class="t">Cotizador de eventos</div><div class="savestat" id="savestat">&nbsp;</div></div><div class="btns"><button onclick="openList()">Guardadas</button><button onclick="document.body.classList.toggle('int');save()">Interno</button><button onclick="resetAll()">Nueva</button></div></div>
   <div class="wrap">
 
     <h2>El evento<small>Quién, cuándo, cuántos</small></h2>
@@ -152,6 +172,7 @@
       <div class="f"><label>Evento</label><input id="cv_evento" placeholder="Boda, cena de empresa, cumpleaños…"></div>
       <div class="row2"><div class="f"><label>Fecha</label><input id="cv_fecha" placeholder="Sábado 14 de marzo"></div><div class="f"><label>Horario</label><input id="cv_hora" placeholder="19:00 - 22:00"></div></div>
       <div class="row2"><div class="f"><label>Invitados</label><input id="fb_pax" type="number" inputmode="numeric" min="0" placeholder="0"></div><div class="f"><label>Prepara la propuesta</label><input id="cv_por" placeholder="Luis · Melanie"></div></div>
+      <div class="f"><label>Estado</label><select id="cz_estado"><option value="borrador">Borrador</option><option value="enviada">Enviada al cliente</option><option value="confirmada">Confirmada</option><option value="cancelada">Cancelada</option></select></div>
     </div>
 
     <h2>El espacio<small>Renta más IVA · uso privado o restaurante en horario regular</small></h2>
@@ -221,9 +242,19 @@
       <div class="f"><label>Alimentos y bebidas</label><textarea class="textarea" id="fb_notas">Opción vegetariana disponible en todos los menús. Les agradeceremos compartir alergias y restricciones alimentarias de sus invitados.</textarea></div>
       <div class="f"><label>Espacio y pagos</label><textarea class="textarea" id="sp_notas">Anticipo de 50% para apartar la fecha; saldo cinco días antes del evento. Pagos por transferencia bancaria. Propuesta vigente por 15 días naturales.</textarea></div>
     </div>
+    <div class="foot"><a href="/guia">Guía del cotizador</a><a href="/personal">Personal para eventos</a></div>
   </div>
 
   <div class="dock"><div class="in"><div><div class="tt" id="dock_total">$0</div><div class="pp" id="dock_pp">&nbsp;</div></div><div class="btns"><button class="sec" onclick="shareWA()">WhatsApp</button><button onclick="showProp()">Propuesta</button></div></div></div>
+</div>
+
+<!-- ================= GUARDADAS ================= -->
+<div id="list">
+  <div class="pp-bar"><button onclick="document.body.classList.remove('list')" style="white-space:nowrap">‹ Cotizador</button><span style="font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;white-space:nowrap">Guardadas</span><button onclick="resetAll(true)" style="white-space:nowrap">Nueva</button></div>
+  <div class="lwrap">
+    <input class="search" id="list_q" placeholder="Buscar por cliente, evento, fecha o quien la preparó" oninput="renderList()">
+    <div id="list_rows"></div>
+  </div>
 </div>
 
 <!-- ================= PROPUESTA ================= -->
@@ -270,7 +301,7 @@ const R = {
   cocineros: [[30, 3], [100, 4], [200, 5], [300, 6], [9999, 7]], cocinaConfirmadoHasta: 100,   // según Lalo hasta 100
   lavaloza: [[100, 1], [200, 2], [9999, 3]], estacionamiento: [[80, 1], [9999, 2]],
 };
-const IDS = ["cv_cliente","cv_evento","cv_fecha","cv_hora","cv_por","fb_pax","sp_space","sp_dia","sp_hrs","sp_estate","sp_desc","fb_copa","fb_bot","fb_menu","fb_bar","fb_nalc","fb_tour","fb_tourw","fb_tournv","fb_bott","fb_notas","sp_notas","st_fmt","st_setup","st_adj","st_inp","st_inc","st_cc","st_cp"];
+const IDS = ["cv_cliente","cv_evento","cv_fecha","cv_hora","cv_por","fb_pax","sp_space","sp_dia","sp_hrs","sp_estate","sp_desc","fb_copa","fb_bot","fb_menu","fb_bar","fb_nalc","fb_tour","fb_tourw","fb_tournv","fb_bott","fb_notas","sp_notas","st_fmt","st_setup","st_adj","st_inp","st_inc","st_cc","st_cp","cz_estado"];
 const $ = id => document.getElementById(id);
 const n = id => { const v = Number($(id).value); return (isNaN(v) || v < 0) ? 0 : v; };
 const m = x => (x < 0 ? "-" : "") + "$" + Math.round(Math.abs(x)).toLocaleString("en-US");
@@ -503,9 +534,53 @@ function shareWA() {
 }
 
 // ===================== ESTADO =====================
-function save() { try { const o = {}; IDS.forEach(i => o[i] = $(i).type === "checkbox" ? $(i).checked : $(i).value); o._int = document.body.classList.contains("int"); localStorage.setItem("cotizador", JSON.stringify(o)); } catch (e) {} }
+function snapshot() { const o = {}; IDS.forEach(i => o[i] = $(i).type === "checkbox" ? $(i).checked : $(i).value); o._int = document.body.classList.contains("int"); return o; }
+function save() { try { localStorage.setItem("cotizador", JSON.stringify(snapshot())); } catch (e) {} queueSave(); }
+
+// ===================== GUARDADAS (D1 vía /api/quotes) =====================
+let quoteId = localStorage.getItem("cz_id") || "", saveTimer = null, LIST = [];
+const stat = t => { $("savestat").textContent = t || "\u00a0"; };
+function meta() { const g = id => String($(id).value || "").trim(); return { por: g("cv_por"), cliente: g("cv_cliente"), evento: g("cv_evento"), fecha: g("cv_fecha"), pax: Math.floor(n("fb_pax")), total: Math.round(Number(($("o_grand").textContent || "").replace(/[^0-9.-]/g, "")) || 0), estado: $("cz_estado").value || "borrador" }; }
+function queueSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveRemote, 1500); }
+async function saveRemote() {
+  const M = meta(); if (!M.cliente && !M.evento && !M.pax) return;   // nothing worth keeping yet
+  if (!navigator.onLine) { stat("Sin conexión · sin guardar"); return; }
+  try {
+    const r = await fetch(quoteId ? `/api/quotes/${quoteId}` : "/api/quotes", { method: quoteId ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...M, data: snapshot() }) });
+    if (r.status === 404 && quoteId) { quoteId = ""; localStorage.removeItem("cz_id"); return saveRemote(); }   // deleted elsewhere: start a new row
+    if (!r.ok) { stat("Sin guardar"); return; }
+    const j = await r.json(); if (j.id) { quoteId = j.id; localStorage.setItem("cz_id", quoteId); }
+    stat(`Guardada ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}${M.por ? " · " + M.por : ""}`);
+  } catch (e) { stat("Sin guardar"); }
+}
+async function openList() { document.body.classList.add("list"); window.scrollTo(0, 0); $("list_rows").innerHTML = `<div class="note">Cargando…</div>`; try { const r = await fetch("/api/quotes"); LIST = (await r.json()).quotes || []; } catch (e) { LIST = []; } renderList(); }
+function renderList() {
+  const q = ($("list_q").value || "").toLowerCase().trim();
+  const rows = LIST.filter(x => !q || `${x.cliente} ${x.evento} ${x.fecha} ${x.por}`.toLowerCase().includes(q));
+  const when = iso => { const d = new Date(iso.replace(" ", "T") + "Z"); return isNaN(d) ? iso : d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }); };
+  const esc = t => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  $("list_rows").innerHTML = rows.length ? rows.map(x => `<div class="qrow" onclick="loadQuote('${x.id}')">
+    <div><div class="a">${esc(x.cliente || "Sin cliente")}${x.evento ? " · " + esc(x.evento) : ""}</div><div class="b">${[x.fecha, x.pax ? x.pax + " invitados" : ""].filter(Boolean).map(esc).join(" · ") || "&nbsp;"}</div></div>
+    <div class="v">${m(x.total)}</div>
+    <div class="acts" onclick="event.stopPropagation()"><span class="b">${esc(x.por) || "—"} · ${when(x.updated_at)}</span>
+      <select onchange="setEstado('${x.id}', this.value)"><option value="borrador"${x.estado == "borrador" ? " selected" : ""}>Borrador</option><option value="enviada"${x.estado == "enviada" ? " selected" : ""}>Enviada</option><option value="confirmada"${x.estado == "confirmada" ? " selected" : ""}>Confirmada</option><option value="cancelada"${x.estado == "cancelada" ? " selected" : ""}>Cancelada</option></select>
+      <button onclick="dupQuote('${x.id}')">Duplicar</button><button class="del" onclick="delQuote('${x.id}')">Eliminar</button></div>
+  </div>`).join("") : `<div class="note">${q ? "Nada con ese texto." : "Todavía no hay cotizaciones guardadas. Se guardan solas en cuanto capturas cliente, evento o invitados."}</div>`;
+}
+function applyData(o) { IDS.forEach(i => { if (o[i] !== undefined) { if ($(i).type === "checkbox") $(i).checked = !!o[i]; else $(i).value = o[i]; } }); if (o._int) document.body.classList.add("int"); else document.body.classList.remove("int"); }
+async function loadQuote(id) {
+  try { const r = await fetch(`/api/quotes/${id}`); if (!r.ok) throw 0; const x = await r.json();
+    quoteId = x.id; localStorage.setItem("cz_id", quoteId); applyData(x.data || {}); if (x.estado) $("cz_estado").value = x.estado;
+    document.body.classList.remove("list"); recalc(); window.scrollTo(0, 0); stat(`Abierta · ${x.por || "—"}`); } catch (e) { alert("No se pudo abrir."); }
+}
+async function setEstado(id, estado) { try { await fetch(`/api/quotes/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ estado }) }); const x = LIST.find(y => y.id === id); if (x) x.estado = estado; if (id === quoteId) $("cz_estado").value = estado; renderList(); } catch (e) { alert("No se pudo cambiar el estado."); } }
+async function delQuote(id) { const x = LIST.find(y => y.id === id); if (!confirm(`¿Eliminar la cotización de ${x && (x.cliente || x.evento) || "este cliente"}? No se puede deshacer.`)) return; try { await fetch(`/api/quotes/${id}`, { method: "DELETE" }); LIST = LIST.filter(y => y.id !== id); if (id === quoteId) { quoteId = ""; localStorage.removeItem("cz_id"); stat(""); } renderList(); } catch (e) { alert("No se pudo eliminar."); } }
+async function dupQuote(id) { try { const r = await fetch(`/api/quotes/${id}`); const x = await r.json(); const d = x.data || {}; d.cz_estado = "borrador"; if (x.evento) d.cv_evento = x.evento + " (copia)";
+    const r2 = await fetch("/api/quotes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ por: x.por, cliente: x.cliente, evento: x.evento ? x.evento + " (copia)" : "", fecha: x.fecha, pax: x.pax, total: x.total, estado: "borrador", data: d }) });
+    const j = await r2.json(); if (j.id) loadQuote(j.id); } catch (e) { alert("No se pudo duplicar."); }
+}
 function load() { try { const o = JSON.parse(localStorage.getItem("cotizador") || "{}"); IDS.forEach(i => { if (o[i] !== undefined) { if ($(i).type === "checkbox") $(i).checked = !!o[i]; else $(i).value = o[i]; } }); if (o._int) document.body.classList.add("int"); } catch (e) {} }
-function resetAll() { if (!confirm("¿Empezar una cotización nueva? Se borra lo capturado.")) return; IDS.forEach(i => { if ($(i).type === "checkbox") $(i).checked = i === "st_cc"; else if ($(i).tagName === "SELECT") $(i).selectedIndex = 0; else if (!i.endsWith("_notas") && !i.startsWith("st_")) $(i).value = ""; }); $("st_setup").value = 2; $("st_adj").value = 0; $("st_inp").value = 3; $("st_inc").value = 5; recalc(); }
+function resetAll(fromList) { if (!fromList && !confirm("¿Empezar una cotización nueva? Lo capturado ya quedó guardado en Guardadas.")) return; clearTimeout(saveTimer); quoteId = ""; localStorage.removeItem("cz_id"); stat(""); document.body.classList.remove("list"); IDS.forEach(i => { if ($(i).type === "checkbox") $(i).checked = i === "st_cc"; else if ($(i).tagName === "SELECT") $(i).selectedIndex = 0; else if (!i.endsWith("_notas") && !i.startsWith("st_")) $(i).value = ""; }); $("st_setup").value = 2; $("st_adj").value = 0; $("st_inp").value = 3; $("st_inc").value = 5; recalc(); }
 IDS.forEach(i => { $(i).addEventListener("input", recalc); $(i).addEventListener("change", recalc); });
 load(); recalc();
 

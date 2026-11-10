@@ -9,5 +9,7 @@
     { "binding": "ANTHROPIC_API_KEY", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "ANTHROPIC_API_KEY" }
   ],
   "vars": { "HUB_ORIGIN": "https://apps.dosbuhos.com" },
+  // Cotizaciones guardadas (migrations/). Applied with the Cloudflare D1 tool from chat; 0001 is applied.
+  "d1_databases": [{ "binding": "DB", "database_name": "cotizador", "database_id": "cbd5649b-f219-4fc7-9960-083dbf0fb2e2" }],
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "not_found_handling": "single-page-application" }
 }

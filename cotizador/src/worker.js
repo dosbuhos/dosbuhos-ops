@@ -56,6 +56,53 @@ async function aiNote(d, env) {
 
 const safeName = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\- ]+/g, '').trim().slice(0, 60);
 
+const ESTADOS = new Set(['borrador', 'enviada', 'confirmada', 'cancelada']);
+const newId = () => { const a = 'abcdefghjkmnpqrstuvwxyz23456789', b = crypto.getRandomValues(new Uint8Array(10)); return Array.from(b, x => a[x % a.length]).join(''); };
+const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
+async function quotesApi(request, env, url) {
+  const m = url.pathname.match(/^\/api\/quotes(?:\/([a-z0-9]+))?\/?$/);
+  if (!m) return json({ error: 'Ruta' }, 404);
+  const id = m[1] || '';
+  const COLS = 'id, created_at, updated_at, por, cliente, evento, fecha, pax, total, estado';
+  if (request.method === 'GET' && !id) {
+    const q = str(url.searchParams.get('q') || '', 80).toLowerCase();
+    const rows = q
+      ? await env.DB.prepare(`SELECT ${COLS} FROM quotes WHERE lower(cliente || ' ' || evento || ' ' || fecha || ' ' || por) LIKE ? ORDER BY updated_at DESC LIMIT 200`).bind(`%${q}%`).all()
+      : await env.DB.prepare(`SELECT ${COLS} FROM quotes ORDER BY updated_at DESC LIMIT 200`).all();
+    return json({ quotes: rows.results || [] });
+  }
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare(`SELECT ${COLS}, data FROM quotes WHERE id = ?`).bind(id).first();
+    if (!row) return json({ error: 'No existe' }, 404);
+    try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
+    return json(row);
+  }
+  if (request.method === 'DELETE' && id) {
+    await env.DB.prepare('DELETE FROM quotes WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
+  if ((request.method === 'POST' && !id) || (request.method === 'PUT' && id)) {
+    let b; try { b = await request.json(); } catch { return json({ error: 'JSON' }, 400); }
+    const estado = ESTADOS.has(b.estado) ? b.estado : 'borrador';
+    const vals = [str(b.por, 80), str(b.cliente), str(b.evento), str(b.fecha, 120), Math.max(0, Math.floor(Number(b.pax) || 0)), Math.max(0, Math.round(Number(b.total) || 0)), estado, JSON.stringify(b.data && typeof b.data === 'object' ? b.data : {})];
+    if (request.method === 'POST') {
+      const nid = newId();
+      await env.DB.prepare('INSERT INTO quotes (id, por, cliente, evento, fecha, pax, total, estado, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(nid, ...vals).run();
+      return json({ id: nid });
+    }
+    const r = await env.DB.prepare("UPDATE quotes SET por = ?, cliente = ?, evento = ?, fecha = ?, pax = ?, total = ?, estado = ?, data = ?, updated_at = datetime('now') WHERE id = ?").bind(...vals, id).run();
+    if (!r.meta || !r.meta.changes) return json({ error: 'No existe' }, 404);
+    return json({ id });
+  }
+  if (request.method === 'PATCH' && id) {   // only the estado
+    let b; try { b = await request.json(); } catch { return json({ error: 'JSON' }, 400); }
+    if (!ESTADOS.has(b.estado)) return json({ error: 'estado' }, 400);
+    await env.DB.prepare("UPDATE quotes SET estado = ?, updated_at = datetime('now') WHERE id = ?").bind(b.estado, id).run();
+    return json({ id, estado: b.estado });
+  }
+  return json({ error: 'Método' }, 405);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -86,6 +133,14 @@ export default {
       return json({ ok: false }, 401);
     }
     if (url.pathname === '/me') return json({ locked: locked && !ok });
+
+    // Cotizaciones guardadas (D1 `quotes`). Same gate as the app.
+    if (url.pathname.startsWith('/api/quotes')) {
+      if (!ok) return json({ error: 'PIN' }, 401);
+      if (!env.DB) return json({ error: 'Sin base de datos (binding DB).' }, 500);
+      try { return await quotesApi(request, env, url); }
+      catch (e) { return json({ error: String(e && e.message || e) }, 500); }
+    }
 
     if (url.pathname === '/pdf' && request.method === 'POST') {
       if (!ok) return new Response('PIN requerido. Abre el cotizador e ingresa el PIN.', { status: 401, headers: { 'content-type': 'text/plain;charset=utf-8' } });
