@@ -64,12 +64,12 @@ export default {
     // Personal para eventos (public/personal.html): OPEN for now, no PIN and no sign-in, so it can be shared while it is
     // being tested. BACKLOG: put it behind the Hub's Google sign-in (the Hub already proxies /personal/ here with
     // X-DB-App = personal; require `who` on that path and send direct hits to HUB_ORIGIN + '/personal/').
+    // Asset fetches use the clean URL (/personal, /guia, /gate): with html_handling "auto-trailing-slash" the asset
+    // store answers /x.html with a 301 to /x, and mapping /x back to /x.html would loop.
     const viaHub = request.headers.get('X-DB-App') === 'personal' && (url.pathname === '/' || url.pathname === '/index.html');
-    if (viaHub || url.pathname === '/personal' || url.pathname === '/personal.html') {
-      return env.ASSETS.fetch(new Request(new URL('/personal.html', request.url), request));
-    }
+    if (viaHub || url.pathname === '/personal') return env.ASSETS.fetch(new Request(new URL('/personal', request.url), request));
     // Guía del cotizador for the events team (public/guia.html): instructions, no PIN.
-    if (url.pathname === '/guia') return env.ASSETS.fetch(new Request(new URL('/guia.html', request.url), request));
+    if (url.pathname === '/guia') return env.ASSETS.fetch(new Request(new URL('/guia', request.url), request));
 
     const locked = !!env.PIN;
     let ok = !locked;
@@ -120,7 +120,7 @@ export default {
     }
 
     if (!ok && (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/sw.js')) {
-      return env.ASSETS.fetch(new Request(new URL('/gate.html', request.url), request));
+      return env.ASSETS.fetch(new Request(new URL('/gate', request.url), request));
     }
     return env.ASSETS.fetch(request);
   },

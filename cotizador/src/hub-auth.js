@@ -16,7 +16,7 @@ const fromB64u = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(
 export async function hubUser(request, env, maxAgeSeconds = 300) {
   const u = request.headers.get('X-DB-User');
   if (!u) return null;
-  const json = fromB64u(u);
+  let json; try { json = fromB64u(u); } catch { return null; }   // a malformed header is "not signed in", not a crash
   if (env.HUB_SECRET) {
     const ts = request.headers.get('X-DB-Ts') || '', sig = request.headers.get('X-DB-Sig') || '';
     if (!ts || Math.abs(Date.now() / 1000 - Number(ts)) > maxAgeSeconds) return null;
