@@ -219,14 +219,16 @@ WHERE = [
     (L("Distributors", "Distribuidores"), [
       (L("Arizona"), "Compa Spirits"), (L("California"), "Alluvial Wine &amp; Spirits"), (L("Colorado"), "RNDC · RBG Spirits &amp; Wine"),
       (L("Florida"), "Breakthru Beverage / Aspect"), (L("Georgia"), "Prime Wine &amp; Spirits / Chalkboard"), (L("Illinois"), "Maverick Beverage Co."),
-      (L("Michigan"), "Great Lakes Wine &amp; Spirits"), (L("Minnesota"), "Maverick Beverage Co."), (L("New York", "Nueva York"), "VOS Selections"),
+      (L("Michigan"), "Great Lakes Wine &amp; Spirits"), (L("Minnesota"), "Maverick Beverage Co."), (L("New York, New Jersey, Pennsylvania", "Nueva York, Nueva Jersey, Pensilvania"), "VOS Selections"),
       (L("Tennessee"), "Lipman Brothers"), (L("Texas"), "RNDC · RBG Spirits &amp; Wine"), (L("Virginia"), "Salveto Imports")]),
     (L("Shops", "Tiendas"), [
       (L("California"), "Wally's Wine &amp; Spirits · Northgate Market · Bird Rock Fine Wine · Alta Baja Market"),
-      (L("Colorado"), "Superior Liquor Market"), (L("Texas"), "HOU Wine · Put a Cork In It")]),
+      (L("Colorado"), "Superior Liquor Market"), (L("Michigan"), "Plum Market · Arbor Farms Market"), (L("Texas"), "HOU Wine · Put a Cork In It")]),
     (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
-      (L("California"), "Californios · Finca · The 1894 · San Manuel Casino"),
+      (L("California"), "Californios · Finca · Glasspar · The 1894 · San Manuel Casino"),
       (L("Colorado"), "Alma Fonda Fina · Tamayo · Alteño · Agave Blue · The Crawford Hotel at Denver Union Station"),
+      (L("Illinois"), "Topolobampo · Esmé · Leña Brava"),
+      (L("Michigan"), "Vecino · Selden Standard · Echelon"),
       (L("Texas"), "Mixtli · Caracol · Zaranda · The Dunlavy · Pappas Bros. Steakhouse · Toca Madera · Mayahuel · Maya Maroma · Puerto Cocina · Maria's Mexican Kitchen · The Olive Branch · 1 Hotel Austin")]),
   ]},
 ]
