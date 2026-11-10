@@ -23,6 +23,14 @@
           ]
         },
         {
+          "label": "Sommelier presentation 2026 (ES)",
+          "status": "have",
+          "note": "",
+          "files": [
+            "/docs/Dos-Buhos-Presentacion-Sommeliers-2026.pdf"
+          ]
+        },
+        {
           "label": "Awards & scores (EN/ES)",
           "status": "have",
           "note": "One page, every medal and score, newest first.",
@@ -58,6 +66,12 @@
           "label": "Fact sheet, short story (150 words), long story (600 words), EN/ES",
           "status": "have",
           "note": "On the press page and in the press kit PDF.",
+          "files": []
+        },
+        {
+          "label": "Community and charities; Contemplo feature (EN/ES)",
+          "status": "have",
+          "note": "On the press page and in the PDF.",
           "files": []
         }
       ]

@@ -459,6 +459,18 @@
       </div>
 
       <!-- WINES -->
+      <div class="acc" id="acc-contemplo">
+        <button class="acc-h" onclick="toggle('acc-contemplo')"><span class="t"><b>Contemplo</b><span class="en">Immersive art in the chapel</span><span class="es">Arte inmersivo en la capilla</span></span><span class="chev"></span></button>
+        <div class="acc-b"><div class="acc-i">
+          <div class="car" data-car>
+            <div class="slide"><img loading="lazy" src="/press/files/photos/09-art/DosBuhos_Art_Contemplo-Projection_2023_4000px.jpg" alt=""><h4 class="en">Art in the chapel</h4><h4 class="es">Arte en la capilla</h4><p class="en">Past the vines, in the estate's old chapel, the lights go down. Contemplo shows video, light, installation and virtual reality, made for one room and seen a few people at a time. Curated by Melanie Harris de Maycotte.</p><p class="es">Pasando el viñedo, en la antigua capilla de la finca, se apagan las luces. Contemplo presenta video, luz, instalación y realidad virtual, hechos para un solo espacio y vistos por pocas personas a la vez. Curaduría de Melanie Harris de Maycotte.</p></div>
+            <div class="slide"><img loading="lazy" src="/press/files/photos/09-art/DosBuhos_Art_Light-Art-Flowers_2026_4096px.jpg" alt=""><h4 class="en">What's been shown</h4><h4 class="es">Lo que se ha presentado</h4><p class="en"><i>El Bosque</i> by Victor Zapatero, <i>Ápeiron</i> by Daniela Edburg and Iván Puig, virtual reality by Yuliya Lanina and, in 2026, <i>Small Acts of Light</i>. The CONTEMPLAMOS residency brings artists to live and work among the vines.</p><p class="es"><i>El Bosque</i> de Victor Zapatero, <i>Ápeiron</i> de Daniela Edburg e Iván Puig, realidad virtual de Yuliya Lanina y, en 2026, <i>Small Acts of Light</i>. La residencia CONTEMPLAMOS recibe artistas para vivir y crear entre las vides.</p></div>
+            <div class="slide"><img loading="lazy" src="/press/files/photos/09-art/DosBuhos_Art_Salon-De-Arte_2023_5749px.jpg" alt=""><h4>En la Oscuridad</h4><p class="en">A wine tasting in complete darkness: an hour, eight guests at most, the other senses doing the work. 15% of each ticket goes to a Guanajuato association for people with visual disabilities.</p><p class="es">Una cata de vino en total oscuridad: una hora, máximo ocho personas, los demás sentidos al mando. El 15% de cada boleto apoya a una asociación de Guanajuato para personas con discapacidad visual.</p></div>
+          </div>
+          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="row"><a class="btn warm full" href="https://wa.me/524151390978"><span class="en">Book a visit · WhatsApp</span><span class="es">Agendar visita · WhatsApp</span></a><a class="btn full" href="https://www.contemplo.mx" target="_blank" rel="noopener">contemplo.mx · @contemplomx</a></div>
+        </div></div>
+      </div>
       <div class="acc" id="acc-wines">
         <button class="acc-h" onclick="toggle('acc-wines')"><span class="t"><b class="en">The wines</b><b class="es">Los vinos</b><span class="en">Nineteen labels, with notes and prices</span><span class="es">Diecinueve etiquetas, con notas y precios</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
@@ -741,7 +753,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611101532'; let lastCheck = 0;
+const APP_VER = '202611101538'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
