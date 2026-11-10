@@ -157,17 +157,6 @@ PHOTOS = [
     {"f": "photos/lunch-table.jpg", "en": "Lunch under the trees", "es": "Comida bajo los árboles"},
     {"f": "photos/glasses.jpg", "en": "Espontáneo, our orange wine", "es": "Espontáneo, nuestro vino naranja"},
     {"f": "photos/pouring.jpg", "en": "Espontáneo, poured", "es": "Espontáneo, al servir"},
-    {"f": "photos/candle-sparkling.jpg", "pos": "50% 45%", "en": "An evening in the Winegarden", "es": "Una noche en el Winegarden", "lowres": True},
-    {"f": "photos/event-table-courtyard.jpg", "pos": "50% 55%", "en": "A table set in the courtyard", "es": "Mesa puesta en el patio", "lowres": True},
-    {"f": "photos/cross-fountain-pergola.jpg", "pos": "50% 25%", "en": "The Winegarden fountain", "es": "La fuente del Winegarden", "lowres": True},
-    {"f": "photos/chapel-facade.jpg", "pos": "50% 10%", "en": "The chapel", "es": "La capilla", "lowres": True},
-    {"f": "photos/welcome-bicycle.jpg", "pos": "50% 55%", "en": "Welcome", "es": "Bienvenidos", "lowres": True},
-    {"f": "photos/orange-wine-table.jpg", "pos": "50% 62%", "en": "Espontáneo at the table", "es": "Espontáneo en la mesa", "lowres": True},
-    {"f": "photos/kids-grapes.jpg", "pos": "50% 35%", "en": "Harvest, all ages", "es": "Vendimia para todas las edades", "lowres": True},
-    {"f": "photos/engagement-couple.jpg", "pos": "50% 30%", "en": "She said yes, in the vines", "es": "Dijo que sí, entre las vides", "lowres": True},
-    {"f": "photos/vineyard-grapes-woman.jpg", "pos": "50% 28%", "en": "Tasting from the vine", "es": "Probando de la vid", "lowres": True},
-    {"f": "photos/fountain-courtyard.jpg", "pos": "50% 22%", "en": "The hacienda courtyard", "es": "El patio de la hacienda", "lowres": True},
-    {"f": "photos/higinio-orange-truck.jpg", "pos": "50% 28%", "en": "Higinio and the orange truck", "es": "Higinio y la camioneta naranja", "lowres": True},
     {"f": "photos/vineyard-talk.jpg", "en": "In the vineyard", "es": "En el viñedo"},
     {"f": "photos/harvest.jpg", "en": "Harvest at dawn", "es": "Vendimia al amanecer"},
     {"f": "photos/recorrido.jpg", "en": "The vineyard walk", "es": "El recorrido"},
@@ -245,12 +234,21 @@ def wine_html(w):
     return h + '</div>'
 press = open(os.path.join(ROOT, "press_template.html"), encoding="utf-8").read()
 MED = {"gg":("Grand Gold","Gran Oro"),"g":("Gold","Oro"),"s":("Silver","Plata"),"b":("Bronze","Bronce"),"m":("CMB Merit","CMB Merit")}
-rows = []
-for a in AWARDS:
-    for wine, med in a["items"]:
-        en, es = MED.get(med, (med, med))
-        rows.append(f'<tr><td class="w">{wine}</td><td class="m"><span class="en">{en}</span><span class="es">{es}</span></td><td>{a["comp"]}{(" " + str(a["year"])) if a["year"] else ""}</td></tr>')
-press = press.replace("__AWARDS_TABLE__", "<table class=\"aw\"><tr><th class=\"en\">Wine</th><th class=\"es\">Vino</th><th class=\"en\">Award</th><th class=\"es\">Premio</th><th class=\"en\">Competition</th><th class=\"es\">Concurso</th></tr>" + "\n".join(rows) + "</table>")
+def _aw_cards():
+    # one card per competition: medal discs, or big scores for the guide
+    cards = []
+    for a in AWARDS:
+        yr = str(a["year"]) if a["year"] else '<span class="en">earlier editions</span><span class="es">ediciones anteriores</span>'
+        li = []
+        for wine, med in a["items"]:
+            if med in MED:
+                en, es = MED[med]
+                li.append(f'<li><i class="disc {med}" aria-hidden="true"></i><span class="wn">{wine}</span><span class="md"><span class="en">{en}</span><span class="es">{es}</span></span></li>')
+            else:
+                li.append(f'<li><b class="pts">{med.split()[0]}<small>pts</small></b><span class="wn">{wine}</span></li>')
+        cards.append(f'<div class="awc{" sc" if not any(m in MED for _, m in a["items"]) else ""}"><div class="awh"><b>{a["comp"]}</b><span>{yr}</span></div><ul>{"".join(li)}</ul></div>')
+    return '<div class="awgrid">' + "".join(cards) + '</div>'
+press = press.replace("__AWARDS_TABLE__", _aw_cards())
 press = press.replace("__WINES__", "\n".join(wine_html(w) for w in WINES)).replace("__PHOTOS__", json.dumps([p for p in PHOTOS if not p.get("lowres")][:8], ensure_ascii=False))
 press = press.replace("__OPENTABLE__", LINKS["OPENTABLE"]).replace("__MAPS__", LINKS["MAPS"]).replace("__WA_MAIN__", WA_MAIN).replace("__PRESS_EMAIL__", PRESS_EMAIL).replace("__MARKETING_EMAIL__", MARKETING_EMAIL)
 os.makedirs(os.path.join(PUB, "press"), exist_ok=True)
@@ -323,6 +321,16 @@ h1{{font:500 30px/1.1 "Cormorant Garamond",Georgia,serif;margin:0}}.sum{{color:#
 {''.join(out)}</main></body></html>"""
     os.makedirs(os.path.join(PUB, "press", "library"), exist_ok=True)
     open(os.path.join(PUB, "press", "library", "index.html"), "w", encoding="utf-8").write(page)
+    # photo gallery for the card app: categories -> [thumb, full]
+    GES = {'Estate': 'La finca', 'Vineyard & harvest': 'Viñedo y vendimia', 'Cellar & winemaking': 'Bodega y vinificación', 'People at work': 'Gente trabajando', 'Bottles': 'Botellas', 'Bottle packshots': 'Botellas en fondo blanco', 'Restaurant & food': 'Restaurante y comida', 'Events (general)': 'Eventos', 'Event spaces & setups': 'Espacios y montajes', 'Weddings': 'Bodas', 'Vendimia (harvest festival)': 'Fiesta de la Vendimia', 'Día de Muertos': 'Día de Muertos', 'Waldorf Astoria event': 'Evento Waldorf Astoria', 'Art': 'Arte', 'Nature & landscape': 'Naturaleza y paisaje', 'Animals': 'Animales', 'From the 2025 brand deck': 'De la presentación de marca 2025'}
+    cats = [{"en": "Press selection", "es": "Selección de prensa", "items": [[_thumb("/" + p["f"])[0] or "/" + p["f"], "/" + p["f"]] for p in PHOTOS]}]
+    for sec in lib["sections"]:
+        if "Photos" not in sec["title"]: continue
+        for it in sec["items"]:
+            en = it["label"].split(" · ", 1)[-1]
+            fs = [f for f in it["files"] if f.lower().endswith((".jpg", ".jpeg"))]
+            if fs: cats.append({"en": en, "es": GES.get(en, en), "items": [[_thumb(f)[0] or f, f] for f in fs]})
+    json.dump(cats, open(os.path.join(PUB, "press", "library", "gallery.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 _lib()
 
 # service worker
