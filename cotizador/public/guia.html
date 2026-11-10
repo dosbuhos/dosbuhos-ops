@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guía del cotizador · Dos Búhos</title>
+<meta name="theme-color" content="#5c1e33">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+  @font-face{font-family:"Cormorant Garamond";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/cormorant-garamond-latin-500-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:300;font-style:normal;font-display:swap;src:url(fonts/lato-latin-300-normal.woff2) format("woff2")}
+  @font-face{font-family:Lato;font-weight:400;font-style:normal;font-display:swap;src:url(fonts/lato-latin-400-normal.woff2) format("woff2")}
+  :root{--bg:#f6f2e7;--paper:#fffef8;--ink:#2b2420;--wine:#5c1e33;--gold:#a0783a;--muted:#7d7466;--line:#e4dccb;--red:#b8302a;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:Lato,system-ui,sans-serif;font-weight:300;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .top{background:var(--wine);color:#f6f2e7;padding:calc(var(--sat) + 14px) 18px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  .top img{height:26px;display:block}
+  .top .t{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.85}
+  .top a{white-space:nowrap;border:1px solid rgba(246,242,231,.4);color:#f6f2e7;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:7px 10px;text-decoration:none}
+  .wrap{max-width:640px;margin:0 auto;padding:18px 16px calc(var(--sab) + 40px)}
+  h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:26px;color:var(--wine);margin:26px 0 8px;line-height:1.1}
+  h2 small{display:block;font-family:Lato,sans-serif;font-weight:300;font-size:13px;color:var(--muted);margin-top:2px}
+  .card{background:var(--paper);border:1px solid var(--line);padding:4px 14px}
+  .row{padding:11px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+  .row:last-child{border-bottom:0}
+  .row b{display:block;font-weight:400;color:var(--ink)}
+  .row span{color:var(--muted)}
+  .rule{border-left:3px solid var(--gold);padding-left:12px}
+  .rule.red{border-left-color:var(--red)}
+  .lead{font-size:15px;color:var(--ink);padding:4px 2px 0}
+  .k{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);padding:12px 0 2px}
+  a.btn{display:block;text-align:center;background:var(--wine);color:#f6f2e7;text-decoration:none;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:14px;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="top"><div><img src="icons/logo-light.png" alt="Dos Búhos"><div class="t">Guía del cotizador</div></div><a href="/">‹ Cotizador</a></div>
+<div class="wrap">
+  <p class="lead">El cotizador arma la propuesta con los precios de la casa. Tú capturas lo que el cliente quiere; él calcula, avisa si algo no cuadra, y genera el PDF y el resumen de WhatsApp. Esta guía dice qué va en cada campo y qué reglas no se mueven.</p>
+
+  <h2>Antes de abrir<small>Lo que hay que saber del cliente</small></h2>
+  <div class="card">
+    <div class="row"><b>Fecha, horario e invitados</b><span>Cuántas horas quieren de evento y a qué hora empieza. Los invitados mandan en todo: espacio, mínimo, personal.</span></div>
+    <div class="row"><b>Qué tipo de evento</b><span>Cena servida, parrillada o solo barra con bocados. Si hay niños o personas que no beben, cuántos: pagan barra sin alcohol.</span></div>
+    <div class="row"><b>Dónde se lo imaginan</b><span>Bodega de Arte o Winegarden en uso privado, o una mesa en el restaurante en horario regular. Son cosas distintas: ver reglas.</span></div>
+  </div>
+
+  <h2>Campo por campo<small>En el orden de la pantalla</small></h2>
+  <div class="card">
+    <div class="k">El evento</div>
+    <div class="row"><b>Cliente, evento, fecha, horario, invitados</b><span>Como quieres que salgan en la propuesta ("Sábado 14 de marzo", "19:00 - 22:00"). El horario arma la línea de tiempo de la velada.</span></div>
+    <div class="row"><b>Prepara la propuesta</b><span>Tu nombre; firma la propuesta.</span></div>
+    <div class="k">El espacio</div>
+    <div class="row"><b>Espacio y día</b><span>Uso privado se cobra por persona por hora (viernes a domingo cuesta más); con 100 o más invitados se cobra el espacio completo. Restaurante en horario regular: sin renta hasta 3 horas.</span></div>
+    <div class="row"><b>Horas del evento</b><span>Las horas que el cliente tendrá el espacio. La barra libre debe tener las mismas horas.</span></div>
+    <div class="row"><b>Hacienda completa</b><span>Solo si piden toda la hacienda en exclusiva; es un cargo aparte.</span></div>
+    <div class="k">Alimentos y bebidas</div>
+    <div class="row"><b>Copa de bienvenida</b><span>Cortesía en eventos grandes o de buen ticket. En grupos chicos se cobra: ayuda a llegar al mínimo.</span></div>
+    <div class="row"><b>Bocados y menú</b><span>Un solo menú para todo el grupo (la cocina corre una sola línea); siempre hay opción vegetariana. Parrillada es al centro de la mesa, para compartir.</span></div>
+    <div class="row"><b>Barra libre</b><span>Vino de la casa, cerveza y bebidas sin alcohol, por horas. Gran Reserva es el upgrade. Sin alcohol para niños y no bebedores; se controla con pulseras.</span></div>
+    <div class="row"><b>Recorrido y botellas de obsequio</b><span>El recorrido se cobra por copa y por persona. Las botellas de obsequio van a precio de tienda; etiqueta personalizada solo desde 24 botellas.</span></div>
+    <div class="k">La cotización</div>
+    <div class="row"><b>Tres bloques</b><span>Alimentos y bebidas (más 15 % de servicio e IVA), espacio (más IVA) y personal de servicio (más IVA). Los tres suman el total del evento.</span></div>
+    <div class="row"><b>Personal de servicio</b><span>Lo calcula el cotizador con la fórmula de la casa según invitados, formato y horas. No se captura, no se quita y no se descuenta. Cubre al equipo que abre la bodega fuera de horario.</span></div>
+  </div>
+
+  <h2>Reglas que no se mueven<small>El cotizador avisa; tú las respetas</small></h2>
+  <div class="card">
+    <div class="row rule"><b>Consumo mínimo en uso privado</b><span>$30,000 en alimentos y bebidas hasta 3 horas, más $5,000 por hora adicional, antes de servicio e IVA. Si falta, la cotización lo marca en rojo y en Interno te da opciones (mejor menú, barra, copa, botellas). No se envía una propuesta con la línea roja.</span></div>
+    <div class="row rule"><b>Barra libre = horas del evento</b><span>No se vende una barra más corta que el evento.</span></div>
+    <div class="row rule"><b>Cortesía en la renta: hasta 20 %</b><span>A tu criterio hasta 20 %. Más de eso, solo con autorización de Eric antes de enviar.</span></div>
+    <div class="row rule"><b>El personal es aparte del espacio</b><span>La renta paga el espacio; el personal paga a la gente. No se compensa uno con otro ni se da cortesía en personal.</span></div>
+    <div class="row rule"><b>Uso privado desde 30 invitados</b><span>Grupos más chicos: mesa en el restaurante en horario regular, o consultar con Eric.</span></div>
+    <div class="row rule"><b>Etiqueta personalizada desde 24 botellas</b><span>Menos de 24, botellas de obsequio sin etiqueta.</span></div>
+    <div class="row rule red"><b>Pregúntale a Eric</b><span>Cortesía mayor a 20 %, cualquier cambio de precio o de menú fuera de carta, eventos chicos en uso privado, o un cliente que pide quitar el personal o el mínimo.</span></div>
+  </div>
+
+  <h2>Interno y envío<small>Lo que ve el cliente y lo que no</small></h2>
+  <div class="card">
+    <div class="row"><b>Botón Interno</b><span>Muestra alertas, renta neta, la plantilla de personal con costo y bono, y la requisición para publicar al equipo. Nada de esto sale en la propuesta.</span></div>
+    <div class="row"><b>Propuesta → PDF</b><span>Tres páginas con la nota de apertura, la velada, el espacio y los totales; "+ Detalle" agrega el desglose. Se genera en línea.</span></div>
+    <div class="row"><b>WhatsApp</b><span>Resumen corto con las líneas principales y el total, para una primera respuesta rápida.</span></div>
+    <div class="row"><b>Vigencia y pagos</b><span>Propuesta vigente 15 días; 50 % de anticipo para apartar la fecha, saldo cinco días antes.</span></div>
+  </div>
+
+  <a class="btn" href="/">Abrir el cotizador</a>
+</div>
+</body>
+</html>

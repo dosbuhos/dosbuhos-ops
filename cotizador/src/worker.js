@@ -68,6 +68,8 @@ export default {
     if (viaHub || url.pathname === '/personal' || url.pathname === '/personal.html') {
       return env.ASSETS.fetch(new Request(new URL('/personal.html', request.url), request));
     }
+    // Guía del cotizador for the events team (public/guia.html): instructions, no PIN.
+    if (url.pathname === '/guia') return env.ASSETS.fetch(new Request(new URL('/guia.html', request.url), request));
 
     const locked = !!env.PIN;
     let ok = !locked;
