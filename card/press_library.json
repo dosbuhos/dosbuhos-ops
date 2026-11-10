@@ -132,7 +132,7 @@
       "title": "7 · Logos & labels",
       "items": [
         {
-          "label": "Logo: vector PDF, SVG, PNG gray / white / black",
+          "label": "Wordmark: vector PDF, SVG, PNG gray / white / black",
           "status": "have",
           "note": "",
           "files": [
@@ -143,6 +143,20 @@
             "/press/files/logos/DosBuhos_Logo_Gray.png",
             "/press/files/logos/DosBuhos_Logo_White.png",
             "/press/files/logos/DosBuhos_Logo_Black.png"
+          ]
+        },
+        {
+          "label": "Monogram: vector PDF, SVG, PNG black / white (with and without name)",
+          "status": "have",
+          "note": "Included in the Logos ZIP.",
+          "files": [
+            "/press/files/logos/DosBuhos_Monogram-Lockup_Vector.pdf",
+            "/press/files/logos/DosBuhos_Monogram-Lockup_Black.svg",
+            "/press/files/logos/DosBuhos_Monogram-Lockup_White.svg",
+            "/press/files/logos/DosBuhos_Monogram-Lockup_Black.png",
+            "/press/files/logos/DosBuhos_Monogram-Lockup_White.png",
+            "/press/files/logos/DosBuhos_Monogram_Black.png",
+            "/press/files/logos/DosBuhos_Monogram_White.png"
           ]
         },
         {
