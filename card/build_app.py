@@ -256,6 +256,39 @@ press = press.replace("__OPENTABLE__", LINKS["OPENTABLE"]).replace("__MAPS__", L
 os.makedirs(os.path.join(PUB, "press"), exist_ok=True)
 open(os.path.join(PUB, "press", "index.html"), "w", encoding="utf-8").write(press)
 
+
+def _thumb(path):
+    """Small preview for the press library: images and PDF first pages -> /press/library/thumbs/*.jpg"""
+    import hashlib, subprocess, zipfile
+    src = os.path.join(PUB, path.lstrip("/"))
+    if not os.path.exists(src): return None, None
+    ext = path.rsplit(".", 1)[-1].lower()
+    if ext == "zip":
+        try: n = len([i for i in zipfile.ZipFile(src).namelist() if not i.endswith("/")])
+        except Exception: n = 0
+        return None, f"ZIP · {n} files"
+    if ext == "svg": return path, None
+    tdir = os.path.join(PUB, "press", "library", "thumbs"); os.makedirs(tdir, exist_ok=True)
+    name = hashlib.md5((path + str(os.path.getmtime(src))).encode()).hexdigest()[:12] + ".png"
+    out = os.path.join(tdir, name)
+    if not os.path.exists(out):
+        try:
+            if ext == "pdf":
+                subprocess.run(["pdftoppm", "-png", "-r", "30", "-singlefile", "-f", "1", "-l", "1", src, out[:-4]], check=True, capture_output=True)
+                im = Image.open(out)
+            else:
+                im = Image.open(src)
+            im.thumbnail((360, 360)); im.save(out, optimize=True)
+        except Exception:
+            return None, ext.upper()
+    return "/press/library/thumbs/" + name, None
+
+def _tile(f, size):
+    import html as H
+    t, label = _thumb(f)
+    pic = f'<img loading="lazy" src="{t}" alt="">' if t else f'<span class="ph">{H.escape(label or f.rsplit(".",1)[-1].upper())}</span>'
+    return f'<a class="tile" href="{f}" download><span class="pv">{pic}</span><b>{H.escape(f.rsplit("/",1)[-1])}</b><i>{size or "missing file"}</i></a>'
+
 # ---- press library: checklist + downloads at /press/library/ (from press_library.json) ----
 def _lib():
     import html as H
@@ -270,7 +303,7 @@ def _lib():
         out.append(f"<h2>{H.escape(sec['title'])}</h2>")
         for it in sec["items"]:
             st = it["status"]; tally[st] = tally.get(st, 0) + 1
-            files = "".join(f'<a href="{f}" download>{H.escape(f.rsplit("/",1)[-1])}<i>{sz(f) or "missing file"}</i></a>' for f in it.get("files", []))
+            files = "".join(_tile(f, sz(f)) for f in it.get("files", []))
             note = f'<p>{H.escape(it["note"])}</p>' if it.get("note") else ""
             out.append(f'<div class="it {st}"><div class="h"><span class="st">{ {"have":"✓","partial":"◐","missing":"○"}[st] }</span>{H.escape(it["label"])}</div>{note}<div class="f">{files}</div></div>')
     page = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
@@ -278,8 +311,11 @@ def _lib():
 :root{{color-scheme:dark}}body{{margin:0;background:#0a0a0a;color:#f5f0e8;font:15px/1.5 Lato,system-ui,sans-serif}}main{{max-width:760px;margin:0 auto;padding:28px 18px 60px}}
 h1{{font:500 30px/1.1 "Cormorant Garamond",Georgia,serif;margin:0}}.sum{{color:#9a9184;margin:6px 0 20px}}h2{{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#c9a26a;margin:28px 0 8px;font-weight:400}}
 .it{{border:1px solid #2a2724;padding:12px 14px;margin-bottom:8px}}.h{{display:flex;gap:10px}}.st{{width:16px;flex:none}}.have .st{{color:#8fbf7a}}.partial .st{{color:#d9b25a}}.missing .st{{color:#8a8178}}
-.missing .h{{color:#b8b0a4}}.it p{{margin:4px 0 0 26px;color:#9a9184;font-size:13px}}.f{{margin:6px 0 0 26px;display:flex;flex-direction:column;gap:4px}}
-.f a{{color:#f5f0e8;font-size:13px;text-decoration:none;border-bottom:1px solid #2a2724;padding:4px 0;display:flex;justify-content:space-between;gap:10px}}.f a i{{color:#9a9184;font-style:normal;white-space:nowrap}}
+.missing .h{{color:#b8b0a4}}.it p{{margin:4px 0 0 26px;color:#9a9184;font-size:13px}}.f{{margin:10px 0 0 26px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}}.f:empty{{display:none}}
+.tile{{color:#f5f0e8;text-decoration:none;display:flex;flex-direction:column;gap:4px;min-width:0}}
+.pv{{aspect-ratio:1;background:#6b6560 repeating-conic-gradient(#5d5853 0 25%,#6b6560 0 50%) 50%/16px 16px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #2a2724}}
+.pv img{{max-width:100%;max-height:100%;object-fit:contain;display:block}}.pv .ph{{font-size:11px;letter-spacing:.14em;color:#f5f0e8;text-align:center;padding:6px}}
+.tile b{{font-weight:400;font-size:11px;line-height:1.3;word-break:break-all}}.tile i{{color:#9a9184;font-style:normal;font-size:11px}}.tile:hover .pv{{border-color:#c9a26a}}
 </style></head><body><main><h1>Press kit library</h1><p class="sum">{tally['have']} done · {tally['partial']} partial · {tally['missing']} to do · <a href="/press/" style="color:#c9a26a">press page</a></p>
 {''.join(out)}</main></body></html>"""
     os.makedirs(os.path.join(PUB, "press", "library"), exist_ok=True)
