@@ -26,7 +26,7 @@ PEOPLE = {
     "dosbuhos": {"name": "Dos Búhos", "role": None, "first": "", "last": "", "title": "", "email": "reservaciones@dosbuhos.com", "whatsapp": WA_MAIN},
     "eric":     {"name": "Eric Maycotte",     "role": {"en": "Owner · Winemaking team", "es": "Propietario · Equipo de vinificación"}, "first": "Eric", "last": "Maycotte", "title": "Owner", "email": "cabosari@dosbuhos.com", "whatsapp": "15127042059"},
     "diane":    {"name": "Diane Maycotte",    "role": {"en": "Winemaker", "es": "Enóloga"}, "first": "Diane", "last": "Maycotte", "title": "Winemaker", "email": "dmaycotte@gmail.com", "whatsapp": "15129159410"},
-    "higinio":  {"name": "Higinio Maycotte",  "role": {"en": "Grape grower · Founder", "es": "Viticultor · Fundador"}, "first": "Higinio", "last": "Maycotte", "title": "Grape grower", "email": "info@dosbuhos.com", "whatsapp": WA_MAIN},
+    "higinio":  {"name": "Higinio Maycotte",  "role": {"en": "Grape grower · Founder", "es": "Viticultor · Fundador"}, "first": "Higinio", "last": "Maycotte", "title": "Grape grower", "email": "higiniojmaycotte@gmail.com", "whatsapp": "524151018593"},
     "melanie":  {"name": "Melanie Harris",    "role": {"en": "Head of Events & Community", "es": "Directora de Eventos y Comunidad"}, "first": "Melanie", "last": "Harris", "title": "Head of Events & Community", "email": "melanie@dosbuhos.com", "whatsapp": "15127678084"},
     "michael":  {"name": "Michael Dunlop",    "role": {"en": "Food & Beverage Director", "es": "Director de Alimentos y Bebidas"}, "first": "Michael", "last": "Dunlop", "title": "Food & Beverage Director", "email": "michael@dosbuhos.com", "whatsapp": "524461422578"},
 }
