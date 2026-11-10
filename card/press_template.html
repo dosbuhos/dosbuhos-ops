@@ -95,8 +95,34 @@
   }
   html.print .awgrid{display:block !important;column-count:2;column-gap:12px;margin:16px 0 0 !important;padding:0 !important}
   html.print .awc{flex:none;margin-bottom:12px;break-inside:avoid}
+  #pv{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:60}#pv.on{display:flex}#pv img{max-width:100%;max-height:100%;object-fit:contain}#pv button{position:absolute;top:calc(var(--sat,0px) + 12px);right:14px;background:none;border:0;color:#fff;font-size:22px}
+  /* ---- print-only magazine layer ---- */
+  .ponly{display:none}
+  html.print .ponly{display:block}
+  html.print header, html.print footer{display:none}
+  html.print .pcover{margin:-14mm -14mm 0;height:262mm;overflow:hidden;break-after:page;display:flex;flex-direction:column;background:#fbf8f2}
+  .pc-img{width:100%;height:160mm;object-fit:cover;display:block}
+  .pc-txt{padding:12mm 18mm 0;text-align:center}
+  .pc-logo{height:17mm;filter:invert(1)}
+  .pc-kick{font-size:9pt;letter-spacing:.42em;text-transform:uppercase;color:#8a5a2b;margin-top:6mm}
+  .pc-deck{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19pt;line-height:1.25;color:#1a1a1a !important;max-width:150mm;margin:4mm auto 0}
+  .pc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;margin-top:7mm;border-top:1px solid #d9cfbe;padding-top:5mm}
+  .pc-stats b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:24pt;line-height:1;color:#8a5a2b}
+  .pc-stats span{display:block;font-size:7.5pt;letter-spacing:.14em;text-transform:uppercase;color:#6b6358;margin-top:2mm}
+  html.print .prow{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin:6mm 0 4mm;break-inside:avoid}
+  .pf{margin:0;break-inside:avoid}.pf img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+  .pf.wide img{aspect-ratio:21/9}
+  .pf figcaption{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:10.5pt;color:#6b6358;margin-top:2mm}
+  html.print h2, html.print h3{break-after:avoid}
+  html.print .pband{margin:6mm 0 4mm;break-inside:avoid}
+  .pq{font-family:"Cormorant Garamond",Georgia,serif;font-size:21pt;line-height:1.2;color:#8a5a2b;text-align:center;margin:8mm 10mm 6mm;padding:6mm 0;border-top:1px solid #d9cfbe;border-bottom:1px solid #d9cfbe;break-inside:avoid}
+  html.print .pback{margin:0 -14mm;break-before:page;break-inside:avoid;height:262mm;position:relative;overflow:hidden}
+  .pback img{width:100%;height:100%;object-fit:cover;display:block}
+  .pb-txt{position:absolute;left:14mm;right:14mm;bottom:14mm;background:rgba(251,248,242,.94);padding:8mm 10mm}
+  .pb-k{font-size:8.5pt;letter-spacing:.32em;text-transform:uppercase;color:#8a5a2b;margin:0 0 1.5mm}
+  .pb-txt p{margin:0 0 5mm;font-size:10.5pt;line-height:1.5}.pb-txt p:last-child{margin:0}.pb-txt a{color:#8a5a2b}
   @page{size:Letter;margin:0}
-  html.print .wrap{padding:14mm 14mm !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  html.print .wrap{max-width:none !important;padding:14mm 14mm !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 
   .shots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
   .shots figure{margin:0}.shots img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#1a1816}
@@ -146,6 +172,7 @@
 </style>
 </head>
 <body>
+<div id="pv" onclick="this.classList.remove('on')"><img alt=""><button aria-label="close">✕</button></div>
 <div class="wrap">
   <div class="bar">
     <a href="/#page">‹ <span class="en">Back</span><span class="es">Volver</span></a>
@@ -169,6 +196,20 @@
     </div>
   </header>
 
+  <div class="ponly pcover">
+    <img class="pc-img" src="/press/files/photos/01-estate/DosBuhos_Estate_Chapel-Tower-at-Sunset_2025_3136px.jpg" alt="">
+    <div class="pc-txt">
+      <img class="pc-logo" src="/icons/logo.png" alt="Dos Búhos">
+      <div class="pc-kick"><span class="en">Press kit · 2026</span><span class="es">Kit de prensa · 2026</span></div>
+      <p class="pc-deck"><span class="en">Organic wine from the high desert of Mexico, grown at 2,000 metres on land where nobody knew what would grow.</span><span class="es">Vino orgánico del altiplano mexicano, cultivado a 2,000 metros en una tierra donde nadie sabía qué iba a crecer.</span></p>
+      <div class="pc-stats">
+        <div><b>2,000 m</b><span class="en">6,600 ft, volcanic soil</span><span class="es">suelo volcánico</span></div>
+        <div><b>18</b><span class="en">estate-grown varieties</span><span class="es">variedades propias</span></div>
+        <div><b>2014</b><span class="en">certified organic</span><span class="es">certificación orgánica</span></div>
+        <div><b>4</b><span class="en">generations on the land</span><span class="es">generaciones en la tierra</span></div>
+      </div>
+    </div>
+  </div>
   <section id="story">
     <h2 class="en">The story in 150 words</h2><h2 class="es">La historia en 150 palabras</h2>
     <div class="en">
@@ -185,6 +226,8 @@
     </div>
   </section>
 
+  <div class="ponly prow"><figure class="pf "><img src="/press/files/photos/02-vineyard-and-harvest/DosBuhos_Vineyard_Smiling-Picker_2020_6000px.jpg" alt=""><figcaption><span class="en">Harvest is by hand, at dawn, before the heat.</span><span class="es">La vendimia es a mano, al amanecer, antes del calor.</span></figcaption></figure><figure class="pf "><img src="/press/files/photos/03-cellar-and-winemaking/DosBuhos_Cellar_Diane-with-Amphorae_2024_4096px.jpg" alt=""><figcaption><span class="en">Diane Maycotte, winemaker, with the amphorae.</span><span class="es">Diane Maycotte, enóloga, con las ánforas.</span></figcaption></figure></div>
+<blockquote class="ponly pq"><span class="en">“Nobody could tell them what would grow at that altitude, so they planted twelve varieties and let the land decide.”</span><span class="es">“Nadie sabía qué variedades funcionarían a esta altitud, así que sembraron doce y dejaron que la tierra decidiera.”</span></blockquote>
   <section id="longstory">
     <h2 class="en">The longer story</h2><h2 class="es">La historia completa</h2>
     <div class="en">
@@ -213,6 +256,7 @@
     </div>
   </section>
 
+  <div class="ponly pband"><figure class="pf wide"><img src="/press/files/photos/02-vineyard-and-harvest/DosBuhos_Vineyard_Dia-De-Cosecha_2020_6000px.jpg" alt=""><figcaption><span class="en">Harvest day in the Aglianico.</span><span class="es">Día de cosecha en el Aglianico.</span></figcaption></figure></div>
   <section id="facts">
     <h2 class="en">Fact sheet</h2><h2 class="es">Ficha de datos</h2>
     <dl>
@@ -266,6 +310,7 @@
     </div>
   </section>
 
+  <div class="ponly prow"><figure class="pf "><img src="/press/files/photos/06-restaurant-and-food/DosBuhos_Food_Restaurante-Degustacion-Vino-Anaranjado_2020_4999px.jpg" alt=""><figcaption><span class="en">The orange wine, at the table.</span><span class="es">El vino naranja, en la mesa.</span></figcaption></figure><figure class="pf "><img src="/press/files/photos/09-art/DosBuhos_Art_Bodega-de-Arte-Art-Wall_2019_4800px.jpg" alt=""><figcaption><span class="en">The Bodega de Arte, set for dinner.</span><span class="es">La Bodega de Arte, lista para cenar.</span></figcaption></figure></div>
   <section id="visit">
     <h2 class="en">Visit</h2><h2 class="es">Visítanos</h2>
     <dl>
@@ -298,6 +343,16 @@
     </dl>
   </section>
 
+  <div class="ponly pback">
+    <img src="/press/files/photos/02-vineyard-and-harvest/DosBuhos_Vineyard_Cypress-at-Sunset_2020_4928px.jpg" alt="">
+    <div class="pb-txt">
+      <div class="pb-k"><span class="en">Visit</span><span class="es">Visítanos</span></div>
+      <p><span class="en">Tours, tastings and lunch among the vines.</span><span class="es">Recorridos, catas y comida entre las vides.</span><br>
+      <span class="en">Book</span><span class="es">Reservaciones</span>: <a href="__OPENTABLE__">OpenTable</a> · WhatsApp +52 415 124 7583</p>
+      <div class="pb-k"><span class="en">Press</span><span class="es">Prensa</span></div>
+      <p>__PRESS_EMAIL__ · __MARKETING_EMAIL__<br><span class="en">Photos, logos and documents</span><span class="es">Fotos, logos y documentos</span>: hola.dosbuhos.com/press</p>
+    </div>
+  </div>
   <footer>
     <img src="/icons/mono-light.png" alt="">
     Dos Búhos · San Miguel de Allende
@@ -306,7 +361,7 @@
 <script>
   const PHOTOS = __PHOTOS__;
   const ph = document.getElementById("photo-grid");
-  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.target = '_blank'; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
+  PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.onclick = e => { e.preventDefault(); const v = document.getElementById('pv'); v.querySelector('img').src = '/' + p.f; v.classList.add('on'); }; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
   function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
   (function(){
     const q = new URLSearchParams(location.search);

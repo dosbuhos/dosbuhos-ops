@@ -245,6 +245,8 @@
   .acard .more{font-size:12px;color:var(--dim);margin-top:8px}
   /* fullscreen photo viewer */
   #viewer{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:50}
+  #pg [hidden]{display:none !important}
+  #pg-one{scroll-margin-top:16px}
   #pg-cats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .pg-cat{all:unset;cursor:pointer;display:block;min-width:0;-webkit-touch-callout:none}
   .pg-cat img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--card)}
@@ -672,8 +674,8 @@ function galOpen(i){ const c = GAL[i], g = document.getElementById('pg-grid'); g
     a.onclick = e => { e.preventDefault(); const v = document.getElementById('v-img'); v.hidden = false; v.src = f; document.getElementById('viewer').classList.add('on'); };
     g.appendChild(a); });
   document.getElementById('pg-cats').hidden = true; document.getElementById('pg-one').hidden = false;
-  document.getElementById('acc-photos').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-document.getElementById('pg-back').onclick = () => { document.getElementById('pg-one').hidden = true; document.getElementById('pg-cats').hidden = false; };
+  document.getElementById('pg-one').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+document.getElementById('pg-back').onclick = () => { document.getElementById('pg-one').hidden = true; document.getElementById('pg-cats').hidden = false; document.getElementById('acc-photos').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 document.querySelector('#acc-photos .acc-h').addEventListener('click', galLoad);
 // accordion: one open at a time
 function jump(id){ const el = document.getElementById(id); if (!el.classList.contains('open')) toggle(id); else el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
