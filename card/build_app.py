@@ -28,7 +28,7 @@ PEOPLE = {
     "diane":    {"name": "Diane Maycotte",    "role": {"en": "Winemaker", "es": "Enóloga"}, "first": "Diane", "last": "Maycotte", "title": "Winemaker", "email": "dmaycotte@gmail.com", "whatsapp": "15129159410"},
     "higinio":  {"name": "Higinio Maycotte",  "role": {"en": "Grape grower · Founder", "es": "Viticultor · Fundador"}, "first": "Higinio", "last": "Maycotte", "title": "Grape grower", "email": "info@dosbuhos.com", "whatsapp": WA_MAIN},
     "melanie":  {"name": "Melanie Harris",    "role": {"en": "Head of Events & Community", "es": "Directora de Eventos y Comunidad"}, "first": "Melanie", "last": "Harris", "title": "Head of Events & Community", "email": "melanie@dosbuhos.com", "whatsapp": "15127678084"},
-    "michael":  {"name": "Michael Dunlop",    "role": {"en": "Food & Beverage Director", "es": "Director de Alimentos y Bebidas"}, "first": "Michael", "last": "Dunlop", "title": "Food & Beverage Director", "email": "reservaciones@dosbuhos.com", "whatsapp": WA_MAIN},
+    "michael":  {"name": "Michael Dunlop",    "role": {"en": "Food & Beverage Director", "es": "Director de Alimentos y Bebidas"}, "first": "Michael", "last": "Dunlop", "title": "Food & Beverage Director", "email": "michael@dosbuhos.com", "whatsapp": "524461422578"},
 }
 
 WINES_APP = [
