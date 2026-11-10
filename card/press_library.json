@@ -90,10 +90,13 @@
       "title": "5 · Awards & press",
       "items": [
         {
-          "label": "Awards table and press quotes",
+          "label": "Awards & scores summary (master, EN/ES)",
           "status": "have",
-          "note": "On the press page. Add links to the articles.",
-          "files": []
+          "note": "Rebuilt from the awards list on the press page; regenerate with make_awards.py when awards change.",
+          "files": [
+            "/docs/Dos-Buhos-Awards-EN.pdf",
+            "/docs/Dos-Buhos-Premios-ES.pdf"
+          ]
         }
       ]
     },
