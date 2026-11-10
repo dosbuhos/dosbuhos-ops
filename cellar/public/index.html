@@ -2679,6 +2679,7 @@ var SheetParse = (function () {
   }
   $("blends").addEventListener("click", e => { if (e.target.closest("button, a, textarea, summary")) return; const h = e.target.closest("[data-bltog]"); if (h) toggleTrial(h.dataset.bltog); });
   $("blends").addEventListener("keydown", e => { const h = e.target.closest && e.target.closest("[data-bltog]"); if (h && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleTrial(h.dataset.bltog); } });
+  window.addEventListener("cellar:barrels", () => { if (S.view === "wines" && S.wmode === "guarda") render(); }); // barrel numbers on Guarda rows arrive after the lots
   $("wmode").addEventListener("click", e => { const b = e.target.closest("[data-wm]"); if (!b) return; S.wmode = b.dataset.wm; store("wmode", S.wmode); S.q = ""; render(); window.scrollTo(0, 0); });
   document.querySelector(".bl-filter").addEventListener("click", e => { const k = e.target.closest("[data-blk]"); if (k) { S.blKind = toggleIn(S.blKind, k.dataset.blk, ""); renderBlends(); return; } const b = e.target.closest("[data-blg]"); if (b) { S.blGroup = toggleIn(S.blGroup, b.dataset.blg, ""); renderBlends(); } });
   $("blSearch").addEventListener("input", e => { S.blQ = e.target.value; renderBlends(); });
@@ -4347,6 +4348,7 @@ Return ONLY JSON with this shape:
     let h = `<tr class="w${s ? "" : " nodata"}" data-open="${esc(l.id)}" style="--gc:${GC[l.group] || "#9aa5b1"}">`;
     h += `<td class="wine"><button type="button" class="wn" data-open="${esc(l.id)}">${esc(l.name)}</button>${lotBadge(l)}` +
       `<div class="wc">${esc([l.code, l.ubi].filter(Boolean).join(" · "))}</div>` +
+      (S.wmode === "guarda" && (window.cellarBarrelsByLot || {})[l.id] ? `<div class="wc wbbl">BBL ${esc(window.cellarBarrelsByLot[l.id].join(", "))}</div>` : "") +
       (tempFmt(tempRaw(l, curWeek)) ? `<div class="lot-temp">Target: ${esc(tempFmt(tempRaw(l, curWeek)).text)}</div>` : "") + `</td>`;
     h += cellNum("alc", "Alc %", v("alc"));
     h += cellNum("ph", "pH", v("ph"));

@@ -783,7 +783,7 @@
   async function refresh() { await load(); render(); showCount(); }
   // The "Cellar" switch shows how many barrels hold wine (full or partial), not how many wines were moved to Cellar.
   function showCount() {
-    const n = C.barrels.filter(b => ['full', 'partial'].includes(stateOf(b))).length; window.cellarFullBarrels = n; const el = document.getElementById('wmCellarN'); if (el) { el.textContent = n || ''; el.title = n + ' barricas con vino'; }
+    const n = C.barrels.filter(b => ['full', 'partial'].includes(stateOf(b))).length; window.cellarFullBarrels = n; { const m = {}; for (const b of C.barrels) if (b.lot && stateOf(b) !== 'empty') (m[b.lot] = m[b.lot] || []).push(b.code); for (const k in m) m[k].sort((x, y) => (parseInt(x, 10) || 0) - (parseInt(y, 10) || 0)); window.cellarBarrelsByLot = m; window.dispatchEvent(new Event('cellar:barrels')); } const el = document.getElementById('wmCellarN'); if (el) { el.textContent = n || ''; el.title = n + ' barricas con vino'; }
     if (C.vessels.length && C.all.length) { const t = tankList().filter(v => tankContents(v).length).length; window.cellarFullTanks = t; const e2 = document.getElementById('wmTankN'); if (e2) { e2.textContent = t || ''; e2.title = t + ' tanques con vino'; } }
   }
   Promise.all([fetch('/api/db/barrels').then(r => r.ok ? r.json() : { rows: [] }), fetch('/api/db/vessels').then(r => r.ok ? r.json() : { rows: [] }), fetch('/api/db/lots').then(r => r.ok ? r.json() : { rows: [] })]).then(([j, v, l]) => {
