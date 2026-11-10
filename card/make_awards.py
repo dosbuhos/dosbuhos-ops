@@ -11,19 +11,18 @@ def page(L):
     blocks=[]
     for a in AWARDS:
         name=a['comp']
-        if name=='Catadores del Vino Mexicano': name='Guía Catadores del Vino Mexicano'
-        yr=f" {a['year']}" if a['year'] else ''
+        yr=f" {a['year']}" if a['year'] else ' · '+{'en':'earlier editions','es':'ediciones anteriores'}[L]
         rows=''.join(f"<tr><td>{w}</td><td class='m {m}'>{(MED[m][i] if m in MED else m)}</td></tr>" for w,m in a['items'])
         blocks.append(f"<section><h2>{name}{yr}</h2><table>{rows}</table></section>")
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 @font-face{{font-family:CG;src:url(file://{ROOT}/public/fonts/cormorant-garamond-latin-500-normal.woff2)}}
 @font-face{{font-family:Lato;src:url(file://{ROOT}/public/fonts/lato-latin-400-normal.woff2)}}
-@page{{size:Letter;margin:16mm 16mm}} body{{font:10.5pt/1.35 Lato,sans-serif;color:#1d1a17}}
+@page{{size:Letter;margin:12mm 15mm}} body{{font:9.8pt/1.3 Lato,sans-serif;color:#1d1a17}}
 header{{display:flex;align-items:center;gap:16px;border-bottom:1px solid #c9a26a;padding-bottom:10px;margin-bottom:12px}}
-header img{{height:62px}} h1{{font:500 26pt/1 CG,Georgia,serif;margin:0}} .sub{{color:#6b6157;font-size:9pt;margin-top:4px}}
+header img{{height:52px}} h1{{font:500 26pt/1 CG,Georgia,serif;margin:0}} .sub{{color:#6b6157;font-size:9pt;margin-top:4px}}
 .note{{font-size:9pt;color:#6b6157;margin:0 0 10px}} .cols{{column-count:2;column-gap:12mm}}
-section{{break-inside:avoid;margin:0 0 9px}} h2{{font:500 13pt/1.2 CG,Georgia,serif;margin:0 0 3px;color:#7a5a2c}}
-table{{width:100%;border-collapse:collapse}} td{{padding:2px 0;border-bottom:.5px solid #e5ddd2}} td.m{{text-align:right;white-space:nowrap;font-size:9pt;letter-spacing:.04em}}
+section{{break-inside:avoid;margin:0 0 7px}} h2{{font:500 12pt/1.15 CG,Georgia,serif;margin:0 0 3px;color:#7a5a2c}}
+table{{width:100%;border-collapse:collapse}} td{{padding:1.5px 0;border-bottom:.5px solid #e5ddd2}} td.m{{text-align:right;white-space:nowrap;font-size:9pt;letter-spacing:.04em}}
 .gg{{color:#8a6418;font-weight:bold}} .g{{color:#8a6418}} footer{{margin-top:10px;font-size:8pt;color:#8a8178}}
 </style></head><body><header><img src="file://{ROOT}/public/press/files/logos/DosBuhos_Monogram-Lockup_Black.png"><div><h1>{t['t']}</h1><div class="sub">{t['sub']}</div></div></header>
 <p class="note">{t['note']} {t['upd']}: {MONTHS[L][d.month-1]} {d.year}.</p><div class="cols">{''.join(blocks)}</div>

@@ -17,7 +17,8 @@ for lang, name in (("en", "Dos-Buhos-Press-Kit-EN.pdf"), ("es", "Dos-Buhos-Kit-d
 srv.shutdown()
 # photos zip — every photo the press kit lists, named by its caption
 html = open(os.path.join(PUB, "press", "index.html"), encoding="utf-8").read()
-photos = json.loads(re.search(r"const PHOTOS = (\[.*?\]);", html, re.S).group(1))
+import ast
+photos = ast.literal_eval(re.search(r"^PHOTOS = (\[.*?^\])", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "build_app.py"), encoding="utf-8").read(), re.S | re.M).group(1))  # full selection, not just the 8 on the page
 zp = os.path.join(DOCS, "Dos-Buhos-Press-Photos.zip")
 with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:
     for i, p in enumerate(photos, 1):

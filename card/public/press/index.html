@@ -52,7 +52,6 @@
   html.print{--bg:#fbf8f2;--card:#f1ebe0;--ink:#1a1a1a;--dim:#6b6358;--warm:#8a5a2b;--line:#d9cfbe;background:#fbf8f2}
   html.print body{background:#fbf8f2;color:#1a1a1a}
   html.print p, html.print dd, html.print td, html.print .medal span, html.print .quotes blockquote p{color:#2b2420}
-  html.print .wrap{padding:0}
   html.print .short{color:#3a332c}
   html.print header img.logo{filter:invert(1)}
   html.print footer, html.print .foot{break-before:avoid}
@@ -70,7 +69,8 @@
   }
   /* desktop: wider reading column, photos in four */
   @media (min-width:1024px){ .wrap{max-width:860px} .photos{grid-template-columns:repeat(4,minmax(0,1fr)) !important} }
-  @page{size:Letter;margin:14mm}
+  @page{size:Letter;margin:0}
+  html.print .wrap{padding:14mm 14mm !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 
   .shots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
   .shots figure{margin:0}.shots img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#1a1816}
@@ -133,8 +133,10 @@
     <div class="dl">
       <a class="btn warm" href="/docs/Dos-Buhos-Press-Kit-EN.pdf" target="_blank">PDF · English</a>
       <a class="btn warm" href="/docs/Dos-Buhos-Kit-de-Prensa-ES.pdf" target="_blank">PDF · Español</a>
-      <a class="btn" href="/docs/Dos-Buhos-Press-Photos.zip" download><span class="en">All photos · ZIP</span><span class="es">Todas las fotos · ZIP</span></a>
+      <a class="btn" href="/press/library/"><span class="en">Photo library</span><span class="es">Biblioteca de fotos</span></a>
+      <a class="btn" href="/docs/Dos-Buhos-Press-Photos.zip" download><span class="en">Press photos · ZIP</span><span class="es">Fotos de prensa · ZIP</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Awards-EN.pdf" download><span class="en">Awards · PDF</span><span class="es">Premios · PDF</span></a>
+      <a class="btn" href="/docs/Dos-Buhos-Technical-Sheets-2025-EN.pdf" download><span class="en">Tech sheets · PDF</span><span class="es">Fichas técnicas · PDF</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Brand-Deck-2025.pdf" download><span class="en">Brand deck · PDF</span><span class="es">Presentación de marca · PDF</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Brand-Deck-2025-JP.pdf" download><span class="en">Brand deck · 日本語</span><span class="es">Presentación · 日本語</span></a>
       <a class="btn" href="/docs/Dos-Buhos-Logos.zip" download><span class="en">Logos · ZIP</span><span class="es">Logotipos · ZIP</span></a>
@@ -215,11 +217,6 @@
       <tr><td>Michael Dunlop</td><td><span class="en">Food &amp; Beverage Director. Kitchen direction, bar program, service standards.</span><span class="es">Director de Alimentos y Bebidas. Dirección de cocina, programa de bar, estándares de servicio.</span></td></tr>
       <tr><td>Eduardo "Lalo" López Torres</td><td><span class="en">Chef. Cooking from the Bajío: the huerta, local ranches, estate olive oil.</span><span class="es">Chef. Cocina del Bajío: la huerta, ranchos locales, aceite de oliva del rancho.</span></td></tr>
     </table>
-    <div class="shots">
-      <figure><div class="ph"><span class="en">Headshot coming</span><span class="es">Foto próximamente</span></div><figcaption>Higinio Maycotte</figcaption></figure>
-      <figure><img loading="lazy" src="/press/files/people/web/diane.jpg" alt="Diane Maycotte"><figcaption>Diane Maycotte<br><a href="/press/files/people/DosBuhos_Diane-Maycotte_Headshot.png" download><span class="en">Hi-res</span><span class="es">Alta resolución</span> ↓</a></figcaption></figure>
-      <figure><img loading="lazy" src="/press/files/people/web/eric.jpg" alt="Eric Maycotte"><figcaption>Eric Maycotte<br><a href="/press/files/people/DosBuhos_Eric-Maycotte_Headshot.jpg" download><span class="en">Hi-res</span><span class="es">Alta resolución</span> ↓</a></figcaption></figure>
-    </div>
   </section>
 
   <section id="wines">
@@ -244,12 +241,27 @@
 <tr><td class="w">Chenin Blanc 2024</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
 <tr><td class="w">Aglianico 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
 <tr><td class="w">Tempranillo 2022</td><td class="m"><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2026</td></tr>
-<tr><td class="w">Aglianico 2020</td><td class="m"><span class="en">97 pts</span><span class="es">97 pts</span></td><td>Guía de Vinos Mexicanos · Rodolfo Gerschman 2027</td></tr>
-<tr><td class="w">Tempranillo 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía de Vinos Mexicanos · Rodolfo Gerschman 2027</td></tr>
-<tr><td class="w">Cabernet Franc Gran Reserva 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía de Vinos Mexicanos · Rodolfo Gerschman 2027</td></tr>
-<tr><td class="w">1524 Mosaico Tinto 2023</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Guía de Vinos Mexicanos · Rodolfo Gerschman 2027</td></tr>
-<tr><td class="w">Chenin Blanc 2024</td><td class="m"><span class="en">89 pts</span><span class="es">89 pts</span></td><td>Guía de Vinos Mexicanos · Rodolfo Gerschman 2027</td></tr>
-<tr><td class="w">Grenache Gran Reserva 2021</td><td class="m"><span class="en">88 pts</span><span class="es">88 pts</span></td><td>Guía de Vinos Mexicanos · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">Aglianico 2020</td><td class="m"><span class="en">97 pts</span><span class="es">97 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">Tempranillo 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">Cabernet Franc Gran Reserva 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">1524 Mosaico Tinto 2023</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">Chenin Blanc 2024</td><td class="m"><span class="en">89 pts</span><span class="es">89 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">Grenache Gran Reserva 2021</td><td class="m"><span class="en">88 pts</span><span class="es">88 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman 2027</td></tr>
+<tr><td class="w">1524 Espumoso Rosé 2022</td><td class="m"><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Tempranillo 2020</td><td class="m"><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">1524 Espumoso Blanco 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Cabernet Sauvignon 2020</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Selección Especial 2017</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Chardonnay 2021</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Sauvignon Blanc 2021</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Aglianico Gran Reserva 2017</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Sauvignon Blanc 2020</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Tempranillo 2016</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Aglianico 2015</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Moscato Giallo Pet Nat 2021</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Espumoso Rosado 2020</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Chenin Blanc 2022</td><td class="m"><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
+<tr><td class="w">Grenache 2020</td><td class="m"><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Guía Catadores del Vino Mexicano · Rodolfo Gerschman</td></tr>
 <tr><td class="w">Tempranillo 2020</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
 <tr><td class="w">Sauvignon Blanc 2024</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2025</td></tr>
 <tr><td class="w">Moscato Giallo Pet Nat 2022</td><td class="m"><span class="en">Gold</span><span class="es">Oro</span></td><td>Los Angeles International Wine Competition 2025</td></tr>
@@ -260,21 +272,6 @@
 <tr><td class="w">1524 Espumoso Blanco 2022</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
 <tr><td class="w">Grenache 2020</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles 2024</td></tr>
 <tr><td class="w">Chenin Blanc 2022</td><td class="m"><span class="en">Bronze</span><span class="es">Bronce</span></td><td>Los Angeles International Wine Competition 2024</td></tr>
-<tr><td class="w">1524 Espumoso Rosé 2022</td><td class="m"><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Tempranillo 2020</td><td class="m"><span class="en">95 pts</span><span class="es">95 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">1524 Espumoso Blanco 2022</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Cabernet Sauvignon 2020</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Selección Especial 2017</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Chardonnay 2021</td><td class="m"><span class="en">92 pts</span><span class="es">92 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Sauvignon Blanc 2021</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Aglianico Gran Reserva 2017</td><td class="m"><span class="en">93 pts</span><span class="es">93 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Sauvignon Blanc 2020</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Tempranillo 2016</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Aglianico 2015</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Moscato Giallo Pet Nat 2021</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Espumoso Rosado 2020</td><td class="m"><span class="en">91 pts</span><span class="es">91 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Chenin Blanc 2022</td><td class="m"><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
-<tr><td class="w">Grenache 2020</td><td class="m"><span class="en">90 pts</span><span class="es">90 pts</span></td><td>Catadores del Vino Mexicano</td></tr>
 <tr><td class="w">Moscato Giallo Pet Nat 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2023</td></tr>
 <tr><td class="w">Cabernet Franc 2019</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2023</td></tr>
 <tr><td class="w">Sauvignon Blanc 2021</td><td class="m"><span class="en">Silver</span><span class="es">Plata</span></td><td>Concours Mondial de Bruxelles · México 2022</td></tr>
@@ -300,10 +297,11 @@
 
   <section id="photos">
     <h2 class="en">Photos</h2><h2 class="es">Fotos</h2>
-    <p><span class="en">Tap to open; press-and-hold to save. Print resolution and bottle shots on request.</span><span class="es">Toca para abrir; mantén presionado para guardar. Alta resolución y fotos de botella bajo pedido.</span> <span class="en">Credit: Dos Búhos.</span><span class="es">Crédito: Dos Búhos.</span></p>
+    <p><span class="en">A few to start. The full library has about 1,000 photos by theme: estate, vineyard, cellar, people, bottles, food, events, art, nature. Credit: Dos Búhos.</span><span class="es">Algunas para empezar. La biblioteca completa tiene unas 1,000 fotos por tema: viñedo, bodega, personas, botellas, comida, eventos, arte, naturaleza. Crédito: Dos Búhos.</span></p>
     <div class="photos" id="photo-grid"></div>
     <div class="btnrow">
-      <a class="btn full" href="https://dosbuhos.com/materiales-de-mercadotecnia/"><span class="en">Logos &amp; marketing materials</span><span class="es">Logos y materiales de mercadotecnia</span></a>
+      <a class="btn full" href="https://hola.dosbuhos.com/press/library/"><span class="en">Full photo library · hola.dosbuhos.com/press/library</span><span class="es">Biblioteca completa · hola.dosbuhos.com/press/library</span></a>
+      <a class="btn" href="/docs/Dos-Buhos-Press-Photos.zip" download><span class="en">Press selection · ZIP</span><span class="es">Selección de prensa · ZIP</span></a>
     </div>
   </section>
 
@@ -324,7 +322,7 @@
   </footer>
 </div>
 <script>
-  const PHOTOS = [{"f": "photos/ab-garden-chapel.jpg", "pos": "50% 40%", "en": "The garden and the chapel", "es": "El jardín y la capilla", "w": 1067, "h": 1600}, {"f": "photos/seated-tasting.jpg", "pos": "60% 40%", "en": "Four wines, poured at the table", "es": "Cuatro vinos, servidos en la mesa", "w": 1600, "h": 1067}, {"f": "photos/ab-bar-bottles-chapel.jpg", "pos": "50% 62%", "en": "Gran Reserva at the bar", "es": "Gran Reserva en la barra", "w": 1067, "h": 1600}, {"f": "photos/ab-chapel-fountain.jpg", "pos": "50% 55%", "en": "The chapel courtyard", "es": "El patio de la capilla", "w": 1057, "h": 1586}, {"f": "photos/ab-barrel-chalk.jpg", "en": "Petite Syrah, 2026, in barrel", "es": "Petite Syrah 2026 en barrica", "w": 1600, "h": 1067}, {"f": "photos/ab-cellar-founders.jpg", "pos": "50% 40%", "en": "In the cellar", "es": "En la bodega", "w": 1600, "h": 1067}, {"f": "photos/ab-barrel-racks.jpg", "pos": "50% 45%", "en": "The barrel room", "es": "La sala de barricas", "w": 1067, "h": 1600}, {"f": "photos/ab-wine-shop.jpg", "pos": "50% 40%", "en": "The wine shop", "es": "La tienda de vinos", "w": 1067, "h": 1600}, {"f": "photos/ab-barrel-monogram.jpg", "en": "The house monogram", "es": "El monograma de la casa", "w": 1067, "h": 1600}, {"f": "photos/ab-barrel-dark.jpg", "en": "Barrels at rest", "es": "Barricas en reposo", "w": 1600, "h": 1067}, {"f": "photos/ab-wood-sign.jpg", "en": "Dos Búhos", "es": "Dos Búhos", "w": 1600, "h": 1067}, {"f": "photos/petanque.jpg", "en": "Pétanque in the garden", "es": "Petanca en el jardín", "w": 858, "h": 434}, {"f": "photos/winegarden-night.jpg", "en": "The Winegarden at night", "es": "El Winegarden de noche", "w": 1080, "h": 571}, {"f": "photos/bodega-arte.jpg", "en": "Bodega de Arte, set for dinner", "es": "La Bodega de Arte, lista para cenar", "w": 1275, "h": 648}, {"f": "photos/wedding-toast.jpg", "en": "A toast in the Bodega de Arte", "es": "Un brindis en la Bodega de Arte", "w": 1400, "h": 1020}, {"f": "photos/hacienda.jpg", "en": "The whole estate, yours for a day", "es": "La hacienda completa, por un día", "w": 1400, "h": 740}, {"f": "photos/lunch-table.jpg", "en": "Lunch under the trees", "es": "Comida bajo los árboles", "w": 1400, "h": 708}, {"f": "photos/glasses.jpg", "en": "Espontáneo, our orange wine", "es": "Espontáneo, nuestro vino naranja", "w": 1331, "h": 1181}, {"f": "photos/pouring.jpg", "en": "Espontáneo, poured", "es": "Espontáneo, al servir", "w": 790, "h": 399}, {"f": "photos/candle-sparkling.jpg", "pos": "50% 45%", "en": "An evening in the Winegarden", "es": "Una noche en el Winegarden", "lowres": true, "w": 470, "h": 668}, {"f": "photos/event-table-courtyard.jpg", "pos": "50% 55%", "en": "A table set in the courtyard", "es": "Mesa puesta en el patio", "lowres": true, "w": 484, "h": 668}, {"f": "photos/cross-fountain-pergola.jpg", "pos": "50% 25%", "en": "The Winegarden fountain", "es": "La fuente del Winegarden", "lowres": true, "w": 472, "h": 668}, {"f": "photos/chapel-facade.jpg", "pos": "50% 10%", "en": "The chapel", "es": "La capilla", "lowres": true, "w": 354, "h": 652}, {"f": "photos/welcome-bicycle.jpg", "pos": "50% 55%", "en": "Welcome", "es": "Bienvenidos", "lowres": true, "w": 354, "h": 652}, {"f": "photos/orange-wine-table.jpg", "pos": "50% 62%", "en": "Espontáneo at the table", "es": "Espontáneo en la mesa", "lowres": true, "w": 352, "h": 652}, {"f": "photos/kids-grapes.jpg", "pos": "50% 35%", "en": "Harvest, all ages", "es": "Vendimia para todas las edades", "lowres": true, "w": 352, "h": 652}, {"f": "photos/engagement-couple.jpg", "pos": "50% 30%", "en": "She said yes, in the vines", "es": "Dijo que sí, entre las vides", "lowres": true, "w": 354, "h": 652}, {"f": "photos/vineyard-grapes-woman.jpg", "pos": "50% 28%", "en": "Tasting from the vine", "es": "Probando de la vid", "lowres": true, "w": 356, "h": 652}, {"f": "photos/fountain-courtyard.jpg", "pos": "50% 22%", "en": "The hacienda courtyard", "es": "El patio de la hacienda", "lowres": true, "w": 356, "h": 652}, {"f": "photos/higinio-orange-truck.jpg", "pos": "50% 28%", "en": "Higinio and the orange truck", "es": "Higinio y la camioneta naranja", "lowres": true, "w": 354, "h": 652}, {"f": "photos/vineyard-talk.jpg", "en": "In the vineyard", "es": "En el viñedo", "w": 1400, "h": 912}, {"f": "photos/harvest.jpg", "en": "Harvest at dawn", "es": "Vendimia al amanecer", "w": 1083, "h": 1400}, {"f": "photos/recorrido.jpg", "en": "The vineyard walk", "es": "El recorrido", "w": 1400, "h": 740}, {"f": "photos/harvest-bin.jpg", "en": "Chenin Blanc into the bin", "es": "Chenin Blanc a la tina", "w": 952, "h": 1265}, {"f": "photos/planting.jpg", "en": "Planting the first vines, 2006", "es": "Plantando las primeras vides, 2006", "w": 1400, "h": 1050}, {"f": "photos/family-road.jpg", "en": "Four generations on this road", "es": "Cuatro generaciones en este camino", "w": 1400, "h": 641}, {"f": "photos/cellar.jpg", "en": "Amphora, native-yeast ferments, barrels, sheep", "es": "Ánforas, fermentaciones con levadura nativa, barricas, borregos", "w": 1286, "h": 1256}, {"f": "photos/grandfather.jpg", "en": "The land before the vines", "es": "La tierra antes de las vides", "w": 981, "h": 1400}];
+  const PHOTOS = [{"f": "photos/ab-garden-chapel.jpg", "pos": "50% 40%", "en": "The garden and the chapel", "es": "El jardín y la capilla", "w": 1067, "h": 1600}, {"f": "photos/seated-tasting.jpg", "pos": "60% 40%", "en": "Four wines, poured at the table", "es": "Cuatro vinos, servidos en la mesa", "w": 1600, "h": 1067}, {"f": "photos/ab-bar-bottles-chapel.jpg", "pos": "50% 62%", "en": "Gran Reserva at the bar", "es": "Gran Reserva en la barra", "w": 1067, "h": 1600}, {"f": "photos/ab-chapel-fountain.jpg", "pos": "50% 55%", "en": "The chapel courtyard", "es": "El patio de la capilla", "w": 1057, "h": 1586}, {"f": "photos/ab-barrel-chalk.jpg", "en": "Petite Syrah, 2026, in barrel", "es": "Petite Syrah 2026 en barrica", "w": 1600, "h": 1067}, {"f": "photos/ab-cellar-founders.jpg", "pos": "50% 40%", "en": "In the cellar", "es": "En la bodega", "w": 1600, "h": 1067}, {"f": "photos/ab-barrel-racks.jpg", "pos": "50% 45%", "en": "The barrel room", "es": "La sala de barricas", "w": 1067, "h": 1600}, {"f": "photos/ab-wine-shop.jpg", "pos": "50% 40%", "en": "The wine shop", "es": "La tienda de vinos", "w": 1067, "h": 1600}];
   const ph = document.getElementById("photo-grid");
   PHOTOS.forEach(p => { const a = document.createElement('a'); a.href = '/' + p.f; a.target = '_blank'; a.innerHTML = `<img loading="lazy" src="/${p.f}" alt="" style="object-position:${p.pos || 'center'}"><span><span class="en">${p.en}</span><span class="es">${p.es}</span>${p.lowres ? '<em class="lr"><span class="en">Low-res preview · hi-res on request</span><span class="es">Vista previa en baja · alta resolución bajo pedido</span></em>' : ''}</span>`; ph.appendChild(a); });
   function setLang(l){ document.documentElement.lang = l; document.getElementById('l-en').classList.toggle('on', l==='en'); document.getElementById('l-es').classList.toggle('on', l==='es'); try{ localStorage.setItem('lang', l); }catch(e){} }
