@@ -98,7 +98,7 @@
 </head>
 <body>
 
-<div class="top"><div><img src="icons/logo-light.png" alt="Dos Búhos"><div class="t">Personal para eventos</div></div><div class="btns"><a href="/">‹ Hub</a><button onclick="resetAll()">Nueva</button></div></div>
+<div class="top"><div><img src="icons/logo-light.png" alt="Dos Búhos"><div class="t">Personal para eventos</div></div><div class="btns"><a href="/" id="back">‹ Cotizador</a><button onclick="resetAll()">Nueva</button></div></div>
 <div class="wrap">
 
   <h2>El evento<small>La plantilla sale del formato y los invitados</small></h2>
@@ -327,6 +327,7 @@ function load() {
 }
 function resetAll() { localStorage.removeItem("personal_v1"); IDS.forEach(id => { if ($(id).type === "checkbox") $(id).checked = id === "ev_cc"; else $(id).value = ""; }); $("ev_tiempos").value = "3"; Object.entries(DEF).forEach(([id, v]) => $(id).value = v); calc(); }
 IDS.forEach(id => $(id).addEventListener("input", calc));
+if (location.pathname.startsWith("/personal/")) $("back").textContent = "‹ Hub";   // opened through the Hub
 load(); calc();
 </script>
 </body>

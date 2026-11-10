@@ -61,14 +61,12 @@ export default {
     const url = new URL(request.url);
     const who = await hubUser(request, env);   // set when proxied through the Hub (signed with HUB_SECRET)
 
-    // Personal para eventos: Google sign-in through the Hub only, never the PIN. The Hub proxies /personal/… to this
-    // Worker with X-DB-App = personal; the page lives at public/personal.html. A direct hit on workers.dev goes to the Hub.
-    const personalPaths = ['/', '/index.html', '/personal', '/personal.html'];
-    if (who && request.headers.get('X-DB-App') === 'personal' && personalPaths.includes(url.pathname)) {
+    // Personal para eventos (public/personal.html): OPEN for now, no PIN and no sign-in, so it can be shared while it is
+    // being tested. BACKLOG: put it behind the Hub's Google sign-in (the Hub already proxies /personal/ here with
+    // X-DB-App = personal; require `who` on that path and send direct hits to HUB_ORIGIN + '/personal/').
+    const viaHub = request.headers.get('X-DB-App') === 'personal' && (url.pathname === '/' || url.pathname === '/index.html');
+    if (viaHub || url.pathname === '/personal' || url.pathname === '/personal.html') {
       return env.ASSETS.fetch(new Request(new URL('/personal.html', request.url), request));
-    }
-    if (url.pathname === '/personal' || url.pathname === '/personal.html') {
-      return Response.redirect((env.HUB_ORIGIN || 'https://apps.dosbuhos.com') + '/personal/', 302);
     }
 
     const locked = !!env.PIN;
