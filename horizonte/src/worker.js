@@ -56,7 +56,7 @@ function page(msg) {
     { status: 403, headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
-async function auth(request, env, url) {
+async function auth(request, env, url, ctx) {
   const redirectUri = `${url.origin}/auth/callback`;
   if (url.pathname === '/auth/google') {
     if (!env.GOOGLE_CLIENT_SECRET) return page('Sign-in is not set up yet: the GOOGLE_CLIENT_SECRET secret is missing.');
@@ -78,6 +78,16 @@ async function auth(request, env, url) {
     headers.append('set-cookie', await startSession(request, env, email));
     headers.append('set-cookie', cookie(STATE, '', 0));
     return new Response(null, { status: 302, headers });
+  }
+  // Sign in with Google + calendar in one consent (code flow). Needs GOOGLE_CLIENT_SECRET.
+  if (url.pathname === '/auth/code' && request.method === 'POST') {
+    if (!env.GOOGLE_CLIENT_SECRET) return json({ error: 'not set up' }, 400);
+    const body = await request.json().catch(() => ({}));
+    let res; try { res = await gcal.exchange(env, String(body.code || '')); } catch (e) { return json({ error: `Google sign-in failed (${e.message})` }, 401); }
+    if (res.email !== String(env.OWNER_EMAIL).toLowerCase()) return json({ error: `${res.email || 'This account'} can't use Horizonte.` }, 403);
+    let calendar = false;
+    if (res.tok.refresh_token && /calendar/.test(res.tok.scope || '')) { await gcal.save(env, res.tok, res.email); calendar = true; ctx.waitUntil(gcal.pull(env, applyOps, { force: true }).catch(e => console.log('first pull', e.message))); }
+    return new Response(JSON.stringify({ email: res.email, calendar }), { headers: { 'content-type': 'application/json', 'set-cookie': await startSession(request, env, res.email) } });
   }
   if (url.pathname === '/auth/gsi' && request.method === 'POST') {
     const body = await request.json().catch(() => ({}));
@@ -143,11 +153,11 @@ export default {
   async scheduled(event, env, ctx) { if (env.GOOGLE_CLIENT_SECRET) ctx.waitUntil(gcal.pull(env, applyOps, { force: true }).catch(e => console.log('cron pull', e.message))); },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/auth/')) return (await auth(request, env, url)) || new Response('Not found', { status: 404 });
+    if (url.pathname.startsWith('/auth/')) return (await auth(request, env, url, ctx)) || new Response('Not found', { status: 404 });
     if (url.pathname === '/api/import') return importOps(request, env);
     if (url.pathname.startsWith('/api/')) {
       const user = await currentUser(request, env).catch(() => null);
-      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID }, user ? 200 : 401);
+      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID, calendarReady: !!env.GOOGLE_CLIENT_SECRET }, user ? 200 : 401);
       if (!user) return json({ error: 'sign in' }, 401);
       if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env, ctx);
       if (url.pathname === '/api/gcal' && request.method === 'GET') {

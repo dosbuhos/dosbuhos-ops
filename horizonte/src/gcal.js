@@ -11,18 +11,24 @@ export async function gcalRow(env) {
   return env.DB.prepare('SELECT * FROM gcal WHERE id = 1').first().catch(() => null);
 }
 
-export async function connect(env, code) {
+export async function exchange(env, code) {
   const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ code, client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: 'postmessage', grant_type: 'authorization_code' }) });
   const tok = await r.json();
   if (!r.ok) throw new Error(tok.error_description || tok.error || 'token exchange failed');
-  if (!tok.refresh_token) throw new Error('Google did not grant offline access; disconnect Horizonte in your Google account permissions and connect again');
   let email = '';
   if (tok.id_token) { try { email = JSON.parse(atob(tok.id_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; } catch {} }
-  if (!email) { const cal = await (await fetch(`${API}/calendars/primary`, { headers: { authorization: `Bearer ${tok.access_token}` } })).json(); email = cal.id || ''; }
+  return { tok, email: String(email).toLowerCase() };
+}
+export async function save(env, tok, email) {
   await env.DB.prepare(`INSERT INTO gcal (id, email, refresh_token, access_token, access_exp, sync_token, last_pull, calendar_id) VALUES (1, ?, ?, ?, ?, NULL, 0, 'primary')
     ON CONFLICT (id) DO UPDATE SET email = excluded.email, refresh_token = excluded.refresh_token, access_token = excluded.access_token, access_exp = excluded.access_exp, sync_token = NULL, last_pull = 0`)
     .bind(email, tok.refresh_token, tok.access_token, Date.now() + (tok.expires_in - 60) * 1000).run();
+}
+export async function connect(env, code) {
+  const { tok, email } = await exchange(env, code);
+  if (!tok.refresh_token) throw new Error('Google did not grant offline access; remove Horizonte under your Google account > Security > Third-party access, then connect again');
+  await save(env, tok, email || 'Google Calendar');
   return email;
 }
 

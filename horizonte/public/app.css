@@ -199,7 +199,8 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .m main.mm { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
 .m .eyebrow { font-size: 13px; }
 .m .eyebrow.gap { margin-top: 8px; }
-.m .card { min-height: 48px; gap: 12px; align-items: center; padding: 8px 12px; border-radius: 10px; font-size: 17px; }
+.m .card { min-height: 48px; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 10px; font-size: 15px; line-height: 1.3; }
+.m .card .meta { max-width: 42%; overflow: hidden; text-overflow: ellipsis; flex: none; }
 .m .card .ck { width: 44px; height: 44px; margin: -11px -11px -11px -11px; align-items: center; justify-content: center; }
 .m .card input[type=checkbox] { width: 22px; height: 22px; margin: 0; }
 .m .card .meta { font-size: 13px; }
@@ -240,3 +241,24 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .rail .slot small { font-size: 12px; font-weight: 400; color: var(--ink-2); }
 .rail .slot.over { border-color: var(--blue); background: var(--drop); box-shadow: 0 0 0 1px var(--blue); }
 @media (prefers-reduced-motion: reduce) { .rail { transition: none; } }
+
+/* phone: full-screen day while dragging */
+.daydrop { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: flex; flex-direction: column; transform: translateY(12px); opacity: 0; transition: opacity 140ms, transform 140ms; }
+.daydrop.in { transform: none; opacity: 1; }
+.dd-top { display: flex; align-items: center; gap: 6px; padding: calc(10px + env(safe-area-inset-top)) 6px 8px; border-bottom: 1px solid var(--line); }
+.dd-edge { width: 28px; text-align: center; font-size: 28px; color: var(--ink-2); }
+.dd-title { flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 17px; }
+.dd-title small { font-size: 12px; color: var(--ink-2); }
+.dd-strip { display: flex; gap: 8px; padding: 8px 16px; }
+.dd-strip .slot { flex: 1; min-height: 40px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line-3); border-radius: 10px; font-size: 14px; font-weight: 600; }
+.dd-strip .slot.over { border: 2px solid var(--blue); background: var(--drop); color: var(--blue); }
+.dd-scroll { flex: 1; overflow-y: auto; padding: 4px 16px 40px 0; }
+.dd-wrap { display: flex; }
+.dd-rows { flex: 0 0 56px; }
+.dd-h { position: relative; font-size: 12px; color: var(--ink-2); text-align: right; padding-right: 8px; }
+.dd-h span { position: relative; top: -7px; }
+.dd-grid { flex: 1; position: relative; background: repeating-linear-gradient(to bottom, var(--line) 0, var(--line) 1px, transparent 1px, transparent 52px); border-left: 1px solid var(--line); }
+.dd-grid.over { background-color: var(--drop); }
+.dd-b { position: absolute; left: 6px; right: 6px; padding: 2px 8px; border: 1px solid var(--line-2); border-left: 3px solid var(--edge); border-radius: 6px; background: var(--card); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; opacity: 0.8; }
+.dd-b.mt { background: var(--blue); color: #fff; border: 0; }
+.daydrop .nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--now); pointer-events: none; }

@@ -172,7 +172,7 @@ async function syncNow() {
   syncing = false; paintSync();
 }
 async function whoami() {
-  try { const r = await fetch('/api/me', { cache: 'no-store' }); const j = await r.json(); S.me = j.email || null; S.setup = j.setup !== false; if (j.clientId) S.clientId = j.clientId; }
+  try { const r = await fetch('/api/me', { cache: 'no-store' }); const j = await r.json(); S.me = j.email || null; S.setup = j.setup !== false; if (j.clientId) S.clientId = j.clientId; S.calReady = !!j.calendarReady; }
   catch { /* offline: keep working locally */ }
   paintSync(); if (S.me) syncNow();
 }
@@ -533,7 +533,7 @@ function mBoards() {
     if (done.length) body += mDoneToggle('b' + b.id, done);
     return `<header class="mh"><div class="r1"><button class="ib" aria-label="All boards" data-act="boardsback">${I.left.replace(/16/g, '20')}</button><h1 style="flex:1">${esc(b.name)}</h1>
 <button class="plain" aria-label="Edit board" data-act="editboard" data-bid="${b.id}">•••</button><button class="ib" aria-label="Add to ${esc(b.name)}" data-act="capture" data-board="${b.id}">${I.plus(20)}</button></div></header>
-<main class="mm" data-list="board">${body}<div class="empty" style="margin-top:12px">Tip: hold a task, then drag it right onto a day.</div></main>`;
+<main class="mm" data-list="board">${body}<div class="empty" style="margin-top:12px">Tip: hold a task to open the day, then drop it on an hour.</div></main>`;
   }
   const rows = boardsSorted().map(x => `<button class="rowlink" data-act="openboard" data-bid="${x.id}"><span>${esc(x.name)}</span><span class="n">${boardTasks(x.id).filter(isOpen).length}</span>${I.chev}</button>`).join('');
   return `<header class="mh"><div class="r1"><h1>Boards</h1><button class="tb" data-act="newboard">New board</button></div></header>
@@ -544,7 +544,7 @@ function mInbox() {
   let body = '';
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
-  if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drag onto a day.</div>`;
+  if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
   return `<header class="mh"><div class="r1"><h1>Inbox${list.length ? ' · ' + list.length : ''}</h1></div></header><main class="mm" data-list="inbox">${body}</main>`;
 }
 
@@ -638,6 +638,11 @@ async function mountGoogleButton() {
   const box = $('#gsi'); if (!box || S.me) return;
   if (!S.clientId) { await whoami(); if (!S.clientId) { $('#gsimsg').textContent = 'Connect to the internet to sign in.'; return; } }
   try { await loadGsi(); } catch { $('#gsimsg').textContent = 'Could not reach Google. Check your connection.'; return; }
+  if (S.calReady) { // sign-in and calendar link in one Google step
+    box.innerHTML = `<button class="bigbtn dark" style="width:100%" data-act="signincal">Sign in with Google</button>`;
+    $('#gsimsg').textContent = 'Also links your Google Calendar: meetings go there, tasks stay here.';
+    return;
+  }
   google.accounts.id.initialize({ client_id: S.clientId, use_fedcm_for_button: true, callback: async (resp) => {
     $('#gsimsg') && ($('#gsimsg').textContent = 'Signing in…');
     const r = await fetch('/auth/gsi', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential: resp.credential }) });
@@ -654,7 +659,7 @@ async function mountGcal() {
   let st; try { st = await (await fetch('/api/gcal', { cache: 'no-store' })).json(); } catch { box.textContent = 'Connect to the internet to see the calendar link.'; return; }
   if (!$('#gcalbox')) return;
   if (!st.available) { box.innerHTML = 'Calendar sync needs one setup step in Cloudflare (the Google client secret).'; return; }
-  if (st.connected) { box.innerHTML = `<div style="color:var(--ink)">Connected to ${esc(st.email || 'Google Calendar')}. Meetings sync both ways; tasks stay here.</div><div class="row" style="margin-top:8px"><button class="bigbtn" style="flex:1" data-act="gcalsync">Sync calendar now</button><button class="bigbtn" style="flex:1" data-act="gcaloff">Disconnect</button></div>`; return; }
+  if (st.connected) { box.innerHTML = `<div style="color:var(--ink)">Connected to ${esc(st.email || 'Google Calendar')}. Meetings sync both ways; tasks stay here.</div><div class="row" style="margin-top:8px"><button class="bigbtn" style="flex:1" data-act="gcalsync">Sync calendar now</button><button class="bigbtn" style="flex:1" data-act="gcalon">Use a different calendar</button></div><button class="link" style="font-size:13px;margin-top:6px" data-act="gcaloff">Disconnect calendar</button>`; return; }
   box.innerHTML = `<div>Send meetings to Google Calendar (with Google's reminders) and show your Google events here. Tasks stay in Horizonte.</div><button class="bigbtn dark" style="width:100%;margin-top:8px" data-act="gcalon">Connect Google Calendar</button>`;
   S.clientId = S.clientId || st.clientId;
 }
@@ -668,6 +673,19 @@ async function connectGcal() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { if ($('#gcalbox')) $('#gcalbox').textContent = j.error || 'Could not connect.'; return; }
       toast('Google Calendar connected'); await syncNow(); mountGcal();
+    } });
+  client.requestCode();
+}
+
+function signInWithCalendar() {
+  const client = google.accounts.oauth2.initCodeClient({ client_id: S.clientId, scope: 'openid email profile https://www.googleapis.com/auth/calendar.events', ux_mode: 'popup', select_account: true,
+    callback: async (resp) => {
+      if (resp.error) { $('#gsimsg') && ($('#gsimsg').textContent = 'Sign-in cancelled.'); return; }
+      $('#gsimsg') && ($('#gsimsg').textContent = 'Signing in…');
+      const r = await fetch('/auth/code', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: resp.code }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { $('#gsimsg') && ($('#gsimsg').textContent = j.error || 'Sign-in failed.'); return; }
+      S.me = j.email; toast(j.calendar ? 'Signed in · calendar linked' : 'Signed in'); closeSheet(); render(); await syncNow(); render();
     } });
   client.requestCode();
 }
@@ -746,6 +764,7 @@ document.addEventListener('click', async (e) => {
     case 'boardsback': S.ui.board = null; render(); return;
     case 'settings': settingsSheet(); return;
     case 'gcalon': connectGcal(); return;
+    case 'signincal': signInWithCalendar(); return;
     case 'gcaloff': await fetch('/api/gcal/disconnect', { method: 'POST' }); mountGcal(); toast('Calendar disconnected'); return;
     case 'gcalsync': { const b = $('#gcalbox'); if (b) b.style.opacity = .6; await syncNow(); render(); mountGcal(); if (b) b.style.opacity = 1; toast('Calendar synced'); return; }
     case 'syncnow': syncNow().then(() => sheetState?.settings && settingsSheet()); return;
@@ -842,20 +861,37 @@ function startDrag(x, y) {
   (isDesk() ? document.body : $('.m')).appendChild(ghost);
   p.card.classList.add('dragging'); document.body.classList.add('is-dragging');
   drag = { id: p.id, card: p.card, ghost, ox: x - r.left, oy: y - r.top, over: null, rail: null };
-  if (!isDesk()) { navigator.vibrate?.(20); drag.rail = openRail(); }
+  if (!isDesk()) { navigator.vibrate?.(20); const t = S.tasks.get(p.id); drag.rail = openDayDrop(kindOf(t?.when) === 'day' && t.when >= todayK() ? t.when : todayK()); }
   moveDrag(x, y);
 }
-function openRail() {
-  const T = todayK(), rows = [];
-  for (let i = 0; i < 7; i++) { const k = addDays(T, i); rows.push([`day:${k}`, i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayShort(k), placedOn(k).length ? fmtDur(dayLoad(k)) : 'Free']); }
-  rows.push([`period:${shiftPeriod(isoWeek(T), 1)}`, 'Next week', ''], [`period:${periodOf('month', T)}`, 'This month', ''], ['list', 'Unschedule', '']);
-  $('.m').insertAdjacentHTML('beforeend', `<div class="rail" aria-hidden="true"><div class="eyebrow">Drop on</div>${rows.map(([d, l, s]) => `<div class="slot" data-drop="${d}">${l}${s ? `<small>${s}</small>` : ''}</div>`).join('')}</div>`);
-  const rail = $('.rail'); requestAnimationFrame(() => rail.classList.add('in')); return rail;
+// Phone drag: holding a task opens a full-screen day. Drop on an hour; hold at the right or left edge to change day.
+const MHPX = 52, MH0 = 6, MH1 = 24;
+function openDayDrop(k) {
+  const el = document.createElement('div'); el.className = 'daydrop'; el.setAttribute('aria-hidden', 'true');
+  $('.m').appendChild(el); renderDayDrop(el, k);
+  const sc = el.querySelector('.dd-scroll'), n = new Date();
+  const startH = k === todayK() ? n.getHours() - 1 : toMin(S.prefs.dayStart) / 60 - 1;
+  sc.scrollTop = Math.max(0, (startH - MH0) * MHPX);
+  requestAnimationFrame(() => el.classList.add('in')); return el;
+}
+function renderDayDrop(el, k) {
+  const keep = el.querySelector('.dd-scroll')?.scrollTop;
+  const d = parseD(k), rel = relDay(k);
+  const items = placedOn(k).filter(t => t.at && (!drag || t.id !== drag.id));
+  let rows = ''; for (let h = MH0; h < MH1; h++) rows += `<div class="dd-h" style="height:${MHPX}px"><span>${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</span></div>`;
+  const blocks = items.map(t => { const top = (toMin(t.at) / 60 - MH0) * MHPX, ht = Math.max(20, (t.dur || 30) / 60 * MHPX - 2);
+    return `<div class="dd-b ${t.kind === 'meeting' ? 'mt' : ''}" style="top:${top}px;height:${ht}px">${esc(t.title)} · ${clock(t.at)}</div>`; }).join('');
+  let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); now = `<div class="nowline" style="top:${(m / 60 - MH0) * MHPX}px"></div>`; }
+  el.innerHTML = `<div class="dd-top"><div class="dd-edge">‹</div><div class="dd-title"><b>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</b>${rel ? ` <span class="pill">${rel}</span>` : ''}<small>${loadText(k)} · hold at an edge to change day</small></div><div class="dd-edge">›</div></div>
+<div class="dd-strip"><div class="slot" data-drop="day:${k}">Anytime ${esc(rel || dayShort(k))}</div><div class="slot" data-drop="list">Unschedule</div></div>
+<div class="dd-scroll"><div class="dd-wrap"><div class="dd-rows">${rows}</div><div class="dd-grid" data-drop="slot:${k}" data-hpx="${MHPX}" data-h0="${MH0}" style="height:${(MH1 - MH0) * MHPX}px">${blocks}${now}</div></div></div>`;
+  el.dataset.k = k;
+  if (keep != null) el.querySelector('.dd-scroll').scrollTop = keep;
 }
 function dropAt(x, y) {
   const el = document.elementFromPoint(x, y); if (!el) return null;
   const t = el.closest('[data-drop]'); if (!t) return null;
-  if (drag?.rail && !t.closest('.rail')) return null; // on a phone, only the rail and day headers take drops
+  if (drag?.rail && !t.closest('.daydrop')) return null; // on a phone, only the full-screen day takes drops
   return t;
 }
 let autoScroll = null;
@@ -866,9 +902,22 @@ function moveDrag(x, y) {
   if (d.over !== t) { d.over?.classList.remove('over'); t?.classList.add('over'); if (d.over?.dataset.drop?.startsWith('slot')) $('.slotline')?.remove(); d.over = t; }
   if (t?.dataset.drop.startsWith('slot:')) {
     const r = t.getBoundingClientRect(), dur = S.tasks.get(d.id)?.dur || 30;
-    let m = Math.round(((y - d.oy + 6 - r.top) / HPX * 60 + H0() * 60) / 15) * 15; m = Math.max(0, Math.min(24 * 60 - dur, m)); d.slot = fromMin(m);
+    const hpx = Number(t.dataset.hpx) || HPX, h0 = t.dataset.h0 != null ? Number(t.dataset.h0) : H0(), yy = d.rail ? y - 10 : y - d.oy + 6;
+    let m = Math.round(((yy - r.top) / hpx * 60 + h0 * 60) / 15) * 15; m = Math.max(0, Math.min(24 * 60 - dur, m)); d.slot = fromMin(m);
     let line = t.querySelector('.slotline'); if (!line) { t.insertAdjacentHTML('beforeend', '<div class="slotline"><span></span></div>'); line = t.querySelector('.slotline'); }
-    line.style.top = ((m / 60 - H0()) * HPX) + 'px'; line.firstElementChild.textContent = clock(d.slot);
+    line.style.top = ((m / 60 - h0) * hpx) + 'px'; line.firstElementChild.textContent = clock(d.slot);
+  }
+  // phone: edges change the day, top/bottom scroll the hours
+  if (d.rail) {
+    clearInterval(autoScroll);
+    const dir = x > innerWidth - 34 ? 1 : x < 34 ? -1 : 0;
+    if (dir !== d.edgeDir) { clearTimeout(d.edgeTimer); d.edgeDir = dir;
+      if (dir) d.edgeTimer = setTimeout(function flip() { if (!drag || drag.edgeDir !== dir) return; const nk = addDays(d.rail.dataset.k, dir); if (dir < 0 && nk < todayK()) return;
+        renderDayDrop(d.rail, nk); d.over = null; navigator.vibrate?.(8); d.edgeTimer = setTimeout(flip, 900); }, 550); }
+    const sc = d.rail.querySelector('.dd-scroll'), r = sc.getBoundingClientRect(); let vy = 0;
+    if (y > r.bottom - 60) vy = 10; else if (y < r.top + 50 && y > r.top - 40) vy = -10;
+    if (vy) autoScroll = setInterval(() => { sc.scrollTop += vy; }, 16);
+    return;
   }
   // auto-scroll the timeline near its edges
   const tl = $('.tl'); clearInterval(autoScroll);
@@ -880,7 +929,7 @@ function moveDrag(x, y) {
 function cleanupDrag() {
   clearInterval(autoScroll); const d = drag; drag = null;
   d.ghost.remove(); d.card.classList.remove('dragging'); d.over?.classList.remove('over'); $('.slotline')?.remove(); document.body.classList.remove('is-dragging');
-  if (d.rail) { d.rail.classList.remove('in'); setTimeout(() => d.rail.remove(), 200); }
+  clearTimeout(d.edgeTimer); if (d.rail) { d.rail.classList.remove('in'); setTimeout(() => d.rail.remove(), 200); }
   suppressClick = true; setTimeout(() => { suppressClick = false; }, 50);
   return d;
 }
@@ -889,7 +938,7 @@ function endDrag(x, y) {
   const d = cleanupDrag(), t = d.over; if (!t) return;
   const [kind, val] = t.dataset.drop.split(/:(.*)/s), task = S.tasks.get(d.id); if (!task) return;
   if (kind === 'day') { if (task.when === val && kindOf(task.when) === 'day' && !task.at) return; place(d.id, val, kindOf(task.when) === 'day' && task.when !== val ? task.at : '', null); }
-  else if (kind === 'slot') place(d.id, val, d.slot, `${dayShort(val)} ${clock(d.slot)}`);
+  else if (kind === 'slot') place(d.id, val, d.slot, `${dayShort(val)} ${clockAP(d.slot)}`);
   else if (kind === 'period') place(d.id, val, '');
   else if (kind === 'list') { if (task.when) place(d.id, null, ''); }
   else if (kind === 'board') { if ((task.board || '') !== val) { put('task', d.id, { board: val, section: '' }); render(); toast(`Moved to ${val ? S.boards.get(val)?.name : 'Inbox'}`, true); } }
