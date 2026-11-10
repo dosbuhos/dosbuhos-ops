@@ -1673,7 +1673,7 @@ var SheetParse = (function () {
     const hist = { ph: [], at: [], am: [], sl: [], st: [], aa: [], alc: [], rs: [], heat: [], lac: [] };
     const adds = [], racks = [], sugar = [];
     // Free SO2 per vessel (a barrel or the tank): last reading + every addition since, so the number shown is what's in the wine now.
-    const fv = {}, gone = {}, vKey = u => { const x = String(u || "").toUpperCase().replace(/\(.*?\)/g, "").trim(), m = x.match(/^(?:½\s*)?B(?:BL|ARRICA)?\s*#?\s*(\d+)$/); return m ? "B" + (+m[1]) : x.replace(/\s+/g, " "); };
+    const fv = {}, gone = {}, vKey = u => { const x = String(u || "").toUpperCase().replace(/\(.*?\)/g, "").trim(), m = x.match(/^(?:½\s*)?B(?:BL|ARRICA)?\s*#?\s*(\d+)$/); if (m) return "B" + (+m[1]); const t = x.match(/^([A-Z]{1,3})\s*-?\s*0*(\d+)$/); return t ? t[1] + "-" + t[2] : x.replace(/\s+/g, " "); }; // VC-05 = VC-5 = VC5
     const IFADD = /\bIF (SHORT|NEEDED|LOW|NECESSARY)\b|\bSI (FALTA|HACE FALTA|ES NECESARIO|SALE BAJO)\b|\bSOLO SI\b|\bONLY IF\b/i;
     let lastLab = "", vessel = "", vol = null, volDate = "", afEnd = "", noMlf = "";
     let bent = null;

@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-10 — Fix: free SO₂ estimate on the Chenin tank showed ~43 · v1.19.3
+- Vessel names are now matched with or without the leading zero (VC-05 = VC-5 = VC5). The Chenin's recent readings were written "VC-5" and the Sept additions "VC-05", so the estimate took the Sept 16 reading (<8) plus the Sept 22 addition (35) and showed ~43; it now shows the Nov 2 reading, <8 · app/cellar-targets.html (SheetParse vKey)
+
 ## 2026-11-10 — Vinos: active filter tile stands out; "no wines match" hint in bold · v1.19.2
 - The summary tile you tap to filter (e.g. "No lab in 3+ weeks") now turns light maroon with a maroon border and label when it's on, and the "Clear the search or the filter above" line is bold · Eric lost the wine list to a filter he didn't notice was on · app/cellar-targets.html (CSS + empty-row text)
 
