@@ -233,7 +233,17 @@
   .stats.awards{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0 16px}
   .stats.awards .stat{padding:12px 4px}
   .stats.awards .stat b{font-size:26px}
-  .acard{border:1px solid var(--line);padding:18px 18px 16px;min-height:250px;background:var(--card);position:relative}
+  .hms{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 14px}
+  .hm{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);background:var(--card);padding:12px 10px}
+  .hm b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:19px;line-height:1.1;color:var(--ink)}
+  .hm .w{display:block;font-size:12.5px;margin-top:3px;color:var(--ink)}.hm .c{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:4px;line-height:1.35}
+  .disc{flex:none;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 1px 2px rgba(0,0,0,.5)}
+  .disc.gg{background:radial-gradient(circle at 35% 30%,#fff3c4,#d9ad4c 45%,#8a6418);box-shadow:0 0 0 2px #d9ad4c,inset 0 0 0 2px rgba(255,255,255,.5)}
+  .disc.g{background:radial-gradient(circle at 35% 30%,#fff1b8,#d9ad4c 45%,#8a6418)}
+  .hm .pts{flex:none;width:28px;font-style:normal;font-family:"Cormorant Garamond",Georgia,serif;font-size:24px;line-height:1;color:#e3c27a}
+  .aw-hint{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warm);margin:14px 0 4px}
+  .carnav.top{margin:0 0 10px}
+  .acard{border:1px solid var(--line);padding:18px 18px 16px;background:var(--card);position:relative}
   .acard img{position:absolute;right:16px;top:14px;width:46px;height:46px;object-fit:contain}
   .acard .comp{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--warm);padding-right:60px;line-height:1.5}
   .acard .yr{font-family:"Cormorant Garamond",Georgia,serif;font-size:34px;font-weight:500;line-height:1.1;margin-top:4px}
@@ -545,10 +555,12 @@
       <div class="acc" id="acc-awards">
         <button class="acc-h" onclick="toggle('acc-awards')"><span class="t"><b class="en">Recognition</b><b class="es">Reconocimientos</b><span class="en">Brussels, Bacchus, Los Angeles — and the tables</span><span class="es">Bruselas, Bacchus, Los Ángeles — y las mesas</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
-          <p class="en" style="margin-top:4px">We enter a few competitions a year and keep the medals in a drawer. A handful we take out: a Grand Gold in Brussels for the Grenache, Gold at Bacchus for the Tempranillo and the orange wine, Gold in Los Angeles for the Pet Nat, 97 points for the Aglianico. The tables we're prouder of: Pujol, Quintonil, Nobu and Rosewood chose us with their own money.</p>
-          <p class="es" style="margin-top:4px">Entramos a pocos concursos al año y guardamos las medallas en un cajón. Unas cuantas las sacamos: Gran Oro en Bruselas para el Grenache, Oro en Bacchus para el Tempranillo y el vino naranja, Oro en Los Ángeles para el Pet Nat, 97 puntos para el Aglianico. De las mesas estamos más orgullosos: Pujol, Quintonil, Nobu y Rosewood nos eligieron con su propio dinero.</p>
-          <div class="car awardsc" data-car id="award-car"></div>
-          <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="hms"><div class="hm"><i class="disc gg"></i><div><b><span class="en">Grand Gold</span><span class="es">Gran Oro</span></b><span class="w">Grenache Gran Reserva 2019</span><span class="c">Concours Mondial de Bruxelles 2024</span></div></div><div class="hm"><i class="disc g"></i><div><b><span class="en">Gold ×2</span><span class="es">Oro ×2</span></b><span class="w">Tempranillo 2022 · Anaranjado 2023</span><span class="c">Bacchus 2026</span></div></div><div class="hm"><i class="disc g"></i><div><b><span class="en">Gold</span><span class="es">Oro</span></b><span class="w">Moscato Giallo Pet Nat 2022</span><span class="c">Los Angeles International 2025</span></div></div><div class="hm"><i class="pts">97</i><div><b><span class="en">97 points</span><span class="es">97 puntos</span></b><span class="w">Aglianico 2020</span><span class="c">Guía Catadores 2027</span></div></div></div>
+          <p class="en">We enter a few competitions a year and keep most of the medals in a drawer. The tables we're prouder of: Pujol, Quintonil, Nobu and Rosewood chose us with their own money.</p>
+          <p class="es">Entramos a pocos concursos al año y guardamos casi todas las medallas en un cajón. De las mesas estamos más orgullosos: Pujol, Quintonil, Nobu y Rosewood nos eligieron con su propio dinero.</p>
+          <div class="aw-hint"><span class="en">Every medal and score, newest first — swipe or use the arrows</span><span class="es">Todas las medallas y puntajes, lo más reciente primero — desliza o usa las flechas</span></div>
+          <div class="carnav top"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
+          <div class="car awardsc" data-car-top id="award-car"></div>
           <div class="quotes">
             <blockquote><p class="en">Probably one of the best wineries in Mexico. While Valle de Guadalupe is the country's most acclaimed wine region, Dos Búhos sits in relatively unknown San Miguel de Allende, at 2,000 metres, farming sustainably and making wine with minimal intervention.</p><p class="es">Probablemente una de las mejores bodegas de México. Mientras que Valle de Guadalupe es la región vinícola más aclamada del país, Dos Búhos se encuentra en el relativamente desconocido San Miguel de Allende, a 2,000 metros, con agricultura sostenible y vinificación de mínima intervención.</p><cite>Robert Vernick · Wine Terroir</cite></blockquote>
             <blockquote><p class="en">Some say San Miguel de Allende has some of the best soil for the vine in the whole country. This winery is the proof.</p><p class="es">Algunos aseguran que la región de San Miguel de Allende cuenta con uno de los suelos más idóneos para el cultivo de la vid de todo el país. Esta bodega es la prueba.</p><cite>Alejandra Naranjo · Food &amp; Wine</cite></blockquote>
@@ -752,8 +764,8 @@ function toggle(id){ const el = document.getElementById(id); const was = el.clas
     const go = () => { if (done) return; done = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     body.addEventListener('transitionend', go, { once: true }); setTimeout(go, 520); } }
 // carousels: scroll-snap + dots + arrows
-document.querySelectorAll('[data-car]').forEach(car => {
-  const slides = [...car.children]; const nav = car.nextElementSibling; const dots = nav.querySelector('.dots');
+document.querySelectorAll('[data-car],[data-car-top]').forEach(car => {
+  const slides = [...car.children]; const nav = car.hasAttribute('data-car-top') ? car.previousElementSibling : car.nextElementSibling; const dots = nav.querySelector('.dots');
   const many = slides.length > 9; if (many) dots.classList.add('count');
   if (!many) slides.forEach((_, i) => { const d = document.createElement('i'); if (i === 0) d.classList.add('on'); d.addEventListener('click', () => go(i)); dots.appendChild(d); });
   // use real slide offsets: the track has side padding, so clientWidth is not the slide stride (that drift skipped slides mid-carousel)
@@ -806,7 +818,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611101607'; let lastCheck = 0;
+const APP_VER = '202611101609'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
