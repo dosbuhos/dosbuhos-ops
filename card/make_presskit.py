@@ -10,7 +10,7 @@ srv = socketserver.TCPServer(("127.0.0.1", 0), functools.partial(Q, directory=PU
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 for lang, name in (("en", "Dos-Buhos-Press-Kit-EN.pdf"), ("es", "Dos-Buhos-Kit-de-Prensa-ES.pdf")):
     out = os.path.join(DOCS, name)
-    subprocess.run(["google-chrome", "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
+    subprocess.run(["google-chrome", "--headless=new", "--no-sandbox", "--disable-gpu", "--disable-background-networking", "--disable-component-update", "--no-first-run", "--disable-sync", "--no-pdf-header-footer",
                     "--virtual-time-budget=8000", f"--print-to-pdf={out}", f"http://127.0.0.1:{port}/press/index.html?print=1&lang={lang}"],
                    check=True, capture_output=True)
     print(name, os.path.getsize(out) // 1024, "KB")
