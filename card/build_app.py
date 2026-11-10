@@ -121,8 +121,8 @@ AWARDS = [
   {"comp":"Los Angeles International Wine Competition","year":2025,"icon":"la","items":[["Moscato Giallo Pet Nat 2022","g"],["Espumoso Rosado 2020","s"],["Aglianico 2020","s"]]},
   {"comp":"Concours Mondial de Bruxelles","year":2024,"icon":"cmb","items":[["Grenache 2019","gg"],["Anaranjado 2021","s"],["1524 Espumoso Blanco 2022","s"],["Grenache 2020","s"]]},
   {"comp":"Los Angeles International Wine Competition","year":2024,"icon":"la","items":[["Chenin Blanc 2022","b"]]},
-  {"comp":"Catadores del Vino Mexicano","year":0,"icon":"","items":[["1524 Espumoso Rosé 2022","95 pts"],["Tempranillo 2020","95 pts"],["1524 Espumoso Blanco 2022","93 pts"],["Cabernet Sauvignon 2020","93 pts"],["Selección Especial 2017","92 pts"],["Chardonnay 2021","92 pts"],["Sauvignon Blanc 2020","91 pts"],["Tempranillo 2016","91 pts"],["Aglianico 2015","91 pts"],["Moscato Giallo Pet Nat 2021","91 pts"],["Espumoso Rosado 2020","91 pts"],["Chenin Blanc 2022","90 pts"],["Grenache 2020","90 pts"]]},
-  {"comp":"Concours Mondial de Bruxelles · México","year":2023,"icon":"cmb","items":[["Moscato Giallo Pet Nat 2021","s"]]},
+  {"comp":"Catadores del Vino Mexicano","year":0,"icon":"","items":[["1524 Espumoso Rosé 2022","95 pts"],["Tempranillo 2020","95 pts"],["1524 Espumoso Blanco 2022","93 pts"],["Cabernet Sauvignon 2020","93 pts"],["Selección Especial 2017","92 pts"],["Chardonnay 2021","92 pts"],["Sauvignon Blanc 2021","93 pts"],["Aglianico Gran Reserva 2017","93 pts"],["Sauvignon Blanc 2020","91 pts"],["Tempranillo 2016","91 pts"],["Aglianico 2015","91 pts"],["Moscato Giallo Pet Nat 2021","91 pts"],["Espumoso Rosado 2020","91 pts"],["Chenin Blanc 2022","90 pts"],["Grenache 2020","90 pts"]]},
+  {"comp":"Concours Mondial de Bruxelles · México","year":2023,"icon":"cmb","items":[["Moscato Giallo Pet Nat 2021","s"],["Cabernet Franc 2019","s"]]},
   {"comp":"Concours Mondial de Bruxelles · México","year":2022,"icon":"cmb","items":[["Sauvignon Blanc 2021","s"]]},
   {"comp":"Concours Mondial de Bruxelles · México","year":2021,"icon":"cmb","items":[["Cabernet Sauvignon 2017","s"]]},
 ]

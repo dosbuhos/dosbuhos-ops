@@ -6,8 +6,8 @@
       "items": [
         {
           "label": "One-page fact sheet (EN/ES)",
-          "status": "partial",
-          "note": "Facts are on the press page; still need hectares, bottles per year, one clean page.",
+          "status": "have",
+          "note": "On the press page and in the press kit PDF.",
           "files": []
         }
       ]
@@ -17,9 +17,17 @@
       "items": [
         {
           "label": "Short story (150 words) and long story (600 words), EN/ES",
-          "status": "partial",
-          "note": "150-word version is on the press page; long version to write.",
+          "status": "have",
+          "note": "Short and long versions on the press page (long one built from the 2025 brand deck).",
           "files": []
+        },
+        {
+          "label": "Brand deck 2025 (EN)",
+          "status": "have",
+          "note": "From Google Drive. A Japanese version also exists.",
+          "files": [
+            "/docs/Dos-Buhos-Brand-Deck-2025.pdf"
+          ]
         }
       ]
     },
@@ -104,6 +112,18 @@
           "status": "missing",
           "note": "",
           "files": []
+        },
+        {
+          "label": "From the 2025 brand deck (2048 px)",
+          "status": "partial",
+          "note": "Good for web and small print. Pick the keepers; hi-res originals would be better.",
+          "files": [
+            "/press/files/photos/brand-deck/DosBuhos_Vineyard_Harvest-Pickers.jpg",
+            "/press/files/photos/brand-deck/DosBuhos_Cellar_Rose-Must.jpg",
+            "/press/files/photos/brand-deck/DosBuhos_Tasting-Room_Art-and-Barrels.jpg",
+            "/press/files/photos/brand-deck/DosBuhos_Cellar_Barrels.jpg",
+            "/press/files/photos/brand-deck/DosBuhos_People_Vineyard-Team.jpg"
+          ]
         }
       ]
     },
@@ -143,8 +163,8 @@
       "items": [
         {
           "label": "Named press contact",
-          "status": "missing",
-          "note": "",
+          "status": "have",
+          "note": "Eric Maycotte and Diana González on the press page.",
           "files": []
         },
         {
