@@ -477,8 +477,8 @@
           <div class="car wines" data-car id="wine-car"></div>
           <div class="carnav"><button class="prev" aria-label="previous">‹</button><div class="dots"></div><button class="next" aria-label="next">›</button></div>
           <div class="row"><a class="btn warm full" href="https://dosbuhos.com/shop/" target="_blank" rel="noopener"><span class="en">The whole cellar · online store</span><span class="es">Toda la bodega · tienda en línea</span></a><a class="btn" href="/docs/Dos-Buhos-Technical-Sheets-2025-EN.pdf" target="_blank" rel="noopener"><span class="en">Technical sheets · EN</span><span class="es">Fichas técnicas · EN</span></a><a class="btn" href="/docs/Dos-Buhos-Fichas-Tecnicas-2025-ES.pdf" target="_blank" rel="noopener"><span class="en">Fichas técnicas · ES</span><span class="es">Fichas técnicas · ES</span></a></div>
-          <p class="fine en">In the United States: imported by La Competencia; Texas through Casa 1524.</p>
-          <p class="fine es">En Estados Unidos: importado por La Competencia; en Texas a través de Casa 1524.</p>
+          <p class="fine en">In the United States: imported by La Competencia.</p>
+          <p class="fine es">En Estados Unidos: importado por La Competencia.</p>
         </div></div>
       </div>
 
@@ -753,7 +753,7 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611101538'; let lastCheck = 0;
+const APP_VER = '202611101542'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
     if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
