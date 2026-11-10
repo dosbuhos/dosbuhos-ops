@@ -208,9 +208,9 @@ for k, p in PEOPLE.items():
 # vcards
 for k, p in PEOPLE.items():
     if k == "dosbuhos":
-        v = f"""BEGIN:VCARD\nVERSION:3.0\nN:;;;;\nFN:Bodega Dos Búhos\nORG:Bodega Dos Búhos\nEMAIL;TYPE=INTERNET:{p['email']}\nTEL;TYPE=WORK:+{p['whatsapp']}\nURL:https://dosbuhos.com\nADR;TYPE=WORK:;;Km 6 Carretera San Miguel de Allende–Querétaro;San Miguel de Allende;Guanajuato;;México\nNOTE:Certified organic wine at 6,500 ft, San Miguel de Allende, Mexico.\nEND:VCARD\n"""
+        v = f"""BEGIN:VCARD\nVERSION:3.0\nN:;;;;\nFN:Bodega Dos Búhos\nORG:Bodega Dos Búhos\nEMAIL;TYPE=INTERNET:{p['email']}\nTEL;TYPE=WORK:+{p['whatsapp']}\nURL:https://dosbuhos.com\nADR;TYPE=WORK:;;Km 6 Carretera San Miguel de Allende–Querétaro;San Miguel de Allende;Guanajuato;;México\nNOTE:Certified organic wine at 6,600 ft, San Miguel de Allende, Mexico.\nEND:VCARD\n"""
     else:
-        v = f"""BEGIN:VCARD\nVERSION:3.0\nN:{p['last']};{p['first']};;;\nFN:{p['name']}\nORG:Bodega Dos Búhos\nTITLE:{p['title']}\nEMAIL;TYPE=INTERNET:{p['email']}\nTEL;TYPE=WORK:+{p['whatsapp']}\nURL:{BASE}/{k}\nADR;TYPE=WORK:;;Km 6 Carretera San Miguel de Allende–Querétaro;San Miguel de Allende;Guanajuato;;México\nNOTE:Certified organic wine at 6,500 ft, San Miguel de Allende, Mexico.\nEND:VCARD\n"""
+        v = f"""BEGIN:VCARD\nVERSION:3.0\nN:{p['last']};{p['first']};;;\nFN:{p['name']}\nORG:Bodega Dos Búhos\nTITLE:{p['title']}\nEMAIL;TYPE=INTERNET:{p['email']}\nTEL;TYPE=WORK:+{p['whatsapp']}\nURL:{BASE}/{k}\nADR;TYPE=WORK:;;Km 6 Carretera San Miguel de Allende–Querétaro;San Miguel de Allende;Guanajuato;;México\nNOTE:Certified organic wine at 6,600 ft, San Miguel de Allende, Mexico.\nEND:VCARD\n"""
     open(os.path.join(PUB, "vcf", f"{k}.vcf"), "w", encoding="utf-8").write(v)
 
 
