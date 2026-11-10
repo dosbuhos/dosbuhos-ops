@@ -22,11 +22,12 @@
           "files": []
         },
         {
-          "label": "Brand deck 2025 (EN)",
+          "label": "Brand deck 2025 (EN + Japanese)",
           "status": "have",
-          "note": "From Google Drive. A Japanese version also exists.",
+          "note": "From Google Drive.",
           "files": [
-            "/docs/Dos-Buhos-Brand-Deck-2025.pdf"
+            "/docs/Dos-Buhos-Brand-Deck-2025.pdf",
+            "/docs/Dos-Buhos-Brand-Deck-2025-JP.pdf"
           ]
         }
       ]
