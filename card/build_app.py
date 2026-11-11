@@ -254,10 +254,18 @@ def where_app():
 html = html.replace("__WHERE_APP__", where_app())
 html = html.replace("__AWARDS_JS__", json.dumps(AWARDS, ensure_ascii=False)).replace("__WINES_JS__", json.dumps(WINES_APP, ensure_ascii=False)).replace("__VIDEOS_JS__", json.dumps(VIDEOS, ensure_ascii=False)).replace("__PEOPLE__", json.dumps(PEOPLE, ensure_ascii=False)).replace("__QR__", json.dumps(qr)).replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False))
 open(os.path.join(PUB, "index.html"), "w", encoding="utf-8").write(html)
+# per-person html: /eric is served from eric.html, so the iPhone home-screen name and manifest are right from the first byte
+for _k, _p in PEOPLE.items():
+    if _k == "dosbuhos": continue
+    _h = html.replace('<meta name="apple-mobile-web-app-title" content="Dos Búhos">', f'<meta name="apple-mobile-web-app-title" content="{_p["name"]}">')
+    _h = _h.replace('href="/manifest-dosbuhos.webmanifest"', f'href="/manifest-{_k}.webmanifest"')
+    open(os.path.join(PUB, f"{_k}.html"), "w", encoding="utf-8").write(_h)
+
 
 # manifests
 for k, p in PEOPLE.items():
-    m = {"name": "Dos Búhos Business Card", "short_name": "Business Card",
+    _nm = "Dos Búhos" if k == "dosbuhos" else p["name"]
+    m = {"name": _nm + " · Dos Búhos" if k != "dosbuhos" else "Dos Búhos", "short_name": _nm,
          "start_url": "/" + ("" if k == "dosbuhos" else k), "scope": "/", "display": "standalone", "background_color": "#0a0a0a", "theme_color": "#0a0a0a",
          "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}]}
     json.dump(m, open(os.path.join(PUB, f"manifest-{k}.webmanifest"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -439,8 +447,9 @@ import time
 VER = time.strftime("%Y%m%d%H%M")
 sw = sw.replace("__VER__", VER).replace("__PRECACHE__", json.dumps(precache))
 with open(os.path.join(PUB, "version.json"), "w") as f: f.write(json.dumps({"v": VER}))
-with open(os.path.join(PUB, "index.html"), "r", encoding="utf-8") as f: _h = f.read()
-with open(os.path.join(PUB, "index.html"), "w", encoding="utf-8") as f: f.write(_h.replace("__VER__", VER))
+for _fn in ["index.html"] + [f"{k}.html" for k in PEOPLE if k != "dosbuhos"]:
+    with open(os.path.join(PUB, _fn), "r", encoding="utf-8") as f: _h = f.read()
+    with open(os.path.join(PUB, _fn), "w", encoding="utf-8") as f: f.write(_h.replace("__VER__", VER))
 open(os.path.join(PUB, "sw.js"), "w").write(sw)
 
 open(os.path.join(PUB, "_headers"), "w").write("""/vcf/*

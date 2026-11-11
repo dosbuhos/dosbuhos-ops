@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Business Card">
+<meta name="apple-mobile-web-app-title" content="Dos Búhos">
 <link id="manifest" rel="manifest" href="/manifest-dosbuhos.webmanifest">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon-192.png">
@@ -28,11 +28,11 @@
 
   /* ---------- stage / flip ---------- */
   #stage{position:relative;min-height:100vh;min-height:100dvh}
-  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .7s cubic-bezier(.4,0,.2,1)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .7s cubic-bezier(.4,0,.2,1),visibility 0s linear .35s}
   html:not(.open) body{overflow:hidden;height:100vh;height:100dvh}
   #front{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;overflow:auto;transform:perspective(1600px) rotateY(0deg);z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(var(--sat) + 36px) 24px calc(var(--sab) + 30px);cursor:pointer}
   #back{transform:perspective(1600px) rotateY(180deg);position:relative;z-index:1;visibility:hidden}
-  html.open #front{transform:perspective(1600px) rotateY(-180deg);pointer-events:none}
+  html.open #front{transform:perspective(1600px) rotateY(-180deg);pointer-events:none;visibility:hidden}
   html.open #back{transform:perspective(1600px) rotateY(0deg);visibility:visible;z-index:3}
 
   /* ---------- card front ---------- */
@@ -667,7 +667,7 @@ const q = QR[who]; const svg = document.getElementById('f-qr'); svg.setAttribute
 document.getElementById('p-vcf').href = `/vcf/${who}.vcf`;
 document.getElementById('p-wa').href = `https://wa.me/${P.whatsapp}`;
 document.getElementById('p-mail').href = `mailto:${P.email}`;
-document.getElementById('manifest').href = `/manifest-${who}.webmanifest`; { const t = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (t) t.content = who === 'dosbuhos' ? 'Dos Búhos' : (P.first || 'Dos Búhos') + ' · Dos Búhos'; }
+document.getElementById('manifest').href = `/manifest-${who}.webmanifest`;
 document.title = (who === 'dosbuhos' ? 'Dos Búhos' : P.name + ' · Dos Búhos');
 
 const WINES = __WINES_JS__;
