@@ -166,13 +166,12 @@ h3{font-size:14pt;color:#5c1e33;margin:.24in 0 .1in}
     <h2>La inversión<small>Precios por persona en pesos mexicanos; servicio e IVA desglosados</small></h2>
     ${d.detail ? `<div class="cols">
       <div><h3 style="margin-top:0">Alimentos y bebidas</h3>${lines(d.fb?.lines)}<div class="ln tot"><span>Total alimentos y bebidas</span><span>${esc(d.fb?.total || '$0')}</span></div></div>
-      <div><h3 style="margin-top:0">El espacio</h3>${d.sp ? lines(d.sp.lines) + `<div class="ln tot"><span>Total espacio</span><span>${esc(d.sp.total)}</span></div>` : '<div class="ln sub"><span>Sin espacio elegido</span><span></span></div>'}${d.st ? `<h3>Personal de servicio</h3>${lines(d.st.lines)}<div class="ln tot"><span>Total personal</span><span>${esc(d.st.total)}</span></div>` : ''}</div>
+      <div><h3 style="margin-top:0">El espacio</h3>${d.sp ? lines(d.sp.lines) + `<div class="ln tot"><span>Total espacio</span><span>${esc(d.sp.total)}</span></div>` : '<div class="ln sub"><span>Sin espacio elegido</span><span></span></div>'}</div>
     </div>` : `<div style="max-width:4.6in">
       <div class="ln"><span>Alimentos y bebidas · servicio e IVA incluidos</span><span>${esc(d.fb?.total || '$0')}</span></div>
       ${d.sp ? `<div class="ln"><span>${esc(d.space?.est ? 'Hacienda completa en exclusiva · IVA incluido' : (sp?.name || 'Espacio') + ' · IVA incluido')}</span><span>${esc(d.sp.total)}</span></div>` : ''}
-      ${d.st ? `<div class="ln"><span>${esc(`Personal de servicio · ${d.st.n} personas × ${d.st.h} h · IVA incluido`)}</span><span>${esc(d.st.total)}</span></div>` : ''}
     </div>`}
-    <div class="grand"><div><div class="l">Total del evento</div><div class="n">Alimentos, bebidas, espacio, personal, servicio e IVA incluidos</div></div><div><div class="v">${esc(d.grand || '$0')}</div><div class="pp">${esc(d.pp ? d.pp + ' por invitado' : '')}</div></div></div>
+    <div class="grand"><div><div class="l">Total del evento</div><div class="n">Alimentos, bebidas, espacio, servicio e IVA incluidos</div></div><div><div class="v">${esc(d.grand || '$0')}</div><div class="pp">${esc(d.pp ? d.pp + ' por invitado' : '')}</div></div></div>
     ${d.minNote ? `<div class="min">${esc(d.minNote)}</div>` : ''}
     <div class="nx3">
     ${d.notas ? `<div><b>Notas</b><div class="notes">${para(d.notas)}</div></div>` : ''}
