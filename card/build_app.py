@@ -29,6 +29,7 @@ PEOPLE = {
     "higinio":  {"name": "Higinio Maycotte",  "role": {"en": "Grape grower · Founder", "es": "Viticultor · Fundador"}, "first": "Higinio", "last": "Maycotte", "title": "Grape grower", "email": "higiniojmaycotte@gmail.com", "whatsapp": "524151018593"},
     "melanie":  {"name": "Melanie Harris",    "role": {"en": "Head of Events & Community", "es": "Directora de Eventos y Comunidad"}, "first": "Melanie", "last": "Harris", "title": "Head of Events & Community", "email": "melanie@dosbuhos.com", "whatsapp": "15127678084"},
     "michael":  {"name": "Michael Dunlop",    "role": {"en": "Food & Beverage Director", "es": "Director de Alimentos y Bebidas"}, "first": "Michael", "last": "Dunlop", "title": "Food & Beverage Director", "email": "michael@dosbuhos.com", "whatsapp": "524461422578"},
+    "carlos":   {"name": "Carlos Tapia",      "role": {"en": "Commercial Director", "es": "Director Comercial"}, "first": "Carlos", "last": "Tapia", "title": "Commercial Director", "email": "ventas@dosbuhos.com", "whatsapp": "525585768836"},
 }
 
 WINES_APP = [
