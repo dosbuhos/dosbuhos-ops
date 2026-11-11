@@ -201,7 +201,9 @@ function plantilla() {
   let meseros = pax > 0 ? Math.max(R.meserosMin, Math.ceil(pax / R.meseros[fmt])) : 0;
   if (cp && pax > 0) meseros += 1;
   const bar = pax >= R.barDesde ? Math.ceil(pax / R.barCada) : 0;
-  const lider = pax >= R.lider2Desde ? 2 : (pax >= R.liderDesde ? 1 : 0);
+  // Regla: ningún evento sin Jefe o Capitán de Dos Búhos (Jess o Fer). Siempre 1; 2 desde lider2Desde.
+  const lider = pax > 0 ? (pax >= R.lider2Desde ? 2 : 1) : 0;
+  if (pax > 0 && pax < R.liderDesde) meseros = Math.max(1, meseros - 1);
   let coc = pax > 0 ? step(R.cocineros, pax) : 0;
   if (t >= 4) coc += 1;
   if (t <= 2) coc -= 1;
@@ -235,7 +237,7 @@ function calc() {
   g.insertAdjacentHTML("beforeend", `<div class="sec">Piso</div>`);
   row("Meseros", S.pax ? `1 por ${R.meseros[S.fmt]}${S.cp ? " · +1 colchón" : ""}` : "", S.meseros, iMes, S.meseros - iMes);
   row("Bar", S.pax ? (S.bar ? `vino y cerveza · 1 por ${R.barCada}` : "los meseros sirven") : "", S.bar, iBar, S.bar - iBar);
-  row("Líder de piso", S.pax ? (S.lider ? "desde 50 invitados" : "no aplica") : "", S.lider, iLid, S.lider - iLid);
+  row("Jefe o Capitán", S.pax ? `Jess o Fer · siempre 1, 2 desde ${R.lider2Desde}` : "", S.lider, iLid, S.lider - iLid);
   g.insertAdjacentHTML("beforeend", `<div class="sec">Cocina</div>`);
   row("Cocineros", S.pax ? `${S.pax <= R.cocinaConfirmadoHasta ? "según Lalo" : "estimado · confirmar con Lalo"}${S.cc ? " · +1 colchón" : ""}` : "", S.coc, iCoc, S.coc - iCoc);
   row("Lavaloza", S.pax ? "platos rentados" : "", S.lav, iLav, S.lav - iLav);
@@ -295,7 +297,7 @@ function calc() {
     `${fecha} · ${S.pax} invitados · ${H} h de trabajo (${hrsEv} h de evento + ${setup} h montaje y cierre)`,
     ``,
     `PUESTOS`,
-    `Piso ${S.piso}: ${S.meseros} meseros${S.bar ? ` · ${S.bar} bar` : ""}${S.lider ? ` · ${S.lider} líder${S.lider > 1 ? "es" : ""} de piso` : ""}`,
+    `Piso ${S.piso}: ${S.meseros} meseros${S.bar ? ` · ${S.bar} bar` : ""}${S.lider ? ` · ${S.lider} jefe${S.lider > 1 ? "s" : ""} o capit${S.lider > 1 ? "anes" : "án"} (Jess${S.lider > 1 ? " y" : " o"} Fer)` : ""}`,
     `Cocina ${S.cocina}: ${S.coc} cocineros · ${S.lav} lavaloza`,
     `Estacionamiento ${S.est}`,
     ``,

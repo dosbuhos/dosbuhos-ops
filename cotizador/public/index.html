@@ -393,7 +393,10 @@ function calcST(F, S) {
   const on = pax > 0 && priv;
   let meseros = on ? Math.max(R.meserosMin, Math.ceil(pax / R.meseros[fmt])) + ($("st_cp").checked ? 1 : 0) : 0;
   const bar = on && pax >= R.barDesde ? Math.ceil(pax / R.barCada) : 0;
-  const lider = on ? (pax >= R.lider2Desde ? 2 : pax >= R.liderDesde ? 1 : 0) : 0;
+  // Regla: ningún evento sin Jefe o Capitán de Dos Búhos (Jess o Fer). Siempre 1; 2 desde lider2Desde.
+  // Abajo de liderDesde el capitán ocupa uno de los lugares de mesero, para no subir la plantilla.
+  const lider = on ? (pax >= R.lider2Desde ? 2 : 1) : 0;
+  if (on && pax < R.liderDesde) meseros = Math.max(1, meseros - 1);
   let coc = on ? step(R.cocineros, pax) : 0;
   if (on && (fmt === "compartida" || fmt === "coctel")) coc -= 1;
   if (on) coc = Math.max(2, coc) + ($("st_cc").checked ? 1 : 0);
@@ -423,7 +426,7 @@ function renderST(ST, S) {
   g.insertAdjacentHTML("beforeend", `<div class="hd">Puesto</div><div class="hd num">Total</div><div class="hd num">Casa</div><div class="hd num">Externos</div><div class="sec">Piso · ${FMTN[ST.fmt]}</div>`);
   row("Meseros", `1 por ${R.meseros[ST.fmt]}${$("st_cp").checked ? " · +1 colchón" : ""}`, ST.meseros, ST.iMes, ST.meseros - ST.iMes);
   row("Bar", ST.bar ? "vino y cerveza" : "los meseros sirven", ST.bar, ST.iBar, ST.bar - ST.iBar);
-  row("Líder de piso", ST.lider ? "desde 50 invitados" : "no aplica", ST.lider, ST.iLid, ST.lider - ST.iLid);
+  row("Jefe o Capitán", `Jess o Fer · siempre 1, 2 desde ${R.lider2Desde}`, ST.lider, ST.iLid, ST.lider - ST.iLid);
   g.insertAdjacentHTML("beforeend", `<div class="sec">Cocina</div>`);
   row("Cocineros", `${ST.pax <= R.cocinaConfirmadoHasta ? "según Lalo" : "estimado"}${$("st_cc").checked ? " · +1 colchón" : ""}`, ST.coc, ST.iCoc, ST.coc - ST.iCoc);
   row("Lavaloza", "platos rentados", ST.lav, ST.iLav, ST.lav - ST.iLav);
@@ -432,6 +435,7 @@ function renderST(ST, S) {
   if (ST.adj) row("Ajuste", ST.adj > 0 ? "personas extra" : "personas menos", ST.adj, 0, ST.adj > 0 ? ST.adj : 0);
   row("Total", `${ST.H} h de trabajo (${ST.hrsEv} h evento + ${ST.setup} h montaje y cierre)`, ST.slots, ST.inP + ST.inC, ST.exP + ST.exC + ST.exE, "tt");
   $("st_warn").innerHTML = ST.pax > R.cocinaConfirmadoHasta ? `<div class="warn">Lalo confirmó la cocina hasta 100 invitados; arriba de eso es un estimado, confírmalo con él antes de publicar la requisición.</div>` : "";
+  if (ST.iLid < ST.lider) $("st_warn").innerHTML += `<div class="warn">Ningún evento sin Jefe o Capitán de Dos Búhos: sube "internos de piso" para que Jess o Fer cubran ${ST.lider > 1 ? "los 2 puestos" : "el puesto"} de capitán.</div>`;
   const ln = (b, i, k = "") => `<div class="ln ${k}"><b>${b}</b><i>${i}</i></div>`;
   const short = ST.shortP + ST.shortC;
   $("st_cost").innerHTML = ln(`Internos · ${ST.inP + ST.inC} × ${ST.H} h × ${m(R.tarifa)}`, m(ST.wIn), "sub") + ln(`Externos · ${ST.exP + ST.exC} × ${ST.H} h × ${m(R.tarifa)}`, m(ST.wExP + ST.wExC), "sub") + (ST.wExE ? ln(`Apoyo · ${ST.exE} × ${ST.H} h × ${m(R.tarifa)}`, m(ST.wExE), "sub") : "") + ln(`Sueldos de la noche · ${ST.slots} personas`, m(ST.cost)) + ln(`− lo que paga el fee de servicio (externos)`, `(${m(ST.wExP + ST.wExC - short)})`, "sub") + ln(`Costo de personal para la casa<span class="d">${short ? "incluye " + m(short) + " de externos que el fee no cubre" : "internos y apoyo; los externos los paga el fee"}</span>`, m(ST.houseCost), short ? "red" : "tot");
@@ -443,7 +447,7 @@ function renderST(ST, S) {
     `REQUISICIÓN DE PERSONAL · ${(gv("cv_evento") || gv("cv_cliente") || "EVENTO").toUpperCase()}`,
     `${[fechaTexto(), horaTexto()].filter(Boolean).join(" · ") || "Fecha por confirmar"} · ${ST.pax} invitados · ${ST.H} h de trabajo (${ST.hrsEv} h de evento + ${ST.setup} h montaje y cierre)`,
     ``, `PUESTOS`,
-    `Piso ${ST.piso}: ${ST.meseros} meseros${ST.bar ? ` · ${ST.bar} bar` : ""}${ST.lider ? ` · ${ST.lider} líder${ST.lider > 1 ? "es" : ""} de piso` : ""}`,
+    `Piso ${ST.piso}: ${ST.meseros} meseros${ST.bar ? ` · ${ST.bar} bar` : ""}${ST.lider ? ` · ${ST.lider} jefe${ST.lider > 1 ? "s" : ""} o capit${ST.lider > 1 ? "anes" : "án"} (Jess${ST.lider > 1 ? " y" : " o"} Fer)` : ""}`,
     `Cocina ${ST.cocina}: ${ST.coc} cocineros · ${ST.lav} lavaloza`,
     `Estacionamiento ${ST.est}${ST.adj ? ` · Ajuste ${ST.adj > 0 ? "+" : ""}${ST.adj}` : ""}`,
     ``, `PAGA`,
