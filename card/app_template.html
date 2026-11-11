@@ -65,6 +65,12 @@
   .bar button{background:none;border:0;color:rgba(245,240,232,.78);font:inherit;letter-spacing:inherit;cursor:pointer;padding:10px 0;text-shadow:inherit}
   .bar button.on{color:var(--ink)}
   .bar .lang{display:flex;gap:16px}
+  .btn.solid, .btn.solid span{color:var(--bg) !important}
+  @media (min-width:700px){
+    .bar{font-size:13px;color:rgba(245,240,232,.95)}
+    .bar button{color:rgba(245,240,232,.95);padding:12px 2px}
+  }
+  @media (min-width:700px) and (display-mode:standalone){ .bar{top:calc(max(var(--sat), 26px) + 8px)} }
   header{text-align:center;padding:0}
   header .hero{position:relative;height:min(36vh,300px);margin:0 -20px;overflow:hidden;background:var(--card)}
   header .hero > img:first-child{width:100%;height:100%;object-fit:cover;object-position:center 62%;display:block}
@@ -660,7 +666,7 @@ const q = QR[who]; const svg = document.getElementById('f-qr'); svg.setAttribute
 document.getElementById('p-vcf').href = `/vcf/${who}.vcf`;
 document.getElementById('p-wa').href = `https://wa.me/${P.whatsapp}`;
 document.getElementById('p-mail').href = `mailto:${P.email}`;
-document.getElementById('manifest').href = `/manifest-${who}.webmanifest`;
+document.getElementById('manifest').href = `/manifest-${who}.webmanifest`; { const t = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (t) t.content = who === 'dosbuhos' ? 'Dos Búhos' : (P.first || 'Dos Búhos') + ' · Dos Búhos'; }
 document.title = (who === 'dosbuhos' ? 'Dos Búhos' : P.name + ' · Dos Búhos');
 
 const WINES = __WINES_JS__;
