@@ -63,7 +63,7 @@ async function quotesApi(request, env, url) {
   const m = url.pathname.match(/^\/api\/quotes(?:\/([a-z0-9]+))?\/?$/);
   if (!m) return json({ error: 'Ruta' }, 404);
   const id = m[1] || '';
-  const COLS = 'id, created_at, updated_at, por, cliente, evento, fecha, pax, total, estado';
+  const COLS = 'id, created_at, updated_at, por, cliente, evento, fecha, fecha_iso, pax, total, estado';
   if (request.method === 'GET' && !id) {
     const q = str(url.searchParams.get('q') || '', 80).toLowerCase();
     const rows = q
@@ -84,13 +84,14 @@ async function quotesApi(request, env, url) {
   if ((request.method === 'POST' && !id) || (request.method === 'PUT' && id)) {
     let b; try { b = await request.json(); } catch { return json({ error: 'JSON' }, 400); }
     const estado = ESTADOS.has(b.estado) ? b.estado : 'borrador';
-    const vals = [str(b.por, 80), str(b.cliente), str(b.evento), str(b.fecha, 120), Math.max(0, Math.floor(Number(b.pax) || 0)), Math.max(0, Math.round(Number(b.total) || 0)), estado, JSON.stringify(b.data && typeof b.data === 'object' ? b.data : {})];
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(String(b.fecha_iso || '')) ? String(b.fecha_iso) : '';
+    const vals = [str(b.por, 80), str(b.cliente), str(b.evento), str(b.fecha, 120), iso, Math.max(0, Math.floor(Number(b.pax) || 0)), Math.max(0, Math.round(Number(b.total) || 0)), estado, JSON.stringify(b.data && typeof b.data === 'object' ? b.data : {})];
     if (request.method === 'POST') {
       const nid = newId();
-      await env.DB.prepare('INSERT INTO quotes (id, por, cliente, evento, fecha, pax, total, estado, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(nid, ...vals).run();
+      await env.DB.prepare('INSERT INTO quotes (id, por, cliente, evento, fecha, fecha_iso, pax, total, estado, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(nid, ...vals).run();
       return json({ id: nid });
     }
-    const r = await env.DB.prepare("UPDATE quotes SET por = ?, cliente = ?, evento = ?, fecha = ?, pax = ?, total = ?, estado = ?, data = ?, updated_at = datetime('now') WHERE id = ?").bind(...vals, id).run();
+    const r = await env.DB.prepare("UPDATE quotes SET por = ?, cliente = ?, evento = ?, fecha = ?, fecha_iso = ?, pax = ?, total = ?, estado = ?, data = ?, updated_at = datetime('now') WHERE id = ?").bind(...vals, id).run();
     if (!r.meta || !r.meta.changes) return json({ error: 'No existe' }, 404);
     return json({ id });
   }
