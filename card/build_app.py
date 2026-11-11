@@ -206,7 +206,7 @@ WHERE = [
       (L("Chiapas &amp; Acapulco", "Chiapas y Acapulco"), "El Chaneque"),
       (L("Ciudad Juárez"), "Wine House")]),
     (L("Restaurants &amp; hotels", "Restaurantes y hoteles"), [
-      (L("San Miguel de Allende"), "Rosewood San Miguel de Allende · Pueblo Bonito · Hacienda El Santuario · Hotel Real de Minas · Our Habitas · Mesón Amelia · Maison Mexique · Hortus (Panio) · Tostevere · Trazo · Pork Belly · Malanquín · Casa Agave · Florios · Amatte · Il Mercantino · Don Valente · Cielo · Naakary · Asador Catalán · Enrike · Local · Selina · Hanks · Aperi · Amapola"),
+      (L("San Miguel de Allende"), "Rosewood San Miguel de Allende · NUMU Boutique Hotel · Pueblo Bonito · Hacienda El Santuario · Hotel Real de Minas · Our Habitas · Mesón Amelia · Maison Mexique · Hortus (Panio) · Tostevere · Trazo · Pork Belly · Malanquín · Casa Agave · Florios · Amatte · Il Mercantino · Don Valente · Cielo · Naakary · Asador Catalán · Enrike · Local · Selina · Hanks · Aperi · Amapola"),
       (L("Mexico City", "Ciudad de México"), "Pujol · Rosetta · Quintonil · Sud 777 · Nicos · Migrante · Raíz · Mercaderes · Carmela y Sal · Lotti · 88 Cantina · Si Mon · The Lamb · Unicornio · Mesón Santiago · Camino Real · Los Canarios (Hotel Marquis) · Daikoku · Delizia · Pargot · La Soldadera · Marmota · Baldío · Tintico · Común · Josema Enoteca · Querétaro 33 · Deigo · Filigrana · Hotel Volga"),
       (L("Querétaro &amp; Guanajuato", "Querétaro y Guanajuato"), "Asador de Campo · Hacienda La Laborcilla, Bistro Lounge (Querétaro) · Di María (Guanajuato)"),
       (L("Coast", "Costa"), "Rosewood Mayakoba (Riviera Maya) · Arca (Tulum) · Ventanas al Paraíso (Los Cabos) · Musa (Zihuatanejo) · Praya (Acapulco)"),
