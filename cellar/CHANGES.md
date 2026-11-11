@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-11 — Barricas: free SO₂ estimate counts stock-solution doses and SO₂ tablets · v1.20.1
+- A closed order that doses a KMBS stock per barrel ("SOLUCIÓN … AL 10%" + "BBL 68 = 43 ML") now adds that barrel's own dose to its last reading (10% = 57.6 mg SO₂/mL, 225 L barrel), and "(5 G DE SO2) POR BARRICA" tablets count as 5 g of SO₂ (~22 ppm), not 5 g of KMBS. The Nov 10 red additions and SB 2025 tablets were done but the Barricas list still showed the Nov 9 readings · src/xl.js (/api/xl/barrel-so2)
+
 ## 2026-11-10 — Work orders: past days look and work like today · v1.20.0
 - Looking back with ‹ on Órdenes, each order is a full row again: priority, assigned to, status and «Anotar resultados y notas», with results and photos underneath. Closed orders show «Cerrada (P/J)» in the status and can be reopened; open ones are grouped first. Free notes (rows with no assignment) stay as plain cards. Status reads «Cerrada (…)» instead of «Done (…)» everywhere · Eric needs to add results and notes to past orders · app/cellar-targets.html (asgRowHtml shared by today and past days; asgAll/asgFind look up past rows; edits update the past-day copy)
 

@@ -200,6 +200,17 @@ export async function xlRoute(request, env, p, url, user) {
       for (const [c, v] of Object.entries(per)) { at(c).so2 = { d: r.date, v, tab: r.tab, row: r.row, n: 1 }; at(c).after = []; }
       if (r.sl !== '' && r.sl != null && bs.length) for (const c of bs) if (!per[c]) { at(c).so2 = { d: r.date, v: String(r.sl), tab: r.tab, row: r.row, n: bs.length }; at(c).after = []; }
       if (bs.length && done(r) && /KMBS|AGREG|AÑADI|ADD\b|ADDED|ADICI[OÓ]N/i.test(note) && !/NO SE AGREG|SOLO MEDIR|NO AGREGAR NADA|NO ADDITION|READING ONLY/i.test(note)) {
+        // Per-barrel doses of a KMBS stock solution: "SOLUCIÓN … AL 10%" + "BBL 68 = 43 ML" (10% = 57.6 mg SO2 per mL, 225 L barrel).
+        const pct = note.match(/\bAL\s*(\d+(?:[.,]\d+)?)\s*%/i), perMl = {}; let mm;
+        if (pct) { const reMl = /\bB(?:BL)?\s*#?\s*(\d+)\s*[=:]\s*(\d+(?:[.,]\d+)?)\s*ML\b/gi; while ((mm = reMl.exec(note))) perMl[String(+mm[1])] = +mm[2].replace(',', '.'); }
+        if (Object.keys(perMl).length) {
+          const mgPerMl = parseFloat(pct[1].replace(',', '.')) * 10 * 0.576;
+          for (const [c, ml] of Object.entries(perMl)) { const a = at(c).add = { d: r.date, g: '', ppm: String(Math.round(ml * mgPerMl / 225 * 10) / 10), ml: String(ml), tab: r.tab, row: r.row, n: 1 }; (at(c).after = at(c).after || []).push(a); }
+          continue;
+        }
+        // SO2 tablets / pure SO2 by weight: "(5 G DE SO2) POR BARRICA" → grams of SO2, not KMBS.
+        const so2g = note.match(/(\d+(?:[.,]\d+)?)\s*(?:G|GR|GRAMOS)\s+DE\s+SO2\b/i);
+        if (so2g) { const v = String(Math.round(parseFloat(so2g[1].replace(',', '.')) * 1000 / 225 * 10) / 10); for (const c of bs) { const a = at(c).add = { d: r.date, g: '', ppm: v, tab: r.tab, row: r.row, n: bs.length }; (at(c).after = at(c).after || []).push(a); } continue; }
         const g = note.match(/(\d+(?:[.,]\d+)?)\s*(?:G|GR|GRS|GRAMOS)\b(?!\s*\/)/i), ppm = note.match(/(?:ADD|AGREG[OÓ]|AGREGAR|AÑADI[OÓ]|SUBIR A)\s+(\d+(?:[.,]\d+)?)\s*(?:PPM|MG\/L)/i);
         if (g || ppm) for (const c of bs) { const a = at(c).add = { d: r.date, g: g ? g[1].replace(',', '.') : '', ppm: ppm ? ppm[1].replace(',', '.') : '', tab: r.tab, row: r.row, n: bs.length }; (at(c).after = at(c).after || []).push(a); }
       }
