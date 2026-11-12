@@ -287,7 +287,7 @@
   #pg [hidden]{display:none !important}
   #off{border:1px solid var(--line);padding:12px 14px;margin:0 0 14px}
   #off p{font-size:12.5px;color:var(--dim);margin:0 0 10px;line-height:1.45}
-  #off .bar{height:3px;background:var(--line);margin:10px 0 6px}#off .bar i{display:block;height:100%;width:0;background:var(--warm);transition:width .3s}
+  #off .offbar[hidden]{display:none}#off .offbar{height:3px;background:var(--line);margin:10px 0 6px}#off .offbar i{display:block;height:100%;width:0;background:var(--warm);transition:width .3s}
   #off .st{font-size:12px;color:var(--warm);letter-spacing:.04em}
   #off .lnk{all:unset;cursor:pointer;color:var(--dim);font-size:11px;letter-spacing:.15em;text-transform:uppercase;margin-top:10px;margin-right:18px;display:inline-block}
   #pg-one{scroll-margin-top:16px}
@@ -585,7 +585,7 @@ __WHERE_APP__
       <div class="acc" id="acc-photos">
         <button class="acc-h" onclick="toggle('acc-photos')"><span class="t"><b class="en">Photos</b><b class="es">Fotos</b><span class="en">About 1,000, by category</span><span class="es">Unas 1,000, por categoría</span></span><span class="chev"></span></button>
         <div class="acc-b"><div class="acc-i">
-          <div id="off"><p><span class="en">Save the photos, press kit, awards and decks on this device to show them with no signal (about __OFFMB__ MB; the four large event albums keep previews only).</span><span class="es">Guarda en este dispositivo las fotos, el kit de prensa, premios y presentaciones para mostrarlos sin señal (unos __OFFMB__ MB; los cuatro álbumes grandes de eventos solo en vista previa).</span></p><button class="btn full" id="off-go" type="button"><span class="en">Save for offline</span><span class="es">Guardar sin conexión</span></button><div class="bar" hidden><i></i></div><div class="st"></div><button class="lnk" id="off-rm" type="button" hidden><span class="en">Remove</span><span class="es">Borrar</span></button></div><div id="pg"><div id="pg-cats"></div><div id="pg-one" hidden><button id="pg-back" type="button">‹ <span class="en">All categories</span><span class="es">Categorías</span></button><h4 id="pg-t"></h4><p class="pg-tip"><span class="en">Tap to open. Press and hold to save.</span><span class="es">Toca para abrir. Mantén presionado para guardar.</span></p><div id="pg-grid"></div></div></div>
+          <div id="off"><p><span class="en">Save the photos, press kit, awards and decks on this device to show them with no signal (about __OFFMB__ MB; the four large event albums keep previews only).</span><span class="es">Guarda en este dispositivo las fotos, el kit de prensa, premios y presentaciones para mostrarlos sin señal (unos __OFFMB__ MB; los cuatro álbumes grandes de eventos solo en vista previa).</span></p><button class="btn full" id="off-go" type="button"><span class="en">Save for offline</span><span class="es">Guardar sin conexión</span></button><div class="offbar" hidden><i></i></div><div class="st"></div><button class="lnk" id="off-rm" type="button" hidden><span class="en">Remove</span><span class="es">Borrar</span></button></div><div id="pg"><div id="pg-cats"></div><div id="pg-one" hidden><button id="pg-back" type="button">‹ <span class="en">All categories</span><span class="es">Categorías</span></button><h4 id="pg-t"></h4><p class="pg-tip"><span class="en">Tap to open. Press and hold to save.</span><span class="es">Toca para abrir. Mantén presionado para guardar.</span></p><div id="pg-grid"></div></div></div>
         </div></div>
       </div>
 
@@ -768,7 +768,7 @@ function galOpen(i){ const c = GAL[i], g = document.getElementById('pg-grid'); g
 document.getElementById('pg-back').onclick = () => { document.getElementById('pg-one').hidden = true; document.getElementById('pg-cats').hidden = false; document.getElementById('acc-photos').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 document.querySelector('#acc-photos .acc-h').addEventListener('click', galLoad);
 // offline pack: download photos + PDFs into a cache the service worker serves from when there's no signal
-(() => { const box = document.getElementById('off'), go = document.getElementById('off-go'), rm = document.getElementById('off-rm'), bar = box.querySelector('.bar'), st = box.querySelector('.st');
+(() => { const box = document.getElementById('off'), go = document.getElementById('off-go'), rm = document.getElementById('off-rm'), bar = box.querySelector('.offbar'), st = box.querySelector('.st');
   const es = () => document.documentElement.classList.contains('es') || document.documentElement.lang === 'es';
   const say = (en, sp) => { st.textContent = es() ? sp : en; };
   const KEY = 'dbOffline';
