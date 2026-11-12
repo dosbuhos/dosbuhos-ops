@@ -864,14 +864,18 @@ try { const s = localStorage.getItem('lang'); if (s) setLang(s); else if ((navig
 
 // offline
 // Self-update: the installed app resumes from memory, so check the version whenever it comes to the front
-const APP_VER = '202611120832'; let lastCheck = 0;
+const APP_VER = '202611120835'; let lastCheck = 0;
 async function checkVersion(){ if (Date.now() - lastCheck < 30000 || !navigator.onLine) return; lastCheck = Date.now();
   try { const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json();
-    if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){} setTimeout(() => location.reload(), 800); } } catch(e){} }
+    if (j.v && j.v !== APP_VER) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){}
+      // never yank the page mid-use: only reload from the front of the card, and at most once per version (a slow network can serve the cached old page again)
+      let seen = null; try { seen = sessionStorage.getItem('reloadedFor'); } catch(e){}
+      if (seen !== j.v && safeToReload()) { try { sessionStorage.setItem('reloadedFor', j.v); } catch(e){} setTimeout(() => { if (safeToReload()) location.reload(); }, 800); } } } catch(e){} }
+function safeToReload(){ return !document.documentElement.classList.contains('open') && !(typeof GV !== 'undefined' && GV.open) && !document.getElementById('viewer').classList.contains('on'); }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
 window.addEventListener('pageshow', e => { if (e.persisted) checkVersion(); });
 setTimeout(checkVersion, 4000);
-if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); had = true; }); } catch(e){} }
+if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js'); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && safeToReload()) location.reload(); had = true; }); } catch(e){} }
 </script>
 <div id="ib" hidden><div class="ib-t"><b><span class="en">Keep this card on your phone</span><span class="es">Guarda esta tarjeta en tu teléfono</span></b><span id="ib-sub"></span></div><button id="ib-go" onclick="ibInstall()"><span class="en">Install</span><span class="es">Instalar</span></button><button class="ib-x" onclick="ibClose()" aria-label="close">✕</button></div>
 </body>
