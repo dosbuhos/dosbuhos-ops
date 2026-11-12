@@ -414,31 +414,60 @@ h1{{font:500 30px/1.1 "Cormorant Garamond",Georgia,serif;margin:0}}.sum{{color:#
 _lib()
 
 # service worker
-precache = ["/", "/index.html", "/press/", "/press/index.html", "/icons/logo.png", "/photos/harvest.jpg", "/icons/mono-dark.png", "/icons/mono-light.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"] + [f"/fonts/{f}" for f in os.listdir(os.path.join(PUB, "fonts"))] + \
-           [f"/manifest-{k}.webmanifest" for k in PEOPLE] + [f"/vcf/{k}.vcf" for k in PEOPLE] + ["/" + p["f"] for p in PHOTOS]
+precache = ["/", "/press/", "/icons/logo.png", "/photos/harvest.jpg", "/icons/mono-dark.png", "/icons/mono-light.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"] + [f"/fonts/{f}" for f in os.listdir(os.path.join(PUB, "fonts"))] + \
+           [f"/manifest-{k}.webmanifest" for k in PEOPLE] + [f"/vcf/{k}.vcf" for k in PEOPLE] + ["/" + p["f"] for p in PHOTOS] + \
+           [f"/{k}" for k in PEOPLE if k != "dosbuhos"]
+# offline pack: what "Save for offline" downloads (pages + gallery thumbs + full-size photos of the core categories + the PDFs we show)
+def _pack():
+    gal = json.load(open(os.path.join(PUB, "press", "library", "gallery.json"), encoding="utf-8"))
+    BIG = {"Weddings", "Vendimia (harvest festival)", "Día de Muertos", "Waldorf Astoria event"}  # thumbs only — too heavy at full size
+    fs = ["/press/library/gallery.json"]
+    for c in gal:
+        for th, full in c["items"]:
+            fs.append(th)
+            if c["en"] not in BIG: fs.append(full)
+    fs += ["/docs/" + d for d in ["Dos-Buhos-Press-Kit-EN.pdf", "Dos-Buhos-Kit-de-Prensa-ES.pdf", "Dos-Buhos-Awards-EN.pdf", "Dos-Buhos-Premios-ES.pdf",
+                                   "Dos-Buhos-Presentacion-Sommeliers-2026.pdf", "Dos-Buhos-Brand-Deck-2025.pdf", "Dos-Buhos-Technical-Sheets-2025-EN.pdf", "Dos-Buhos-Fichas-Tecnicas-2025-ES.pdf"]]
+    seen = set(); fs = [f for f in fs if not (f in seen or seen.add(f)) and os.path.isfile(os.path.join(PUB, f.lstrip("/")))]
+    size = sum(os.path.getsize(os.path.join(PUB, f.lstrip("/"))) for f in fs)
+    json.dump({"files": fs, "bytes": size}, open(os.path.join(PUB, "offline.json"), "w"), separators=(",", ":"))
+    return len(fs), size
+_PK = _pack(); print("offline pack", _PK)
 sw = """// Dos Búhos card — pages network-first with cache fallback; assets cache-first, refreshed in background
 const VERSION = 'v__VER__';
 const PRECACHE = __PRECACHE__;
-self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+const PACK = 'offline-pack'; // filled by 'Save for offline'; survives app updates
+// Safari refuses to show a page the SW answers with a redirected response, so store a clean copy
+const clean = async r => r.redirected ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : r;
+self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => Promise.all(PRECACHE.map(u => fetch(u, { cache: 'reload' }).then(async r => { if (r.ok) await c.put(u, await clean(r)); }).catch(() => {})))).then(() => self.skipWaiting())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION && k !== PACK).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return; // fonts etc.: network, browser cache
-  if (url.pathname === '/version.json') return; // always live
-  if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.startsWith('/docs/') || url.pathname.endsWith('.zip') || url.pathname.endsWith('.pdf')) return; // downloads: straight from the network
+  if (url.pathname === '/version.json' || url.pathname === '/offline.json') return; // always live
+  if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.startsWith('/docs/') || url.pathname.endsWith('.zip') || url.pathname.endsWith('.pdf')) {
+    // downloads: from the offline pack if saved (instant, works with no signal), otherwise straight from the network
+    e.respondWith(caches.open(PACK).then(async c => {
+      const hit = await c.match(url.pathname);
+      if (!hit) return fetch(e.request);
+      if (url.pathname.endsWith('.json')) { try { const r = await Promise.race([fetch(e.request), new Promise((_, no) => setTimeout(no, 2500))]); if (r && r.ok) { c.put(url.pathname, r.clone()); return r; } } catch (x) {} }
+      return hit;
+    }));
+    return;
+  }
   const isNav = e.request.mode === 'navigate';
   const P = url.pathname.replace(/\/+$/, '') || '/';
   const isPress = P === '/press' || P === '/press/index.html';
   const isCard = P === '/' || P === '/index.html' || /^\/[a-z-]+$/.test(P) && !isPress;
   if (isNav && !isPress && !isCard) return; // any other page (e.g. /press/library): straight from the network
-  const key = isNav ? (isPress ? '/press/index.html' : '/index.html') : e.request;
+  const key = isNav ? (isPress ? '/press/' : (P === '/' || P === '/index.html' ? '/' : P)) : e.request;
   e.respondWith(caches.open(VERSION).then(async c => {
     const cached = await c.match(key);
-    const net = fetch(e.request).then(r => { if (r && r.ok) c.put(key, r.clone()); return r; }).catch(() => null);
+    const net = fetch(e.request).then(async r => { if (r && r.ok) { r = await clean(r); c.put(key, r.clone()); } return r; }).catch(() => null);
     if (isNav) {   // pages: network first (fresh after a deploy), cache if offline or slow
       const fresh = await Promise.race([net, new Promise(res => setTimeout(() => res(null), 2500))]);
-      return fresh || cached || (await net) || Response.error();
+      return fresh || cached || (await c.match('/')) || (await net) || Response.error();
     }
     return cached || (await net) || Response.error();
   }));
@@ -450,7 +479,7 @@ sw = sw.replace("__VER__", VER).replace("__PRECACHE__", json.dumps(precache))
 with open(os.path.join(PUB, "version.json"), "w") as f: f.write(json.dumps({"v": VER}))
 for _fn in ["index.html"] + [f"{k}.html" for k in PEOPLE if k != "dosbuhos"]:
     with open(os.path.join(PUB, _fn), "r", encoding="utf-8") as f: _h = f.read()
-    with open(os.path.join(PUB, _fn), "w", encoding="utf-8") as f: f.write(_h.replace("__VER__", VER))
+    with open(os.path.join(PUB, _fn), "w", encoding="utf-8") as f: f.write(_h.replace("__VER__", VER).replace("__OFFMB__", str(round(_PK[1] / 1e6, -1))[:-2]))
 open(os.path.join(PUB, "sw.js"), "w").write(sw)
 
 open(os.path.join(PUB, "_headers"), "w").write("""/vcf/*
