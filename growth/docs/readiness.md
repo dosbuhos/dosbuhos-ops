@@ -1,6 +1,6 @@
 # Readiness checklist
 
-Status as of 2026-11-14, after Milestone A plus the coordinator and policy core from Milestone C. "Built" means code exists and tests pass. It does not mean anything is connected or deployed.
+Updated 2026-11-14 (evening). "Built" means code exists and tests pass; section 2 says what is actually connected in production.
 
 ## 1. Software built
 
@@ -20,21 +20,31 @@ Status as of 2026-11-14, after Milestone A plus the coordinator and policy core 
 
 ## 2. Accounts connected — nothing yet
 
-- [ ] Cloudflare resources created in the owner's account (D1, R2), IDs pasted in `wrangler.jsonc`
-- [ ] Secrets set (`HUB_SECRET`, `FEED_TOKEN_PEPPER`, optional `ANTHROPIC_API_KEY`)
-- [ ] Growth added to the Hub (service binding, app registry, grants)
-- [ ] Google Ads account registered, script installed, first feed received
-- [ ] OpenTable export imported (≥ 90 days)
+- [ ] Cloudflare resour## 2. Accounts connected (production, Worker `growth`)
+
+- [x] Cloudflare: D1 `growth`, R2 `growth-archive`, Worker created via Workers Builds, `HUB_SECRET` set, behind the Hub at `/growth/`
+- [x] Google Ads reads (account 782-120-6421) via the Hub's existing script feed, hourly, read-only (`HUB_DB`)
+- [x] Meta Ads reads via the Hub's Meta sync, hourly, kept separate from Google (account registered; first copy on the next hourly run)
+- [x] OpenTable online reservations + booking funnel via GA4 property 335490446 (`GA4_SA_KEY`, read-only Viewer); tracking of `ot-reservation-made` began 2026-10-29
+- [x] OpenTable public availability (bookable times, next 14 days, every 3 h), same queries as `canario`
+- [x] Anthropic key from the account Secrets Store (report narrative; proposals only in Shadow mode)
+- [ ] Sign-in at apps.dosbuhos.com: add `https://apps.dosbuhos.com/auth/callback` to the Google OAuth client (until then use hub.dos-buhos.workers.dev/growth/)
+- [ ] Growth's own richer Google Ads Script feed (optional; needs `FEED_TOKEN_PEPPER`)
+- [ ] OpenTable full reservations (status, covers, cancellations, spend): asked of OpenTable (email draft to the account manager + ad-tech team); CSV import as fallback
+- [ ] Parrot POS sales (restaurant spend per guest): report export requested via the browser session
 
 ## 3. Measurement usable
 
+- [x] Online reservations by source and campaign (GA4), cost per online reservation per Google Ads campaign
+- [x] Tours and tastings spend per guest from Rezdy history (last 12 months to 2026-11-02, paid confirmed orders): weighted MX$799 incl. IVA (MX$689 excl.), average party 3.6. Guided tour + 4 wines MX$683, picnic MX$841, 5-course pairing menu MX$1,919, 4-wine tasting MX$628, petanque MX$391 per guest (incl. IVA). Not loaded into the app yet: needs the variable-cost % to become contribution
+- [ ] Restaurant spend per guest (Parrot export)
 - [ ] Approved cost assumptions per product (otherwise contribution stays unknown)
-- [ ] Attribution coverage reviewed: the share of bookings whose OpenTable source says Google paid search
-- [ ] GA4 / GTM / conversion-action audit done and documented; no live tag changes without approval
-- [ ] Maturation lag estimated from imported data (`products.lag_estimated_from_data`)
+- [ ] Attribution: ~40% of online reservations lose their source between dosbuhos.com and OpenTable ("dosbuhos.com / referral", "not set"). Our side is configured (links carry `_gl`; cross-domain and unwanted referrals set); whether OpenTable's page reads `_gl` is asked in the OpenTable email
+- [ ] GTM cleanup: two leftover Meta CAPI tags send 5 extra page_views and `gtm.dom` per page to GA4 (being paused after checking Meta Events Manager). Growth does not use page views, so its numbers are unaffected
+- [ ] Maturation lag estimated from booking data (needs booking-level data)
 - [ ] A baseline period fixed and versioned
 
-## 4. Autonomy enabled — not before 1–3, and not before the Google Ads API adapter exists
+gle Ads API adapter exists
 
 - [ ] Shadow mode run through complete daily and weekly cycles, including lag
 - [ ] Policy set: ceiling and scope, return floor, approved campaigns, allowed actions, protective stop, baseline

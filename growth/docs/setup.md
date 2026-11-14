@@ -43,6 +43,8 @@ npm run check
 | Google Ads (reads) | Live via the Hub | Daily spend, clicks and Google-counted conversions per campaign (by name), today included, hourly |
 | Google Ads (richer reads) | Optional | Install `scripts/google-ads-feed.js` in Google Ads for campaign IDs, micros, search terms and change history (needs the `FEED_TOKEN_PEPPER` secret) |
 | Google Ads (changes) | Blocked | Needs Google Ads API access for the Cloud project `dos-buhos` plus owner OAuth |
-| OpenTable online reservations | Built, needs setup | OpenTable's GA4 integration (already connected) sends `ot-reservation-made`; Growth reads daily counts by source/medium/campaign via the GA4 Data API. Needs the `GA4_SA_KEY` secret and the property ID in Connections. Online widget bookings only; no cancellations, no-shows or spend |
+| OpenTable online reservations | Live | OpenTable's GA4 integration sends `ot-reservation-made` (since 2026-10-29) plus the widget funnel events; Growth reads daily counts by source/medium/campaign from GA4 property 335490446 with a read-only service account (`GA4_SA_KEY`). Online widget bookings only; no cancellations, no-shows or spend |
+| Meta Ads (reads) | Live via the Hub | Daily spend per campaign (by name), MXN at each day's rate, kept separate from Google; Meta ads tag visits by campaign ID, so per-campaign reservations can't be matched yet |
+| AI summaries | Live | Shared `ANTHROPIC_API_KEY` from the account Secrets Store (same as the cotizador) |
 | OpenTable full reservations | Requested | Status, covers and cancellations need OpenTable's partner API (GuestCenter → API Partner) or the CSV import |
-| Capacity | Manual | Capacity view; an automatic read of OpenTable's public availability (the method `canario` uses) is a next step |
+| Capacity | Automatic + manual | Bookable times on OpenTable's public booking page every 3 h (same queries as `canario`; update both if OpenTable changes its hashes); staff can still enter slots |
