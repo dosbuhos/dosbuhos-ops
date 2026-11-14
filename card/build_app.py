@@ -445,7 +445,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return; // fonts etc.: network, browser cache
-  if (url.pathname === '/version.json' || url.pathname === '/offline.json') return; // always live
+  if (url.pathname === '/version.json' || url.pathname === '/offline.json' || url.pathname.startsWith('/eye')) return; // always live (and tracked QR redirects)
   if (url.pathname.startsWith('/press/library') || url.pathname.startsWith('/press/files/') || url.pathname.startsWith('/docs/') || url.pathname.endsWith('.zip') || url.pathname.endsWith('.pdf')) {
     // downloads: from the offline pack if saved (instant, works with no signal), otherwise straight from the network
     e.respondWith(caches.open(PACK).then(async c => {

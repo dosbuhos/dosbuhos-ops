@@ -4,10 +4,29 @@ const MIME = { mp4: 'video/mp4', webm: 'video/webm', m4v: 'video/mp4', mov: 'vid
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, HEAD, OPTIONS', 'access-control-allow-headers': 'range', 'access-control-expose-headers': 'content-range, content-length, accept-ranges, etag' };
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     // one address only: the old *.workers.dev address forwards to hola.dosbuhos.com (same path), so nobody keeps a stale copy
     if (url.hostname !== 'hola.dosbuhos.com' && url.hostname.endsWith('.workers.dev')) return Response.redirect('https://hola.dosbuhos.com' + url.pathname + url.search, 301);
+    // tracked print QR codes: /eye (The Eye, Dec 2026) -> OpenTable. Each scan is logged as a tiny object in R2 under _scans/ (never served publicly);
+    // /eye/stats returns the count. The destination lives here, so it can change after the ad is printed.
+    const QR = { eye: 'https://www.opentable.com.mx/restref/client/?rid=1258120&restref=1258120&lang=en-US&ot_source=Restaurant%20website' };
+    const qm = /^\/(eye)(\/stats)?\/?$/.exec(url.pathname);
+    if (qm) {
+      const code = qm[1], prefix = `_scans/${code}/`;
+      if (qm[2]) {
+        const days = {}; let total = 0, cursor;
+        do { const l = await env.MEDIA.list({ prefix, cursor, limit: 1000 }); for (const o of l.objects) { total++; const d = o.key.slice(prefix.length, prefix.length + 10); days[d] = (days[d] || 0) + 1; } cursor = l.truncated ? l.cursor : undefined; } while (cursor);
+        return new Response(JSON.stringify({ code, scans: total, by_day: days }, null, 2), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+      }
+      const ua = req.headers.get('user-agent') || '';
+      if (req.method === 'GET' && !/bot|crawl|spider|preview|facebookexternalhit|whatsapp/i.test(ua)) {
+        const key = `${prefix}${new Date().toISOString()}-${Math.random().toString(36).slice(2, 8)}`;
+        const log = env.MEDIA.put(key, JSON.stringify({ country: req.cf && req.cf.country, city: req.cf && req.cf.city, ua: ua.slice(0, 160) })).catch(() => {});
+        if (ctx && ctx.waitUntil) ctx.waitUntil(log); else await log;
+      }
+      return new Response(null, { status: 302, headers: { location: QR[code], 'cache-control': 'no-store' } });
+    }
     // /videos/* are static assets; add byte-range support (Safari needs 206 to play video)
     if (url.pathname.startsWith('/videos/') && url.pathname.endsWith('.mp4')) {
       const res = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));
