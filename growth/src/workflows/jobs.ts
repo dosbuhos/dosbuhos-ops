@@ -12,6 +12,7 @@ import { readyCoordinator } from '../coordinator/do.ts';
 import { readSecret } from '../ai/key.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
+import { syncParrot, ParrotError } from '../connectors/parrot.ts';
 import { buildWeeklyEmail, sendViaResend } from '../report/weekly-email.ts';
 export const APP_URL = 'https://apps.dosbuhos.com/growth/';
 // Resend's shared sender works without verifying dosbuhos.com (no DNS change), but only delivers to the Resend account's own address.
@@ -78,6 +79,20 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
             try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} reservaciones en línea en ${g.rows} filas. ${g.queries}`; } catch (e) { ga4 = `GA4 falló: ${(e as Error).message}`; }
             await finishJob(env.DB, job.runKey, 'succeeded', `Feed del Hub: ${r.campaigns} campañas, ${r.days} días, datos al ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'desconocido'}. ${ga4}`);
           } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'No hay una fuente de Google Ads conectada');
+          break;
+        }
+        case 'pos_sync': {
+          if (!env.PARROT_API_KEY) { await finishJob(env.DB, job.runKey, 'skipped', 'Falta PARROT_API_KEY'); break; }
+          try {
+            const r = await syncParrot(env.DB, env.PARROT_API_KEY, now, env.WINERY_TZ);
+            await env.DB.prepare("UPDATE connections SET health = 'connected', health_reason = ?, last_success_at = ?, freshness_at = ?, last_error = NULL, updated_at = ? WHERE id = 'conn_parrot'")
+              .bind(r.complete ? 'Ventas, comensales y pagos de Parrot, cada 15 minutos' : `Cargando historial: hasta ${r.oldestDone ?? '—'} (se completa solo)`, now, now, now).run();
+            await finishJob(env.DB, job.runKey, 'succeeded', `Parrot: ${r.recentRows} filas recientes, ${r.backfilled} ventanas de historial; datos desde ${r.oldestDone ?? '—'}${r.complete ? '' : ' (cargando)'}`);
+          } catch (e) {
+            const status = e instanceof ParrotError ? e.status : 0;
+            await env.DB.prepare('UPDATE connections SET health = ?, last_error = ?, updated_at = ? WHERE id = ?').bind(status === 401 || status === 403 ? 'reconnect' : 'limited', (e as Error).message.slice(0, 300), now, 'conn_parrot').run();
+            await finishJob(env.DB, job.runKey, status === 429 ? 'skipped' : 'failed', (e as Error).message);
+          }
           break;
         }
         case 'weekly_email': {

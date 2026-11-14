@@ -7,6 +7,7 @@ import { revenueRoas, contributionAfterAds, contributionRoas, costPerCompletedVi
 import { assumptionFor, bookingValue, type CostAssumption, type Product, PRODUCTS } from '../domain/measurement.ts';
 import { isGoogleAds, isMetaAds, isAiAssistant, RESERVATION_EVENT, FUNNEL } from '../connectors/ga4.ts';
 import { loadEstimates } from './estimates.ts';
+import { POS_GUESTS_RELIABLE_FROM } from '../connectors/parrot.ts';
 import { resolveCapacity, summarizeDays, type Slot, type Reservation, type DayProductSummary } from '../domain/capacity.ts';
 
 export const ATTRIBUTION_METHOD = 'Campo de origen del sistema de reservaciones = búsqueda pagada de Google Ads (último contacto según OpenTable); la fecha del clic se aproxima con la fecha de la reservación';
@@ -46,7 +47,14 @@ export async function loadRaw(i: FactsInput) {
   const ga4 = (await i.db.prepare('SELECT date, event_name, source, medium, campaign, events FROM ga4_reservations_daily WHERE date >= ?').bind(from).all<{ date: string; event_name: string; source: string; medium: string; campaign: string; events: number }>().catch(() => ({ results: [] as { date: string; event_name: string; source: string; medium: string; campaign: string; events: number }[] }))).results;
   const otAvailability = (await i.db.prepare('SELECT date, product, item, party_size, slots, error, checked_at FROM ot_availability WHERE date >= ? ORDER BY date').bind(today).all<{ date: string; product: string; item: string; party_size: number; slots: number | null; error: string | null; checked_at: number }>().catch(() => ({ results: [] as { date: string; product: string; item: string; party_size: number; slots: number | null; error: string | null; checked_at: number }[] }))).results;
   const estimates = await loadEstimates(i.db);
-  return { today, from, ga4, otAvailability, estimates, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
+  // Parrot POS, per business day: finished orders only. Guests = dine-in customersCount; tour guests = units sold in "Enoturismo".
+  const pos = (await i.db.prepare(`SELECT local_date AS date, COUNT(*) AS orders, SUM(total_minor - taxes_minor) AS net_minor,
+      SUM(CASE WHEN order_type = 'DINE_IN' THEN COALESCE(customers, 0) ELSE 0 END) AS guests FROM pos_orders WHERE status = 'FINISHED' AND local_date >= ? GROUP BY local_date`).bind(from)
+    .all<{ date: string; orders: number; net_minor: number; guests: number }>().catch(() => ({ results: [] as { date: string; orders: number; net_minor: number; guests: number }[] }))).results;
+  const posTours = (await i.db.prepare(`SELECT i.local_date AS date, SUM(i.quantity) AS guests FROM pos_items i JOIN pos_orders o ON o.uuid = i.order_uuid
+      WHERE o.status = 'FINISHED' AND i.category = 'Enoturismo' AND i.local_date >= ? GROUP BY i.local_date`).bind(from).all<{ date: string; guests: number }>().catch(() => ({ results: [] as { date: string; guests: number }[] }))).results;
+  const posFrom = (await i.db.prepare('SELECT MIN(local_date) AS d FROM pos_orders').first<{ d: string | null }>().catch(() => null))?.d ?? null;
+  return { today, from, ga4, pos, posTours, posFrom, otAvailability, estimates, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
 }
 export type Raw = Awaited<ReturnType<typeof loadRaw>>;
 
@@ -227,8 +235,33 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   const spendPrev = prev.every(d => spendDays.has(d)) ? prev.reduce((a, d) => a + (spendMinorOn(d) ?? 0), 0) : null;
   const convSum = (ds: LocalDate[]) => (ds.some(d => !spendDays.has(d) || convBy.get(d) === null) ? null : ds.reduce((a, d) => a + (convBy.get(d) ?? 0), 0) / 1000);
   const convCur = convSum(cur), convPrev = convSum(prev);
+  // ---- Parrot POS (when connected): guests, tour guests and sales; guest counts only from POS_GUESTS_RELIABLE_FROM ----
+  const posBy = new Map(raw.pos.map(r => [r.date, r])), tourBy = new Map(raw.posTours.map(r => [r.date, Number(r.guests)]));
+  const posCovers = (d: LocalDate) => !!raw.posFrom && d >= raw.posFrom && d <= end;
+  const posSum = (ds: LocalDate[], f: (d: LocalDate) => number, from?: LocalDate) => { const k = ds.filter(d => posCovers(d) && (!from || d >= from)); return { value: k.length ? k.reduce((a, d) => a + f(d), 0) : null, days: k.length, partial: k.length < ds.length }; };
+  const noCmpPos = (note: string) => ({ absolute: null, percent: null, window: w, provisional: false, note });
+  const posTicker: Ticker[] | null = raw.posFrom ? (() => {
+    const g = (d: LocalDate) => Number(posBy.get(d)?.guests ?? 0), net = (d: LocalDate) => Number(posBy.get(d)?.net_minor ?? 0), tg = (d: LocalDate) => tourBy.get(d) ?? 0;
+    const gc = posSum(cur, g, POS_GUESTS_RELIABLE_FROM), gp = posSum(prev, g, POS_GUESTS_RELIABLE_FROM);
+    const sc = posSum(cur, net), sp = posSum(prev, net), tc = posSum(cur, tg), tp = posSum(prev, tg);
+    const sparkPos = (f: (d: LocalDate) => number, from?: LocalDate) => cur.map(d => ({ date: d, value: posCovers(d) && (!from || d >= from) ? f(d) : null }));
+    return [
+      { key: 'completed_guests', label: 'Comensales (restaurante, Parrot)', metric: { ...countMetric('completed_guests', 'Comensales en cuentas de “comer aquí” cerradas en Parrot', gc.value ?? 0, 'observed', false), value: gc.value, reason: gc.partial ? `Solo ${gc.days} día(s): Parrot registra comensales de forma confiable desde el ${POS_GUESTS_RELIABLE_FROM}.` : undefined }, delta: gp.partial || gc.partial ? noCmpPos(`Sin comparación hasta tener 56 días con comensales confiables (desde el ${POS_GUESTS_RELIABLE_FROM})`) : delta(gc.value, gp.value, w, false), spark: sparkPos(g, POS_GUESTS_RELIABLE_FROM), window: w },
+      { key: 'tour_guests', label: 'Personas en tours (Parrot)', metric: { ...countMetric('tour_guests', 'Tours vendidos en Parrot (categoría Enoturismo)', tc.value ?? 0, 'observed', false), value: tc.value, reason: tc.partial ? `Parrot tiene datos desde el ${raw.posFrom}; el historial se sigue cargando.` : undefined }, delta: tp.partial || tc.partial ? noCmpPos('Sin comparación todavía (se carga el historial)') : delta(tc.value, tp.value, w, false), spark: sparkPos(tg), window: w },
+      { key: 'pos_sales', label: 'Ventas (Parrot, sin IVA)', metric: { key: 'pos_sales', value: sc.value, unit: 'money', currency, numerator: { label: 'Total de cuentas cerradas menos IVA, todo el punto de venta (restaurante, tours, vino para llevar, tienda)', value: sc.value }, basis: 'observed', provisional: false, ...(sc.partial ? { reason: `Parrot tiene datos desde el ${raw.posFrom}; el historial se sigue cargando.` } : {}) }, delta: sp.partial || sc.partial ? noCmpPos('Sin comparación todavía (se carga el historial)') : delta(sc.value, sp.value, w, false), spark: sparkPos(net), window: w },
+    ] as Ticker[];
+  })() : null;
+  // Guests by weekday (Wed–Sun): last value vs. the average of the previous 4 same weekdays, reliable days only.
+  const posWeekdays = raw.posFrom ? [3, 4, 5, 6, 7].map(wd => {
+    const ds: LocalDate[] = []; for (let d = end; ds.length < 5 && d >= POS_GUESTS_RELIABLE_FROM && d >= raw.posFrom!; d = addDays(d, -1)) if (weekdayOf(d) === wd) ds.push(d);
+    const v = (d: LocalDate) => Number(posBy.get(d)?.guests ?? 0);
+    const before = ds.slice(1);
+    return { weekday: wd, last: ds[0] ? { date: ds[0], guests: v(ds[0]) } : null, avg: before.length ? Math.round(before.reduce((a, d) => a + v(d), 0) / before.length) : null, weeks: before.length };
+  }) : null;
+
   const tickers: Ticker[] = [
-    { key: 'completed_guests', label: 'Comensales atendidos', metric: noBookings ? unknownCount('completed_guests', 'Comensales marcados como atendidos') : countMetric('completed_guests', 'Comensales marcados como atendidos (fecha de servicio, todos los canales)', guestsCur, 'observed', false), delta: delta(noBookings ? null : guestsCur, noBookings ? null : guestsPrev, w, false), spark: noBookings ? [] : sparkOf('completed_guests'), window: w },
+    ...(noBookings && posTicker ? posTicker : []),
+    ...(noBookings && posTicker ? [] : [{ key: 'completed_guests', label: 'Comensales atendidos', metric: noBookings ? unknownCount('completed_guests', 'Comensales marcados como atendidos') : countMetric('completed_guests', 'Comensales marcados como atendidos (fecha de servicio, todos los canales)', guestsCur, 'observed', false), delta: delta(noBookings ? null : guestsCur, noBookings ? null : guestsPrev, w, false), spark: noBookings ? [] : sparkOf('completed_guests'), window: w } as Ticker]),
     haveGa4 ? (() => {
       const c = ga4Sum(ga4All, cur), p = ga4Sum(ga4All, prev);
       const since = c.partial ? ` El seguimiento empezó el ${firstGa4}: esto cubre ${c.known.length} día(s), no 28.` : '';
@@ -327,7 +360,7 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
       const gaps = cur.filter(d => d >= (firstGa4 ?? d) && !ga4Days.has(d));
       return { window: `${cur[0]} – ${cur[27]}`, gaps, steps: FUNNEL.map(f => ({ ...f, count: raw.ga4.filter(r => r.event_name === f.event && inCur(r.date)).reduce((a, r) => a + r.events, 0) })) };
     })() : null,
-    tickers, series, heroKey, markers, quality, capacity: cap, totals: { current: tCur, previous: tPrev },
+    posWeekdays, posFrom: raw.posFrom, tickers, series, heroKey, markers, quality, capacity: cap, totals: { current: tCur, previous: tPrev },
     metrics: { contributionRoas: contributionRoas(tCur), costPerCompletedVisit: costPerCompletedVisit(tCur), costPerConfirmedBooking: costPerConfirmedBooking(tCur) },
     attributionMethod: ATTRIBUTION_METHOD,
     weekdayOfToday: weekdayOf(today),

@@ -3,7 +3,7 @@
 // constraint, so duplicate cron firings, retries and catch-up after a missed tick all run a logical job exactly once.
 import { localParts, weekStart, type LocalDate } from './time.ts';
 
-export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'ai_visibility' | 'weekly_email' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
+export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'ai_visibility' | 'weekly_email' | 'pos_sync' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
 
 export interface ScheduleSettings {
   wineryTz: string;                 // America/Mexico_City
@@ -35,6 +35,7 @@ export function dueJobs(nowMs: number, s: ScheduleSettings): DueJob[] {
   out.push({ job: 'spend_poll', runKey: `spend_poll:${slot}` });
   const hour = Math.floor(nowMs / 3_600_000);
   out.push({ job: 'ads_ingest', runKey: `ads_ingest:${hour}` });
+  out.push({ job: 'pos_sync', runKey: `pos_sync:${slot}` }); // Parrot POS: every cron tick, small request budget
   out.push({ job: 'booking_sync', runKey: `booking_sync:${Math.floor(nowMs / 1_800_000)}` });
   out.push({ job: 'ot_availability', runKey: `ot_availability:${Math.floor(nowMs / 10_800_000)}` }); // every 3 h
 

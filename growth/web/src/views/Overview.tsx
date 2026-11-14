@@ -56,6 +56,7 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
         ) : null}
       </section>
 
+      {o.posWeekdays && <Weekdays w={o.posWeekdays} />}
       {o.funnel && <Funnel f={o.funnel} />}
 
       <div className="grid cols-2 section">
@@ -89,6 +90,20 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
         </section>
       </div>
     </>
+  );
+}
+
+const WD = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+/** Guests by weekday from Parrot: the latest of each weekday vs. the average of the 4 before it. */
+function Weekdays({ w }: { w: { weekday: number; last: { date: string; guests: number } | null; avg: number | null; weeks: number }[] }) {
+  return (
+    <section className="section card stack">
+      <h3>Comensales por día (restaurante, Parrot)</h3>
+      <div className="kv">{w.map(x => (
+        <div key={x.weekday}><span>{WD[x.weekday]} {x.last ? x.last.date.slice(5) : ''}</span>
+          <b>{x.last ? x.last.guests : '—'}{x.avg !== null && <span className="small muted"> vs. {x.avg} prom.</span>}</b></div>))}</div>
+      <p className="tiny muted">El último de cada día contra el promedio de las {Math.max(...w.map(x => x.weeks), 0) || 4} semanas anteriores (máximo 4). Solo cuentas de “comer aquí”; comensales confiables desde el 4 de noviembre de 2026, así que el promedio se completa con las semanas.</p>
+    </section>
   );
 }
 

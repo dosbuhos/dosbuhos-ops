@@ -59,3 +59,9 @@ Start with `docs/readiness.md`: what is built, what is connected, and the owner 
 Monday 09:00 (San Miguel) a Spanish email with last week's online reservations, spend, cost per reservation, estimated
 contribution, brand-search share and what needs attention. Sent through Resend (`RESEND_API_KEY`, `REPORT_EMAIL_TO`
 secrets). Preview: `GET /api/weekly-email-preview`; test send: `POST /api/control/weekly-email-test` (admin).
+
+## Parrot POS
+`PARROT_API_KEY` secret (Bearer). Every 15 minutes `pos_sync` re-reads the last 48 h of orders, order items (v2) and
+payments from `https://api.parrot.rest/external`, then backfills older 48-hour windows (to 2025-11-01) within a small
+request budget (Parrot allows 15 requests/minute). Guests = `customersCount` of dine-in orders, trusted from 2026-11-04.
+Shown on Resumen: Comensales (restaurante), Personas en tours, Ventas sin IVA, and guests by weekday.
