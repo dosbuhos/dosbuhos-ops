@@ -15,6 +15,8 @@ import { loadCampaigns } from '../read/campaigns.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { readSecret } from '../ai/key.ts';
+import { buildWeeklyEmail, sendViaResend } from '../report/weekly-email.ts';
+import { APP_URL, EMAIL_FROM } from '../workflows/jobs.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { parseServiceAccount } from '../connectors/ga4.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
@@ -389,6 +391,14 @@ app.get('/api/ai-visibility', async c => {
   const latest = runs[0] ? (await c.env.DB.prepare('SELECT r.question_id, q.lang, q.question, r.assistant, r.mentioned, r.rank, r.excerpt, r.cited_json, r.dosbuhos_cited, r.error FROM ai_visibility_results r JOIN ai_visibility_questions q ON q.id = r.question_id WHERE r.run_key = ? ORDER BY q.sort').bind(String(runs[0].run_key)).all()).results : [];
   return json(c, { runs, latest });
 });
+app.post('/api/control/weekly-email-test', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  if (!c.env.RESEND_API_KEY || !c.env.REPORT_EMAIL_TO) return fail(c, 409, 'not_configured', 'Falta RESEND_API_KEY o REPORT_EMAIL_TO en los secretos del Worker');
+  const mail = await buildWeeklyEmail(c.env.DB, Date.now(), c.env.WINERY_TZ, APP_URL);
+  await sendViaResend(c.env.RESEND_API_KEY, EMAIL_FROM, c.env.REPORT_EMAIL_TO.split(',').map(s => s.trim()).filter(Boolean), mail);
+  return json(c, { sent: true, subject: mail.subject });
+});
+app.get('/api/weekly-email-preview', async c => { const m = await buildWeeklyEmail(c.env.DB, Date.now(), c.env.WINERY_TZ, APP_URL); return c.html(m.html); });
 app.post('/api/control/ai-visibility-run', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const apiKey = await readSecret(c.env.ANTHROPIC_API_KEY);

@@ -144,6 +144,7 @@ export function Controls({ session, reload }: { session: any; reload: () => void
 
       <Estimates isAdmin={isAdmin} />
       <AiVisibilityRun isAdmin={isAdmin} />
+      <WeeklyEmail isAdmin={isAdmin} />
 
       <section className="section card stack">
         <h2>Límites y permisos <span className="small muted">política v{st.policyVersion}</span></h2>
@@ -251,6 +252,19 @@ function CostRow({ k, label, unit, c, isAdmin, onSaved }: { k: string; label: st
         </div>
       )}
     </div>
+  );
+}
+
+function WeeklyEmail({ isAdmin }: { isAdmin: boolean }) {
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <section className="section card stack">
+      <h2>Resumen semanal por correo</h2>
+      <p className="small">Cada lunes a las 9:00 llega un correo con la semana anterior: reservaciones en línea, gasto, costo por reservación, contribución estimada, búsquedas de marca y lo que requiere atención. Necesita los secretos <span className="mono">RESEND_API_KEY</span> y <span className="mono">REPORT_EMAIL_TO</span> en el Worker.</p>
+      <div className="row"><a className="btn" href="api/weekly-email-preview" target="_blank" rel="noopener">Ver cómo se ve</a>
+        {isAdmin && <button className="btn" onClick={async () => { try { const r = await api('control/weekly-email-test', { method: 'POST', body: {} }); setMsg(`Enviado: ${r.subject}`); } catch (e) { setMsg((e as Error).message); } }}>Enviar una prueba ahora</button>}</div>
+      {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
+    </section>
   );
 }
 

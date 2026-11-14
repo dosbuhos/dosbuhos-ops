@@ -12,6 +12,10 @@ import { readyCoordinator } from '../coordinator/do.ts';
 import { readSecret } from '../ai/key.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
+import { buildWeeklyEmail, sendViaResend } from '../report/weekly-email.ts';
+export const APP_URL = 'https://apps.dosbuhos.com/growth/';
+// Resend's shared sender works without verifying dosbuhos.com (no DNS change), but only delivers to the Resend account's own address.
+export const EMAIL_FROM = 'Growth Dos Búhos <onboarding@resend.dev>';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { syncGa4, syncAdsQueries, parseServiceAccount } from '../connectors/ga4.ts';
 
@@ -72,6 +76,13 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
             try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} reservaciones en línea en ${g.rows} filas`; } catch (e) { ga4 = `GA4 falló: ${(e as Error).message}`; }
             await finishJob(env.DB, job.runKey, 'succeeded', `Feed del Hub: ${r.campaigns} campañas, ${r.days} días, datos al ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'desconocido'}. ${ga4}`);
           } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'No hay una fuente de Google Ads conectada');
+          break;
+        }
+        case 'weekly_email': {
+          if (!env.RESEND_API_KEY || !env.REPORT_EMAIL_TO) { await finishJob(env.DB, job.runKey, 'skipped', 'Falta RESEND_API_KEY o REPORT_EMAIL_TO'); break; }
+          const mail = await buildWeeklyEmail(env.DB, now, env.WINERY_TZ, APP_URL);
+          await sendViaResend(env.RESEND_API_KEY, EMAIL_FROM, env.REPORT_EMAIL_TO.split(',').map(s => s.trim()).filter(Boolean), mail);
+          await finishJob(env.DB, job.runKey, 'succeeded', `Resumen semanal enviado: ${mail.subject}`);
           break;
         }
         case 'ai_visibility': {

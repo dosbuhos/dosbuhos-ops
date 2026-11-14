@@ -52,7 +52,7 @@ describe('campaigns view', () => {
     expect(en.costPerReservationMinor).toBeNull();
     const meta = v.campaigns.find(c => c.provider === 'meta_ads')!;
     expect(meta.reservations).toBeNull();
-    expect(meta.note).toMatch(/ID de campaña/);
+    expect(meta.note).toMatch(/utm_campaign/);
     expect(v.sources).toEqual([
       { group: 'Google Ads', reservations: 4 },
       { group: 'Fuente perdida (referencia de dosbuhos.com)', reservations: 3 },
@@ -66,5 +66,28 @@ describe('campaigns view', () => {
     expect(sourceGroup('m.facebook.com', 'referral')).toBe('Facebook / Instagram (orgánico o anuncios sin etiqueta)');
     expect(sourceGroup('google', 'organic')).toBe('Búsqueda (orgánica)');
     expect(sourceGroup('chatgpt.com', 'ai-assistant')).toBe('Asistentes de IA');
+  });
+});
+
+describe('Meta campaigns', () => {
+  it('match by name when tagged with the campaign name; ID-tagged visits are reported apart', async () => {
+    const db = new DatabaseSync(':memory:');
+    for (const f of ['0001_init.sql', '0002_ga4_reservations.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+    const d = addDays(today, -2);
+    db.exec(`INSERT INTO ad_accounts (id, provider, external_id, name, currency, account_tz, created_at) VALUES ('m', 'meta_ads', '2', 'm', 'MXN', '${TZ}', 0);
+      INSERT INTO campaign_registry (ref, account_id, kind, external_id, name, status, products_json, updated_at) VALUES ('res_m1', 'm', 'campaign', 'name:3', '20261106_BOFU_Reservas_Schedule', 'ACTIVE', '[]', 0);
+      INSERT INTO campaign_daily (account_id, campaign_id, date, currency, cost_micros, impressions, clicks, source, fetched_at) VALUES ('m', 'name:3', '${d}', 'MXN', 50000000, 1, 1, 'x', 0);
+      INSERT INTO ga4_reservations_daily (date, source, medium, campaign, event_name, events, fetched_at) VALUES
+        ('${d}', 'Facebook_Mobile_Feed', 'cpc', '20261106_BOFU_Reservas_Schedule', 'reserva_click', 8, 0),
+        ('${d}', 'Facebook_Mobile_Feed', 'cpc', '20261106_BOFU_Reservas_Schedule', 'ot-availability-pageview', 2, 0),
+        ('${d}', 'Facebook_Mobile_Feed', 'cpc', '20261106_BOFU_Reservas_Schedule', 'ot-reservation-made', 1, 0),
+        ('${d}', 'fb', 'paid', '120253340013030663', 'reserva_click', 2, 0);`);
+    const v = await loadCampaigns(fakeD1(db), now, TZ, 'MXN');
+    const m = v.campaigns[0]!;
+    expect(m.reservations).toBe(1);
+    expect(m.openedAvailability).toBe(2);
+    expect(m.costPerReservationMinor).toBe(50_00);
+    expect(m.note).toMatch(/8 clic/);
+    expect(v.unmatchedMeta).toEqual({ reservations: 0, opened: 0, clicks: 2 });
   });
 });

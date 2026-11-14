@@ -54,3 +54,8 @@ Start with `docs/readiness.md`: what is built, what is connected, and the owner 
   `tour_cost_pct`, `payment_fee_pct` in percent; `opentable_fee_per_reservation` in pesos). New rows keep the old ones as history.
 - Used only for numbers labeled "estimado": estimated revenue, estimated return and estimated contribution (Resumen, Campañas).
 - `GET /api/ai-visibility`, `POST /api/control/ai-visibility-run` (admin, once a day): monthly AI assistant visibility check.
+
+## Weekly summary email
+Monday 09:00 (San Miguel) a Spanish email with last week's online reservations, spend, cost per reservation, estimated
+contribution, brand-search share and what needs attention. Sent through Resend (`RESEND_API_KEY`, `REPORT_EMAIL_TO`
+secrets). Preview: `GET /api/weekly-email-preview`; test send: `POST /api/control/weekly-email-test` (admin).

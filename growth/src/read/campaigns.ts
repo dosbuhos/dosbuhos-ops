@@ -22,7 +22,7 @@ export interface CampaignRow {
 export interface SourceShare { group: string; reservations: number }
 export interface TermTotals { sessions: number; opened: number; reservations: number; clicks: number | null; costMinor: number | null }
 export interface SearchTerms { from: LocalDate; to: LocalDate; withCost: boolean; brand: TermTotals; other: TermTotals; top: ({ query: string; campaign: string; brand: boolean } & TermTotals)[] }
-export interface CampaignsView { searchTerms: SearchTerms | null; estimate: { valueMinor: number; basis: string; sourcePeriod: string; approvedBy: string; contributionMinor: number | null } | null; window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null; currency: string; campaigns: CampaignRow[]; sources: SourceShare[]; unmatchedGoogleAds: number }
+export interface CampaignsView { searchTerms: SearchTerms | null; estimate: { valueMinor: number; basis: string; sourcePeriod: string; approvedBy: string; contributionMinor: number | null } | null; window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null; currency: string; campaigns: CampaignRow[]; sources: SourceShare[]; unmatchedGoogleAds: number; unmatchedMeta: { reservations: number; opened: number; clicks: number } }
 
 /** Where an online reservation's session came from, in plain groups. */
 export function sourceGroup(source: string, medium: string): string {
@@ -60,6 +60,7 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
   const spendBy = new Map(spend.results.map(s => [key(String(s.account_id), String(s.campaign_id)), s]));
   const trackedBy = new Map(tracked.results.map(s => [key(String(s.account_id), String(s.campaign_id)), Number(s.cost)]));
   const haveGa4 = trackingSince !== null;
+  const metaEvents = (name: string, ev: string) => ga4.results.filter(r => r.event_name === ev && isMetaAds(r.source, r.medium) && r.campaign === name).reduce((a, r) => a + Number(r.n), 0);
   const googleEvents = (name: string, ev: string) => ga4.results.filter(r => r.event_name === ev && isGoogleAds(r.source, r.medium) && r.campaign === name).reduce((a, r) => a + Number(r.n), 0);
 
   const campaigns: CampaignRow[] = reg.results.map(r => {
@@ -70,9 +71,16 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
     const name = String(r.name);
     let reservations: number | null = null, opened: number | null = null, note = '';
     if (!haveGa4) note = 'GA4 no está conectado, así que no se conocen las reservaciones por campaña.';
-    else if (provider === 'meta_ads') note = 'Los anuncios de Meta marcan las visitas con el ID de campaña, no con el nombre, así que todavía no se pueden asignar reservaciones a cada campaña de Meta.';
+    else if (provider === 'meta_ads') {
+      // Meta ads tagged with utm_campaign={{campaign.name}} match by name; older ads tagged with the numeric campaign ID can't.
+      reservations = metaEvents(name, RESERVATION_EVENT); opened = metaEvents(name, 'ot-availability-pageview');
+      const clicks = metaEvents(name, 'reserva_click');
+      if (!reservations && !opened && !clicks) { reservations = null; opened = null; note = 'Las visitas de esta campaña no traen su nombre en la etiqueta (utm_campaign), así que no se pueden ver sus reservaciones. En Meta, usa utm_campaign={{campaign.name}} en los parámetros de URL.'; }
+      else note = `${clicks} clic(s) en “Reservar” en dosbuhos.com desde esta campaña.`;
+    }
     else { reservations = googleEvents(name, RESERVATION_EVENT); opened = googleEvents(name, 'ot-availability-pageview'); }
     const cpr = reservations && trackedSpend !== null ? Math.round(trackedSpend / 10_000 / reservations) : null;
+    if (haveGa4 && reservations === 0 && provider === 'meta_ads' && opened !== null) note = `${note} GA4 no le ha atribuido reservaciones en línea desde que empezó el seguimiento.`;
     if (provider === 'google_ads' && haveGa4 && reservations === 0) note = trackedSpend ? 'GA4 no le ha atribuido reservaciones en línea a esta campaña desde que empezó el seguimiento.' : 'Sin gasto y sin reservaciones desde que empezó el seguimiento.';
     return {
       ref: String(r.ref), provider, name, status: String(r.status), channel: String(r.channel), products: JSON.parse(String(r.products_json ?? '[]')),
@@ -91,8 +99,11 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
   const groups = new Map<string, number>();
   for (const r of ga4.results.filter(x => x.event_name === RESERVATION_EVENT)) groups.set(sourceGroup(r.source, r.medium), (groups.get(sourceGroup(r.source, r.medium)) ?? 0) + Number(r.n));
   const knownGoogle = new Set(campaigns.filter(c => c.provider === 'google_ads').map(c => c.name));
+  const knownMeta = new Set(campaigns.filter(c => c.provider === 'meta_ads').map(c => c.name));
+  const metaIdRows = ga4.results.filter(r => isMetaAds(r.source, r.medium) && !knownMeta.has(r.campaign));
+  const unmatchedMeta = { reservations: metaIdRows.filter(r => r.event_name === RESERVATION_EVENT).reduce((a, r) => a + Number(r.n), 0), opened: metaIdRows.filter(r => r.event_name === 'ot-availability-pageview').reduce((a, r) => a + Number(r.n), 0), clicks: metaIdRows.filter(r => r.event_name === 'reserva_click').reduce((a, r) => a + Number(r.n), 0) };
   const unmatchedGoogleAds = ga4.results.filter(r => r.event_name === RESERVATION_EVENT && isGoogleAds(r.source, r.medium) && !knownGoogle.has(r.campaign)).reduce((a, r) => a + Number(r.n), 0);
-  return { searchTerms, estimate: est ? { valueMinor: est.valueMinor, basis: est.basis, sourcePeriod: est.sourcePeriod, approvedBy: est.approvedBy, contributionMinor: perContribution } : null, window: { from, to }, trackingSince, currency, campaigns, sources: [...groups.entries()].map(([group, reservations]) => ({ group, reservations })).sort((a, b) => b.reservations - a.reservations), unmatchedGoogleAds };
+  return { searchTerms, estimate: est ? { valueMinor: est.valueMinor, basis: est.basis, sourcePeriod: est.sourcePeriod, approvedBy: est.approvedBy, contributionMinor: perContribution } : null, window: { from, to }, trackingSince, currency, campaigns, sources: [...groups.entries()].map(([group, reservations]) => ({ group, reservations })).sort((a, b) => b.reservations - a.reservations), unmatchedGoogleAds, unmatchedMeta };
 }
 
 /** Google Ads search terms (via GA4), split into searches for our own name vs. everything else. */

@@ -20,6 +20,8 @@ export interface Env {
   ANTHROPIC_API_KEY?: string | { get(): Promise<string> }; // shared key from the account Secrets Store (or a plain secret); optional
   FEED_TOKEN_PEPPER?: string;       // required to create/verify feed tokens
   TOKEN_ENCRYPTION_KEY_V1?: string;
+  RESEND_API_KEY?: string;          // weekly summary email (optional; same provider as spark/)
+  REPORT_EMAIL_TO?: string;         // comma-separated recipients of the weekly summary (secret: keeps addresses out of the repo)
   GA4_SA_KEY?: string;              // service account JSON key, Viewer on the GA4 property (read-only) // required before storing OAuth refresh tokens
 }
 

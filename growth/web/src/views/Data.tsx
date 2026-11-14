@@ -57,6 +57,7 @@ export function Campaigns() {
             </article>
           );
         })}</div>
+        {(data.unmatchedMeta?.clicks > 0 || data.unmatchedMeta?.opened > 0) && <p className="tiny muted">Anuncios de Meta etiquetados con el ID de campaña (no con el nombre): {data.unmatchedMeta.clicks} clic(s) en Reservar, {data.unmatchedMeta.opened} abrieron OpenTable, {data.unmatchedMeta.reservations} reservación(es). No se pueden asignar a una campaña.</p>}
         {data.unmatchedGoogleAds > 0 && <p className="tiny muted">{data.unmatchedGoogleAds} reservación(es) vinieron de campañas de Google Ads que no están en la lista actual (renombradas o eliminadas).</p>}
       </section>
     </>

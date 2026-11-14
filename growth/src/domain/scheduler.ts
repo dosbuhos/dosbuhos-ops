@@ -3,7 +3,7 @@
 // constraint, so duplicate cron firings, retries and catch-up after a missed tick all run a logical job exactly once.
 import { localParts, weekStart, type LocalDate } from './time.ts';
 
-export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'ai_visibility' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
+export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'ai_visibility' | 'weekly_email' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
 
 export interface ScheduleSettings {
   wineryTz: string;                 // America/Mexico_City
@@ -45,6 +45,8 @@ export function dueJobs(nowMs: number, s: ScheduleSettings): DueJob[] {
   const monday = weekStart(w.date);
   const weeklyDue = w.weekday > s.weeklyReviewLocal.weekday || (w.weekday === s.weeklyReviewLocal.weekday && atOrAfter(w, s.weeklyReviewLocal));
   if (weeklyDue) out.push({ job: 'weekly_review', runKey: `weekly_review:${monday}`, logicalDate: monday });
+  // Weekly summary email: Monday 09:00 winery time (after the weekly review), once per week.
+  if (w.weekday === 1 && atOrAfter(w, { hour: 9, minute: 0 })) out.push({ job: 'weekly_email', runKey: `weekly_email:${monday}`, logicalDate: monday });
 
   if (s.notificationTz && s.notifyLocal) {
     const n = localParts(nowMs, s.notificationTz);
