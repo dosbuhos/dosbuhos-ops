@@ -67,3 +67,20 @@ describe('OpenTable availability', () => {
     expect(s.days.find(x => x.date === today)!.status).toBe('unknown');
   });
 });
+
+describe('OpenTable refusal', () => {
+  it('stops asking after the first 403 and stores nothing as zero', async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const { readFileSync } = await import('node:fs');
+    const { syncAvailability } = await import('../src/connectors/opentable-availability.ts');
+    const db = new DatabaseSync(':memory:');
+    for (const f of ['0001_init.sql', '0003_opentable_availability.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+    const stmt = (sql: string, binds: unknown[] = []): any => ({ bind: (...b: unknown[]) => stmt(sql, b), run: async () => db.prepare(sql).run(...(binds as never[])), all: async () => ({ results: db.prepare(sql).all(...(binds as never[])) }) });
+    const d1 = { prepare: (sql: string) => stmt(sql), batch: async (s: any[]) => { for (const x of s) await x.run(); return []; } } as unknown as D1Database;
+    let calls = 0;
+    const r = await syncAvailability(d1, 1258120, Date.UTC(2026, 10, 14, 18), 'America/Mexico_City', 14, (async () => { calls++; return new Response('no', { status: 403 }); }) as typeof fetch);
+    expect(calls).toBe(1);
+    expect(r.read).toBe(0);
+    expect((db.prepare('SELECT COUNT(*) AS n FROM ot_availability WHERE slots IS NOT NULL').get() as { n: number }).n).toBe(0);
+  });
+});

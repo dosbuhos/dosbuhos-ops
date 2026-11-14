@@ -64,17 +64,23 @@ export async function syncAvailability(db: D1Database, rid: number, now: number,
   const today = localDate(now, tz);
   const dates = Array.from({ length: days }, (_, i) => addDays(today, i));
   const rows: { date: string; product: string; item: string; party: number; slots: number | null; error: string | null }[] = [];
+  // If OpenTable refuses us (403/429), stop asking for the rest of this run: record the refusal, don't retry it 70 times.
+  let refused: string | null = null;
+  const isRefusal = (e: unknown) => /respondió (403|429)/.test((e as Error).message);
   for (const date of dates.filter(isOpenDay)) {
     for (const party of [2, 4]) {
+      if (refused) { rows.push({ date, product: 'restaurant_visit', item: 'tables', party, slots: null, error: refused }); continue; }
       try { rows.push({ date, product: 'restaurant_visit', item: 'tables', party, slots: await tableSlots(rid, date, party, fetchFn), error: null }); }
-      catch (e) { rows.push({ date, product: 'restaurant_visit', item: 'tables', party, slots: null, error: (e as Error).message.slice(0, 200) }); }
+      catch (e) { if (isRefusal(e)) refused = (e as Error).message.slice(0, 200); rows.push({ date, product: 'restaurant_visit', item: 'tables', party, slots: null, error: (e as Error).message.slice(0, 200) }); }
     }
   }
   for (const x of EXPERIENCES) {
     try {
+      if (refused) throw new Error(refused);
       const byDate = await experienceDays(rid, x.id, today, fetchFn);
       for (const date of dates.filter(isOpenDay)) rows.push({ date, product: 'tour_tasting', item: x.name, party: 2, slots: byDate[date] ?? 0, error: null });
     } catch (e) {
+      if (isRefusal(e)) refused = (e as Error).message.slice(0, 200);
       for (const date of dates.filter(isOpenDay)) rows.push({ date, product: 'tour_tasting', item: x.name, party: 2, slots: null, error: (e as Error).message.slice(0, 200) });
     }
   }
@@ -83,7 +89,7 @@ export async function syncAvailability(db: D1Database, rid: number, now: number,
   const failed = rows.filter(r => r.slots === null).length, firstError = rows.find(r => r.error)?.error ?? null;
   stmts.push(db.prepare('UPDATE connections SET health = ?, health_reason = ?, last_success_at = CASE WHEN ? THEN ? ELSE last_success_at END, freshness_at = ?, last_error = ?, updated_at = ? WHERE id = ?')
     .bind(failed === 0 ? 'connected' : failed < rows.length ? 'limited' : 'reconnect',
-      failed === 0 ? 'Horarios disponibles leídos de la página pública de reservaciones de OpenTable cada 3 horas (próximos 14 días)' : failed < rows.length ? `${failed} de ${rows.length} lecturas fallaron` : 'OpenTable no respondió (puede que su página de reservaciones haya cambiado: actualiza los hashes, como en canario)',
+      failed === 0 ? 'Horarios disponibles leídos de la página pública de reservaciones de OpenTable cada 3 horas (próximos 14 días)' : failed < rows.length ? `${failed} de ${rows.length} lecturas fallaron` : (refused ? `OpenTable rechazó las consultas (${refused}); se deja de preguntar hasta la siguiente ronda` : 'OpenTable no respondió (puede que su página de reservaciones haya cambiado: actualiza los hashes, como en canario)'),
       failed < rows.length ? 1 : 0, now, now, firstError, now, 'conn_ot_availability'));
   await db.batch(stmts);
   return { read: rows.length - failed, failed, firstError };
