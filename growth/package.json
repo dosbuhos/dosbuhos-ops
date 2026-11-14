@@ -1,0 +1,39 @@
+{
+  "name": "growth",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build:web && npm run db:local && wrangler dev --env dev",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build:web": "vite build --config web/vite.config.ts",
+    "build": "npm run build:web",
+    
+    "db:local": "wrangler d1 migrations apply growth-dev --local --env dev && wrangler d1 execute growth-dev --local --env dev --file fixtures/demo-seed.sql",
+    "db:demo": "wrangler d1 migrations apply growth-demo --remote --env demo",
+    "db:prod": "wrangler d1 migrations apply growth --remote --env production",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test && npm run build:web",
+    "deploy:demo": "npm run build:web && wrangler deploy --env demo",
+    "deploy:prod": "npm run build:web && wrangler deploy --env production"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "hono": "^4.6.7",
+    "lightweight-charts": "^5.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261114.1",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6",
+    "vitest": "^3.2.7",
+    "wrangler": "^4.162.0"
+  }
+}

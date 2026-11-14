@@ -1,0 +1,78 @@
+{
+  // Dos Búhos Growth Terminal. One Worker per environment; every environment has its own D1, R2, Durable Objects,
+  // Workflows, secrets and allowed hosts. Nothing is inherited between environments on purpose.
+  //   dev        local only (`npm run dev`): synthetic data, mock ad provider, DEV_USER_EMAIL sign-in.
+  //   demo       deployed demonstration: synthetic data in its own database, mock ad provider, behind the Hub.
+  //   staging    real read-only connections to test accounts, behind the Hub.
+  //   production real data, behind the Hub only (workers_dev off, no custom route: the Hub is the only way in).
+  // Database IDs are created by the owner's Cloudflare account (`wrangler d1 create …`) and pasted below; see docs/setup.md.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "growth",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true, "not_found_handling": "single-page-application" },
+  "observability": { "enabled": true },
+  "env": {
+    "dev": {
+      "name": "growth-dev",
+      "workers_dev": true,
+      "vars": { "ENVIRONMENT": "dev", "DATA_KIND": "demo", "ADS_PROVIDER": "mock", "ANTHROPIC_MODEL": "claude-opus-5-5", "WINERY_TZ": "America/Mexico_City" },
+      "d1_databases": [{ "binding": "DB", "database_name": "growth-dev", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }],
+      "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "growth-dev-archive" }],
+      "durable_objects": { "bindings": [{ "name": "COORDINATOR", "class_name": "AccountCoordinator" }] },
+      "workflows": [
+        { "name": "growth-dev-daily-review", "binding": "DAILY_REVIEW", "class_name": "DailyReviewWorkflow" },
+        { "name": "growth-dev-weekly-review", "binding": "WEEKLY_REVIEW", "class_name": "WeeklyReviewWorkflow" }
+      ],
+      "triggers": { "crons": ["*/15 * * * *"] }
+    },
+    "demo": {
+      "name": "growth-demo",
+      "workers_dev": false,
+      "vars": { "ENVIRONMENT": "demo", "DATA_KIND": "demo", "ADS_PROVIDER": "mock", "ANTHROPIC_MODEL": "claude-opus-5-5", "WINERY_TZ": "America/Mexico_City" },
+      "d1_databases": [{ "binding": "DB", "database_name": "growth-demo", "database_id": "REPLACE_WITH_growth-demo_ID", "migrations_dir": "migrations" }],
+      "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "growth-demo-archive" }],
+      "durable_objects": { "bindings": [{ "name": "COORDINATOR", "class_name": "AccountCoordinator" }] },
+      "workflows": [
+        { "name": "growth-demo-daily-review", "binding": "DAILY_REVIEW", "class_name": "DailyReviewWorkflow" },
+        { "name": "growth-demo-weekly-review", "binding": "WEEKLY_REVIEW", "class_name": "WeeklyReviewWorkflow" }
+      ],
+      "triggers": { "crons": ["*/15 * * * *"] }
+    },
+    "staging": {
+      "name": "growth-staging",
+      "workers_dev": false,
+      "vars": { "ENVIRONMENT": "staging", "DATA_KIND": "real", "ADS_PROVIDER": "google_ads_api", "ANTHROPIC_MODEL": "claude-opus-5-5", "WINERY_TZ": "America/Mexico_City" },
+      "d1_databases": [{ "binding": "DB", "database_name": "growth-staging", "database_id": "REPLACE_WITH_growth-staging_ID", "migrations_dir": "migrations" }],
+      "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "growth-staging-archive" }],
+      "durable_objects": { "bindings": [{ "name": "COORDINATOR", "class_name": "AccountCoordinator" }] },
+      "workflows": [
+        { "name": "growth-staging-daily-review", "binding": "DAILY_REVIEW", "class_name": "DailyReviewWorkflow" },
+        { "name": "growth-staging-weekly-review", "binding": "WEEKLY_REVIEW", "class_name": "WeeklyReviewWorkflow" }
+      ],
+      "triggers": { "crons": ["*/15 * * * *"] }
+    },
+    "production": {
+      "name": "growth",
+      "workers_dev": false,
+      "preview_urls": false,
+      "vars": { "ENVIRONMENT": "production", "DATA_KIND": "real", "ADS_PROVIDER": "google_ads_api", "ANTHROPIC_MODEL": "claude-opus-5-5", "WINERY_TZ": "America/Mexico_City" },
+      "d1_databases": [{ "binding": "DB", "database_name": "growth", "database_id": "REPLACE_WITH_growth_ID", "migrations_dir": "migrations" }],
+      "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "growth-archive" }],
+      "durable_objects": { "bindings": [{ "name": "COORDINATOR", "class_name": "AccountCoordinator" }] },
+      "workflows": [
+        { "name": "growth-daily-review", "binding": "DAILY_REVIEW", "class_name": "DailyReviewWorkflow" },
+        { "name": "growth-weekly-review", "binding": "WEEKLY_REVIEW", "class_name": "WeeklyReviewWorkflow" }
+      ],
+      "triggers": { "crons": ["*/15 * * * *"] }
+    }
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AccountCoordinator"] }]
+  // Secrets per environment (`wrangler secret put NAME --env <env>`), never in this file:
+  //   HUB_SECRET                 = the Hub's SESSION_SECRET; required outside dev (requests without a valid Hub signature are refused)
+  //   FEED_TOKEN_PEPPER          random string mixed into the stored hash of the Google Ads Script feed token
+  //   TOKEN_ENCRYPTION_KEY_V1    base64 32-byte AES-GCM key for refresh tokens stored in D1 (versioned: _V2 for rotation)
+  //   ANTHROPIC_API_KEY          optional; without it reports use the deterministic template and no proposals are drafted
+  //   GOOGLE_OAUTH_CLIENT_SECRET staging/production, once the Google Ads API adapter is enabled
+}

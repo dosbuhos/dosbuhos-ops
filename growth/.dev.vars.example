@@ -1,0 +1,5 @@
+# Copy to .dev.vars for `npm run dev`. Names only — never commit real values.
+# Local dev runs on synthetic data and the mock ad provider; none of these are required for the demo.
+# DEV_USER_EMAIL=owner@example.com
+# ANTHROPIC_API_KEY=
+# TOKEN_ENCRYPTION_KEY_V1=   (base64 of 32 random bytes: `openssl rand -base64 32`)

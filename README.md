@@ -14,6 +14,7 @@ Internal apps and tools for Bodega Dos Búhos.
 | `card/` | Tarjeta QR · link tree: la tarjeta QR de cada persona del equipo y el mini sitio público (visitas, OpenTable, eventos, vinos, premios, fotos, kit de prensa), EN/ES, instalable y offline. Worker `card`, solo archivos estáticos |
 | `horizonte/` | Horizonte: planificador personal de Eric (reemplazo de Timestripe), fuera del Hub. Tareas, tableros, días y horizontes; funciona sin conexión y sincroniza entre teléfono y computadora. Worker `horizonte`, D1 `horizonte`, Google sign-in solo para Eric |
 | `canario/` | Canario de reservas: dos veces al día (8:00 y 11:00) revisa que un cliente pueda reservar mesa y cada experiencia en OpenTable y que los botones de dosbuhos.com sigan apuntando a OpenTable; avisa al teléfono por ntfy cuando algo falla. Worker `canario`, KV `canario`, sin login ni secretos |
+| `growth/` | Growth Terminal: tablero tipo bolsa para anuncios, reservas y capacidad, con un operador de IA acotado (propone; las reglas y un coordinador deciden y ejecutan). Worker `growth` (+ `growth-demo`, `growth-staging`), D1, R2, Durable Object por cuenta, Workflows, cron cada 15 min; detrás del Hub en `/growth/`. Hoy: demo con datos sintéticos; lecturas reales por Google Ads Script y export CSV de OpenTable. Ver `growth/docs/readiness.md` |
 | `zoho-inventory/` | Zoho Inventory tracking and automation. First app: sample-bottle tracking for sales reps (Cloudflare Worker) |
 
 Add each new app or tool as its own folder.
