@@ -35,7 +35,7 @@ const today = localDate(now, TZ);
 const ymd = (d: string) => d.replace(/-/g, '');
 
 /** Fake Google: token endpoint + paginated runReport. */
-function fakeGoogle(rows: [string, string, string, string, number][], opts: { status?: number } = {}) {
+function fakeGoogle(rows: [string, string, string, string, number, string?][], opts: { status?: number } = {}) {
   const calls: { url: string; body: string }[] = [];
   const fn = (async (url: string, init?: RequestInit) => {
     const body = String(init?.body ?? '');
@@ -43,7 +43,7 @@ function fakeGoogle(rows: [string, string, string, string, number][], opts: { st
     if (url.includes('oauth2')) return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     if (opts.status) return new Response(JSON.stringify({ error: { message: 'User does not have sufficient permissions for this property.' } }), { status: opts.status });
     const { offset = 0 } = JSON.parse(body) as { offset?: number };
-    const page = rows.slice(offset, offset + 10_000).map(([d, s, m, c, n]) => ({ dimensionValues: [{ value: ymd(d) }, { value: s }, { value: m }, { value: c }], metricValues: [{ value: String(n) }, { value: '0' }] }));
+    const page = rows.slice(offset, offset + 10_000).map(([d, s, m, c, n, ev]) => ({ dimensionValues: [{ value: ymd(d) }, { value: ev ?? 'ot-reservation-made' }, { value: s }, { value: m }, { value: c }], metricValues: [{ value: String(n) }, { value: '0' }] }));
     return new Response(JSON.stringify({ rows: page, rowCount: rows.length }), { status: 200 });
   }) as unknown as typeof fetch;
   return { fn, calls };
@@ -66,11 +66,14 @@ describe('GA4 connector', () => {
     const g = fakeGoogle([[today, 'google', 'cpc', 'EN - In San Miguel (tours & tastings)', 2], [today, '(direct)', '(none)', '(direct)', 1]]);
     const rows = await fetchReservations(sa, '123456789', addDays(today, -14), today, now, g.fn);
     expect(rows).toEqual([
-      { date: today, source: 'google', medium: 'cpc', campaign: 'EN - In San Miguel (tours & tastings)', events: 2, valueMicros: null },
-      { date: today, source: '(direct)', medium: '(none)', campaign: '(direct)', events: 1, valueMicros: null },
+      { date: today, eventName: 'ot-reservation-made', source: 'google', medium: 'cpc', campaign: 'EN - In San Miguel (tours & tastings)', events: 2, valueMicros: null },
+      { date: today, eventName: 'ot-reservation-made', source: '(direct)', medium: '(none)', campaign: '(direct)', events: 1, valueMicros: null },
     ]);
     const report = JSON.parse(g.calls.find(c => c.url.includes('runReport'))!.body);
-    expect(report.dimensionFilter.filter).toEqual({ fieldName: 'eventName', stringFilter: { matchType: 'EXACT', value: 'ot-reservation-made' } });
+    expect(report.dimensionFilter.orGroup.expressions).toEqual([
+      { filter: { fieldName: 'eventName', stringFilter: { matchType: 'BEGINS_WITH', value: 'ot-' } } },
+      { filter: { fieldName: 'eventName', stringFilter: { matchType: 'EXACT', value: 'reserva_click' } } },
+    ]);
     await expect(fetchReservations(sa, '12-34', today, today, now, g.fn)).rejects.toThrow(Ga4Error);
   });
 
@@ -90,16 +93,24 @@ describe('GA4 connector', () => {
   it('with no booking-level source, the dashboard shows online reservations and cost per reservation from Google Ads', async () => {
     const { db, d1 } = growthDb();
     db.exec("INSERT INTO ad_accounts (id, provider, external_id, name, currency, account_tz, created_at) VALUES ('a', 'google_ads', '1', 'x', 'MXN', 'America/Mexico_City', 0)");
+    const gap = addDays(today, -3); // a day GA4 recorded nothing at all (like Nov 11)
     for (let k = 60; k >= 0; k--) {
       const d = addDays(today, -k);
+      if (d !== gap) db.prepare("INSERT INTO ga4_reservations_daily (date, source, medium, campaign, event_name, events, fetched_at) VALUES (?, '(direct)', '(none)', '(direct)', 'ot-availability-pageview', 10, 0)").run(d);
       db.prepare("INSERT INTO campaign_daily (account_id, campaign_id, date, currency, cost_micros, impressions, clicks, platform_conversions_milli, source, fetched_at) VALUES ('a', 'c1', ?, 'MXN', 350000000, 100, 10, 1000, 'hub_feed', 0)").run(d);
-      db.prepare("INSERT INTO ga4_reservations_daily (date, source, medium, campaign, event_name, events, fetched_at) VALUES (?, 'google', 'cpc', 'c1', 'ot-reservation-made', 1, 0), (?, '(direct)', '(none)', '(direct)', 'ot-reservation-made', 2, 0)").run(d, d);
+      if (d !== gap) db.prepare("INSERT INTO ga4_reservations_daily (date, source, medium, campaign, event_name, events, fetched_at) VALUES (?, 'google', 'cpc', 'c1', 'ot-reservation-made', 1, 0), (?, '(direct)', '(none)', '(direct)', 'ot-reservation-made', 2, 0)").run(d, d);
     }
     const o = computeOverview(await loadRaw({ db: d1, now, wineryTz: TZ, currency: 'MXN' }), now, TZ, 'MXN');
     const t = Object.fromEntries(o.tickers.map(x => [x.key, x]));
     expect(t.confirmed_bookings!.label).toBe('Online reservations');
-    expect(t.confirmed_bookings!.metric.value).toBe(28 * 3);
-    expect(t.cost_per_online_reservation!.metric.value).toBe(350_00); // MX$350 spend / 1 Google Ads reservation per day
+    expect(t.confirmed_bookings!.metric.value).toBe(27 * 3); // the gap day is excluded and named, never counted as zero
+    expect(t.confirmed_bookings!.metric.reason).toContain(`Excludes 1 day(s) GA4 recorded nothing: ${gap}`);
+    expect(t.cost_per_online_reservation!.metric.value).toBe(350_00); // spend over the same 27 days / 27 Google Ads reservations
+    const daily = o.series.find(s => s.key === 'online_reservations')!.points;
+    expect(daily.find(p => p.date === gap)!.value).toBeNull();
+    expect(daily.find(p => p.date === addDays(gap, -1))!.value).toBe(3);
+    expect(o.funnel!.gaps).toEqual([gap]);
+    expect(o.funnel!.steps.find(s => s.event === 'ot-reservation-made')!.count).toBe(27 * 3);
     expect(t.completed_guests!.metric.value).toBeNull(); // GA4 doesn't know who showed up
     expect(t.contribution_after_ads!.metric.value).toBeNull();
     expect(o.heroKey).toBe('online_reservations');

@@ -6,6 +6,14 @@
 // (connections.account_ref for conn_ga4), set from Connections. Scope: analytics.readonly.
 
 export const RESERVATION_EVENT = 'ot-reservation-made';
+/** Booking funnel, in order: the website's own booking-button click, then OpenTable widget steps, then the booking. */
+export const FUNNEL = [
+  { event: 'reserva_click', label: 'Clicked “Reservar” on dosbuhos.com' },
+  { event: 'ot-availability-pageview', label: 'Opened OpenTable availability' },
+  { event: 'ot-time-slot-selected', label: 'Picked a time' },
+  { event: 'ot-booking-details-pageview', label: 'Reached booking details' },
+  { event: RESERVATION_EVENT, label: 'Booked' },
+] as const;
 const SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -52,9 +60,10 @@ export async function accessToken(sa: ServiceAccount, now: number, fetchFn: type
   return j.access_token;
 }
 
-export interface Ga4Row { date: string; source: string; medium: string; campaign: string; events: number; valueMicros: number | null }
+export interface Ga4Row { date: string; eventName: string; source: string; medium: string; campaign: string; events: number; valueMicros: number | null }
 
-/** Daily reservation events by session source / medium / campaign. Paginates; dates come back as YYYYMMDD. */
+/** Daily OpenTable widget events (ot-*) and the site's reserva_click, by session source / medium / campaign.
+ *  Paginates; dates come back as YYYYMMDD. */
 export async function fetchReservations(sa: ServiceAccount, propertyId: string, from: string, to: string, now: number, fetchFn: typeof fetch = fetch): Promise<Ga4Row[]> {
   if (!/^\d{4,15}$/.test(propertyId)) throw new Ga4Error('bad_request', 'GA4 property ID must be digits');
   const token = await accessToken(sa, now, fetchFn);
@@ -64,9 +73,12 @@ export async function fetchReservations(sa: ServiceAccount, propertyId: string, 
       method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         dateRanges: [{ startDate: from, endDate: to }],
-        dimensions: [{ name: 'date' }, { name: 'sessionSource' }, { name: 'sessionMedium' }, { name: 'sessionCampaignName' }],
+        dimensions: [{ name: 'date' }, { name: 'eventName' }, { name: 'sessionSource' }, { name: 'sessionMedium' }, { name: 'sessionCampaignName' }],
         metrics: [{ name: 'eventCount' }, { name: 'eventValue' }],
-        dimensionFilter: { filter: { fieldName: 'eventName', stringFilter: { matchType: 'EXACT', value: RESERVATION_EVENT } } },
+        dimensionFilter: { orGroup: { expressions: [
+          { filter: { fieldName: 'eventName', stringFilter: { matchType: 'BEGINS_WITH', value: 'ot-' } } },
+          { filter: { fieldName: 'eventName', stringFilter: { matchType: 'EXACT', value: 'reserva_click' } } },
+        ] } },
         limit: 10_000, offset, keepEmptyRows: false,
       }),
     });
@@ -76,11 +88,11 @@ export async function fetchReservations(sa: ServiceAccount, propertyId: string, 
       throw new Ga4Error(kind, `GA4 ${res.status}: ${j.error?.message ?? 'request failed'}`.slice(0, 300));
     }
     for (const r of j.rows ?? []) {
-      const [d, src, med, camp] = r.dimensionValues.map(v => v.value);
+      const [d, name, src, med, camp] = r.dimensionValues.map(v => v.value);
       const ev = Math.round(Number(r.metricValues[0]?.value ?? 0));
       const val = Number(r.metricValues[1]?.value ?? 0);
       if (!d || !/^\d{8}$/.test(d) || ev <= 0) continue;
-      out.push({ date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`, source: (src ?? '(not set)').slice(0, 120), medium: (med ?? '(not set)').slice(0, 60), campaign: (camp ?? '(not set)').slice(0, 200), events: ev, valueMicros: Number.isFinite(val) && val > 0 ? Math.round(val * 1e6) : null });
+      out.push({ date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`, eventName: (name ?? '').slice(0, 60), source: (src ?? '(not set)').slice(0, 120), medium: (med ?? '(not set)').slice(0, 60), campaign: (camp ?? '(not set)').slice(0, 200), events: ev, valueMicros: Number.isFinite(val) && val > 0 ? Math.round(val * 1e6) : null });
     }
     if (!j.rowCount || offset + 10_000 >= j.rowCount) break;
   }
@@ -91,13 +103,13 @@ export async function fetchReservations(sa: ServiceAccount, propertyId: string, 
 export async function syncGa4(db: D1Database, sa: ServiceAccount, propertyId: string, now: number, from: string, to: string, fetchFn: typeof fetch = fetch): Promise<{ rows: number; reservations: number }> {
   try {
     const rows = await fetchReservations(sa, propertyId, from, to, now, fetchFn);
-    const stmts: D1PreparedStatement[] = [db.prepare('DELETE FROM ga4_reservations_daily WHERE date BETWEEN ? AND ? AND event_name = ?').bind(from, to, RESERVATION_EVENT)];
+    const stmts: D1PreparedStatement[] = [db.prepare('DELETE FROM ga4_reservations_daily WHERE date BETWEEN ? AND ?').bind(from, to)];
     for (const r of rows) stmts.push(db.prepare('INSERT OR REPLACE INTO ga4_reservations_daily (date, source, medium, campaign, event_name, events, value_micros, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(r.date, r.source, r.medium, r.campaign, RESERVATION_EVENT, r.events, r.valueMicros, now));
+      .bind(r.date, r.source, r.medium, r.campaign, r.eventName, r.events, r.valueMicros, now));
     stmts.push(db.prepare("UPDATE connections SET health = 'connected', health_reason = ?, last_success_at = ?, freshness_at = ?, last_error = NULL, updated_at = ? WHERE id = 'conn_ga4'")
       .bind(`Reading "${RESERVATION_EVENT}" (OpenTable widget reservations) from GA4 property ${propertyId}`, now, now, now));
     await db.batch(stmts); // one batch = one transaction: the window is never half-replaced
-    return { rows: rows.length, reservations: rows.reduce((a, r) => a + r.events, 0) };
+    return { rows: rows.length, reservations: rows.filter(r => r.eventName === RESERVATION_EVENT).reduce((a, r) => a + r.events, 0) };
   } catch (e) {
     const g = e instanceof Ga4Error ? e : new Ga4Error('transient', (e as Error).message);
     const health = g.kind === 'transient' ? 'limited' : 'reconnect';

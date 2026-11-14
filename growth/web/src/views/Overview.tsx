@@ -56,6 +56,8 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
         ) : null}
       </section>
 
+      {o.funnel && <Funnel f={o.funnel} />}
+
       <div className="grid cols-2 section">
         <section className="card" aria-labelledby="cap14">
           <header className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}><h3 id="cap14">Next 14 days</h3><a href="#capacity" className="small">Full calendar</a></header>
@@ -87,6 +89,27 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
         </section>
       </div>
     </>
+  );
+}
+
+function Funnel({ f }: { f: { window: string; gaps: string[]; steps: { event: string; label: string; count: number }[] } }) {
+  const top = Math.max(1, ...f.steps.map(s => s.count));
+  return (
+    <section className="section card" aria-labelledby="funnel">
+      <header className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}><h3 id="funnel">Online booking funnel</h3><span className="small muted">{f.window}, all traffic, from GA4</span></header>
+      <div className="stack">{f.steps.map((s, i) => {
+        const prev = i ? f.steps[i - 1]!.count : null;
+        return (
+          <div key={s.event} className="row" style={{ flexWrap: 'nowrap', gap: 10 }}>
+            <div style={{ flex: '0 1 46%', minWidth: 0 }} className="small">{s.label}</div>
+            <div style={{ flex: 1, minWidth: 0 }}><div className="bar" style={{ width: '100%', height: 10 }}><span style={{ width: `${(s.count / top) * 100}%` }} /></div></div>
+            <b className="mono" style={{ minWidth: 44, textAlign: 'right' }}>{s.count}</b>
+            <span className="tiny muted" style={{ minWidth: 48, textAlign: 'right' }}>{prev ? `${Math.round((s.count / prev) * 100)}%` : ''}</span>
+          </div>
+        );
+      })}</div>
+      <p className="tiny muted">Each step is counted separately by GA4 (events, not unique people), so percentages are approximate. “Booked” counts online widget reservations only; phone bookings and cancellations are not here.{f.gaps.length ? ` GA4 recorded nothing on ${f.gaps.join(', ')}: those days are treated as missing, not as zero.` : ''}</p>
+    </section>
   );
 }
 

@@ -5,7 +5,7 @@ import { addDays, dateRange, localDate, weekdayOf, type LocalDate } from '../dom
 import { minor, micros, microsToMinor } from '../domain/money.ts';
 import { revenueRoas, contributionAfterAds, contributionRoas, costPerCompletedVisit, costPerConfirmedBooking, delta, occupancy, type AttributedTotals, type Metric, type Delta } from '../domain/metrics.ts';
 import { assumptionFor, bookingValue, type CostAssumption, type Product, PRODUCTS } from '../domain/measurement.ts';
-import { isGoogleAds } from '../connectors/ga4.ts';
+import { isGoogleAds, RESERVATION_EVENT, FUNNEL } from '../connectors/ga4.ts';
 import { resolveCapacity, summarizeDays, type Slot, type Reservation, type DayProductSummary } from '../domain/capacity.ts';
 
 export const ATTRIBUTION_METHOD = 'Booking system source field = Google Ads paid search (last touch as reported by OpenTable); click date approximated by booking date';
@@ -42,7 +42,7 @@ export async function loadRaw(i: FactsInput) {
     i.db.prepare('SELECT * FROM action_ledger_projection WHERE at >= ? ORDER BY at').bind(i.now - days * 864e5).all<Record<string, unknown>>(),
   ]);
   // Online reservations from GA4 (OpenTable widget event). Daily aggregates by session source / medium / campaign.
-  const ga4 = (await i.db.prepare('SELECT date, source, medium, campaign, events FROM ga4_reservations_daily WHERE date >= ?').bind(from).all<{ date: string; source: string; medium: string; campaign: string; events: number }>().catch(() => ({ results: [] as { date: string; source: string; medium: string; campaign: string; events: number }[] }))).results;
+  const ga4 = (await i.db.prepare('SELECT date, event_name, source, medium, campaign, events FROM ga4_reservations_daily WHERE date >= ?').bind(from).all<{ date: string; event_name: string; source: string; medium: string; campaign: string; events: number }>().catch(() => ({ results: [] as { date: string; event_name: string; source: string; medium: string; campaign: string; events: number }[] }))).results;
   return { today, from, ga4, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
 }
 export type Raw = Awaited<ReturnType<typeof loadRaw>>;
@@ -150,14 +150,20 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   const NB = 'No booking source connected yet (OpenTable reservation data is partner-only; requested through the account manager)';
   // GA4 online reservations: used for booking counts only while no booking-level source exists.
   const ga4All = new Map<string, number>(), ga4Ads = new Map<string, number>();
+  const ga4Days = new Set(raw.ga4.map(r => r.date)); // days GA4 recorded any booking-flow event: a day with none is a GA4 gap, not zero bookings
   for (const r of raw.ga4) {
+    if (r.event_name !== RESERVATION_EVENT) continue;
     ga4All.set(r.date, (ga4All.get(r.date) ?? 0) + r.events);
     if (isGoogleAds(r.source, r.medium)) ga4Ads.set(r.date, (ga4Ads.get(r.date) ?? 0) + r.events);
   }
   const haveGa4 = noBookings && raw.ga4.length > 0;
-  const ga4Days = new Set(raw.ga4.map(r => r.date));
   const firstGa4 = [...ga4Days].sort()[0] ?? null;
-  const ga4On = (m: Map<string, number>, d: LocalDate): number | null => (firstGa4 !== null && d >= firstGa4 ? m.get(d) ?? 0 : null);
+  const ga4On = (m: Map<string, number>, d: LocalDate): number | null => (firstGa4 !== null && d >= firstGa4 && ga4Days.has(d) ? m.get(d) ?? 0 : null);
+  /** Sum over the days GA4 recorded; gap days are excluded and listed. More than 7 missing days → unknown. */
+  const ga4Sum = (m: Map<string, number>, ds: LocalDate[]) => {
+    const known = ds.filter(d => ga4On(m, d) !== null), excluded = ds.filter(d => ga4On(m, d) === null);
+    return { value: excluded.length > 7 ? null : known.reduce((a, d) => a + (m.get(d) ?? 0), 0), known, excluded };
+  };
   const GA4_NOTE = 'Online reservations made through the OpenTable widget, counted by GA4 (event ot-reservation-made) on the day they were made. Phone and walk-in bookings are not included; later cancellations are not removed.';
   const contribMissing = noBookings ? NB : assumptions.some(a => a.approvedBy) ? undefined : 'Approved variable costs or margins per product are missing, so contribution cannot be measured';
   series.push(mk('contribution_after_ads', 'Attributed contribution after ad spend', 'money', 'acquisition', d => { const c = contributionOn(d), s = spendMinorOn(d); return c === null || s === null ? null : c - s; }, true, contribMissing));
@@ -209,15 +215,17 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   const tickers: Ticker[] = [
     { key: 'completed_guests', label: 'Completed guests', metric: noBookings ? unknownCount('completed_guests', 'Guests marked attended') : countMetric('completed_guests', 'Guests marked attended (service date, all channels)', guestsCur, 'observed', false), delta: delta(noBookings ? null : guestsCur, noBookings ? null : guestsPrev, w, false), spark: noBookings ? [] : sparkOf('completed_guests'), window: w },
     haveGa4 ? (() => {
-      const sum = (ds: LocalDate[]) => (ds.some(d => ga4On(ga4All, d) === null) ? null : ds.reduce((a, d) => a + (ga4All.get(d) ?? 0), 0));
-      const c = sum(cur), p = sum(prev);
-      return { key: 'confirmed_bookings', label: 'Online reservations', metric: { key: 'online_reservations', value: c, unit: 'count' as const, numerator: { label: 'OpenTable widget reservations counted by GA4', value: c }, basis: 'observed' as const, provisional: false, reason: c === null ? 'GA4 history does not cover the whole window yet' : GA4_NOTE }, delta: delta(c, p, w, false), spark: sparkOf('online_reservations'), window: w };
+      const c = ga4Sum(ga4All, cur), p = ga4Sum(ga4All, prev);
+      return { key: 'confirmed_bookings', label: 'Online reservations', metric: { key: 'online_reservations', value: c.value, unit: 'count' as const, numerator: { label: 'OpenTable widget reservations counted by GA4', value: c.value }, basis: 'observed' as const, provisional: false, reason: c.value === null ? 'GA4 is missing more than 7 days of this window' : `${GA4_NOTE}${c.excluded.length ? ` Excludes ${c.excluded.length} day(s) GA4 recorded nothing: ${c.excluded.join(', ')}.` : ''}` }, delta: delta(c.value, p.value, w, false), spark: sparkOf('online_reservations'), window: w };
     })() : { key: 'confirmed_bookings', label: 'Confirmed bookings', metric: noBookings ? unknownCount('confirmed_bookings', 'Bookings created and not cancelled') : countMetric('confirmed_bookings', 'Bookings created and not cancelled (all channels)', bookCur, 'observed', false), delta: delta(noBookings ? null : bookCur, noBookings ? null : bookPrev, w, false), spark: noBookings ? [] : sparkOf('confirmed_bookings'), window: w },
     { key: 'ad_spend', label: 'Ad spend (Google)', metric: { key: 'ad_spend', value: spendCur, unit: 'money', currency, numerator: { label: 'Google Ads cost, all campaigns', value: spendCur }, basis: 'observed', provisional: false, ...(spendCur === null ? { reason: 'Spend missing for some days' } : {}) }, delta: delta(spendCur, spendPrev, w, false), spark: sparkOf('ad_spend'), window: w },
     ...(haveGa4 ? [(() => {
-      const ads = (ds: LocalDate[]) => (ds.some(d => ga4On(ga4Ads, d) === null) ? null : ds.reduce((a, d) => a + (ga4Ads.get(d) ?? 0), 0));
+      // Spend over exactly the days GA4 recorded, so both sides of the ratio cover the same days.
+      const spendOn = (ds: LocalDate[]) => (ds.every(d => spendDays.has(d)) ? ds.reduce((a, d) => a + (spendMinorOn(d) ?? 0), 0) : null);
       const cpr = (sp: number | null, n: number | null): number | null => (sp === null || !n ? null : Math.round(sp / n));
-      const nCur = ads(cur), nPrev = ads(prev), vCur = cpr(spendCur, nCur), vPrev = cpr(spendPrev, nPrev);
+      const aCur = ga4Sum(ga4Ads, cur), aPrev = ga4Sum(ga4Ads, prev);
+      const nCur = aCur.value, nPrev = aPrev.value;
+      const vCur = cpr(spendOn(aCur.known), nCur), vPrev = cpr(spendOn(aPrev.known), nPrev);
       const m: Metric = { key: 'cost_per_online_reservation', value: vCur, unit: 'money', currency, numerator: { label: 'Google Ads cost, all campaigns', value: spendCur }, denominator: { label: 'Online reservations from Google Ads sessions (GA4, last session source google / cpc)', value: nCur }, basis: 'attributed', provisional: false,
         reason: vCur === null ? (nCur === 0 ? 'No reservations from Google Ads sessions in this window' : 'Spend or GA4 data missing for part of the window') : 'GA4 session attribution, online widget reservations only. Not proof the ads caused them.' };
       return { key: 'cost_per_online_reservation', label: 'Cost per online reservation (Google Ads)', metric: m, delta: delta(vCur, vPrev, w, false), spark: [], window: w } as Ticker;
@@ -252,6 +260,11 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
 
   return {
     today, cutoff: end, window: { from: cur[0], to: cur[27], prevFrom: prev[0], prevTo: prev[27] },
+    funnel: raw.ga4.length ? (() => {
+      const inCur = (d: string) => d >= cur[0]! && d <= cur[27]!;
+      const gaps = cur.filter(d => d >= (firstGa4 ?? d) && !ga4Days.has(d));
+      return { window: `${cur[0]} – ${cur[27]}`, gaps, steps: FUNNEL.map(f => ({ ...f, count: raw.ga4.filter(r => r.event_name === f.event && inCur(r.date)).reduce((a, r) => a + r.events, 0) })) };
+    })() : null,
     tickers, series, heroKey, markers, quality, capacity: cap, totals: { current: tCur, previous: tPrev },
     metrics: { contributionRoas: contributionRoas(tCur), costPerCompletedVisit: costPerCompletedVisit(tCur), costPerConfirmedBooking: costPerConfirmedBooking(tCur) },
     attributionMethod: ATTRIBUTION_METHOD,
