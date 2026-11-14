@@ -14,7 +14,7 @@ async function run(env: Env, event: WorkflowEvent<ReviewParams>, step: WorkflowS
     // snapshot, but a fresh snapshot would be a new review).
     review = await step.do('review and propose', { retries: { limit: 0, delay: '1 second' }, timeout: '4 minutes' }, () => reviewAndPropose(env, p, Date.now()));
   } catch (e) {
-    review = { summary: `Model review failed: ${(e as Error).message}`, submitted: 0, executed: [], usage: { in: 0, out: 0, cost: 0 } };
+    review = { summary: `La revisión del modelo falló: ${(e as Error).message}`, submitted: 0, executed: [], usage: { in: 0, out: 0, cost: 0 } };
   }
   await step.do('finish', () => finishJob(env.DB, p.runKey, 'succeeded', JSON.stringify({ report: report.reportId, narrative: report.narrativeSource, review: review.summary.slice(0, 300), submitted: review.submitted, executed: review.executed }),
     { in: report.usage.in + review.usage.in, out: report.usage.out + review.usage.out, cost: report.usage.cost + review.usage.cost }));

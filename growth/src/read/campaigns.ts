@@ -21,15 +21,15 @@ export interface CampaignsView { window: { from: LocalDate; to: LocalDate }; tra
 /** Where an online reservation's session came from, in plain groups. */
 export function sourceGroup(source: string, medium: string): string {
   if (isGoogleAds(source, medium)) return 'Google Ads';
-  if (isMetaAds(source, medium)) return 'Meta ads (tagged)';
-  if (/dosbuhos\.com/i.test(source)) return 'Lost source (dosbuhos.com referral)';
-  if (/^\(not set\)$|^\(data not available\)$|^$/i.test(source)) return 'Not set';
-  if (/^\(direct\)$/i.test(source)) return 'Direct';
-  if (/organic/i.test(medium)) return 'Search (organic)';
-  if (/(facebook|instagram|^ig$|^fb$)/i.test(source)) return 'Facebook / Instagram (organic or untagged ads)';
+  if (isMetaAds(source, medium)) return 'Anuncios de Meta (etiquetados)';
+  if (/dosbuhos\.com/i.test(source)) return 'Fuente perdida (referencia de dosbuhos.com)';
+  if (/^\(not set\)$|^\(data not available\)$|^$/i.test(source)) return 'Sin definir';
+  if (/^\(direct\)$/i.test(source)) return 'Directo';
+  if (/organic/i.test(medium)) return 'Búsqueda (orgánica)';
+  if (/(facebook|instagram|^ig$|^fb$)/i.test(source)) return 'Facebook / Instagram (orgánico o anuncios sin etiqueta)';
   if (/opentable/i.test(source)) return 'OpenTable';
-  if (/ai-assistant/i.test(medium)) return 'AI assistants';
-  return 'Other referrals';
+  if (/ai-assistant/i.test(medium)) return 'Asistentes de IA';
+  return 'Otras referencias';
 }
 
 export async function loadCampaigns(db: D1Database, now: number, tz: string, currency: string): Promise<CampaignsView> {
@@ -60,11 +60,11 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
     const trackedSpend = haveGa4 ? trackedBy.get(key(accountId, String(r.external_id))) ?? 0 : null;
     const name = String(r.name);
     let reservations: number | null = null, opened: number | null = null, note = '';
-    if (!haveGa4) note = 'GA4 is not connected, so reservations per campaign are unknown.';
-    else if (provider === 'meta_ads') note = 'Meta ads tag visits by campaign ID, not name, so reservations cannot be matched per Meta campaign yet.';
+    if (!haveGa4) note = 'GA4 no está conectado, así que no se conocen las reservaciones por campaña.';
+    else if (provider === 'meta_ads') note = 'Los anuncios de Meta marcan las visitas con el ID de campaña, no con el nombre, así que todavía no se pueden asignar reservaciones a cada campaña de Meta.';
     else { reservations = googleEvents(name, RESERVATION_EVENT); opened = googleEvents(name, 'ot-availability-pageview'); }
     const cpr = reservations && trackedSpend !== null ? Math.round(trackedSpend / 10_000 / reservations) : null;
-    if (provider === 'google_ads' && haveGa4 && reservations === 0) note = trackedSpend ? 'No online reservations credited to this campaign by GA4 since tracking began.' : 'No spend and no reservations since tracking began.';
+    if (provider === 'google_ads' && haveGa4 && reservations === 0) note = trackedSpend ? 'GA4 no le ha atribuido reservaciones en línea a esta campaña desde que empezó el seguimiento.' : 'Sin gasto y sin reservaciones desde que empezó el seguimiento.';
     return {
       ref: String(r.ref), provider, name, status: String(r.status), channel: String(r.channel), products: JSON.parse(String(r.products_json ?? '[]')),
       budgetMicros: r.budget_micros === null ? null : Number(r.budget_micros), managedBy: String(r.managed_by), writable: r.writable === 1,

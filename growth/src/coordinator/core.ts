@@ -64,7 +64,7 @@ export class CoordinatorCore {
   constructor(private readonly sql: SqlStore, opts: CoreOptions) {
     // Demo and dev can only ever hold the mock provider; staging/production can never hold it.
     const mockEnv = opts.environment === 'dev' || opts.environment === 'demo';
-    if (mockEnv !== (opts.provider.kind === 'mock')) throw new CoordinatorError('provider_environment_mismatch', `Provider ${opts.provider.kind} is not allowed in ${opts.environment}`);
+    if (mockEnv !== (opts.provider.kind === 'mock')) throw new CoordinatorError('provider_environment_mismatch', `El proveedor ${opts.provider.kind} no se permite en ${opts.environment}`);
     this.provider = opts.provider;
     this.now = opts.now ?? Date.now;
     for (const q of COORDINATOR_SCHEMA) this.sql.run(q);
@@ -76,7 +76,7 @@ export class CoordinatorCore {
 
   initialize(accountId: string, initialMode: Mode, actor: string): void {
     const existing = this.get('account_id');
-    if (existing && existing !== accountId) throw new CoordinatorError('account_mismatch', 'This coordinator is bound to another account');
+    if (existing && existing !== accountId) throw new CoordinatorError('account_mismatch', 'Este coordinador está ligado a otra cuenta');
     if (existing) return;
     if (initialMode === 'DEMO' && this.provider.kind !== 'mock') throw new CoordinatorError('demo_requires_mock', 'DEMO mode requires the mock provider');
     this.sql.tx(() => {
@@ -90,7 +90,7 @@ export class CoordinatorCore {
     });
   }
 
-  private accountId(): string { const a = this.get('account_id'); if (!a) throw new CoordinatorError('not_initialized', 'Coordinator is not initialized'); return a; }
+  private accountId(): string { const a = this.get('account_id'); if (!a) throw new CoordinatorError('not_initialized', 'El coordinador no está inicializado'); return a; }
   mode(): Mode { return (this.get('mode') ?? 'OBSERVE') as Mode; }
   policyVersion(): number { return Number(this.get('policy_version') ?? 1); }
   policy(): PolicyConfig {
@@ -115,7 +115,7 @@ export class CoordinatorCore {
 
   setPolicy(next: unknown, actor: string): number {
     const parsed = PolicyConfig.parse(next);
-    if (parsed.mode !== this.mode()) throw new CoordinatorError('mode_via_policy', 'Change the mode with the mode control, not by editing policy');
+    if (parsed.mode !== this.mode()) throw new CoordinatorError('mode_via_policy', 'Cambia el modo con el control de modo, no editando la política');
     const v = this.policyVersion() + 1;
     this.sql.tx(() => {
       this.sql.run('INSERT INTO policy_versions (version, json, created_at, created_by) VALUES (?, ?, ?, ?)', v, JSON.stringify(parsed), this.now(), actor);
@@ -126,7 +126,7 @@ export class CoordinatorCore {
   }
 
   setBaseline(micros: number, actor: string): void {
-    if (!Number.isSafeInteger(micros) || micros <= 0) throw new CoordinatorError('bad_baseline', 'Baseline must be a positive integer number of micros');
+    if (!Number.isSafeInteger(micros) || micros <= 0) throw new CoordinatorError('bad_baseline', 'La base debe ser un número entero positivo de micros');
     this.sql.tx(() => { this.put('baseline_aggregate_micros', String(micros)); this.audit('baseline_set', actor, { micros }); });
   }
 
@@ -134,19 +134,19 @@ export class CoordinatorCore {
    *  the exact policy version they previewed. */
   setMode(mode: Mode, actor: string, confirm?: { policyVersion: number }): void {
     const s = this.state();
-    if (s.restoredLocked) throw new CoordinatorError('restored_locked', 'Storage was restored; reconcile live state first');
-    if (mode === 'DEMO' && this.provider.kind !== 'mock') throw new CoordinatorError('demo_requires_mock', 'DEMO mode only exists with the mock provider');
+    if (s.restoredLocked) throw new CoordinatorError('restored_locked', 'Se restauró el almacenamiento; primero concilia el estado real');
+    if (mode === 'DEMO' && this.provider.kind !== 'mock') throw new CoordinatorError('demo_requires_mock', 'El modo Demo solo existe con el proveedor simulado');
     if (mode === 'LIMITED_AUTO') {
       const p = s.policy;
       const missing: string[] = [];
-      if (p.monthlyAdSpendCeilingNative === null) missing.push('monthly ad spend ceiling');
-      if (p.ceilingCoversWholeAccount === null) missing.push('whether the ceiling covers the whole account');
-      if (p.minimumAcceptableContributionReturn === null) missing.push('minimum contribution return');
-      if (!p.approvedCampaignIds.length) missing.push('approved campaigns');
-      if (p.protectiveStopPctOfCeiling === null) missing.push('protective stop threshold');
-      if (s.baselineAggregateMicros === null) missing.push('aggregate budget baseline');
-      if (missing.length) throw new CoordinatorError('policy_incomplete', `Cannot enable LIMITED_AUTO: set ${missing.join(', ')}`);
-      if (!confirm || confirm.policyVersion !== s.policyVersion) throw new CoordinatorError('confirm_policy', 'Confirm the exact policy version shown in the preview');
+      if (p.monthlyAdSpendCeilingNative === null) missing.push('tope mensual de gasto en anuncios');
+      if (p.ceilingCoversWholeAccount === null) missing.push('si el tope cubre toda la cuenta');
+      if (p.minimumAcceptableContributionReturn === null) missing.push('retorno mínimo de contribución');
+      if (!p.approvedCampaignIds.length) missing.push('campañas aprobadas');
+      if (p.protectiveStopPctOfCeiling === null) missing.push('umbral del paro de protección');
+      if (s.baselineAggregateMicros === null) missing.push('base del presupuesto total');
+      if (missing.length) throw new CoordinatorError('policy_incomplete', `No se puede activar Automático limitado: define ${missing.join(', ')}`);
+      if (!confirm || confirm.policyVersion !== s.policyVersion) throw new CoordinatorError('confirm_policy', 'Confirma la versión exacta de la política que se muestra en la vista previa');
     }
     this.sql.tx(() => {
       this.put('mode', mode);
@@ -156,7 +156,7 @@ export class CoordinatorCore {
   }
 
   setEmergencyLock(on: boolean, actor: string): void {
-    if (!on && this.get('restored_locked') === '1') throw new CoordinatorError('restored_locked', 'Storage was restored; reconcile live state first');
+    if (!on && this.get('restored_locked') === '1') throw new CoordinatorError('restored_locked', 'Se restauró el almacenamiento; primero concilia el estado real');
     this.sql.tx(() => {
       this.put('emergency_lock', on ? '1' : '0');
       if (!on && this.mode() === 'EMERGENCY_LOCK') this.put('mode', 'PAUSED'); // unlocking lands in PAUSED, never straight into automation
@@ -168,7 +168,7 @@ export class CoordinatorCore {
   setAiStopped(on: boolean, actor: string): void {
     this.sql.tx(() => {
       this.put('ai_stopped', on ? '1' : '0');
-      if (on) for (const a of this.sql.all<ActionRow>("SELECT * FROM actions WHERE actor = 'model' AND state IN ('APPROVAL_REQUIRED','APPROVED')")) this.transition(a, 'REJECTED', { reason: 'AI changes stopped by owner' });
+      if (on) for (const a of this.sql.all<ActionRow>("SELECT * FROM actions WHERE actor = 'model' AND state IN ('APPROVAL_REQUIRED','APPROVED')")) this.transition(a, 'REJECTED', { reason: 'El dueño detuvo los cambios de la IA' });
       this.audit(on ? 'ai_stopped' : 'ai_resumed', actor, {});
     });
   }
@@ -220,7 +220,7 @@ export class CoordinatorCore {
 
   /** Submit a validated intent. Returns the existing action for a duplicate submission (same canonical intent). */
   async propose(intent: ActionIntent, actor: Actor, context: ContextSource): Promise<{ action: ActionRow; decision: PolicyDecision; duplicate: boolean }> {
-    if (intent.accountId !== this.accountId()) throw new CoordinatorError('account_mismatch', 'Intent is for another account');
+    if (intent.accountId !== this.accountId()) throw new CoordinatorError('account_mismatch', 'La propuesta es para otra cuenta');
     const idem = await sha256(canonical({ accountId: intent.accountId, operations: intent.operations, snapshotId: intent.snapshotId }));
     const existing = one(this.sql.all<ActionRow>('SELECT * FROM actions WHERE idem_key = ?', idem));
     if (existing) return { action: existing, decision: JSON.parse(existing.decision) as PolicyDecision, duplicate: true };
@@ -247,11 +247,11 @@ export class CoordinatorCore {
   /** Owner approval bound to the exact action, operations and policy version the owner saw. */
   approve(id: string, approvalHash: string, approver: string): ActionRow {
     const a = this.action(id);
-    if (!a) throw new CoordinatorError('not_found', 'No such action');
-    if (a.state !== 'APPROVAL_REQUIRED') throw new CoordinatorError('bad_state', `Action is ${a.state}`);
-    if (a.approval_hash !== approvalHash) throw new CoordinatorError('approval_mismatch', 'Approval does not match this action');
-    if (a.policy_version !== this.policyVersion()) throw new CoordinatorError('policy_changed', 'Policy changed since this was proposed; re-propose');
-    if (this.now() > a.expires_at) { this.sql.tx(() => this.transition(a, 'EXPIRED', {})); throw new CoordinatorError('expired', 'Proposal expired'); }
+    if (!a) throw new CoordinatorError('not_found', 'No existe esa acción');
+    if (a.state !== 'APPROVAL_REQUIRED') throw new CoordinatorError('bad_state', `La acción está en ${a.state}`);
+    if (a.approval_hash !== approvalHash) throw new CoordinatorError('approval_mismatch', 'La aprobación no coincide con esta acción');
+    if (a.policy_version !== this.policyVersion()) throw new CoordinatorError('policy_changed', 'La política cambió desde que se propuso; vuelve a proponer');
+    if (this.now() > a.expires_at) { this.sql.tx(() => this.transition(a, 'EXPIRED', {})); throw new CoordinatorError('expired', 'La propuesta venció'); }
     this.sql.tx(() => {
       this.sql.run('UPDATE actions SET approved_by = ?, approved_at = ? WHERE id = ?', approver, this.now(), id);
       this.transition({ ...a, approved_by: approver }, 'APPROVED', { approver });
@@ -300,19 +300,19 @@ export class CoordinatorCore {
     const s = this.state();
     const intent = JSON.parse(a.intent) as ActionIntent;
     const protective = intent.actionType === 'pause_campaign' && a.actor !== 'model';
-    if (s.emergencyLock && !protective) throw new CoordinatorError('emergency_lock', 'Emergency lock is on');
-    if (s.restoredLocked && !protective) throw new CoordinatorError('restored_locked', 'Restored storage; reconcile first');
+    if (s.emergencyLock && !protective) throw new CoordinatorError('emergency_lock', 'El bloqueo de emergencia está activo');
+    if (s.restoredLocked && !protective) throw new CoordinatorError('restored_locked', 'Almacenamiento restaurado; primero concilia');
     if (a.actor === 'model' && s.aiStopped) throw new CoordinatorError('ai_stopped', 'AI changes are stopped');
     // Only DEMO (mock provider, enforced in the constructor) and LIMITED_AUTO execute. OBSERVE, SHADOW, PAUSED and
     // EMERGENCY_LOCK refuse every optimization write, owner-approved or not; protective pauses are always allowed.
-    if (!protective && s.mode !== 'DEMO' && s.mode !== 'LIMITED_AUTO') throw new CoordinatorError('mode', `Mode ${s.mode} does not allow execution`);
+    if (!protective && s.mode !== 'DEMO' && s.mode !== 'LIMITED_AUTO') throw new CoordinatorError('mode', `El modo ${s.mode} no permite ejecutar`);
   }
 
   /** Execute an APPROVED action by ID. Nothing else can be executed: there is no free-form execution input. */
   async execute(id: string, context: ContextSource): Promise<ActionRow> {
     let a = this.action(id);
-    if (!a) throw new CoordinatorError('not_found', 'No such action');
-    if (a.state !== 'APPROVED') throw new CoordinatorError('bad_state', `Action is ${a.state}, not APPROVED`);
+    if (!a) throw new CoordinatorError('not_found', 'No existe esa acción');
+    if (a.state !== 'APPROVED') throw new CoordinatorError('bad_state', `La acción está en ${a.state}, no en APPROVED`);
     if (this.now() > a.expires_at) { this.sql.tx(() => this.transition(a!, 'EXPIRED', {})); return this.action(id)!; }
     const intent = JSON.parse(a.intent) as ActionIntent;
     this.guardWrite(a);
@@ -322,8 +322,8 @@ export class CoordinatorCore {
     try {
       this.sql.tx(() => {
         for (const k of keys) {
-          if (this.sql.all('SELECT 1 FROM reservations WHERE resource_key = ?', k).length) throw new CoordinatorError('resource_busy', `${k} is reserved by another action`);
-          if (this.sql.all('SELECT 1 FROM suspensions WHERE resource_key = ?', k).length) throw new CoordinatorError('resource_suspended', `${k} is suspended pending reconciliation`);
+          if (this.sql.all('SELECT 1 FROM reservations WHERE resource_key = ?', k).length) throw new CoordinatorError('resource_busy', `${k} está reservado por otra acción`);
+          if (this.sql.all('SELECT 1 FROM suspensions WHERE resource_key = ?', k).length) throw new CoordinatorError('resource_suspended', `${k} está suspendido hasta conciliarlo`);
           this.sql.run('INSERT INTO reservations (resource_key, action_id, at) VALUES (?, ?, ?)', k, id, this.now());
         }
         this.transition(a!, 'PREPARING', { reserved: keys });
@@ -337,17 +337,17 @@ export class CoordinatorCore {
     // 2. Re-fetch live state, compare to the expected before-state, and re-evaluate policy with fresh numbers.
     let live: Record<string, unknown>;
     try { live = await this.readLive(intent.operations); }
-    catch (e) { return this.rejectPreparing(a, `Could not read live state: ${(e as Error).message}`); }
+    catch (e) { return this.rejectPreparing(a, `No se pudo leer el estado real: ${(e as Error).message}`); }
     const mismatch = intent.operations.map(CoordinatorCore.expectedBefore).filter(([k, v]) => live[k] !== v);
     if (mismatch.length) {
       for (const o of intent.operations) if (o.kind === 'set_budget' && typeof live[`budget:${o.budgetId}`] === 'number' && live[`budget:${o.budgetId}`] !== o.fromMicros)
         this.recordExternalBudgetChange({ budgetId: o.budgetId, at: this.now(), fromMicros: o.fromMicros, toMicros: live[`budget:${o.budgetId}`] as number });
-      return this.rejectPreparing(a, `Live state changed since the proposal (${mismatch.map(([k]) => k).join(', ')}); re-propose from fresh data`);
+      return this.rejectPreparing(a, `El estado real cambió desde la propuesta (${mismatch.map(([k]) => k).join(', ')}); vuelve a proponer con datos recientes`);
     }
     const ext = await context(intent);
     const decision = evaluatePolicy(intent, this.fullContext(intent, ext, a.actor, id));
     const authorized = decision.decision === 'authorized' || (decision.decision === 'approval_required' && !!a.approved_by && a.policy_version === this.policyVersion());
-    if (!authorized) return this.rejectPreparing(a, `Policy re-check: ${decision.reasons.join('; ') || decision.decision}`);
+    if (!authorized) return this.rejectPreparing(a, `Nueva revisión de la política: ${decision.reasons.join('; ') || decision.decision}`);
 
     // 3. Record the exact mutation intent, then send operations in order, re-checking the lock before each one.
     this.sql.tx(() => {
@@ -371,7 +371,7 @@ export class CoordinatorCore {
         // Verify each step before the next (a transfer reduces first, verifies, then increases).
         const [k, want] = CoordinatorCore.expectedAfter(o);
         const after = await this.readLive([o]);
-        if (after[k] !== want) { results[i] = { index: i, status: 'unknown', detail: 'Provider accepted but state does not show the change yet' }; break; }
+        if (after[k] !== want) { results[i] = { index: i, status: 'unknown', detail: 'El proveedor aceptó, pero el estado todavía no muestra el cambio' }; break; }
         results[i] = { index: i, status: 'applied' };
         if (o.kind === 'set_budget') this.sql.run('INSERT INTO budget_changes (budget_id, at, from_micros, to_micros, source, action_id) VALUES (?, ?, ?, ?, ?, ?)', o.budgetId, this.now(), o.fromMicros, o.toMicros, 'app', id);
       } catch (e) {
@@ -399,8 +399,8 @@ export class CoordinatorCore {
       this.sql.run('UPDATE actions SET op_results = ? WHERE id = ?', JSON.stringify(results), id);
       if (unknown) { this.transition(a, 'UNKNOWN_OUTCOME', { results }); return; } // reservation kept
       if (applied === results.length) { this.transition(a, 'APPLIED', { results }); this.transition({ ...a, state: 'APPLIED' }, 'VERIFIED', { results }); this.release(id); return; }
-      if (applied > 0) { this.transition(a, 'PARTIALLY_APPLIED', { results, note: 'Not restored automatically; no aggregate increase was left in place' }); this.release(id); return; }
-      this.transition(a, 'FAILED', { results, ...(failed ? {} : { note: 'Nothing was sent' }) }); this.release(id);
+      if (applied > 0) { this.transition(a, 'PARTIALLY_APPLIED', { results, note: 'No se restauró en automático; no quedó ningún aumento total aplicado' }); this.release(id); return; }
+      this.transition(a, 'FAILED', { results, ...(failed ? {} : { note: 'No se envió nada' }) }); this.release(id);
     });
     return this.action(id)!;
   }
@@ -408,18 +408,18 @@ export class CoordinatorCore {
   /** Resolve UNKNOWN_OUTCOME (or re-check APPLIED) by reading the provider. Never re-sends a mutation. */
   async reconcile(id: string): Promise<ActionRow> {
     let a = this.action(id);
-    if (!a) throw new CoordinatorError('not_found', 'No such action');
+    if (!a) throw new CoordinatorError('not_found', 'No existe esa acción');
     if (!['UNKNOWN_OUTCOME', 'APPLIED', 'RECONCILING'].includes(a.state)) return a;
     if (a.state !== 'RECONCILING') { this.sql.tx(() => this.transition(a!, 'RECONCILING', {})); a = this.action(id)!; }
     const intent = JSON.parse(a.intent) as ActionIntent;
     let live: Record<string, unknown>;
     try { live = await this.readLive(intent.operations); }
-    catch (e) { this.sql.tx(() => this.transition(a!, 'UNKNOWN_OUTCOME', { reason: `Reconcile read failed: ${(e as Error).message}` })); return this.action(id)!; }
+    catch (e) { this.sql.tx(() => this.transition(a!, 'UNKNOWN_OUTCOME', { reason: `Falló la lectura para conciliar: ${(e as Error).message}` })); return this.action(id)!; }
     const results: OpResult[] = intent.operations.map((o, i) => {
       const [k, after] = CoordinatorCore.expectedAfter(o), [, before] = CoordinatorCore.expectedBefore(o);
       if (live[k] === after) return { index: i, status: 'applied' };
-      if (live[k] === before) return { index: i, status: 'failed', detail: 'Not applied' };
-      return { index: i, status: 'unknown', detail: `Provider shows ${String(live[k])}: changed outside this app` };
+      if (live[k] === before) return { index: i, status: 'failed', detail: 'No se aplicó' };
+      return { index: i, status: 'unknown', detail: `El proveedor muestra ${String(live[k])}: se cambió fuera de esta app` };
     });
     const external = results.some(r => r.status === 'unknown');
     this.sql.tx(() => {
@@ -430,7 +430,7 @@ export class CoordinatorCore {
           this.sql.run('INSERT INTO budget_changes (budget_id, at, from_micros, to_micros, source, action_id) VALUES (?, ?, ?, ?, ?, ?)', o.budgetId, this.now(), o.fromMicros, o.toMicros, 'app', id);
       }
       if (external) {
-        for (const k of resourceKeys(intent.operations)) this.sql.run('INSERT OR REPLACE INTO suspensions (resource_key, reason, at) VALUES (?, ?, ?)', k, `External change detected while reconciling ${id}`, this.now());
+        for (const k of resourceKeys(intent.operations)) this.sql.run('INSERT OR REPLACE INTO suspensions (resource_key, reason, at) VALUES (?, ?, ?)', k, `Se detectó un cambio externo al conciliar ${id}`, this.now());
         this.transition(a!, 'FAILED', { results, externalChange: true }); this.release(id); return;
       }
       const applied = results.filter(r => r.status === 'applied').length;
@@ -445,20 +445,20 @@ export class CoordinatorCore {
   /** Conditional rollback: only if the provider still shows exactly what this app applied. */
   async compensate(id: string, actor: string): Promise<{ action: ActionRow; refused?: string }> {
     const a = this.action(id);
-    if (!a) throw new CoordinatorError('not_found', 'No such action');
-    if (!['VERIFIED', 'PARTIALLY_APPLIED', 'COMPENSATION_REQUIRED'].includes(a.state)) throw new CoordinatorError('bad_state', `Cannot compensate a ${a.state} action`);
-    if (this.state().emergencyLock) throw new CoordinatorError('emergency_lock', 'Emergency lock is on');
+    if (!a) throw new CoordinatorError('not_found', 'No existe esa acción');
+    if (!['VERIFIED', 'PARTIALLY_APPLIED', 'COMPENSATION_REQUIRED'].includes(a.state)) throw new CoordinatorError('bad_state', `No se puede revertir una acción en ${a.state}`);
+    if (this.state().emergencyLock) throw new CoordinatorError('emergency_lock', 'El bloqueo de emergencia está activo');
     const intent = JSON.parse(a.intent) as ActionIntent;
     const prev = JSON.parse(a.op_results) as OpResult[];
     const applied = intent.operations.map((o, i) => ({ o, i })).filter(({ i }) => prev[i]?.status === 'applied');
-    if (applied.some(({ o }) => o.kind === 'add_negative_exact')) return { action: a, refused: 'Removing a negative keyword is not supported automatically; remove it in Google Ads' };
-    if (applied.some(({ o }) => o.kind === 'pause_campaign')) return { action: a, refused: 'Resuming a paused campaign is a spend decision: use Resume in Controls, which re-checks authorization and budget' };
+    if (applied.some(({ o }) => o.kind === 'add_negative_exact')) return { action: a, refused: 'Quitar una palabra clave negativa no se puede hacer en automático; quítala en Google Ads' };
+    if (applied.some(({ o }) => o.kind === 'pause_campaign')) return { action: a, refused: 'Reanudar una campaña pausada es una decisión de gasto: usa Reanudar en Controles, que vuelve a revisar la autorización y el presupuesto' };
     if (a.state !== 'COMPENSATION_REQUIRED') this.sql.tx(() => this.transition(a, 'COMPENSATION_REQUIRED', { actor }));
     const live = await this.readLive(applied.map(x => x.o));
     const drift = applied.filter(({ o }) => { const [k, v] = CoordinatorCore.expectedAfter(o); return live[k] !== v; });
     if (drift.length) {
-      this.sql.tx(() => this.transition(this.action(id)!, a.state === 'PARTIALLY_APPLIED' ? 'PARTIALLY_APPLIED' : 'VERIFIED', { compensationRefused: 'Changed since this app applied it; not overwriting a later manual edit' }));
-      return { action: this.action(id)!, refused: 'The resource was changed after this app applied the action. Rollback would overwrite that change, so it was not attempted.' };
+      this.sql.tx(() => this.transition(this.action(id)!, a.state === 'PARTIALLY_APPLIED' ? 'PARTIALLY_APPLIED' : 'VERIFIED', { compensationRefused: 'Cambió desde que esta app lo aplicó; no se sobrescribe una edición manual posterior' }));
+      return { action: this.action(id)!, refused: 'El recurso se cambió después de que esta app aplicó la acción. Revertir sobrescribiría ese cambio, así que no se intentó.' };
     }
     // Undo in reverse order; for a transfer that means reducing the increased budget first.
     const acct = this.accountId();
@@ -469,7 +469,7 @@ export class CoordinatorCore {
       prev[i] = { index: i, status: 'compensated' };
       if (o.kind === 'set_budget') this.sql.run('INSERT INTO budget_changes (budget_id, at, from_micros, to_micros, source, action_id) VALUES (?, ?, ?, ?, ?, ?)', o.budgetId, this.now(), o.toMicros, o.fromMicros, 'app', id);
     }
-    this.sql.tx(() => { this.sql.run('UPDATE actions SET op_results = ? WHERE id = ?', JSON.stringify(prev), id); this.transition(this.action(id)!, 'COMPENSATED', { actor, limits: 'Spend already incurred, impressions served and any learning reset are not undone' }); });
+    this.sql.tx(() => { this.sql.run('UPDATE actions SET op_results = ? WHERE id = ?', JSON.stringify(prev), id); this.transition(this.action(id)!, 'COMPENSATED', { actor, limits: 'El gasto ya hecho, las impresiones ya mostradas y cualquier reinicio del aprendizaje no se deshacen' }); });
     return { action: this.action(id)! };
   }
 
@@ -482,17 +482,17 @@ export class CoordinatorCore {
       const intent: ActionIntent = {
         actionType: 'pause_campaign', accountId: snapshot.accountId, currency: snapshot.currency, resourceRef: r.ref, resourceLabel: r.label, campaignIds: [r.externalId],
         operations: [{ kind: 'pause_campaign', campaignId: r.externalId }], spendIncreasing: false, snapshotId: `${snapshot.snapshotId}:pause:${this.now()}`, evidenceRefs: [],
-        proposal: { schemaVersion: '1', snapshotId: snapshot.snapshotId, hypothesis: 'Owner requested protective pause of managed ads', actionType: 'pause_campaign', resourceRef: r.ref, parameters: {}, evidenceRefs: ['ev_owner_request'], expectedEffect: { metric: 'spend', direction: 'decrease', range: null }, risks: ['Stops bookings from this campaign'], alternative: 'Leave running', evaluationPlan: 'Owner decides when to resume', rollbackPlan: 'Re-enable in Controls after current authorization and budget checks' },
+        proposal: { schemaVersion: '1', snapshotId: snapshot.snapshotId, hypothesis: 'El dueño pidió pausar como protección los anuncios administrados', actionType: 'pause_campaign', resourceRef: r.ref, parameters: {}, evidenceRefs: ['ev_owner_request'], expectedEffect: { metric: 'spend', direction: 'decrease', range: null }, risks: ['Detiene las reservaciones de esta campaña'], alternative: 'Dejarla activa', evaluationPlan: 'El dueño decide cuándo reanudar', rollbackPlan: 'Reactivar en Controles después de las revisiones actuales de autorización y presupuesto' },
       };
       try {
         const live = await this.provider.readCampaignStatus(snapshot.accountId, [r.externalId]);
-        if (live[r.externalId] === 'PAUSED') { out.push({ campaignId: r.externalId, label: r.label, outcome: 'already paused' }); continue; }
+        if (live[r.externalId] === 'PAUSED') { out.push({ campaignId: r.externalId, label: r.label, outcome: 'ya estaba pausada' }); continue; }
         const { action } = await this.propose(intent, 'owner', context);
-        if (action.state !== 'APPROVED') { out.push({ campaignId: r.externalId, label: r.label, outcome: `not paused: ${action.state}`, actionId: action.id }); continue; }
+        if (action.state !== 'APPROVED') { out.push({ campaignId: r.externalId, label: r.label, outcome: `no se pausó: ${action.state}`, actionId: action.id }); continue; }
         const done = await this.execute(action.id, context);
-        out.push({ campaignId: r.externalId, label: r.label, outcome: done.state === 'VERIFIED' ? 'paused (verified)' : done.state === 'UNKNOWN_OUTCOME' ? 'unknown — check Google Ads directly' : `failed: ${done.state}`, actionId: action.id });
+        out.push({ campaignId: r.externalId, label: r.label, outcome: done.state === 'VERIFIED' ? 'pausada (verificada)' : done.state === 'UNKNOWN_OUTCOME' ? 'desconocido: revisa Google Ads directamente' : `falló: ${done.state}`, actionId: action.id });
       } catch (e) {
-        out.push({ campaignId: r.externalId, label: r.label, outcome: `failed: ${(e as Error).message}` });
+        out.push({ campaignId: r.externalId, label: r.label, outcome: `falló: ${(e as Error).message}` });
       }
     }
     this.sql.tx(() => this.audit('pause_managed_ads', actor, { results: out }));
@@ -570,8 +570,8 @@ export class CoordinatorCore {
       const a = this.action(id)!;
       if (a.state === 'EXECUTING' || a.state === 'PREPARING') {
         // Interrupted mid-flight (e.g. restored or crashed): its outcome is unknown until read.
-        if (a.state === 'PREPARING') { this.sql.tx(() => { this.transition(a, 'REJECTED', { reason: 'Interrupted before sending' }); this.release(id); }); continue; }
-        this.sql.tx(() => this.transition(a, 'UNKNOWN_OUTCOME', { reason: 'Interrupted while executing' }));
+        if (a.state === 'PREPARING') { this.sql.tx(() => { this.transition(a, 'REJECTED', { reason: 'Se interrumpió antes de enviar' }); this.release(id); }); continue; }
+        this.sql.tx(() => this.transition(a, 'UNKNOWN_OUTCOME', { reason: 'Se interrumpió durante la ejecución' }));
       }
       const r = await this.reconcile(id);
       if (r.state === 'UNKNOWN_OUTCOME') still++;

@@ -75,7 +75,7 @@ app.use('/api/*', async (c, next) => {
   }
   await next();
 });
-const need = (c: Context<H>, role: 'editor' | 'admin') => (can(c.get('user'), role) ? null : fail(c, 403, 'forbidden', `Needs ${role} role`));
+const need = (c: Context<H>, role: 'editor' | 'admin') => (can(c.get('user'), role) ? null : fail(c, 403, 'forbidden', `Necesitas el rol ${role}`));
 
 async function account(c: Context<H>) {
   const a = await defaultAccount(c.env.DB);
@@ -144,7 +144,7 @@ app.post('/api/capacity/slots', async c => {
 app.post('/api/capacity/confirm-day', async c => {
   const denied = need(c, 'editor'); if (denied) return denied;
   const b = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).safeParse(await c.req.json().catch(() => ({})));
-  if (!b.success) return fail(c, 400, 'bad_request', 'date required');
+  if (!b.success) return fail(c, 400, 'bad_request', 'Falta la fecha');
   const r = await c.env.DB.prepare('UPDATE capacity_slots SET source_updated_at = ?, updated_by = ? WHERE date = ?').bind(Date.now(), c.get('user').email, b.data.date).run();
   return json(c, { ok: true, slots: r.meta.changes });
 });
@@ -177,9 +177,9 @@ app.post('/api/imports/opentable/preview', async c => {
 app.post('/api/imports/:id/commit', async c => {
   const denied = need(c, 'editor'); if (denied) return denied;
   const imp = await c.env.DB.prepare("SELECT * FROM imports WHERE id = ? AND status = 'previewed'").bind(c.req.param('id')).first<Record<string, string>>();
-  if (!imp) return fail(c, 404, 'not_found', 'No previewed import with that id');
+  if (!imp) return fail(c, 404, 'not_found', 'No hay una importación en vista previa con ese id');
   const obj = await c.env.ARCHIVE.get(imp.r2_key!);
-  if (!obj) return fail(c, 410, 'gone', 'Import file not found');
+  if (!obj) return fail(c, 410, 'gone', 'No se encontró el archivo de importación');
   const now = Date.now();
   const preview = previewOpenTable(await obj.text(), JSON.parse(imp.mapping_json!) as OpenTableMapping, c.env.WINERY_TZ, Number(imp.created_at));
   const stmts: D1PreparedStatement[] = [];
@@ -217,10 +217,10 @@ app.get('/api/activity', async c => {
 app.get('/api/reports', async c => json(c, { reports: (await c.env.DB.prepare('SELECT id, kind, period_from, period_to, cutoff_at, narrative, narrative_source, revision, created_at FROM reports ORDER BY created_at DESC LIMIT 60').all()).results }));
 app.get('/api/reports/:id', async c => {
   const r = await c.env.DB.prepare('SELECT * FROM reports WHERE id = ?').bind(c.req.param('id')).first<Record<string, string>>();
-  if (!r) return fail(c, 404, 'not_found', 'No such report');
+  if (!r) return fail(c, 404, 'not_found', 'No existe ese reporte');
   if (c.req.query('format') === 'csv') {
     const f = JSON.parse(r.facts_json!) as { headline: { label: string; display: string; change: string; basis: string; provisional: boolean }[] };
-    return new Response(toCsv(['metric', 'value', 'change', 'basis', 'provisional'], f.headline.map(h => [h.label, h.display, h.change, h.basis, h.provisional])), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${String(r.id).replace(/[^a-z0-9-]/gi, '_')}.csv"` } });
+    return new Response(toCsv(['métrica', 'valor', 'cambio', 'base', 'provisional'], f.headline.map(h => [h.label, h.display, h.change, h.basis, h.provisional])), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${String(r.id).replace(/[^a-z0-9-]/gi, '_')}.csv"` } });
   }
   return json(c, { ...r, facts: JSON.parse(r.facts_json!), dataQuality: JSON.parse(r.data_quality_json!) });
 });
@@ -236,7 +236,7 @@ app.get('/api/connections', async c => {
 
 app.post('/api/connections/google-ads-script/token', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  if (!c.env.FEED_TOKEN_PEPPER) return fail(c, 503, 'not_configured', 'Set the FEED_TOKEN_PEPPER secret first');
+  if (!c.env.FEED_TOKEN_PEPPER) return fail(c, 503, 'not_configured', 'Primero configura el secreto FEED_TOKEN_PEPPER');
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const token = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const now = Date.now();
@@ -245,7 +245,7 @@ app.post('/api/connections/google-ads-script/token', async c => {
     c.env.DB.prepare('INSERT INTO feed_tokens (id, connection_id, token_hash, created_by, created_at) VALUES (?, ?, ?, ?, ?)').bind(`ft_${crypto.randomUUID().slice(0, 12)}`, 'conn_google_ads_script', await sha256Hex(`${c.env.FEED_TOKEN_PEPPER}:${token}`), c.get('user').email, now),
     c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'feed_token_created', 'conn_google_ads_script'),
   ]);
-  return json(c, { token, note: 'Shown once. Paste it into the Google Ads Script; the previous token stops working now.' });
+  return json(c, { token, note: 'Se muestra una sola vez. Pégalo en el Google Ads Script; el token anterior deja de funcionar desde ahora.' });
 });
 
 // ---------- proposals and actions (IDs only — no free-form execution input) ----------
@@ -254,8 +254,8 @@ const ApproveBody = z.object({ approvalHash: z.string().regex(/^[0-9a-f]{64}$/) 
 app.post('/api/proposals/:id/approve', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const b = ApproveBody.safeParse(await c.req.json().catch(() => ({})));
-  if (!b.success) return fail(c, 400, 'bad_request', 'approvalHash required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  if (!b.success) return fail(c, 400, 'bad_request', 'Falta approvalHash');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   try {
     await a.stub.approve(c.req.param('id'), b.data.approvalHash, c.get('user').email);
     const ex = await a.stub.execute(c.req.param('id'));
@@ -264,12 +264,12 @@ app.post('/api/proposals/:id/approve', async c => {
 });
 app.post('/api/actions/:id/reconcile', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   try { return json(c, await a.stub.reconcile(c.req.param('id'))); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
 });
 app.post('/api/actions/:id/compensate', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   try { return json(c, await a.stub.compensate(c.req.param('id'), c.get('user').email)); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
 });
 
@@ -278,13 +278,13 @@ app.post('/api/actions/:id/compensate', async c => {
 app.post('/api/control/mode', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const b = z.object({ mode: Mode, policyVersion: z.number().int().optional() }).safeParse(await c.req.json().catch(() => ({})));
-  if (!b.success) return fail(c, 400, 'bad_request', 'mode required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  if (!b.success) return fail(c, 400, 'bad_request', 'Falta el modo');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   try { await a.stub.setMode(b.data.mode, c.get('user').email, b.data.policyVersion); return json(c, await a.stub.state()); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
 });
 app.post('/api/control/policy', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   const st = await a.stub.state();
   const b = PolicyConfig.safeParse({ ...(await c.req.json().catch(() => ({}))), mode: st.mode });
   if (!b.success) return fail(c, 400, 'bad_request', b.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
@@ -293,48 +293,48 @@ app.post('/api/control/policy', async c => {
 app.post('/api/control/baseline', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const b = z.object({ dailyBudgetNative: z.number().int().positive().max(10_000_000) }).safeParse(await c.req.json().catch(() => ({})));
-  if (!b.success) return fail(c, 400, 'bad_request', 'dailyBudgetNative (whole currency units) required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  if (!b.success) return fail(c, 400, 'bad_request', 'Falta dailyBudgetNative (en unidades enteras de la moneda)');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   await a.stub.setBaseline(b.data.dailyBudgetNative * 1_000_000, c.get('user').email);
   return json(c, await a.stub.state());
 });
 const Toggle = z.object({ on: z.boolean() });
 app.post('/api/control/stop-ai', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const b = Toggle.safeParse(await c.req.json().catch(() => ({}))); if (!b.success) return fail(c, 400, 'bad_request', 'on required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const b = Toggle.safeParse(await c.req.json().catch(() => ({}))); if (!b.success) return fail(c, 400, 'bad_request', 'Falta on');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   await a.stub.setAiStopped(b.data.on, c.get('user').email);
-  return json(c, { ...(await a.stub.state()), note: b.data.on ? 'AI changes stopped. Ads keep running — use “Pause managed ads” to stop spend.' : 'AI changes allowed again under the current policy.' });
+  return json(c, { ...(await a.stub.state()), note: b.data.on ? 'Cambios de la IA detenidos. Los anuncios siguen corriendo; usa “Pausar anuncios administrados” para detener el gasto.' : 'Cambios de la IA permitidos otra vez con la política actual.' });
 });
 app.post('/api/control/emergency-lock', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const b = Toggle.safeParse(await c.req.json().catch(() => ({}))); if (!b.success) return fail(c, 400, 'bad_request', 'on required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const b = Toggle.safeParse(await c.req.json().catch(() => ({}))); if (!b.success) return fail(c, 400, 'bad_request', 'Falta on');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   try { await a.stub.setEmergencyLock(b.data.on, c.get('user').email); return json(c, await a.stub.state()); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
 });
 app.post('/api/control/pause-managed-ads', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   const { snapshot } = await buildSnapshot(c.env.DB, a.id, Date.now(), c.env.WINERY_TZ, 0);
   const results = await a.stub.pauseManaged(snapshot.snapshotId, c.get('user').email);
-  return json(c, { results, note: 'Per-campaign results from the provider. Campaigns not on your approved list are never touched by the app.' });
+  return json(c, { results, note: 'Resultados por campaña según el proveedor. La app nunca toca las campañas que no están en tu lista aprobada.' });
 });
 app.post('/api/control/reconcile-all', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   return json(c, await a.stub.reconcileAll(c.get('user').email));
 });
 app.post('/api/control/clear-suspension', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const b = z.object({ resourceKey: z.string().max(120) }).safeParse(await c.req.json().catch(() => ({}))); if (!b.success) return fail(c, 400, 'bad_request', 'resourceKey required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const b = z.object({ resourceKey: z.string().max(120) }).safeParse(await c.req.json().catch(() => ({}))); if (!b.success) return fail(c, 400, 'bad_request', 'Falta resourceKey');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   await a.stub.clearSuspension(b.data.resourceKey, c.get('user').email);
   return json(c, await a.stub.state());
 });
 app.post('/api/control/sync-now', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const a = await defaultAccount(c.env.DB);
-  if (!c.env.HUB_DB || !a) return fail(c, 409, 'not_configured', 'No Google Ads source bound');
+  if (!c.env.HUB_DB || !a) return fail(c, 409, 'not_configured', 'No hay una fuente de Google Ads conectada');
   const ads = await mirrorFromHub(c.env.HUB_DB, c.env.DB, a.id, Date.now(), c.env.WINERY_TZ);
   let ga4: unknown = null;
   try { ga4 = await syncGa4IfConfigured(c.env, Date.now()); } catch (e) { ga4 = { error: (e as Error).message }; }
@@ -345,16 +345,16 @@ app.post('/api/control/sync-now', async c => {
 /** GA4: save the property ID (digits; not a secret, kept in D1 rather than the public repo) and run a first sync. */
 app.post('/api/connections/ga4', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const b = z.object({ propertyId: z.string().regex(/^\d{4,15}$/, 'GA4 property ID is digits only') }).safeParse(await c.req.json().catch(() => ({})));
-  if (!b.success) return fail(c, 400, 'bad_request', b.error.issues[0]?.message ?? 'propertyId required');
+  const b = z.object({ propertyId: z.string().regex(/^\d{4,15}$/, 'El ID de propiedad de GA4 solo lleva dígitos') }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_request', b.error.issues[0]?.message ?? 'Falta propertyId');
   const now = Date.now();
   await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE connections SET account_ref = ?, health = 'limited', health_reason = 'Property saved; waiting for the first sync', updated_at = ? WHERE id = 'conn_ga4'").bind(b.data.propertyId, now),
+    c.env.DB.prepare("UPDATE connections SET account_ref = ?, health = 'limited', health_reason = 'Propiedad guardada; esperando la primera sincronización', updated_at = ? WHERE id = 'conn_ga4'").bind(b.data.propertyId, now),
     c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource, detail_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'ga4_property_set', 'conn_ga4', JSON.stringify({ propertyId: b.data.propertyId })),
   ]);
-  if (!parseServiceAccount(c.env.GA4_SA_KEY)) return json(c, { saved: true, synced: false, message: 'Saved. Add the GA4_SA_KEY secret to the growth Worker, then press Sync now.' });
+  if (!parseServiceAccount(c.env.GA4_SA_KEY)) return json(c, { saved: true, synced: false, message: 'Guardado. Agrega el secreto GA4_SA_KEY al Worker de growth y luego presiona Sincronizar ahora.' });
   try { return json(c, { saved: true, synced: true, ...(await syncGa4IfConfigured(c.env, now)) }); }
-  catch (e) { return fail(c, 502, 'ga4_failed', `Saved, but GA4 refused: ${(e as Error).message}. Check that the service account is a Viewer on this property and the Analytics Data API is enabled.`); }
+  catch (e) { return fail(c, 502, 'ga4_failed', `Se guardó, pero GA4 lo rechazó: ${(e as Error).message}. Revisa que la cuenta de servicio tenga el rol Lector en esta propiedad y que la Analytics Data API esté habilitada.`); }
 });
 app.post('/api/control/run-report', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
@@ -364,7 +364,7 @@ app.post('/api/control/run-report', async c => {
 });
 app.get('/api/export/coordinator', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   const dump = await a.stub.exportAll();
   const key = `backups/coordinator/${a.id}/${new Date().toISOString()}.json`;
   await c.env.ARCHIVE.put(key, JSON.stringify(dump));
@@ -374,11 +374,11 @@ app.get('/api/export/coordinator', async c => {
 // ---------- demo only ----------
 
 app.post('/api/demo/simulate-external-edit', async c => {
-  if (c.env.DATA_KIND !== 'demo') return fail(c, 404, 'not_found', 'Not found');
+  if (c.env.DATA_KIND !== 'demo') return fail(c, 404, 'not_found', 'No encontrado');
   const denied = need(c, 'admin'); if (denied) return denied;
   const b = z.object({ budgetId: z.string().max(40), dailyBudgetNative: z.number().int().positive().max(100_000) }).safeParse(await c.req.json().catch(() => ({})));
-  if (!b.success) return fail(c, 400, 'bad_request', 'budgetId and dailyBudgetNative required');
-  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
+  if (!b.success) return fail(c, 400, 'bad_request', 'Faltan budgetId y dailyBudgetNative');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
   await a.stub.simulateExternalBudgetEdit(b.data.budgetId, b.data.dailyBudgetNative * 1_000_000);
   return json(c, { ok: true });
 });

@@ -8,11 +8,11 @@
 export const RESERVATION_EVENT = 'ot-reservation-made';
 /** Booking funnel, in order: the website's own booking-button click, then OpenTable widget steps, then the booking. */
 export const FUNNEL = [
-  { event: 'reserva_click', label: 'Clicked “Reservar” on dosbuhos.com' },
-  { event: 'ot-availability-pageview', label: 'Opened OpenTable availability' },
-  { event: 'ot-time-slot-selected', label: 'Picked a time' },
-  { event: 'ot-booking-details-pageview', label: 'Reached booking details' },
-  { event: RESERVATION_EVENT, label: 'Booked' },
+  { event: 'reserva_click', label: 'Dio clic en “Reservar” en dosbuhos.com' },
+  { event: 'ot-availability-pageview', label: 'Abrió la disponibilidad de OpenTable' },
+  { event: 'ot-time-slot-selected', label: 'Eligió un horario' },
+  { event: 'ot-booking-details-pageview', label: 'Llegó a los datos de la reservación' },
+  { event: RESERVATION_EVENT, label: 'Reservó' },
 ] as const;
 const SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -55,7 +55,7 @@ export async function accessToken(sa: ServiceAccount, now: number, fetchFn: type
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: await signJwt(sa, now) }),
   });
   const j = (await res.json().catch(() => ({}))) as { access_token?: string; expires_in?: number; error?: string; error_description?: string };
-  if (!res.ok || !j.access_token) throw new Ga4Error(res.status >= 500 ? 'transient' : 'auth', `Google sign-in failed: ${j.error ?? res.status} ${j.error_description ?? ''}`.trim());
+  if (!res.ok || !j.access_token) throw new Ga4Error(res.status >= 500 ? 'transient' : 'auth', `Falló el inicio de sesión con Google: ${j.error ?? res.status} ${j.error_description ?? ''}`.trim());
   cached = { email: sa.client_email, token: j.access_token, exp: now + (j.expires_in ?? 3600) * 1000 };
   return j.access_token;
 }
@@ -65,7 +65,7 @@ export interface Ga4Row { date: string; eventName: string; source: string; mediu
 /** Daily OpenTable widget events (ot-*) and the site's reserva_click, by session source / medium / campaign.
  *  Paginates; dates come back as YYYYMMDD. */
 export async function fetchReservations(sa: ServiceAccount, propertyId: string, from: string, to: string, now: number, fetchFn: typeof fetch = fetch): Promise<Ga4Row[]> {
-  if (!/^\d{4,15}$/.test(propertyId)) throw new Ga4Error('bad_request', 'GA4 property ID must be digits');
+  if (!/^\d{4,15}$/.test(propertyId)) throw new Ga4Error('bad_request', 'El ID de propiedad de GA4 debe tener solo dígitos');
   const token = await accessToken(sa, now, fetchFn);
   const out: Ga4Row[] = [];
   for (let offset = 0; offset < 200_000; offset += 10_000) {
@@ -85,7 +85,7 @@ export async function fetchReservations(sa: ServiceAccount, propertyId: string, 
     const j = (await res.json().catch(() => ({}))) as { rows?: { dimensionValues: { value: string }[]; metricValues: { value: string }[] }[]; rowCount?: number; error?: { status?: string; message?: string } };
     if (!res.ok) {
       const kind = res.status === 403 ? 'permission' : res.status === 404 ? 'not_found' : res.status === 401 ? 'auth' : res.status >= 500 || res.status === 429 ? 'transient' : 'bad_request';
-      throw new Ga4Error(kind, `GA4 ${res.status}: ${j.error?.message ?? 'request failed'}`.slice(0, 300));
+      throw new Ga4Error(kind, `GA4 ${res.status}: ${j.error?.message ?? 'la solicitud falló'}`.slice(0, 300));
     }
     for (const r of j.rows ?? []) {
       const [d, name, src, med, camp] = r.dimensionValues.map(v => v.value);
@@ -107,7 +107,7 @@ export async function syncGa4(db: D1Database, sa: ServiceAccount, propertyId: st
     for (const r of rows) stmts.push(db.prepare('INSERT OR REPLACE INTO ga4_reservations_daily (date, source, medium, campaign, event_name, events, value_micros, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(r.date, r.source, r.medium, r.campaign, r.eventName, r.events, r.valueMicros, now));
     stmts.push(db.prepare("UPDATE connections SET health = 'connected', health_reason = ?, last_success_at = ?, freshness_at = ?, last_error = NULL, updated_at = ? WHERE id = 'conn_ga4'")
-      .bind(`Reading "${RESERVATION_EVENT}" (OpenTable widget reservations) from GA4 property ${propertyId}`, now, now, now));
+      .bind(`Leyendo "${RESERVATION_EVENT}" (reservaciones del widget de OpenTable) de la propiedad de GA4 ${propertyId}`, now, now, now));
     await db.batch(stmts); // one batch = one transaction: the window is never half-replaced
     return { rows: rows.length, reservations: rows.filter(r => r.eventName === RESERVATION_EVENT).reduce((a, r) => a + r.events, 0) };
   } catch (e) {

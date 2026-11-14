@@ -74,8 +74,8 @@ export function resolveCapacity(input: {
     const stale = slot.sourceUpdatedAt !== null && !!rule && input.now - slot.sourceUpdatedAt > rule.maxAgeMinutes * 60_000;
     const base = { slotId: slot.slotId, product: slot.product, date: slot.date, startMin: slot.startMin, reservedGuests: reserved, stale };
     if (slot.state === 'closed') return { ...base, status: 'closed', sellableGuests: 0, remainingGuests: 0, bindingResource: null };
-    if (slot.state === 'blocked') return { ...base, status: 'blocked', sellableGuests: 0, remainingGuests: 0, bindingResource: null, reason: 'Blocked by staff' };
-    if (slot.sourceUpdatedAt === null) return { ...base, status: 'unknown', sellableGuests: null, remainingGuests: null, bindingResource: null, reason: 'Capacity never confirmed' };
+    if (slot.state === 'blocked') return { ...base, status: 'blocked', sellableGuests: 0, remainingGuests: 0, bindingResource: null, reason: 'Bloqueado por el personal' };
+    if (slot.sourceUpdatedAt === null) return { ...base, status: 'unknown', sellableGuests: null, remainingGuests: null, bindingResource: null, reason: 'Capacidad nunca confirmada' };
 
     const s0 = slot.startMin, s1 = slot.startMin + slot.durationMin + slot.bufferMin;
     let cap = slot.maxGuests ?? Number.POSITIVE_INFINITY;
@@ -104,11 +104,11 @@ export function resolveCapacity(input: {
       else capHere = reserved > 0 || free >= req.perSlot ? Number.POSITIVE_INFINITY : 0;
       if (capHere < cap) { cap = capHere; binding = res?.label ?? req.resourceId; }
     }
-    if (unknownResource) return { ...base, status: 'unknown', sellableGuests: null, remainingGuests: null, bindingResource: unknownResource, reason: `No availability entered for ${unknownResource}` };
-    if (!Number.isFinite(cap)) return { ...base, status: 'unknown', sellableGuests: null, remainingGuests: null, bindingResource: null, reason: 'No constraining resource or slot limit configured' };
+    if (unknownResource) return { ...base, status: 'unknown', sellableGuests: null, remainingGuests: null, bindingResource: unknownResource, reason: `No se capturó disponibilidad para ${unknownResource}` };
+    if (!Number.isFinite(cap)) return { ...base, status: 'unknown', sellableGuests: null, remainingGuests: null, bindingResource: null, reason: 'No hay un recurso limitante ni un límite del horario configurado' };
     const sellable = Math.max(0, Math.floor(cap));
     const remaining = Math.max(0, sellable - reserved);
-    return { ...base, status: remaining === 0 ? 'sold_out' : 'open', sellableGuests: sellable, remainingGuests: remaining, bindingResource: binding, ...(stale ? { reason: 'Capacity data is stale' } : {}) };
+    return { ...base, status: remaining === 0 ? 'sold_out' : 'open', sellableGuests: sellable, remainingGuests: remaining, bindingResource: binding, ...(stale ? { reason: 'Los datos de capacidad están desactualizados' } : {}) };
   });
 }
 
@@ -140,10 +140,10 @@ export function summarizeDays(slots: readonly ResolvedSlot[]): DayProductSummary
 /** Capacity may justify growth only for products the campaign books, inside its booking horizon, with fresh data. */
 export function capacitySupportsGrowth(days: readonly DayProductSummary[], products: readonly Product[], horizon: { from: LocalDate; to: LocalDate }): { ok: boolean; reason: string } {
   const rel = days.filter(d => products.includes(d.product) && d.date >= horizon.from && d.date <= horizon.to);
-  if (!rel.length) return { ok: false, reason: 'No capacity entered for the campaign’s products and booking horizon' };
-  if (rel.some(d => d.staleSlots > 0)) return { ok: false, reason: 'Capacity for the booking horizon is stale' };
-  if (rel.every(d => d.unknownSlots > 0 && d.sellable === 0)) return { ok: false, reason: 'Capacity is unknown for the booking horizon' };
+  if (!rel.length) return { ok: false, reason: 'No se capturó capacidad para los productos y el horizonte de reservación de la campaña' };
+  if (rel.some(d => d.staleSlots > 0)) return { ok: false, reason: 'La capacidad del horizonte de reservación está desactualizada' };
+  if (rel.every(d => d.unknownSlots > 0 && d.sellable === 0)) return { ok: false, reason: 'La capacidad del horizonte de reservación es desconocida' };
   const remaining = rel.reduce((n, d) => n + d.remaining, 0);
-  if (remaining === 0) return { ok: false, reason: 'Booking horizon is sold out' };
-  return { ok: true, reason: `${remaining} places open in the booking horizon` };
+  if (remaining === 0) return { ok: false, reason: 'El horizonte de reservación está agotado' };
+  return { ok: true, reason: `${remaining} lugares disponibles en el horizonte de reservación` };
 }

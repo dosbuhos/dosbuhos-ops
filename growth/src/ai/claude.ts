@@ -101,8 +101,8 @@ export async function runReview(opts: { apiKey: string; model: string; budget?: 
   };
 
   for (let turn = 0; turn < budget.maxToolCalls + 2; turn++) {
-    if (Date.now() - started > budget.maxWallMs) return { summary: 'Stopped: time budget reached', usage, submitted, stopReason: 'time_budget' };
-    if (usage.costMicroUsd > budget.maxCostMicroUsd) return { summary: 'Stopped: cost budget reached', usage, submitted, stopReason: 'cost_budget' };
+    if (Date.now() - started > budget.maxWallMs) return { summary: 'Detenido: se alcanzó el límite de tiempo', usage, submitted, stopReason: 'time_budget' };
+    if (usage.costMicroUsd > budget.maxCostMicroUsd) return { summary: 'Detenido: se alcanzó el límite de costo', usage, submitted, stopReason: 'cost_budget' };
     const res = await client.beta.messages.create({
       model: opts.model, max_tokens: budget.maxTokensPerCall, system: SYSTEM, messages,
       tools: [...READ_TOOLS, SUBMIT], tool_choice: { type: 'auto' },
@@ -111,12 +111,12 @@ export async function runReview(opts: { apiKey: string; model: string; budget?: 
     });
     usage.inputTokens += res.usage.input_tokens; usage.outputTokens += res.usage.output_tokens;
     usage.costMicroUsd += costMicroUsd(res.model, res.usage.input_tokens, res.usage.output_tokens);
-    if (res.stop_reason === 'refusal') return { summary: 'The model declined this review; no proposals were made.', usage, submitted, stopReason: 'refusal' };
+    if (res.stop_reason === 'refusal') return { summary: 'El modelo no quiso hacer esta revisión; no se hicieron propuestas.', usage, submitted, stopReason: 'refusal' };
     messages.push({ role: 'assistant', content: res.content });
     const calls = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use');
     if (res.stop_reason !== 'tool_use' || !calls.length) {
       const text = res.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text').map(b => b.text).join('\n').trim();
-      return { summary: text.slice(0, 2000) || 'No summary.', usage, submitted, stopReason: String(res.stop_reason) };
+      return { summary: text.slice(0, 2000) || 'Sin resumen.', usage, submitted, stopReason: String(res.stop_reason) };
     }
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     for (const c of calls) {
@@ -131,7 +131,7 @@ export async function runReview(opts: { apiKey: string; model: string; budget?: 
     }
     messages.push({ role: 'user', content: results });
   }
-  return { summary: 'Stopped: turn limit', usage, submitted, stopReason: 'turn_limit' };
+  return { summary: 'Detenido: se alcanzó el límite de turnos', usage, submitted, stopReason: 'turn_limit' };
 }
 
 /** Narrate a fixed fact payload. Returns null if the model fails or its text contains a number not in the facts. */
@@ -140,7 +140,7 @@ export async function narrate(opts: { apiKey: string; model: string; facts: Reco
     const client = makeClient(opts.apiKey);
     const res = await client.beta.messages.create({
       model: opts.model, max_tokens: 4000, output_config: { effort: 'low' }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default',
-      system: `Write a short owner report (${opts.language === 'es' ? 'Spanish' : 'English'}, under 180 words, plain sentences, no headings) from the JSON facts. Use only numbers that appear in "display" values, copied exactly. Do not compute new numbers, percentages or totals. If something got worse, say so plainly and name the likely checks; never turn a decline into good news. Distinguish observed from attributed. If data is missing, say it is missing, not zero.`,
+      system: `Write a short owner report (${opts.language === 'es' ? 'Mexican Spanish, informal "tú", "reservación" not "reserva"' : 'English'}, under 180 words, plain sentences, no headings) from the JSON facts. Use only numbers that appear in "display" values, copied exactly. Do not compute new numbers, percentages or totals. If something got worse, say so plainly and name the likely checks; never turn a decline into good news. Distinguish observed from attributed. If data is missing, say it is missing, not zero.`,
       messages: [{ role: 'user', content: JSON.stringify(opts.facts) }],
     });
     if (res.stop_reason === 'refusal') return null;

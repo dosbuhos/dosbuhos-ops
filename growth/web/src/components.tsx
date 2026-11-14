@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers, type IChartApi, type Time } from 'lightweight-charts';
-import { metricValue, deltaText, money, int, ratio, dayLabel, stateLabel, STATE_CLS } from './format';
+import { metricValue, deltaText, money, int, ratio, dayLabel, stateLabel, basisLabel, STATE_CLS } from './format';
 
 /** Canvas needs a plain color: '#rrggbb' + alpha → rgba(). */
 const hexA = (hex: string, a: number) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16); return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; };
@@ -10,7 +10,7 @@ export interface Point { date: string; value: number | null; provisional: boolea
 /** Sparkline: a single series, so no legend; gaps where data is missing; dashed where provisional. */
 export function Sparkline({ points, label }: { points: Point[]; label: string }) {
   const vals = points.map(p => p.value).filter((v): v is number => v !== null);
-  if (vals.length < 2) return <div className="tiny muted">Not enough data for a trend</div>;
+  if (vals.length < 2) return <div className="tiny muted">No hay suficientes datos para una tendencia</div>;
   const min = Math.min(0, ...vals), max = Math.max(...vals, 0);
   const W = 200, H = 34, pad = 3;
   const x = (i: number) => pad + (i / (points.length - 1)) * (W - 2 * pad);
@@ -25,7 +25,7 @@ export function Sparkline({ points, label }: { points: Point[]; label: string })
   });
   if (cur.length > 1) segs.push({ d: cur.join(' '), prov: curProv });
   return (
-    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label}: last ${points.length} days`}>
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label}: últimos ${points.length} días`}>
       {min < 0 && <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="var(--rule)" strokeWidth={1} />}
       {segs.map((s, i) => <path key={i} d={s.d.startsWith('L') ? 'M' + s.d.slice(1) : s.d} fill="none" stroke="var(--s1)" strokeWidth={1.8} strokeDasharray={s.prov ? '3 3' : undefined} vectorEffect="non-scaling-stroke" strokeLinecap="round" />)}
     </svg>
@@ -38,17 +38,17 @@ export function TickerCard({ t, currency }: { t: any; currency: string }) {
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '■';
   return (
     <div className="card ticker">
-      <div className="label"><span>{t.label}</span>{m.provisional && <span className="chip prov" title="Recent cohorts are still maturing">provisional</span>}</div>
+      <div className="label"><span>{t.label}</span>{m.provisional && <span className="chip prov" title="Las cohortes recientes todavía están madurando">provisional</span>}</div>
       <div className={`value ${m.value === null ? 'unknown' : ''}`}>{metricValue(m, currency)}</div>
-      <div className={`delta ${dir}`}><span aria-hidden>{arrow}</span><span>{deltaText(d, m.unit, currency)}</span><span className="sr-only" style={{ position: 'absolute', left: -9999 }}>{dir === 'up' ? 'increase' : dir === 'down' ? 'decrease' : 'no change'}</span></div>
+      <div className={`delta ${dir}`}><span aria-hidden>{arrow}</span><span>{deltaText(d, m.unit, currency)}</span><span className="sr-only" style={{ position: 'absolute', left: -9999 }}>{dir === 'up' ? 'aumento' : dir === 'down' ? 'disminución' : 'sin cambio'}</span></div>
       {t.spark?.length > 0 && <Sparkline points={t.spark} label={t.label} />}
       <div className="window">{t.window}</div>
       <details className="why">
-        <summary>How this is calculated</summary>
+        <summary>Cómo se calcula</summary>
         <div className="stack" style={{ marginTop: 4 }}>
           <div><b>{m.numerator.label}</b>{m.numerator.value !== null ? `: ${fmtPart(m.numerator.value, m.unit, currency)}` : ''}</div>
           {m.denominator && <div>÷ <b>{m.denominator.label}</b>{m.denominator.value !== null ? `: ${fmtPart(m.denominator.value, m.unit, currency)}` : ''}</div>}
-          <div>Basis: {m.basis}{m.provisional ? ' · includes cohorts that are still maturing' : ''}</div>
+          <div>Base: {basisLabel(m.basis)}{m.provisional ? ' · incluye cohortes que todavía están madurando' : ''}</div>
           {m.reason && <div>{m.reason}</div>}
           {d.note && <div>{d.note}</div>}
         </div>
@@ -63,7 +63,7 @@ export function HeroChart({ series, markers, cutoff, currency, trend, onMarker }
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; date: string; value: number | null; trend: number | null; prov: boolean; marks: any[] } | null>(null);
-  const fmt = useMemo(() => (v: number | null) => (v === null ? 'missing' : series.unit === 'money' ? money(v, currency) : series.unit === 'ratio' ? ratio(v) : int(v)), [series.unit, currency]);
+  const fmt = useMemo(() => (v: number | null) => (v === null ? 'sin dato' : series.unit === 'money' ? money(v, currency) : series.unit === 'ratio' ? ratio(v) : int(v)), [series.unit, currency]);
 
   useEffect(() => {
     const el = host.current; if (!el) return;
@@ -111,19 +111,19 @@ export function HeroChart({ series, markers, cutoff, currency, trend, onMarker }
   const firstProv = series.points.find((p: Point) => p.provisional)?.date;
   return (
     <div className="hero">
-      <div className="legend" aria-label="Legend">
-        <span><i style={{ background: 'var(--s2)' }} />Daily value{series.view === 'service' ? ' (service date)' : ' (booking date cohort)'}</span>
-        {trend > 0 && <span><i style={{ background: 'var(--s1)' }} />Trailing {trend}-day average</span>}
-        {firstProv && <span><i className="dash" />Provisional from {dayLabel(firstProv)} (outcomes still arriving)</span>}
-        <span>● action marker (tap)</span>
-        <span>Data through {dayLabel(cutoff)}</span>
+      <div className="legend" aria-label="Leyenda">
+        <span><i style={{ background: 'var(--s2)' }} />Valor diario{series.view === 'service' ? ' (fecha de servicio)' : ' (cohorte por fecha de reservación)'}</span>
+        {trend > 0 && <span><i style={{ background: 'var(--s1)' }} />Promedio móvil de {trend} días</span>}
+        {firstProv && <span><i className="dash" />Provisional desde el {dayLabel(firstProv)} (todavía llegan resultados)</span>}
+        <span>● marcador de acción (tócalo)</span>
+        <span>Datos hasta el {dayLabel(cutoff)}</span>
       </div>
-      <div ref={host} className="chart" role="img" aria-label={`${series.label}, daily, last ${series.points.length} days. Table view below.`} />
+      <div ref={host} className="chart" role="img" aria-label={`${series.label}, diario, últimos ${series.points.length} días. Vista de tabla abajo.`} />
       {tip && (
         <div className="tooltip" style={{ left: Math.min(Math.max(8, tip.x - 80), (host.current?.clientWidth ?? 300) - 170), top: 34 }}>
           <div className="mono">{dayLabel(tip.date)}</div>
           <div>{series.label}: <b className="mono">{fmt(tip.value)}</b></div>
-          {tip.trend !== null && trend > 0 && <div>{trend}-day avg: <b className="mono">{fmt(tip.trend)}</b></div>}
+          {tip.trend !== null && trend > 0 && <div>Prom. {trend} días: <b className="mono">{fmt(tip.trend)}</b></div>}
           {tip.prov && <div className="muted">Provisional</div>}
           {tip.marks.map(m => <div key={m.actionId} className="muted">● {m.label} ({stateLabel(m.state)})</div>)}
         </div>
@@ -133,10 +133,10 @@ export function HeroChart({ series, markers, cutoff, currency, trend, onMarker }
 }
 
 export function SeriesTable({ series, currency }: { series: any; currency: string }) {
-  const f = (v: number | null) => (v === null ? 'missing' : series.unit === 'money' ? money(v, currency) : series.unit === 'ratio' ? ratio(v) : int(v));
+  const f = (v: number | null) => (v === null ? 'sin dato' : series.unit === 'money' ? money(v, currency) : series.unit === 'ratio' ? ratio(v) : int(v));
   return (
     <div className="table-scroll"><table className="data">
-      <thead><tr><th>Date</th><th className="n">{series.label}</th><th className="n">7-day avg</th><th>Status</th></tr></thead>
+      <thead><tr><th>Fecha</th><th className="n">{series.label}</th><th className="n">Prom. 7 días</th><th>Estado</th></tr></thead>
       <tbody>{[...series.points].reverse().map((p: Point, ri: number) => { const i = series.points.length - 1 - ri; return <tr key={p.date}><td className="mono">{p.date}</td><td className="n">{f(p.value)}</td><td className="n">{f(series.trend7[i])}</td><td>{p.provisional ? 'provisional' : ''}</td></tr>; })}</tbody>
     </table></div>
   );
@@ -148,12 +148,12 @@ export function StateChip({ s }: { s: string }) {
 }
 
 export function Health({ h }: { h: string }) {
-  const map: Record<string, [string, string, string]> = { connected: ['s-ok', '✓', 'Connected'], limited: ['s-warn', '◐', 'Limited'], reconnect: ['s-bad', '!', 'Reconnection needed'], not_configured: ['s-mute', '○', 'Not configured'] };
+  const map: Record<string, [string, string, string]> = { connected: ['s-ok', '✓', 'Conectada'], limited: ['s-warn', '◐', 'Limitada'], reconnect: ['s-bad', '!', 'Hay que volver a conectar'], not_configured: ['s-mute', '○', 'Sin configurar'] };
   const [cls, icon, label] = map[h] ?? map.not_configured!;
   return <span className={`state ${cls}`}><span aria-hidden>{icon}</span>{label}</span>;
 }
 
-export function Loading() { return <div className="skeleton" aria-busy="true" aria-label="Loading" />; }
+export function Loading() { return <div className="skeleton" aria-busy="true" aria-label="Cargando" />; }
 export function ErrorBox({ error, stale }: { error: string; stale?: boolean }) {
-  return <div className="notice bad" role="alert">{stale ? 'Could not refresh — showing the last data received. ' : ''}{error}</div>;
+  return <div className="notice bad" role="alert">{stale ? 'No se pudo actualizar; se muestran los últimos datos recibidos. ' : ''}{error}</div>;
 }

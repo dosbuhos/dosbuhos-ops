@@ -50,8 +50,8 @@ export class AccountCoordinator extends DurableObject<Env> {
   /** Bind this object to one registered account. Demo/dev also seeds the mock account from the D1 registry. */
   async init(accountKey: string, initialMode: Mode, actor: string): Promise<void> {
     const acct = await this.env.DB.prepare('SELECT external_id FROM ad_accounts WHERE id = ?').bind(accountKey).first<{ external_id: string }>();
-    if (!acct) throw new CoordinatorError('unknown_account', 'Account is not registered');
-    if (this.accountKey && this.accountKey !== accountKey) throw new CoordinatorError('account_mismatch', 'Coordinator bound to another account');
+    if (!acct) throw new CoordinatorError('unknown_account', 'La cuenta no está registrada');
+    if (this.accountKey && this.accountKey !== accountKey) throw new CoordinatorError('account_mismatch', 'Coordinador ligado a otra cuenta');
     if (this.mock && Object.keys(this.mock.state.campaigns).length === 0) {
       const reg = (await this.env.DB.prepare("SELECT kind, external_id, status, budget_id, budget_micros FROM campaign_registry WHERE account_id = ?").bind(accountKey).all<{ kind: string; external_id: string; status: string; budget_id: string | null; budget_micros: number | null }>()).results;
       const state: MockAccountState = { budgets: {}, campaigns: {}, ads: {}, negatives: {} };
@@ -82,7 +82,7 @@ export class AccountCoordinator extends DurableObject<Env> {
 
   private async loadSnapshot(id: string): Promise<{ snapshot: Snapshot; contributionRoasByRef: Record<string, number | null> }> {
     const row = await this.env.DB.prepare('SELECT json FROM snapshots WHERE id = ?').bind(id).first<{ json: string }>();
-    if (!row) throw new CoordinatorError('unknown_snapshot', 'Snapshot not found');
+    if (!row) throw new CoordinatorError('unknown_snapshot', 'No se encontró la instantánea de evidencia');
     const parsed = JSON.parse(row.json) as Snapshot & { contributionRoasByRef?: Record<string, number | null> };
     return { snapshot: parsed, contributionRoasByRef: parsed.contributionRoasByRef ?? {} };
   }
@@ -126,7 +126,7 @@ export class AccountCoordinator extends DurableObject<Env> {
 
   async execute(actionId: string): Promise<{ id: string; state: string }> {
     const a = this.core.action(actionId);
-    if (!a) throw new CoordinatorError('not_found', 'No such action');
+    if (!a) throw new CoordinatorError('not_found', 'No existe esa acción');
     const intent = JSON.parse(a.intent) as ActionIntent;
     try { const r = await this.core.execute(actionId, this.context(intent.snapshotId)); return { id: r.id, state: r.state }; }
     finally { this.persistMock(); await this.afterChange(); }
@@ -177,7 +177,7 @@ export class AccountCoordinator extends DurableObject<Env> {
 
   /** For the demo only: simulate an owner/agency edit in the mock account (to show external-change handling). */
   simulateExternalBudgetEdit(budgetId: string, micros: number): void {
-    if (!this.mock) throw new CoordinatorError('not_demo', 'Only available with the mock provider');
+    if (!this.mock) throw new CoordinatorError('not_demo', 'Solo disponible con el proveedor simulado');
     this.mock.state.budgets[budgetId] = micros; this.persistMock();
   }
 }

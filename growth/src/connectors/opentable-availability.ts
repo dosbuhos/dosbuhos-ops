@@ -28,10 +28,10 @@ async function gql(op: keyof typeof HASH, pageType: string, variables: Record<st
     headers: { 'content-type': 'application/json', accept: '*/*', 'user-agent': UA, origin: OT, referer: `${OT}/booking/restref/availability`, 'ot-page-type': pageType, 'ot-page-group': 'booking', 'accept-language': 'es-MX,es;q=0.9' },
     body: JSON.stringify({ operationName: op, variables, extensions: { persistedQuery: { version: 1, sha256Hash: HASH[op] } } }),
   });
-  if (!r.ok) throw new Error(`OpenTable answered ${r.status}`);
+  if (!r.ok) throw new Error(`OpenTable respondió ${r.status}`);
   const j = (await r.json().catch(() => null)) as { data?: any; errors?: { message?: string }[] } | null;
-  if (!j) throw new Error('OpenTable answer was not JSON');
-  if (j.errors?.length) throw new Error(j.errors[0]?.message ?? 'OpenTable error');
+  if (!j) throw new Error('La respuesta de OpenTable no era JSON');
+  if (j.errors?.length) throw new Error(j.errors[0]?.message ?? 'Error de OpenTable');
   return j.data;
 }
 
@@ -43,7 +43,7 @@ export async function tableSlots(rid: number, date: string, party: number, fetch
     forwardTimeslots: 12, backwardTimeslots: 12, forwardMinutes: 180, backwardMinutes: 180,
   }, fetchFn);
   const day = d?.availability?.[0]?.availabilityDays?.find((x: { dayOffset: number }) => x.dayOffset === 0);
-  if (!day) throw new Error('OpenTable answer had no day');
+  if (!day) throw new Error('La respuesta de OpenTable no traía el día');
   return (day.slots as { isAvailable: boolean }[]).filter(s => s.isAvailable).length;
 }
 
@@ -53,7 +53,7 @@ export async function experienceDays(rid: number, id: number, today: string, fet
     dateTime: `${today}T13:00`, experienceId: id, type: 'Experience', returnTimeSlots: true, backwardMinutes: 210, forwardMinutes: 210, forwardDays: 30,
   }, fetchFn);
   const avail = d?.experienceAvailability?.available;
-  if (!Array.isArray(avail)) throw new Error('OpenTable answer had no days');
+  if (!Array.isArray(avail)) throw new Error('La respuesta de OpenTable no traía días');
   const out: Record<string, number> = {};
   for (const a of avail) out[addDays(today, a.dayOffset)] = a.restaurantSet?.[0]?.results?.experience?.length || 0;
   return out;
@@ -83,7 +83,7 @@ export async function syncAvailability(db: D1Database, rid: number, now: number,
   const failed = rows.filter(r => r.slots === null).length, firstError = rows.find(r => r.error)?.error ?? null;
   stmts.push(db.prepare('UPDATE connections SET health = ?, health_reason = ?, last_success_at = CASE WHEN ? THEN ? ELSE last_success_at END, freshness_at = ?, last_error = ?, updated_at = ? WHERE id = ?')
     .bind(failed === 0 ? 'connected' : failed < rows.length ? 'limited' : 'reconnect',
-      failed === 0 ? 'Bookable times read from OpenTable’s public booking page every 3 hours (next 14 days)' : failed < rows.length ? `${failed} of ${rows.length} reads failed` : 'OpenTable did not answer (its booking page may have changed: update the hashes, as for canario)',
+      failed === 0 ? 'Horarios disponibles leídos de la página pública de reservaciones de OpenTable cada 3 horas (próximos 14 días)' : failed < rows.length ? `${failed} de ${rows.length} lecturas fallaron` : 'OpenTable no respondió (puede que su página de reservaciones haya cambiado: actualiza los hashes, como en canario)',
       failed < rows.length ? 1 : 0, now, now, firstError, now, 'conn_ot_availability'));
   await db.batch(stmts);
   return { read: rows.length - failed, failed, firstError };

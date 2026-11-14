@@ -17,8 +17,8 @@ function fmt(tz: string): Intl.DateTimeFormat {
 }
 
 export function assertTimeZone(tz: string | null | undefined): string {
-  if (!tz) throw new Error('Time zone is not configured');
-  try { fmt(tz).format(0); } catch { throw new Error(`Unknown time zone ${tz}`); }
+  if (!tz) throw new Error('La zona horaria no está configurada');
+  try { fmt(tz).format(0); } catch { throw new Error(`Zona horaria desconocida: ${tz}`); }
   return tz;
 }
 

@@ -53,8 +53,8 @@ export function parseLocal(raw: string, fmt: OpenTableMapping['dateFormat'], tz:
   else if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(.*)$/)) && fmt !== 'iso') {
     const a = +m[1]!, b = +m[2]!; y = +m[3]!; if (y < 100) y += 2000;
     [mo, d] = fmt === 'mdy' ? [a, b] : [b, a]; rest = m[4]!;
-  } else return `“${s.slice(0, 40)}” is not a ${fmt === 'iso' ? 'YYYY-MM-DD' : fmt === 'mdy' ? 'MM/DD/YYYY' : 'DD/MM/YYYY'} date`;
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return `“${s.slice(0, 40)}” has an impossible month/day`;
+  } else return `“${s.slice(0, 40)}” no es una fecha ${fmt === 'iso' ? 'AAAA-MM-DD' : fmt === 'mdy' ? 'MM/DD/AAAA' : 'DD/MM/AAAA'}`;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return `“${s.slice(0, 40)}” tiene un mes o día imposible`;
   let hh = 0, mm = 0;
   const t = rest.trim().replace(/^T/, '').match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]\.?\s?m\.?)?/i);
   if (t) {
@@ -62,7 +62,7 @@ export function parseLocal(raw: string, fmt: OpenTableMapping['dateFormat'], tz:
     const ap = t[3]?.toLowerCase().replace(/[.\s]/g, '');
     if (ap === 'pm' && hh < 12) hh += 12;
     if (ap === 'am' && hh === 12) hh = 0;
-  } else if (rest.trim()) return `“${rest.trim().slice(0, 20)}” is not a time`;
+  } else if (rest.trim()) return `“${rest.trim().slice(0, 20)}” no es una hora`;
   const date = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   return zonedToUtc(date, hh, mm, tz);
 }
@@ -70,7 +70,7 @@ export function parseLocal(raw: string, fmt: OpenTableMapping['dateFormat'], tz:
 function money(raw: string): number | null | string {
   const s = raw.trim().replace(/[$\s]|MXN|USD/gi, '');
   if (!s) return null;
-  if (!/^-?\d{1,3}(,\d{3})*(\.\d{1,2})?$|^-?\d+(\.\d{1,2})?$/.test(s)) return `“${raw.slice(0, 20)}” is not an amount`;
+  if (!/^-?\d{1,3}(,\d{3})*(\.\d{1,2})?$|^-?\d+(\.\d{1,2})?$/.test(s)) return `“${raw.slice(0, 20)}” no es un monto`;
   return Math.round(Number(s.replace(/,/g, '')) * 100);
 }
 
@@ -90,15 +90,15 @@ export function previewOpenTable(csvText: string, mapping: OpenTableMapping, win
     const get = (k: keyof OpenTableMapping['columns']) => { const i = col(mapping.columns[k]); return i >= 0 ? (r[i] ?? '').slice(0, 200) : ''; };
     const errs: RowError[] = [];
     const ext = get('externalId').trim();
-    if (!/^[A-Za-z0-9_-]{1,64}$/.test(ext)) errs.push({ row: rowNo, column: mapping.columns.externalId, message: 'Missing or invalid confirmation number' });
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(ext)) errs.push({ row: rowNo, column: mapping.columns.externalId, message: 'Falta el número de confirmación o no es válido' });
     const created = parseLocal(get('createdAt'), mapping.dateFormat, mapping.timezone);
     if (typeof created === 'string') errs.push({ row: rowNo, column: mapping.columns.createdAt, message: created });
     const service = parseLocal(get('serviceAt'), mapping.dateFormat, mapping.timezone);
     if (typeof service === 'string') errs.push({ row: rowNo, column: mapping.columns.serviceAt, message: service });
     const party = Number(get('partySize').trim());
-    if (!Number.isInteger(party) || party < 1 || party > 500) errs.push({ row: rowNo, column: mapping.columns.partySize, message: 'Party size must be a whole number from 1 to 500' });
+    if (!Number.isInteger(party) || party < 1 || party > 500) errs.push({ row: rowNo, column: mapping.columns.partySize, message: 'El número de personas debe ser un entero del 1 al 500' });
     const status = mapStatus(get('status'));
-    if (!status) errs.push({ row: rowNo, column: mapping.columns.status, message: `Unknown status “${get('status').slice(0, 30)}”` });
+    if (!status) errs.push({ row: rowNo, column: mapping.columns.status, message: `Estado desconocido “${get('status').slice(0, 30)}”` });
     const quoted = mapping.columns.quotedTotal ? money(get('quotedTotal')) : null;
     if (typeof quoted === 'string') errs.push({ row: rowNo, column: mapping.columns.quotedTotal, message: quoted });
     if (errs.length) { out.errors.push(...errs); return; }

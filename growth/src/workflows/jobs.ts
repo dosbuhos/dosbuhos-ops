@@ -60,24 +60,24 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
           const acct = await defaultAccount(env.DB);
           if (env.HUB_DB && acct && env.DATA_KIND === 'real') {
             const r = await mirrorFromHub(env.HUB_DB, env.DB, acct.id, now, env.WINERY_TZ);
-            let ga4 = 'GA4 not configured';
-            try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} online reservations in ${g.rows} rows`; } catch (e) { ga4 = `GA4 failed: ${(e as Error).message}`; }
-            await finishJob(env.DB, job.runKey, 'succeeded', `Hub feed: ${r.campaigns} campaigns, ${r.days} days, data as of ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'unknown'}. ${ga4}`);
-          } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'No Google Ads source bound');
+            let ga4 = 'GA4 no configurado';
+            try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} reservaciones en línea en ${g.rows} filas`; } catch (e) { ga4 = `GA4 falló: ${(e as Error).message}`; }
+            await finishJob(env.DB, job.runKey, 'succeeded', `Feed del Hub: ${r.campaigns} campañas, ${r.days} días, datos al ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'desconocido'}. ${ga4}`);
+          } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'No hay una fuente de Google Ads conectada');
           break;
         }
         case 'ot_availability': {
-          if (!env.OPENTABLE_RID || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'No OpenTable restaurant id configured'); break; }
+          if (!env.OPENTABLE_RID || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'No hay ID de restaurante de OpenTable configurado'); break; }
           const r = await syncAvailability(env.DB, Number(env.OPENTABLE_RID), now, env.WINERY_TZ);
-          await finishJob(env.DB, job.runKey, r.failed && !r.read ? 'failed' : 'succeeded', `OpenTable availability: ${r.read} read, ${r.failed} failed${r.firstError ? ` (${r.firstError})` : ''}`);
+          await finishJob(env.DB, job.runKey, r.failed && !r.read ? 'failed' : 'succeeded', `Disponibilidad de OpenTable: ${r.read} leídas, ${r.failed} fallidas${r.firstError ? ` (${r.firstError})` : ''}`);
           break;
         }
         case 'spend_poll':
-          await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'Spend arrives hourly with the Google Ads feed; 15-minute polling needs Google Ads API access'); break;
-        case 'booking_sync': await finishJob(env.DB, job.runKey, 'skipped', 'No booking source connected: OpenTable reservation data is partner-only (requested via the account manager)'); break;
+          await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'El gasto llega cada hora con el feed de Google Ads; consultar cada 15 minutos necesita acceso a la API de Google Ads'); break;
+        case 'booking_sync': await finishJob(env.DB, job.runKey, 'skipped', 'No hay fuente de reservaciones conectada: los datos de reservaciones de OpenTable son solo para socios (se pidieron a través del gerente de cuenta)'); break;
         case 'daily_review': await env.DAILY_REVIEW.create({ id: job.runKey.replace(/:/g, '-'), params: { runKey: job.runKey, kind: 'daily', logicalDate: job.logicalDate } }); break;
         case 'weekly_review': await env.WEEKLY_REVIEW.create({ id: job.runKey.replace(/:/g, '-'), params: { runKey: job.runKey, kind: 'weekly', logicalDate: job.logicalDate } }); break;
-        case 'notify_daily': case 'notify_weekly': await finishJob(env.DB, job.runKey, 'skipped', 'No notification provider is configured; reports are in the app'); break;
+        case 'notify_daily': case 'notify_weekly': await finishJob(env.DB, job.runKey, 'skipped', 'No hay proveedor de notificaciones configurado; los reportes están en la app'); break;
       }
     } catch (e) {
       await finishJob(env.DB, job.runKey, 'failed', (e as Error).message);
@@ -89,8 +89,8 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
 /** Demo and real data must never share a database: the Worker refuses to run against the wrong kind. */
 export async function assertDataKind(env: Env): Promise<void> {
   const s = await env.DB.prepare('SELECT data_kind FROM business_settings WHERE id = 1').first<{ data_kind: string }>();
-  if (!s) throw new Error('business_settings row missing: run migrations and setup');
-  if (s.data_kind !== env.DATA_KIND) throw new Error(`Database holds ${s.data_kind} data but this Worker is configured for ${env.DATA_KIND}`);
+  if (!s) throw new Error('Falta la fila de business_settings: corre las migraciones y la configuración');
+  if (s.data_kind !== env.DATA_KIND) throw new Error(`La base de datos tiene datos ${s.data_kind}, pero este Worker está configurado para ${env.DATA_KIND}`);
 }
 
 // ---------------- watchdog (no LLM) ----------------
@@ -105,22 +105,22 @@ export async function watchdog(env: Env, now: number): Promise<{ open: number }>
     try {
       const stub = await readyCoordinator(env, acct.id);
       const st = await stub.state();
-      if (st.unknownOutcomes > 0) alerts.push({ key: 'unknown_outcome', severity: 'critical', title: `${st.unknownOutcomes} ad change(s) with unknown outcome`, detail: 'Writes to those resources are blocked until reconciled. Open Agent activity → Reconcile.', link: '#activity' });
-      if (st.restoredLocked) alerts.push({ key: 'restored_locked', severity: 'warning', title: 'Restored from backup: automation locked', detail: 'Reconcile live state in Controls before any writes.', link: '#controls' });
-      for (const s of st.suspensions) alerts.push({ key: `suspended:${s.resourceKey}`, severity: 'warning', title: 'External change detected', detail: `${s.reason}. Automation on ${s.resourceKey} is suspended until you acknowledge it.`, link: '#activity' });
+      if (st.unknownOutcomes > 0) alerts.push({ key: 'unknown_outcome', severity: 'critical', title: `${st.unknownOutcomes} cambio(s) en anuncios con resultado desconocido`, detail: 'Los cambios a esos recursos están bloqueados hasta conciliarlos. Abre Actividad del agente → Conciliar.', link: '#activity' });
+      if (st.restoredLocked) alerts.push({ key: 'restored_locked', severity: 'warning', title: 'Restaurado desde respaldo: automatización bloqueada', detail: 'Concilia el estado real en Controles antes de cualquier cambio.', link: '#controls' });
+      for (const s of st.suspensions) alerts.push({ key: `suspended:${s.resourceKey}`, severity: 'warning', title: 'Se detectó un cambio externo', detail: `${s.reason}. La automatización en ${s.resourceKey} está suspendida hasta que lo marques como visto.`, link: '#activity' });
       const drained = await stub.drainOutbox();
-      if (drained.pending > 0) alerts.push({ key: 'outbox_backlog', severity: 'warning', title: 'Activity feed is behind', detail: 'Some coordinator events have not reached the dashboard yet.', link: '#activity' });
+      if (drained.pending > 0) alerts.push({ key: 'outbox_backlog', severity: 'warning', title: 'El feed de actividad va atrasado', detail: 'Algunos eventos del coordinador todavía no llegan al tablero.', link: '#activity' });
       const spend = await env.DB.prepare('SELECT * FROM spend_readings WHERE account_id = ? ORDER BY read_at DESC LIMIT 1').bind(acct.id).first<Record<string, number>>();
       const ageMin = spend ? (now - spend.data_as_of!) / 60_000 : Infinity;
-      if (env.DATA_KIND === 'real' && ageMin > st.policy.maxSpendDataAgeMinutes) alerts.push({ key: 'stale_spend', severity: st.mode === 'LIMITED_AUTO' ? 'critical' : 'warning', title: spend ? `Spend data is ${Math.round(ageMin / 60)} h old` : 'No spend data yet', detail: 'Growth writes are blocked until fresh spend arrives. Ads that are running keep spending during an outage — check Google Ads directly.', link: '#connections' });
+      if (env.DATA_KIND === 'real' && ageMin > st.policy.maxSpendDataAgeMinutes) alerts.push({ key: 'stale_spend', severity: st.mode === 'LIMITED_AUTO' ? 'critical' : 'warning', title: spend ? `Los datos de gasto tienen ${Math.round(ageMin / 60)} h de antigüedad` : 'Todavía no hay datos de gasto', detail: 'Los cambios de crecimiento están bloqueados hasta que llegue gasto reciente. Los anuncios activos siguen gastando durante una falla; revisa Google Ads directamente.', link: '#connections' });
       const ceiling = st.policy.monthlyAdSpendCeilingNative;
       if (spend && ceiling) {
         const pct = (spend.month_to_date_micros! / (ceiling * 1e6)) * 100;
-        if (st.policy.protectiveStopPctOfCeiling !== null && pct >= st.policy.protectiveStopPctOfCeiling) alerts.push({ key: 'spend_protective_stop', severity: 'critical', title: `Month spend at ${pct.toFixed(0)}% of ceiling`, detail: 'At or past the protective stop. Use “Pause managed ads” in Controls. Unmanaged campaigns are not paused by the app.', link: '#controls' });
-        else if (st.policy.warningPctOfCeiling !== null && pct >= st.policy.warningPctOfCeiling) alerts.push({ key: 'spend_warning', severity: 'warning', title: `Month spend at ${pct.toFixed(0)}% of ceiling`, detail: 'Approaching the owner ceiling.', link: '#overview' });
+        if (st.policy.protectiveStopPctOfCeiling !== null && pct >= st.policy.protectiveStopPctOfCeiling) alerts.push({ key: 'spend_protective_stop', severity: 'critical', title: `Gasto del mes al ${pct.toFixed(0)}% del tope`, detail: 'Llegó o pasó el paro de protección. Usa “Pausar anuncios administrados” en Controles. La app no pausa las campañas no administradas.', link: '#controls' });
+        else if (st.policy.warningPctOfCeiling !== null && pct >= st.policy.warningPctOfCeiling) alerts.push({ key: 'spend_warning', severity: 'warning', title: `Gasto del mes al ${pct.toFixed(0)}% del tope`, detail: 'Se acerca al tope que definió el dueño.', link: '#overview' });
       }
     } catch (e) {
-      alerts.push({ key: 'coordinator_unreachable', severity: 'critical', title: 'Account coordinator did not answer', detail: `${(e as Error).message}. No writes can happen while it is down; running ads keep running.`, link: '#controls' });
+      alerts.push({ key: 'coordinator_unreachable', severity: 'critical', title: 'El coordinador de la cuenta no respondió', detail: `${(e as Error).message}. No puede haber cambios mientras esté caído; los anuncios activos siguen corriendo.`, link: '#controls' });
     }
   }
   // Missed daily review (checked without the model).
@@ -130,16 +130,16 @@ export async function watchdog(env: Env, now: number): Promise<{ open: number }>
     const r = await env.DB.prepare('SELECT status, started_at FROM job_runs WHERE run_key = ?').bind(`daily_review:${lp.date}`).first<{ status: string }>();
     const startedAt = r ? Number((r as { started_at?: number }).started_at ?? 0) : 0;
     const stuck = r && (r.status === 'claimed' || r.status === 'running') && now - startedAt > 2 * 3_600_000;
-    if (!r || r.status === 'failed' || stuck) alerts.push({ key: `missed_daily:${lp.date}`, severity: 'warning', title: 'Daily review has not completed today', detail: !r ? 'It never started.' : r.status === 'failed' ? 'It failed: see Agent activity → Scheduled runs.' : 'It started more than 2 h ago and has not finished.', link: '#activity' });
+    if (!r || r.status === 'failed' || stuck) alerts.push({ key: `missed_daily:${lp.date}`, severity: 'warning', title: 'La revisión diaria no se ha completado hoy', detail: !r ? 'Nunca empezó.' : r.status === 'failed' ? 'Falló: ve Actividad del agente → Ejecuciones programadas.' : 'Empezó hace más de 2 h y no ha terminado.', link: '#activity' });
   }
   for (const c of (await env.DB.prepare("SELECT provider, health, health_reason FROM connections WHERE health IN ('reconnect', 'limited')").all<{ provider: string; health: string; health_reason: string }>()).results)
-    alerts.push({ key: `connection:${c.provider}`, severity: c.health === 'reconnect' ? 'warning' : 'info', title: `${c.provider}: ${c.health === 'reconnect' ? 'reconnection needed' : 'limited'}`, detail: c.health_reason, link: '#connections' });
+    alerts.push({ key: `connection:${c.provider}`, severity: c.health === 'reconnect' ? 'warning' : 'info', title: `${c.provider}: ${c.health === 'reconnect' ? 'hay que volver a conectar' : 'limitada'}`, detail: c.health_reason, link: '#connections' });
   const capUpd = await env.DB.prepare("SELECT MAX(source_updated_at) AS t FROM capacity_slots WHERE date >= ?").bind(lp.date).first<{ t: number | null }>();
   const otAvail = await env.DB.prepare('SELECT MAX(checked_at) AS t FROM ot_availability WHERE slots IS NOT NULL').first<{ t: number | null }>().catch(() => null);
   const autoFresh = !!otAvail?.t && now - otAvail.t < 8 * 3_600_000; // automatic availability from OpenTable counts as capacity information
   // Never set up is not the same as stale: the first is a to-do (info), the second a warning.
-  if (!capUpd?.t && !autoFresh) alerts.push({ key: 'capacity_not_set_up', severity: 'info', title: 'Capacity not set up yet', detail: 'No slots entered for upcoming dates. Reporting works without it; capacity-based budget increases stay off.', link: '#capacity' });
-  else if (capUpd?.t && now - capUpd.t > 36 * 3_600_000) alerts.push({ key: 'stale_capacity', severity: 'warning', title: 'Capacity calendar not updated in 36 h', detail: 'Capacity-based scaling is blocked until staff update the calendar or confirm it is still correct.', link: '#capacity' });
+  if (!capUpd?.t && !autoFresh) alerts.push({ key: 'capacity_not_set_up', severity: 'info', title: 'Capacidad sin configurar', detail: 'No hay horarios capturados para las próximas fechas. Los reportes funcionan sin esto; los aumentos de presupuesto por capacidad siguen apagados.', link: '#capacity' });
+  else if (capUpd?.t && now - capUpd.t > 36 * 3_600_000) alerts.push({ key: 'stale_capacity', severity: 'warning', title: 'El calendario de capacidad no se ha actualizado en 36 h', detail: 'El escalamiento por capacidad está bloqueado hasta que el personal actualice el calendario o confirme que sigue correcto.', link: '#capacity' });
 
   // Upsert seen alerts; resolve the ones not seen this run (dedupe = no alert storms).
   const seen = new Set(alerts.map(a => a.key));
@@ -171,11 +171,11 @@ export async function writeReport(env: Env, p: ReviewParams, now: number): Promi
   const usage = { in: 0, out: 0, cost: 0 };
   const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
   if (apiKey) {
-    const lang = (await env.DB.prepare('SELECT report_language FROM business_settings WHERE id = 1').first<{ report_language: string }>())?.report_language ?? 'en';
+    const lang = (await env.DB.prepare('SELECT report_language FROM business_settings WHERE id = 1').first<{ report_language: string | null }>())?.report_language ?? 'es';
     const n = await narrate({ apiKey, model: env.ANTHROPIC_MODEL, facts: facts as unknown as Record<string, unknown>, allowedNumbers: allowedNumbers(facts), language: lang });
     await env.DB.prepare('UPDATE connections SET health = ?, last_success_at = COALESCE(?, last_success_at), last_error = ?, updated_at = ? WHERE id = ?')
-      .bind(n ? 'connected' : 'limited', n ? now : null, n ? null : 'Last narrative failed or added numbers not in the facts; the template was used', now, 'conn_anthropic').run();
-    if (n) { narrative = `${n.text}\n\n${facts.dataKind === 'demo' ? 'DEMO DATA. ' : ''}Numbers above are restated from the fact table below.`; source = 'model'; usage.in = n.usage.inputTokens; usage.out = n.usage.outputTokens; usage.cost = n.usage.costMicroUsd; }
+      .bind(n ? 'connected' : 'limited', n ? now : null, n ? null : 'La última narrativa falló o agregó números que no están en los datos; se usó la plantilla', now, 'conn_anthropic').run();
+    if (n) { narrative = `${n.text}\n\n${facts.dataKind === 'demo' ? 'DATOS DE DEMO. ' : ''}Los números de arriba se repiten de la tabla de datos de abajo.`; source = 'model'; usage.in = n.usage.inputTokens; usage.out = n.usage.outputTokens; usage.cost = n.usage.costMicroUsd; }
   }
   const id = `${p.kind}:${p.logicalDate ?? o.today}`;
   await env.DB.prepare(`INSERT INTO reports (id, kind, period_from, period_to, cutoff_at, data_quality_json, facts_json, narrative, narrative_source, revision, created_at)
@@ -189,12 +189,12 @@ export async function writeReport(env: Env, p: ReviewParams, now: number): Promi
 export async function reviewAndPropose(env: Env, p: ReviewParams, now: number): Promise<{ summary: string; submitted: number; executed: string[]; usage: { in: number; out: number; cost: number } }> {
   const acct = await defaultAccount(env.DB);
   const usage = { in: 0, out: 0, cost: 0 };
-  if (!acct) return { summary: 'No ad account registered', submitted: 0, executed: [], usage };
+  if (!acct) return { summary: 'No hay cuenta de anuncios registrada', submitted: 0, executed: [], usage };
   const stub = await readyCoordinator(env, acct.id);
   const st = await stub.state();
-  if (!['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) || st.aiStopped || st.emergencyLock) return { summary: `No proposals: mode ${st.mode}${st.aiStopped ? ', AI stopped' : ''}${st.emergencyLock ? ', emergency lock' : ''}`, submitted: 0, executed: [], usage };
+  if (!['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) || st.aiStopped || st.emergencyLock) return { summary: `Sin propuestas: modo ${st.mode}${st.aiStopped ? ', IA detenida' : ''}${st.emergencyLock ? ', bloqueo de emergencia' : ''}`, submitted: 0, executed: [], usage };
   const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
-  if (!apiKey) return { summary: 'No proposals: ANTHROPIC_API_KEY is not configured', submitted: 0, executed: [], usage };
+  if (!apiKey) return { summary: 'Sin propuestas: ANTHROPIC_API_KEY no está configurada', submitted: 0, executed: [], usage };
   const maxLag = Math.max(...(await env.DB.prepare("SELECT maturation_lag_days AS d FROM products WHERE id IN ('restaurant_visit','tour_tasting')").all<{ d: number }>()).results.map(r => r.d));
   const { snapshot } = await buildSnapshot(env.DB, acct.id, now, env.WINERY_TZ, maxLag);
   const raw = await loadRaw({ db: env.DB, now, wineryTz: env.WINERY_TZ, currency: acct.currency });

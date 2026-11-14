@@ -24,7 +24,7 @@ export default {
     if (url.pathname.startsWith('/api/') || url.pathname === '/healthz') return withHeaders(await app.fetch(request, env, ctx));
     // The dashboard itself is private too: no page without a valid Hub identity (or dev).
     const auth = await authenticate(request, env);
-    if (!auth.ok) return withHeaders(new Response(auth.status === 503 ? 'This app is not configured yet.' : 'Sign in through the Dos Búhos Hub.', { status: auth.status, headers: { 'content-type': 'text/plain; charset=utf-8' } }));
+    if (!auth.ok) return withHeaders(new Response(auth.status === 503 ? 'Esta app todavía no está configurada.' : 'Inicia sesión a través del Hub de Dos Búhos.', { status: auth.status, headers: { 'content-type': 'text/plain; charset=utf-8' } }));
     const res = await env.ASSETS.fetch(request);
     const r = withHeaders(res);
     r.headers.set('cache-control', url.pathname.startsWith('/assets/') ? 'private, max-age=31536000, immutable' : 'no-store');

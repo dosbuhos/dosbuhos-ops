@@ -9,8 +9,8 @@ import { Activity, Controls } from './views/Operate';
 import { Campaigns, Experiments, Reports, Connections } from './views/Data';
 
 const VIEWS = [
-  ['overview', 'Overview'], ['campaigns', 'Campaigns'], ['capacity', 'Capacity'], ['experiments', 'Experiments'],
-  ['activity', 'Agent activity'], ['reports', 'Reports'], ['connections', 'Connections'], ['controls', 'Controls'],
+  ['overview', 'Resumen'], ['campaigns', 'Campañas'], ['capacity', 'Capacidad'], ['experiments', 'Experimentos'],
+  ['activity', 'Actividad del agente'], ['reports', 'Reportes'], ['connections', 'Conexiones'], ['controls', 'Controles'],
 ] as const;
 type View = (typeof VIEWS)[number][0];
 
@@ -37,24 +37,24 @@ function App() {
       <div className="strip">
         <div className="strip-in">
           <div className="brand">Growth Terminal <small>Dos Búhos</small></div>
-          {s || o ? <span className={`badge ${demo ? 'demo' : 'real'}`} title={demo ? 'Synthetic data — not real results' : 'Real data'}>{demo ? '⚠ DEMO DATA' : '● REAL DATA'}</span> : null}
+          {s || o ? <span className={`badge ${demo ? 'demo' : 'real'}`} title={demo ? 'Datos sintéticos, no son resultados reales' : 'Datos reales'}>{demo ? '⚠ DATOS DE DEMO' : '● DATOS REALES'}</span> : null}
           {mi && <span className={`state ${mi.cls}`} title={mi.text}>{mi.label}</span>}
-          {s?.coordinator?.aiStopped && <span className="state s-warn">AI stopped</span>}
+          {s?.coordinator?.aiStopped && <span className="state s-warn">IA detenida</span>}
           <div className="meta">
-            <span>Account <b>{s?.account ? `${s.account.id}${demo ? ' (synthetic)' : ''}` : 'not connected'}</b></span>
-            <span>Spend data <b>{ago(o?.lastRefresh)}</b></span>
-            <span>Last change <b>{lastOpt ?? 'none'}</b></span>
-            <span>Attribution coverage <b>{o?.quality?.bookingsConnected === false ? 'n/a (no booking source)' : `${o?.quality?.attributionCoverage ?? '—'}%`}</b></span>
-            <span>Refreshed <b>{ago(overview.loadedAt)}</b></span>
-            <button className="iconbtn" style={{ marginLeft: 'auto' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>{theme === 'dark' ? '☀ Light' : '☾ Dark'}</button>
+            <span>Cuenta <b>{s?.account ? `${s.account.id}${demo ? ' (sintética)' : ''}` : 'no conectada'}</b></span>
+            <span>Datos de gasto <b>{ago(o?.lastRefresh)}</b></span>
+            <span>Último cambio <b>{lastOpt ?? 'ninguno'}</b></span>
+            <span>Cobertura de atribución <b>{o?.quality?.bookingsConnected === false ? 'n/d (sin fuente de reservaciones)' : `${o?.quality?.attributionCoverage ?? '—'}%`}</b></span>
+            <span>Actualizado <b>{ago(overview.loadedAt)}</b></span>
+            <button className="iconbtn" style={{ marginLeft: 'auto' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Cambiar a tema ${theme === 'dark' ? 'claro' : 'oscuro'}`}>{theme === 'dark' ? '☀ Claro' : '☾ Oscuro'}</button>
           </div>
         </div>
       </div>
-      <nav className="tabs" aria-label="Sections">
-        {VIEWS.map(([k, label]) => <a key={k} href={`#${k}`} aria-current={view === k ? 'page' : undefined}>{label}{k === 'overview' && needsMe > 0 && <span className="dot" aria-label={`${needsMe} need attention`} />}</a>)}
+      <nav className="tabs" aria-label="Secciones">
+        {VIEWS.map(([k, label]) => <a key={k} href={`#${k}`} aria-current={view === k ? 'page' : undefined}>{label}{k === 'overview' && needsMe > 0 && <span className="dot" aria-label={`${needsMe} requieren atención`} />}</a>)}
       </nav>
       <main className="wrap">
-        {demo && <div className="notice section" role="note"><b>Demonstration.</b> Every number here is synthetic and the ad account is simulated. This local copy runs on a synthetic dataset.</div>}
+        {demo && <div className="notice section" role="note"><b>Demostración.</b> Todos los números son sintéticos y la cuenta de anuncios es simulada. Esta copia local usa un conjunto de datos sintéticos.</div>}
         {view === 'overview' && <Overview o={o} error={overview.error} session={s} />}
         {view === 'campaigns' && <Campaigns />}
         {view === 'capacity' && <Capacity canEdit={s?.user?.role !== 'viewer'} />}
@@ -63,7 +63,7 @@ function App() {
         {view === 'reports' && <Reports />}
         {view === 'connections' && <Connections isAdmin={s?.user?.role === 'admin'} />}
         {view === 'controls' && <Controls session={s} reload={() => { void session.reload(); void overview.reload(); }} />}
-        <p className="tiny muted section">Charts: TradingView Lightweight Charts (Apache-2.0). Times in San Miguel de Allende (America/Mexico_City). Updates every 90 s from stored provider data — not a live auction feed.</p>
+        <p className="tiny muted section">Gráficas: TradingView Lightweight Charts (Apache-2.0). Horas de San Miguel de Allende (America/Mexico_City). Se actualiza cada 90 s con los datos guardados de los proveedores; no es una transmisión en vivo de la subasta.</p>
       </main>
     </>
   );
