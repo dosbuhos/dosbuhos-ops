@@ -77,8 +77,9 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
           <hr />
           <h3>Data quality</h3>
           <ul className="small" style={{ paddingLeft: 18, margin: '6px 0 0' }}>
-            <li>Attribution coverage {o.quality.attributionCoverage ?? '—'}% · sales matched {o.quality.salesMatchingCoverage ?? '—'}%</li>
-            <li>Cancellations {o.quality.cancellationRate ?? '—'}% · no-shows {o.quality.noShowRate ?? '—'}%</li>
+            {o.quality.bookingsConnected === false ? <li>No booking source connected yet, so attribution, sales matching, cancellations and no-shows can’t be measured</li> : <>
+              <li>Attribution coverage {o.quality.attributionCoverage ?? '—'}% · sales matched {o.quality.salesMatchingCoverage ?? '—'}%</li>
+              <li>Cancellations {o.quality.cancellationRate ?? '—'}% · no-shows {o.quality.noShowRate ?? '—'}%</li></>}
             {o.quality.conversionDaysMissing.length > 0 && <li>Conversion data missing on {o.quality.conversionDaysMissing.join(', ')} — shown as gaps, not zeros</li>}
             {o.quality.spendDaysMissing.length > 0 && <li>Spend missing on {o.quality.spendDaysMissing.length} day(s)</li>}
             <li>{o.quality.lagKnown ? 'Maturation lag estimated from data' : 'Maturation lag not yet estimated — scaling on profitability is off'}</li>

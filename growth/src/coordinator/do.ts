@@ -183,4 +183,16 @@ export class AccountCoordinator extends DurableObject<Env> {
 }
 
 export const coordinatorFor = (env: Env, accountKey: string) => env.COORDINATOR.get(env.COORDINATOR.idFromName(accountKey));
+
+/** The coordinator for an account, initialized on first use (DEMO with the mock provider, otherwise OBSERVE).
+ *  Any error other than "not initialized" propagates, so a coordinator that is really down still raises an alert. */
+export async function readyCoordinator(env: Env, accountKey: string) {
+  const stub = coordinatorFor(env, accountKey);
+  try { await stub.state(); }
+  catch (e) {
+    if (!/not initialized/i.test((e as Error).message)) throw e;
+    await stub.init(accountKey, env.ENVIRONMENT === 'dev' || env.ENVIRONMENT === 'demo' ? 'DEMO' : 'OBSERVE', 'system');
+  }
+  return stub;
+}
 export const todayIn = (tz: string) => localDate(Date.now(), tz);

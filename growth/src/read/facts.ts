@@ -218,6 +218,7 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
     lagKnown, lagDays: lagByProduct,
     lastSpendDataAsOf: raw.spend ? Number(raw.spend.data_as_of) : null,
     contributionMissing: contribMissing ?? null,
+    bookingsConnected: !noBookings,
   };
 
   return {

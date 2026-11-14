@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env, User } from '../env.ts';
 import { authenticate, checkWriteOrigin, can } from './auth.ts';
-import { coordinatorFor } from '../coordinator/do.ts';
+import { readyCoordinator } from '../coordinator/do.ts';
 import { loadRaw, computeOverview } from '../read/facts.ts';
 import { buildSnapshot } from '../read/snapshot.ts';
 import { assertDataKind, defaultAccount, writeReport, watchdog } from '../workflows/jobs.ts';
@@ -49,14 +49,14 @@ app.post('/api/feed/google-ads', async c => {
   if (!acct) return fail(c, 403, 'unregistered_account', 'This Google Ads account is not registered in the Growth Terminal');
   if (acct.currency !== p.account.currency) return fail(c, 409, 'currency_mismatch', 'Account currency differs from the registered one');
   const now = Date.now();
-  const policy = (await coordinatorFor(env, acct.id).state().catch(() => null))?.policy;
+  const policy = (await (await readyCoordinator(env, acct.id)).state().catch(() => null))?.policy;
   const stmts = feedStatements(env.DB, acct.id, p, now, new Set(policy?.approvedCampaignIds ?? []));
   for (let i = 0; i < stmts.length; i += 80) await env.DB.batch(stmts.slice(i, i + 80));
   await env.ARCHIVE.put(`feeds/google-ads/${p.today.date}/${now}.json`, text, { customMetadata: { account: acct.id } });
   const changes = budgetChanges(p);
   // Every budget change (owner, agency, scripts) counts toward rolling limits. Phase 1 makes no API writes, so none of
   // these are ours; if one ever were, counting it twice only makes the limit stricter (the safe direction).
-  if (changes.length) await coordinatorFor(env, acct.id).recordBudgetChanges(changes);
+  if (changes.length) await (await readyCoordinator(env, acct.id)).recordBudgetChanges(changes);
   return json(c, { ok: true, rows: stmts.length, budgetChanges: changes.length });
 });
 
@@ -77,10 +77,7 @@ const need = (c: Context<H>, role: 'editor' | 'admin') => (can(c.get('user'), ro
 async function account(c: Context<H>) {
   const a = await defaultAccount(c.env.DB);
   if (!a) return null;
-  const stub = coordinatorFor(c.env, a.id);
-  const st = await stub.state().catch(() => null);
-  if (!st) await stub.init(a.id, c.env.ENVIRONMENT === 'dev' || c.env.ENVIRONMENT === 'demo' ? 'DEMO' : 'OBSERVE', 'system');
-  return { ...a, stub };
+  return { ...a, stub: await readyCoordinator(c.env, a.id) };
 }
 
 app.get('/api/session', async c => {
@@ -100,7 +97,7 @@ app.get('/api/overview', async c => {
   const now = Date.now();
   const raw = await loadRaw({ db: c.env.DB, now, wineryTz: c.env.WINERY_TZ, currency });
   const o = computeOverview(raw, now, c.env.WINERY_TZ, currency);
-  const st = a ? await coordinatorFor(c.env, a.id).state().catch(() => null) : null;
+  const st = a ? await (await readyCoordinator(c.env, a.id)).state().catch(() => null) : null;
   const lastReview = raw.jobs.find(j => String(j.job) === 'daily_review');
   return json(c, { ...o, currency, coordinator: st, alerts: raw.alerts, connections: raw.connections, lastRefresh: raw.spend ? Number(raw.spend.data_as_of) : null, lastReview: lastReview ?? null, dataKind: c.env.DATA_KIND });
 });
@@ -113,7 +110,7 @@ app.get('/api/campaigns', async c => {
       SUM(CASE WHEN d.platform_conversions_milli IS NULL THEN 1 ELSE 0 END) AS conv_missing_days, COUNT(d.date) AS days
     FROM campaign_registry r LEFT JOIN campaign_daily d ON d.campaign_id = r.external_id AND d.account_id = r.account_id AND d.date >= ?
     WHERE r.kind = 'campaign' AND r.account_id = ? GROUP BY r.ref ORDER BY cost_micros DESC`).bind(from, a?.id ?? '').all()).results;
-  const st = a ? await coordinatorFor(c.env, a.id).state().catch(() => null) : null;
+  const st = a ? await (await readyCoordinator(c.env, a.id)).state().catch(() => null) : null;
   return json(c, { window: `${from} → yesterday`, currency: a?.currency ?? 'MXN', campaigns: rows, approved: st?.policy.approvedCampaignIds ?? [] });
 });
 

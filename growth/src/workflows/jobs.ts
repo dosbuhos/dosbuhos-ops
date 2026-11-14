@@ -8,7 +8,7 @@ import { loadRaw, computeOverview } from '../read/facts.ts';
 import { buildSnapshot } from '../read/snapshot.ts';
 import { buildFacts, templateNarrative, allowedNumbers } from './reports.ts';
 import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
-import { coordinatorFor } from '../coordinator/do.ts';
+import { readyCoordinator } from '../coordinator/do.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 
 export async function claim(db: D1Database, job: DueJob, now: number): Promise<boolean> {
@@ -34,7 +34,9 @@ export async function defaultAccount(db: D1Database): Promise<{ id: string; curr
 export async function runSchedule(env: Env, now: number): Promise<{ ran: string[] }> {
   await assertDataKind(env);
   const ran: string[] = [];
-  for (const job of dueJobs(now, await scheduleSettings(env.DB, env))) {
+  const jobs = dueJobs(now, await scheduleSettings(env.DB, env));
+  // The watchdog goes last, so it sees the reviews this same tick has just started.
+  for (const job of [...jobs.filter(j => j.job !== 'watchdog'), ...jobs.filter(j => j.job === 'watchdog')]) {
     if (!(await claim(env.DB, job, now))) continue;
     ran.push(job.runKey);
     try {
@@ -79,7 +81,7 @@ export async function watchdog(env: Env, now: number): Promise<{ open: number }>
   const acct = await defaultAccount(env.DB);
   if (acct) {
     try {
-      const stub = coordinatorFor(env, acct.id);
+      const stub = await readyCoordinator(env, acct.id);
       const st = await stub.state();
       if (st.unknownOutcomes > 0) alerts.push({ key: 'unknown_outcome', severity: 'critical', title: `${st.unknownOutcomes} ad change(s) with unknown outcome`, detail: 'Writes to those resources are blocked until reconciled. Open Agent activity → Reconcile.', link: '#activity' });
       if (st.restoredLocked) alerts.push({ key: 'restored_locked', severity: 'warning', title: 'Restored from backup: automation locked', detail: 'Reconcile live state in Controls before any writes.', link: '#controls' });
@@ -103,13 +105,17 @@ export async function watchdog(env: Env, now: number): Promise<{ open: number }>
   const lp = localParts(now, settings.wineryTz);
   const due = zonedToUtc(lp.date, settings.dailyReviewLocal.hour, settings.dailyReviewLocal.minute, settings.wineryTz);
   if (now > due + DAILY_REVIEW_GRACE_MINUTES * 60_000) {
-    const r = await env.DB.prepare('SELECT status FROM job_runs WHERE run_key = ?').bind(`daily_review:${lp.date}`).first<{ status: string }>();
-    if (!r || r.status !== 'succeeded') alerts.push({ key: `missed_daily:${lp.date}`, severity: 'warning', title: 'Daily review has not completed today', detail: r ? `Status: ${r.status}` : 'It never started.', link: '#reports' });
+    const r = await env.DB.prepare('SELECT status, started_at FROM job_runs WHERE run_key = ?').bind(`daily_review:${lp.date}`).first<{ status: string }>();
+    const startedAt = r ? Number((r as { started_at?: number }).started_at ?? 0) : 0;
+    const stuck = r && (r.status === 'claimed' || r.status === 'running') && now - startedAt > 2 * 3_600_000;
+    if (!r || r.status === 'failed' || stuck) alerts.push({ key: `missed_daily:${lp.date}`, severity: 'warning', title: 'Daily review has not completed today', detail: !r ? 'It never started.' : r.status === 'failed' ? 'It failed: see Agent activity → Scheduled runs.' : 'It started more than 2 h ago and has not finished.', link: '#activity' });
   }
   for (const c of (await env.DB.prepare("SELECT provider, health, health_reason FROM connections WHERE health IN ('reconnect', 'limited')").all<{ provider: string; health: string; health_reason: string }>()).results)
     alerts.push({ key: `connection:${c.provider}`, severity: c.health === 'reconnect' ? 'warning' : 'info', title: `${c.provider}: ${c.health === 'reconnect' ? 'reconnection needed' : 'limited'}`, detail: c.health_reason, link: '#connections' });
   const capUpd = await env.DB.prepare("SELECT MAX(source_updated_at) AS t FROM capacity_slots WHERE date >= ?").bind(lp.date).first<{ t: number | null }>();
-  if (!capUpd?.t || now - capUpd.t > 36 * 3_600_000) alerts.push({ key: 'stale_capacity', severity: 'warning', title: 'Capacity calendar not updated in 36 h', detail: 'Capacity-based scaling is blocked until staff update the calendar or import availability.', link: '#capacity' });
+  // Never set up is not the same as stale: the first is a to-do (info), the second a warning.
+  if (!capUpd?.t) alerts.push({ key: 'capacity_not_set_up', severity: 'info', title: 'Capacity not set up yet', detail: 'No slots entered for upcoming dates. Reporting works without it; capacity-based budget increases stay off.', link: '#capacity' });
+  else if (now - capUpd.t > 36 * 3_600_000) alerts.push({ key: 'stale_capacity', severity: 'warning', title: 'Capacity calendar not updated in 36 h', detail: 'Capacity-based scaling is blocked until staff update the calendar or confirm it is still correct.', link: '#capacity' });
 
   // Upsert seen alerts; resolve the ones not seen this run (dedupe = no alert storms).
   const seen = new Set(alerts.map(a => a.key));
@@ -157,7 +163,7 @@ export async function reviewAndPropose(env: Env, p: ReviewParams, now: number): 
   const acct = await defaultAccount(env.DB);
   const usage = { in: 0, out: 0, cost: 0 };
   if (!acct) return { summary: 'No ad account registered', submitted: 0, executed: [], usage };
-  const stub = coordinatorFor(env, acct.id);
+  const stub = await readyCoordinator(env, acct.id);
   const st = await stub.state();
   if (!['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) || st.aiStopped || st.emergencyLock) return { summary: `No proposals: mode ${st.mode}${st.aiStopped ? ', AI stopped' : ''}${st.emergencyLock ? ', emergency lock' : ''}`, submitted: 0, executed: [], usage };
   if (!env.ANTHROPIC_API_KEY) return { summary: 'No proposals: ANTHROPIC_API_KEY is not configured', submitted: 0, executed: [], usage };
