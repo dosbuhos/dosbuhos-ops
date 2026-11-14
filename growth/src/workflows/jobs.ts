@@ -21,7 +21,7 @@ import { syncGa4, syncAdsQueries, parseServiceAccount } from '../connectors/ga4.
 
 /** GA4 online reservations, if the key and property ID are configured. First run backfills 120 days, then a 14-day
  *  overlap window each hour (GA4 revises recent days). Returns null when not configured. */
-export async function syncGa4IfConfigured(env: Env, now: number): Promise<{ rows: number; reservations: number } | null> {
+export async function syncGa4IfConfigured(env: Env, now: number): Promise<{ rows: number; reservations: number; queries: string } | null> {
   const sa = parseServiceAccount(env.GA4_SA_KEY);
   const conn = await env.DB.prepare("SELECT account_ref FROM connections WHERE id = 'conn_ga4'").first<{ account_ref: string | null }>();
   if (!sa || !conn?.account_ref) return null;
@@ -29,12 +29,14 @@ export async function syncGa4IfConfigured(env: Env, now: number): Promise<{ rows
   const any = await env.DB.prepare('SELECT 1 FROM ga4_reservations_daily LIMIT 1').first();
   const from = addDays(today, any ? -14 : -120);
   const r = await syncGa4(env.DB, sa, conn.account_ref, now, from, today);
-  // Search terms: non-fatal; first run backfills 120 days.
+  // Search terms: non-fatal; first run backfills 120 days. The outcome goes into the job detail.
+  let queries = '';
   try {
     const anyQ = await env.DB.prepare('SELECT 1 FROM ga4_ads_queries LIMIT 1').first();
-    await syncAdsQueries(env.DB, sa, conn.account_ref, now, addDays(today, anyQ ? -14 : -120), today);
-  } catch (e) { console.log('ga4 ads queries failed', (e as Error).message); }
-  return r;
+    const q = await syncAdsQueries(env.DB, sa, conn.account_ref, now, addDays(today, anyQ ? -14 : -120), today);
+    queries = `Búsquedas: ${q.rows} guardadas de ${q.seen} filas (${q.notSet} sin campaña o búsqueda de Google Ads)${q.costError ? `; costo no disponible: ${q.costError}` : ''}`;
+  } catch (e) { queries = `Búsquedas fallaron: ${(e as Error).message.slice(0, 200)}`; }
+  return { ...r, queries };
 }
 
 export async function claim(db: D1Database, job: DueJob, now: number): Promise<boolean> {
@@ -73,7 +75,7 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
           if (env.HUB_DB && acct && env.DATA_KIND === 'real') {
             const r = await mirrorFromHub(env.HUB_DB, env.DB, acct.id, now, env.WINERY_TZ);
             let ga4 = 'GA4 no configurado';
-            try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} reservaciones en línea en ${g.rows} filas`; } catch (e) { ga4 = `GA4 falló: ${(e as Error).message}`; }
+            try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} reservaciones en línea en ${g.rows} filas. ${g.queries}`; } catch (e) { ga4 = `GA4 falló: ${(e as Error).message}`; }
             await finishJob(env.DB, job.runKey, 'succeeded', `Feed del Hub: ${r.campaigns} campañas, ${r.days} días, datos al ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'desconocido'}. ${ga4}`);
           } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'No hay una fuente de Google Ads conectada');
           break;
