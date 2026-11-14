@@ -13,6 +13,7 @@ export interface Env {
   ADS_PROVIDER: 'mock' | 'google_ads_api';
   ANTHROPIC_MODEL: string;
   WINERY_TZ: string;
+  OPENTABLE_RID?: string;           // OpenTable restaurant id (public, same as canario's RID)
   // secrets (optional where noted)
   HUB_SECRET?: string;              // required outside dev
   DEV_USER_EMAIL?: string;          // dev only

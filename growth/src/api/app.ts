@@ -12,6 +12,7 @@ import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
+import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { parseServiceAccount } from '../connectors/ga4.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
 import { addDays } from '../domain/time.ts';
@@ -118,7 +119,8 @@ app.get('/api/capacity', async c => {
   const { computeCapacity } = await import('../read/facts.ts');
   const cap = computeCapacity(raw, now, raw.today);
   const until = addDays(raw.today, days - 1);
-  return json(c, { today: raw.today, days, lastUpdate: cap.lastUpdate, summary: cap.days.filter(d => d.date <= until), slots: cap.slots.filter(s => s.date <= until), resources: raw.resources });
+  const { summarizeAvailability } = await import('../read/facts.ts');
+  return json(c, { today: raw.today, days, availability: summarizeAvailability(raw.otAvailability, raw.today, days), lastUpdate: cap.lastUpdate, summary: cap.days.filter(d => d.date <= until), slots: cap.slots.filter(s => s.date <= until), resources: raw.resources });
 });
 
 app.post('/api/capacity/slots', async c => {
@@ -336,7 +338,8 @@ app.post('/api/control/sync-now', async c => {
   const ads = await mirrorFromHub(c.env.HUB_DB, c.env.DB, a.id, Date.now(), c.env.WINERY_TZ);
   let ga4: unknown = null;
   try { ga4 = await syncGa4IfConfigured(c.env, Date.now()); } catch (e) { ga4 = { error: (e as Error).message }; }
-  return json(c, { ads, ga4 });
+  const availability = c.env.OPENTABLE_RID ? await syncAvailability(c.env.DB, Number(c.env.OPENTABLE_RID), Date.now(), c.env.WINERY_TZ).catch(e => ({ error: (e as Error).message })) : null;
+  return json(c, { ads, ga4, availability });
 });
 
 /** GA4: save the property ID (digits; not a secret, kept in D1 rather than the public repo) and run a first sync. */

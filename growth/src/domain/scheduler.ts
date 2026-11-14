@@ -3,7 +3,7 @@
 // constraint, so duplicate cron firings, retries and catch-up after a missed tick all run a logical job exactly once.
 import { localParts, weekStart, type LocalDate } from './time.ts';
 
-export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
+export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
 
 export interface ScheduleSettings {
   wineryTz: string;                 // America/Mexico_City
@@ -36,6 +36,7 @@ export function dueJobs(nowMs: number, s: ScheduleSettings): DueJob[] {
   const hour = Math.floor(nowMs / 3_600_000);
   out.push({ job: 'ads_ingest', runKey: `ads_ingest:${hour}` });
   out.push({ job: 'booking_sync', runKey: `booking_sync:${Math.floor(nowMs / 1_800_000)}` });
+  out.push({ job: 'ot_availability', runKey: `ot_availability:${Math.floor(nowMs / 10_800_000)}` }); // every 3 h
 
   const w = localParts(nowMs, s.wineryTz);
   if (atOrAfter(w, s.dailyReviewLocal)) out.push({ job: 'daily_review', runKey: `daily_review:${w.date}`, logicalDate: w.date });

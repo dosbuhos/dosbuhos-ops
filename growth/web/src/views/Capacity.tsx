@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox } from '../components';
 import { PRODUCT_LABEL, dayLabel, hhmm, ago } from '../format';
-import { CapChip, groupBy } from './Overview';
+import { CapChip, groupBy, AvailabilityList } from './Overview';
 
 export function Capacity({ canEdit }: { canEdit: boolean }) {
   const [days, setDays] = useState<14 | 30>(14);
@@ -22,6 +22,8 @@ export function Capacity({ canEdit }: { canEdit: boolean }) {
       <section className="section">
         <header><h2>Capacity</h2><div className="seg">{([14, 30] as const).map(n => <button key={n} aria-pressed={days === n} onClick={() => setDays(n)}>Next {n} days</button>)}</div></header>
         <p className="small muted">Each product is counted on its own: restaurant seats are never added to tour places. A guide or room shared by overlapping slots is counted once. Last update {ago(data.lastUpdate)}. Stale or unknown capacity blocks capacity-based budget increases; reporting continues.</p>
+        {data.availability?.days?.length > 0 && <div className="card stack" style={{ marginBottom: 12 }}><h3>OpenTable bookable times (automatic)</h3><AvailabilityList a={data.availability} detail /></div>}
+        <h3 style={{ marginTop: 8 }}>Staff capacity calendar</h3>
         <div className="legend" style={{ margin: '8px 0' }}>
           <span className="cap open">open</span><span className="cap sold_out">sold out</span><span className="cap unknown">unknown</span><span className="cap blocked">blocked / closed</span><span>⏱ stale</span>
         </div>

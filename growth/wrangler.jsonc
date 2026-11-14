@@ -17,7 +17,8 @@
     "DATA_KIND": "real",                 // must match business_settings.data_kind in DB, or the Worker refuses to run
     "ADS_PROVIDER": "google_ads_api",    // the API adapter refuses every write until Google Ads API access exists
     "ANTHROPIC_MODEL": "claude-opus-5-5",
-    "WINERY_TZ": "America/Mexico_City"
+    "WINERY_TZ": "America/Mexico_City",
+    "OPENTABLE_RID": "1258120"           // OpenTable restaurant id (public; same as canario), for bookable-time checks
   },
   "d1_databases": [
     // Growth's own facts, configuration, reports and the coordinator ledger projection.

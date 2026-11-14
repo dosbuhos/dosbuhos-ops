@@ -61,7 +61,7 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
       <div className="grid cols-2 section">
         <section className="card" aria-labelledby="cap14">
           <header className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}><h3 id="cap14">Next 14 days</h3><a href="#capacity" className="small">Full calendar</a></header>
-          {Object.keys(byDate).length === 0 && <p className="small muted">No capacity entered yet. Staff can add slots in Capacity; nothing here is treated as full or empty.</p>}
+          {Object.keys(byDate).length === 0 && (o.availability?.days?.length ? <AvailabilityList a={o.availability} /> : <p className="small muted">No capacity entered yet. Staff can add slots in Capacity; nothing here is treated as full or empty.</p>)}
           <div className="cal">{Object.entries(byDate).map(([date, ds]) => (
             <div key={date} className="cal-day"><div className="d">{dayLabel(date).split(' ').slice(1).join(' ')}<small>{dayLabel(date).split(' ')[0]}</small></div>
               <div className="cal-prods">{(ds as any[]).map(d => <CapChip key={d.product} d={d} />)}</div></div>))}</div>
@@ -110,6 +110,26 @@ function Funnel({ f }: { f: { window: string; gaps: string[]; steps: { event: st
       })}</div>
       <p className="tiny muted">Each step is counted separately by GA4 (events, not unique people), so percentages are approximate. “Booked” counts online widget reservations only; phone bookings and cancellations are not here.{f.gaps.length ? ` GA4 recorded nothing on ${f.gaps.join(', ')}: those days are treated as missing, not as zero.` : ''}</p>
     </section>
+  );
+}
+
+const AV: Record<string, [string, string]> = { open: ['open', 'open'], limited: ['limited', 'open'], full: ['full', 'sold_out'], closed: ['closed', 'closed'], unknown: ['unknown', 'unknown'] };
+export function AvailabilityList({ a, detail = false }: { a: { checkedAt: number | null; days: any[] }; detail?: boolean }) {
+  return (
+    <>
+      <div className="cal">{a.days.map(d => (
+        <div key={d.date} className="cal-day">
+          <div className="d">{dayLabel(d.date).split(' ').slice(1).join(' ')}<small>{dayLabel(d.date).split(' ')[0]}</small></div>
+          <div className="cal-prods">
+            {d.status === 'closed' ? <span className="cap closed">closed</span> : <>
+              <span className={`cap ${AV[d.status]![1]}`} title="Bookable table times on OpenTable for 2 people (about 20 is a normal day)">Restaurant <b className="mono">{d.tables2 === null ? '?' : d.tables2 === 0 ? 'full' : `${d.tables2} times`}</b>{d.tables4 !== null && d.tables2 !== 0 ? <span className="tiny muted">· {d.tables4} for 4</span> : null}</span>
+              <span className={`cap ${d.experienceTimes === null ? 'unknown' : d.experienceTimes === 0 ? 'sold_out' : 'open'}`} title="Bookable Experience times on OpenTable, all experiences">Experiences <b className="mono">{d.experienceTimes === null ? '?' : d.experienceTimes === 0 ? 'none' : `${d.experienceTimes} times`}</b></span>
+            </>}
+          </div>
+          {detail && d.status !== 'closed' && <div className="tiny muted" style={{ gridColumn: '1 / -1' }}>{d.experiences.map((x: any) => `${x.name}: ${x.slots ?? '?'}`).join(' · ')}</div>}
+        </div>))}</div>
+      <p className="tiny muted">Bookable times on OpenTable’s public booking page (not seats), checked every 3 hours{a.checkedAt ? `, last ${ago(a.checkedAt)}` : ''}. About 20 table times for 2 is a normal open day; “full” means nothing can be booked online.</p>
+    </>
   );
 }
 

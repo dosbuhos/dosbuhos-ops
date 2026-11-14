@@ -43,7 +43,8 @@ export async function loadRaw(i: FactsInput) {
   ]);
   // Online reservations from GA4 (OpenTable widget event). Daily aggregates by session source / medium / campaign.
   const ga4 = (await i.db.prepare('SELECT date, event_name, source, medium, campaign, events FROM ga4_reservations_daily WHERE date >= ?').bind(from).all<{ date: string; event_name: string; source: string; medium: string; campaign: string; events: number }>().catch(() => ({ results: [] as { date: string; event_name: string; source: string; medium: string; campaign: string; events: number }[] }))).results;
-  return { today, from, ga4, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
+  const otAvailability = (await i.db.prepare('SELECT date, product, item, party_size, slots, error, checked_at FROM ot_availability WHERE date >= ? ORDER BY date').bind(today).all<{ date: string; product: string; item: string; party_size: number; slots: number | null; error: string | null; checked_at: number }>().catch(() => ({ results: [] as { date: string; product: string; item: string; party_size: number; slots: number | null; error: string | null; checked_at: number }[] }))).results;
+  return { today, from, ga4, otAvailability, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
 }
 export type Raw = Awaited<ReturnType<typeof loadRaw>>;
 
@@ -286,6 +287,7 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
 
   return {
     today, cutoff: end, window: { from: cur[0], to: cur[27], prevFrom: prev[0], prevTo: prev[27] },
+    availability: summarizeAvailability(raw.otAvailability, today),
     funnel: raw.ga4.length ? (() => {
       const inCur = (d: string) => d >= cur[0]! && d <= cur[27]!;
       const gaps = cur.filter(d => d >= (firstGa4 ?? d) && !ga4Days.has(d));
@@ -298,6 +300,25 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   };
 }
 export type Overview = ReturnType<typeof computeOverview>;
+
+export interface AvailabilityDay { date: string; status: 'closed' | 'full' | 'limited' | 'open' | 'unknown'; tables2: number | null; tables4: number | null; experienceTimes: number | null; experiences: { name: string; slots: number | null }[] }
+/** Bookable times on OpenTable per day (not seats). ~20 table times for 2 is a normal open day (canario's yardstick);
+ *  under 8 is "limited"; 0 is "full". Mon/Tue are closed. Unreadable stays unknown. */
+export function summarizeAvailability(rows: { date: string; product: string; item: string; party_size: number; slots: number | null; checked_at: number }[], today: LocalDate, days = 14): { checkedAt: number | null; days: AvailabilityDay[] } {
+  if (!rows.length) return { checkedAt: null, days: [] };
+  const out: AvailabilityDay[] = [];
+  for (let k = 0; k < days; k++) {
+    const date = addDays(today, k);
+    const r = rows.filter(x => x.date === date);
+    const t2 = r.find(x => x.item === 'tables' && x.party_size === 2)?.slots ?? null, t4 = r.find(x => x.item === 'tables' && x.party_size === 4)?.slots ?? null;
+    const ex = r.filter(x => x.product === 'tour_tasting').map(x => ({ name: x.item, slots: x.slots }));
+    const exTotal = ex.length && ex.every(x => x.slots !== null) ? ex.reduce((a, x) => a + (x.slots ?? 0), 0) : null;
+    const closed = [1, 2].includes(weekdayOf(date)) && !r.length;
+    const status = closed ? 'closed' : t2 === null ? 'unknown' : t2 === 0 ? 'full' : t2 < 8 ? 'limited' : 'open';
+    out.push({ date, status, tables2: t2, tables4: t4, experienceTimes: exTotal, experiences: ex });
+  }
+  return { checkedAt: Math.max(...rows.map(x => x.checked_at)), days: out };
+}
 
 export function computeCapacity(raw: Raw, now: number, today: LocalDate) {
   const slots: Slot[] = raw.slots.map(s => ({

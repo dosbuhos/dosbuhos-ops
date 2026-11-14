@@ -10,6 +10,7 @@ import { buildFacts, templateNarrative, allowedNumbers } from './reports.ts';
 import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
 import { readyCoordinator } from '../coordinator/do.ts';
 import { readSecret } from '../ai/key.ts';
+import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { syncGa4, parseServiceAccount } from '../connectors/ga4.ts';
 
@@ -63,6 +64,12 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
             try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} online reservations in ${g.rows} rows`; } catch (e) { ga4 = `GA4 failed: ${(e as Error).message}`; }
             await finishJob(env.DB, job.runKey, 'succeeded', `Hub feed: ${r.campaigns} campaigns, ${r.days} days, data as of ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'unknown'}. ${ga4}`);
           } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'No Google Ads source bound');
+          break;
+        }
+        case 'ot_availability': {
+          if (!env.OPENTABLE_RID || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'No OpenTable restaurant id configured'); break; }
+          const r = await syncAvailability(env.DB, Number(env.OPENTABLE_RID), now, env.WINERY_TZ);
+          await finishJob(env.DB, job.runKey, r.failed && !r.read ? 'failed' : 'succeeded', `OpenTable availability: ${r.read} read, ${r.failed} failed${r.firstError ? ` (${r.firstError})` : ''}`);
           break;
         }
         case 'spend_poll':
@@ -128,9 +135,11 @@ export async function watchdog(env: Env, now: number): Promise<{ open: number }>
   for (const c of (await env.DB.prepare("SELECT provider, health, health_reason FROM connections WHERE health IN ('reconnect', 'limited')").all<{ provider: string; health: string; health_reason: string }>()).results)
     alerts.push({ key: `connection:${c.provider}`, severity: c.health === 'reconnect' ? 'warning' : 'info', title: `${c.provider}: ${c.health === 'reconnect' ? 'reconnection needed' : 'limited'}`, detail: c.health_reason, link: '#connections' });
   const capUpd = await env.DB.prepare("SELECT MAX(source_updated_at) AS t FROM capacity_slots WHERE date >= ?").bind(lp.date).first<{ t: number | null }>();
+  const otAvail = await env.DB.prepare('SELECT MAX(checked_at) AS t FROM ot_availability WHERE slots IS NOT NULL').first<{ t: number | null }>().catch(() => null);
+  const autoFresh = !!otAvail?.t && now - otAvail.t < 8 * 3_600_000; // automatic availability from OpenTable counts as capacity information
   // Never set up is not the same as stale: the first is a to-do (info), the second a warning.
-  if (!capUpd?.t) alerts.push({ key: 'capacity_not_set_up', severity: 'info', title: 'Capacity not set up yet', detail: 'No slots entered for upcoming dates. Reporting works without it; capacity-based budget increases stay off.', link: '#capacity' });
-  else if (now - capUpd.t > 36 * 3_600_000) alerts.push({ key: 'stale_capacity', severity: 'warning', title: 'Capacity calendar not updated in 36 h', detail: 'Capacity-based scaling is blocked until staff update the calendar or confirm it is still correct.', link: '#capacity' });
+  if (!capUpd?.t && !autoFresh) alerts.push({ key: 'capacity_not_set_up', severity: 'info', title: 'Capacity not set up yet', detail: 'No slots entered for upcoming dates. Reporting works without it; capacity-based budget increases stay off.', link: '#capacity' });
+  else if (capUpd?.t && now - capUpd.t > 36 * 3_600_000) alerts.push({ key: 'stale_capacity', severity: 'warning', title: 'Capacity calendar not updated in 36 h', detail: 'Capacity-based scaling is blocked until staff update the calendar or confirm it is still correct.', link: '#capacity' });
 
   // Upsert seen alerts; resolve the ones not seen this run (dedupe = no alert storms).
   const seen = new Set(alerts.map(a => a.key));
