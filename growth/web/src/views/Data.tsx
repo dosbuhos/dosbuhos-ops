@@ -1,33 +1,55 @@
 import { useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, Health } from '../components';
-import { microsMoney, int, when, ago, PRODUCT_LABEL } from '../format';
+import { microsMoney, money, int, when, ago, PRODUCT_LABEL } from '../format';
 
 export function Campaigns() {
   const { data, error } = useApi('campaigns', 120_000);
   if (!data) return error ? <ErrorBox error={error} /> : <div className="section"><Loading /></div>;
+  const total = (data.sources as any[]).reduce((a, x) => a + x.reservations, 0);
+  const lost = (data.sources as any[]).filter(x => /Lost source|Not set/.test(x.group)).reduce((a, x) => a + x.reservations, 0);
+  const cur = data.currency;
   return (
-    <section className="section">
-      <header><h2>Campaigns</h2><span className="small muted">{data.window}, platform-reported</span></header>
-      <p className="small muted">Conversions here are what Google Ads reports (platform attribution). They are not deduplicated business results; use Overview for bookings and contribution.</p>
-      <div className="list">{(data.campaigns as any[]).map(c => {
-        const approved = data.approved.includes(c.external_id);
-        return (
-          <article key={c.ref} className="item">
-            <div className="top"><b>{c.name}</b><span className="row">{c.brand ? <span className="chip">brand</span> : <span className="chip">non-brand</span>}<span className={`state ${c.status === 'ENABLED' ? 's-ok' : 's-mute'}`}>{c.status.toLowerCase()}</span></span></div>
-            <div className="kv">
-              <div><span>Spend</span><b>{microsMoney(c.cost_micros, data.currency)}</b></div>
-              <div><span>Clicks</span><b>{int(c.clicks)}</b></div>
-              <div><span>Platform conversions</span><b>{c.conv_milli === null ? '—' : (c.conv_milli / 1000).toFixed(1)}{c.conv_missing_days ? ` (${c.conv_missing_days} day(s) missing)` : ''}</b></div>
-              <div><span>Daily budget</span><b>{microsMoney(c.budget_micros, data.currency)}{c.budget_shared ? ' shared' : ''}</b></div>
-              <div><span>Books</span><b>{JSON.parse(c.products_json).map((p: string) => PRODUCT_LABEL[p]).join(', ')}, {c.booking_horizon_days} days ahead</b></div>
-              <div><span>Managed by</span><b>{c.managed_by}{approved ? ' · app may change' : ' · app will not change'}</b></div>
-            </div>
-            <div className="tiny muted">Optimization signal: {c.optimization_signal || 'not documented yet'}</div>
-          </article>
-        );
-      })}</div>
-    </section>
+    <>
+      <section className="section">
+        <header><h2>Campaigns</h2><span className="small muted">{data.window.from} – {data.window.to}{data.trackingSince && data.trackingSince > data.window.from ? ` · reservations since ${data.trackingSince}` : ''}</span></header>
+        {total > 0 && (
+          <div className="card stack">
+            <h3>Where online reservations come from</h3>
+            <div className="stack">{(data.sources as any[]).map(x => (
+              <div key={x.group} className="row" style={{ flexWrap: 'nowrap', gap: 10 }}>
+                <div className="small" style={{ flex: '0 1 50%', minWidth: 0 }}>{x.group}</div>
+                <div style={{ flex: 1, minWidth: 0 }}><div className="bar" style={{ width: '100%', height: 10 }}><span style={{ width: `${(x.reservations / total) * 100}%` }} /></div></div>
+                <b className="mono" style={{ minWidth: 30, textAlign: 'right' }}>{x.reservations}</b>
+              </div>))}</div>
+            <p className="tiny muted">{total} online reservations (OpenTable widget, GA4). {lost ? `${lost} (${Math.round((lost / total) * 100)}%) lost their original source when the guest moved from dosbuhos.com to OpenTable, so ad results are probably undercounted. ` : ''}Phone and walk-in bookings are not included.</p>
+          </div>
+        )}
+      </section>
+      <section className="section">
+        <div className="list">{(data.campaigns as any[]).map(c => {
+          const approved = data.approved.includes(c.ref);
+          return (
+            <article key={c.ref} className="item">
+              <div className="top"><b>{c.name}</b><span className="row"><span className="chip">{c.provider === 'meta_ads' ? 'Meta' : 'Google'}</span><span className={`state ${c.status === 'ENABLED' || c.status === 'ACTIVE' ? 's-ok' : 's-mute'}`}>{c.status.toLowerCase() || 'unknown'}</span></span></div>
+              <div className="kv">
+                <div><span>Spend, 28 days</span><b>{microsMoney(c.spendMicros, cur)}</b></div>
+                <div><span>Clicks</span><b>{int(c.clicks)}</b></div>
+                <div><span>{c.provider === 'meta_ads' ? 'Meta results' : 'Google conversions'}</span><b>{c.convMilli === null ? '—' : (c.convMilli / 1000).toFixed(1)}</b></div>
+                <div><span>Opened OpenTable availability</span><b>{c.openedAvailability ?? '—'}</b></div>
+                <div><span>Online reservations</span><b>{c.reservations ?? '—'}</b></div>
+                <div><span>Cost per reservation</span><b>{c.costPerReservationMinor === null ? '—' : money(c.costPerReservationMinor, cur)}</b></div>
+                <div><span>Daily budget</span><b>{microsMoney(c.budgetMicros, cur)}</b></div>
+              </div>
+              {c.note && <div className="tiny muted">{c.note}</div>}
+              {c.costPerReservationMinor !== null && <div className="tiny muted">Spend {microsMoney(c.trackedSpendMicros, cur)} on the days GA4 tracked reservations ÷ {c.reservations} reservation(s). Session attribution; not proof the ads caused them.</div>}
+              <div className="tiny muted">Managed by {c.managedBy}{approved ? ' · the app may change it' : ' · the app will not change it'}</div>
+            </article>
+          );
+        })}</div>
+        {data.unmatchedGoogleAds > 0 && <p className="tiny muted">{data.unmatchedGoogleAds} reservation(s) came from Google Ads campaigns not in the current list (renamed or removed).</p>}
+      </section>
+    </>
   );
 }
 

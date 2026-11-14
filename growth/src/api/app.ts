@@ -11,6 +11,7 @@ import { previewOpenTable, DEFAULT_OPENTABLE_MAPPING, type OpenTableMapping } fr
 import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
+import { loadCampaigns } from '../read/campaigns.ts';
 import { parseServiceAccount } from '../connectors/ga4.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
 import { addDays } from '../domain/time.ts';
@@ -105,14 +106,9 @@ app.get('/api/overview', async c => {
 
 app.get('/api/campaigns', async c => {
   const a = await defaultAccount(c.env.DB);
-  const from = addDays(new Date().toISOString().slice(0, 10), -28);
-  const rows = (await c.env.DB.prepare(`SELECT r.ref, r.external_id, r.name, r.status, r.channel, r.brand, r.language, r.products_json, r.booking_horizon_days, r.budget_micros, r.budget_shared, r.writable, r.managed_by, r.optimization_signal,
-      SUM(d.cost_micros) AS cost_micros, SUM(d.clicks) AS clicks, SUM(d.impressions) AS impressions, SUM(d.platform_conversions_milli) AS conv_milli,
-      SUM(CASE WHEN d.platform_conversions_milli IS NULL THEN 1 ELSE 0 END) AS conv_missing_days, COUNT(d.date) AS days
-    FROM campaign_registry r LEFT JOIN campaign_daily d ON d.campaign_id = r.external_id AND d.account_id = r.account_id AND d.date >= ?
-    WHERE r.kind = 'campaign' AND r.account_id = ? GROUP BY r.ref ORDER BY cost_micros DESC`).bind(from, a?.id ?? '').all()).results;
+  const view = await loadCampaigns(c.env.DB, Date.now(), c.env.WINERY_TZ, a?.currency ?? 'MXN');
   const st = a ? await (await readyCoordinator(c.env, a.id)).state().catch(() => null) : null;
-  return json(c, { window: `${from} → yesterday`, currency: a?.currency ?? 'MXN', campaigns: rows, approved: st?.policy.approvedCampaignIds ?? [] });
+  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [] });
 });
 
 app.get('/api/capacity', async c => {
