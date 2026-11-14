@@ -141,7 +141,7 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
 
   const series: Series[] = [];
   const mk = (key: string, label: string, unit: Series['unit'], view: Series['view'], f: (d: LocalDate) => number | null, provisionalAware = true, missing?: string): Series => {
-    const pts = days.map(d => ({ date: d, value: f(d), provisional: provisionalAware && view === 'acquisition' ? isProvisional(d) : false }));
+    const pts = days.map(d => ({ date: d, value: missing ? null : f(d), provisional: provisionalAware && view === 'acquisition' ? isProvisional(d) : false }));
     const vals = pts.map(p => p.value);
     return { key, label, unit, view, points: pts, trend7: trailing(vals, 7), trend28: trailing(vals, 28), available: !missing && vals.some(v => v !== null), ...(missing ? { missing } : {}) };
   };
@@ -157,12 +157,15 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
     if (isGoogleAds(r.source, r.medium)) ga4Ads.set(r.date, (ga4Ads.get(r.date) ?? 0) + r.events);
   }
   const haveGa4 = noBookings && raw.ga4.length > 0;
-  const firstGa4 = [...ga4Days].sort()[0] ?? null;
+  const firstGa4 = raw.ga4.filter(r => r.event_name === RESERVATION_EVENT).map(r => r.date).sort()[0] ?? null; // tracking start
   const ga4On = (m: Map<string, number>, d: LocalDate): number | null => (firstGa4 !== null && d >= firstGa4 && ga4Days.has(d) ? m.get(d) ?? 0 : null);
   /** Sum over the days GA4 recorded; gap days are excluded and listed. More than 7 missing days → unknown. */
   const ga4Sum = (m: Map<string, number>, ds: LocalDate[]) => {
-    const known = ds.filter(d => ga4On(m, d) !== null), excluded = ds.filter(d => ga4On(m, d) === null);
-    return { value: excluded.length > 7 ? null : known.reduce((a, d) => a + (m.get(d) ?? 0), 0), known, excluded };
+    const known = ds.filter(d => ga4On(m, d) !== null);
+    const before = ds.filter(d => firstGa4 === null || d < firstGa4);         // tracking had not started
+    const excluded = ds.filter(d => firstGa4 !== null && d >= firstGa4 && ga4On(m, d) === null); // GA4 gaps after start
+    const value = excluded.length > 7 || known.length === 0 || before.length === ds.length ? null : known.reduce((a, d) => a + (m.get(d) ?? 0), 0);
+    return { value, known, excluded, before, partial: before.length > 0 };
   };
   const GA4_NOTE = 'Online reservations made through the OpenTable widget, counted by GA4 (event ot-reservation-made) on the day they were made. Phone and walk-in bookings are not included; later cancellations are not removed.';
   const contribMissing = noBookings ? NB : assumptions.some(a => a.approvedBy) ? undefined : 'Approved variable costs or margins per product are missing, so contribution cannot be measured';
@@ -216,7 +219,9 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
     { key: 'completed_guests', label: 'Completed guests', metric: noBookings ? unknownCount('completed_guests', 'Guests marked attended') : countMetric('completed_guests', 'Guests marked attended (service date, all channels)', guestsCur, 'observed', false), delta: delta(noBookings ? null : guestsCur, noBookings ? null : guestsPrev, w, false), spark: noBookings ? [] : sparkOf('completed_guests'), window: w },
     haveGa4 ? (() => {
       const c = ga4Sum(ga4All, cur), p = ga4Sum(ga4All, prev);
-      return { key: 'confirmed_bookings', label: 'Online reservations', metric: { key: 'online_reservations', value: c.value, unit: 'count' as const, numerator: { label: 'OpenTable widget reservations counted by GA4', value: c.value }, basis: 'observed' as const, provisional: false, reason: c.value === null ? 'GA4 is missing more than 7 days of this window' : `${GA4_NOTE}${c.excluded.length ? ` Excludes ${c.excluded.length} day(s) GA4 recorded nothing: ${c.excluded.join(', ')}.` : ''}` }, delta: delta(c.value, p.value, w, false), spark: sparkOf('online_reservations'), window: w };
+      const since = c.partial ? ` Tracking began ${firstGa4}: this covers ${c.known.length} day(s), not 28.` : '';
+      const d = p.partial || p.value === null ? { absolute: null, percent: null, window: w, provisional: false, note: `No comparison yet: GA4 reservation tracking began ${firstGa4}` } : delta(c.value, p.value, w, false);
+      return { key: 'confirmed_bookings', label: c.partial ? `Online reservations (since ${firstGa4})` : 'Online reservations', metric: { key: 'online_reservations', value: c.value, unit: 'count' as const, numerator: { label: 'OpenTable widget reservations counted by GA4', value: c.value }, basis: 'observed' as const, provisional: false, reason: c.value === null ? 'GA4 is missing more than 7 days of this window' : `${GA4_NOTE}${since}${c.excluded.length ? ` Excludes ${c.excluded.length} day(s) GA4 recorded nothing: ${c.excluded.join(', ')}.` : ''}` }, delta: d, spark: sparkOf('online_reservations'), window: w };
     })() : { key: 'confirmed_bookings', label: 'Confirmed bookings', metric: noBookings ? unknownCount('confirmed_bookings', 'Bookings created and not cancelled') : countMetric('confirmed_bookings', 'Bookings created and not cancelled (all channels)', bookCur, 'observed', false), delta: delta(noBookings ? null : bookCur, noBookings ? null : bookPrev, w, false), spark: noBookings ? [] : sparkOf('confirmed_bookings'), window: w },
     { key: 'ad_spend', label: 'Ad spend (Google)', metric: { key: 'ad_spend', value: spendCur, unit: 'money', currency, numerator: { label: 'Google Ads cost, all campaigns', value: spendCur }, basis: 'observed', provisional: false, ...(spendCur === null ? { reason: 'Spend missing for some days' } : {}) }, delta: delta(spendCur, spendPrev, w, false), spark: sparkOf('ad_spend'), window: w },
     ...(haveGa4 ? [(() => {
@@ -225,9 +230,9 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
       const cpr = (sp: number | null, n: number | null): number | null => (sp === null || !n ? null : Math.round(sp / n));
       const aCur = ga4Sum(ga4Ads, cur), aPrev = ga4Sum(ga4Ads, prev);
       const nCur = aCur.value, nPrev = aPrev.value;
-      const vCur = cpr(spendOn(aCur.known), nCur), vPrev = cpr(spendOn(aPrev.known), nPrev);
+      const vCur = cpr(spendOn(aCur.known), nCur), vPrev = aPrev.partial ? null : cpr(spendOn(aPrev.known), nPrev);
       const m: Metric = { key: 'cost_per_online_reservation', value: vCur, unit: 'money', currency, numerator: { label: 'Google Ads cost, all campaigns', value: spendCur }, denominator: { label: 'Online reservations from Google Ads sessions (GA4, last session source google / cpc)', value: nCur }, basis: 'attributed', provisional: false,
-        reason: vCur === null ? (nCur === 0 ? 'No reservations from Google Ads sessions in this window' : 'Spend or GA4 data missing for part of the window') : 'GA4 session attribution, online widget reservations only. Not proof the ads caused them.' };
+        reason: vCur === null ? (nCur === 0 ? 'No reservations from Google Ads sessions in this window' : 'Spend or GA4 data missing for part of the window') : `GA4 session attribution, online widget reservations only${aCur.partial ? `, spend and reservations since ${firstGa4}` : ''}. Likely overstated while GA4 credits some reservations to “dosbuhos.com / referral” (lost ad source). Not proof the ads caused them.` };
       return { key: 'cost_per_online_reservation', label: 'Cost per online reservation (Google Ads)', metric: m, delta: delta(vCur, vPrev, w, false), spark: [], window: w } as Ticker;
     })()] : []),
     { key: 'platform_conversions', label: 'Google Ads conversions', metric: { key: 'platform_conversions', value: convCur, unit: 'count', numerator: { label: 'Conversions as Google Ads counts them (whatever conversion actions the account has set up — not verified bookings)', value: convCur }, basis: 'attributed', provisional: false, reason: 'Platform-reported. Not deduplicated against OpenTable; may include clicks on the booking button rather than completed bookings' }, delta: delta(convCur, convPrev, w, false), spark: sparkOf('platform_conversions'), window: w },

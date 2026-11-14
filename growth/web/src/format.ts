@@ -1,6 +1,6 @@
 // Formatting. Money arrives in integer minor units (or micros) with a currency; never floating-point arithmetic here.
 export const money = (minor: number | null | undefined, currency = 'MXN', digits = 0) =>
-  minor === null || minor === undefined ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency, maximumFractionDigits: digits, minimumFractionDigits: digits }).format(minor / 100);
+  minor === null || minor === undefined ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: digits, minimumFractionDigits: digits }).format(minor / 100);
 export const microsMoney = (m: number | null | undefined, currency = 'MXN') => (m === null || m === undefined ? '—' : money(Math.round(m / 10_000), currency));
 export const int = (n: number | null | undefined) => (n === null || n === undefined ? '—' : new Intl.NumberFormat('en-US').format(Math.round(n)));
 export const ratio = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `${n.toFixed(2)}×`);

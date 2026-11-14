@@ -44,7 +44,7 @@ function App() {
             <span>Account <b>{s?.account ? `${s.account.id}${demo ? ' (synthetic)' : ''}` : 'not connected'}</b></span>
             <span>Spend data <b>{ago(o?.lastRefresh)}</b></span>
             <span>Last change <b>{lastOpt ?? 'none'}</b></span>
-            <span>Attribution coverage <b>{o?.quality?.attributionCoverage ?? '—'}%</b></span>
+            <span>Attribution coverage <b>{o?.quality?.bookingsConnected === false ? 'n/a (no booking source)' : `${o?.quality?.attributionCoverage ?? '—'}%`}</b></span>
             <span>Refreshed <b>{ago(overview.loadedAt)}</b></span>
             <button className="iconbtn" style={{ marginLeft: 'auto' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>{theme === 'dark' ? '☀ Light' : '☾ Dark'}</button>
           </div>
