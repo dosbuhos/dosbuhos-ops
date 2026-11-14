@@ -29,14 +29,14 @@ describe('metrics (AC 4, 6)', () => {
   it('computes ROAS with named numerator and denominator', () => {
     const r = revenueRoas(totals({}));
     expect(r.value).toBe(10);
-    expect(r.numerator.label).toMatch(/revenue/i);
+    expect(r.numerator.label).toMatch(/ingresos/i);
     expect(r.denominator?.value).toBe(10_000_00);
   });
   it('zero spend and missing data are null with a reason, never 0 or Infinity', () => {
     const z = revenueRoas(totals({ spend: micros('MXN', 0) }));
-    expect(z.value).toBeNull(); expect(z.reason).toMatch(/No ad spend/);
+    expect(z.value).toBeNull(); expect(z.reason).toMatch(/No hubo gasto en anuncios/);
     const m = contributionRoas(totals({ contribution: null }));
-    expect(m.value).toBeNull(); expect(m.reason).toMatch(/margins/);
+    expect(m.value).toBeNull(); expect(m.reason).toMatch(/márgenes/);
     expect(contributionAfterAds(totals({ contribution: null })).value).toBeNull();
     expect(costPerCompletedVisit(totals({ completedParties: null })).value).toBeNull();
     expect(costPerCompletedVisit(totals({ completedParties: 0 })).value).toBeNull();
@@ -54,7 +54,7 @@ describe('metrics (AC 4, 6)', () => {
   });
   it('occupancy excludes unknown slots from the denominator and says so', () => {
     const o = occupancy(30, 40, 2);
-    expect(o.value).toBe(75); expect(o.reason).toMatch(/2 slot/);
+    expect(o.value).toBe(75); expect(o.reason).toMatch(/2 horario/);
   });
 });
 
@@ -125,7 +125,7 @@ describe('capacity (AC 7)', () => {
     expect(r[0]).toMatchObject({ status: 'unknown', sellableGuests: null });
     const stale = resolveCapacity({ resources, windows, slots: [slot('t', 'tour_tasting', 720, { requires: [{ resourceId: 'guide', perGuest: 0, perSlot: 1 }], maxGuests: 12, sourceUpdatedAt: now - 3 * 86_400_000 })], reservations: [], freshness: [{ product: 'tour_tasting', maxAgeMinutes: 24 * 60 }], now });
     const days = summarizeDays(stale);
-    expect(capacitySupportsGrowth(days, ['tour_tasting'], { from: '2026-11-14', to: '2026-11-30' })).toMatchObject({ ok: false, reason: expect.stringMatching(/stale/) });
+    expect(capacitySupportsGrowth(days, ['tour_tasting'], { from: '2026-11-14', to: '2026-11-30' })).toMatchObject({ ok: false, reason: expect.stringMatching(/desactualizada/) });
     expect(capacitySupportsGrowth(days, ['restaurant_visit'], { from: '2026-11-14', to: '2026-11-30' }).ok).toBe(false);
   });
 });

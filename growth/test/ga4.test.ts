@@ -102,9 +102,9 @@ describe('GA4 connector', () => {
     }
     const o = computeOverview(await loadRaw({ db: d1, now, wineryTz: TZ, currency: 'MXN' }), now, TZ, 'MXN');
     const t = Object.fromEntries(o.tickers.map(x => [x.key, x]));
-    expect(t.confirmed_bookings!.label).toBe('Online reservations');
+    expect(t.confirmed_bookings!.label).toBe('Reservaciones en línea');
     expect(t.confirmed_bookings!.metric.value).toBe(27 * 3); // the gap day is excluded and named, never counted as zero
-    expect(t.confirmed_bookings!.metric.reason).toContain(`Excludes 1 day(s) GA4 recorded nothing: ${gap}`);
+    expect(t.confirmed_bookings!.metric.reason).toContain(`Excluye 1 día(s) en que GA4 no registró nada: ${gap}`);
     expect(t.cost_per_online_reservation!.metric.value).toBe(350_00); // spend over the same 27 days / 27 Google Ads reservations
     const daily = o.series.find(s => s.key === 'online_reservations')!.points;
     expect(daily.find(p => p.date === gap)!.value).toBeNull();

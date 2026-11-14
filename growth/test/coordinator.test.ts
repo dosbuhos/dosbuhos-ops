@@ -38,17 +38,17 @@ describe('execution boundary by mode (AC 8)', () => {
     goLive();
     const { action, decision } = await core.propose(intentOf(), 'model', goodContext(snap, now));
     expect(action.state).toBe('REJECTED');
-    expect(decision.reasons.join(' ')).toMatch(/after change: 850; allowed: 800/);
+    expect(decision.reasons.join(' ')).toMatch(/después del cambio: 850; permitido: 800/);
   });
 
   it('LIMITED_AUTO refuses to go live with an incomplete policy', () => {
     const { core } = liveCoordinator({ policy: { ...LIVE_POLICY, monthlyAdSpendCeilingNative: null } });
-    expect(() => core.setMode('LIMITED_AUTO', 'owner', { policyVersion: core.policyVersion() })).toThrow(/monthly ad spend ceiling/);
+    expect(() => core.setMode('LIMITED_AUTO', 'owner', { policyVersion: core.policyVersion() })).toThrow(/tope mensual de gasto en anuncios/);
   });
 
   it('LIMITED_AUTO needs confirmation of the exact previewed policy version', () => {
     const { core } = liveCoordinator();
-    expect(() => core.setMode('LIMITED_AUTO', 'owner', { policyVersion: core.policyVersion() - 1 })).toThrow(/Confirm/);
+    expect(() => core.setMode('LIMITED_AUTO', 'owner', { policyVersion: core.policyVersion() - 1 })).toThrow(/Confirma/);
   });
 
   it('Stop AI blocks model actions but a protective pause still works (AC 17)', async () => {
@@ -58,7 +58,7 @@ describe('execution boundary by mode (AC 8)', () => {
     const { action } = await core.propose(intentOf(), 'model', goodContext(snap, now));
     expect(action.state).toBe('REJECTED');
     const res = await core.pauseManaged(snap, 'owner', goodContext(snap, now));
-    expect(res.map(r => r.outcome)).toEqual(['paused (verified)', 'paused (verified)']);
+    expect(res.map(r => r.outcome)).toEqual(['pausada (verificada)', 'pausada (verificada)']);
     expect(provider.state.campaigns['111']).toBe('PAUSED');
     expect(provider.state.campaigns['333']).toBe('ENABLED'); // not managed → never touched
   });
@@ -68,8 +68,8 @@ describe('execution boundary by mode (AC 8)', () => {
     core.setMode('EMERGENCY_LOCK', 'owner');
     provider.inject({ op: 'setCampaignStatus', target: '222', mode: 'timeout_before_apply' });
     const res = await core.pauseManaged(snap, 'owner', goodContext(snap, now));
-    expect(res.find(r => r.campaignId === '111')?.outcome).toBe('paused (verified)');
-    expect(res.find(r => r.campaignId === '222')?.outcome).toMatch(/unknown/);
+    expect(res.find(r => r.campaignId === '111')?.outcome).toBe('pausada (verificada)');
+    expect(res.find(r => r.campaignId === '222')?.outcome).toMatch(/desconocido/);
   });
 });
 
@@ -89,7 +89,7 @@ describe('model output cannot widen authority (AC 9)', () => {
     goLive();
     const { action, decision } = await core.propose(intentOf(proposal({ resourceRef: 'res_brand01' })), 'model', goodContext(snap, now));
     expect(action.state).toBe('REJECTED');
-    expect(decision.reasons.join(' ')).toMatch(/not on the approved list|managed by owner/);
+    expect(decision.reasons.join(' ')).toMatch(/no está en la lista aprobada|la administra owner/);
   });
 
   it('owner approval is bound to the exact action and expires', async () => {
@@ -97,9 +97,9 @@ describe('model output cannot widen authority (AC 9)', () => {
     goLive();
     const { action } = await core.propose(intentOf(), 'model', goodContext(snap, now));
     expect(action.state).toBe('APPROVAL_REQUIRED');
-    expect(() => core.approve(action.id, 'f'.repeat(64), 'owner')).toThrow(/does not match/);
+    expect(() => core.approve(action.id, 'f'.repeat(64), 'owner')).toThrow(/no coincide/);
     advance(25 * 3_600_000);
-    expect(() => core.approve(action.id, action.approval_hash, 'owner')).toThrow(/expired/);
+    expect(() => core.approve(action.id, action.approval_hash, 'owner')).toThrow(/venció/);
   });
 
   it('an approved action is re-checked against policy at execution time', async () => {
@@ -123,7 +123,7 @@ describe('rolling limits and concurrency (AC 10)', () => {
     const snap2 = snapshot({ b1: provider.state.budgets.b1! });
     const second = await core.propose(intentOf(proposal({ hypothesis: 'Increase again because it worked once' }), snap2), 'model', goodContext(snap2, now));
     expect(second.action.state).toBe('REJECTED');
-    expect(second.decision.reasons.join(' ')).toMatch(/Cumulative change vs 7 days ago would be 21\.0%/);
+    expect(second.decision.reasons.join(' ')).toMatch(/El cambio acumulado vs\. hace 7 días sería de 21\.0%/);
   });
 
   it('the daily mutation limit counts other actions, not the one being executed', async () => {
@@ -133,7 +133,7 @@ describe('rolling limits and concurrency (AC 10)', () => {
     expect((await core.execute(first.action.id, goodContext(snap, now))).state).toBe('VERIFIED');
     const second = await core.propose(intentOf(proposal({ actionType: 'pause_ad', resourceRef: 'res_ad00001', parameters: {} })), 'model', goodContext(snap, now));
     expect(second.action.state).toBe('REJECTED');
-    expect(second.decision.reasons.join(' ')).toMatch(/1 of 1 optimization changes/);
+    expect(second.decision.reasons.join(' ')).toMatch(/1 de 1 cambios de optimización/);
   });
 
   it('a change made by someone else counts toward the rolling limit', async () => {
@@ -152,7 +152,7 @@ describe('rolling limits and concurrency (AC 10)', () => {
     expect(b.duplicate).toBe(true);
     expect(b.action.id).toBe(a.action.id);
     await core.execute(a.action.id, goodContext(snap, now));
-    await expect(core.execute(a.action.id, goodContext(snap, now))).rejects.toThrow(/not APPROVED/);
+    await expect(core.execute(a.action.id, goodContext(snap, now))).rejects.toThrow(/no en APPROVED/);
     expect(provider.calls).toHaveLength(1);
   });
 
@@ -186,7 +186,7 @@ describe('unknown outcomes and reconciliation (AC 11)', () => {
     expect((await core.execute(a.action.id, goodContext(snap, now))).state).toBe('UNKNOWN_OUTCOME');
     const b = await core.propose(intentOf(proposal({ parameters: { changePct: -5 } })), 'model', goodContext(snap, now));
     expect(b.action.state).toBe('REJECTED');
-    expect(b.decision.reasons.join(' ')).toMatch(/unknown outcome/);
+    expect(b.decision.reasons.join(' ')).toMatch(/resultado desconocido/);
     const callsBefore = provider.calls.length;
     expect((await core.reconcile(a.action.id)).state).toBe('VERIFIED');
     expect(provider.calls.length).toBe(callsBefore); // reconciliation never re-sends
@@ -238,7 +238,7 @@ describe('external edits (AC 13)', () => {
     await core.execute(a.action.id, goodContext(snap, now));
     provider.state.budgets.b1 = M(600);
     const r = await core.compensate(a.action.id, 'owner');
-    expect(r.refused).toMatch(/changed after this app applied/);
+    expect(r.refused).toMatch(/se cambió después de que esta app aplicó/);
     expect(provider.state.budgets.b1).toBe(M(600));
   });
 
@@ -265,8 +265,8 @@ describe('restore (AC 21) and environment separation (AC 1)', () => {
     const restored = new CoordinatorCore(memorySql(), { provider, now, environment: 'dev' });
     restored.restoreAll(dump);
     expect(restored.state().mode).toBe('EMERGENCY_LOCK');
-    expect(() => restored.setEmergencyLock(false, 'owner')).toThrow(/reconcile/);
-    expect(() => restored.setMode('LIMITED_AUTO', 'owner', { policyVersion: restored.policyVersion() })).toThrow(/reconcile/);
+    expect(() => restored.setEmergencyLock(false, 'owner')).toThrow(/concilia/);
+    expect(() => restored.setMode('LIMITED_AUTO', 'owner', { policyVersion: restored.policyVersion() })).toThrow(/concilia/);
     const r = await restored.reconcileAll('owner');
     expect(r.stillUnknown).toBe(0);
     expect(restored.action(a.action.id)?.state).toBe('VERIFIED');

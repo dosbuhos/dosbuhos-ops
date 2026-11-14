@@ -52,19 +52,19 @@ describe('campaigns view', () => {
     expect(en.costPerReservationMinor).toBeNull();
     const meta = v.campaigns.find(c => c.provider === 'meta_ads')!;
     expect(meta.reservations).toBeNull();
-    expect(meta.note).toMatch(/campaign ID/);
+    expect(meta.note).toMatch(/ID de campaña/);
     expect(v.sources).toEqual([
       { group: 'Google Ads', reservations: 4 },
-      { group: 'Lost source (dosbuhos.com referral)', reservations: 3 },
-      { group: 'Direct', reservations: 2 },
+      { group: 'Fuente perdida (referencia de dosbuhos.com)', reservations: 3 },
+      { group: 'Directo', reservations: 2 },
     ]);
   });
 
   it('groups sources in plain terms', () => {
     expect(sourceGroup('google', 'cpc')).toBe('Google Ads');
-    expect(sourceGroup('fb', 'paid')).toBe('Meta ads (tagged)');
-    expect(sourceGroup('m.facebook.com', 'referral')).toBe('Facebook / Instagram (organic or untagged ads)');
-    expect(sourceGroup('google', 'organic')).toBe('Search (organic)');
-    expect(sourceGroup('chatgpt.com', 'ai-assistant')).toBe('AI assistants');
+    expect(sourceGroup('fb', 'paid')).toBe('Anuncios de Meta (etiquetados)');
+    expect(sourceGroup('m.facebook.com', 'referral')).toBe('Facebook / Instagram (orgánico o anuncios sin etiqueta)');
+    expect(sourceGroup('google', 'organic')).toBe('Búsqueda (orgánica)');
+    expect(sourceGroup('chatgpt.com', 'ai-assistant')).toBe('Asistentes de IA');
   });
 });

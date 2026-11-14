@@ -84,21 +84,21 @@ describe('secrets (AC 14)', () => {
 describe('reports without the model (AC 18)', () => {
   const facts: ReportFacts = {
     kind: 'daily', period: { from: '2026-10-17', to: '2026-11-13' }, cutoff: '2026-11-13', dataKind: 'real',
-    headline: [{ key: 'g', label: 'Completed guests', display: '1,723', change: '-103 (-6%) vs previous 28 days', provisional: false, basis: 'observed' }],
-    capacity: { next7: '120 of 400 known places booked', next14: '200 of 800 known places booked', soldOutDays: [], unknownDays: [] },
-    actions: { executed: [], rejected: [], pendingApproval: [], shadow: [] }, attention: ['Conversion data missing for 3 day(s) — those days are not counted as zero'], dataQuality: [{ display: 'Attribution coverage: unknown' }], attributionMethod: 'x',
+    headline: [{ key: 'g', label: 'Comensales atendidos', display: '1,723', change: '-103 (-6%) vs. los 28 días anteriores', provisional: false, basis: 'observed' }],
+    capacity: { next7: '120 de 400 lugares conocidos reservados', next14: '200 de 800 lugares conocidos reservados', soldOutDays: [], unknownDays: [] },
+    actions: { executed: [], rejected: [], pendingApproval: [], shadow: [] }, attention: ['Faltan datos de conversiones de 3 día(s); esos días no se cuentan como cero'], dataQuality: [{ display: 'Cobertura de atribución: desconocida' }], attributionMethod: 'x',
   };
   it('the template states declines plainly and never says zero for missing data', () => {
     const t = templateNarrative(facts);
-    expect(t).toMatch(/Worse than the previous period: completed guests/);
-    expect(t).toMatch(/not counted as zero/);
-    expect(t).toMatch(/No changes were made/);
+    expect(t).toMatch(/Peor que el periodo anterior: comensales atendidos/);
+    expect(t).toMatch(/no se cuentan como cero/);
+    expect(t).toMatch(/No se hizo ningún cambio/);
   });
   it('a model narrative with an invented number is rejected', () => {
     const ok = allowedNumbers(facts);
-    expect(numbersAreFromFacts('Completed guests were 1,723, down 6% on the previous 28 days.', ok)).toBe(true);
-    expect(numbersAreFromFacts('Completed guests were 1,723 and profit rose 40%.', ok)).toBe(false);
-    expect(numbersAreFromFacts('Revenue was $250,000.', ok)).toBe(false);
+    expect(numbersAreFromFacts('Hubo 1,723 comensales atendidos, 6% menos que los 28 días anteriores.', ok)).toBe(true);
+    expect(numbersAreFromFacts('Hubo 1,723 comensales atendidos y la utilidad subió 40%.', ok)).toBe(false);
+    expect(numbersAreFromFacts('Los ingresos fueron $250,000.', ok)).toBe(false);
   });
 });
 
@@ -122,9 +122,9 @@ describe('identity boundary (AC 22)', () => {
   });
   it('browser writes need the app header and same origin', () => {
     const w = (h: Record<string, string>) => checkWriteOrigin(new Request('https://apps.dosbuhos.com/growth/api/control/mode', { method: 'POST', headers: h }));
-    expect(w({})).toMatch(/Missing/);
-    expect(w({ 'X-Growth-Request': '1', Origin: 'https://evil.example' })).toMatch(/Origin/);
-    expect(w({ 'X-Growth-Request': '1', 'Sec-Fetch-Site': 'cross-site' })).toMatch(/Cross-site/);
+    expect(w({})).toMatch(/Falta/);
+    expect(w({ 'X-Growth-Request': '1', Origin: 'https://evil.example' })).toMatch(/origen/);
+    expect(w({ 'X-Growth-Request': '1', 'Sec-Fetch-Site': 'cross-site' })).toMatch(/entre sitios/);
     expect(w({ 'X-Growth-Request': '1', Origin: 'https://apps.dosbuhos.com', 'Sec-Fetch-Site': 'same-origin' })).toBeNull();
   });
 });
