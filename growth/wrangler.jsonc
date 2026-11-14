@@ -26,6 +26,11 @@
     // the Hub's hourly Google Ads Script already writes the Dos Búhos account there.
     { "binding": "HUB_DB", "database_name": "hub", "database_id": "1a971736-3a72-4e2c-9db8-2e6d746444cc" }
   ],
+  // Shared Anthropic key from the account Secrets Store (same as the cotizador): report narrative and, in Shadow mode,
+  // analysis proposals. Read with readSecret() in src/ai/key.ts.
+  "secrets_store_secrets": [
+    { "binding": "ANTHROPIC_API_KEY", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "ANTHROPIC_API_KEY" }
+  ],
   // Raw feed payloads, import files and coordinator backups.
   "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "growth-archive" }],
   // One coordinator per ad account: the only code that may change the ad account.
@@ -55,7 +60,6 @@
   }
   // Secrets (Worker growth → Settings → Variables and Secrets; Eric pastes the values):
   //   HUB_SECRET          required: the same value as the Hub's SESSION_SECRET. Without it every private route is refused.
-  //   ANTHROPIC_API_KEY   optional: AI review and report narrative (or bind it from the account Secrets Store).
-  //   GA4_SA_KEY          GA4 service account JSON key (Viewer on the GA4 property): OpenTable online reservations.
+    //   GA4_SA_KEY          GA4 service account JSON key (Viewer on the GA4 property): OpenTable online reservations.
   //   FEED_TOKEN_PEPPER   optional: only for Growth's own richer Google Ads Script feed (scripts/google-ads-feed.js).
 }

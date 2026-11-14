@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { TickerCard, HeroChart, SeriesTable, Loading, ErrorBox } from '../components';
 import { MODE_INFO, PRODUCT_LABEL, dayLabel, ago } from '../format';
 
-const VIEW_KEYS: [string, string][] = [['contribution_after_ads', 'Contribution after ads'], ['online_reservations', 'Online reservations'], ['online_reservations_google_ads', 'Reservations from Google Ads'], ['confirmed_bookings', 'Bookings'], ['completed_guests', 'Completed guests'], ['revenue', 'Revenue'], ['ad_spend', 'Ad spend'], ['platform_conversions', 'Google conversions'], ['contribution_roas', 'Contribution ROAS']];
+const VIEW_KEYS: [string, string][] = [['contribution_after_ads', 'Contribution after ads'], ['online_reservations', 'Online reservations'], ['online_reservations_google_ads', 'Reservations from Google Ads'], ['confirmed_bookings', 'Bookings'], ['completed_guests', 'Completed guests'], ['revenue', 'Revenue'], ['ad_spend', 'Ad spend (Google)'], ['meta_spend', 'Ad spend (Meta)'], ['platform_conversions', 'Google conversions'], ['contribution_roas', 'Contribution ROAS']];
 
 export function Overview({ o, error, session }: { o: any; error: string | null; session: any }) {
   const [key, setKey] = useState<string | null>(null);

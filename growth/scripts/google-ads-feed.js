@@ -8,7 +8,7 @@
  * Set the two constants below. FEED_TOKEN comes from Growth Terminal → Connections → Google Ads Script → "Create feed
  * token" (shown once). Do not commit the token anywhere; it lives only in this script inside Google Ads.
  */
-var ENDPOINT = 'https://apps.dosbuhos.com/growth/api/feed/google-ads';
+var ENDPOINT = 'https://growth.dos-buhos.workers.dev/api/feed/google-ads'; // direct (not through the Hub's sign-in)
 var FEED_TOKEN = 'PASTE_TOKEN_HERE';
 var DAYS = 90;          // backfill window; overlap re-fetch captures Google's late conversion revisions
 var TERMS_DAYS = 28;

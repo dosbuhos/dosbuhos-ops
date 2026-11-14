@@ -120,3 +120,5 @@ export async function syncGa4(db: D1Database, sa: ServiceAccount, propertyId: st
 
 /** Is this GA4 traffic from Google Ads? (auto-tagged sessions report google / cpc). */
 export const isGoogleAds = (source: string, medium: string) => /^google/i.test(source) && /^(cpc|paid|ppc)$/i.test(medium);
+/** Meta paid traffic, when ad links carry UTM tags (e.g. facebook / paid, ig / cpc). Untagged Meta ad clicks look like social or direct. */
+export const isMetaAds = (source: string, medium: string) => /(facebook|instagram|^fb$|^ig$|meta)/i.test(source) && /(paid|cpc|ppc|ads)/i.test(medium);

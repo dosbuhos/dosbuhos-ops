@@ -9,6 +9,7 @@ import { buildSnapshot } from '../read/snapshot.ts';
 import { buildFacts, templateNarrative, allowedNumbers } from './reports.ts';
 import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
 import { readyCoordinator } from '../coordinator/do.ts';
+import { readSecret } from '../ai/key.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { syncGa4, parseServiceAccount } from '../connectors/ga4.ts';
 
@@ -159,9 +160,12 @@ export async function writeReport(env: Env, p: ReviewParams, now: number): Promi
   const facts = buildFacts(p.kind, o, currency, activity, alerts);
   let narrative = templateNarrative(facts), source: 'model' | 'template' = 'template';
   const usage = { in: 0, out: 0, cost: 0 };
-  if (env.ANTHROPIC_API_KEY) {
+  const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
+  if (apiKey) {
     const lang = (await env.DB.prepare('SELECT report_language FROM business_settings WHERE id = 1').first<{ report_language: string }>())?.report_language ?? 'en';
-    const n = await narrate({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL, facts: facts as unknown as Record<string, unknown>, allowedNumbers: allowedNumbers(facts), language: lang });
+    const n = await narrate({ apiKey, model: env.ANTHROPIC_MODEL, facts: facts as unknown as Record<string, unknown>, allowedNumbers: allowedNumbers(facts), language: lang });
+    await env.DB.prepare('UPDATE connections SET health = ?, last_success_at = COALESCE(?, last_success_at), last_error = ?, updated_at = ? WHERE id = ?')
+      .bind(n ? 'connected' : 'limited', n ? now : null, n ? null : 'Last narrative failed or added numbers not in the facts; the template was used', now, 'conn_anthropic').run();
     if (n) { narrative = `${n.text}\n\n${facts.dataKind === 'demo' ? 'DEMO DATA. ' : ''}Numbers above are restated from the fact table below.`; source = 'model'; usage.in = n.usage.inputTokens; usage.out = n.usage.outputTokens; usage.cost = n.usage.costMicroUsd; }
   }
   const id = `${p.kind}:${p.logicalDate ?? o.today}`;
@@ -180,7 +184,8 @@ export async function reviewAndPropose(env: Env, p: ReviewParams, now: number): 
   const stub = await readyCoordinator(env, acct.id);
   const st = await stub.state();
   if (!['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) || st.aiStopped || st.emergencyLock) return { summary: `No proposals: mode ${st.mode}${st.aiStopped ? ', AI stopped' : ''}${st.emergencyLock ? ', emergency lock' : ''}`, submitted: 0, executed: [], usage };
-  if (!env.ANTHROPIC_API_KEY) return { summary: 'No proposals: ANTHROPIC_API_KEY is not configured', submitted: 0, executed: [], usage };
+  const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
+  if (!apiKey) return { summary: 'No proposals: ANTHROPIC_API_KEY is not configured', submitted: 0, executed: [], usage };
   const maxLag = Math.max(...(await env.DB.prepare("SELECT maturation_lag_days AS d FROM products WHERE id IN ('restaurant_visit','tour_tasting')").all<{ d: number }>()).results.map(r => r.d));
   const { snapshot } = await buildSnapshot(env.DB, acct.id, now, env.WINERY_TZ, maxLag);
   const raw = await loadRaw({ db: env.DB, now, wineryTz: env.WINERY_TZ, currency: acct.currency });
@@ -189,7 +194,7 @@ export async function reviewAndPropose(env: Env, p: ReviewParams, now: number): 
   const brand = await env.DB.prepare('SELECT brand_facts_json FROM business_settings WHERE id = 1').first<{ brand_facts_json: string }>();
   const executed: string[] = [];
   const result = await runReview({
-    apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL,
+    apiKey, model: env.ANTHROPIC_MODEL,
     ctx: { snapshot, performance: { totals: o.tickers.map(t => ({ key: t.key, value: t.metric.value, provisional: t.metric.provisional, reason: t.metric.reason })) }, dataQuality: o.quality, capacity: o.capacity.days.slice(0, 40), experiments, brandFacts: JSON.parse(brand?.brand_facts_json ?? '[]') },
     onSubmit: async raw => {
       const r = await stub.submitProposal(raw, snapshot.snapshotId, 'model');

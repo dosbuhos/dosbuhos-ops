@@ -74,4 +74,16 @@ describe('Hub mirror (live Phase 1 path)', () => {
     expect(o.heroKey).toBe('ad_spend');
     expect(o.series.find(s => s.key === 'completed_guests')!.available).toBe(false);
   });
+
+  it('Meta is mirrored into its own account and never mixed into Google figures', async () => {
+    const h = hub(), g = growth();
+    await g.prepare("INSERT INTO ad_accounts (id, provider, external_id, name, currency, account_tz, created_at) VALUES ('acct_meta_main', 'meta_ads', '2', 'm', 'MXN', 'America/Mexico_City', 0)").run();
+    await g.prepare("INSERT INTO connections (id, provider, purpose, updated_at) VALUES ('conn_meta', 'meta_ads', 'x', 0)").run();
+    const r = await mirrorFromHub(h, g, 'acct_google_main', now, TZ);
+    expect(r.meta?.days).toBe(61);
+    const o = computeOverview(await loadRaw({ db: g, now, wineryTz: TZ, currency: 'MXN' }), now, TZ, 'MXN');
+    const t = Object.fromEntries(o.tickers.map(x => [x.key, x]));
+    expect(t.ad_spend!.metric.value).toBe(28 * (17537 + 19010)); // Google only, unchanged
+    expect(t.meta_spend!.metric.value).toBe(28 * 9900);
+  });
 });
