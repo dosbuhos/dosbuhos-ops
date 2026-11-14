@@ -53,12 +53,12 @@ export const MODE_INFO: Record<string, { label: string; cls: string; text: strin
 };
 export const STATE_CLS: Record<string, string> = {
   VERIFIED: 's-ok', COMPENSATED: 's-info', REJECTED: 's-mute', SHADOWED: 's-info', APPROVAL_REQUIRED: 's-warn', APPROVED: 's-info', EXPIRED: 's-mute',
-  PREPARING: 's-info', EXECUTING: 's-info', APPLIED: 's-info', PARTIALLY_APPLIED: 's-warn', UNKNOWN_OUTCOME: 's-bad', RECONCILING: 's-warn', COMPENSATION_REQUIRED: 's-warn', FAILED: 's-bad',
+  PREPARING: 's-info', EXECUTING: 's-info', APPLIED: 's-info', PARTIALLY_APPLIED: 's-warn', UNKNOWN_OUTCOME: 's-warn', RECONCILING: 's-warn', COMPENSATION_REQUIRED: 's-warn', FAILED: 's-bad',
 };
 const STATE_LABEL: Record<string, string> = {
   PROPOSED: 'Propuesta', VERIFIED: 'Verificada', COMPENSATED: 'Revertida', REJECTED: 'Rechazada', SHADOWED: 'En sombra', APPROVAL_REQUIRED: 'Requiere aprobación',
   APPROVED: 'Aprobada', EXPIRED: 'Vencida', PREPARING: 'Preparando', EXECUTING: 'Ejecutando', APPLIED: 'Aplicada', PARTIALLY_APPLIED: 'Aplicada en parte',
-  UNKNOWN_OUTCOME: 'Resultado desconocido', RECONCILING: 'Conciliando', COMPENSATION_REQUIRED: 'Requiere reversión', FAILED: 'Fallida',
+  UNKNOWN_OUTCOME: 'En cola / por verificar', RECONCILING: 'Conciliando', COMPENSATION_REQUIRED: 'Requiere reversión', FAILED: 'Fallida',
 };
 export const stateLabel = (s: string) => STATE_LABEL[s] ?? s.replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase());
 

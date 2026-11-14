@@ -15,7 +15,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "DATA_KIND": "real",                 // must match business_settings.data_kind in DB, or the Worker refuses to run
-    "ADS_PROVIDER": "google_ads_api",    // the API adapter refuses every write until Google Ads API access exists
+    "ADS_PROVIDER": "google_ads_script", // approved changes go through the Google Ads Script (scripts/google-ads-feed.js) until API access is approved
     "ANTHROPIC_MODEL": "claude-opus-5-5",
     "WINERY_TZ": "America/Mexico_City",
     "OPENTABLE_RID": "1258120"           // OpenTable restaurant id (public; same as canario), for bookable-time checks

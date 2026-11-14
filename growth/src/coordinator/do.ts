@@ -7,6 +7,7 @@ import type { SqlStore } from './sql.ts';
 import { CoordinatorCore, CoordinatorError, type ContextSource, type ExternalContext, type OutboxEvent } from './core.ts';
 import { MockAdsProvider, type MockAccountState } from '../connectors/mock-ads.ts';
 import { GoogleAdsApiProvider } from '../connectors/google-ads-api.ts';
+import { ScriptAdsProvider } from '../connectors/google-ads-script.ts';
 import { validateProposal, type ActionIntent, type Snapshot } from '../policy/validate.ts';
 import type { Mode } from '../domain/schemas.ts';
 import type { Actor } from '../policy/evaluate.ts';
@@ -38,7 +39,7 @@ export class AccountCoordinator extends DurableObject<Env> {
         const row = sql.all<{ json: string; account: string }>('SELECT json, account FROM mock_state WHERE id = 1')[0];
         this.mock = new MockAdsProvider(row ? JSON.parse(row.json) as MockAccountState : { budgets: {}, campaigns: {}, ads: {}, negatives: {} }, row?.account ?? '');
       }
-      this.core = new CoordinatorCore(sql, { provider: this.mock ?? new GoogleAdsApiProvider(), environment: env.ENVIRONMENT });
+      this.core = new CoordinatorCore(sql, { provider: this.mock ?? (env.ADS_PROVIDER === 'google_ads_script' ? new ScriptAdsProvider(env.DB) : new GoogleAdsApiProvider()), environment: env.ENVIRONMENT });
       this.accountKey = sql.all<{ v: string }>("SELECT v FROM kv WHERE k = 'account_key'")[0]?.v ?? null;
     });
   }

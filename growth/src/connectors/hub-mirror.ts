@@ -30,7 +30,10 @@ export interface MirrorResult { campaigns: number; days: number; dataAsOf: numbe
 
 /** Google Ads (with a spend reading for the watchdog) and, when a Meta account is registered, Meta Ads. */
 export async function mirrorFromHub(hub: D1Database, db: D1Database, accountKey: string, now: number, tz: string, days = 120): Promise<MirrorResult & { meta?: MirrorResult }> {
-  const google = await mirrorPlatform(hub, db, 'google', accountKey, now, tz, days);
+  // Once Growth's own Google Ads Script reports (real IDs, the write path), it replaces the Hub copy for Google.
+  const script = await db.prepare("SELECT last_success_at FROM connections WHERE id = 'conn_google_ads_script'").first<{ last_success_at: number | null }>();
+  const scriptActive = !!script?.last_success_at && now - script.last_success_at < 6 * 3600_000;
+  const google = scriptActive ? { campaigns: 0, days: 0, dataAsOf: script!.last_success_at, skipped: 'google_ads_script' } as unknown as MirrorResult : await mirrorPlatform(hub, db, 'google', accountKey, now, tz, days);
   const meta = await db.prepare("SELECT id FROM ad_accounts WHERE provider = 'meta_ads' ORDER BY created_at LIMIT 1").first<{ id: string }>();
   return meta ? { ...google, meta: await mirrorPlatform(hub, db, 'meta', meta.id, now, tz, days) } : google;
 }

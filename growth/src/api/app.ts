@@ -6,6 +6,7 @@ import { readyCoordinator } from '../coordinator/do.ts';
 import { loadRaw, computeOverview } from '../read/facts.ts';
 import { buildSnapshot } from '../read/snapshot.ts';
 import { assertDataKind, defaultAccount, writeReport, watchdog, syncGa4IfConfigured } from '../workflows/jobs.ts';
+import { SCRIPT_OP_TTL_MS } from '../connectors/google-ads-script.ts';
 import { FeedPayload, MAX_FEED_BYTES, feedStatements, budgetChanges } from '../connectors/google-ads-feed.ts';
 import { previewOpenTable, DEFAULT_OPENTABLE_MAPPING, type OpenTableMapping } from '../connectors/opentable-csv.ts';
 import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
@@ -34,8 +35,8 @@ const fail = (c: Context<H>, status: number, code: string, message: string) => j
 
 app.get('/healthz', c => c.text('ok'));
 
-/** Google Ads Script feed. Bearer token (hash stored, peppered), size-limited, bound to a registered account. */
-app.post('/api/feed/google-ads', async c => {
+/** Bearer feed token check shared by the Google Ads Script routes. Returns an error response or null. */
+async function feedAuth(c: Context<H>): Promise<Response | null> {
   const env = c.env;
   if (!env.FEED_TOKEN_PEPPER) return fail(c, 503, 'not_configured', 'Feed is not configured');
   const auth = c.req.header('authorization') ?? '';
@@ -44,6 +45,38 @@ app.post('/api/feed/google-ads', async c => {
   const hash = await sha256Hex(`${env.FEED_TOKEN_PEPPER}:${token}`);
   const row = await env.DB.prepare('SELECT token_hash FROM feed_tokens WHERE token_hash = ? AND revoked_at IS NULL').bind(hash).first<{ token_hash: string }>();
   if (!row || !safeEqual(row.token_hash, hash)) return fail(c, 401, 'bad_token', 'Bad token');
+  return null;
+}
+const scriptAccount = (env: Env, customerId: string) => env.DB.prepare("SELECT id, currency FROM ad_accounts WHERE provider = 'google_ads' AND external_id = ?").bind(customerId.replace(/-/g, '')).first<{ id: string; currency: string }>();
+
+/** Approved changes waiting for the Google Ads Script. Stale ones (not picked up within 6 h) expire instead. */
+app.get('/api/feed/google-ads/ops', async c => {
+  const denied = await feedAuth(c); if (denied) return denied;
+  const acct = await scriptAccount(c.env, c.req.query('customerId') ?? '');
+  if (!acct) return fail(c, 403, 'unregistered_account', 'This Google Ads account is not registered');
+  const now = Date.now();
+  await c.env.DB.prepare("UPDATE script_ops SET status = 'expired', detail = 'El script no lo recogió a tiempo; no se aplicó', done_at = ? WHERE account_id = ? AND status IN ('queued', 'sent') AND created_at < ?").bind(now, acct.id, now - SCRIPT_OP_TTL_MS).run();
+  const ops = (await c.env.DB.prepare("SELECT id, kind, campaign_id, budget_id, ad_id, text, from_micros, to_micros FROM script_ops WHERE account_id = ? AND status IN ('queued', 'sent') ORDER BY created_at, id LIMIT 20").bind(acct.id).all()).results;
+  if (ops.length) await c.env.DB.prepare(`UPDATE script_ops SET status = 'sent', sent_at = ? WHERE status = 'queued' AND id IN (${ops.map(() => '?').join(',')})`).bind(now, ...ops.map(o => String(o.id))).run();
+  return json(c, { ops });
+});
+
+/** The script's result for each operation. Verification happens later, against the live state in the next feed. */
+app.post('/api/feed/google-ads/ops', async c => {
+  const denied = await feedAuth(c); if (denied) return denied;
+  const b = z.object({ customerId: z.string().max(20), results: z.array(z.object({ id: z.string().max(80), status: z.enum(['applied', 'skipped', 'failed']), detail: z.string().max(500).default('') })).max(50) }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_payload', 'Bad results');
+  const acct = await scriptAccount(c.env, b.data.customerId);
+  if (!acct) return fail(c, 403, 'unregistered_account', 'This Google Ads account is not registered');
+  const now = Date.now();
+  for (const r of b.data.results) await c.env.DB.prepare("UPDATE script_ops SET status = ?, detail = ?, done_at = ? WHERE id = ? AND account_id = ? AND status IN ('queued', 'sent')").bind(r.status, r.detail, now, r.id, acct.id).run();
+  return json(c, { ok: true });
+});
+
+/** Google Ads Script feed. Bearer token (hash stored, peppered), size-limited, bound to a registered account. */
+app.post('/api/feed/google-ads', async c => {
+  const env = c.env;
+  const denied = await feedAuth(c); if (denied) return denied;
   const len = Number(c.req.header('content-length') ?? '0');
   if (len > MAX_FEED_BYTES) return fail(c, 413, 'too_large', 'Payload too large');
   const text = await c.req.text();
@@ -65,7 +98,10 @@ app.post('/api/feed/google-ads', async c => {
   // Every budget change (owner, agency, scripts) counts toward rolling limits. Phase 1 makes no API writes, so none of
   // these are ours; if one ever were, counting it twice only makes the limit stricter (the safe direction).
   if (changes.length) await (await readyCoordinator(env, acct.id)).recordBudgetChanges(changes);
-  return json(c, { ok: true, rows: stmts.length, budgetChanges: changes.length });
+  // Fresh live state just arrived: settle any change the script was asked to make (still-queued ones stay pending).
+  let reconciled = null;
+  if (env.ADS_PROVIDER === 'google_ads_script') reconciled = await (await readyCoordinator(env, acct.id)).reconcileAll('google_ads_script').catch(e => ({ error: (e as Error).message }));
+  return json(c, { ok: true, rows: stmts.length, budgetChanges: changes.length, reconciled });
 });
 
 // ---------------- private ----------------

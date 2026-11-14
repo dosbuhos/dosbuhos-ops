@@ -58,6 +58,7 @@ export function Activity({ isAdmin }: { isAdmin: boolean }) {
                 </details>
                 {isAdmin && <div className="row">
                   {a.state === 'APPROVAL_REQUIRED' && <button className="btn primary" onClick={() => { if (confirm(`¿Aprobar y ejecutar exactamente esto?\n\n${intent.operations.map(opText).join('\n')}`)) void act(`proposals/${a.id}/approve`, { approvalHash: a.approval_hash }, 'Aprobada'); }}>Aprobar este cambio exacto</button>}
+                  {a.state === 'UNKNOWN_OUTCOME' && <div className="small">Aprobado y en cola: el script de Google Ads lo aplica en su próxima corrida (cada hora) y la app lo verifica con el siguiente reporte de la cuenta.</div>}
                   {(a.state === 'UNKNOWN_OUTCOME' || a.state === 'APPLIED') && <button className="btn" onClick={() => void act(`actions/${a.id}/reconcile`, undefined, 'Conciliada')}>Conciliar con Google Ads</button>}
                   {(a.state === 'VERIFIED' || a.state === 'PARTIALLY_APPLIED') && a.action_type !== 'pause_campaign' && <button className="btn" onClick={() => { if (confirm('¿Restaurar el ajuste anterior? Solo se hace si nadie lo cambió desde entonces.')) void act(`actions/${a.id}/compensate`, undefined, 'Reversión'); }}>Restaurar ajuste anterior</button>}
                 </div>}
@@ -154,7 +155,7 @@ export function Controls({ session, reload }: { session: any; reload: () => void
           <div><span>Retorno mínimo</span><b>{p.minimumAcceptableContributionReturn ?? 'sin definir'}</b></div>
           <div><span>Campañas aprobadas</span><b>{p.approvedCampaignIds.length || 'ninguna'}</b></div>
           <div><span>Resultados desconocidos</span><b>{st.unknownOutcomes}</b></div>
-          <div><span>Proveedor de anuncios</span><b>{st.providerKind === 'mock' ? 'Simulado (demo)' : 'API de Google Ads'}</b></div>
+          <div><span>Proveedor de anuncios</span><b>{st.providerKind === 'mock' ? 'Simulado (demo)' : st.providerKind === 'google_ads_script' ? 'Script de Google Ads (cada hora)' : 'API de Google Ads'}</b></div>
         </div>
         <div className="small muted">Siempre apagados a menos que los cambies aquí: campañas nuevas, estrategia de puja, objetivos de conversión, precios/descuentos, publicación en el sitio web, carga de audiencias.</div>
         {isAdmin && <>

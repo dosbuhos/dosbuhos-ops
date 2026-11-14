@@ -23,6 +23,8 @@ export const FeedPayload = z.object({
   today: z.object({ date: Day, costMicros: Int, maxHourlyMicros: Int, dataAsOf: z.string().datetime({ offset: true }) }),
   monthToDateMicros: Int,
   searchTerms: z.array(z.object({ campaignId: Id, from: Day, to: Day, term: Text(200), matchType: Text(30), keyword: Text(200), costMicros: Int, clicks: Int, conversions: z.number().nonnegative().nullable() })).max(20_000).default([]),
+  ads: z.array(z.object({ id: Id, campaignId: Id, status: z.enum(['ENABLED', 'PAUSED', 'REMOVED']) })).max(20_000).optional(),
+  negatives: z.array(z.object({ campaignId: Id, text: Text(200) })).max(20_000).optional(),
   changes: z.array(z.object({ at: z.string().datetime({ offset: true }), resourceType: Text(40), campaignId: Id.nullable(), budgetId: Id.nullable(), oldBudgetMicros: Int.nullable(), newBudgetMicros: Int.nullable(), clientType: Text(40) })).max(5_000).default([]),
 });
 export type FeedPayload = z.infer<typeof FeedPayload>;
@@ -56,6 +58,12 @@ export function feedStatements(db: D1Database, accountId: string, p: FeedPayload
     s.push(db.prepare(`INSERT OR REPLACE INTO search_term_facts (account_id, campaign_id, date_from, date_to, term, match_type, keyword, cost_micros, clicks, conversions_milli) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(accountId, t.campaignId, t.from, t.to, t.term, t.matchType, t.keyword, t.costMicros, t.clicks, t.conversions === null ? null : Math.round(t.conversions * 1000)));
   }
+  // Live ads and campaign exact negatives (enabled campaigns), for the write path's before/after checks.
+  if (p.ads) { s.push(db.prepare('DELETE FROM ads_live WHERE account_id = ?').bind(accountId)); for (const a of p.ads) s.push(db.prepare('INSERT OR REPLACE INTO ads_live (account_id, ad_id, campaign_id, status, seen_at) VALUES (?, ?, ?, ?, ?)').bind(accountId, a.id, a.campaignId, a.status, now)); }
+  if (p.negatives) { s.push(db.prepare('DELETE FROM negatives_live WHERE account_id = ?').bind(accountId)); for (const n of p.negatives) s.push(db.prepare('INSERT OR REPLACE INTO negatives_live (account_id, campaign_id, text, seen_at) VALUES (?, ?, ?, ?)').bind(accountId, n.campaignId, n.text, now)); }
+  // This feed replaces the Hub mirror for Google (real IDs instead of name keys): drop the mirror's rows so nothing is counted twice.
+  s.push(db.prepare("DELETE FROM campaign_daily WHERE account_id = ? AND campaign_id LIKE 'name:%'").bind(accountId));
+  s.push(db.prepare("DELETE FROM campaign_registry WHERE account_id = ? AND external_id LIKE 'name:%'").bind(accountId));
   s.push(db.prepare(`UPDATE connections SET health = 'connected', health_reason = '', last_success_at = ?, freshness_at = ?, last_error = NULL, updated_at = ? WHERE provider = 'google_ads_script'`).bind(now, Date.parse(p.today.dataAsOf), now));
   return s;
 }

@@ -10,7 +10,7 @@ export interface Env {
   WEEKLY_REVIEW: Workflow;
   ENVIRONMENT: 'dev' | 'demo' | 'staging' | 'production';
   DATA_KIND: 'demo' | 'real';
-  ADS_PROVIDER: 'mock' | 'google_ads_api';
+  ADS_PROVIDER: 'mock' | 'google_ads_api' | 'google_ads_script';
   ANTHROPIC_MODEL: string;
   WINERY_TZ: string;
   OPENTABLE_RID?: string;           // OpenTable restaurant id (public, same as canario's RID)

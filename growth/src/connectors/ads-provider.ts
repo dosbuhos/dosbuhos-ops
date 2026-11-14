@@ -15,7 +15,7 @@ export class ProviderError extends Error {
 export type EntityStatus = 'ENABLED' | 'PAUSED' | 'REMOVED';
 
 export interface AdsProvider {
-  readonly kind: 'mock' | 'google_ads_api';
+  readonly kind: 'mock' | 'google_ads_api' | 'google_ads_script';
   readBudgets(accountId: string, budgetIds: string[]): Promise<Record<string, number>>;       // micros
   readCampaignStatus(accountId: string, campaignIds: string[]): Promise<Record<string, EntityStatus>>;
   readAdStatus(accountId: string, adIds: string[]): Promise<Record<string, EntityStatus>>;
