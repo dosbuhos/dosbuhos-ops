@@ -162,8 +162,8 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   const contribMissing = noBookings ? NB : assumptions.some(a => a.approvedBy) ? undefined : 'Approved variable costs or margins per product are missing, so contribution cannot be measured';
   series.push(mk('contribution_after_ads', 'Attributed contribution after ad spend', 'money', 'acquisition', d => { const c = contributionOn(d), s = spendMinorOn(d); return c === null || s === null ? null : c - s; }, true, contribMissing));
   series.push(mk('confirmed_bookings', 'Confirmed bookings (all channels)', 'count', 'acquisition', d => bookingsCreated(d).length, false, noBookings ? NB : undefined));
-  series.push(mk('online_reservations', 'Online reservations (OpenTable via GA4)', 'count', 'acquisition', d => ga4On(ga4All, d), false, raw.ga4.length ? undefined : 'GA4 is not connected yet'));
-  series.push(mk('online_reservations_google_ads', 'Online reservations from Google Ads (GA4)', 'count', 'acquisition', d => ga4On(ga4Ads, d), false, raw.ga4.length ? undefined : 'GA4 is not connected yet'));
+  series.push(mk('online_reservations', 'Online reservations (OpenTable via GA4)', 'count', 'acquisition', d => ga4On(ga4All, d), false, raw.ga4.length ? undefined : 'GA4 is not connected yet. Set it up in Connections → “OpenTable online reservations (via Google Analytics)”.'));
+  series.push(mk('online_reservations_google_ads', 'Online reservations from Google Ads (GA4)', 'count', 'acquisition', d => ga4On(ga4Ads, d), false, raw.ga4.length ? undefined : 'GA4 is not connected yet. Set it up in Connections → “OpenTable online reservations (via Google Analytics)”.'));
   series.push(mk('completed_guests', 'Completed guests (all channels)', 'count', 'service', d => (d <= end ? attendedOn(d).reduce((a, b) => a + b.party_size, 0) : null), true, noBookings ? NB : undefined));
   series.push(mk('revenue', 'Attributed net revenue (completed, paid)', 'money', 'acquisition', d => revenueOn(d), true, noBookings ? NB : undefined));
   series.push(mk('ad_spend', 'Ad spend', 'money', 'acquisition', spendMinorOn, false));

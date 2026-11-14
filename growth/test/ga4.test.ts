@@ -23,7 +23,7 @@ function growthDb(): { db: DatabaseSync; d1: D1Database } {
 }
 
 async function keyPair(): Promise<{ sa: ServiceAccount; publicKey: CryptoKey }> {
-  const kp = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
+  const kp = (await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
   const pkcs8 = Buffer.from(await crypto.subtle.exportKey('pkcs8', kp.privateKey)).toString('base64');
   const pem = `-----BEGIN PRIVATE KEY-----\n${pkcs8.match(/.{1,64}/g)!.join('\n')}\n-----END PRIVATE KEY-----\n`;
   return { sa: { client_email: 'growth-ga4-reader@dos-buhos.iam.gserviceaccount.com', private_key: pem }, publicKey: kp.publicKey };

@@ -46,7 +46,7 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
           </div>
         </header>
         {series && !series.available ? (
-          <div className="notice" style={{ marginTop: 10 }}><b>{series.label} cannot be shown.</b> {series.missing ?? 'No data for this window.'} Revenue is never labeled as profit.</div>
+          <div className="notice" style={{ marginTop: 10 }}><b>{series.label} cannot be shown.</b> {series.missing ?? 'No data for this window.'}{series.key === 'revenue' || series.key.startsWith('contribution') ? ' Revenue is never labeled as profit.' : ''} {series.missing?.includes('Connections') && <a href="#connections">Open Connections →</a>}</div>
         ) : series ? (
           <>
             <div style={{ marginTop: 10 }}><HeroChart series={series} markers={o.markers} cutoff={o.cutoff} currency={o.currency} trend={trend} onMarker={onMarker} /></div>
