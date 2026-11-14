@@ -11,6 +11,7 @@ import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
 import { readyCoordinator } from '../coordinator/do.ts';
 import { readSecret } from '../ai/key.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
+import { runVisibilityCheck } from '../ai/visibility.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { syncGa4, parseServiceAccount } from '../connectors/ga4.ts';
 
@@ -64,6 +65,13 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
             try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} reservaciones en línea en ${g.rows} filas`; } catch (e) { ga4 = `GA4 falló: ${(e as Error).message}`; }
             await finishJob(env.DB, job.runKey, 'succeeded', `Feed del Hub: ${r.campaigns} campañas, ${r.days} días, datos al ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'desconocido'}. ${ga4}`);
           } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'No hay una fuente de Google Ads conectada');
+          break;
+        }
+        case 'ai_visibility': {
+          const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
+          if (!apiKey || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'Sin ANTHROPIC_API_KEY o sin datos reales'); break; }
+          const r = await runVisibilityCheck({ db: env.DB, apiKey, model: env.ANTHROPIC_MODEL, runKey: job.runKey, now });
+          await finishJob(env.DB, job.runKey, 'succeeded', `Visibilidad en IA: ${r.mentioned} de ${r.asked} respuestas mencionan a Dos Búhos${r.stoppedForCost ? ' (se detuvo por el límite de costo)' : ''}`, { in: 0, out: 0, cost: r.costMicroUsd });
           break;
         }
         case 'ot_availability': {

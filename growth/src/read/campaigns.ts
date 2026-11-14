@@ -4,6 +4,7 @@
 // be matched per campaign yet. Reservation metrics only use days GA4 was tracking reservations.
 import { addDays, localDate, type LocalDate } from '../domain/time.ts';
 import { RESERVATION_EVENT, isGoogleAds, isMetaAds } from '../connectors/ga4.ts';
+import { loadEstimates } from './estimates.ts';
 
 export interface CampaignRow {
   ref: string; provider: 'google_ads' | 'meta_ads'; name: string; status: string; channel: string; products: string[];
@@ -13,10 +14,12 @@ export interface CampaignRow {
   openedAvailability: number | null;      // ot-availability-pageview from this campaign's sessions
   reservations: number | null;
   costPerReservationMinor: number | null;
+  estimatedRevenueMinor: number | null;   // reservations × owner-approved value per reservation
+  estimatedReturn: number | null;         // estimated revenue ÷ spend on the tracked days
   note: string;
 }
 export interface SourceShare { group: string; reservations: number }
-export interface CampaignsView { window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null; currency: string; campaigns: CampaignRow[]; sources: SourceShare[]; unmatchedGoogleAds: number }
+export interface CampaignsView { estimate: { valueMinor: number; basis: string; sourcePeriod: string; approvedBy: string } | null; window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null; currency: string; campaigns: CampaignRow[]; sources: SourceShare[]; unmatchedGoogleAds: number }
 
 /** Where an online reservation's session came from, in plain groups. */
 export function sourceGroup(source: string, medium: string): string {
@@ -33,6 +36,7 @@ export function sourceGroup(source: string, medium: string): string {
 }
 
 export async function loadCampaigns(db: D1Database, now: number, tz: string, currency: string): Promise<CampaignsView> {
+  const est = (await loadEstimates(db)).current.restaurant_visit ?? null;
   const to = addDays(localDate(now, tz), -1), from = addDays(to, -27);
   const start = await db.prepare('SELECT MIN(date) AS d FROM ga4_reservations_daily WHERE event_name = ?').bind(RESERVATION_EVENT).first<{ d: string | null }>().catch(() => null);
   const trackingSince = start?.d ?? null;
@@ -71,6 +75,8 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
       spendMicros: Number(s?.cost ?? 0), clicks: Number(s?.clicks ?? 0), impressions: Number(s?.impr ?? 0), convMilli: s?.conv == null ? null : Number(s.conv),
       convMissingDays: Number(s?.conv_missing ?? 0), days: Number(s?.days ?? 0),
       trackedSpendMicros: trackedSpend, openedAvailability: opened, reservations, costPerReservationMinor: cpr, note,
+      estimatedRevenueMinor: reservations !== null && est ? reservations * est.valueMinor : null,
+      estimatedReturn: reservations !== null && est && trackedSpend ? (reservations * est.valueMinor) / (trackedSpend / 10_000) : null,
     };
   }).filter(c => c.spendMicros > 0 || c.status === 'ENABLED' || (c.reservations ?? 0) > 0)
     .sort((a, b) => (a.provider === b.provider ? b.spendMicros - a.spendMicros : a.provider === 'google_ads' ? -1 : 1));
@@ -79,5 +85,5 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
   for (const r of ga4.results.filter(x => x.event_name === RESERVATION_EVENT)) groups.set(sourceGroup(r.source, r.medium), (groups.get(sourceGroup(r.source, r.medium)) ?? 0) + Number(r.n));
   const knownGoogle = new Set(campaigns.filter(c => c.provider === 'google_ads').map(c => c.name));
   const unmatchedGoogleAds = ga4.results.filter(r => r.event_name === RESERVATION_EVENT && isGoogleAds(r.source, r.medium) && !knownGoogle.has(r.campaign)).reduce((a, r) => a + Number(r.n), 0);
-  return { window: { from, to }, trackingSince, currency, campaigns, sources: [...groups.entries()].map(([group, reservations]) => ({ group, reservations })).sort((a, b) => b.reservations - a.reservations), unmatchedGoogleAds };
+  return { estimate: est ? { valueMinor: est.valueMinor, basis: est.basis, sourcePeriod: est.sourcePeriod, approvedBy: est.approvedBy } : null, window: { from, to }, trackingSince, currency, campaigns, sources: [...groups.entries()].map(([group, reservations]) => ({ group, reservations })).sort((a, b) => b.reservations - a.reservations), unmatchedGoogleAds };
 }

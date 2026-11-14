@@ -3,7 +3,7 @@
 // constraint, so duplicate cron firings, retries and catch-up after a missed tick all run a logical job exactly once.
 import { localParts, weekStart, type LocalDate } from './time.ts';
 
-export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
+export type JobKey = 'watchdog' | 'spend_poll' | 'ads_ingest' | 'booking_sync' | 'ot_availability' | 'ai_visibility' | 'daily_review' | 'weekly_review' | 'notify_daily' | 'notify_weekly';
 
 export interface ScheduleSettings {
   wineryTz: string;                 // America/Mexico_City
@@ -39,6 +39,8 @@ export function dueJobs(nowMs: number, s: ScheduleSettings): DueJob[] {
   out.push({ job: 'ot_availability', runKey: `ot_availability:${Math.floor(nowMs / 10_800_000)}` }); // every 3 h
 
   const w = localParts(nowMs, s.wineryTz);
+  // Monthly AI visibility check: once per winery-local month, from the 1st at the daily review time.
+  if (atOrAfter(w, s.dailyReviewLocal)) out.push({ job: 'ai_visibility', runKey: `ai_visibility:${w.date.slice(0, 7)}`, logicalDate: w.date.slice(0, 7) });
   if (atOrAfter(w, s.dailyReviewLocal)) out.push({ job: 'daily_review', runKey: `daily_review:${w.date}`, logicalDate: w.date });
   const monday = weekStart(w.date);
   const weeklyDue = w.weekday > s.weeklyReviewLocal.weekday || (w.weekday === s.weeklyReviewLocal.weekday && atOrAfter(w, s.weeklyReviewLocal));

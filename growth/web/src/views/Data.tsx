@@ -27,6 +27,12 @@ export function Campaigns() {
         )}
       </section>
       <section className="section">
+        <div className="notice small" role="note">{data.estimate
+          ? <>Ingreso estimado = reservaciones en línea × <b>{money(data.estimate.valueMinor, cur)}</b> por reservación (sin IVA). Base: {data.estimate.basis}{data.estimate.sourcePeriod ? `, ${data.estimate.sourcePeriod}` : ''}; aprobado por {data.estimate.approvedBy}. Es una estimación; se ajusta en <a href="#controls">Controles</a>.</>
+          : <>Sin valor por reservación aprobado; el ingreso estimado no se calcula. Defínelo en <a href="#controls">Controles</a>.</>}</div>
+      </section>
+      <AiVisibility />
+      <section className="section">
         <div className="list">{(data.campaigns as any[]).map(c => {
           const approved = data.approved.includes(c.ref);
           return (
@@ -39,6 +45,8 @@ export function Campaigns() {
                 <div><span>Abrieron la disponibilidad de OpenTable</span><b>{c.openedAvailability ?? '—'}</b></div>
                 <div><span>Reservaciones en línea</span><b>{c.reservations ?? '—'}</b></div>
                 <div><span>Costo por reservación</span><b>{c.costPerReservationMinor === null ? '—' : money(c.costPerReservationMinor, cur)}</b></div>
+                <div><span>Ingreso estimado</span><b>{c.estimatedRevenueMinor === null ? '—' : money(c.estimatedRevenueMinor, cur)}</b></div>
+                <div><span>Retorno estimado</span><b>{c.estimatedReturn === null ? '—' : `${c.estimatedReturn.toFixed(1)}×`}</b></div>
                 <div><span>Presupuesto diario</span><b>{microsMoney(c.budgetMicros, cur)}</b></div>
               </div>
               {c.note && <div className="tiny muted">{c.note}</div>}
@@ -50,6 +58,26 @@ export function Campaigns() {
         {data.unmatchedGoogleAds > 0 && <p className="tiny muted">{data.unmatchedGoogleAds} reservación(es) vinieron de campañas de Google Ads que no están en la lista actual (renombradas o eliminadas).</p>}
       </section>
     </>
+  );
+}
+
+function AiVisibility() {
+  const { data } = useApi('ai-visibility', 600_000);
+  if (!data) return null;
+  const last = data.runs[0];
+  return (
+    <section className="section card stack">
+      <h3>¿Nos recomiendan los asistentes de IA?</h3>
+      {!last ? <p className="small muted">Todavía no hay revisión. La primera corre el día 1 del mes (o desde Controles → Ejecutar ahora).</p> : <>
+        <p className="small">Última revisión {when(last.at)}: Dos Búhos aparece en <b>{last.mentioned} de {last.asked}</b> respuestas; dosbuhos.com fue citado en {last.cited}. {data.runs.length > 1 && `Antes: ${data.runs.slice(1, 4).map((r: any) => `${r.mentioned}/${r.asked}`).join(', ')}.`}</p>
+        <div className="list">{(data.latest as any[]).map(r => (
+          <div key={r.question_id} className="item">
+            <div className="top"><span className="small">{r.question}</span><span className={`state ${r.error ? 's-warn' : r.mentioned ? 's-ok' : 's-mute'}`}>{r.error ? 'Falló' : r.mentioned ? (r.rank ? `Sí, #${r.rank}` : 'Sí') : 'No'}</span></div>
+            {r.mentioned && r.excerpt && <div className="tiny muted">“{r.excerpt}”</div>}
+          </div>))}</div>
+        <p className="tiny muted">Respuestas de Claude con búsqueda web. ChatGPT, Gemini y otros pueden responder distinto.</p>
+      </>}
+    </section>
   );
 }
 

@@ -77,7 +77,7 @@ export function HeroChart({ series, markers, cutoff, currency, trend, onMarker }
       timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
       crosshair: { vertLine: { color: c('--muted'), labelVisible: false }, horzLine: { visible: false, labelVisible: false } },
       handleScale: { mouseWheel: false, pinch: true }, handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-      localization: { priceFormatter: (v: number) => (series.unit === 'money' ? money(v, currency) : series.unit === 'ratio' ? ratio(v) : int(v)) },
+      localization: { locale: 'es-MX', priceFormatter: (v: number) => (series.unit === 'money' ? money(v, currency) : series.unit === 'ratio' ? ratio(v) : int(v)) },
     });
     chartRef.current = chart;
     const s2 = c('--s2'), s1 = c('--s1');

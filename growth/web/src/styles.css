@@ -107,7 +107,7 @@ label.field input, label.field select, label.field textarea { min-height: 40px; 
 
 /* ---- lists that replace tables on phones ---- */
 .list { display: grid; gap: 8px; }
-.item { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
+.item { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
 .item .top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); gap: 6px 12px; font-size: 13px; }
 .kv div span { display: block; color: var(--muted); font-size: 11.5px; }

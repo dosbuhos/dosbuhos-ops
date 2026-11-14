@@ -5,7 +5,8 @@ import { addDays, dateRange, localDate, weekdayOf, type LocalDate } from '../dom
 import { minor, micros, microsToMinor } from '../domain/money.ts';
 import { revenueRoas, contributionAfterAds, contributionRoas, costPerCompletedVisit, costPerConfirmedBooking, delta, occupancy, type AttributedTotals, type Metric, type Delta } from '../domain/metrics.ts';
 import { assumptionFor, bookingValue, type CostAssumption, type Product, PRODUCTS } from '../domain/measurement.ts';
-import { isGoogleAds, isMetaAds, RESERVATION_EVENT, FUNNEL } from '../connectors/ga4.ts';
+import { isGoogleAds, isMetaAds, isAiAssistant, RESERVATION_EVENT, FUNNEL } from '../connectors/ga4.ts';
+import { loadEstimates } from './estimates.ts';
 import { resolveCapacity, summarizeDays, type Slot, type Reservation, type DayProductSummary } from '../domain/capacity.ts';
 
 export const ATTRIBUTION_METHOD = 'Campo de origen del sistema de reservaciones = búsqueda pagada de Google Ads (último contacto según OpenTable); la fecha del clic se aproxima con la fecha de la reservación';
@@ -44,7 +45,8 @@ export async function loadRaw(i: FactsInput) {
   // Online reservations from GA4 (OpenTable widget event). Daily aggregates by session source / medium / campaign.
   const ga4 = (await i.db.prepare('SELECT date, event_name, source, medium, campaign, events FROM ga4_reservations_daily WHERE date >= ?').bind(from).all<{ date: string; event_name: string; source: string; medium: string; campaign: string; events: number }>().catch(() => ({ results: [] as { date: string; event_name: string; source: string; medium: string; campaign: string; events: number }[] }))).results;
   const otAvailability = (await i.db.prepare('SELECT date, product, item, party_size, slots, error, checked_at FROM ot_availability WHERE date >= ? ORDER BY date').bind(today).all<{ date: string; product: string; item: string; party_size: number; slots: number | null; error: string | null; checked_at: number }>().catch(() => ({ results: [] as { date: string; product: string; item: string; party_size: number; slots: number | null; error: string | null; checked_at: number }[] }))).results;
-  return { today, from, ga4, otAvailability, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
+  const estimates = await loadEstimates(i.db);
+  return { today, from, ga4, otAvailability, estimates, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
 }
 export type Raw = Awaited<ReturnType<typeof loadRaw>>;
 
@@ -156,13 +158,14 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   const noBookings = raw.bookings.length === 0;
   const NB = 'Todavía no hay una fuente de reservaciones conectada (los datos de reservaciones de OpenTable son solo para socios; se pidieron a través del gerente de cuenta)';
   // GA4 online reservations: used for booking counts only while no booking-level source exists.
-  const ga4All = new Map<string, number>(), ga4Ads = new Map<string, number>(), ga4Meta = new Map<string, number>();
+  const ga4All = new Map<string, number>(), ga4Ads = new Map<string, number>(), ga4Meta = new Map<string, number>(), ga4Ai = new Map<string, number>();
   const ga4Days = new Set(raw.ga4.map(r => r.date)); // days GA4 recorded any booking-flow event: a day with none is a GA4 gap, not zero bookings
   for (const r of raw.ga4) {
     if (r.event_name !== RESERVATION_EVENT) continue;
     ga4All.set(r.date, (ga4All.get(r.date) ?? 0) + r.events);
     if (isGoogleAds(r.source, r.medium)) ga4Ads.set(r.date, (ga4Ads.get(r.date) ?? 0) + r.events);
     if (isMetaAds(r.source, r.medium)) ga4Meta.set(r.date, (ga4Meta.get(r.date) ?? 0) + r.events);
+    if (isAiAssistant(r.source, r.medium)) ga4Ai.set(r.date, (ga4Ai.get(r.date) ?? 0) + r.events);
   }
   const haveGa4 = noBookings && raw.ga4.length > 0;
   const firstGa4 = raw.ga4.filter(r => r.event_name === RESERVATION_EVENT).map(r => r.date).sort()[0] ?? null; // tracking start
@@ -256,6 +259,28 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
       const m: Metric = { key: 'cost_per_online_reservation', value: vCur, unit: 'money', currency, numerator: { label: 'Costo de Google Ads, todas las campañas', value: spendCur }, denominator: { label: 'Reservaciones en línea de sesiones de Google Ads (GA4, fuente de la última sesión google / cpc)', value: nCur }, basis: 'attributed', provisional: false,
         reason: vCur === null ? (nCur === 0 ? 'No hubo reservaciones de sesiones de Google Ads en este periodo' : 'Falta el gasto o los datos de GA4 de una parte del periodo') : `Atribución por sesión de GA4, solo reservaciones del widget en línea${aCur.partial ? `, gasto y reservaciones desde el ${firstGa4}` : ''}. Probablemente está inflado mientras GA4 le atribuya algunas reservaciones a “dosbuhos.com / referral” (fuente del anuncio perdida). No prueba que los anuncios las hayan causado.` };
       return { key: 'cost_per_online_reservation', label: 'Costo por reservación en línea (Google Ads)', metric: m, delta: delta(vCur, vPrev, w, false), spark: [], window: w } as Ticker;
+    })()] : []),
+    // Estimated revenue: online reservations × the owner-approved value per reservation (shown and editable in Controles).
+    ...(haveGa4 && raw.estimates.current.restaurant_visit ? (() => {
+      const est = raw.estimates.current.restaurant_visit!;
+      const used = `${est.currency === 'MXN' ? 'MX$' : ''}${(est.valueMinor / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })} por reservación (restaurante, sin IVA; ${est.basis}${est.sourcePeriod ? `, ${est.sourcePeriod}` : ''}; aprobado por ${est.approvedBy}). Se ajusta en Controles.`;
+      const all = ga4Sum(ga4All, cur), ads = ga4Sum(ga4Ads, cur);
+      const rev = all.value === null ? null : all.value * est.valueMinor;
+      const adsSpend = ads.known.every(d => spendDays.has(d)) ? ads.known.reduce((a, d) => a + (spendMinorOn(d) ?? 0), 0) : null;
+      const ret = ads.value === null || !adsSpend ? null : (ads.value * est.valueMinor) / adsSpend;
+      const since = all.partial ? ` Desde el ${firstGa4} (inicio del seguimiento).` : '';
+      const noCmp = { absolute: null, percent: null, window: w, provisional: false, note: 'Estimación: sin comparación por ahora' };
+      return [
+        { key: 'estimated_revenue', label: 'Ingreso estimado (reservaciones en línea)', metric: { key: 'estimated_revenue', value: rev, unit: 'money', currency, numerator: { label: 'Reservaciones en línea (GA4) × valor estimado por reservación', value: rev }, basis: 'modeled', provisional: false, reason: `ESTIMACIÓN, no ventas reales: ${all.value ?? '?'} reservaciones × ${used}${since}` }, delta: noCmp, spark: [], window: w } as Ticker,
+        { key: 'estimated_return_google', label: 'Retorno estimado (Google Ads)', metric: { key: 'estimated_return_google', value: ret, unit: 'ratio', numerator: { label: 'Reservaciones de Google Ads (GA4) × valor estimado', value: ads.value === null ? null : ads.value * est.valueMinor }, denominator: { label: 'Gasto en Google Ads en los mismos días', value: adsSpend }, basis: 'modeled', provisional: false, reason: ret === null ? 'Sin reservaciones atribuidas a Google Ads o sin gasto en el periodo' : `ESTIMACIÓN: pesos de ingreso estimado por cada peso en Google Ads. ${ads.value} reservaciones × ${used} Probablemente subestimado mientras parte de las reservaciones pierda su fuente.` }, delta: noCmp, spark: [], window: w } as Ticker,
+      ];
+    })() : []),
+    // AI assistants (ChatGPT, Gemini, Perplexity, Claude…): reservations and visits into the booking flow.
+    ...(haveGa4 ? [(() => {
+      const r = ga4Sum(ga4Ai, cur);
+      const inCur = (d: string) => d >= cur[0]! && d <= cur[27]!;
+      const visits = raw.ga4.filter(x => x.event_name === 'ot-availability-pageview' && isAiAssistant(x.source, x.medium) && inCur(x.date)).reduce((a, x) => a + x.events, 0);
+      return { key: 'ai_assistants', label: 'Asistentes de IA', metric: { key: 'ai_assistants', value: r.value, unit: 'count', numerator: { label: 'Reservaciones en línea de visitas que llegaron desde un asistente de IA (ChatGPT, Gemini, Perplexity, Claude, Copilot)', value: r.value }, basis: 'observed', provisional: false, reason: `${visits} visita(s) abrieron la disponibilidad de OpenTable desde un asistente de IA. Solo cuenta clics directos: quien pregunta a un asistente y luego busca “Dos Búhos” en Google aparece como búsqueda orgánica o directo.` }, delta: { absolute: null, percent: null, window: w, provisional: false, note: 'Sin comparación por ahora' }, spark: [], window: w } as Ticker;
     })()] : []),
     { key: 'platform_conversions', label: 'Conversiones de Google Ads', metric: { key: 'platform_conversions', value: convCur, unit: 'count', numerator: { label: 'Conversiones como las cuenta Google Ads (las acciones de conversión que tenga configuradas la cuenta; no son reservaciones verificadas)', value: convCur }, basis: 'attributed', provisional: false, reason: 'Reportado por la plataforma. No se cruza con OpenTable para quitar duplicados; puede incluir clics en el botón de reservar en vez de reservaciones completas' }, delta: delta(convCur, convPrev, w, false), spark: sparkOf('platform_conversions'), window: w },
     { key: 'contribution_after_ads', label: 'Contribución después de anuncios', metric: caOff, delta: delta(caOff.value, caPrev.value, w, tCur.provisional), spark: sparkOf('contribution_after_ads'), window: w },

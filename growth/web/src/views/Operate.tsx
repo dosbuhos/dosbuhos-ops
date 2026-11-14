@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, StateChip } from '../components';
-import { MODE_INFO, microsMoney, when, stateLabel, jobStatusLabel, directionLabel } from '../format';
+import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel } from '../format';
 
 function opText(o: any): string {
   switch (o.kind) {
@@ -142,6 +142,9 @@ export function Controls({ session, reload }: { session: any; reload: () => void
         </div>
       </section>
 
+      <Estimates isAdmin={isAdmin} />
+      <AiVisibilityRun isAdmin={isAdmin} />
+
       <section className="section card stack">
         <h2>Límites y permisos <span className="small muted">política v{st.policyVersion}</span></h2>
         <div className="kv">
@@ -168,6 +171,61 @@ export function Controls({ session, reload }: { session: any; reload: () => void
       </section>
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </>
+  );
+}
+
+const EST_PRODUCTS: [string, string][] = [['restaurant_visit', 'Restaurante (por reservación)'], ['tour_tasting', 'Tours y catas (por reservación)']];
+
+/** Owner-approved value per reservation. Every estimated revenue/return number on the dashboard uses these. */
+function Estimates({ isAdmin }: { isAdmin: boolean }) {
+  const { data, error, reload } = useApi('estimates');
+  const [edit, setEdit] = useState<string | null>(null);
+  const [f, setF] = useState({ value: '', basis: '', sourcePeriod: '', note: '' });
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!data) return <section className="section">{error ? <ErrorBox error={error} /> : <Loading />}</section>;
+  const save = async (product: string) => {
+    try { await api('estimates', { method: 'POST', body: { product, value: Number(f.value), basis: f.basis, sourcePeriod: f.sourcePeriod, note: f.note } }); setEdit(null); setMsg('Valor guardado. El historial conserva el anterior.'); void reload(); }
+    catch (e) { setMsg((e as Error).message); }
+  };
+  return (
+    <section className="section card stack">
+      <h2>Valores estimados por reservación</h2>
+      <p className="small">Con estos promedios se calculan el <b>ingreso estimado</b> y el <b>retorno estimado</b> de los anuncios. Son estimaciones, no ventas reales: OpenTable no nos dice cuánto gastó cada mesa. Cámbialos cuando tengas un promedio más reciente.</p>
+      <div className="list">{EST_PRODUCTS.map(([k, label]) => {
+        const e = data.current[k];
+        return (
+          <div key={k} className="item">
+            <div className="top"><b>{label}</b><b className="mono">{e ? money(e.valueMinor, e.currency) : 'sin definir'}</b></div>
+            {e ? <div className="small">Base: {e.basis}{e.sourcePeriod ? ` · periodo ${e.sourcePeriod}` : ''} · aprobado por {e.approvedBy} el {when(e.approvedAt)}{e.note ? ` · ${e.note}` : ''}</div> : <div className="small muted">Sin valor, los ingresos estimados no se muestran.</div>}
+            {isAdmin && edit !== k && <button className="btn" onClick={() => { setEdit(k); setF({ value: e ? String(e.valueMinor / 100) : '', basis: e?.basis ?? '', sourcePeriod: e?.sourcePeriod ?? '', note: '' }); }}>Cambiar</button>}
+            {edit === k && (
+              <div className="stack">
+                <label className="field">Valor por reservación (MXN, sin IVA)<input inputMode="decimal" value={f.value} onChange={ev => setF({ ...f, value: ev.target.value.replace(/[^0-9.]/g, '') })} /></label>
+                <label className="field">De dónde sale (obligatorio)<input value={f.basis} onChange={ev => setF({ ...f, basis: ev.target.value })} /></label>
+                <label className="field">Periodo de los datos<input value={f.sourcePeriod} placeholder="2026-08-12 – 2026-11-14" onChange={ev => setF({ ...f, sourcePeriod: ev.target.value })} /></label>
+                <label className="field">Nota (opcional)<input value={f.note} onChange={ev => setF({ ...f, note: ev.target.value })} /></label>
+                <div className="row"><button className="btn primary" disabled={!Number(f.value) || f.basis.trim().length < 3} onClick={() => void save(k)}>Guardar</button><button className="btn" onClick={() => setEdit(null)}>Cancelar</button></div>
+              </div>
+            )}
+          </div>
+        );
+      })}</div>
+      {data.history.length > EST_PRODUCTS.length && <details><summary className="small" style={{ cursor: 'pointer' }}>Historial</summary><ul className="small">{(data.history as any[]).map(h => <li key={h.id}>{when(h.approvedAt)} · {PRODUCT_LABEL[h.product] ?? h.product}: {money(h.valueMinor, h.currency)} ({h.basis}) por {h.approvedBy}</li>)}</ul></details>}
+      {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
+    </section>
+  );
+}
+
+function AiVisibilityRun({ isAdmin }: { isAdmin: boolean }) {
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="section card stack">
+      <h2>Visibilidad en asistentes de IA</h2>
+      <p className="small">Cada mes, el día 1, la app pregunta a Claude (con búsqueda web) 10 preguntas que haría un turista, sin mencionar a Dos Búhos, y anota si nos recomienda. Los resultados están en Campañas. Costo aproximado: menos de US$2 por revisión.</p>
+      {isAdmin && <button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { const r = await api('control/ai-visibility-run', { method: 'POST', body: {} }); setMsg(`Listo: ${r.mentioned} de ${r.asked} respuestas mencionan a Dos Búhos.`); } catch (e) { setMsg((e as Error).message); } setBusy(false); }}>{busy ? 'Preguntando… (1–3 min)' : 'Ejecutar ahora'}</button>}
+      {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
+    </section>
   );
 }
 

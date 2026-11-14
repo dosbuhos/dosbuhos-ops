@@ -12,6 +12,9 @@ import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
+import { loadEstimates, saveEstimate } from '../read/estimates.ts';
+import { runVisibilityCheck } from '../ai/visibility.ts';
+import { readSecret } from '../ai/key.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { parseServiceAccount } from '../connectors/ga4.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
@@ -356,6 +359,35 @@ app.post('/api/connections/ga4', async c => {
   try { return json(c, { saved: true, synced: true, ...(await syncGa4IfConfigured(c.env, now)) }); }
   catch (e) { return fail(c, 502, 'ga4_failed', `Se guardó, pero GA4 lo rechazó: ${(e as Error).message}. Revisa que la cuenta de servicio tenga el rol Lector en esta propiedad y que la Analytics Data API esté habilitada.`); }
 });
+// ---------- estimated value per reservation (owner-approved, shown with its basis) ----------
+app.get('/api/estimates', async c => json(c, await loadEstimates(c.env.DB)));
+app.post('/api/estimates', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const b = z.object({ product: z.enum(['restaurant_visit', 'tour_tasting']), value: z.number().positive().max(1_000_000), basis: z.string().min(3).max(500), sourcePeriod: z.string().max(80).default(''), note: z.string().max(300).default('') }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_request', b.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
+  const now = Date.now();
+  const saved = await saveEstimate(c.env.DB, { product: b.data.product, valueMinor: Math.round(b.data.value * 100), basis: b.data.basis, sourcePeriod: b.data.sourcePeriod, note: b.data.note }, c.get('user').email, now);
+  await c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource, detail_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'estimate_set', b.data.product, JSON.stringify(saved)).run();
+  return json(c, saved);
+});
+
+// ---------- AI visibility check ----------
+app.get('/api/ai-visibility', async c => {
+  const runs = (await c.env.DB.prepare('SELECT run_key, SUM(error IS NULL) AS asked, SUM(mentioned) AS mentioned, SUM(dosbuhos_cited) AS cited, SUM(cost_micro_usd) AS cost, MAX(checked_at) AS at FROM ai_visibility_results GROUP BY run_key ORDER BY at DESC LIMIT 12').all().catch(() => ({ results: [] }))).results as Record<string, unknown>[];
+  const latest = runs[0] ? (await c.env.DB.prepare('SELECT r.question_id, q.lang, q.question, r.assistant, r.mentioned, r.rank, r.excerpt, r.cited_json, r.dosbuhos_cited, r.error FROM ai_visibility_results r JOIN ai_visibility_questions q ON q.id = r.question_id WHERE r.run_key = ? ORDER BY q.sort').bind(String(runs[0].run_key)).all()).results : [];
+  return json(c, { runs, latest });
+});
+app.post('/api/control/ai-visibility-run', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const apiKey = await readSecret(c.env.ANTHROPIC_API_KEY);
+  if (!apiKey) return fail(c, 409, 'not_configured', 'Falta ANTHROPIC_API_KEY');
+  const today = new Date().toISOString().slice(0, 10);
+  const done = await c.env.DB.prepare("SELECT 1 FROM ai_visibility_results WHERE run_key = ? LIMIT 1").bind(`manual:${today}`).first();
+  if (done) return fail(c, 409, 'already_ran', 'Ya se corrió hoy; los resultados están abajo. (Límite: una revisión manual por día.)');
+  const r = await runVisibilityCheck({ db: c.env.DB, apiKey, model: c.env.ANTHROPIC_MODEL, runKey: `manual:${today}`, now: Date.now() });
+  return json(c, r);
+});
+
 app.post('/api/control/run-report', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const r = await writeReport(c.env, { runKey: `manual:${Date.now()}`, kind: c.req.query('kind') === 'weekly' ? 'weekly' : 'daily' }, Date.now());
