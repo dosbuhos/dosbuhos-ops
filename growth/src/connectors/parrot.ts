@@ -19,12 +19,12 @@ const minor = (v: unknown): number => { const n = Number(v ?? 0); return Number.
 const str = (v: unknown, n = 200) => String(v ?? '').slice(0, n);
 
 /** Every page of one endpoint for one window. Stops early when the request budget runs out (returns null then). */
-async function fetchWindow(key: string, ep: Endpoint, start: number, end: number, budget: { left: number }, fetchFn: typeof fetch): Promise<Record<string, unknown>[] | null> {
+async function fetchWindow(key: string, store: string, ep: Endpoint, start: number, end: number, budget: { left: number }, fetchFn: typeof fetch): Promise<Record<string, unknown>[] | null> {
   const out: Record<string, unknown>[] = [];
   for (let page = 0; page < 200; page++) {
     if (budget.left <= 0) return null;
     budget.left--;
-    const q = new URLSearchParams({ startTimestamp: new Date(start).toISOString(), endTimestamp: new Date(end).toISOString(), pageSize: '100', page: String(page), sort: 'createdAt' });
+    const q = new URLSearchParams({ startTimestamp: new Date(start).toISOString(), endTimestamp: new Date(end).toISOString(), pageSize: '100', page: String(page), sort: 'createdAt', storeUUID: store });
     const r = await fetchFn(`${PARROT_BASE}${PATH[ep]}?${q}`, { headers: { authorization: `Bearer ${key}`, accept: 'application/json' } });
     const j = (await r.json().catch(() => null)) as { data?: Record<string, unknown>[]; pagination?: { next?: number | null }; error?: string } | null;
     if (!r.ok) throw new ParrotError(r.status, `Parrot ${r.status}: ${j?.error ?? 'la solicitud falló'}`.slice(0, 200));
@@ -50,9 +50,26 @@ function statements(db: D1Database, ep: Endpoint, rows: Record<string, unknown>[
   });
 }
 
+/** The Bodega Dos Búhos store. Remembered on the connection (account_ref) after the first lookup; one request.
+ *  With several stores and no single name match it refuses, listing the names, rather than guess. */
+export async function resolveStore(db: D1Database, key: string, budget: { left: number }, fetchFn: typeof fetch): Promise<string> {
+  const saved = await db.prepare("SELECT account_ref FROM connections WHERE id = 'conn_parrot'").first<{ account_ref: string | null }>();
+  if (saved?.account_ref) return saved.account_ref;
+  budget.left--;
+  const r = await fetchFn(`${PARROT_BASE}/v1/stores`, { headers: { authorization: `Bearer ${key}`, accept: 'application/json' } });
+  const j = (await r.json().catch(() => null)) as { data?: { name?: string; uuid?: string }[]; error?: string } | null;
+  if (!r.ok) throw new ParrotError(r.status, `Parrot ${r.status}: ${j?.error ?? 'no se pudieron leer las tiendas'}`.slice(0, 200));
+  const stores = (j?.data ?? []).filter(s => s.uuid);
+  const match = stores.length === 1 ? stores : stores.filter(s => /d[oó]s\s*b[uú]hos|bodega/i.test(s.name ?? ''));
+  if (match.length !== 1) throw new ParrotError(409, `No se pudo elegir la tienda de Parrot (${stores.map(s => s.name).join(', ') || 'ninguna'}); indica cuál usar`);
+  await db.prepare("UPDATE connections SET account_ref = ? WHERE id = 'conn_parrot'").bind(match[0]!.uuid!).run();
+  return match[0]!.uuid!;
+}
+
 /** One run: recent 48 h for every endpoint, then backfill older windows newest-first until the budget is spent. */
 export async function syncParrot(db: D1Database, key: string, now: number, tz: string, maxRequests = 12, fetchFn: typeof fetch = fetch): Promise<{ recentRows: number; backfilled: number; oldestDone: string | null; complete: boolean }> {
   const budget = { left: maxRequests };
+  const store = await resolveStore(db, key, budget, fetchFn);
   const writeAll = async (ep: Endpoint, rows: Record<string, unknown>[]) => { const s = statements(db, ep, rows, tz, now); for (let i = 0; i < s.length; i += 80) await db.batch(s.slice(i, i + 80)); };
   let recentRows = 0;
   // Windows are aligned to whole 48-hour blocks (UTC), so the backfill ledger is stable from run to run.
@@ -60,7 +77,7 @@ export async function syncParrot(db: D1Database, key: string, now: number, tz: s
   const currentStart = align(now);
   for (const ep of ENDPOINTS) {
     for (const start of [currentStart - WINDOW_MS, currentStart]) {           // previous block too: catches late closings
-      const rows = await fetchWindow(key, ep, start, Math.min(start + WINDOW_MS, now), budget, fetchFn);
+      const rows = await fetchWindow(key, store, ep, start, Math.min(start + WINDOW_MS, now), budget, fetchFn);
       if (rows === null) break;
       await writeAll(ep, rows); recentRows += rows.length;
     }
@@ -72,7 +89,7 @@ export async function syncParrot(db: D1Database, key: string, now: number, tz: s
     for (const ep of ENDPOINTS) {
       const k = `${ep}|${new Date(start).toISOString()}`;
       if (done.has(k)) continue;
-      const rows = await fetchWindow(key, ep, start, start + WINDOW_MS, budget, fetchFn);
+      const rows = await fetchWindow(key, store, ep, start, start + WINDOW_MS, budget, fetchFn);
       if (rows === null) break outer;
       await writeAll(ep, rows);
       await db.prepare('INSERT OR REPLACE INTO pos_sync_windows (endpoint, window_start, done_at, rows) VALUES (?, ?, ?, ?)').bind(ep, new Date(start).toISOString(), now, rows.length).run();

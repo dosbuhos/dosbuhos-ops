@@ -23,6 +23,8 @@ describe('Parrot sync', () => {
       calls.push(url);
       expect((init.headers as Record<string, string>).authorization).toBe('Bearer pk_test');
       const u = new URL(url), page = Number(u.searchParams.get('page'));
+      if (u.pathname.endsWith('/v1/stores')) return new Response(JSON.stringify({ data: [{ name: 'Otra marca', uuid: 'x' }, { name: 'bodega dos buhos (junto a zirandero)', uuid: 's' }] }), { status: 200 });
+      expect(u.searchParams.get('storeUUID')).toBe('s');
       const span = Date.parse(u.searchParams.get('endTimestamp')!) - Date.parse(u.searchParams.get('startTimestamp')!);
       expect(span).toBeLessThanOrEqual(48 * 3600_000);
       const at = u.searchParams.get('startTimestamp')!.replace('.000', '');
@@ -42,11 +44,13 @@ describe('Parrot sync', () => {
     const before = (db.prepare('SELECT COUNT(*) AS n FROM pos_sync_windows').get() as { n: number }).n;
     await syncParrot(fakeD1(db), 'pk_test', Date.UTC(2026, 10, 14, 20, 15), 'America/Mexico_City', 12, fetchFn);
     expect((db.prepare('SELECT COUNT(*) AS n FROM pos_sync_windows').get() as { n: number }).n).toBeGreaterThan(before); // backfill resumes
+    expect(calls.filter(c => c.includes('/v1/stores'))).toHaveLength(1); // store looked up once, then remembered
   });
 
   it('a 401 surfaces as an error (key wrong or revoked)', async () => {
     const db = new DatabaseSync(':memory:');
     for (const f of ['0001_init.sql', '0010_parrot_pos.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+    db.exec("UPDATE connections SET account_ref = 's' WHERE id = 'conn_parrot'");
     const fetchFn = (async () => new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })) as unknown as typeof fetch;
     await expect(syncParrot(fakeD1(db), 'bad', Date.UTC(2026, 10, 14, 20), 'America/Mexico_City', 12, fetchFn)).rejects.toThrow(/401/);
   });
