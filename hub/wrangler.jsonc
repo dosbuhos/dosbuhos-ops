@@ -26,7 +26,9 @@
     { "binding": "WINECLUB", "service": "wineclub" },
     { "binding": "OPS", "service": "dosbuhos-ops" },
     // Personal para eventos (/personal/) is a page of the cotizador Worker; it answers with that page when X-DB-App = personal.
-    { "binding": "COTIZADOR", "service": "cotizador" }
+    { "binding": "COTIZADOR", "service": "cotizador" },
+    // Growth Terminal (/growth/): ads and bookings analysis. It only answers requests signed by the Hub.
+    { "binding": "GROWTH", "service": "growth" }
   ],
   "vars": {
     // Same OAuth client as the cellar app ("Cellar calendar", Google Cloud project dos-buhos).
