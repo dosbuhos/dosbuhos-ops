@@ -31,6 +31,7 @@ export function Campaigns() {
           ? <>Ingreso estimado = reservaciones en línea × <b>{money(data.estimate.valueMinor, cur)}</b> por reservación (sin IVA). Base: {data.estimate.basis}{data.estimate.sourcePeriod ? `, ${data.estimate.sourcePeriod}` : ''}; aprobado por {data.estimate.approvedBy}. {data.estimate.contributionMinor != null && <> Contribución estimada: <b>{money(data.estimate.contributionMinor, cur)}</b> por reservación después de costos variables.</>} Es una estimación; se ajusta en <a href="#controls">Controles</a>.</>
           : <>Sin valor por reservación aprobado; el ingreso estimado no se calcula. Defínelo en <a href="#controls">Controles</a>.</>}</div>
       </section>
+      {data.searchTerms && <SearchTerms t={data.searchTerms} cur={cur} />}
       <AiVisibility />
       <section className="section">
         <div className="list">{(data.campaigns as any[]).map(c => {
@@ -59,6 +60,29 @@ export function Campaigns() {
         {data.unmatchedGoogleAds > 0 && <p className="tiny muted">{data.unmatchedGoogleAds} reservación(es) vinieron de campañas de Google Ads que no están en la lista actual (renombradas o eliminadas).</p>}
       </section>
     </>
+  );
+}
+
+function SearchTerms({ t, cur }: { t: any; cur: string }) {
+  const total = (k: string) => (t.brand[k] ?? 0) + (t.other[k] ?? 0);
+  const share = (k: string) => (total(k) ? Math.round((t.brand[k] / total(k)) * 100) : null);
+  const by = t.withCost ? 'costMinor' : 'sessions';
+  return (
+    <section className="section card stack">
+      <h3>¿Pagamos por búsquedas de nuestro nombre?</h3>
+      <p className="small">Búsquedas en Google que llevaron a un clic en los anuncios ({t.from} – {t.to}, según GA4). <b>De marca</b> = la búsqueda incluye “Dos Búhos”: esas personas ya nos buscaban.</p>
+      <div className="kv">
+        <div><span>De marca, % del {t.withCost ? 'gasto' : 'tráfico'}</span><b>{share(by) ?? '—'}%</b></div>
+        {t.withCost && <div><span>Gasto en búsquedas de marca</span><b>{money(t.brand.costMinor, cur)}</b></div>}
+        <div><span>Reservaciones: marca / otras</span><b>{t.brand.reservations} / {t.other.reservations}</b></div>
+        <div><span>Visitas: marca / otras</span><b>{t.brand.sessions} / {t.other.sessions}</b></div>
+      </div>
+      <details><summary className="small" style={{ cursor: 'pointer' }}>Principales búsquedas</summary>
+        <div className="list">{(t.top as any[]).map(x => (
+          <div key={x.query + x.campaign} className="item"><div className="top"><span className="small">{x.query}{x.brand && <span className="chip" style={{ marginLeft: 6 }}>marca</span>}</span><span className="small mono">{t.withCost ? `${money(x.costMinor, cur)} · ` : ''}{x.sessions} visitas · {x.reservations} res.</span></div><div className="tiny muted">{x.campaign}</div></div>))}</div>
+      </details>
+      <p className="tiny muted">Google oculta algunas búsquedas poco frecuentes; esas no aparecen aquí.</p>
+    </section>
   );
 }
 

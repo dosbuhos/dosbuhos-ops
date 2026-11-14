@@ -3,7 +3,7 @@
 // Meta ads tag campaigns by ID (utm_campaign = numeric), and the Hub stores Meta campaigns by name, so Meta cannot
 // be matched per campaign yet. Reservation metrics only use days GA4 was tracking reservations.
 import { addDays, localDate, type LocalDate } from '../domain/time.ts';
-import { RESERVATION_EVENT, isGoogleAds, isMetaAds } from '../connectors/ga4.ts';
+import { isBrandQuery, RESERVATION_EVENT, isGoogleAds, isMetaAds } from '../connectors/ga4.ts';
 import { loadEstimates } from './estimates.ts';
 
 export interface CampaignRow {
@@ -20,7 +20,9 @@ export interface CampaignRow {
   note: string;
 }
 export interface SourceShare { group: string; reservations: number }
-export interface CampaignsView { estimate: { valueMinor: number; basis: string; sourcePeriod: string; approvedBy: string; contributionMinor: number | null } | null; window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null; currency: string; campaigns: CampaignRow[]; sources: SourceShare[]; unmatchedGoogleAds: number }
+export interface TermTotals { sessions: number; opened: number; reservations: number; clicks: number | null; costMinor: number | null }
+export interface SearchTerms { from: LocalDate; to: LocalDate; withCost: boolean; brand: TermTotals; other: TermTotals; top: ({ query: string; campaign: string; brand: boolean } & TermTotals)[] }
+export interface CampaignsView { searchTerms: SearchTerms | null; estimate: { valueMinor: number; basis: string; sourcePeriod: string; approvedBy: string; contributionMinor: number | null } | null; window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null; currency: string; campaigns: CampaignRow[]; sources: SourceShare[]; unmatchedGoogleAds: number }
 
 /** Where an online reservation's session came from, in plain groups. */
 export function sourceGroup(source: string, medium: string): string {
@@ -85,9 +87,25 @@ export async function loadCampaigns(db: D1Database, now: number, tz: string, cur
   }).filter(c => c.spendMicros > 0 || c.status === 'ENABLED' || (c.reservations ?? 0) > 0)
     .sort((a, b) => (a.provider === b.provider ? b.spendMicros - a.spendMicros : a.provider === 'google_ads' ? -1 : 1));
 
+  const searchTerms = await loadSearchTerms(db, from, to);
   const groups = new Map<string, number>();
   for (const r of ga4.results.filter(x => x.event_name === RESERVATION_EVENT)) groups.set(sourceGroup(r.source, r.medium), (groups.get(sourceGroup(r.source, r.medium)) ?? 0) + Number(r.n));
   const knownGoogle = new Set(campaigns.filter(c => c.provider === 'google_ads').map(c => c.name));
   const unmatchedGoogleAds = ga4.results.filter(r => r.event_name === RESERVATION_EVENT && isGoogleAds(r.source, r.medium) && !knownGoogle.has(r.campaign)).reduce((a, r) => a + Number(r.n), 0);
-  return { estimate: est ? { valueMinor: est.valueMinor, basis: est.basis, sourcePeriod: est.sourcePeriod, approvedBy: est.approvedBy, contributionMinor: perContribution } : null, window: { from, to }, trackingSince, currency, campaigns, sources: [...groups.entries()].map(([group, reservations]) => ({ group, reservations })).sort((a, b) => b.reservations - a.reservations), unmatchedGoogleAds };
+  return { searchTerms, estimate: est ? { valueMinor: est.valueMinor, basis: est.basis, sourcePeriod: est.sourcePeriod, approvedBy: est.approvedBy, contributionMinor: perContribution } : null, window: { from, to }, trackingSince, currency, campaigns, sources: [...groups.entries()].map(([group, reservations]) => ({ group, reservations })).sort((a, b) => b.reservations - a.reservations), unmatchedGoogleAds };
+}
+
+/** Google Ads search terms (via GA4), split into searches for our own name vs. everything else. */
+async function loadSearchTerms(db: D1Database, from: LocalDate, to: LocalDate): Promise<SearchTerms | null> {
+  const rows = (await db.prepare(`SELECT query, campaign, SUM(sessions) AS sessions, SUM(opened) AS opened, SUM(reservations) AS reservations, SUM(ad_clicks) AS clicks, SUM(ad_cost_micros) AS cost, COUNT(ad_cost_micros) AS with_cost
+    FROM ga4_ads_queries WHERE date BETWEEN ? AND ? GROUP BY query, campaign`).bind(from, to).all<Record<string, number | string | null>>().catch(() => null))?.results;
+  if (!rows?.length) return null;
+  const withCost = rows.some(r => Number(r.with_cost) > 0);
+  const zero = (): TermTotals => ({ sessions: 0, opened: 0, reservations: 0, clicks: withCost ? 0 : null, costMinor: withCost ? 0 : null });
+  const brand = zero(), other = zero();
+  const top = rows.map(r => ({ query: String(r.query), campaign: String(r.campaign), brand: isBrandQuery(String(r.query)), sessions: Number(r.sessions), opened: Number(r.opened), reservations: Number(r.reservations),
+    clicks: withCost ? Number(r.clicks ?? 0) : null, costMinor: withCost ? Math.round(Number(r.cost ?? 0) / 10_000) : null }));
+  for (const t of top) { const g = t.brand ? brand : other; g.sessions += t.sessions; g.opened += t.opened; g.reservations += t.reservations; if (withCost) { g.clicks! += t.clicks!; g.costMinor! += t.costMinor!; } }
+  top.sort((a, b) => (withCost ? b.costMinor! - a.costMinor! : 0) || b.sessions - a.sessions);
+  return { from, to, withCost, brand, other, top: top.slice(0, 30) };
 }

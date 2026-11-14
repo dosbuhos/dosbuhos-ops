@@ -99,6 +99,49 @@ export async function fetchReservations(sa: ServiceAccount, propertyId: string, 
   return out;
 }
 
+/** True when a search names Dos Búhos (any spelling): people already looking for us. */
+export const isBrandQuery = (q: string) => /(d[oó]s|2)\s*b[uú]h|dosbuhos|\bb[uú]hos\b/i.test(q.normalize('NFC'));
+
+async function runReport(sa: ServiceAccount, propertyId: string, now: number, body: Record<string, unknown>, fetchFn: typeof fetch) {
+  const token = await accessToken(sa, now, fetchFn);
+  const res = await fetchFn(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ limit: 100_000, keepEmptyRows: false, ...body }) });
+  const j = (await res.json().catch(() => ({}))) as { rows?: { dimensionValues: { value: string }[]; metricValues: { value: string }[] }[]; error?: { message?: string } };
+  if (!res.ok) throw new Ga4Error(res.status >= 500 || res.status === 429 ? 'transient' : 'bad_request', `GA4 ${res.status}: ${j.error?.message ?? 'la solicitud falló'}`.slice(0, 300));
+  return j.rows ?? [];
+}
+
+/** Search terms behind Google Ads visits, with sessions / opened OpenTable / reservations, plus clicks and cost when available. */
+export async function syncAdsQueries(db: D1Database, sa: ServiceAccount, propertyId: string, now: number, from: string, to: string, fetchFn: typeof fetch = fetch): Promise<{ rows: number; withCost: boolean }> {
+  const ymd = (d: string) => `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+  const rows = await runReport(sa, propertyId, now, {
+    dateRanges: [{ startDate: from, endDate: to }],
+    dimensions: [{ name: 'date' }, { name: 'sessionGoogleAdsCampaignName' }, { name: 'sessionGoogleAdsQuery' }, { name: 'eventName' }],
+    metrics: [{ name: 'eventCount' }],
+    dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: ['session_start', 'ot-availability-pageview', RESERVATION_EVENT] } } },
+  }, fetchFn);
+  const by = new Map<string, { date: string; campaign: string; query: string; sessions: number; opened: number; reservations: number; clicks: number | null; cost: number | null }>();
+  const get = (d: string, c: string, q: string) => { const k = `${d}|${c}|${q}`; let v = by.get(k); if (!v) by.set(k, v = { date: d, campaign: c.slice(0, 200), query: q.slice(0, 200), sessions: 0, opened: 0, reservations: 0, clicks: null, cost: null }); return v; };
+  for (const r of rows) {
+    const [d, c, q, ev] = r.dimensionValues.map(v => v.value);
+    if (!d || !/^\d{8}$/.test(d) || !c || c === '(not set)' || !q) continue;
+    const n = Math.round(Number(r.metricValues[0]?.value ?? 0)), x = get(ymd(d), c, q);
+    if (ev === 'session_start') x.sessions += n; else if (ev === RESERVATION_EVENT) x.reservations += n; else x.opened += n;
+  }
+  let withCost = true;
+  try {
+    const cost = await runReport(sa, propertyId, now, { dateRanges: [{ startDate: from, endDate: to }], dimensions: [{ name: 'date' }, { name: 'sessionGoogleAdsCampaignName' }, { name: 'sessionGoogleAdsQuery' }], metrics: [{ name: 'advertiserAdClicks' }, { name: 'advertiserAdCost' }] }, fetchFn);
+    for (const r of cost) {
+      const [d, c, q] = r.dimensionValues.map(v => v.value);
+      if (!d || !/^\d{8}$/.test(d) || !c || c === '(not set)' || !q) continue;
+      const x = get(ymd(d), c, q); x.clicks = Math.round(Number(r.metricValues[0]?.value ?? 0)); x.cost = Math.round(Number(r.metricValues[1]?.value ?? 0) * 1e6);
+    }
+  } catch { withCost = false; } // GA4 may not offer ad cost by search term; sessions and reservations still stand
+  const stmts: D1PreparedStatement[] = [db.prepare('DELETE FROM ga4_ads_queries WHERE date BETWEEN ? AND ?').bind(from, to)];
+  for (const v of by.values()) stmts.push(db.prepare('INSERT OR REPLACE INTO ga4_ads_queries (date, campaign, query, sessions, opened, reservations, ad_clicks, ad_cost_micros, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(v.date, v.campaign, v.query, v.sessions, v.opened, v.reservations, v.clicks, v.cost, now));
+  await db.batch(stmts);
+  return { rows: by.size, withCost };
+}
+
 /** Sync into D1. Re-reads a recent window each time (GA4 revises recent days); replaces those days atomically. */
 export async function syncGa4(db: D1Database, sa: ServiceAccount, propertyId: string, now: number, from: string, to: string, fetchFn: typeof fetch = fetch): Promise<{ rows: number; reservations: number }> {
   try {

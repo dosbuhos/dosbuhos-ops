@@ -13,7 +13,7 @@ import { readSecret } from '../ai/key.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
-import { syncGa4, parseServiceAccount } from '../connectors/ga4.ts';
+import { syncGa4, syncAdsQueries, parseServiceAccount } from '../connectors/ga4.ts';
 
 /** GA4 online reservations, if the key and property ID are configured. First run backfills 120 days, then a 14-day
  *  overlap window each hour (GA4 revises recent days). Returns null when not configured. */
@@ -23,7 +23,14 @@ export async function syncGa4IfConfigured(env: Env, now: number): Promise<{ rows
   if (!sa || !conn?.account_ref) return null;
   const today = localDate(now, env.WINERY_TZ);
   const any = await env.DB.prepare('SELECT 1 FROM ga4_reservations_daily LIMIT 1').first();
-  return syncGa4(env.DB, sa, conn.account_ref, now, addDays(today, any ? -14 : -120), today);
+  const from = addDays(today, any ? -14 : -120);
+  const r = await syncGa4(env.DB, sa, conn.account_ref, now, from, today);
+  // Search terms: non-fatal; first run backfills 120 days.
+  try {
+    const anyQ = await env.DB.prepare('SELECT 1 FROM ga4_ads_queries LIMIT 1').first();
+    await syncAdsQueries(env.DB, sa, conn.account_ref, now, addDays(today, anyQ ? -14 : -120), today);
+  } catch (e) { console.log('ga4 ads queries failed', (e as Error).message); }
+  return r;
 }
 
 export async function claim(db: D1Database, job: DueJob, now: number): Promise<boolean> {
