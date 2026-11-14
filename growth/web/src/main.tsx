@@ -54,7 +54,7 @@ function App() {
         {VIEWS.map(([k, label]) => <a key={k} href={`#${k}`} aria-current={view === k ? 'page' : undefined}>{label}{k === 'overview' && needsMe > 0 && <span className="dot" aria-label={`${needsMe} need attention`} />}</a>)}
       </nav>
       <main className="wrap">
-        {demo && <div className="notice section" role="note"><b>Demonstration.</b> Every number here is synthetic and the ad account is simulated. Real reporting starts when the Google Ads feed and an OpenTable export are connected (Connections).</div>}
+        {demo && <div className="notice section" role="note"><b>Demonstration.</b> Every number here is synthetic and the ad account is simulated. This local copy runs on a synthetic dataset.</div>}
         {view === 'overview' && <Overview o={o} error={overview.error} session={s} />}
         {view === 'campaigns' && <Campaigns />}
         {view === 'capacity' && <Capacity canEdit={s?.user?.role !== 'viewer'} />}

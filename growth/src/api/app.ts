@@ -10,6 +10,7 @@ import { FeedPayload, MAX_FEED_BYTES, feedStatements, budgetChanges } from '../c
 import { previewOpenTable, DEFAULT_OPENTABLE_MAPPING, type OpenTableMapping } from '../connectors/opentable-csv.ts';
 import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
+import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
 import { addDays } from '../domain/time.ts';
 import { runDemoBootstrap } from '../../fixtures/demo-actions.ts';
@@ -86,6 +87,8 @@ app.get('/api/session', async c => {
   await assertDataKind(c.env);
   if (c.env.DATA_KIND === 'demo') await runDemoBootstrap(c.env, DEMO_ACCOUNT.id);
   const a = await account(c);
+  // First visit on a real database: pull the Google Ads rows right away instead of waiting for the hourly job.
+  if (a && c.env.DATA_KIND === 'real' && c.env.HUB_DB && !(await c.env.DB.prepare('SELECT 1 FROM campaign_daily LIMIT 1').first())) await mirrorFromHub(c.env.HUB_DB, c.env.DB, a.id, Date.now(), c.env.WINERY_TZ);
   const st = a ? await a.stub.state() : null;
   return json(c, { user: c.get('user'), environment: c.env.ENVIRONMENT, dataKind: c.env.DATA_KIND, account: a ? { id: a.id, currency: a.currency } : null, coordinator: st, model: c.env.ANTHROPIC_MODEL, aiConfigured: !!c.env.ANTHROPIC_API_KEY });
 });
@@ -329,6 +332,12 @@ app.post('/api/control/clear-suspension', async c => {
   const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No ad account');
   await a.stub.clearSuspension(b.data.resourceKey, c.get('user').email);
   return json(c, await a.stub.state());
+});
+app.post('/api/control/sync-now', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const a = await defaultAccount(c.env.DB);
+  if (!c.env.HUB_DB || !a) return fail(c, 409, 'not_configured', 'No Google Ads source bound');
+  return json(c, await mirrorFromHub(c.env.HUB_DB, c.env.DB, a.id, Date.now(), c.env.WINERY_TZ));
 });
 app.post('/api/control/run-report', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;

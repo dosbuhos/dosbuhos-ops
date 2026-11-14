@@ -1,8 +1,26 @@
-# Setup and deployment (one-time, administrator)
+# Setup and deployment
 
-Everything here is done by the owner, or an administrator acting for the owner, in the owner's own accounts. Never paste a password, token or key into chat or into this repository; it is public.
+Follows the repo's `CLAUDE.md`: Workers Builds deploys from `main`; nobody runs `wrangler deploy` by hand; Eric pastes secret values himself.
 
-## 0. Local demo (no accounts needed)
+## Already done (2026-11-14)
+
+- D1 `growth` created (id in `wrangler.jsonc`), `0001_init.sql` applied remotely and recorded in `d1_migrations`, marked `data_kind = 'real'`.
+- R2 bucket `growth-archive` created.
+- Dos Búhos Google Ads account registered in D1 (`ad_accounts`, id `acct_google_main`). The customer ID lives only in D1, never in this public repo.
+- Google Ads data: read-only binding `HUB_DB` to the Hub's database, where the Hub's Google Ads Script already writes the account hourly. Growth mirrors it every hour (`src/connectors/hub-mirror.ts`).
+
+## Eric: one-time steps
+
+1. **Create the Worker.** Workers & Pages → Create → Continue with GitHub → `dosbuhos-ops`. Set the Worker name to `growth` and Build → Root directory to `/growth`. The build command stays empty: the dashboard is prebuilt in `public/`. Cancel the first automatic build if the root directory is still `/`.
+2. **Secret.** Worker `growth` → Settings → Variables and Secrets → add `HUB_SECRET` with the same value as the Hub's `SESSION_SECRET`. Until this is set, the app refuses every request (it fails closed).
+3. **Optional secret.** `ANTHROPIC_API_KEY`, for the AI review and the written report summary. You can also bind it from the account Secrets Store. Without it, reports use the factual template and no proposals are drafted.
+4. **Put it behind the Hub** (after step 1 has deployed once). Add `{ "binding": "GROWTH", "service": "growth" }` to `services` in `hub/wrangler.jsonc`. Then Hub → Admin → Apps → slug `growth`, binding `GROWTH`, mode `proxy`. Then grant yourself Admin on it. Claude can do the `hub/` change and the registry row once step 1 is done.
+
+Then open `https://apps.dosbuhos.com/growth/`.
+
+## Local demo
+
+Synthetic data and a simulated ad account; never deploys.
 
 ```bash
 cd growth
@@ -10,66 +28,20 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:8787. Synthetic data loads on first visit and every screen says DEMO. Run tests with `npm test`; run everything (typecheck, tests, build) with `npm run check`.
-
-## 1. Cloudflare resources (owner's account)
-
-Create one set per environment. Demo shown; for staging and production replace `growth-demo` with `growth-staging` or `growth`.
+## Changing the app
 
 ```bash
-npx wrangler d1 create growth-demo
+npm run check
 ```
 
-```bash
-npx wrangler r2 bucket create growth-demo-archive
-```
+`npm run check` runs the typecheck and tests, rebuilds the dashboard into `public/`, and fails if `public/` was not committed. For a schema change, add `migrations/0002_….sql`, apply it to the remote `growth` database, and record it in `d1_migrations` before pushing code that needs it.
 
-Paste the printed `database_id` into `wrangler.jsonc` under `env.demo` (replace `REPLACE_WITH_growth-demo_ID`). Then apply migrations and mark the database's kind:
+## Data sources: status
 
-```bash
-npm run db:demo
-```
-
-```bash
-npx wrangler d1 execute growth-demo --remote --env demo --file fixtures/demo-seed.sql
-```
-
-For staging and production, use `fixtures/real-settings.sql` instead of the demo seed. That file marks the database as real; synthetic data can never be loaded into it.
-
-## 2. Secrets (dashboard → Workers → growth-… → Settings → Variables and Secrets, or `wrangler secret put NAME --env …`)
-
-| Name | Needed for | Value |
+| Source | Status | How |
 |---|---|---|
-| `HUB_SECRET` | every non-dev environment | the Hub Worker's `SESSION_SECRET` |
-| `FEED_TOKEN_PEPPER` | Google Ads Script feed | a long random string, e.g. `openssl rand -base64 32` |
-| `TOKEN_ENCRYPTION_KEY_V1` | storing OAuth refresh tokens (Phase 2) | `openssl rand -base64 32` |
-| `ANTHROPIC_API_KEY` | optional: AI review and narrative | an Anthropic API key from the owner's Console |
-
-## 3. Deploy
-
-Workers Builds, the same way as the other apps in this repo: Create → Import repository → `dosbuhos-ops`, root directory `growth`, build command `npm run build`, deploy command `npx wrangler deploy --env demo` (or `--env production`). Alternatively, from a machine with the owner's Cloudflare login:
-
-```bash
-npm run deploy:demo
-```
-
-Production has `workers_dev: false` and `preview_urls: false`, so the Hub is the only way in.
-
-## 4. Put it behind the Hub (no change to Hub code needed beyond configuration)
-
-1. In `hub/wrangler.jsonc` add a service binding once the Worker exists: `{ "binding": "GROWTH", "service": "growth" }` (or `growth-demo`). Adding it before the Worker exists breaks the Hub's deploy, which is why this repo doesn't add it yet.
-2. Hub → Admin → Apps: add slug `growth`, section Marketing, binding `GROWTH`, mode `proxy`.
-3. Hub → Admin → People: give the owner **Admin** on `growth`. Others get View (read) or Edit (capacity and imports).
-4. Open `https://apps.dosbuhos.com/growth/`.
-
-## 5. Connect real data (staging, then production)
-
-1. **Register the ad account.** Insert one `ad_accounts` row with the Google Ads customer ID (digits only), currency and account time zone. It lives in D1, never in the repo. Example: `INSERT INTO ad_accounts (id, provider, external_id, name, currency, account_tz, created_at) VALUES ('acct_google_main', 'google_ads', '<customer id>', 'Dos Búhos', 'MXN', 'America/Mexico_City', 0);`
-2. **Google Ads feed.** Connections → Google Ads Script → *Create feed token* (shown once). In Google Ads → Tools → Bulk actions → Scripts, paste `scripts/google-ads-feed.js`, set `ENDPOINT` and `FEED_TOKEN`, authorize, run once and schedule *Hourly*. The script only reads.
-3. **Bookings.** OpenTable GuestCenter → Reporting → Reservations → export CSV covering at least the last 90 days. Then Connections → *Import OpenTable reservations*: choose the file's time zone and date format, preview, then import. Repeat weekly, or more often; re-imports update statuses without creating duplicates.
-4. **Capacity.** Capacity → for each open day, add slots, or *Still correct* to confirm. Seats, guides and rooms per day are rows in `capacity_resource_windows` (an admin screen for those is on the backlog).
-5. **Margins.** Insert approved `cost_assumptions` per product (variable cost %, per-guest cost, source, approver). Until these exist, contribution shows as *unknown* and the hero chart shows completed guests.
-
-## 6. Going live (only after the readiness checklist)
-
-Set the policy in Controls: ceiling, ceiling scope, return floor, approved campaigns, allowed actions, protective stop. Set the aggregate budget baseline. Production writes also need the Google Ads API adapter, which is blocked today (see `docs/integrations.md`). Controls → *Enable Limited auto* shows the exact policy version and requires an explicit confirmation.
+| Google Ads (reads) | Live via the Hub | Daily spend, clicks and Google-counted conversions per campaign (by name), today included, hourly |
+| Google Ads (richer reads) | Optional | Install `scripts/google-ads-feed.js` in Google Ads for campaign IDs, micros, search terms and change history (needs the `FEED_TOKEN_PEPPER` secret) |
+| Google Ads (changes) | Blocked | Needs Google Ads API access for the Cloud project `dos-buhos` plus owner OAuth |
+| OpenTable bookings | Requested | Reservation data is partner-only; asked of the OpenTable account manager (see `docs/integrations.md`). The CSV import stays as a fallback |
+| Capacity | Manual | Capacity view; an automatic read of OpenTable's public availability (the method `canario` uses) is a next step |

@@ -1,6 +1,6 @@
 # Acceptance evidence (spec §24)
 
-`npm test` runs 63 tests (vitest) on 2026-11-14. "Local E2E" means it was exercised through `wrangler dev` with D1, the Durable Object, Workflows and R2 emulated locally. Nothing has run in a deployed environment yet.
+`npm test` runs 65 tests (vitest) on 2026-11-14. "Local E2E" means it was exercised through `wrangler dev` with D1, the Durable Object, Workflows and R2 emulated locally. Nothing has run in a deployed environment yet.
 
 | # | Criterion | Evidence | Status |
 |---|---|---|---|

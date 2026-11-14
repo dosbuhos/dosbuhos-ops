@@ -142,12 +142,16 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
     const vals = pts.map(p => p.value);
     return { key, label, unit, view, points: pts, trend7: trailing(vals, 7), trend28: trailing(vals, 28), available: !missing && vals.some(v => v !== null), ...(missing ? { missing } : {}) };
   };
-  const contribMissing = assumptions.some(a => a.approvedBy) ? undefined : 'Approved variable costs or margins per product are missing, so contribution cannot be measured';
+  // With no booking source at all, every booking-derived number is unknown — never zero.
+  const noBookings = raw.bookings.length === 0;
+  const NB = 'No booking source connected yet (OpenTable reservation data is partner-only; requested through the account manager)';
+  const contribMissing = noBookings ? NB : assumptions.some(a => a.approvedBy) ? undefined : 'Approved variable costs or margins per product are missing, so contribution cannot be measured';
   series.push(mk('contribution_after_ads', 'Attributed contribution after ad spend', 'money', 'acquisition', d => { const c = contributionOn(d), s = spendMinorOn(d); return c === null || s === null ? null : c - s; }, true, contribMissing));
-  series.push(mk('confirmed_bookings', 'Confirmed bookings (all channels)', 'count', 'acquisition', d => bookingsCreated(d).length, false));
-  series.push(mk('completed_guests', 'Completed guests (all channels)', 'count', 'service', d => (d <= end ? attendedOn(d).reduce((a, b) => a + b.party_size, 0) : null)));
-  series.push(mk('revenue', 'Attributed net revenue (completed, paid)', 'money', 'acquisition', d => revenueOn(d)));
+  series.push(mk('confirmed_bookings', 'Confirmed bookings (all channels)', 'count', 'acquisition', d => bookingsCreated(d).length, false, noBookings ? NB : undefined));
+  series.push(mk('completed_guests', 'Completed guests (all channels)', 'count', 'service', d => (d <= end ? attendedOn(d).reduce((a, b) => a + b.party_size, 0) : null), true, noBookings ? NB : undefined));
+  series.push(mk('revenue', 'Attributed net revenue (completed, paid)', 'money', 'acquisition', d => revenueOn(d), true, noBookings ? NB : undefined));
   series.push(mk('ad_spend', 'Ad spend', 'money', 'acquisition', spendMinorOn, false));
+  series.push(mk('platform_conversions', 'Google Ads conversions (as Google counts them)', 'count', 'acquisition', d => { if (!spendDays.has(d)) return null; const c = convBy.get(d); return c === null || c === undefined ? null : c / 1000; }, false));
   series.push(mk('contribution_roas', 'Contribution ROAS', 'ratio', 'acquisition', d => { const c = contributionOn(d), s = spendMinorOn(d); return c === null || !s ? null : c / s; }, true, contribMissing));
 
   // ---- 28-day totals and tickers ----
@@ -155,6 +159,7 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
     const paid = ds.flatMap(paidCreated);
     const spendKnown = ds.every(d => spendDays.has(d));
     const contribs = paid.map(b => bc(b).value);
+    if (noBookings) return { currency, attributionMethod: ATTRIBUTION_METHOD, provisional: false, revenue: null, contribution: null, spend: spendKnown ? micros(currency, ds.reduce((a, d) => a + (spendBy.get(d) ?? 0), 0)) : null, completedParties: null, completedGuests: null, confirmedBookings: null };
     return {
       currency, attributionMethod: ATTRIBUTION_METHOD, provisional: ds.some(isProvisional),
       revenue: minor(currency, paid.filter(b => b.status === 'attended').reduce((a, b) => a + (b.paid_minor ?? 0), 0)),
@@ -180,15 +185,22 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
   const caOff = contributionAfterAds(tCur), caPrev = contributionAfterAds(tPrev);
   const rCur = revenueRoas(tCur), rPrev = revenueRoas(tPrev);
 
+  const unknownCount = (key: string, label: string): Metric => ({ key, value: null, unit: 'count', numerator: { label, value: null }, basis: 'observed', provisional: false, reason: NB });
+  const spendCur = cur.every(d => spendDays.has(d)) ? cur.reduce((a, d) => a + (spendMinorOn(d) ?? 0), 0) : null;
+  const spendPrev = prev.every(d => spendDays.has(d)) ? prev.reduce((a, d) => a + (spendMinorOn(d) ?? 0), 0) : null;
+  const convSum = (ds: LocalDate[]) => (ds.some(d => !spendDays.has(d) || convBy.get(d) === null) ? null : ds.reduce((a, d) => a + (convBy.get(d) ?? 0), 0) / 1000);
+  const convCur = convSum(cur), convPrev = convSum(prev);
   const tickers: Ticker[] = [
-    { key: 'completed_guests', label: 'Completed guests', metric: countMetric('completed_guests', 'Guests marked attended (service date, all channels)', guestsCur, 'observed', false), delta: delta(guestsCur, guestsPrev, w, false), spark: sparkOf('completed_guests'), window: w },
-    { key: 'confirmed_bookings', label: 'Confirmed bookings', metric: countMetric('confirmed_bookings', 'Bookings created and not cancelled (all channels)', bookCur, 'observed', false), delta: delta(bookCur, bookPrev, w, false), spark: sparkOf('confirmed_bookings'), window: w },
+    { key: 'completed_guests', label: 'Completed guests', metric: noBookings ? unknownCount('completed_guests', 'Guests marked attended') : countMetric('completed_guests', 'Guests marked attended (service date, all channels)', guestsCur, 'observed', false), delta: delta(noBookings ? null : guestsCur, noBookings ? null : guestsPrev, w, false), spark: noBookings ? [] : sparkOf('completed_guests'), window: w },
+    { key: 'confirmed_bookings', label: 'Confirmed bookings', metric: noBookings ? unknownCount('confirmed_bookings', 'Bookings created and not cancelled') : countMetric('confirmed_bookings', 'Bookings created and not cancelled (all channels)', bookCur, 'observed', false), delta: delta(noBookings ? null : bookCur, noBookings ? null : bookPrev, w, false), spark: noBookings ? [] : sparkOf('confirmed_bookings'), window: w },
+    { key: 'ad_spend', label: 'Ad spend (Google)', metric: { key: 'ad_spend', value: spendCur, unit: 'money', currency, numerator: { label: 'Google Ads cost, all campaigns', value: spendCur }, basis: 'observed', provisional: false, ...(spendCur === null ? { reason: 'Spend missing for some days' } : {}) }, delta: delta(spendCur, spendPrev, w, false), spark: sparkOf('ad_spend'), window: w },
+    { key: 'platform_conversions', label: 'Google Ads conversions', metric: { key: 'platform_conversions', value: convCur, unit: 'count', numerator: { label: 'Conversions as Google Ads counts them (whatever conversion actions the account has set up — not verified bookings)', value: convCur }, basis: 'attributed', provisional: false, reason: 'Platform-reported. Not deduplicated against OpenTable; may include clicks on the booking button rather than completed bookings' }, delta: delta(convCur, convPrev, w, false), spark: sparkOf('platform_conversions'), window: w },
     { key: 'contribution_after_ads', label: 'Contribution after ads', metric: caOff, delta: delta(caOff.value, caPrev.value, w, tCur.provisional), spark: sparkOf('contribution_after_ads'), window: w },
     { key: 'revenue_roas', label: 'Revenue ROAS', metric: rCur, delta: delta(rCur.value, rPrev.value, w, tCur.provisional), spark: sparkOf('revenue').map((p, i) => { const s = sparkOf('ad_spend')[i]?.value; return { ...p, value: p.value !== null && s ? p.value / s : null }; }), window: w },
     { key: 'forward_utilization', label: 'Next 14 days booked', metric: occ, delta: { absolute: null, percent: null, window: 'next 14 days', provisional: false, note: 'Forward-looking: no comparison' }, spark: [], window: 'next 14 days, restaurant + experiences (separate denominators summed only as places)' },
   ];
 
-  const heroKey = contribMissing ? 'completed_guests' : 'contribution_after_ads';
+  const heroKey = noBookings ? 'ad_spend' : contribMissing ? 'completed_guests' : 'contribution_after_ads';
   const markers: ActionMarker[] = raw.actions.filter(a => ['VERIFIED', 'PARTIALLY_APPLIED', 'COMPENSATED', 'UNKNOWN_OUTCOME', 'SHADOWED'].includes(String(a.to_state)))
     .map(a => ({ actionId: String(a.action_id), date: localDate(Number(a.at), wineryTz), label: String(a.label), state: String(a.to_state), actor: String(a.actor) }));
 

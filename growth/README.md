@@ -1,16 +1,16 @@
 # Growth Terminal
 
-A private, market-style dashboard and bounded optimization agent for Dos Búhos advertising, bookings and capacity. Runs on Cloudflare Workers behind the Hub (`/growth/`). Worker `growth` (`growth-demo`, `growth-staging`), D1, R2, one Durable Object per ad account, two Workflows, one 15-minute cron.
+A private, market-style dashboard and bounded optimization agent for Dos Búhos advertising, bookings and capacity. Runs on Cloudflare Workers behind the Hub (`/growth/`). Worker `growth` (local demo: `growth-dev`), D1, R2, one Durable Object per ad account, two Workflows, one 15-minute cron.
 
-**It is not connected to any real account yet.** `npm run dev` gives a full demo on synthetic data with a simulated ad account.
+**Real data:** Google Ads for the Dos Búhos account, read every hour from the Hub's existing feed (read-only). Bookings are not connected yet (OpenTable reservation data is partner-only). `npm run dev` gives a full local demo on synthetic data.
 
 | | Status (2026-11-14) |
 |---|---|
-| Real | Domain, policy and coordinator logic; dashboard; Google Ads Script feed; OpenTable CSV import; manual capacity; watchdog; reports. Exercised locally end to end |
+| Real | Google Ads spend/clicks/conversions via the Hub (D1 `growth` and R2 `growth-archive` created; schema applied). Domain, policy and coordinator logic; dashboard; watchdog; reports |
 | Mocked | The ad account in dev/demo (`MockAdsProvider`); every demo number (`fixtures/demo-data.ts`) |
 | Blocked | Google Ads API reads and writes (needs approved API access + owner OAuth); offline conversions; Claude review against the live API (no key here) |
-| Tested | 63 tests mapped to the spec's acceptance criteria: `docs/acceptance.md` |
-| Deployable | Demo environment, once the owner creates the D1/R2 resources (`docs/setup.md`). Production writes stay impossible until the API adapter exists and the owner goes live |
+| Tested | 65 tests mapped to the spec's acceptance criteria: `docs/acceptance.md` |
+| Deployable | Yes, via Workers Builds once the `growth` Worker is created in the dashboard and `HUB_SECRET` is set (`docs/setup.md`). Ad changes stay impossible until the API adapter exists and the owner goes live |
 
 ## Layout
 

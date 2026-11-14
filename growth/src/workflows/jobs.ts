@@ -9,6 +9,7 @@ import { buildSnapshot } from '../read/snapshot.ts';
 import { buildFacts, templateNarrative, allowedNumbers } from './reports.ts';
 import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
 import { coordinatorFor } from '../coordinator/do.ts';
+import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 
 export async function claim(db: D1Database, job: DueJob, now: number): Promise<boolean> {
   const r = await db.prepare("INSERT OR IGNORE INTO job_runs (run_key, job, status, attempts, started_at) VALUES (?, ?, 'claimed', 1, ?)").bind(job.runKey, job.job, now).run();
@@ -39,9 +40,17 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
     try {
       switch (job.job) {
         case 'watchdog': await finishJob(env.DB, job.runKey, 'succeeded', JSON.stringify(await watchdog(env, now))); break;
-        case 'spend_poll': case 'ads_ingest':
-          await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'Spend arrives with the hourly Google Ads Script feed; direct polling needs Google Ads API access'); break;
-        case 'booking_sync': await finishJob(env.DB, job.runKey, 'skipped', 'OpenTable has no reservation API for restaurants; bookings arrive by CSV import'); break;
+        case 'ads_ingest': {
+          const acct = await defaultAccount(env.DB);
+          if (env.HUB_DB && acct && env.DATA_KIND === 'real') {
+            const r = await mirrorFromHub(env.HUB_DB, env.DB, acct.id, now, env.WINERY_TZ);
+            await finishJob(env.DB, job.runKey, 'succeeded', `Hub feed: ${r.campaigns} campaigns, ${r.days} days, data as of ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'unknown'}`);
+          } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'No Google Ads source bound');
+          break;
+        }
+        case 'spend_poll':
+          await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'Spend arrives hourly with the Google Ads feed; 15-minute polling needs Google Ads API access'); break;
+        case 'booking_sync': await finishJob(env.DB, job.runKey, 'skipped', 'No booking source connected: OpenTable reservation data is partner-only (requested via the account manager)'); break;
         case 'daily_review': await env.DAILY_REVIEW.create({ id: job.runKey.replace(/:/g, '-'), params: { runKey: job.runKey, kind: 'daily', logicalDate: job.logicalDate } }); break;
         case 'weekly_review': await env.WEEKLY_REVIEW.create({ id: job.runKey.replace(/:/g, '-'), params: { runKey: job.runKey, kind: 'weekly', logicalDate: job.logicalDate } }); break;
         case 'notify_daily': case 'notify_weekly': await finishJob(env.DB, job.runKey, 'skipped', 'No notification provider is configured; reports are in the app'); break;

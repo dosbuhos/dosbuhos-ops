@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { TickerCard, HeroChart, SeriesTable, Loading, ErrorBox } from '../components';
 import { MODE_INFO, PRODUCT_LABEL, dayLabel, ago } from '../format';
 
-const VIEW_KEYS: [string, string][] = [['contribution_after_ads', 'Contribution after ads'], ['confirmed_bookings', 'Bookings'], ['completed_guests', 'Completed guests'], ['revenue', 'Revenue'], ['ad_spend', 'Ad spend'], ['contribution_roas', 'Contribution ROAS']];
+const VIEW_KEYS: [string, string][] = [['contribution_after_ads', 'Contribution after ads'], ['confirmed_bookings', 'Bookings'], ['completed_guests', 'Completed guests'], ['revenue', 'Revenue'], ['ad_spend', 'Ad spend'], ['platform_conversions', 'Google conversions'], ['contribution_roas', 'Contribution ROAS']];
 
 export function Overview({ o, error, session }: { o: any; error: string | null; session: any }) {
   const [key, setKey] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
           </div>
         </header>
         {series && !series.available ? (
-          <div className="notice" style={{ marginTop: 10 }}><b>{series.label} cannot be shown.</b> {series.missing ?? 'No data for this window.'} {o.heroKey !== 'contribution_after_ads' && 'Showing completed guests by default instead. Revenue is never labeled as profit.'}</div>
+          <div className="notice" style={{ marginTop: 10 }}><b>{series.label} cannot be shown.</b> {series.missing ?? 'No data for this window.'} Revenue is never labeled as profit.</div>
         ) : series ? (
           <>
             <div style={{ marginTop: 10 }}><HeroChart series={series} markers={o.markers} cutoff={o.cutoff} currency={o.currency} trend={trend} onMarker={onMarker} /></div>
@@ -59,6 +59,7 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
       <div className="grid cols-2 section">
         <section className="card" aria-labelledby="cap14">
           <header className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}><h3 id="cap14">Next 14 days</h3><a href="#capacity" className="small">Full calendar</a></header>
+          {Object.keys(byDate).length === 0 && <p className="small muted">No capacity entered yet. Staff can add slots in Capacity; nothing here is treated as full or empty.</p>}
           <div className="cal">{Object.entries(byDate).map(([date, ds]) => (
             <div key={date} className="cal-day"><div className="d">{dayLabel(date).split(' ').slice(1).join(' ')}<small>{dayLabel(date).split(' ')[0]}</small></div>
               <div className="cal-prods">{(ds as any[]).map(d => <CapChip key={d.product} d={d} />)}</div></div>))}</div>

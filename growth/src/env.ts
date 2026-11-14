@@ -2,6 +2,7 @@ import type { AccountCoordinator } from './coordinator/do.ts';
 
 export interface Env {
   DB: D1Database;
+  HUB_DB?: D1Database;            // the Hub's database, read-only (Google Ads rows from the Hub's script)
   ARCHIVE: R2Bucket;
   ASSETS: Fetcher;
   COORDINATOR: DurableObjectNamespace<AccountCoordinator>;
