@@ -5,12 +5,13 @@ import { authenticate, checkWriteOrigin, can } from './auth.ts';
 import { readyCoordinator } from '../coordinator/do.ts';
 import { loadRaw, computeOverview } from '../read/facts.ts';
 import { buildSnapshot } from '../read/snapshot.ts';
-import { assertDataKind, defaultAccount, writeReport, watchdog } from '../workflows/jobs.ts';
+import { assertDataKind, defaultAccount, writeReport, watchdog, syncGa4IfConfigured } from '../workflows/jobs.ts';
 import { FeedPayload, MAX_FEED_BYTES, feedStatements, budgetChanges } from '../connectors/google-ads-feed.ts';
 import { previewOpenTable, DEFAULT_OPENTABLE_MAPPING, type OpenTableMapping } from '../connectors/opentable-csv.ts';
 import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
+import { parseServiceAccount } from '../connectors/ga4.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
 import { addDays } from '../domain/time.ts';
 import { runDemoBootstrap } from '../../fixtures/demo-actions.ts';
@@ -230,7 +231,9 @@ app.get('/api/connections', async c => {
   const rows = (await c.env.DB.prepare('SELECT id, provider, purpose, health, health_reason, scopes_json, last_success_at, last_error, freshness_at, updated_at FROM connections ORDER BY provider').all()).results;
   const tokens = (await c.env.DB.prepare('SELECT id, connection_id, created_by, created_at, revoked_at FROM feed_tokens ORDER BY created_at DESC').all()).results;
   const imports = (await c.env.DB.prepare('SELECT id, kind, file_name, rows_total, rows_ok, rows_duplicate, rows_error, status, created_by, created_at FROM imports ORDER BY created_at DESC LIMIT 20').all()).results;
-  return json(c, { connections: rows, feedTokens: tokens, imports, secrets: { HUB_SECRET: !!c.env.HUB_SECRET || c.env.ENVIRONMENT === 'dev', ANTHROPIC_API_KEY: !!c.env.ANTHROPIC_API_KEY, FEED_TOKEN_PEPPER: !!c.env.FEED_TOKEN_PEPPER, TOKEN_ENCRYPTION_KEY_V1: !!c.env.TOKEN_ENCRYPTION_KEY_V1 } });
+  const sa = parseServiceAccount(c.env.GA4_SA_KEY);
+  const ga4 = await c.env.DB.prepare("SELECT account_ref FROM connections WHERE id = 'conn_ga4'").first<{ account_ref: string | null }>();
+  return json(c, { connections: rows, feedTokens: tokens, imports, ga4: { propertyId: ga4?.account_ref ?? null, serviceAccountEmail: sa?.client_email ?? null }, secrets: { GA4_SA_KEY: !!sa, HUB_SECRET: !!c.env.HUB_SECRET || c.env.ENVIRONMENT === 'dev', ANTHROPIC_API_KEY: !!c.env.ANTHROPIC_API_KEY, FEED_TOKEN_PEPPER: !!c.env.FEED_TOKEN_PEPPER, TOKEN_ENCRYPTION_KEY_V1: !!c.env.TOKEN_ENCRYPTION_KEY_V1 } });
 });
 
 app.post('/api/connections/google-ads-script/token', async c => {
@@ -334,7 +337,25 @@ app.post('/api/control/sync-now', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const a = await defaultAccount(c.env.DB);
   if (!c.env.HUB_DB || !a) return fail(c, 409, 'not_configured', 'No Google Ads source bound');
-  return json(c, await mirrorFromHub(c.env.HUB_DB, c.env.DB, a.id, Date.now(), c.env.WINERY_TZ));
+  const ads = await mirrorFromHub(c.env.HUB_DB, c.env.DB, a.id, Date.now(), c.env.WINERY_TZ);
+  let ga4: unknown = null;
+  try { ga4 = await syncGa4IfConfigured(c.env, Date.now()); } catch (e) { ga4 = { error: (e as Error).message }; }
+  return json(c, { ads, ga4 });
+});
+
+/** GA4: save the property ID (digits; not a secret, kept in D1 rather than the public repo) and run a first sync. */
+app.post('/api/connections/ga4', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const b = z.object({ propertyId: z.string().regex(/^\d{4,15}$/, 'GA4 property ID is digits only') }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_request', b.error.issues[0]?.message ?? 'propertyId required');
+  const now = Date.now();
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE connections SET account_ref = ?, health = 'limited', health_reason = 'Property saved; waiting for the first sync', updated_at = ? WHERE id = 'conn_ga4'").bind(b.data.propertyId, now),
+    c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource, detail_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'ga4_property_set', 'conn_ga4', JSON.stringify({ propertyId: b.data.propertyId })),
+  ]);
+  if (!parseServiceAccount(c.env.GA4_SA_KEY)) return json(c, { saved: true, synced: false, message: 'Saved. Add the GA4_SA_KEY secret to the growth Worker, then press Sync now.' });
+  try { return json(c, { saved: true, synced: true, ...(await syncGa4IfConfigured(c.env, now)) }); }
+  catch (e) { return fail(c, 502, 'ga4_failed', `Saved, but GA4 refused: ${(e as Error).message}. Check that the service account is a Viewer on this property and the Analytics Data API is enabled.`); }
 });
 app.post('/api/control/run-report', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;

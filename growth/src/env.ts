@@ -18,7 +18,8 @@ export interface Env {
   DEV_USER_EMAIL?: string;          // dev only
   ANTHROPIC_API_KEY?: string;       // optional: without it, template reports and no proposals
   FEED_TOKEN_PEPPER?: string;       // required to create/verify feed tokens
-  TOKEN_ENCRYPTION_KEY_V1?: string; // required before storing OAuth refresh tokens
+  TOKEN_ENCRYPTION_KEY_V1?: string;
+  GA4_SA_KEY?: string;              // service account JSON key, Viewer on the GA4 property (read-only) // required before storing OAuth refresh tokens
 }
 
 export type Role = 'admin' | 'editor' | 'viewer';

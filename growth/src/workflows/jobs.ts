@@ -3,13 +3,25 @@
 // The watchdog never calls the model.
 import type { Env } from '../env.ts';
 import { dueJobs, DEFAULT_SCHEDULE, DAILY_REVIEW_GRACE_MINUTES, type DueJob, type ScheduleSettings } from '../domain/scheduler.ts';
-import { localParts, zonedToUtc } from '../domain/time.ts';
+import { localParts, zonedToUtc, addDays, localDate } from '../domain/time.ts';
 import { loadRaw, computeOverview } from '../read/facts.ts';
 import { buildSnapshot } from '../read/snapshot.ts';
 import { buildFacts, templateNarrative, allowedNumbers } from './reports.ts';
 import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
 import { readyCoordinator } from '../coordinator/do.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
+import { syncGa4, parseServiceAccount } from '../connectors/ga4.ts';
+
+/** GA4 online reservations, if the key and property ID are configured. First run backfills 120 days, then a 14-day
+ *  overlap window each hour (GA4 revises recent days). Returns null when not configured. */
+export async function syncGa4IfConfigured(env: Env, now: number): Promise<{ rows: number; reservations: number } | null> {
+  const sa = parseServiceAccount(env.GA4_SA_KEY);
+  const conn = await env.DB.prepare("SELECT account_ref FROM connections WHERE id = 'conn_ga4'").first<{ account_ref: string | null }>();
+  if (!sa || !conn?.account_ref) return null;
+  const today = localDate(now, env.WINERY_TZ);
+  const any = await env.DB.prepare('SELECT 1 FROM ga4_reservations_daily LIMIT 1').first();
+  return syncGa4(env.DB, sa, conn.account_ref, now, addDays(today, any ? -14 : -120), today);
+}
 
 export async function claim(db: D1Database, job: DueJob, now: number): Promise<boolean> {
   const r = await db.prepare("INSERT OR IGNORE INTO job_runs (run_key, job, status, attempts, started_at) VALUES (?, ?, 'claimed', 1, ?)").bind(job.runKey, job.job, now).run();
@@ -46,7 +58,9 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
           const acct = await defaultAccount(env.DB);
           if (env.HUB_DB && acct && env.DATA_KIND === 'real') {
             const r = await mirrorFromHub(env.HUB_DB, env.DB, acct.id, now, env.WINERY_TZ);
-            await finishJob(env.DB, job.runKey, 'succeeded', `Hub feed: ${r.campaigns} campaigns, ${r.days} days, data as of ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'unknown'}`);
+            let ga4 = 'GA4 not configured';
+            try { const g = await syncGa4IfConfigured(env, now); if (g) ga4 = `GA4: ${g.reservations} online reservations in ${g.rows} rows`; } catch (e) { ga4 = `GA4 failed: ${(e as Error).message}`; }
+            await finishJob(env.DB, job.runKey, 'succeeded', `Hub feed: ${r.campaigns} campaigns, ${r.days} days, data as of ${r.dataAsOf ? new Date(r.dataAsOf).toISOString() : 'unknown'}. ${ga4}`);
           } else await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Mock provider: demo data is static' : 'No Google Ads source bound');
           break;
         }

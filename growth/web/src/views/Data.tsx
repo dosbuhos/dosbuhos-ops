@@ -110,10 +110,34 @@ export function Connections({ isAdmin }: { isAdmin: boolean }) {
         <h3>Worker secrets present</h3>
         <div className="kv">{Object.entries(data.secrets).map(([k, v]) => <div key={k}><span>{k}</span><b>{v ? 'set' : 'not set'}</b></div>)}</div>
       </section>
+      <Ga4Setup ga4={data.ga4} isAdmin={isAdmin} onDone={m => { setMsg(m); void reload(); }} />
       <OpenTableImport onDone={m => { setMsg(m); void reload(); }} />
       <section className="section"><h3>Recent imports</h3><div className="list" style={{ marginTop: 6 }}>{(data.imports as any[]).map(i => <div key={i.id} className="item small"><div className="top"><b>{i.file_name}</b><span className="chip">{i.status}</span></div>{i.rows_ok} valid · {i.rows_duplicate} duplicate · {i.rows_error} errors · {when(i.created_at)} by {i.created_by}</div>)}{!(data.imports as any[]).length && <div className="item muted small">No imports yet.</div>}</div></section>
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </>
+  );
+}
+
+function Ga4Setup({ ga4, isAdmin, onDone }: { ga4: { propertyId: string | null; serviceAccountEmail: string | null }; isAdmin: boolean; onDone: (m: string) => void }) {
+  const [pid, setPid] = useState(ga4?.propertyId ?? '');
+  const [busy, setBusy] = useState(false);
+  const save = async () => { setBusy(true); try { const r = await api('connections/ga4', { method: 'POST', body: { propertyId: pid.trim() } }); onDone(r.synced ? `GA4 connected: ${r.reservations} online reservations loaded.` : r.message); } catch (e) { onDone((e as Error).message); } finally { setBusy(false); } };
+  const sync = async () => { setBusy(true); try { const r = await api('control/sync-now', { method: 'POST' }); onDone(r.ga4?.error ? `GA4: ${r.ga4.error}` : r.ga4 ? `Synced: ${r.ga4.reservations} online reservations.` : 'Google Ads synced; GA4 not configured yet.'); } catch (e) { onDone((e as Error).message); } finally { setBusy(false); } };
+  return (
+    <section className="section card stack">
+      <h3>OpenTable online reservations (via Google Analytics)</h3>
+      <p className="small muted">OpenTable already sends each online reservation to your GA4 as <span className="mono">ot-reservation-made</span>. Growth reads the daily counts by traffic source, read-only. Phone and walk-in bookings and later cancellations are not included.</p>
+      <div className="kv">
+        <div><span>Service account (GA4_SA_KEY secret)</span><b>{ga4?.serviceAccountEmail ?? 'not set'}</b></div>
+        <div><span>GA4 property</span><b>{ga4?.propertyId ?? 'not set'}</b></div>
+      </div>
+      {ga4?.serviceAccountEmail && <div className="tiny muted">In GA4 → Admin → Property access management, this email needs the Viewer role.</div>}
+      {isAdmin && <div className="row">
+        <label className="field" style={{ flex: '1 1 200px' }}>GA4 property ID (digits)<input inputMode="numeric" value={pid} onChange={e => setPid(e.target.value.replace(/[^0-9]/g, ''))} /></label>
+        <button className="btn primary" disabled={busy || !pid} onClick={() => void save()}>Save and sync</button>
+        <button className="btn" disabled={busy} onClick={() => void sync()}>Sync now</button>
+      </div>}
+    </section>
   );
 }
 

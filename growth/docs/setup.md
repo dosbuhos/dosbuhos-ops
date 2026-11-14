@@ -43,5 +43,6 @@ npm run check
 | Google Ads (reads) | Live via the Hub | Daily spend, clicks and Google-counted conversions per campaign (by name), today included, hourly |
 | Google Ads (richer reads) | Optional | Install `scripts/google-ads-feed.js` in Google Ads for campaign IDs, micros, search terms and change history (needs the `FEED_TOKEN_PEPPER` secret) |
 | Google Ads (changes) | Blocked | Needs Google Ads API access for the Cloud project `dos-buhos` plus owner OAuth |
-| OpenTable bookings | Requested | Reservation data is partner-only; asked of the OpenTable account manager (see `docs/integrations.md`). The CSV import stays as a fallback |
+| OpenTable online reservations | Built, needs setup | OpenTable's GA4 integration (already connected) sends `ot-reservation-made`; Growth reads daily counts by source/medium/campaign via the GA4 Data API. Needs the `GA4_SA_KEY` secret and the property ID in Connections. Online widget bookings only; no cancellations, no-shows or spend |
+| OpenTable full reservations | Requested | Status, covers and cancellations need OpenTable's partner API (GuestCenter → API Partner) or the CSV import |
 | Capacity | Manual | Capacity view; an automatic read of OpenTable's public availability (the method `canario` uses) is a next step |
