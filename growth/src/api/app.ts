@@ -12,7 +12,7 @@ import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
-import { loadEstimates, saveEstimate } from '../read/estimates.ts';
+import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { readSecret } from '../ai/key.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
@@ -368,6 +368,18 @@ app.post('/api/estimates', async c => {
   const now = Date.now();
   const saved = await saveEstimate(c.env.DB, { product: b.data.product, valueMinor: Math.round(b.data.value * 100), basis: b.data.basis, sourcePeriod: b.data.sourcePeriod, note: b.data.note }, c.get('user').email, now);
   await c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource, detail_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'estimate_set', b.data.product, JSON.stringify(saved)).run();
+  return json(c, saved);
+});
+
+app.post('/api/costs', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const b = z.object({ key: z.enum(['restaurant_cost_pct', 'tour_cost_pct', 'payment_fee_pct', 'opentable_fee_per_reservation']), value: z.number().min(0).max(99.99), basis: z.string().min(3).max(500), sourcePeriod: z.string().max(80).default(''), provisional: z.boolean().default(false), note: z.string().max(300).default('') }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_request', b.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
+  if (b.data.key === 'opentable_fee_per_reservation' && b.data.value > 1000) return fail(c, 400, 'bad_request', 'value: máximo MX$1,000');
+  const now = Date.now();
+  // Percentages arrive as percent (21.5) and are stored as basis points; the OpenTable fee arrives in pesos and is stored in cents.
+  const saved = await saveCost(c.env.DB, { ...b.data, value: Math.round(b.data.value * 100) }, c.get('user').email, now);
+  await c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource, detail_json) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'cost_set', b.data.key, JSON.stringify(saved)).run();
   return json(c, saved);
 });
 

@@ -47,3 +47,10 @@ npm run check
 `npm run dev` builds the dashboard, prepares the local demo database and serves http://127.0.0.1:8787. `npm run check` runs the typecheck, tests and build.
 
 Start with `docs/readiness.md`: what is built, what is connected, and the owner questions.
+
+## Estimates (owner-editable, Controles)
+- `GET /api/estimates`: value per reservation (restaurant, tours), variable costs, contribution per reservation, history.
+- `POST /api/estimates` (admin): new value per reservation. `POST /api/costs` (admin): new cost (`restaurant_cost_pct`,
+  `tour_cost_pct`, `payment_fee_pct` in percent; `opentable_fee_per_reservation` in pesos). New rows keep the old ones as history.
+- Used only for numbers labeled "estimado": estimated revenue, estimated return and estimated contribution (Resumen, Campañas).
+- `GET /api/ai-visibility`, `POST /api/control/ai-visibility-run` (admin, once a day): monthly AI assistant visibility check.

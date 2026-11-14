@@ -273,6 +273,15 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
       return [
         { key: 'estimated_revenue', label: 'Ingreso estimado (reservaciones en línea)', metric: { key: 'estimated_revenue', value: rev, unit: 'money', currency, numerator: { label: 'Reservaciones en línea (GA4) × valor estimado por reservación', value: rev }, basis: 'modeled', provisional: false, reason: `ESTIMACIÓN, no ventas reales: ${all.value ?? '?'} reservaciones × ${used}${since}` }, delta: noCmp, spark: [], window: w } as Ticker,
         { key: 'estimated_return_google', label: 'Retorno estimado (Google Ads)', metric: { key: 'estimated_return_google', value: ret, unit: 'ratio', numerator: { label: 'Reservaciones de Google Ads (GA4) × valor estimado', value: ads.value === null ? null : ads.value * est.valueMinor }, denominator: { label: 'Gasto en Google Ads en los mismos días', value: adsSpend }, basis: 'modeled', provisional: false, reason: ret === null ? 'Sin reservaciones atribuidas a Google Ads o sin gasto en el periodo' : `ESTIMACIÓN: pesos de ingreso estimado por cada peso en Google Ads. ${ads.value} reservaciones × ${used} Probablemente subestimado mientras parte de las reservaciones pierda su fuente.` }, delta: noCmp, spark: [], window: w } as Ticker,
+        ...((): Ticker[] => {
+          const per = raw.estimates.contribution.restaurant_visit;
+          const cs = raw.estimates.costs.current;
+          const pct = (k: 'restaurant_cost_pct' | 'payment_fee_pct') => `${((cs[k]?.value ?? 0) / 100).toFixed(1)}%${cs[k]?.provisional ? ' (provisional)' : ''}`;
+          const value = per === undefined || ads.value === null || adsSpend === null ? null : ads.value * per - adsSpend;
+          const reason = per === undefined ? 'Faltan costos variables en Controles (costo del restaurante, comisión por pagos o cargo de OpenTable)'
+            : `ESTIMACIÓN: ${ads.value ?? '?'} reservaciones de Google Ads × MX$${(per / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })} de contribución cada una (valor ${used.split(' (')[0]} − costo de alimentos y bebidas ${pct('restaurant_cost_pct')} − comisión por pagos ${pct('payment_fee_pct')} − OpenTable MX$${((cs.opentable_fee_per_reservation?.value ?? 0) / 100).toFixed(0)}) − gasto en Google Ads. Se ajusta en Controles.`;
+          return [{ key: 'estimated_contribution_google', label: 'Contribución estimada después de anuncios (Google Ads)', metric: { key: 'estimated_contribution_google', value, unit: 'money', currency, numerator: { label: 'Reservaciones de Google Ads × contribución estimada por reservación', value: per === undefined || ads.value === null ? null : ads.value * per }, denominator: { label: 'Menos el gasto en Google Ads en los mismos días', value: adsSpend }, basis: 'modeled', provisional: Object.values(cs).some(c => c?.provisional), reason }, delta: noCmp, spark: [], window: w } as Ticker];
+        })(),
       ];
     })() : []),
     // AI assistants (ChatGPT, Gemini, Perplexity, Claude…): reservations and visits into the booking flow.

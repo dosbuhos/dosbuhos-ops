@@ -189,7 +189,7 @@ function Estimates({ isAdmin }: { isAdmin: boolean }) {
   };
   return (
     <section className="section card stack">
-      <h2>Valores estimados por reservación</h2>
+      <h2>Valores estimados y costos</h2>
       <p className="small">Con estos promedios se calculan el <b>ingreso estimado</b> y el <b>retorno estimado</b> de los anuncios. Son estimaciones, no ventas reales: OpenTable no nos dice cuánto gastó cada mesa. Cámbialos cuando tengas un promedio más reciente.</p>
       <div className="list">{EST_PRODUCTS.map(([k, label]) => {
         const e = data.current[k];
@@ -210,9 +210,47 @@ function Estimates({ isAdmin }: { isAdmin: boolean }) {
           </div>
         );
       })}</div>
+      <h3>Costos variables</h3>
+      <p className="small">Se restan del valor por reservación para estimar la <b>contribución</b> (lo que queda para pagar gastos fijos y anuncios). Los marcados <span className="state s-warn">provisional</span> son aproximaciones que hay que confirmar.</p>
+      <div className="list">{COSTS.map(([k, label, unit]) => <CostRow key={k} k={k} label={label} unit={unit} c={data.costs.current[k]} isAdmin={isAdmin} onSaved={m => { setMsg(m); void reload(); }} />)}</div>
+      {Object.keys(data.contribution).length > 0 && <div className="small">Contribución estimada por reservación: {EST_PRODUCTS.filter(([k]) => data.contribution[k] != null).map(([k, l]) => `${l.split(' (')[0]} ${money(data.contribution[k])}`).join(' · ')}</div>}
       {data.history.length > EST_PRODUCTS.length && <details><summary className="small" style={{ cursor: 'pointer' }}>Historial</summary><ul className="small">{(data.history as any[]).map(h => <li key={h.id}>{when(h.approvedAt)} · {PRODUCT_LABEL[h.product] ?? h.product}: {money(h.valueMinor, h.currency)} ({h.basis}) por {h.approvedBy}</li>)}</ul></details>}
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </section>
+  );
+}
+
+const COSTS: [string, string, 'pct' | 'mxn'][] = [
+  ['restaurant_cost_pct', 'Costo de alimentos y bebidas del restaurante', 'pct'],
+  ['tour_cost_pct', 'Costo de tours y catas', 'pct'],
+  ['payment_fee_pct', 'Comisión por pagos con tarjeta (sobre la venta total)', 'pct'],
+  ['opentable_fee_per_reservation', 'Cargo de OpenTable por reservación del sitio web', 'mxn'],
+];
+
+function CostRow({ k, label, unit, c, isAdmin, onSaved }: { k: string; label: string; unit: 'pct' | 'mxn'; c: any; isAdmin: boolean; onSaved: (m: string) => void }) {
+  const [edit, setEdit] = useState(false);
+  const [f, setF] = useState({ value: '', basis: '', sourcePeriod: '', note: '', provisional: false });
+  const shown = !c ? 'sin definir' : unit === 'pct' ? `${(c.value / 100).toFixed(1)}%` : money(c.value);
+  const save = async () => {
+    try { await api('costs', { method: 'POST', body: { key: k, value: Number(f.value), basis: f.basis, sourcePeriod: f.sourcePeriod, note: f.note, provisional: f.provisional } }); setEdit(false); onSaved('Costo guardado. El historial conserva el anterior.'); }
+    catch (e) { onSaved((e as Error).message); }
+  };
+  return (
+    <div className="item">
+      <div className="top"><b>{label}</b><span className="row">{c?.provisional && <span className="state s-warn">provisional</span>}<b className="mono">{shown}</b></span></div>
+      {c ? <div className="small">Base: {c.basis}{c.sourcePeriod ? ` · ${c.sourcePeriod}` : ''} · {c.approvedBy}, {when(c.approvedAt)}{c.note ? ` · ${c.note}` : ''}</div> : <div className="small muted">Sin valor: la contribución estimada no se calcula.</div>}
+      {isAdmin && !edit && <button className="btn" onClick={() => { setEdit(true); setF({ value: c ? String(c.value / 100) : '', basis: c?.basis ?? '', sourcePeriod: c?.sourcePeriod ?? '', note: '', provisional: c?.provisional ?? false }); }}>Cambiar</button>}
+      {edit && (
+        <div className="stack">
+          <label className="field">{unit === 'pct' ? 'Porcentaje (ej. 21.5)' : 'Pesos por reservación'}<input inputMode="decimal" value={f.value} onChange={ev => setF({ ...f, value: ev.target.value.replace(/[^0-9.]/g, '') })} /></label>
+          <label className="field">De dónde sale (obligatorio)<input value={f.basis} onChange={ev => setF({ ...f, basis: ev.target.value })} /></label>
+          <label className="field">Periodo de los datos<input value={f.sourcePeriod} onChange={ev => setF({ ...f, sourcePeriod: ev.target.value })} /></label>
+          <label className="field">Nota (opcional)<input value={f.note} onChange={ev => setF({ ...f, note: ev.target.value })} /></label>
+          <label className="row small"><input type="checkbox" checked={f.provisional} onChange={ev => setF({ ...f, provisional: ev.target.checked })} style={{ width: 22, height: 22 }} /> Es provisional (falta confirmarlo)</label>
+          <div className="row"><button className="btn primary" disabled={f.value === '' || f.basis.trim().length < 3} onClick={() => void save()}>Guardar</button><button className="btn" onClick={() => setEdit(false)}>Cancelar</button></div>
+        </div>
+      )}
+    </div>
   );
 }
 

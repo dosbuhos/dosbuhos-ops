@@ -28,7 +28,7 @@ export function Campaigns() {
       </section>
       <section className="section">
         <div className="notice small" role="note">{data.estimate
-          ? <>Ingreso estimado = reservaciones en línea × <b>{money(data.estimate.valueMinor, cur)}</b> por reservación (sin IVA). Base: {data.estimate.basis}{data.estimate.sourcePeriod ? `, ${data.estimate.sourcePeriod}` : ''}; aprobado por {data.estimate.approvedBy}. Es una estimación; se ajusta en <a href="#controls">Controles</a>.</>
+          ? <>Ingreso estimado = reservaciones en línea × <b>{money(data.estimate.valueMinor, cur)}</b> por reservación (sin IVA). Base: {data.estimate.basis}{data.estimate.sourcePeriod ? `, ${data.estimate.sourcePeriod}` : ''}; aprobado por {data.estimate.approvedBy}. {data.estimate.contributionMinor != null && <> Contribución estimada: <b>{money(data.estimate.contributionMinor, cur)}</b> por reservación después de costos variables.</>} Es una estimación; se ajusta en <a href="#controls">Controles</a>.</>
           : <>Sin valor por reservación aprobado; el ingreso estimado no se calcula. Defínelo en <a href="#controls">Controles</a>.</>}</div>
       </section>
       <AiVisibility />
@@ -47,6 +47,7 @@ export function Campaigns() {
                 <div><span>Costo por reservación</span><b>{c.costPerReservationMinor === null ? '—' : money(c.costPerReservationMinor, cur)}</b></div>
                 <div><span>Ingreso estimado</span><b>{c.estimatedRevenueMinor === null ? '—' : money(c.estimatedRevenueMinor, cur)}</b></div>
                 <div><span>Retorno estimado</span><b>{c.estimatedReturn === null ? '—' : `${c.estimatedReturn.toFixed(1)}×`}</b></div>
+                <div><span>Contribución estimada después del gasto</span><b>{c.estimatedContributionMinor == null ? '—' : money(c.estimatedContributionMinor, cur)}</b></div>
                 <div><span>Presupuesto diario</span><b>{microsMoney(c.budgetMicros, cur)}</b></div>
               </div>
               {c.note && <div className="tiny muted">{c.note}</div>}

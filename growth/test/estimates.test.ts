@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { loadEstimates, saveEstimate } from '../src/read/estimates.ts';
+import { loadEstimates, saveEstimate, saveCost } from '../src/read/estimates.ts';
 import { loadCampaigns } from '../src/read/campaigns.ts';
 import { addDays, localDate } from '../src/domain/time.ts';
 
@@ -48,5 +48,17 @@ describe('reservation value estimates', () => {
     expect(v.estimate?.valueMinor).toBe(156000);
     expect(c.estimatedRevenueMinor).toBe(312000);           // 2 × MX$1,560
     expect(c.estimatedReturn).toBeCloseTo(3120 / 1000, 5);  // MX$3,120 estimated ÷ MX$1,000 spend
+    expect(c.estimatedContributionMinor).toBeNull();         // no costs yet: no contribution, never a guess
+    mig(db, '0007_estimate_costs.sql');
+    const cost = (key: 'restaurant_cost_pct' | 'payment_fee_pct' | 'opentable_fee_per_reservation' | 'tour_cost_pct', value: number) => saveCost(d, { key, value, basis: 'b', sourcePeriod: '', provisional: true, note: '' }, 'eric', 2);
+    await cost('restaurant_cost_pct', 2100); await cost('payment_fee_pct', 240);
+    expect((await loadEstimates(d)).contribution.restaurant_visit).toBeUndefined(); // OpenTable fee still missing
+    await cost('opentable_fee_per_reservation', 0);
+    const e = await loadEstimates(d);
+    expect(e.contribution.restaurant_visit).toBe(119496);   // MX$1,560 × (1 − 21% − 2.4%)
+    expect(e.contribution.tour_tasting).toBeUndefined();     // no tour value set in this test
+    c = (await loadCampaigns(d, now, TZ, 'MXN')).campaigns[0]!;
+    expect(c.estimatedContributionMinor).toBe(2 * 119496 - 100000);
+    await expect(cost('payment_fee_pct', 10_000)).rejects.toThrow();
   });
 });
