@@ -11,3 +11,5 @@ Checks twice a day (8:00 and 11:00 San Miguel time) that guests can book, and se
 - **"BLIND" status:** OpenTable did not answer the canary (blocked, or its query hashes changed). Update `HASH` in `src/worker.js` from the booking page's network calls.
 
 No login and no secrets: it reads the same public pages a guest sees. It cannot see who changed what in Guest Center.
+
+Deploys from this folder with Workers Builds (root directory `/canario`).
