@@ -3885,7 +3885,7 @@ Return ONLY JSON with this shape:
   // Docs live in the "protocols" collection: { title, cat, status, updated, summary, sources:[], md }.
   // md is a small Markdown subset (## ### headings, - / 1. lists, | tables |, **bold**, > notes), escaped before formatting.
   S.protos = []; S.proto = recall("proto", null); S.lproto = recall("lproto", null); S.protoQ = ""; S.learnQ = "";
-  const PCATS = [["start", "Start here"], ["fermentation", "Fermentation"], ["sparkling", "Sparkling & pet nat"], ["trials", "Bench trials"], ["cellar", "Cellar care"], ["stability", "Stabilization & bottling"], ["lab", "Lab methods"], ["ideas", "Building the library"], ["edu-pmw", "Postmodern Winemaking · Clark Smith"], ["edu-chem", "Winemaking chemistry · UC Davis VIT259"]];
+  const PCATS = [["start", "Start here"], ["fermentation", "Fermentation"], ["sparkling", "Sparkling & pet nat"], ["trials", "Bench trials"], ["cellar", "Cellar care"], ["stability", "Stabilization & bottling"], ["lab", "Lab methods"], ["next", "2027: potential protocols"], ["ideas", "Building the library"], ["edu-pmw", "Postmodern Winemaking · Clark Smith"], ["edu-chem", "Winemaking chemistry · UC Davis VIT259"]];
   const isEdu = d => /^edu-/.test(d.cat || "");
   function mdInline(t) {
     return esc(t).replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
