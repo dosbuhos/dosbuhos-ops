@@ -374,6 +374,8 @@ table.lb .pri { margin-right: 6px; }
 .asg-row.is-over .asg-date { color: #b3261e; font-weight: 600; }
 .asg-wine b { display: block; font-size: 12px; line-height: 1.25; }
 .asg-wine span { color: var(--muted); font-size: 12px; }
+.asg-goal { display: block; font-weight: 700; font-size: 1.02em; line-height: 1.3; padding: 4px 6px 0; letter-spacing: .01em; }
+.asg-row.is-done .asg-goal { text-decoration: line-through; color: var(--muted); }
 .asg-txt { width: 100%; box-sizing: border-box; font: inherit; border: 1px solid transparent; background: transparent; color: inherit; border-radius: 6px; padding: 4px 6px; resize: vertical; min-height: 30px; }
 .asg-txt:hover, .asg-txt:focus { border-color: var(--rule); background: var(--paper); }
 .asg-row select.asg-pri { font: 600 11px/1.4 var(--f-mono, monospace); letter-spacing: .04em; color: var(--muted); }
@@ -1116,6 +1118,7 @@ h4.pd-h { font-size: 16px; }
   .asg-row .asg-wine span { font-size: 12.5px; color: var(--muted); display: block; }
   .asg-row .asg-txt-cell { order: 2; grid-column: 1 / -1; }
   .asg-row .asg-txt { font-size: 15px; line-height: 1.4; border: 0; background: transparent; padding: 0; resize: none; width: 100%; }
+  .asg-row .asg-goal { padding: 0 0 3px; font-size: 15px; }
   .asg-row .asg-pri { order: 3; }
   .asg-row .asg-st { order: 4; }
   .asg-row .asg-who { display: none; }
@@ -3479,6 +3482,13 @@ Return ONLY JSON with this shape:
     if (!total) h += `<div class="empty"><strong>Nada planeado esta semana.</strong></div>`;
     el.innerHTML = h;
   }
+  // A work order's first line, when it stands on its own line, is its goal ("ESTIMULAR LA MALOLÁCTICA: …"):
+  // shown in bold above the steps so the crew sees what the order is for without reading it all.
+  function goalOf(note) {
+    const t = String(note || ""), i = t.indexOf("\n");
+    if (i > 0 && i <= 120) return { goal: t.slice(0, i).trim(), body: t.slice(i + 1).trim() };
+    return { goal: "", body: t };
+  }
   function asgRowHtml(r) {
     const closed = r => !!r.ini, tm = team(), dis = (S.mcp || S.db) && S.canWrite !== false ? "" : " disabled";
       let h = "";
@@ -3492,7 +3502,7 @@ Return ONLY JSON with this shape:
         h += `<div class="asg-row${closed(r) ? " is-done" : ""}${r.over ? " is-over" : ""}" data-asgkey="${esc(key)}" style="--pg:${pg}%">` + (pg ? `<span class="asg-prog" aria-label="${pg}% avanzado"></span>` : "") +
           `<span class="asg-date" title="${r.over ? "Overdue" : "Today"}">${esc(shortDate(r.date))}</span>` +
           `<span class="asg-wine"><b>${esc(r.wine || r.tab)}</b><span>${esc(r.tab)}${r.ubi ? " · " + esc(r.ubi) : ""}</span>${r.pending ? `<span class="asg-q">waiting to sync</span>` : ""}</span>` +
-          `<span class="asg-txt-cell"><textarea class="asg-txt" rows="1" data-asgnote="1"${lock}${S.isCrew ? " readonly" : ""}>${esc(r.note)}</textarea><span class="asg-results" data-results="${esc(key)}"></span></span>` +
+          `<span class="asg-txt-cell">${goalOf(r.note).goal ? `<b class="asg-goal">${esc(goalOf(r.note).goal)}</b>` : ""}<textarea class="asg-txt" rows="1" data-asgnote="1"${lock}${S.isCrew ? " readonly" : ""}>${esc(goalOf(r.note).body)}</textarea><span class="asg-results" data-results="${esc(key)}"></span></span>` +
           (dis ? "" : `<button type="button" class="asg-res" data-asgres="${esc(key)}"><span>${RES_ICON}Anotar resultados y notas</span></button>`) +
           `<select class="asg-pri ${pc}" data-asgpri="1" aria-label="Priority"${lock}>${["NORMAL", "HIGH", "URGENT"].map(p => `<option${p === (r.pri || "NORMAL") ? " selected" : ""}>${p}</option>`).join("")}</select>` +
           `<button type="button" class="asg-who" data-asgedit="${esc(key)}" data-focus="asig" aria-label="Assigned to"${lock}>${esc(asigLabel(r.asig) || "—")}</button>` +
@@ -3808,7 +3818,7 @@ Return ONLY JSON with this shape:
       return;
     }
     if (e.target.matches("[data-asgnote]")) {
-      const up = e.target.value.trim().toUpperCase();
+      const g = goalOf(r.note).goal, up = ((g ? g + "\n" : "") + e.target.value.trim()).toUpperCase();
       if (up && up !== r.note) { await asgWrite(key, { note: up }); toast("Wording updated in " + r.tab); }
       return;
     }

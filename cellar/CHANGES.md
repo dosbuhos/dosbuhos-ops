@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-18 — Work orders: the goal line shows in bold above the steps · v1.22.0
+- When a work order's text starts with its goal on its own line («ESTIMULAR LA MALOLÁCTICA: CALENTAR LA BBL 45»), Órdenes shows that line in bold and the steps under it; editing the steps keeps the goal line. Orders written without a separate first line look as before · Eric: you had to read the whole order to know what it was for · app/cellar-targets.html (goalOf, asgRowHtml, .asg-goal)
+
 ## 2026-11-16 — Protocolos: «2027: potential protocols» section · v1.21.0
 - New protocol category `next` shown as "2027: potential protocols" (before "Building the library"), for ideas to try next vintage that aren't in use yet. First two: Sauvignon Blanc 2027 (yeast, green notes, body) and Cabernet Sauvignon 2027 (inoculation path). Docs added to D1 `protocols` · Eric asked for a place to keep next-year plans · app/cellar-targets.html (PCATS)
 
