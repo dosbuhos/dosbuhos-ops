@@ -106,7 +106,7 @@ function main() {
 
 function toIso(local, tz) {
   // change_date_time is "yyyy-MM-dd HH:mm:ss.SSSSSS" in the account zone.
-  var d = Utilities.parseDate(local.slice(0, 19), 'yyyy-MM-dd HH:mm:ss', tz);
+  var d = Utilities.parseDate(local.slice(0, 19), tz, 'yyyy-MM-dd HH:mm:ss');
   return d.toISOString();
 }
 
