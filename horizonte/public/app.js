@@ -10,8 +10,8 @@ const store = { get(k, d) { try { const v = localStorage.getItem('hz.' + k); ret
   set(k, v) { try { localStorage.setItem('hz.' + k, JSON.stringify(v)); } catch {} } };
 
 const I = {
-  // Horizonte mark: an H whose crossbar runs out past the stems as a horizon, with the sun resting on it.
-  logo: (s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 32 32"><rect x="7" y="6" width="3.4" height="20" rx="1.7" fill="currentColor"/><rect x="21.6" y="6" width="3.4" height="20" rx="1.7" fill="currentColor"/><rect x="1.5" y="17.2" width="29" height="3.2" rx="1.6" fill="currentColor"/><circle cx="16" cy="12.4" r="3.7" fill="var(--sun)"/></svg>`,
+  // Horizonte mark: the sun crossed by the horizon, one reflection bar beneath. Same geometry as the app icon.
+  logo: (s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 32 32"><defs><linearGradient id="hzsun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC25C"/><stop offset="1" stop-color="#F07A2A"/></linearGradient></defs><circle cx="16" cy="14.5" r="8.4" fill="url(#hzsun)"/><rect x="1" y="14.5" width="30" height="2.9" rx="1.45" fill="currentColor"/><rect x="7" y="20.8" width="18" height="2.5" rx="1.25" fill="currentColor" opacity=".55"/></svg>`,
   left: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
   right: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
