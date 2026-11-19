@@ -15,6 +15,7 @@ const I = {
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
   minus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>',
   star: (s = 14) => `<svg class="star" role="img" aria-label="Target" width="${s}" height="${s}" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l3 6.5 7 .9-5.1 4.9 1.3 7L12 17.8 5.8 21.3l1.3-7L2 9.4l7-.9z"/></svg>`,
+  people: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.2c2.8.2 4.6 1.8 5 4.8"/></svg>`,
   lock: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
   today: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`,
   plan: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>`,
@@ -274,7 +275,7 @@ function meetingHTML(t, opts = {}) {
   const range = t.at ? `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 60)))}` : 'No time set';
   const meta = opts.sched ? (whenText(t) || 'Not scheduled') : range;
   return `<div class="card meeting ${done ? 'done' : ''}" data-tid="${t.id}" style="${colorStyle(t)}${opts.style || ''}" title="Meeting">
-<span class="lk">${I.lock(opts.mobile ? 16 : 14)}</span>
+<span class="lk">${I.people(opts.mobile ? 17 : 15)}</span>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || 'Untitled meeting'}</span></div><span class="meta">${esc(meta)}</span></div>`;
 }
 function cardHTML(t, opts = {}) {
@@ -460,7 +461,7 @@ function renderHours() {
       add = `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}" style="${colorStyle(D)}top:${top}px;height:${ht}px"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta">${clock(D.at)} – ${end}</span><div class="resize" data-draftresize="1"></div></div>
 <div class="qc" style="${below ? `top:${top + ht + 8}px` : `bottom:${gridH - top + 8}px`}">
 <input id="qc-title" placeholder="Add title" autocomplete="off" value="${esc(D.title)}">
-<div class="seg kindseg"><button data-act="qckind" data-v="task" aria-pressed="${D.kind !== 'meeting'}">Task</button><button data-act="qckind" data-v="meeting" aria-pressed="${D.kind === 'meeting'}">${I.lock(14)}Meeting</button></div>
+<div class="seg kindseg"><button data-act="qckind" data-v="task" aria-pressed="${D.kind !== 'meeting'}">Task</button><button data-act="qckind" data-v="meeting" aria-pressed="${D.kind === 'meeting'}">${I.people(15)}Meeting</button></div>
 ${D.kind === 'meeting' ? `<div class="swatches">${GCOLORS.map(([c, hex, name]) => `<button class="sw" data-act="qccolor" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(D.color || '') === c}" title="${name}"></button>`).join('')}</div>` : ''}
 <div class="qc-time"><span>${dayShort(k)} · ${clock(D.at)} – ${end}</span><div class="stepper"><button aria-label="Shorter" data-act="qcdur" data-d="-15">${I.minus}</button><div>${fmtDur(D.dur)}</div><button aria-label="Longer" data-act="qcdur" data-d="15">${I.plus(16, 2.5)}</button></div></div>
 <div class="qc-foot"><button class="link" data-act="qcmore">More options</button><span><button class="btn" data-act="qccancel">Cancel</button><button class="btn primary" data-act="qcsave">Save</button></span></div></div>`; }
@@ -587,7 +588,7 @@ function taskSheet(id, view = 'main') {
   const pri = t.pri || 'normal';
   openSheet(`<div class="grab"></div>
 <div style="display:flex;flex-direction:column;gap:2px"><textarea class="ttl" rows="1" data-field="title" aria-label="Task name">${esc(t.title)}</textarea><div style="font-size:13px;color:var(--ink-2)">${esc(where)}</div></div>
-<div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.lock(14)}Meeting</button></div>
+<div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.people(15)}Meeting</button></div>
 ${t.kind === 'meeting' ? `<div class="grp"><div class="eyebrow">Color</div><div class="swatches">${GCOLORS.map(([c, hex, name]) => `<button class="sw" data-act="color" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(t.color || '') === c}" title="${name}"></button>`).join('')}</div></div>` : ''}
 <div class="grp"><div class="eyebrow">When</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
