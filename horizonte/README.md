@@ -10,7 +10,7 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 
 ## Phases (from the scope doc)
 1. Core planner — **this version**
-2. Google Calendar two-way sync, appointments, reflow
+2. Google Calendar two-way sync, appointments, reflow — **done** (reflow: today only, timeboxed tasks; finish early → following tasks slide up; run over → the running task stretches and overlapped tasks move to the next gap; meetings and pinned tasks fixed; per-day switch in the Hours header)
 3. Google Tasks inbox
 4. Timestripe import
 5. Daily score

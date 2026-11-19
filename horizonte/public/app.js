@@ -14,6 +14,7 @@ const I = {
   right: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
   minus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>',
+  pin: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>`,
   star: (s = 14) => `<svg class="star" role="img" aria-label="Target" width="${s}" height="${s}" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l3 6.5 7 .9-5.1 4.9 1.3 7L12 17.8 5.8 21.3l1.3-7L2 9.4l7-.9z"/></svg>`,
   people: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.2c2.8.2 4.6 1.8 5 4.8"/></svg>`,
   lock: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
@@ -244,12 +245,66 @@ function addLines(text, fields) {
 function toggleDone(id) {
   const t = S.tasks.get(id); if (!t) return;
   const done = t.status !== 'done';
-  put('task', id, { status: done ? 'done' : 'open', doneAt: done ? new Date().toISOString() : null });
-  render(); if (done) toast('Done', true);
+  let moved = 0;
+  batch(g => {
+    const f = { status: done ? 'done' : 'open', doneAt: done ? new Date().toISOString() : null };
+    // Reflow: a timeboxed task on today, finished before its end, shrinks to the time it took and the rest slide up.
+    if (done && canReflow(t)) { const start = toMin(t.at), now = nowMin();
+      if (start <= now) { const took = Math.max(5, round5(now - start)), planned = t.dur || 30;
+        if (took !== planned) f.dur = took;
+        if (took < planned) { put('task', id, f, { group: g }); moved = reflowDay(t.when, start + 1, 'up', now, g, now - (start + planned)); return; } } }
+    put('task', id, f, { group: g });
+  });
+  S.ui.flip = true; render();
+  if (done) toast(moved ? `Done · ${moved} task${moved > 1 ? 's' : ''} moved up` : 'Done', true);
+}
+// ── reflow (today, timeboxed tasks only) ──────────────────────
+// Meetings and pinned tasks never move. Finish early → following tasks slide up to now; run over → they slide down.
+const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
+const round5 = (m) => Math.round(m / 5) * 5;
+const reflowOn = (k) => !(S.prefs.reflowOff || {})[k];
+const isFixed = (t) => t.kind === 'meeting' || !!t.pin;
+const canReflow = (t) => t.when === todayK() && !!t.at && !isFixed(t) && reflowOn(t.when);
+// Earliest start at or after `start` where a block of `dur` misses every fixed block; null if it would end after `limit`.
+function firstFit(start, dur, blocks, limit) {
+  let s = start;
+  for (let i = 0; i < 60; i++) { const hit = blocks.find(([a, b]) => s < b && s + dur > a); if (!hit) break; s = hit[1]; }
+  return s + dur <= limit ? s : null;
+}
+// mode 'up': tasks starting at/after `from` come up by `shift` (never before `cursor` = now), keeping their spacing.
+// mode 'down': tasks starting at/after `from` are pushed only as far as needed to clear `cursor` (the stretched task's new end).
+function reflowDay(k, from, mode, cursor, g, shift = 0) {
+  const limit = toMin(S.prefs.dayEnd), now = nowMin();
+  const movers = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && toMin(t.at) >= from).sort((a, b) => toMin(a.at) - toMin(b.at));
+  const blocks = placedOn(k).filter(t => t.at && isFixed(t) && (isOpen(t) || t.kind === 'meeting')).map(t => [toMin(t.at), toMin(t.at) + (t.dur || 30)]);
+  let moved = 0; // 'up': shift < 0 is how far every mover may come up (now minus the finished task's planned end)
+  for (const t of movers) {
+    const old = toMin(t.at), dur = t.dur || 30;
+    const want = mode === 'up' ? Math.max(old + shift, cursor, now) : Math.max(old, cursor);
+    let s = firstFit(round5(want), dur, blocks, limit);
+    if (mode === 'up' && s != null && s >= old) s = old; // sliding up never sends a task later
+    if (s == null) { if (!t.nofit) put('task', t.id, { nofit: true }, { group: g }); blocks.push([old, old + dur]); cursor = old + dur; continue; } // stays put, flagged
+    if (s !== old || t.nofit) { put('task', t.id, { at: fromMin(s), nofit: false }, { group: g }); if (s !== old) moved++; }
+    blocks.push([s, s + dur]); cursor = s + dur;
+  }
+  return moved;
+}
+// Every minute: the task that is running over stretches to now (up to 2 h over) and pushes what follows.
+function reflowTick() {
+  const k = todayK(); if (!reflowOn(k)) return;
+  const now = nowMin();
+  const running = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && toMin(t.at) <= now && toMin(t.at) + (t.dur || 30) < now).sort((a, b) => toMin(b.at) - toMin(a.at))[0];
+  if (!running) return;
+  const start = toMin(running.at), over = now - (start + (running.dur || 30));
+  if (over < 5 || over > 120) return;
+  const dur = round5(now - start); if (dur === running.dur) return;
+  let moved = 0;
+  batch(g => { put('task', running.id, { dur }, { group: g }); moved = reflowDay(k, start + 1, 'down', start + dur, g); });
+  S.ui.flip = true; render(); if (moved) toast(`${esc(running.title)} is running over · ${moved} task${moved > 1 ? 's' : ''} moved down`, true);
 }
 function place(id, when, at, label) {
   const t = S.tasks.get(id); if (!t) return;
-  const f = { when: when || null, at: at || '' };
+  const f = { when: when || null, at: at || '', nofit: false };
   put('task', id, f); render();
   toast(when ? `Moved to ${label || (at ? periodLabel(when) + ' ' + clock(at) : periodLabel(when, false))}` : 'Unscheduled', true);
 }
@@ -282,12 +337,12 @@ function cardHTML(t, opts = {}) {
   if (t.kind === 'meeting') return meetingHTML(t, opts);
   const pri = t.pri || 'normal', done = t.status === 'done';
   const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : ''].join(' ');
-  const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : '';
+  const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
   const meta = opts.meta ?? (done ? '' : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30));
   return `<div class="${cls}" data-tid="${t.id}" style="${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}</div>
-${pri === 'target' && !done ? I.star(opts.mobile ? 16 : 14) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 16 : 14) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -305,7 +360,12 @@ function render() {
   const app = $('#app');
   const keep = document.activeElement && document.activeElement.id && app.contains(document.activeElement) ? { id: document.activeElement.id, v: document.activeElement.value } : null;
   const tl = $('.tl'), tlScroll = tl ? [tl.scrollLeft, tl.scrollTop] : null, mm = $('.mm'), mScroll = mm ? mm.scrollTop : null, pnl = $('.panel'), pScroll = pnl ? pnl.scrollTop : 0;
+  let before = null; if (S.ui.flip) { before = new Map(); for (const c of app.querySelectorAll('.d .grid .card[data-tid]')) before.set(c.dataset.tid, c.getBoundingClientRect()); }
   app.innerHTML = desk ? renderDesk() : renderMobile();
+  if (before) { S.ui.flip = false;
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) for (const c of app.querySelectorAll('.d .grid .card[data-tid]')) { const b = before.get(c.dataset.tid); if (!b) continue; const n = c.getBoundingClientRect(), dy = b.top - n.top, dh = b.height - n.height;
+      if (Math.abs(dy) < 1 && Math.abs(dh) < 1) continue; c.style.transition = 'none'; c.style.transform = `translateY(${dy}px)`; c.style.height = (n.height + dh) + 'px';
+      requestAnimationFrame(() => { c.style.transition = 'transform 220ms ease-out, height 220ms ease-out'; c.style.transform = ''; c.style.height = (n.height) + 'px'; setTimeout(() => { c.style.transition = ''; }, 260); }); } }
   if (desk && lastLayout === 'desk' && tlScroll) { const n = $('.tl'); n.scrollLeft = tlScroll[0]; n.scrollTop = tlScroll[1]; }
   if (desk && pnl) { const n = $('.panel'); if (n) n.scrollTop = pScroll; }
   if (!desk && lastLayout === 'mob' && mScroll != null && $('.mm')) $('.mm').scrollTop = mScroll;
@@ -444,7 +504,7 @@ const HPX = 56; const H0 = () => Math.max(0, Math.min(toMin(S.prefs.dayStart) / 
 function renderHours() {
   const days = [S.ui.hday, addDays(S.ui.hday, 1)], h0 = H0(), h1 = H1();
   const heads = days.map(k => { const P = dayParts(k), untimed = [...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen);
-    return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:center"><div><b>${dayShort(k)}</b>${k === todayK() ? ' <span class="pill">Today</span>' : ''}</div><span class="small" style="font-size:12px;color:var(--ink-2)">${loadText(k)}</span></div>
+    return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:center"><div><b>${dayShort(k)}</b>${k === todayK() ? ' <span class="pill">Today</span>' : ''}</div><span class="small" style="font-size:12px;color:var(--ink-2);display:flex;gap:10px;align-items:center">${k === todayK() ? `<button class="link reflowsw" data-act="reflowtoggle" data-k="${k}" aria-pressed="${reflowOn(k)}" title="Finish a task early and the rest slide up; run over and they slide down. Meetings and pinned tasks stay put.">Reflow ${reflowOn(k) ? 'on' : 'off'}</button>` : ''}${loadText(k)}</span></div>
 <div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>`}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
   const grids = days.map(k => {
@@ -468,7 +528,7 @@ ${D.kind === 'meeting' ? `<div class="swatches">${GCOLORS.map(([c, hex, name]) =
     return `<div class="grid" data-drop="slot:${k}" data-hpx="${HPX}" data-h0="${h0}" style="height:${(h1 - h0) * HPX}px">${cards}${now}${add}</div>`;
   }).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move, drag the bottom edge to change length.</div></div>`;
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move, drag the bottom edge to change length. Today reflows: finish early and the next tasks slide up; meetings and pinned tasks stay.</div></div>`;
 }
 function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   const items = list.map(t => ({ id: t.id, s: toMin(t.at), e: toMin(t.at) + (t.dur || 30) })).sort((a, b) => a.s - b.s || b.e - a.e);
@@ -595,6 +655,7 @@ ${t.kind === 'meeting' ? `<div class="grp"><div class="eyebrow">Color</div><div 
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
 <button class="bigbtn" style="flex:1">${t.at ? `Starts ${clockAP(t.at)}` : 'Add a start time'}<input class="overlay-input" type="time" step="900" data-act="picktime" value="${t.at || ''}" aria-label="Start time"></button>
 ${t.at ? `<button class="bigbtn" style="padding:0 12px" data-act="cleartime" aria-label="Remove time">✕</button>` : ''}
+${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0 12px;display:flex;align-items:center;gap:6px" data-act="pin" aria-pressed="${!!t.pin}" title="Pinned tasks keep their time when the day reflows">${I.pin(16)}${t.pin ? 'Pinned' : 'Pin'}</button>` : ''}
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
 <div class="grp" ${t.kind === 'meeting' ? 'style="display:none"' : ''}><div class="eyebrow">Priority</div><div class="seg">
 <button data-act="pri" data-p="target" aria-pressed="${pri === 'target'}">${I.star(15)}Target</button><button data-act="pri" data-p="normal" aria-pressed="${pri === 'normal'}">Normal</button><button data-act="pri" data-p="someday" aria-pressed="${pri === 'someday'}">Someday</button></div></div>
@@ -759,6 +820,8 @@ document.addEventListener('click', async (e) => {
     case 'rvrest': batch(g => overdueTasks().filter(t => t.pri !== 'target').forEach(t => put('task', t.id, { when: null, at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); reviewSheet(); return;
     case 'when': put('task', st.id, { when: el.dataset.k }); closeSheet(); render(); toast(`Moved to ${periodLabel(el.dataset.k)}`, true); return;
     case 'cleartime': put('task', st.id, { at: '' }); render(); taskSheet(st.id); return;
+    case 'pin': { const t = S.tasks.get(st.id); put('task', st.id, { pin: !t.pin }); render(); taskSheet(st.id); return; }
+    case 'reflowtoggle': { const off = { ...(S.prefs.reflowOff || {}) }; const k = el.dataset.k; if (off[k]) delete off[k]; else off[k] = true; put('pref', 'main', { reflowOff: off }); render(); toast(off[k] ? 'Reflow off for today' : 'Reflow on'); return; }
     case 'dur': { const t = S.tasks.get(st.id); put('task', st.id, { dur: Math.max(15, Math.min(480, (t.dur || 30) + Number(el.dataset.d))) }); render(); taskSheet(st.id); return; }
     case 'pri': put('task', st.id, { pri: el.dataset.p }); render(); taskSheet(st.id); return;
     case 'color': put('task', st.id, { color: el.dataset.c }); render(); taskSheet(st.id); return;
@@ -1036,8 +1099,8 @@ async function start() {
   render(); whoami();
   matchMedia('(min-width: 900px)').addEventListener('change', () => { closeSheet(); render(); });
   addEventListener('online', () => { paintSync(); syncNow(); }); addEventListener('offline', paintSync);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
-  setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !document.activeElement?.matches('input,textarea')) render(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!sheetState && !drag && !S.ui.draft) reflowTick(); if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
+  setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) { reflowTick(); render(); } }, 60000);
   setInterval(syncNow, 60000);
   if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
