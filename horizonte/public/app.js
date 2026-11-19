@@ -14,6 +14,7 @@ const I = {
   right: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
   minus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>',
+  search: `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>`,
   pin: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>`,
   star: (s = 14) => `<svg class="star" role="img" aria-label="Target" width="${s}" height="${s}" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l3 6.5 7 .9-5.1 4.9 1.3 7L12 17.8 5.8 21.3l1.3-7L2 9.4l7-.9z"/></svg>`,
   people: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.2c2.8.2 4.6 1.8 5 4.8"/></svg>`,
@@ -430,7 +431,8 @@ function renderPanel() {
     const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span>${esc(name)}</span><span class="n">${n}</span>${I.chev}</button>`;
     const wk = placedOn(isoWeek(todayK())).filter(isOpen).length, mo = placedOn(periodOf('month', todayK())).filter(isOpen).length, ov = overdueTasks().length;
     const boards = boardsSorted().map(b => row('b:' + b.id, b.name, boardTasks(b.id).filter(isOpen).length || '', 'board:' + b.id)).join('');
-    return `<aside class="panel" aria-label="Task lists">${banner}
+    if (S.ui.q) return `<aside class="panel" aria-label="Search">${banner}${searchBox('q')}${searchResults(false)}</aside>`;
+    return `<aside class="panel" aria-label="Task lists">${banner}${searchBox('q')}
 <div class="navgroup">${row('inbox', 'Inbox', inboxTasks().length || '', 'board:')}${ov ? row('overdue', 'Overdue', ov) : ''}${row('week', 'This week', wk || '')}${mo ? row('month', 'This month', mo) : ''}</div>
 <div class="navhead"><span class="eyebrow">Boards</span><button class="link" data-act="newboard">+ New board</button></div>
 <div class="navgroup">${boards}</div>
@@ -440,7 +442,8 @@ function renderPanel() {
   const name = board ? board.name : (srcs.find(x => x[0] === S.ui.src)?.[1] || 'Inbox').replace(/ · \d+$/, '');
   const addLabel = board ? `Add to ${board.name}` : S.ui.src === 'week' ? 'Add to this week' : S.ui.src === 'month' ? 'Add to this month' : 'Add to Inbox';
   const n = board ? boardTasks(board.id).filter(isOpen).length : S.ui.src === 'overdue' ? overdueTasks().length : S.ui.src === 'week' ? placedOn(isoWeek(todayK())).filter(isOpen).length : S.ui.src === 'month' ? placedOn(periodOf('month', todayK())).filter(isOpen).length : inboxTasks().length;
-  return `<aside class="panel" aria-label="${esc(name)}" data-drop="list">${banner}
+  if (S.ui.q) return `<aside class="panel" aria-label="Search">${banner}${searchBox('q')}${searchResults(false)}</aside>`;
+  return `<aside class="panel" aria-label="${esc(name)}" data-drop="list">${banner}${searchBox('q')}
 <div class="listhead"><button class="link back" data-act="panelnav">${I.left} All lists</button>${board ? `<button class="link" data-act="editboard" data-bid="${board.id}">Edit board</button>` : ''}</div>
 <div class="listtitle"><b>${esc(name)}</b><span class="muted">${n}</span></div>
 <div class="qa"><label for="qa">${esc(addLabel)}</label><input id="qa" type="text" placeholder="Type a task and press Enter" autocomplete="off" enterkeyhint="done"></div>
@@ -455,6 +458,23 @@ function tagStrip() {
   return `<div class="tagstrip" aria-label="Filter by tag">${list.map(x => tagChip(x, `role="button" tabindex="0" data-act="tagfilter" data-t="${x.id}" aria-pressed="${f === x.id}"`)).join('')}${f ? `<button class="link" data-act="tagfilter" data-t="${f}">Clear</button>` : ''}</div>`;
 }
 const byTag = (list) => S.ui.tagFilter ? list.filter(t => (t.tags || []).includes(S.ui.tagFilter)) : list;
+// ── search ────────────────────────────────────────────────────
+// Matches title, notes, board name and tag names; every word must match. Open tasks first, then by date, then done ones.
+const fold = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function searchTasks(q) {
+  const words = fold(q).split(/\s+/).filter(Boolean); if (!words.length) return [];
+  const hay = (t) => fold([t.title, t.notes, S.boards.get(t.board)?.name, ...taskTags(t).map(x => x.name)].join(' '));
+  const rank = (t) => (isOpen(t) ? 0 : 1);
+  return [...S.tasks.values()].filter(t => !t.del && t.status !== 'dropped').filter(t => { const h = hay(t); return words.every(w => h.includes(w)); })
+    .sort((a, b) => rank(a) - rank(b) || String(a.when || '9').localeCompare(String(b.when || '9')) || (a.at || '').localeCompare(b.at || '') || order(a, b)).slice(0, 60);
+}
+function searchBox(id) { return `<div class="search"><span class="sicon">${I.search}</span><input id="${id}" type="search" placeholder="Search tasks" autocomplete="off" value="${esc(S.ui.q || '')}" aria-label="Search tasks">${S.ui.q ? `<button class="sclear" data-act="qclear" aria-label="Clear search">✕</button>` : ''}</div>`; }
+function searchResults(mobile) {
+  const list = searchTasks(S.ui.q);
+  const where = (t) => { const b = S.boards.get(t.board); const parts = [b ? b.name : (t.when ? '' : 'Inbox'), t.when ? dayShort(t.when) + (t.at ? ' ' + clock(t.at) : '') : ''].filter(Boolean); return parts.join(' · '); };
+  if (!list.length) return `<div class="empty">No tasks match “${esc(S.ui.q)}”.</div>`;
+  return `<div class="muted" style="font-size:12px">${list.length}${list.length === 60 ? '+' : ''} result${list.length === 1 ? '' : 's'}</div><div class="stack">${list.map(t => (mobile ? mcard : cardHTML)(t, { meta: where(t) })).join('')}</div>`;
+}
 function renderPanelList(board) {
   const sort = S.ui.sort, src = S.ui.src;
   const stack = (list, sched, key = src) => `<div class="stack">${capped('p' + key, list, t => cardHTML(t, sched ? { sched: !!t.when && isOpen(t), meta: isOpen(t) && t.when ? whenText(t) : undefined } : {}))}</div>`;
@@ -647,7 +667,8 @@ function mInbox() {
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
   if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
-  return `<header class="mh"><div class="r1"><h1>Inbox${list.length ? ' · ' + list.length : ''}</h1></div></header><main class="mm" data-list="inbox">${body}</main>`;
+  if (S.ui.q) body = searchResults(true);
+  return `<header class="mh"><div class="r1"><h1>${S.ui.q ? 'Search' : `Inbox${list.length ? ' · ' + list.length : ''}`}</h1></div>${searchBox('mq')}</header><main class="mm" data-list="inbox">${body}</main>`;
 }
 
 // ── sheets ────────────────────────────────────────────────────
@@ -832,6 +853,7 @@ document.addEventListener('click', async (e) => {
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
     case 'togglepanel': S.ui.panelHidden = !S.ui.panelHidden; render(); return;
     case 'sort': { const m = ['manual', 'priority', 'tag', 'age', 'duration']; S.ui.sort = m[(m.indexOf(S.ui.sort) + 1) % m.length]; render(); return; }
+    case 'qclear': { const inp = $('#q,#mq'); S.ui.q = ''; if (inp) { inp.value = ''; inp.blur(); } render(); $('#q,#mq')?.focus(); return; }
     case 'tagfilter': S.ui.tagFilter = S.ui.tagFilter === el.dataset.t ? null : el.dataset.t; render(); return;
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); $('#newtag')?.focus(); return;
@@ -912,6 +934,9 @@ document.addEventListener('change', (e) => {
 document.addEventListener('focusout', (e) => { if (e.target.dataset?.field) sheetField(e.target); });
 document.addEventListener('keydown', (e) => {
   const el = e.target;
+  if ((el.id === 'q' || el.id === 'mq') && e.key === 'Escape') { e.preventDefault(); const id = el.id; S.ui.q = ''; el.value = ''; el.blur(); render(); $('#' + id)?.focus(); return; }
+  // "/" focuses search on desktop when not typing elsewhere
+  if (e.key === '/' && !e.metaKey && !e.ctrlKey && !sheetState && !el.matches('input,textarea,[contenteditable]')) { e.preventDefault(); const q = $('#q'); if (q) { q.focus(); q.select(); } return; }
   if (el.id === 'qa' && e.key === 'Enter') {
     e.preventDefault(); const v = el.value.trim(); if (!v) return;
     const n = addLines(v, { ...captureDest(), src: 'typed' }); el.value = ''; render(); $('#qa')?.focus(); if (n > 1) toast(`Added ${n} tasks`, true); return;
@@ -944,7 +969,10 @@ document.addEventListener('keydown', (e) => {
   else if (k === '\\') { S.ui.panelHidden = !S.ui.panelHidden; render(); }
 });
 document.addEventListener('focusout', (e) => { if (e.target.dataset?.addto && !e.target.value.trim()) setTimeout(() => { if (S.ui.adding === e.target.dataset.addto && !document.activeElement?.dataset?.addto) { S.ui.adding = null; render(); } }, 120); });
-document.addEventListener('input', (e) => { if (e.target.id === 'qc-title' && S.ui.draft) { S.ui.draft.title = e.target.value; const t = $('.draft .t'); if (t) t.innerHTML = esc(e.target.value) || '<span class="muted">(No title)</span>'; } });
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'q' || e.target.id === 'mq') { // search as you type; keep the caret where it was across the re-render
+    const id = e.target.id, v = e.target.value, pos = e.target.selectionStart; S.ui.q = v; render(); const el = $('#' + id); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } return; }
+  if (e.target.id === 'qc-title' && S.ui.draft) { S.ui.draft.title = e.target.value; const t = $('.draft .t'); if (t) t.innerHTML = esc(e.target.value) || '<span class="muted">(No title)</span>'; } });
 // Save the quick-create draft as a task or meeting; returns the new id.
 function saveDraft() {
   const D = S.ui.draft; if (!D) return null;
