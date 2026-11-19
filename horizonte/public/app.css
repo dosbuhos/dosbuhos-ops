@@ -290,3 +290,26 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .pinicon { display: flex; flex: none; color: var(--ink-2); }
 .reflowsw { font-size: 12px; } .reflowsw[aria-pressed=false] { color: var(--ink-2); text-decoration-style: dotted; }
 .pinbtn[aria-pressed=true] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* tags */
+.tag { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; line-height: 18px; padding: 0 7px; border-radius: 999px; border: 0; white-space: nowrap; background: color-mix(in srgb, var(--tc) 16%, transparent); color: var(--tc); font-family: inherit; }
+.tag.c-red { --tc: #B91C1C; } .tag.c-orange { --tc: #C2410C; } .tag.c-amber { --tc: #B45309; } .tag.c-yellow { --tc: #A16207; } .tag.c-green { --tc: #15803D; } .tag.c-teal { --tc: #0F766E; }
+.tag.c-cyan { --tc: #0E7490; } .tag.c-blue { --tc: #1D4ED8; } .tag.c-indigo { --tc: #4338CA; } .tag.c-purple { --tc: #7E22CE; } .tag.c-pink { --tc: #BE185D; } .tag.c-grey { --tc: #4B5563; }
+@media (prefers-color-scheme: dark) { .tag.c-red { --tc: #F87171; } .tag.c-orange { --tc: #FB923C; } .tag.c-amber { --tc: #FBBF24; } .tag.c-yellow { --tc: #FACC15; } .tag.c-green { --tc: #4ADE80; } .tag.c-teal { --tc: #2DD4BF; }
+  .tag.c-cyan { --tc: #22D3EE; } .tag.c-blue { --tc: #60A5FA; } .tag.c-indigo { --tc: #818CF8; } .tag.c-purple { --tc: #C084FC; } .tag.c-pink { --tc: #F472B6; } .tag.c-grey { --tc: #9CA3AF; } }
+.card .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.m .tag { font-size: 12px; line-height: 20px; }
+.tagpick, .tagstrip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tagpick .tag, .tagstrip .tag { cursor: pointer; line-height: 24px; padding: 0 10px; font-size: 12px; opacity: 0.6; }
+.tagpick .tag[aria-pressed=true], .tagstrip .tag[aria-pressed=true] { opacity: 1; box-shadow: 0 0 0 2px var(--tc); }
+.m .tagpick .tag, .m .tagstrip .tag { line-height: 32px; padding: 0 12px; font-size: 13px; }
+.tag.c-new { --tc: var(--ink-2); background: transparent; border: 1px dashed var(--line-3); opacity: 1; }
+.newtag { font: inherit; font-size: 13px; padding: 3px 8px; border: 1px solid var(--line-3); border-radius: 999px; background: var(--card); color: var(--ink); width: 140px; }
+.tagstrip { padding: 0 0 4px; } .m .tagstrip { padding: 6px 0 4px; }
+.taglist { display: flex; flex-direction: column; gap: 8px; }
+.tagrow { display: flex; align-items: center; gap: 10px; }
+.tagrow .dots { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.dot { width: 18px; height: 18px; border-radius: 50%; border: 0; background: var(--tc); opacity: 0.45; cursor: pointer; }
+.dot.c-red { --tc: #DC2626; } .dot.c-orange { --tc: #EA580C; } .dot.c-amber { --tc: #D97706; } .dot.c-yellow { --tc: #CA8A04; } .dot.c-green { --tc: #16A34A; } .dot.c-teal { --tc: #0D9488; }
+.dot.c-cyan { --tc: #0891B2; } .dot.c-blue { --tc: #2563EB; } .dot.c-indigo { --tc: #4F46E5; } .dot.c-purple { --tc: #9333EA; } .dot.c-pink { --tc: #DB2777; } .dot.c-grey { --tc: #6B7280; }
+.dot[aria-pressed=true] { opacity: 1; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--tc); }

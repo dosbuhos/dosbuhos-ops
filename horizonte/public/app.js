@@ -192,9 +192,24 @@ const live = () => [...S.tasks.values()].filter(t => !t.del && t.status !== 'dro
 const isOpen = (t) => t.status !== 'done';
 const order = (a, b) => (a.o ?? 0) - (b.o ?? 0) || String(a.created).localeCompare(String(b.created));
 const priRank = { target: 0, normal: 1, someday: 2 };
+// ── tags ──────────────────────────────────────────────────────
+// Tags live in prefs as [{ id, name, color }]; a task carries `tags: [id]`. Colors are names from TAGCOLORS.
+const TAGCOLORS = ['red', 'orange', 'amber', 'yellow', 'green', 'teal', 'cyan', 'blue', 'indigo', 'purple', 'pink', 'grey'];
+const tagsList = () => Array.isArray(S.prefs.tags) ? S.prefs.tags.filter(t => t && t.id) : [];
+const tagById = (id) => tagsList().find(t => t.id === id);
+const slugTag = (name) => String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+function ensureTag(name, color) { // returns the tag id, creating the tag when it is new
+  const id = slugTag(name); if (!id) return null;
+  if (!tagById(id)) { const list = tagsList(); put('pref', 'main', { tags: [...list, { id, name: String(name).trim(), color: color || TAGCOLORS[list.length % TAGCOLORS.length] }] }, { quiet: true }); }
+  return id;
+}
+const tagChip = (t, extra = '') => `<span class="tag c-${esc(t.color || 'grey')}" ${extra}>${esc(t.name)}</span>`;
+const taskTags = (t) => (t.tags || []).map(tagById).filter(Boolean);
+const tagSortKey = (t) => taskTags(t).map(x => x.name.toLowerCase()).sort()[0] || '\uffff';
 function sortList(list, mode = 'manual') {
   const by = { manual: order, priority: (a, b) => priRank[a.pri || 'normal'] - priRank[b.pri || 'normal'] || order(a, b),
-    age: (a, b) => String(a.created).localeCompare(String(b.created)), duration: (a, b) => (a.dur || 30) - (b.dur || 30) || order(a, b) }[mode] || order;
+    age: (a, b) => String(a.created).localeCompare(String(b.created)), duration: (a, b) => (a.dur || 30) - (b.dur || 30) || order(a, b),
+    tag: (a, b) => tagSortKey(a).localeCompare(tagSortKey(b)) || order(a, b) }[mode] || order;
   return [...list].sort(by);
 }
 const boardsSorted = () => [...S.boards.values()].filter(b => !b.del && !b.archived).sort((a, b) => (a.name === 'Backlog') - (b.name === 'Backlog') || (a.o ?? 0) - (b.o ?? 0) || a.name.localeCompare(b.name));
@@ -233,6 +248,10 @@ function parseQuick(line, fields) {
   let m = title.match(/\s(\d{1,2})(?::(\d{2}))?\s?(am|pm)(?=\s)/i) || title.match(/\s([01]?\d|2[0-3]):([0-5]\d)(?=\s)/);
   if (m) { let h = Number(m[1]) % (m[3] ? 12 : 24); if (m[3] && m[3].toLowerCase() === 'pm') h += 12; out.at = `${pad(h)}:${m[2] || '00'}`; title = title.replace(m[0], ' ');
     if (!(fields.when && kindOf(fields.when) === 'day')) out.when = todayK(); }
+  // "#tag" adds a tag (created if new); "!high" / "!medium" / "!low" add the matching priority tag
+  const tags = [];
+  title = title.replace(/\s[#!]([\p{L}\p{N}][\p{L}\p{N}_-]*)(?=\s)/gu, (m0, name) => { const id = ensureTag(name.replace(/[-_]+/g, ' ')); if (id && !tags.includes(id)) tags.push(id); return ' '; });
+  if (tags.length) out.tags = [...(fields.tags || []), ...tags.filter(t => !(fields.tags || []).includes(t))];
   out.title = title.replace(/\s+/g, ' ').trim() || line.trim();
   return out;
 }
@@ -341,7 +360,7 @@ function cardHTML(t, opts = {}) {
   const meta = opts.meta ?? (done ? '' : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30));
   return `<div class="${cls}" data-tid="${t.id}" style="${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"></label>
-<div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}</div>
+<div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
 ${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 16 : 14) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
@@ -426,9 +445,16 @@ function renderPanel() {
 <div class="listtitle"><b>${esc(name)}</b><span class="muted">${n}</span></div>
 <div class="qa"><label for="qa">${esc(addLabel)}</label><input id="qa" type="text" placeholder="Type a task and press Enter" autocomplete="off" enterkeyhint="done"></div>
 <div class="hint"><span>Drag onto any day, hour or horizon</span><button class="link" data-act="sort">Sort: ${S.ui.sort}</button></div>
+${tagStrip()}
 ${renderPanelList(board)}
 </aside>`;
 }
+function tagStrip() {
+  const list = tagsList(); if (!list.length) return '';
+  const f = S.ui.tagFilter; if (f && !tagById(f)) S.ui.tagFilter = null;
+  return `<div class="tagstrip" aria-label="Filter by tag">${list.map(x => tagChip(x, `role="button" tabindex="0" data-act="tagfilter" data-t="${x.id}" aria-pressed="${f === x.id}"`)).join('')}${f ? `<button class="link" data-act="tagfilter" data-t="${f}">Clear</button>` : ''}</div>`;
+}
+const byTag = (list) => S.ui.tagFilter ? list.filter(t => (t.tags || []).includes(S.ui.tagFilter)) : list;
 function renderPanelList(board) {
   const sort = S.ui.sort, src = S.ui.src;
   const stack = (list, sched, key = src) => `<div class="stack">${capped('p' + key, list, t => cardHTML(t, sched ? { sched: !!t.when && isOpen(t), meta: isOpen(t) && t.when ? whenText(t) : undefined } : {}))}</div>`;
@@ -437,7 +463,7 @@ function renderPanelList(board) {
     const secs = [''].concat(board.sections || []);
     let html = '';
     for (const s of secs) {
-      const list = sortList(open.filter(t => (t.section || '') === s || (s === '' && t.section && !(board.sections || []).includes(t.section))), sort);
+      const list = byTag(sortList(open.filter(t => (t.section || '') === s || (s === '' && t.section && !(board.sections || []).includes(t.section))), sort));
       if (s === '' && !list.length) continue;
       if (s) html += `<div class="eyebrow">${esc(s)} · ${list.length}</div>`;
       html += stack(list, true, board.id + s);
@@ -447,8 +473,8 @@ function renderPanelList(board) {
     return html;
   }
   let list = src === 'overdue' ? overdueTasks() : src === 'week' ? placedOn(isoWeek(todayK())).filter(isOpen) : src === 'month' ? placedOn(periodOf('month', todayK())).filter(isOpen) : inboxTasks();
-  list = sortList(list, sort);
-  if (!list.length) return `<div class="empty">${src === 'inbox' ? 'Inbox is empty.' : 'Nothing here.'}</div>`;
+  list = byTag(sortList(list, sort));
+  if (!list.length) return `<div class="empty">${S.ui.tagFilter ? 'Nothing with this tag.' : src === 'inbox' ? 'Inbox is empty.' : 'Nothing here.'}</div>`;
   return stack(list, src === 'overdue');
 }
 function doneToggle(key, done) {
@@ -616,8 +642,8 @@ function mBoards() {
 <main class="mm" style="gap:0">${rows}<button class="rowlink" data-act="settings" style="margin-top:24px;color:var(--ink-2)"><span>Settings</span><span class="n" data-sync></span></button></main>`;
 }
 function mInbox() {
-  const list = sortList(inboxTasks()), od = overdueTasks();
-  let body = '';
+  const list = byTag(sortList(inboxTasks())), od = overdueTasks();
+  let body = tagStrip();
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
   if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
@@ -659,6 +685,7 @@ ${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
 <div class="grp" ${t.kind === 'meeting' ? 'style="display:none"' : ''}><div class="eyebrow">Priority</div><div class="seg">
 <button data-act="pri" data-p="target" aria-pressed="${pri === 'target'}">${I.star(15)}Target</button><button data-act="pri" data-p="normal" aria-pressed="${pri === 'normal'}">Normal</button><button data-act="pri" data-p="someday" aria-pressed="${pri === 'someday'}">Someday</button></div></div>
+<div class="grp"><div class="eyebrow">Tags</div><div class="tagpick">${tagsList().map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="${(t.tags || []).includes(x.id)}"`)).join('')}${S.ui.tagAdding ? `<input id="newtag" class="newtag" placeholder="New tag, Enter" autocomplete="off">` : `<button class="tag c-new" data-act="tagnew">+ Tag</button>`}</div></div>
 <button class="boardrow" data-act="sheetboard"><span><span style="color:var(--ink-2)">Board</span>&nbsp;&nbsp;<b style="font-weight:600">${esc(bd ? bd.name + (t.section ? ' · ' + t.section : '') : 'Inbox')}</b></span>${I.chev}</button>
 ${t.notes || S.ui.notesOpen === id ? `<textarea class="notes" data-field="notes" placeholder="Notes">${esc(t.notes || '')}</textarea>` : `<button class="link" style="align-self:flex-start;font-size:14px" data-act="notes">Add notes</button>`}
 <div class="foot">${t.when ? `<button class="link" style="font-size:14px" data-act="unschedule">Unschedule</button>` : '<span></span>'}
@@ -707,6 +734,7 @@ ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? 
 ${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
+${tagsList().length ? `<div class="grp"><div class="eyebrow">Tags</div><div class="taglist">${tagsList().map(x => `<div class="tagrow">${tagChip(x)}<span class="dots">${TAGCOLORS.map(c => `<button class="dot c-${c}" data-act="tagcolor" data-t="${x.id}" data-c="${c}" aria-label="${c}" aria-pressed="${x.color === c}"></button>`).join('')}</span><button class="link" style="color:var(--now);font-size:13px" data-act="tagdel" data-t="${x.id}">Remove</button></div>`).join('')}</div><div class="muted" style="font-size:13px">Add a tag from any task, or type #tag when adding one.</div></div>` : ''}
 <div class="row"><button class="bigbtn" style="flex:1" data-act="export">Export all data</button><button class="bigbtn" style="flex:1" data-act="close">Close</button></div>`, { settings: true });
 }
 
@@ -803,7 +831,12 @@ document.addEventListener('click', async (e) => {
     case 'mtoday': S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
     case 'togglepanel': S.ui.panelHidden = !S.ui.panelHidden; render(); return;
-    case 'sort': { const m = ['manual', 'priority', 'age', 'duration']; S.ui.sort = m[(m.indexOf(S.ui.sort) + 1) % m.length]; render(); return; }
+    case 'sort': { const m = ['manual', 'priority', 'tag', 'age', 'duration']; S.ui.sort = m[(m.indexOf(S.ui.sort) + 1) % m.length]; render(); return; }
+    case 'tagfilter': S.ui.tagFilter = S.ui.tagFilter === el.dataset.t ? null : el.dataset.t; render(); return;
+    case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
+    case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); $('#newtag')?.focus(); return;
+    case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }
+    case 'tagdel': { const id = el.dataset.t; batch(g => { put('pref', 'main', { tags: tagsList().filter(t => t.id !== id) }, { group: g }); for (const t of live()) if ((t.tags || []).includes(id)) put('task', t.id, { tags: t.tags.filter(x => x !== id) }, { group: g }); }); if (S.ui.tagFilter === id) S.ui.tagFilter = null; render(); settingsSheet(); toast('Tag removed', true); return; }
     case 'toggle': S.ui.open[el.dataset.key] = !S.ui.open[el.dataset.key]; render(); return;
     case 'addto': S.ui.adding = el.dataset.k; render(); $(`#ia-${CSS.escape(el.dataset.k)}`)?.focus(); return;
     case 'qckind': S.ui.draft.kind = el.dataset.v === 'meeting' ? 'meeting' : ''; if (S.ui.draft.kind === 'meeting' && S.ui.draft.dur < 60 && !S.ui.draft.durSet) S.ui.draft.dur = 60; render(); $('#qc-title')?.focus(); return;
@@ -886,6 +919,11 @@ document.addEventListener('keydown', (e) => {
   if (el.dataset?.addto) {
     if (e.key === 'Escape') { S.ui.adding = null; render(); return; }
     if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto; if (v) addLines(v, { when: k }); render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
+  }
+  if (el.id === 'newtag') {
+    if (e.key === 'Escape') { S.ui.tagAdding = false; taskSheet(sheetState.id); return; }
+    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); S.ui.tagAdding = false; if (v && sheetState?.id) { const id = ensureTag(v); const t = S.tasks.get(sheetState.id); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); } render(); taskSheet(sheetState.id); return; }
+    return;
   }
   if (el.id === 'qc-title') {
     if (e.key === 'Escape') { S.ui.draft = null; render(); return; }
