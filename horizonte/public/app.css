@@ -179,11 +179,21 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .d .grid .card, .d .grid .appt { position: absolute; left: 6px; right: 6px; overflow: hidden; align-items: center; }
 .d .grid .card.short { padding-top: 2px; padding-bottom: 2px; }
 .d .grid .resize { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; }
-.d .grid { cursor: copy; }
-.d .grid .card, .d .grid .appt, .d .grid .slot-add { cursor: default; }
-.d .grid .slot-add { position: absolute; left: 6px; right: 6px; z-index: 6; display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--blue); border-radius: 8px; background: var(--card); box-shadow: 0 4px 14px rgba(22,24,29,.12); }
-.d .grid .slot-add span { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--blue); }
-.d .grid .slot-add .inline-add { flex: 1; min-width: 0; padding: 4px 6px; border: 0; background: transparent; font: inherit; outline: none; }
+.d .grid { cursor: cell; user-select: none; }
+.d .grid .card, .d .grid .appt { cursor: grab; }
+.d .grid .card.draft { cursor: move; z-index: 6; border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue) inset, 0 4px 14px rgba(22,24,29,.14); }
+.d .grid .card.draft.meeting { box-shadow: 0 4px 14px rgba(22,24,29,.2); }
+.d .grid .card.draft .resize { cursor: ns-resize; }
+.d .grid .qc { position: absolute; left: 6px; right: 6px; z-index: 7; display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--card); box-shadow: 0 10px 30px rgba(22,24,29,.18); cursor: default; }
+.d .grid .qc input { font: inherit; font-size: 16px; font-weight: 600; padding: 6px 2px; border: 0; border-bottom: 2px solid var(--blue); background: transparent; outline: none; width: 100%; }
+.d .grid .qc .kindseg button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.d .grid .qc-time { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.d .grid .qc-time .stepper { border-radius: 8px; }
+.d .grid .qc-time .stepper button { width: 32px; height: 30px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--ink); }
+.d .grid .qc-time .stepper div { min-width: 56px; text-align: center; font-size: 13px; font-weight: 600; color: var(--ink); }
+.d .grid .qc-foot { display: flex; align-items: center; justify-content: space-between; }
+.d .grid .qc-foot span { display: flex; gap: 6px; }
+.d .grid .qc .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 600; }
 .d .nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--now); z-index: 4; pointer-events: none; }
 .d .nowline span { position: absolute; right: 8px; top: -10px; padding: 1px 8px; border-radius: 999px; background: var(--now); color: #fff; font-size: 12px; font-weight: 600; }
 .d .legend { margin-left: 64px; font-size: 12px; color: var(--ink-2); }

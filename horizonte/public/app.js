@@ -449,13 +449,20 @@ function renderHours() {
       const style = `top:${top}px;height:${ht}px;left:calc(6px + (100% - 12px) * ${L.i / L.n});right:auto;width:calc((100% - 12px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
       return cardHTML(t, { style, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
     let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" style="top:${(m / 60 - h0) * HPX}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
-    // click on an empty slot → inline add at that time (S.ui.adding = "slot:<day>:<HH:MM>")
-    let add = ''; const sa = String(S.ui.adding || '').match(/^slot:(\d{4}-\d{2}-\d{2}):(\d{2}:\d{2})$/);
-    if (sa && sa[1] === k) add = `<div class="slot-add" style="top:${(toMin(sa[2]) / 60 - h0) * HPX + 1}px"><span>${clock(sa[2])}</span><input class="inline-add" id="ia-${k}" data-addto="${k}" data-at="${sa[2]}" placeholder="Task at ${clock(sa[2])}, Enter" autocomplete="off"></div>`;
+    // a block being created (click or drag on empty space), with its quick-create popover
+    let add = ''; const D = S.ui.draft;
+    if (D && D.k === k) { const top = (toMin(D.at) / 60 - h0) * HPX + 1, ht = Math.max(24, D.dur / 60 * HPX - 2), gridH = (h1 - h0) * HPX;
+      const below = top + ht + 230 < gridH; const end = clock(fromMin(toMin(D.at) + D.dur));
+      add = `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}" style="top:${top}px;height:${ht}px"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta">${clock(D.at)} – ${end}</span><div class="resize" data-draftresize="1"></div></div>
+<div class="qc" style="${below ? `top:${top + ht + 8}px` : `bottom:${gridH - top + 8}px`}">
+<input id="qc-title" placeholder="Add title" autocomplete="off" value="${esc(D.title)}">
+<div class="seg kindseg"><button data-act="qckind" data-v="task" aria-pressed="${D.kind !== 'meeting'}">Task</button><button data-act="qckind" data-v="meeting" aria-pressed="${D.kind === 'meeting'}">${I.lock(14)}Meeting</button></div>
+<div class="qc-time"><span>${dayShort(k)} · ${clock(D.at)} – ${end}</span><div class="stepper"><button aria-label="Shorter" data-act="qcdur" data-d="-15">${I.minus}</button><div>${fmtDur(D.dur)}</div><button aria-label="Longer" data-act="qcdur" data-d="15">${I.plus(16, 2.5)}</button></div></div>
+<div class="qc-foot"><button class="link" data-act="qcmore">More options</button><span><button class="btn" data-act="qccancel">Cancel</button><button class="btn primary" data-act="qcsave">Save</button></span></div></div>`; }
     return `<div class="grid" data-drop="slot:${k}" data-hpx="${HPX}" data-h0="${h0}" style="height:${(h1 - h0) * HPX}px">${cards}${now}${add}</div>`;
   }).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click an empty slot to add a task there. Drag to move, drag the bottom edge to change length.</div></div>`;
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move, drag the bottom edge to change length.</div></div>`;
 }
 function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   const items = list.map(t => ({ id: t.id, s: toMin(t.at), e: toMin(t.at) + (t.dur || 30) })).sort((a, b) => a.s - b.s || b.e - a.e);
@@ -704,13 +711,8 @@ function toast(msg, withUndo) {
 // ── clicks ────────────────────────────────────────────────────
 document.addEventListener('click', async (e) => {
   if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); return; }
-  // desktop Hours view: click an empty spot in the grid → inline add at that time, snapped to 15 min
-  const grid = e.target.closest('.d .grid[data-drop^="slot:"]');
-  if (grid && !e.target.closest('.card,.appt,.slot-add,[data-act]')) {
-    const k = grid.dataset.drop.slice(5), r = grid.getBoundingClientRect(), hpx = Number(grid.dataset.hpx), h0 = Number(grid.dataset.h0);
-    let m = Math.round(((e.clientY - r.top) / hpx * 60 + h0 * 60) / 15) * 15; m = Math.max(0, Math.min(24 * 60 - 15, m));
-    S.ui.adding = `slot:${k}:${fromMin(m)}`; render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return;
-  }
+  // a quick-create popover is open: a click anywhere outside it dismisses it (like Google Calendar)
+  if (S.ui.draft && !e.target.closest('.qc,.draft')) { S.ui.draft = null; render(); return; }
   const el = e.target.closest('[data-act],[data-zoom],[data-src],[data-tab],[data-mzoom]'); if (!el) return;
   const card = e.target.closest('[data-tid]'), tid = card?.dataset.tid;
   if (el.dataset.zoom) { S.ui.zoom = el.dataset.zoom; S.ui.pk = null; render(); if (S.ui.zoom === 'hours') scrollHoursToNow(); return; }
@@ -736,6 +738,11 @@ document.addEventListener('click', async (e) => {
     case 'sort': { const m = ['manual', 'priority', 'age', 'duration']; S.ui.sort = m[(m.indexOf(S.ui.sort) + 1) % m.length]; render(); return; }
     case 'toggle': S.ui.open[el.dataset.key] = !S.ui.open[el.dataset.key]; render(); return;
     case 'addto': S.ui.adding = el.dataset.k; render(); $(`#ia-${CSS.escape(el.dataset.k)}`)?.focus(); return;
+    case 'qckind': S.ui.draft.kind = el.dataset.v === 'meeting' ? 'meeting' : ''; if (S.ui.draft.kind === 'meeting' && S.ui.draft.dur < 60 && !S.ui.draft.durSet) S.ui.draft.dur = 60; render(); $('#qc-title')?.focus(); return;
+    case 'qcdur': S.ui.draft.dur = Math.max(15, Math.min(480, S.ui.draft.dur + Number(el.dataset.d))); S.ui.draft.durSet = true; render(); return;
+    case 'qccancel': S.ui.draft = null; render(); return;
+    case 'qcsave': { const id = saveDraft(); if (id) toast(`Added ${S.ui.draft?.kind === 'meeting' ? 'meeting' : 'task'} at ${clock(S.tasks.get(id).at)}`, true); S.ui.draft = null; render(); return; }
+    case 'qcmore': { const id = saveDraft(); S.ui.draft = null; render(); if (id) taskSheet(id); return; }
     case 'capture': captureSheet(el.dataset.board ? { board: el.dataset.board } : el.dataset.k ? { when: el.dataset.k } : S.ui.mtab === 'today' && !isDesk() ? { when: todayK() } : {}); return;
     case 'savecapture': { const n = addLines($('#dump').value, captureDest(st?.capture)); closeSheet(); render(); if (n) toast(`Added ${n} task${n > 1 ? 's' : ''}`, true); return; }
     case 'review': reviewSheet(); return;
@@ -806,10 +813,12 @@ document.addEventListener('keydown', (e) => {
   }
   if (el.dataset?.addto) {
     if (e.key === 'Escape') { S.ui.adding = null; render(); return; }
-    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto, at = el.dataset.at;
-      if (v) addLines(v, at ? { when: k, at } : { when: k });
-      if (at) { S.ui.adding = null; render(); if (v) toast(`Added at ${clock(at)}`, true); return; } // a timed slot takes one task
-      render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto; if (v) addLines(v, { when: k }); render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
+  }
+  if (el.id === 'qc-title') {
+    if (e.key === 'Escape') { S.ui.draft = null; render(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); $('[data-act=qcsave]')?.click(); return; }
+    return;
   }
   if (el.classList?.contains('ttl') && e.key === 'Enter') { e.preventDefault(); el.blur(); return; }
   if (el.id === 'dump' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { $('[data-act=savecapture]')?.click(); return; }
@@ -824,13 +833,25 @@ document.addEventListener('keydown', (e) => {
   else if (k === '[' || k === ']') { const s = sources().map(x => x[0]); S.ui.src = s[(s.indexOf(S.ui.src) + (k === ']' ? 1 : s.length - 1)) % s.length]; S.ui.panelView = 'list'; render(); }
   else if (k === '\\') { S.ui.panelHidden = !S.ui.panelHidden; render(); }
 });
-document.addEventListener('focusout', (e) => { if (e.target.dataset?.addto && !e.target.value.trim()) setTimeout(() => { const a = String(S.ui.adding || ''); if ((a === e.target.dataset.addto || a.startsWith('slot:' + e.target.dataset.addto + ':')) && !document.activeElement?.dataset?.addto) { S.ui.adding = null; render(); } }, 120); });
+document.addEventListener('focusout', (e) => { if (e.target.dataset?.addto && !e.target.value.trim()) setTimeout(() => { if (S.ui.adding === e.target.dataset.addto && !document.activeElement?.dataset?.addto) { S.ui.adding = null; render(); } }, 120); });
+document.addEventListener('input', (e) => { if (e.target.id === 'qc-title' && S.ui.draft) { S.ui.draft.title = e.target.value; const t = $('.draft .t'); if (t) t.innerHTML = esc(e.target.value) || '<span class="muted">(No title)</span>'; } });
+// Save the quick-create draft as a task or meeting; returns the new id.
+function saveDraft() {
+  const D = S.ui.draft; if (!D) return null;
+  const id = rid('t_'), title = D.title.trim() || '(No title)';
+  put('task', id, { title, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: D.dur, when: D.k, at: D.at, kind: D.kind || '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now() });
+  return id;
+}
 
 // ── drag and drop (mouse, pen, touch) ─────────────────────────
 // Mouse: press and move 5px. Touch: hold 350 ms. On a phone the week rail slides in from the right.
 let drag = null, press = null, suppressClick = false;
 document.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || sheetState) return;
+  // Desktop Hours grid, Google Calendar style: press on empty space and drag down to draw a new block,
+  // drag the draft to move it, or its bottom edge to resize it. A plain click makes a 30-minute block.
+  const grid = e.target.closest('.d .grid[data-drop^="slot:"]');
+  if (grid && !e.target.closest('.card[data-tid],.appt,.qc,.nowline') && e.pointerType !== 'touch') { startDraw(e, grid); return; }
   const card = e.target.closest('.card[data-tid]'); if (!card || e.target.closest('input,.ck')) return;
   const resize = e.target.closest('[data-resize]');
   press = { id: card.dataset.tid, card, x: e.clientX, y: e.clientY, type: e.pointerType, resize: !!resize, pid: e.pointerId, t: Date.now(), swipe: null };
@@ -956,6 +977,37 @@ function endDrag(x, y) {
   else if (kind === 'list') { if (task.when) place(d.id, null, ''); }
   else if (kind === 'board') { if ((task.board || '') !== val) { put('task', d.id, { board: val, section: '' }); render(); toast(`Moved to ${val ? S.boards.get(val)?.name : 'Inbox'}`, true); } }
   if (navigator.vibrate && d.rail) navigator.vibrate(10);
+}
+function startDraw(e, grid) {
+  e.preventDefault();
+  const k = grid.dataset.drop.slice(5), hpx = Number(grid.dataset.hpx), h0 = Number(grid.dataset.h0), r = grid.getBoundingClientRect();
+  const minAt = (y) => Math.max(0, Math.min(24 * 60, Math.round(((y - r.top) / hpx * 60 + h0 * 60) / 15) * 15));
+  const onDraft = e.target.closest('.draft'), resize = !!e.target.closest('[data-draftresize]');
+  // A popover is open and the press is elsewhere: that press only dismisses it (Google Calendar does the same).
+  if (S.ui.draft && !onDraft) { S.ui.draft = null; render(); suppressClick = true; setTimeout(() => { suppressClick = false; }, 50); return; }
+  const D0 = S.ui.draft && S.ui.draft.k === k ? { ...S.ui.draft } : null;
+  const m0 = minAt(e.clientY), y0 = e.clientY; let moved = false;
+  // Fresh press on empty space: a new draft starts here (replaces any open one).
+  if (!onDraft) S.ui.draft = { k, at: fromMin(Math.min(m0, 24 * 60 - 30)), dur: 30, kind: S.ui.draft?.kind || '', title: '', durSet: false };
+  const D = S.ui.draft;
+  let el = grid.querySelector('.draft');
+  const paint = () => { if (!el) { grid.insertAdjacentHTML('beforeend', `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta"></span></div>`); el = grid.querySelector('.draft'); }
+    el.style.top = ((toMin(D.at) / 60 - h0) * hpx + 1) + 'px'; el.style.height = Math.max(24, D.dur / 60 * hpx - 2) + 'px';
+    el.querySelector('.meta').textContent = `${clock(D.at)} – ${clock(fromMin(toMin(D.at) + D.dur))}`; };
+  grid.querySelector('.qc')?.remove(); if (!onDraft) paint();
+  document.body.classList.add('is-dragging');
+  const mv = (ev) => {
+    if (!moved && Math.abs(ev.clientY - y0) < 4) return; moved = true;
+    const m = minAt(ev.clientY);
+    if (resize) { const want = Math.round((D0.dur + (ev.clientY - y0) / hpx * 60) / 15) * 15; D.dur = Math.max(15, Math.min(24 * 60 - toMin(D0.at), want)); D.durSet = true; }
+    else if (onDraft) { let a = toMin(D0.at) + (m - m0); a = Math.max(0, Math.min(24 * 60 - D0.dur, a)); D.at = fromMin(a); }
+    else { const a = Math.min(m0, m), b = Math.max(m0, m); D.at = fromMin(Math.min(a, 24 * 60 - 15)); D.dur = Math.max(15, b - a); D.durSet = D.dur !== 30; }
+    paint();
+  };
+  const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.body.classList.remove('is-dragging');
+    suppressClick = true; setTimeout(() => { suppressClick = false; }, 50);
+    render(); const inp = $('#qc-title'); if (inp) { inp.focus(); if (onDraft && !moved) inp.select(); } };
+  document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
 }
 function startResize(e) {
   const p = press; press = null; const t = S.tasks.get(p.id); if (!t) return;
