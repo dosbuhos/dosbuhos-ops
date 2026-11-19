@@ -10,6 +10,8 @@ const store = { get(k, d) { try { const v = localStorage.getItem('hz.' + k); ret
   set(k, v) { try { localStorage.setItem('hz.' + k, JSON.stringify(v)); } catch {} } };
 
 const I = {
+  // Horizonte mark: an H whose crossbar runs out past the stems as a horizon, with the sun resting on it.
+  logo: (s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 32 32"><rect x="7" y="6" width="3.4" height="20" rx="1.7" fill="currentColor"/><rect x="21.6" y="6" width="3.4" height="20" rx="1.7" fill="currentColor"/><rect x="1.5" y="17.2" width="29" height="3.2" rx="1.6" fill="currentColor"/><circle cx="16" cy="12.4" r="3.7" fill="var(--sun)"/></svg>`,
   left: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
   right: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
@@ -362,7 +364,7 @@ function cardHTML(t, opts = {}) {
   return `<div class="${cls}" data-tid="${t.id}" style="${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 16 : 14) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -406,10 +408,9 @@ function deskTitle() {
 function renderDesk() {
   return `<div class="d">
 <header class="top">
-<div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">Horizonte</button></div>
+<div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">${I.logo(22)}<span>Horizonte</span></button></div>
 <nav class="seg" aria-label="Zoom level">${ZOOMS.map(([z, l], i) => `<button aria-pressed="${S.ui.zoom === z}" data-zoom="${z}" title="${l} (${i + 1})">${l}</button>`).join('')}</nav>
-<div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button></div>
-<div class="title">${esc(deskTitle())}</div>
+<div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button><div class="title">${esc(deskTitle())}</div></div>
 <div class="right"><button data-sync class="dot" data-act="settings"></button></div>
 </header>
 <div class="main">${S.ui.panelHidden ? '' : renderPanel()}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
@@ -610,7 +611,7 @@ function mToday() {
   if (!P.all.length) body += `<div class="empty">Nothing planned today. Tap + to dump what's on your mind.</div>`;
   if (P.doneNonTarget.length) body += mDoneToggle('d' + k, P.doneNonTarget);
   const pct = Math.round(dayLoad(k) / workMin() * 100);
-  return `<header class="mh"><div class="r1"><h1>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</h1><button data-sync class="dot" data-act="settings"></button></div>
+  return `<header class="mh"><div class="r1"><div class="mbrand">${I.logo(20)}<span>Horizonte</span></div><button data-sync class="dot" data-act="settings"></button></div><div class="r1"><h1>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</h1></div>
 <div class="loadrow"><div>${fmtDur(dayLoad(k))} planned of ${fmtDur(workMin())}<div class="meter ${pct >= 125 ? 'red' : pct >= 100 ? 'amber' : ''}" role="img" aria-label="Day is ${pct} percent full"><i style="width:${Math.min(100, pct)}%"></i></div></div></div></header>
 <main class="mm" data-list="today">${body}</main>`;
 }
@@ -755,7 +756,7 @@ ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? 
 ${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
-${tagsList().length ? `<div class="grp"><div class="eyebrow">Tags</div><div class="taglist">${tagsList().map(x => `<div class="tagrow">${tagChip(x)}<span class="dots">${TAGCOLORS.map(c => `<button class="dot c-${c}" data-act="tagcolor" data-t="${x.id}" data-c="${c}" aria-label="${c}" aria-pressed="${x.color === c}"></button>`).join('')}</span><button class="link" style="color:var(--now);font-size:13px" data-act="tagdel" data-t="${x.id}">Remove</button></div>`).join('')}</div><div class="muted" style="font-size:13px">Add a tag from any task, or type #tag when adding one.</div></div>` : ''}
+${tagsList().length ? `<div class="grp"><div class="eyebrow">Tags</div><div class="taglist">${tagsList().map(x => `<div class="tagrow">${tagChip(x)}<span class="dots">${TAGCOLORS.map(c => `<button class="cdot c-${c}" data-act="tagcolor" data-t="${x.id}" data-c="${c}" aria-label="${c}" aria-pressed="${x.color === c}"></button>`).join('')}</span><button class="link" style="color:var(--now);font-size:13px" data-act="tagdel" data-t="${x.id}">Remove</button></div>`).join('')}</div><div class="muted" style="font-size:13px">Add a tag from any task, or type #tag when adding one.</div></div>` : ''}
 <div class="row"><button class="bigbtn" style="flex:1" data-act="export">Export all data</button><button class="bigbtn" style="flex:1" data-act="close">Close</button></div>`, { settings: true });
 }
 
