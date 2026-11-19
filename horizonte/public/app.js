@@ -440,7 +440,7 @@ function renderHours() {
   const days = [S.ui.hday, addDays(S.ui.hday, 1)], h0 = H0(), h1 = H1();
   const heads = days.map(k => { const P = dayParts(k), untimed = [...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen);
     return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:center"><div><b>${dayShort(k)}</b>${k === todayK() ? ' <span class="pill">Today</span>' : ''}</div><span class="small" style="font-size:12px;color:var(--ink-2)">${loadText(k)}</span></div>
-<div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
+<div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>`}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
   const grids = days.map(k => {
     const timed = placedOn(k).filter(t => t.at);
@@ -449,10 +449,13 @@ function renderHours() {
       const style = `top:${top}px;height:${ht}px;left:calc(6px + (100% - 12px) * ${L.i / L.n});right:auto;width:calc((100% - 12px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
       return cardHTML(t, { style, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
     let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" style="top:${(m / 60 - h0) * HPX}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
-    return `<div class="grid" data-drop="slot:${k}" style="height:${(h1 - h0) * HPX}px">${cards}${now}</div>`;
+    // click on an empty slot → inline add at that time (S.ui.adding = "slot:<day>:<HH:MM>")
+    let add = ''; const sa = String(S.ui.adding || '').match(/^slot:(\d{4}-\d{2}-\d{2}):(\d{2}:\d{2})$/);
+    if (sa && sa[1] === k) add = `<div class="slot-add" style="top:${(toMin(sa[2]) / 60 - h0) * HPX + 1}px"><span>${clock(sa[2])}</span><input class="inline-add" id="ia-${k}" data-addto="${k}" data-at="${sa[2]}" placeholder="Task at ${clock(sa[2])}, Enter" autocomplete="off"></div>`;
+    return `<div class="grid" data-drop="slot:${k}" data-hpx="${HPX}" data-h0="${h0}" style="height:${(h1 - h0) * HPX}px">${cards}${now}${add}</div>`;
   }).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks, solid blocks are meetings. Drag to move, drag the bottom edge to change length.</div></div>`;
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click an empty slot to add a task there. Drag to move, drag the bottom edge to change length.</div></div>`;
 }
 function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   const items = list.map(t => ({ id: t.id, s: toMin(t.at), e: toMin(t.at) + (t.dur || 30) })).sort((a, b) => a.s - b.s || b.e - a.e);
@@ -701,6 +704,13 @@ function toast(msg, withUndo) {
 // ── clicks ────────────────────────────────────────────────────
 document.addEventListener('click', async (e) => {
   if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); return; }
+  // desktop Hours view: click an empty spot in the grid → inline add at that time, snapped to 15 min
+  const grid = e.target.closest('.d .grid[data-drop^="slot:"]');
+  if (grid && !e.target.closest('.card,.appt,.slot-add,[data-act]')) {
+    const k = grid.dataset.drop.slice(5), r = grid.getBoundingClientRect(), hpx = Number(grid.dataset.hpx), h0 = Number(grid.dataset.h0);
+    let m = Math.round(((e.clientY - r.top) / hpx * 60 + h0 * 60) / 15) * 15; m = Math.max(0, Math.min(24 * 60 - 15, m));
+    S.ui.adding = `slot:${k}:${fromMin(m)}`; render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return;
+  }
   const el = e.target.closest('[data-act],[data-zoom],[data-src],[data-tab],[data-mzoom]'); if (!el) return;
   const card = e.target.closest('[data-tid]'), tid = card?.dataset.tid;
   if (el.dataset.zoom) { S.ui.zoom = el.dataset.zoom; S.ui.pk = null; render(); if (S.ui.zoom === 'hours') scrollHoursToNow(); return; }
@@ -796,7 +806,10 @@ document.addEventListener('keydown', (e) => {
   }
   if (el.dataset?.addto) {
     if (e.key === 'Escape') { S.ui.adding = null; render(); return; }
-    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto; if (v) addLines(v, { when: k }); render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto, at = el.dataset.at;
+      if (v) addLines(v, at ? { when: k, at } : { when: k });
+      if (at) { S.ui.adding = null; render(); if (v) toast(`Added at ${clock(at)}`, true); return; } // a timed slot takes one task
+      render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
   }
   if (el.classList?.contains('ttl') && e.key === 'Enter') { e.preventDefault(); el.blur(); return; }
   if (el.id === 'dump' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { $('[data-act=savecapture]')?.click(); return; }
@@ -811,7 +824,7 @@ document.addEventListener('keydown', (e) => {
   else if (k === '[' || k === ']') { const s = sources().map(x => x[0]); S.ui.src = s[(s.indexOf(S.ui.src) + (k === ']' ? 1 : s.length - 1)) % s.length]; S.ui.panelView = 'list'; render(); }
   else if (k === '\\') { S.ui.panelHidden = !S.ui.panelHidden; render(); }
 });
-document.addEventListener('focusout', (e) => { if (e.target.dataset?.addto && !e.target.value.trim()) setTimeout(() => { if (S.ui.adding === e.target.dataset.addto && !document.activeElement?.dataset?.addto) { S.ui.adding = null; render(); } }, 120); });
+document.addEventListener('focusout', (e) => { if (e.target.dataset?.addto && !e.target.value.trim()) setTimeout(() => { const a = String(S.ui.adding || ''); if ((a === e.target.dataset.addto || a.startsWith('slot:' + e.target.dataset.addto + ':')) && !document.activeElement?.dataset?.addto) { S.ui.adding = null; render(); } }, 120); });
 
 // ── drag and drop (mouse, pen, touch) ─────────────────────────
 // Mouse: press and move 5px. Touch: hold 350 ms. On a phone the week rail slides in from the right.

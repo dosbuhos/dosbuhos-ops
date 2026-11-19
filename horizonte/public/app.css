@@ -179,6 +179,11 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .d .grid .card, .d .grid .appt { position: absolute; left: 6px; right: 6px; overflow: hidden; align-items: center; }
 .d .grid .card.short { padding-top: 2px; padding-bottom: 2px; }
 .d .grid .resize { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; }
+.d .grid { cursor: copy; }
+.d .grid .card, .d .grid .appt, .d .grid .slot-add { cursor: default; }
+.d .grid .slot-add { position: absolute; left: 6px; right: 6px; z-index: 6; display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--blue); border-radius: 8px; background: var(--card); box-shadow: 0 4px 14px rgba(22,24,29,.12); }
+.d .grid .slot-add span { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--blue); }
+.d .grid .slot-add .inline-add { flex: 1; min-width: 0; padding: 4px 6px; border: 0; background: transparent; font: inherit; outline: none; }
 .d .nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--now); z-index: 4; pointer-events: none; }
 .d .nowline span { position: absolute; right: 8px; top: -10px; padding: 1px 8px; border-radius: 999px; background: var(--now); color: #fff; font-size: 12px; font-weight: 600; }
 .d .legend { margin-left: 64px; font-size: 12px; color: var(--ink-2); }
