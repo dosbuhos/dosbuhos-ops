@@ -70,11 +70,9 @@ function main() {
 
   var changes = [];
   var since = Utilities.formatDate(new Date(Date.now() - 14 * 864e5), tz, 'yyyy-MM-dd HH:mm:ss');
-  // change_event needs a finite range: both a lower and an upper bound on change_date_time.
-  var until = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm:ss');
   rows = AdsApp.search('SELECT change_event.change_date_time, change_event.change_resource_type, change_event.client_type, change_event.campaign, ' +
     'change_event.old_resource, change_event.new_resource, change_event.change_resource_name FROM change_event ' +
-    'WHERE change_event.change_date_time >= "' + since + '" AND change_event.change_date_time <= "' + until + '" AND change_event.change_resource_type = "CAMPAIGN_BUDGET" ORDER BY change_event.change_date_time DESC LIMIT 1000');
+    'WHERE change_event.change_date_time >= "' + since + '" AND change_event.change_date_time <= "' + Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm:ss') + '" AND change_event.change_resource_type = "CAMPAIGN_BUDGET" ORDER BY change_event.change_date_time DESC LIMIT 1000');
   while (rows.hasNext()) {
     var e = rows.next().changeEvent;
     var oldB = e.oldResource && e.oldResource.campaignBudget, newB = e.newResource && e.newResource.campaignBudget;
