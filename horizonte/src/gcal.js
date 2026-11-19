@@ -54,7 +54,7 @@ async function tz(env) {
 // ── Horizonte → Google ───────────────────────────────────────
 const isLiveMeeting = (d) => d && d.kind === 'meeting' && !d.del && d.status !== 'dropped' && /^\d{4}-\d\d-\d\d$/.test(d.when || '');
 function eventBody(id, d, zone) {
-  const body = { summary: d.title || 'Meeting', description: d.notes || '', extendedProperties: { private: { hz: id } } };
+  const body = { summary: d.title || 'Meeting', description: d.notes || '', extendedProperties: { private: { hz: id } }, colorId: /^([1-9]|1[01])$/.test(d.color || '') ? d.color : null };
   if (d.at) {
     const [h, m] = d.at.split(':').map(Number), end = h * 60 + m + (d.dur || 60);
     const endDay = new Date(`${d.when}T12:00:00Z`); endDay.setUTCDate(endDay.getUTCDate() + Math.floor(end / 1440));
@@ -118,7 +118,7 @@ export async function pull(env, applyOps, { force = false } = {}) {
         continue;
       }
       if (ev.eventType && ev.eventType !== 'default') continue; // skip working-location, out-of-office, focus time
-      const f = { title: ev.summary || '(no title)', kind: 'meeting', gev: ev.id };
+      const f = { title: ev.summary || '(no title)', kind: 'meeting', gev: ev.id, color: ev.colorId || '' };
       if (ev.start?.dateTime) {
         const s = localParts(ev.start.dateTime, zone), e = localParts(ev.end?.dateTime || ev.start.dateTime, zone);
         const dur = Math.max(15, Math.round((new Date(ev.end?.dateTime || ev.start.dateTime) - new Date(ev.start.dateTime)) / 60000));

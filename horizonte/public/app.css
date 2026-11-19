@@ -68,10 +68,10 @@ svg { flex: none; }
 .card .sub { font-size: 12px; font-weight: 600; color: var(--warn); }
 .card .meta { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .card .star { margin-top: 1px; }
-.card.meeting { background: var(--blue); color: #fff; border: 0; padding-left: 12px; align-items: center; }
+.card.meeting { --mt: var(--blue); background: var(--mt); color: #fff; border: 0; padding-left: 12px; align-items: center; }
 .card.meeting .lk { display: flex; flex: none; }
 .card.meeting .t { font-weight: 600; }
-.card.meeting .meta { color: #fff; font-weight: 700; }
+.card.meeting .meta { color: inherit; font-weight: 700; }
 .card.meeting.done { opacity: 0.55; }
 .card.meeting.done .t { text-decoration: line-through; }
 .m .card.meeting { min-height: 52px; }
@@ -275,5 +275,13 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .dd-grid { flex: 1; position: relative; background: repeating-linear-gradient(to bottom, var(--line) 0, var(--line) 1px, transparent 1px, transparent 52px); border-left: 1px solid var(--line); }
 .dd-grid.over { background-color: var(--drop); }
 .dd-b { position: absolute; left: 6px; right: 6px; padding: 2px 8px; border: 1px solid var(--line-2); border-left: 3px solid var(--edge); border-radius: 6px; background: var(--card); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; opacity: 0.8; }
-.dd-b.mt { background: var(--blue); color: #fff; border: 0; }
+.dd-b.mt { --mt: var(--blue); background: var(--mt); color: #fff; border: 0; }
 .daydrop .nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--now); pointer-events: none; }
+
+/* meeting colors (Google Calendar's palette) */
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: 0 0 0 2px var(--card) inset; position: relative; }
+.sw[aria-pressed=true] { box-shadow: 0 0 0 2px var(--card) inset, 0 0 0 2px var(--ink); }
+.sw[aria-pressed=true]::after { content: ''; position: absolute; left: 9px; top: 5px; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+.m .sw { width: 36px; height: 36px; } .m .sw[aria-pressed=true]::after { left: 13px; top: 8px; width: 7px; height: 13px; }
+.d .grid .qc .swatches { gap: 6px; } .d .grid .qc .sw { width: 22px; height: 22px; } .d .grid .qc .sw[aria-pressed=true]::after { left: 7px; top: 3px; width: 5px; height: 9px; border-width: 0 2px 2px 0; }

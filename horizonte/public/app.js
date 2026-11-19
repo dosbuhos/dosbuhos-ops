@@ -265,11 +265,15 @@ function capped(key, list, render) { // long lists show the first 100, then a bu
   return h;
 }
 const isDesk = () => matchMedia('(min-width: 900px)').matches;
+// Google Calendar's event colors (colorId 1–11); '' = default blue. Stored on the task as `color`, synced as colorId.
+const GCOLORS = [['', '#1D4ED8', 'Default'], ['1', '#7986CB', 'Lavender'], ['2', '#33B679', 'Sage'], ['3', '#8E24AA', 'Grape'], ['4', '#E67C73', 'Flamingo'], ['5', '#F6BF26', 'Banana'], ['6', '#F4511E', 'Tangerine'], ['7', '#039BE5', 'Peacock'], ['8', '#616161', 'Graphite'], ['9', '#3F51B5', 'Blueberry'], ['10', '#0B8043', 'Basil'], ['11', '#D50000', 'Tomato']];
+const colorHex = (c) => (GCOLORS.find(x => x[0] === String(c || '')) || GCOLORS[0])[1];
+const colorStyle = (t) => t.color ? `--mt:${colorHex(t.color)};${t.color === '5' ? 'color:#16181D;' : ''}` : '';
 function meetingHTML(t, opts = {}) {
   const done = t.status === 'done';
   const range = t.at ? `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 60)))}` : 'No time set';
   const meta = opts.sched ? (whenText(t) || 'Not scheduled') : range;
-  return `<div class="card meeting ${done ? 'done' : ''}" data-tid="${t.id}" style="${opts.style || ''}" title="Meeting">
+  return `<div class="card meeting ${done ? 'done' : ''}" data-tid="${t.id}" style="${colorStyle(t)}${opts.style || ''}" title="Meeting">
 <span class="lk">${I.lock(opts.mobile ? 16 : 14)}</span>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || 'Untitled meeting'}</span></div><span class="meta">${esc(meta)}</span></div>`;
 }
@@ -453,10 +457,11 @@ function renderHours() {
     let add = ''; const D = S.ui.draft;
     if (D && D.k === k) { const top = (toMin(D.at) / 60 - h0) * HPX + 1, ht = Math.max(24, D.dur / 60 * HPX - 2), gridH = (h1 - h0) * HPX;
       const below = top + ht + 230 < gridH; const end = clock(fromMin(toMin(D.at) + D.dur));
-      add = `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}" style="top:${top}px;height:${ht}px"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta">${clock(D.at)} – ${end}</span><div class="resize" data-draftresize="1"></div></div>
+      add = `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}" style="${colorStyle(D)}top:${top}px;height:${ht}px"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta">${clock(D.at)} – ${end}</span><div class="resize" data-draftresize="1"></div></div>
 <div class="qc" style="${below ? `top:${top + ht + 8}px` : `bottom:${gridH - top + 8}px`}">
 <input id="qc-title" placeholder="Add title" autocomplete="off" value="${esc(D.title)}">
 <div class="seg kindseg"><button data-act="qckind" data-v="task" aria-pressed="${D.kind !== 'meeting'}">Task</button><button data-act="qckind" data-v="meeting" aria-pressed="${D.kind === 'meeting'}">${I.lock(14)}Meeting</button></div>
+${D.kind === 'meeting' ? `<div class="swatches">${GCOLORS.map(([c, hex, name]) => `<button class="sw" data-act="qccolor" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(D.color || '') === c}" title="${name}"></button>`).join('')}</div>` : ''}
 <div class="qc-time"><span>${dayShort(k)} · ${clock(D.at)} – ${end}</span><div class="stepper"><button aria-label="Shorter" data-act="qcdur" data-d="-15">${I.minus}</button><div>${fmtDur(D.dur)}</div><button aria-label="Longer" data-act="qcdur" data-d="15">${I.plus(16, 2.5)}</button></div></div>
 <div class="qc-foot"><button class="link" data-act="qcmore">More options</button><span><button class="btn" data-act="qccancel">Cancel</button><button class="btn primary" data-act="qcsave">Save</button></span></div></div>`; }
     return `<div class="grid" data-drop="slot:${k}" data-hpx="${HPX}" data-h0="${h0}" style="height:${(h1 - h0) * HPX}px">${cards}${now}${add}</div>`;
@@ -583,6 +588,7 @@ function taskSheet(id, view = 'main') {
   openSheet(`<div class="grab"></div>
 <div style="display:flex;flex-direction:column;gap:2px"><textarea class="ttl" rows="1" data-field="title" aria-label="Task name">${esc(t.title)}</textarea><div style="font-size:13px;color:var(--ink-2)">${esc(where)}</div></div>
 <div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.lock(14)}Meeting</button></div>
+${t.kind === 'meeting' ? `<div class="grp"><div class="eyebrow">Color</div><div class="swatches">${GCOLORS.map(([c, hex, name]) => `<button class="sw" data-act="color" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(t.color || '') === c}" title="${name}"></button>`).join('')}</div></div>` : ''}
 <div class="grp"><div class="eyebrow">When</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
@@ -740,6 +746,7 @@ document.addEventListener('click', async (e) => {
     case 'addto': S.ui.adding = el.dataset.k; render(); $(`#ia-${CSS.escape(el.dataset.k)}`)?.focus(); return;
     case 'qckind': S.ui.draft.kind = el.dataset.v === 'meeting' ? 'meeting' : ''; if (S.ui.draft.kind === 'meeting' && S.ui.draft.dur < 60 && !S.ui.draft.durSet) S.ui.draft.dur = 60; render(); $('#qc-title')?.focus(); return;
     case 'qcdur': S.ui.draft.dur = Math.max(15, Math.min(480, S.ui.draft.dur + Number(el.dataset.d))); S.ui.draft.durSet = true; render(); return;
+    case 'qccolor': S.ui.draft.color = el.dataset.c; render(); $('#qc-title')?.focus(); return;
     case 'qccancel': S.ui.draft = null; render(); return;
     case 'qcsave': { const id = saveDraft(); if (id) toast(`Added ${S.ui.draft?.kind === 'meeting' ? 'meeting' : 'task'} at ${clock(S.tasks.get(id).at)}`, true); S.ui.draft = null; render(); return; }
     case 'qcmore': { const id = saveDraft(); S.ui.draft = null; render(); if (id) taskSheet(id); return; }
@@ -753,6 +760,7 @@ document.addEventListener('click', async (e) => {
     case 'cleartime': put('task', st.id, { at: '' }); render(); taskSheet(st.id); return;
     case 'dur': { const t = S.tasks.get(st.id); put('task', st.id, { dur: Math.max(15, Math.min(480, (t.dur || 30) + Number(el.dataset.d))) }); render(); taskSheet(st.id); return; }
     case 'pri': put('task', st.id, { pri: el.dataset.p }); render(); taskSheet(st.id); return;
+    case 'color': put('task', st.id, { color: el.dataset.c }); render(); taskSheet(st.id); return;
     case 'kind': { const t = S.tasks.get(st.id); if (!t) return;
       if (el.dataset.v === 'meeting') { const f = { kind: 'meeting' };
         if (!t.at) { const n = new Date(); f.at = `${pad(Math.min(23, n.getHours() + 1))}:00`; }
@@ -839,7 +847,7 @@ document.addEventListener('input', (e) => { if (e.target.id === 'qc-title' && S.
 function saveDraft() {
   const D = S.ui.draft; if (!D) return null;
   const id = rid('t_'), title = D.title.trim() || '(No title)';
-  put('task', id, { title, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: D.dur, when: D.k, at: D.at, kind: D.kind || '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now() });
+  put('task', id, { title, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: D.dur, when: D.k, at: D.at, kind: D.kind || '', color: D.kind === 'meeting' ? (D.color || '') : '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now() });
   return id;
 }
 
@@ -914,7 +922,7 @@ function renderDayDrop(el, k) {
   const items = placedOn(k).filter(t => t.at && (!drag || t.id !== drag.id));
   let rows = ''; for (let h = MH0; h < MH1; h++) rows += `<div class="dd-h" style="height:${MHPX}px"><span>${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</span></div>`;
   const blocks = items.map(t => { const top = (toMin(t.at) / 60 - MH0) * MHPX, ht = Math.max(20, (t.dur || 30) / 60 * MHPX - 2);
-    return `<div class="dd-b ${t.kind === 'meeting' ? 'mt' : ''}" style="top:${top}px;height:${ht}px">${esc(t.title)} · ${clock(t.at)}</div>`; }).join('');
+    return `<div class="dd-b ${t.kind === 'meeting' ? 'mt' : ''}" style="${colorStyle(t)}top:${top}px;height:${ht}px">${esc(t.title)} · ${clock(t.at)}</div>`; }).join('');
   let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); now = `<div class="nowline" style="top:${(m / 60 - MH0) * MHPX}px"></div>`; }
   el.innerHTML = `<div class="dd-top"><div class="dd-edge">‹</div><div class="dd-title"><b>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</b>${rel ? ` <span class="pill">${rel}</span>` : ''}<small>${loadText(k)} · hold at an edge to change day</small></div><div class="dd-edge">›</div></div>
 <div class="dd-strip"><div class="slot" data-drop="day:${k}">Anytime ${esc(rel || dayShort(k))}</div><div class="slot" data-drop="list">Unschedule</div></div>
@@ -988,7 +996,7 @@ function startDraw(e, grid) {
   const D0 = S.ui.draft && S.ui.draft.k === k ? { ...S.ui.draft } : null;
   const m0 = minAt(e.clientY), y0 = e.clientY; let moved = false;
   // Fresh press on empty space: a new draft starts here (replaces any open one).
-  if (!onDraft) S.ui.draft = { k, at: fromMin(Math.min(m0, 24 * 60 - 30)), dur: 30, kind: S.ui.draft?.kind || '', title: '', durSet: false };
+  if (!onDraft) S.ui.draft = { k, at: fromMin(Math.min(m0, 24 * 60 - 30)), dur: 30, kind: S.ui.draft?.kind || '', color: S.ui.draft?.color || '', title: '', durSet: false };
   const D = S.ui.draft;
   let el = grid.querySelector('.draft');
   const paint = () => { if (!el) { grid.insertAdjacentHTML('beforeend', `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta"></span></div>`); el = grid.querySelector('.draft'); }
