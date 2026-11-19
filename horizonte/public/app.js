@@ -25,6 +25,8 @@ const I = {
   plan: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>`,
   boards: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><rect x="4" y="4" width="6" height="16" rx="1.5"/><rect x="14" y="4" width="6" height="10" rx="1.5"/></svg>`,
   inbox: (w) => `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M4 13l3-8h10l3 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg>`,
+  clock: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  month: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M8 14h2M12 14h2M16 14h2M8 17h2M12 17h2"/></svg>',
   side: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
   chev: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   down: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
@@ -362,7 +364,7 @@ function cardHTML(t, opts = {}) {
   const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
   const meta = opts.meta ?? (done ? '' : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30));
   return `<div class="${cls}" data-tid="${t.id}" style="${opts.style || ''}">
-<label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"></label>
+<label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
 ${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
 }
@@ -429,7 +431,8 @@ function renderPanel() {
   const od = overdueTasks().filter(t => t.pri === 'target').length;
   const banner = signinBanner() + (od ? `<button class="banner" data-act="review"><span>${od} unfinished target${od > 1 ? 's' : ''} from earlier days</span>Review</button>` : '');
   if (S.ui.panelView !== 'list') {
-    const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span>${esc(name)}</span><span class="n">${n}</span>${I.chev}</button>`;
+    const ico = { inbox: I.inbox(1.8), overdue: I.clock, week: I.plan(1.8), month: I.month };
+    const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span class="ni">${ico[k] || `<i class="bdot"></i>`}</span><span class="lbl">${esc(name)}</span><span class="n">${n}</span></button>`;
     const wk = placedOn(isoWeek(todayK())).filter(isOpen).length, mo = placedOn(periodOf('month', todayK())).filter(isOpen).length, ov = overdueTasks().length;
     const boards = boardsSorted().map(b => row('b:' + b.id, b.name, boardTasks(b.id).filter(isOpen).length || '', 'board:' + b.id)).join('');
     if (S.ui.q) return `<aside class="panel" aria-label="Search">${banner}${searchBox('q')}${searchResults(false)}</aside>`;
@@ -519,12 +522,13 @@ function dayCol(k) {
   if (past) {
     const tg = P.targets.length ? `<div class="small">${P.targets.filter(x => !isOpen(x)).length} of ${P.targets.length} targets done</div>` : '';
     const open = P.open.length;
-    head = `<div class="head"><div><b>${label}</b> ${rel ? `<span class="small">${rel}</span>` : ''}</div>${open ? `<span class="pill warn">${open} open</span>` : ''}</div>${tg}`;
+    head = `<div class="head"><div class="date"><span class="num">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${rel ? ' · ' + rel : ''}</span></div>${open ? `<span class="pill warn">${open} open</span>` : ''}</div>${tg}`;
     const body = [...P.open].sort(order).map(x => cardHTML(x)).join('');
     const doneList = P.done;
     return `<section class="col past dropcol" data-drop="day:${k}" aria-label="${label}">${head}${body}${doneList.length ? doneToggle('d' + k, doneList) : ''}<div class="dropzone">Drop to schedule on ${label}</div></section>`;
   }
-  head = `<div class="head"><div><b>${label}</b>${today ? ' <span class="pill">Today</span>' : ''}</div><span class="small">${loadText(k)}</span></div>${meterHTML(k)}`;
+  const dnum = Number(k.slice(8)), dow = DOW[parseD(k).getDay()];
+  head = `<div class="head"><div class="date"><span class="num ${today ? 'today' : ''}">${dnum}</span><span class="dow">${dow}${today ? ' · Today' : rel ? ' · ' + rel : ''}</span></div><span class="small">${loadText(k)}</span></div>${meterHTML(k)}`;
   let body = '';
   for (const x of P.meetings) body += cardHTML(x);
   for (const x of P.timed) body += cardHTML(x, { meta: clock(x.at) });
