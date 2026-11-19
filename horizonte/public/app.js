@@ -538,7 +538,7 @@ function renderHours() {
     const lanes = layoutLanes(timed);
     const cards = timed.map(t => { const top = (toMin(t.at) / 60 - h0) * HPX + 1, ht = Math.max(24, (t.dur || 30) / 60 * HPX - 2), L = lanes.get(t.id);
       const style = `top:${top}px;height:${ht}px;left:calc(6px + (100% - 12px) * ${L.i / L.n});right:auto;width:calc((100% - 12px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
-      return cardHTML(t, { style, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
+      return cardHTML(t, { style, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}${ht >= 80 ? ' tall' : ''}`).replace('data-tid=', `title="${esc(t.title)}" data-tid=`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
     let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" style="top:${(m / 60 - h0) * HPX}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
     // a block being created (click or drag on empty space), with its quick-create popover
     let add = ''; const D = S.ui.draft;
