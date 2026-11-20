@@ -67,7 +67,7 @@ export async function sugerir(env, modelo, activity, { max = 40, lote = 10 } = {
     const grupo = cola.slice(i, Math.min(i + lote, max));
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 2500, thinking: { type: 'disabled' }, system: SISTEMA,
+      body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 4000, thinking: { type: 'between_tools' },   // this model's way of saying "no extended thinking" system: SISTEMA,
         messages: [{ role: 'user', content: `Hoy es ${modelo.hoy}.\nCuentas (JSON):\n` + JSON.stringify(grupo.map((g, j) => ({ i: j, ...g.datos }))) }] }) });
     if (!r.ok) throw new Error(`Claude ${r.status}: ${(await r.text()).slice(0, 160)}`);
     const j = await r.json();
