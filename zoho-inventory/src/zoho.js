@@ -126,9 +126,12 @@ export async function runSync(env) {
 
 // Read-only Zoho lists for other Dos Búhos Workers (Spark Equipo), so the Zoho secrets live in this Worker only.
 // Reached through the ZohoRead entrypoint in index.js: service bindings only, never a public URL.
+let tok = { value: '', until: 0 };
 const LISTAS = { salesorders: '/salesorders', invoices: '/invoices' };
 export async function zohoList(env, recurso, pagina = 1) {
   if (!LISTAS[recurso]) throw new Error('Recurso no permitido: ' + recurso);
-  const get = api(env, await accessToken(env));
+  // Zoho allows only a few new access tokens per ten minutes: keep one for 50 minutes (they last 60).
+  if (!tok.value || Date.now() > tok.until) tok = { value: await accessToken(env), until: Date.now() + 50 * 60000 };
+  const get = api(env, tok.value);
   return get(LISTAS[recurso], { page: String(Math.max(1, Number(pagina) || 1)), per_page: '200' });
 }
