@@ -426,10 +426,10 @@ function render() {
 }
 
 // ── rendering: desktop ────────────────────────────────────────
-const ZOOMS = [['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years']];
+const ZOOMS = [['horizons', 'Horizons'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years']];
 function deskTitle() {
   const z = S.ui.zoom;
-  if (z === 'hours') { const d = parseD(S.ui.hday); return `${DOWL[d.getDay()]}, ${MONL[d.getMonth()]} ${d.getDate()}`; }
+  if (z === 'hours' || z === 'horizons') { const d = parseD(z === 'hours' ? S.ui.hday : (S.ui.hzday || todayK())); return `${DOWL[d.getDay()]}, ${MONL[d.getMonth()]} ${d.getDate()}`; }
   if (z === 'days') { const d = parseD(addDays(S.ui.anchor, 1)); return `${MONL[d.getMonth()]} ${d.getFullYear()}`; }
   return String(parseD(periodRange(S.ui.pk || todayK())[0]).getFullYear());
 }
@@ -549,6 +549,9 @@ function doneToggle(key, done) {
 function renderTimeline() {
   const z = S.ui.zoom;
   if (z === 'hours') return renderHours();
+  if (z === 'horizons') { // Timestripe's signature: one day beside its week, month, quarter and year, so a task can be dragged to the horizon it belongs on
+    const d = S.ui.hzday || todayK(); S.ui.hzday = d;
+    return `<div class="cols horizons">${dayCol(d)}${['week', 'month', 'quarter', 'year'].map(kind => periodCol(periodOf(kind, d))).join('')}</div>`; }
   if (z === 'days') { const cols = []; for (let i = 0; i < 14; i++) cols.push(dayCol(addDays(S.ui.anchor, i))); return `<div class="cols">${cols.join('')}</div>`; }
   const kind = { weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z];
   const n = { week: 8, month: 6, quarter: 4, year: 3 }[kind];
@@ -665,13 +668,19 @@ function mDoneToggle(key, done) {
   const open = S.ui.open[key];
   return `<button class="showmore" style="text-decoration:none;color:var(--ink-2)" data-act="toggle" data-key="${key}">Done · ${done.length} ${open ? '▴' : '▾'}</button>${open ? sortList(done).map(t => mcard(t)).join('') : ''}`;
 }
-const MZ = [['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Qtrs'], ['years', 'Years']];
+const MZ = [['horizons', 'Horizons'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Qtrs'], ['years', 'Years']];
 function mPlan() {
   const z = S.ui.mzoom; let body = '';
   const head = (k, label, extra) => `<div class="dayhead" data-drop="${kindOf(k) === 'day' ? 'day' : 'period'}:${k}"><b>${esc(label)}</b>${extra}<button class="plain" aria-label="Add to ${esc(label)}" data-act="capture" data-k="${k}">${I.plus(22)}</button></div>`;
   const items = (k, list) => { const key = 'm' + k, lim = S.ui.open[key] ? 999 : 3; let s = list.slice(0, lim).map(t => mcard(t, { meta: t.at && isOpen(t) && t.kind !== 'meeting' ? clock(t.at) : undefined })).join('');
     if (list.length > lim) s += `<button class="showmore" data-act="toggle" data-key="${key}">Show ${list.length - lim} more</button>`; return s; };
-  if (z === 'days') {
+  if (z === 'horizons') { // the day and every horizon it sits in, stacked
+    const d = S.ui.manchor, P = dayParts(d), dl = [...P.meetings.filter(isOpen), ...P.timed, ...P.targets.filter(isOpen), ...P.rest];
+    body += head(d, `${relDay(d) || DOWL[parseD(d).getDay()]}, ${MON[parseD(d).getMonth()]} ${parseD(d).getDate()}`, `<span class="small">${P.all.length ? loadText(d) : 'Nothing planned'}</span>`) + items(d, dl);
+    for (const kind of ['week', 'month', 'quarter', 'year']) { const k = periodOf(kind, d), list = sortList(placedOn(k).filter(isOpen), 'priority');
+      const lbl = kind === 'week' ? 'This week' : kind === 'month' ? MONL[parseD(d).getMonth()] : periodLabel(k, true), range = kind === 'week' ? periodLabel(k, true).split(' · ')[1] || '' : '';
+      body += head(k, lbl, `<span class="small">${range ? esc(range) + ' · ' : ''}${list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed'}</span>`) + items(k, list); }
+  } else if (z === 'days') {
     for (let i = 0; i < 14; i++) { const k = addDays(S.ui.manchor, i), P = dayParts(k), list = [...P.meetings.filter(isOpen), ...P.timed, ...P.targets.filter(isOpen), ...P.rest];
       const isT = k === todayK(); const load = P.all.length ? loadText(k) : 'Nothing planned';
       body += head(k, dayShort(k), `${isT ? '<span class="pill">Today</span>' : ''}<span class="small">${load}</span>`) + items(k, list); }
@@ -991,12 +1000,12 @@ document.addEventListener('click', async (e) => {
     case 'open': if (tid) taskSheet(tid); return;
     case 'close': closeSheet(); render(); return;
     case 'undo': $('.toast')?.remove(); undo(); return;
-    case 'today': if (S.ui.zoom === 'hours') S.ui.hday = todayK(); else if (S.ui.zoom === 'days') S.ui.anchor = addDays(todayK(), -1); else S.ui.pk = null; render(); { const tl = $('.tl'); if (tl && S.ui.zoom !== 'hours') tl.scrollLeft = 0; } if (S.ui.zoom === 'hours') scrollHoursToNow(); return;
+    case 'today': if (S.ui.zoom === 'hours') S.ui.hday = todayK(); else if (S.ui.zoom === 'horizons') S.ui.hzday = todayK(); else if (S.ui.zoom === 'days') S.ui.anchor = addDays(todayK(), -1); else S.ui.pk = null; render(); { const tl = $('.tl'); if (tl && S.ui.zoom !== 'hours') tl.scrollLeft = 0; } if (S.ui.zoom === 'hours') scrollHoursToNow(); return;
     case 'prev': case 'next': { const n = act === 'prev' ? -1 : 1;
-      if (S.ui.zoom === 'hours') S.ui.hday = addDays(S.ui.hday, n); else if (S.ui.zoom === 'days') S.ui.anchor = addDays(S.ui.anchor, 7 * n); else S.ui.pk = shiftPeriod(S.ui.pk, n);
+      if (S.ui.zoom === 'hours') S.ui.hday = addDays(S.ui.hday, n); else if (S.ui.zoom === 'horizons') S.ui.hzday = addDays(S.ui.hzday || todayK(), n); else if (S.ui.zoom === 'days') S.ui.anchor = addDays(S.ui.anchor, 7 * n); else S.ui.pk = shiftPeriod(S.ui.pk, n);
       render(); return; }
     case 'mprev': case 'mnext': { const n = act === 'mprev' ? -1 : 1, z = S.ui.mzoom;
-      S.ui.manchor = z === 'days' ? addDays(S.ui.manchor, 7 * n) : periodRange(shiftPeriod(periodOf({ weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z], S.ui.manchor), 8 * n))[0];
+      S.ui.manchor = z === 'horizons' ? addDays(S.ui.manchor, n) : z === 'days' ? addDays(S.ui.manchor, 7 * n) : periodRange(shiftPeriod(periodOf({ weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z], S.ui.manchor), 8 * n))[0];
       render(); $('.mm').scrollTop = 0; return; }
     case 'mtoday': S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
@@ -1173,7 +1182,7 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !/INPUT|TEXTAREA/.test(el.tagName)) { e.preventDefault(); undo(); return; }
   if (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || e.metaKey || e.ctrlKey || e.altKey || sheetState || !isDesk()) return;
   const k = e.key;
-  if (k >= '1' && k <= '6') { S.ui.zoom = ZOOMS[Number(k) - 1][0]; S.ui.pk = null; render(); }
+  if (k >= '1' && k <= '7') { S.ui.zoom = ZOOMS[Number(k) - 1][0]; S.ui.pk = null; render(); }
   else if (k === 'n' || k === 'N') { e.preventDefault(); $('#qa')?.focus(); }
   else if (k === 'r' || k === 'R') { e.preventDefault(); summarySheet(todayK()); }
   else if (k === 'd' || k === 'D') { e.preventDefault(); captureSheet(captureDest()); }
