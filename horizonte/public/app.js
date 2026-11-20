@@ -993,6 +993,8 @@ function captureDest(d = {}) {
   if (isDesk()) { const s = S.ui.src; if (s.startsWith('b:')) return { board: s.slice(2) }; if (s === 'week') return { when: isoWeek(todayK()) }; if (s === 'month') return { when: periodOf('month', todayK()) }; }
   return {};
 }
+// Invisible date/time inputs laid over buttons: open the native picker on any click, not only on the browser's tiny icon.
+document.addEventListener('click', (e) => { const el = e.target; if (el.classList?.contains('overlay-input') && el.showPicker) { try { el.showPicker(); } catch {} } });
 document.addEventListener('change', (e) => {
   const el = e.target, st = sheetState;
   if (el.dataset.act === 'pickdate' && el.value) { put('task', st.id, { when: el.value }); closeSheet(); render(); toast(`Moved to ${periodLabel(el.value)}`, true); }
