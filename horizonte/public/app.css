@@ -3,6 +3,9 @@
 @font-face { font-family: 'Geist'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/geist-500.woff2') format('woff2'); }
 @font-face { font-family: 'Geist'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/geist-600.woff2') format('woff2'); }
 @font-face { font-family: 'Geist'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/geist-700.woff2') format('woff2'); }
+/* wordmark only: Fraunces 600, subset to the letters of 'Horizonte' (1.6 KB) */
+@font-face { font-family: 'Fraunces WM'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/fraunces-wordmark.woff2') format('woff2'); }
+.wm { font-family: 'Fraunces WM', Georgia, serif; font-weight: 600; letter-spacing: -0.012em; }
 :root {
   --ink: #14161C; --ink-2: #646B78; --ink-3: #8B92A0; --line: #E6E8ED; --line-2: #DADDE3; --line-3: #C8CCD4;
   --bg: #FFFFFF; --panel: #F5F6F8; --seg: #EEF0F3; --past: #FAFAFB; --drop: #F1F5FE; --hover: #F3F4F6;
@@ -175,7 +178,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .d .listhead .back:hover { color: var(--ink); }
 .d .listtitle { display: flex; align-items: baseline; gap: 8px; font-size: 18px; letter-spacing: -0.01em; }
 .d .listtitle .muted { font-size: 13px; }
-.d .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; border: 0; background: transparent; padding: 4px 8px 4px 4px; border-radius: 8px; color: var(--ink); }
+.d .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 19px; border: 0; background: transparent; padding: 4px 8px 4px 4px; border-radius: 8px; color: var(--ink); }
 .d .brand:hover { background: var(--hover); }
 .d .brandrow { min-width: 300px; }
 .d .steps { display: flex; align-items: center; gap: 4px; }
@@ -437,7 +440,7 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .list-pick button svg { color: var(--ink); flex: none; }
 
 /* brand on phone */
-.m .mbrand { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); letter-spacing: -0.01em; }
+.m .mbrand { display: inline-flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 600; color: var(--ink-2); }
 .m .mbrand svg { color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

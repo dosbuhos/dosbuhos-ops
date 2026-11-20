@@ -424,7 +424,7 @@ function deskTitle() {
 function renderDesk() {
   return `<div class="d">
 <header class="top">
-<div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">${I.logo(22)}<span>Horizonte</span></button></div>
+<div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">${I.logo(22)}<span class="wm">Horizonte</span></button></div>
 <nav class="seg" aria-label="Zoom level">${ZOOMS.map(([z, l], i) => `<button aria-pressed="${S.ui.zoom === z}" data-zoom="${z}" title="${l} (${i + 1})">${l}</button>`).join('')}</nav>
 <div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button><div class="title">${esc(deskTitle())}</div></div>
 <div class="right"><button data-sync class="dot" data-act="settings"></button></div>
@@ -645,7 +645,7 @@ function mToday() {
   if (!P.all.length) body += `<div class="empty">Nothing planned today. Tap + to dump what's on your mind.</div>`;
   if (P.doneNonTarget.length) body += mDoneToggle('d' + k, P.doneNonTarget);
   const pct = Math.round(dayLoad(k) / workMin() * 100);
-  return `<header class="mh"><div class="r1"><div class="mbrand">${I.logo(20)}<span>Horizonte</span></div><button data-sync class="dot" data-act="settings"></button></div><div class="r1"><h1>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</h1></div>
+  return `<header class="mh"><div class="r1"><div class="mbrand">${I.logo(20)}<span class="wm">Horizonte</span></div><button data-sync class="dot" data-act="settings"></button></div><div class="r1"><h1>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</h1></div>
 <div class="loadrow"><div>${fmtDur(dayLoad(k))} planned of ${fmtDur(workMin())}<div class="meter ${pct >= 125 ? 'red' : pct >= 100 ? 'amber' : ''}" role="img" aria-label="Day is ${pct} percent full"><i style="width:${Math.min(100, pct)}%"></i></div></div></div></header>
 <main class="mm" data-list="today">${body}</main>`;
 }
