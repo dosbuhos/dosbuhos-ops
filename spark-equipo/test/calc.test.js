@@ -140,3 +140,10 @@ test('house accounts and samples are nobody\'s sales; La Competencia is reported
   assert.deepEqual([m.eric[0].cliente, m.eric[0].actual, m.eric[0].ultima], ['La Competencia Imports', 64000, '2026-11-10']);
   assert.equal(m.mes.find((x) => x.vendedor === 'Carlos').total, 0);
 });
+
+test('client book: contact details come from the notes, and "NA" is not a contact', () => {
+  const o = { id: '1', numero: '1', fecha: '2026-11-10', cliente_id: 'a', cliente: 'Atrio', vendedor: 'José Luis Zamora', total: 9000, estado: 'paid', facturacion: 'invoiced', pago: 'paid' };
+  const act = [a('José Luis', '2026-11-12', 'atrio', { contacto: 'NA', telefono: 'por conseguir' }), a('José Luis', '2026-11-01', 'Atrio', { contacto: 'Luis', telefono: '415 688 1405 / luis@atrio.mx' })];
+  const d = base({ orders: [o], invoices: [o], activity: act, alias: [{ cliente: 'Atrio', claves: 'atrio' }] }).directorio[0];
+  assert.deepEqual([d.nombre, d.contacto, d.telefono, d.email, d.vendedor], ['Atrio', 'Luis', '415 688 1405', 'luis@atrio.mx', 'José Luis']);
+});

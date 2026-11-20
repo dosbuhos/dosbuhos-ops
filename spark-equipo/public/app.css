@@ -146,6 +146,9 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
 .preg .l1 span:first-child { font-weight: 600; } .preg details { margin-top: 8px; } .preg summary { cursor: pointer; color: var(--muted); min-height: 32px; }
 .resp { display: grid; gap: 8px; margin-top: 8px; } .resp .btn { justify-self: start; }
 
+/* Phone: short label on the main button, smaller gauges. */
+#nuevo .pc { display: none; }
+.card > svg[role="img"] { max-width: 210px !important; }
 @media (min-width: 720px) {
   .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; margin-bottom: 14px; } .grid3 > .card { margin: 0; }
   .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
@@ -162,7 +165,9 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
   .side nav .cnt { font-size: .72rem; font-weight: 650; background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 0 7px; line-height: 1.6; }
   .side nav .soon { font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
   .side .me { margin-top: auto; padding: 12px 8px 0; border-top: 1px solid var(--rule); font-size: .82rem; color: var(--muted); }
-  .tabs, .sheet, .brand.mob { display: none; }
+  .tabs, .sheet, .brand.mob, #nuevo .tel { display: none; }
+  #nuevo .pc { display: inline; }
+  .card > svg[role="img"] { max-width: 240px !important; }
   .top { padding: 16px 28px; grid-template-columns: 1fr auto auto; gap: 16px; }
   .top .who { grid-column: auto; } .top #nuevo { grid-row: auto; grid-column: auto; }
   h1 { font-size: 1.35rem; }

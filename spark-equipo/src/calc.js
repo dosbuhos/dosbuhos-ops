@@ -330,7 +330,9 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   const zonaNombre = new Map(zonasCfg.zonas.map((z) => [z.zona, z.nombre]));
   const directorio = clientes.map((c) => {
     const notas = contactos.filter((r) => match(r.cuenta, c.cliente));            // newest first
-    const con = notas.find((r) => (r.contacto || '').trim()), tel = notas.find((r) => (r.telefono || '').trim());
+    // "NA", "por conseguir" and the like are the reps' way of leaving a field blank.
+    const real = (v) => { v = (v || '').trim(); return v && !/^(n\.?\/?a\.?|no|s\/?n|sin( dato| datos| info)?|por conseguir|pendiente|\?+|-+|x+)$/i.test(v); };
+    const con = notas.find((r) => real(r.contacto)), tel = notas.find((r) => real(r.telefono));
     const dato = tel ? tel.telefono.trim() : '', correo = (dato.match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [''])[0];
     return { clave: norm(c.cliente), nombre: c.cliente, pais: 'México', zona: zonaDe(c), zona_nombre: zonaNombre.get(zonaDe(c)) || '', vendedor: c.vendedor, tipo: (notas.find((r) => r.tipo) || {}).tipo || '',
       contacto: con ? con.contacto.trim() : '', telefono: correo ? dato.replace(correo, '').replace(/[\/|,;\s]+$/, '').trim() : dato, email: correo, ciudad: '', estado: '', puesto: '', notas: '',

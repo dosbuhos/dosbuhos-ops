@@ -224,7 +224,8 @@ const VISTAS = {
             'aria-label': `${p}, semana del ${dia(x)}: ${r.contactos} contactos, ${r.veredicto}`, onclick: () => set(x) }, r.contactos));
         }
       }
-      return h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana que se saltaron sin registrar nada; punteado: todavía no registran. Toca una semana para abrirla.'));
+      return h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana que se saltaron sin registrar nada; punteado: todavía no registran. Toca una semana para abrirla.'),
+        ps.includes('Carlos') ? h('p', { class: 'note', style: 'margin:4px 0 0' }, '¿Carlos, enero a septiembre? No hay registro de sus actividades antes de octubre: él confirmó que no lo llevaba.') : null);
     };
 
     if (esMes) {
@@ -258,7 +259,7 @@ const VISTAS = {
 
   // Questions Eric needs answered (what is inside "Público en general", whose account something is). Kept off the home screen.
   pendientes() {
-    return h('div', {}, h('h2', {}, 'Preguntas pendientes'), h('p', { class: 'note' }, 'Dudas sobre clientes y ventas que solo el vendedor puede aclarar. Lo que respondas aquí lo ve Eric.'), preguntas() || h('p', { class: 'note' }, 'No hay preguntas.'));
+    return h('div', {}, h('p', { class: 'note', style: 'margin-bottom:12px' }, 'Dudas sobre clientes y ventas que solo el vendedor puede aclarar. Lo que respondas aquí lo ve Eric.'), preguntas() || h('p', { class: 'note' }, 'No hay preguntas.'));
   },
 
   seguimiento() {
@@ -270,11 +271,10 @@ const VISTAS = {
     const est = (r) => (r.estado === 'al día' ? pill('Al día', 'ok') : r.estado === 'vencida' ? pill(`Vencida · ${r.dias_vencido} d`, 'bad') : r.estado === 'cerrada' ? pill('Cerrada', 'mute') : pill('Sin fecha', 'warn'));
     const dot = { verde: 'ok', amarillo: 'warn', rojo: 'bad', 'sin registro': 'bad' };
     return h('div', {},
-      h('h2', {}, 'Seguimiento por cuenta'),
       h('div', { class: 'toolbar' }, chips([['vencida', `Vencidas ${n('vencida')}`], ['al día', `Al día ${n('al día')}`], ['sin fecha', `Sin fecha ${n('sin fecha')}`], ['', 'Todas']], S.segFiltro, (v) => { S.segFiltro = v; }),
         ancho() ? null : h('select', { 'aria-label': 'Ordenar', onchange: (e) => { S.segOrden = e.target.value; pintar(); } },
         [['viejo', 'Más tiempo sin contacto'], ['reciente', 'Contacto más reciente'], ['proximo', 'Próximo contacto']].map(([v, t]) => h('option', { value: v, selected: S.segOrden === v }, t)))),
-      ancho() ? h('p', { class: 'note' }, 'Toca un encabezado para ordenar.') : null,
+
       h('div', { class: 'card' }, lista('seg', seg, 10, (r) => h('li', {},
         h('div', { class: 'l1' }, h('span', {}, r.cuenta), est(r)),
         h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, `Último contacto ${dia(r.ultimo_contacto)} (${r.dias_sin_contacto} días)`, r.proximo ? `próximo ${dia(r.proximo)}` : null].filter(Boolean).join(' · ')),
@@ -403,7 +403,7 @@ const VISTAS = {
     const pros = D.prospectos.filter((p) => (!S.zona || p.zona === S.zona) && (!S.clase || p.clase === S.clase || (S.clase === 'dist' && /distribu/i.test(p.tipo)) || (S.clase === 'tienda' && /retail|tienda/i.test(p.tipo))))
       .sort((a, b) => (ord.get(a.zona) - ord.get(b.zona)) || (kO[a.clase] - kO[b.clase]));
     return h('div', {},
-      h('h2', {}, cur ? cur.nombre : '¿Dónde tenemos presencia?'),
+      cur ? h('h2', {}, cur.nombre) : null,
       h('div', { class: 'mapwide' }, map),
       h('div', {},
       cur ? h('div', { class: 'card' }, h('div', { class: 'name' }, cur.nombre, pill(cur.estado, K[cur.estado])), h('p', {}, `${cur.peso}% del mercado y ${cur.pct_ventas}% de nuestras ventas: ${peso(cur.ventas)} este año con ${cur.clientes_activos} clientes activos. ` + (cur.brecha ? `Al ritmo de Caribe vendería ${peso(cur.potencial)}; la brecha es ${peso(cur.brecha)}.` : 'Va al ritmo de nuestras mejores zonas.')), h('p', { class: 'note' }, cur.distribuidores || 'Sin distribuidor')) : null,
