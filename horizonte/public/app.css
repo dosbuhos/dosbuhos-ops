@@ -150,6 +150,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .banner { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 13px; font-weight: 600; border: 0; text-align: left; width: 100%; }
 .banner span { flex: 1; }
 .banner.signin { background: var(--ink); color: var(--bg); }
+.banner.off { background: var(--seg); color: var(--ink-2); font-weight: 500; }
 
 /* ── desktop ───────────────────────────────────────────────── */
 .d { height: 100%; display: flex; flex-direction: column; }

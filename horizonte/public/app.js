@@ -515,7 +515,7 @@ function renderPanelList(board) {
   }
   let list = src === 'overdue' ? overdueTasks() : src === 'week' ? placedOn(isoWeek(todayK())).filter(isOpen) : src === 'month' ? placedOn(periodOf('month', todayK())).filter(isOpen) : inboxTasks();
   list = byTag(sortList(list, sort));
-  if (!list.length) return `<div class="empty">${S.ui.tagFilter ? 'Nothing with this tag.' : src === 'inbox' ? 'Inbox is empty.' : 'Nothing here.'}</div>`;
+  if (!list.length) return `<div class="empty">${S.ui.tagFilter ? 'Nothing here with this tag.' : src === 'inbox' ? 'Inbox is empty. Type above to add a task.' : src === 'overdue' ? 'Nothing overdue.' : `Nothing placed on this ${src} yet. Type above or drag a task here.`}</div>`;
   return stack(list, src === 'overdue');
 }
 function doneToggle(key, done) {
@@ -614,7 +614,8 @@ function signinBanner() {
 function renderMobile() {
   const tab = S.ui.mtab, n = inboxTasks().length;
   let main = tab === 'plan' ? mPlan() : tab === 'boards' ? mBoards() : tab === 'inbox' ? mInbox() : mToday();
-  const sb = signinBanner(); if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
+  const sb = signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : '');
+  if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
   const btn = (k, label, icon, badge) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''} ${badge ? `aria-label="${label}, ${badge}"` : ''}><span class="ti">${icon(tab === k ? 2.2 : 2)}${badge ? `<span class="badge">${badge > 99 ? '99+' : badge}</span>` : ''}</span>${label}</button>`;
   return `<div class="m">${main}
 <nav class="tabs" aria-label="Main">${btn('today', 'Today', I.today)}${btn('plan', 'Plan', I.plan)}<button class="cap" aria-label="Capture a task" data-act="capture">${I.plus(26, 2.5)}</button>${btn('boards', 'Boards', I.boards)}${btn('inbox', 'Inbox', I.inbox, n)}</nav></div>`;
@@ -626,7 +627,7 @@ function mToday() {
   let body = '';
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} unfinished from earlier days</span>Review</button>`;
   if (P.targets.length) body += `<div class="eyebrow">Targets · ${tgDone} of ${Math.max(P.targets.length, S.prefs.cap)}</div>` + P.targets.map(t => mcard(t, { meta: t.at && isOpen(t) ? clock(t.at) : '' })).join('');
-  if (P.meetings.length) body += `<div class="eyebrow ${P.targets.length ? 'gap' : ''}">Appointments</div>` + P.meetings.map(t => mcard(t)).join('');
+  if (P.meetings.length) body += `<div class="eyebrow ${P.targets.length ? 'gap' : ''}">Meetings</div>` + P.meetings.map(t => mcard(t)).join('');
   if (P.timed.length) body += `<div class="eyebrow ${P.targets.length || P.meetings.length ? 'gap' : ''}">Schedule</div>` + P.timed.map(t => mcard(t, { meta: clock(t.at) })).join('');
   if (P.rest.length) body += `<div class="eyebrow ${P.targets.length || P.timed.length || P.meetings.length ? 'gap' : ''}">${P.targets.length || P.timed.length || P.meetings.length ? "If there's time" : 'Today'}</div>` + P.rest.map(t => mcard(t)).join('');
   if (!P.all.length) body += `<div class="empty">Nothing planned today. Tap + to dump what's on your mind.</div>`;
@@ -675,7 +676,7 @@ function mBoards() {
       if (s) body += `<button class="sec eyebrow" data-act="toggle" data-key="${key}" aria-expanded="${!closed}">${esc(s)} · ${list.length} ${closed ? '▸' : '▾'}</button>`;
       if (!closed) body += capped('m' + b.id + s, list, t => mcard(t, { sched: !!t.when, meta: t.when ? whenText(t) : undefined }));
     }
-    if (!open.length) body += `<div class="empty">Nothing on this board yet.</div>`;
+    if (!open.length) body += `<div class="empty">Nothing on this board yet. Tap + to add a task.</div>`;
     if (done.length) body += mDoneToggle('b' + b.id, done);
     return `<header class="mh"><div class="r1"><button class="ib" aria-label="All boards" data-act="boardsback">${I.left.replace(/16/g, '20')}</button><h1 style="flex:1">${esc(b.name)}</h1>
 <button class="plain" aria-label="Edit board" data-act="editboard" data-bid="${b.id}">•••</button><button class="ib" aria-label="Add to ${esc(b.name)}" data-act="capture" data-board="${b.id}">${I.plus(20)}</button></div></header>
@@ -683,7 +684,7 @@ function mBoards() {
   }
   const rows = boardsSorted().map((x, i) => `<button class="rowlink" data-act="openboard" data-bid="${x.id}"><i class="bdot b${i % 4}"></i><span>${esc(x.name)}</span><span class="n">${boardTasks(x.id).filter(isOpen).length}</span>${I.chev}</button>`).join('');
   return `<header class="mh"><div class="r1"><h1>Boards</h1><button class="tb" data-act="newboard">New board</button></div></header>
-<main class="mm" style="gap:0">${rows}<button class="rowlink" data-act="settings" style="margin-top:24px;color:var(--ink-2)"><span>Settings</span><span class="n" data-sync></span></button></main>`;
+<main class="mm" style="gap:0">${rows || '<div class="empty">No boards yet. A board holds the tasks for one project or area.</div>'}<button class="rowlink" data-act="settings" style="margin-top:24px;color:var(--ink-2)"><span>Settings</span><span class="n" data-sync></span></button></main>`;
 }
 function mInbox() {
   const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
@@ -728,7 +729,7 @@ function taskSheet(id, view = 'main') {
   const where = (bd ? bd.name + (t.section ? ' · ' + t.section : '') : 'In Inbox') + ' · ' + (t.when ? whenText(t) : 'not scheduled');
   if (view === 'board') {
     const opts = [['', '', 'Inbox']].concat(boardsSorted().flatMap(b => [[b.id, '', b.name], ...(b.sections || []).map(s => [b.id, s, `${b.name} · ${s}`])]));
-    openSheet(`<div class="grab"></div><div style="font-size:20px;font-weight:700">Move to</div><div class="list-pick">${opts.map(([b, s, l]) => `<button data-act="setboard" data-b="${b}" data-s="${esc(s)}" aria-pressed="${(t.board || '') === b && (t.section || '') === s}"><span>${esc(l)}</span></button>`).join('')}</div>
+    openSheet(`<div class="grab"></div><div class="sheettitle">Move to</div><div class="list-pick">${opts.map(([b, s, l]) => `<button data-act="setboard" data-b="${b}" data-s="${esc(s)}" aria-pressed="${(t.board || '') === b && (t.section || '') === s}"><span>${esc(l)}</span></button>`).join('')}</div>
 <button class="bigbtn" data-act="sheetback">Back</button>`, { id, view });
     return;
   }
@@ -762,7 +763,7 @@ function sheetField(el) { // title and notes save on change
 }
 function captureSheet(dest = {}) {
   const label = dest.board ? S.boards.get(dest.board)?.name : dest.when ? periodLabel(dest.when, true) : 'Inbox';
-  openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:20px;font-weight:700">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one task per line · add @meeting 5pm for a meeting</div></div>
+  openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div class="sheettitle">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one task per line · add @meeting 5pm for a meeting</div></div>
 <textarea class="dump" id="dump" autofocus placeholder="What's on your mind?" enterkeyhint="enter"></textarea>
 <button class="bigbtn dark" data-act="savecapture">Add</button>`, { capture: dest });
 }
@@ -773,7 +774,7 @@ function reviewSheet() {
 <div style="font-size:13px;color:var(--ink-2)">Was on ${esc(periodLabel(t.when, true))}</div><div class="row">
 <button data-act="rv" data-k="${todayK()}">Today</button><button data-act="rv" data-k="${tm}">Tomorrow</button>
 <button>Pick a day<input class="overlay-input" type="date" data-act="rvpick" aria-label="Pick a day"></button>${(t.rolls || 0) >= 3 ? `<button data-act="rvdrop">Drop</button>` : `<button data-act="rv" data-k="">To list</button>`}</div></div>`;
-  openSheet(`<div class="grab"></div><div style="font-size:20px;font-weight:700">Review</div>
+  openSheet(`<div class="grab"></div><div class="sheettitle">Review</div>
 <div style="font-size:13px;color:var(--ink-2)">Nothing rolls over by itself. Decide each unfinished target; the rest go back to their lists.</div>
 ${targets.map(item).join('') || '<div class="empty">No unfinished targets.</div>'}
 ${others.length ? `<button class="bigbtn" data-act="rvrest">Return ${others.length} other task${others.length > 1 ? 's' : ''} to ${others.length > 1 ? 'their lists' : 'its list'}</button>` : ''}
@@ -782,7 +783,7 @@ ${others.length ? `<button class="bigbtn" data-act="rvrest">Return ${others.leng
 function pushTask(id, when) { const t = S.tasks.get(id); put('task', id, { when: when || null, at: '', rolls: (t.rolls || 0) + 1 }); }
 function boardSheet(id) {
   const b = id ? S.boards.get(id) : null;
-  openSheet(`<div class="grab"></div><div style="font-size:20px;font-weight:700">${b ? 'Edit board' : 'New board'}</div>
+  openSheet(`<div class="grab"></div><div class="sheettitle">${b ? 'Edit board' : 'New board'}</div>
 <div class="field"><label class="eyebrow" for="bname">Name</label><input id="bname" value="${esc(b?.name || '')}" autofocus autocomplete="off"></div>
 <div class="field"><label class="eyebrow" for="bsecs">Sections, one per line</label><textarea class="notes" id="bsecs" placeholder="e.g. Cellar&#10;Sales&#10;Events">${esc((b?.sections || []).join('\n'))}</textarea></div>
 <div class="foot">${b && b.id !== 'backlog' ? `<button class="link" style="font-size:14px;color:var(--now)" data-act="delboard" data-bid="${b.id}">Delete board</button>` : '<span></span>'}<button class="bigbtn dark" style="padding:0 20px" data-act="saveboard" data-bid="${b?.id || ''}">Save</button></div>`, { board: id });
@@ -790,7 +791,7 @@ function boardSheet(id) {
 function settingsSheet() {
   setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0);
   const s = syncState();
-  openSheet(`<div class="grab"></div><div style="font-size:20px;font-weight:700">Settings</div>
+  openSheet(`<div class="grab"></div><div class="sheettitle">Settings</div>
 <div class="grp"><div class="eyebrow">Account</div>
 ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? ' · ' + new Date(S.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</span></div><div class="row"><button class="bigbtn" style="flex:1" data-act="syncnow">Sync now</button><a class="bigbtn" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit" href="/auth/logout">Sign out</a></div>`
   : S.setup ? `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sign in to sync between phone and computer and load your boards.</div><div id="gsi" style="min-height:44px;display:flex;justify-content:center"></div><div id="gsimsg" class="muted" style="font-size:13px"></div>`
@@ -1221,7 +1222,7 @@ async function start() {
   try { const zone = Intl.DateTimeFormat().resolvedOptions().timeZone; if (zone && S.prefs.tz !== zone) put('pref', 'main', { tz: zone }, { quiet: true }); } catch {}
   render(); whoami();
   matchMedia('(min-width: 900px)').addEventListener('change', () => { closeSheet(); render(); });
-  addEventListener('online', () => { paintSync(); syncNow(); }); addEventListener('offline', paintSync);
+  addEventListener('online', () => { render(); syncNow(); }); addEventListener('offline', render);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!sheetState && !drag && !S.ui.draft) reflowTick(); if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
   setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) { reflowTick(); render(); } }, 60000);
   setInterval(syncNow, 60000);
