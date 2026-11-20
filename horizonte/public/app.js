@@ -97,6 +97,14 @@ function fmtDur(min) { min = Math.round(min || 0); const h = Math.floor(min / 60
 const toMin = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
 const fromMin = (n) => `${pad(Math.floor(n / 60) % 24)}:${pad(n % 60)}`;
 const clock = (t) => { const n = toMin(t), h = Math.floor(n / 60) % 24; return `${h % 12 || 12}:${pad(n % 60)}`; };
+// "9", "9am", "9:30", "930", "2 pm", "14:00" → "HH:MM"; null if it is not a time
+function parseTime(str) {
+  const m = String(str).trim().toLowerCase().match(/^(\d{1,2})(?::?(\d{2}))?\s*(a|p|am|pm)?$/); if (!m) return null;
+  let h = +m[1], mi = +(m[2] || 0); if (mi > 59) return null;
+  if (m[3]) { if (h < 1 || h > 12) return null; h = h % 12 + (m[3][0] === 'p' ? 12 : 0); } else if (h > 23) return null;
+  return `${pad(h)}:${pad(mi)}`;
+}
+function setStart(id, at) { const t = S.tasks.get(id); if (!t) return; put('task', id, { at, when: kindOf(t.when) === 'day' ? t.when : todayK() }); render(); taskSheet(id); }
 const clockAP = (t) => { const n = toMin(t), h = Math.floor(n / 60) % 24; return `${h % 12 || 12}:${pad(n % 60)} ${h < 12 ? 'AM' : 'PM'}`; };
 
 // ── data ──────────────────────────────────────────────────────
@@ -715,7 +723,7 @@ function mInbox() {
 let sheetState = null;
 // Sheets and the board detail screen are history entries, so the phone's back button/gesture closes them instead of leaving the app.
 let popping = false;
-const removeSheetDom = () => { $('.scrim')?.remove(); $('.sheet')?.remove(); sheetState = null; };
+const removeSheetDom = () => { $('.scrim')?.remove(); $('.sheet')?.remove(); $('.timelist')?.remove(); sheetState = null; };
 function closeSheet() { removeSheetDom(); if (history.state?.hz === 'sheet') { popping = true; history.back(); } }
 function openSheet(html, state) {
   if (sheetState?.id !== state?.id) { S.ui.tagAdding = false; S.ui.tagEdit = null; } // transient picker state belongs to one sheet
@@ -760,7 +768,9 @@ function taskSheet(id, view = 'main') {
 <div class="grp"><div class="eyebrow">When</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
-<button class="bigbtn" style="flex:1">${t.at ? `Starts ${clockAP(t.at)}` : 'Add a start time'}<input class="overlay-input" type="time" step="900" data-act="picktime" value="${t.at || ''}" aria-label="Start time"></button>
+${isDesk()
+  ? `<div class="timefield" style="flex:1"><input class="timein" type="text" inputmode="numeric" autocomplete="off" placeholder="Add a start time" value="${t.at ? clockAP(t.at) : ''}" aria-label="Start time, e.g. 2pm or 14:30" data-act="timein">${t.at ? `<button class="tclear" data-act="timeclear" aria-label="Remove start time">✕</button>` : ''}</div>`
+  : `<button class="bigbtn" style="flex:1">${t.at ? `Starts ${clockAP(t.at)}` : 'Add a start time'}<input class="overlay-input" type="time" step="900" data-act="picktime" value="${t.at || ''}" aria-label="Start time"></button>`}
 ${t.at ? `<button class="bigbtn" style="padding:0 12px" data-act="cleartime" aria-label="Remove time">✕</button>` : ''}
 ${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0 12px;display:flex;align-items:center;gap:6px" data-act="pin" aria-pressed="${!!t.pin}" title="Pinned tasks keep their time when the day reflows">${I.pin(16)}${t.pin ? 'Pinned' : 'Pin'}</button>` : ''}
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
@@ -929,6 +939,8 @@ document.addEventListener('click', async (e) => {
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
     case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
+    case 'timeclear': { const t = S.tasks.get(st.id); put('task', st.id, { at: '' }); render(); taskSheet(st.id); return; }
+    case 'timeslot': timeList(null); setStart(st.id, el.dataset.at); return;
     case 'theme': S.ui.theme = el.dataset.t; saveUI(); applyTheme(); settingsSheet(); return;
     case 'tagedit': S.ui.tagEdit = S.ui.tagEdit === el.dataset.t ? null : el.dataset.t; settingsSheet(); return;
     case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }
@@ -998,6 +1010,26 @@ function captureDest(d = {}) {
   if (isDesk()) { const s = S.ui.src; if (s.startsWith('b:')) return { board: s.slice(2) }; if (s === 'week') return { when: isoWeek(todayK()) }; if (s === 'month') return { when: periodOf('month', todayK()) }; }
   return {};
 }
+// Desktop start-time field: a typed value plus a popover of 15-minute slots around the workday.
+function timeList(inp) {
+  $('.timelist')?.remove(); if (!inp) return;
+  const pref = S.prefs || {}, from = Math.max(0, toMin(pref.dayStart || '07:00') - 120), to = Math.min(24 * 60, toMin(pref.dayEnd || '20:00') + 180);
+  const cur = sheetState?.id && S.tasks.get(sheetState.id)?.at, q = inp.value.trim(), typed = parseTime(q);
+  const r = inp.getBoundingClientRect(); let html = '';
+  for (let m = from; m < to; m += 15) { const at = `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; html += `<button data-act="timeslot" data-at="${at}" aria-pressed="${at === (typed || cur)}">${clockAP(at)}</button>`; }
+  document.body.insertAdjacentHTML('beforeend', `<div class="timelist" role="listbox" style="left:${r.left}px;top:${r.bottom + 4}px;width:${r.width}px">${html}</div>`);
+  const list = $('.timelist'); const sel = list.querySelector('[aria-pressed=true]');
+  if (sel) list.scrollTop = sel.offsetTop - 80;
+  else { // nothing chosen yet: open at the next quarter-hour today, or the start of the workday
+    const t = S.tasks.get(sheetState?.id), nowQ = Math.ceil(nowMin() / 15) * 15, start = t?.when === todayK() ? nowQ : toMin(pref.dayStart || '09:00');
+    const b = list.querySelector(`[data-at="${pad(Math.floor(start / 60))}:${pad(start % 60)}"]`); if (b) list.scrollTop = b.offsetTop - 4; }
+}
+document.addEventListener('focusin', (e) => { if (e.target.dataset?.act === 'timein') { e.target.select(); timeList(e.target); } });
+document.addEventListener('focusout', (e) => { if (e.target.dataset?.act === 'timein') setTimeout(() => { if (!document.activeElement?.closest?.('.timelist')) timeList(null); }, 120); });
+document.addEventListener('input', (e) => { if (e.target.dataset?.act === 'timein') { const at = parseTime(e.target.value); const b = $(`.timelist [data-at="${at}"]`); $$('.timelist [aria-pressed=true]').forEach(x => x.setAttribute('aria-pressed', 'false')); if (b) { b.setAttribute('aria-pressed', 'true'); b.scrollIntoView({ block: 'center' }); } } });
+document.addEventListener('keydown', (e) => { if (e.target.dataset?.act !== 'timein') return;
+  if (e.key === 'Enter') { e.preventDefault(); const at = parseTime(e.target.value); if (at) { timeList(null); setStart(sheetState.id, at); } else if (!e.target.value.trim()) { timeList(null); put('task', sheetState.id, { at: '' }); render(); taskSheet(sheetState.id); } else e.target.classList.add('bad'); }
+  if (e.key === 'Escape') { e.stopPropagation(); timeList(null); e.target.blur(); } });
 // Invisible date/time inputs laid over buttons: open the native picker on any click, not only on the browser's tiny icon.
 document.addEventListener('click', (e) => { const el = e.target; if (el.classList?.contains('overlay-input') && el.showPicker) { try { el.showPicker(); } catch {} } });
 document.addEventListener('change', (e) => {

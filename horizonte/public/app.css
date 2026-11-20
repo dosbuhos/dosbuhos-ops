@@ -150,6 +150,17 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .sheet textarea.dump { min-height: 180px; font-size: 16px; }
 .sheet .foot { display: flex; gap: 6px; justify-content: space-between; flex-wrap: wrap; }
 .overlay-input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; }
+.timefield { position: relative; display: flex; }
+.timein { width: 100%; min-height: 44px; padding: 0 36px 0 14px; border: 1px solid var(--line-3); border-radius: 10px; background: var(--card); color: var(--ink); font: inherit; font-weight: 600; }
+.timein::placeholder { font-weight: 500; color: var(--ink-2); }
+.timein:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+.timein.bad { outline-color: var(--now); }
+.tclear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 13px; }
+.tclear:hover { background: var(--hover); color: var(--ink); }
+.timelist { position: fixed; z-index: 70; max-height: 216px; overflow-y: auto; background: var(--card); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow-3); padding: 4px; display: flex; flex-direction: column; scrollbar-width: thin; }
+.timelist button { text-align: left; padding: 0 12px; min-height: 34px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.timelist button:hover { background: var(--hover); }
+.timelist button[aria-pressed=true] { background: var(--ink); color: var(--bg); font-weight: 600; }
 .list-pick { display: flex; flex-direction: column; gap: 6px; }
 .list-pick button { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--card); text-align: left; font-size: 15px; }
 .list-pick button[aria-pressed=true] { border-color: var(--ink); font-weight: 600; }
