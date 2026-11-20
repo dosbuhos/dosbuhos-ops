@@ -14,6 +14,8 @@ import { bibliotecaRoute } from './biblioteca.js';
 
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
+// <name>.dosbuhos.com → the app's slug under the Hub.
+const SHORT_HOSTS = { 'spark.dosbuhos.com': 'spark', 'growth.dosbuhos.com': 'growth' };
 const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads', 'club', 'c', 'biblioteca']);
 
 export default {
@@ -24,8 +26,11 @@ export default {
     ctx.waitUntil(syncWineclub(env).then(r => console.log('club wineclub sync', JSON.stringify(r))).catch(e => console.log('club wineclub sync failed', String(e && e.message || e))));
   },
   async fetch(request, env, ctx) {
-    env = await withHubSecret(env);   // SESSION_SECRET from the Secrets Store
     const url = new URL(request.url), p = url.pathname;
+    // Short addresses: spark.dosbuhos.com → apps.dosbuhos.com/spark/ (same sign-in, same app). Hosts are routes in wrangler.jsonc.
+    const short = SHORT_HOSTS[url.hostname];
+    if (short) return Response.redirect(`${env.PUBLIC_ORIGIN || 'https://apps.dosbuhos.com'}/${short}${p}${url.search}`, 302);
+    env = await withHubSecret(env);   // SESSION_SECRET from the Secrets Store
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     if (OPEN.test(p)) return assets(request, env, 'public, max-age=3600');
     // The shared theme: apps on other origins load it, so no sign-in and CORS *. See THEME.md.
