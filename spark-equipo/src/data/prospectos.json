@@ -1,0 +1,432 @@
+[
+ {
+  "zona": "noreste",
+  "nombre": "Vinoteca (Grupo Vinoteca)",
+  "tipo": "Retail / distribuidor",
+  "ciudades": "Monterrey (sede), Saltillo, Torreón, Querétaro, Culiacán, Cancún, Vallarta, Los Cabos",
+  "razon": "La cadena de vinaterías más grande del norte; una sola negociación abre 8 ciudades donde casi no vendemos.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.rappi.com.mx/tiendas/marca-vinoteca-liquor",
+  "claves": "vinoteca"
+ },
+ {
+  "zona": "noreste",
+  "nombre": "González Garza Distribuidora",
+  "tipo": "Distribuidor",
+  "ciudades": "Monterrey",
+  "razon": "Mayorista de vinos y licores nacionales e importados; candidato a distribuidor regional para HORECA.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.cosmos.com.mx/empresa/gonzalez-garza-distribuidora-dspz.html",
+  "claves": "gonzalez garza"
+ },
+ {
+  "zona": "noreste",
+  "nombre": "A&B Gourmet",
+  "tipo": "Distribuidor HORECA",
+  "ciudades": "CDMX, Guadalajara, Monterrey",
+  "razon": "Importador y distribuidor para hoteles y restaurantes con sucursal en Monterrey y Guadalajara.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://dirind.com/dag/vinos-licores1.html",
+  "claves": "a&b gourmet|ab gourmet"
+ },
+ {
+  "zona": "noreste",
+  "nombre": "HEB",
+  "tipo": "Autoservicio",
+  "ciudades": "Monterrey y el Noreste (también Bajío y CDMX)",
+  "razon": "Supermercado más fuerte del Noreste en vino; Carlos ya lo tiene en seguimiento sin respuesta.",
+  "estado": "En CRM: reintentar",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "heb"
+ },
+ {
+  "zona": "noreste",
+  "nombre": "Sonora Grill Group (Holsteins, Sonora Prime)",
+  "tipo": "Cadena de restaurantes",
+  "ciudades": "San Pedro / Monterrey, CDMX, Guadalajara, Querétaro, Cancún, Mérida y más",
+  "razon": "Steakhouses premium en 12+ ciudades; carta de vino centralizada.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.excelsior.com.mx/trending/sonora-grill-restaurante-comenzo-con-5-mesas-su-historia/1530651",
+  "claves": "sonora grill|holsteins"
+ },
+ {
+  "zona": "noreste",
+  "nombre": "Pangea (San Pedro Garza García)",
+  "tipo": "Restaurante insignia",
+  "ciudades": "San Pedro Garza García",
+  "razon": "Referente de la alta cocina regia; vitrina para entrar a Monterrey.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.enprimeurclub.com/restaurants/rosanegra-cancun-restaurant",
+  "claves": "pangea"
+ },
+ {
+  "zona": "noreste",
+  "nombre": "Vinpar Monterrey",
+  "tipo": "Cliente actual",
+  "ciudades": "Monterrey",
+  "razon": "Compró para una boda; convertirlo en cliente recurrente o en contacto para distribuidor.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "vinpar"
+ },
+ {
+  "zona": "occidente",
+  "nombre": "La Contra Guadalajara",
+  "tipo": "Tienda especializada",
+  "ciudades": "Guadalajara (también CDMX y Ensenada)",
+  "razon": "La tienda más grande de Guadalajara y solo vende vino mexicano (≈300 etiquetas).",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www-lonelyplanet-com-57e2.imagizer.com/mexico/western-central-highlands/guadalajara/shopping/la-contra/a/poi-sho/1584704/361671",
+  "claves": "la contra"
+ },
+ {
+  "zona": "occidente",
+  "nombre": "Vinos América",
+  "tipo": "Cadena de vinaterías",
+  "ciudades": "Guadalajara (Andares, Terranova y más)",
+  "razon": "Vinatería local con varias tiendas en las zonas de mayor ingreso de Guadalajara.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.ubereats.com/mx-en/category/guadalajara-ja/wine?page=2",
+  "claves": "vinos america"
+ },
+ {
+  "zona": "occidente",
+  "nombre": "Alcalde",
+  "tipo": "Restaurante insignia",
+  "ciudades": "Guadalajara",
+  "razon": "#15 de Latin America 50 Best 2025; una carta de prestigio en la zona.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.chilango.com/comida-y-tragos/restaurantes/mejores-restaurantes-de-cdmx-50-best-latin-americas-lista-completa-2025/",
+  "claves": "alcalde"
+ },
+ {
+  "zona": "occidente",
+  "nombre": "Grupo Gastronómico Argentilia",
+  "tipo": "Grupo restaurantero",
+  "ciudades": "CDMX, Querétaro, Edomex, Guadalajara, Guanajuato, Nayarit",
+  "razon": "Grupo multi-marca con presencia en Bajío y Occidente.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://expansion.mx/empresas/2025/06/30/pasion-por-el-buen-gusto-argentilia",
+  "claves": "argentilia"
+ },
+ {
+  "zona": "occidente",
+  "nombre": "Viña del Puerto",
+  "tipo": "Cliente actual",
+  "ciudades": "Guadalajara / Vallarta",
+  "razon": "Bajó 72% contra 2025; recuperar con plan de rotación.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "vina del puerto"
+ },
+ {
+  "zona": "occidente",
+  "nombre": "Vinos PVR",
+  "tipo": "Cliente actual",
+  "ciudades": "Puerto Vallarta",
+  "razon": "Pidió contacto en 3 semanas (19 oct); seguimiento vencido.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "pvr"
+ },
+ {
+  "zona": "noroeste",
+  "nombre": "Casa Ley",
+  "tipo": "Autoservicio",
+  "ciudades": "Sinaloa, Sonora, Baja California y más del Pacífico norte",
+  "razon": "Cadena regional de autoservicio listada por ICEX entre los canales del vino.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "casa ley"
+ },
+ {
+  "zona": "noroeste",
+  "nombre": "Vinoteca Culiacán y Los Cabos",
+  "tipo": "Retail",
+  "ciudades": "Culiacán",
+  "razon": "Misma negociación que Vinoteca Monterrey.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.rappi.com.mx/tiendas/marca-vinoteca-liquor",
+  "claves": "vinoteca"
+ },
+ {
+  "zona": "noroeste",
+  "nombre": "Sonora Grill Group (Culiacán, Hermosillo)",
+  "tipo": "Cadena de restaurantes",
+  "ciudades": "Culiacán, Hermosillo",
+  "razon": "El grupo anunció Sonora Prime y Cuervo en Culiacán y Hermosillo.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://expansion.mx/empresas/2022/05/05/sonora-grill-abrira-14-restaurantes-en-2022",
+  "claves": "sonora grill"
+ },
+ {
+  "zona": "noroeste",
+  "nombre": "Wine House",
+  "tipo": "Cliente perdido",
+  "ciudades": "Ciudad Juárez",
+  "razon": "MX$52,871 en 2025 y nada en 2026; cobranza pendiente sin respuesta.",
+  "estado": "Reactivar",
+  "fuente": "",
+  "claves": "wine house"
+ },
+ {
+  "zona": "noroeste",
+  "nombre": "G Salinas",
+  "tipo": "Cliente perdido",
+  "ciudades": "Sinaloa",
+  "razon": "MX$29,891 en 2025 y nada en 2026.",
+  "estado": "Reactivar",
+  "fuente": "",
+  "claves": "g salinas"
+ },
+ {
+  "zona": "golfo",
+  "nombre": "Chedraui / Chedraui Selecto",
+  "tipo": "Autoservicio",
+  "ciudades": "Veracruz (origen), Sureste y CDMX",
+  "razon": "Cadena nacida en Veracruz; su formato Selecto vende vino premium.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "chedraui"
+ },
+ {
+  "zona": "golfo",
+  "nombre": "Sonora Grill Group Veracruz",
+  "tipo": "Cadena de restaurantes",
+  "ciudades": "Veracruz / Boca del Río",
+  "razon": "Mismo grupo que en otras zonas; entrada vía acuerdo corporativo.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.excelsior.com.mx/trending/sonora-grill-restaurante-comenzo-con-5-mesas-su-historia/1530651",
+  "claves": "sonora grill"
+ },
+ {
+  "zona": "golfo",
+  "nombre": "Broker Puebla–Veracruz (Teodoro Cortez)",
+  "tipo": "Bróker / distribución",
+  "ciudades": "Puebla, Veracruz",
+  "razon": "Carlos ya tuvo el primer acercamiento (23 oct); falta propuesta.",
+  "estado": "En CRM: dar seguimiento",
+  "fuente": "",
+  "claves": "broker puebla|teodoro"
+ },
+ {
+  "zona": "caribe",
+  "nombre": "Grupo RosaNegra (RosaNegra, Chambao, Taboo, Parole)",
+  "tipo": "Grupo restaurantero",
+  "ciudades": "Cancún, Tulum, Los Cabos, CDMX",
+  "razon": "Grupo de alto ticket en los destinos de playa; una carta en varias marcas.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://restaurant-hospitality.com/new-restaurants/rosanegra-opens-in-miami-with-a-latin-american-menu-and-a-speakeasy-bar",
+  "claves": "rosanegra|rosa negra|chambao"
+ },
+ {
+  "zona": "caribe",
+  "nombre": "Huniik",
+  "tipo": "Restaurante insignia",
+  "ciudades": "Mérida",
+  "razon": "#32 de Latin America 50 Best 2025.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.chilango.com/comida-y-tragos/restaurantes/mejores-restaurantes-de-cdmx-50-best-latin-americas-lista-completa-2025/",
+  "claves": "huniik"
+ },
+ {
+  "zona": "caribe",
+  "nombre": "ECM Vinos Cancún",
+  "tipo": "Distribuidor",
+  "ciudades": "Cancún",
+  "razon": "Rechazó Efímero (16 oct); volver con la línea principal.",
+  "estado": "En CRM: reintentar",
+  "fuente": "",
+  "claves": "ecm"
+ },
+ {
+  "zona": "caribe",
+  "nombre": "Vinoteca Cancún",
+  "tipo": "Retail",
+  "ciudades": "Cancún",
+  "razon": "Misma negociación que Vinoteca Monterrey.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.rappi.com.mx/tiendas/marca-vinoteca-liquor",
+  "claves": "vinoteca"
+ },
+ {
+  "zona": "cabos",
+  "nombre": "Grupo RosaNegra Los Cabos",
+  "tipo": "Grupo restaurantero",
+  "ciudades": "Los Cabos",
+  "razon": "Mismo acuerdo que en Cancún y Tulum.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://restaurant-hospitality.com/new-restaurants/rosanegra-opens-in-miami-with-a-latin-american-menu-and-a-speakeasy-bar",
+  "claves": "rosanegra|chambao"
+ },
+ {
+  "zona": "cabos",
+  "nombre": "Acre · El Huerto",
+  "tipo": "Restaurantes",
+  "ciudades": "Los Cabos",
+  "razon": "En el Top 50 OpenTable 2025 para Baja California Sur.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.publimetro.com.mx/plus/2025/11/25/los-mejores-50-restaurantes-de-mexico-segun-opentable-y-sus-comensales/",
+  "claves": "acre|el huerto"
+ },
+ {
+  "zona": "pacsur",
+  "nombre": "Levadura de Olla",
+  "tipo": "Restaurante insignia",
+  "ciudades": "Oaxaca",
+  "razon": "De los restaurantes de Oaxaca con más atención de la crítica.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.enprimeurclub.com/restaurants/rosanegra-cancun-restaurant",
+  "claves": "levadura"
+ },
+ {
+  "zona": "pacsur",
+  "nombre": "Cuarto de Vinos",
+  "tipo": "Cliente actual",
+  "ciudades": "Oaxaca",
+  "razon": "Cliente nuevo 2026 (MX$68,980); pedir referidos en Oaxaca.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "cuarto de vinos"
+ },
+ {
+  "zona": "pacsur",
+  "nombre": "Wine Team",
+  "tipo": "Cliente actual",
+  "ciudades": "Ixtapa",
+  "razon": "Bajó 58% contra 2025; cobranza sin respuesta.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "wine team"
+ },
+ {
+  "zona": "centro",
+  "nombre": "La Contra CDMX",
+  "tipo": "Tienda especializada",
+  "ciudades": "CDMX (Roma, Coyoacán)",
+  "razon": "Tienda insignia de vino mexicano en CDMX.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.chilango.com/tragos/donde-comprar-vinos-baratos-en-cdmx/",
+  "claves": "la contra"
+ },
+ {
+  "zona": "centro",
+  "nombre": "La Europea",
+  "tipo": "Retail especializado",
+  "ciudades": "Nacional",
+  "razon": "Cadena de vinaterías más grande del país (ICEX).",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "europea"
+ },
+ {
+  "zona": "centro",
+  "nombre": "La Naval · Prissa · Consuvino · La Castellana",
+  "tipo": "Distribuidores / tiendas",
+  "ciudades": "CDMX y nacional",
+  "razon": "Los distribuidores y tiendas especializadas que ICEX nombra como principales.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "naval|prissa|consuvino|castellana"
+ },
+ {
+  "zona": "centro",
+  "nombre": "City Market / La Comer",
+  "tipo": "Autoservicio premium",
+  "ciudades": "CDMX y principales ciudades",
+  "razon": "Formato premium con área de vinos (ICEX).",
+  "estado": "En CRM: reintentar",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "city market|la comer"
+ },
+ {
+  "zona": "centro",
+  "nombre": "Palacio de Hierro · Liverpool",
+  "tipo": "Tiendas departamentales",
+  "ciudades": "Nacional",
+  "razon": "Departamentales con sección de vino mexicano (ICEX).",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.icex.es/content/dam/icex/centros/mexico/documentos/2024/estudio-mercado-vino-mexico-2024-resumen.pdf",
+  "claves": "palacio|liverpool"
+ },
+ {
+  "zona": "centro",
+  "nombre": "Comercializadora de Vinos Alianza",
+  "tipo": "Distribuidor / tiendas",
+  "ciudades": "CDMX y Edomex",
+  "razon": "Varias sucursales en la zona metropolitana.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.seccionamarilla.com.mx/resultados/vinos-y-licores-la-bodega/27",
+  "claves": "alianza"
+ },
+ {
+  "zona": "centro",
+  "nombre": "Quintonil",
+  "tipo": "Restaurante insignia",
+  "ciudades": "CDMX",
+  "razon": "#7 de Latin America 50 Best 2025; visita con Vivid en planes.",
+  "estado": "En CRM: dar seguimiento",
+  "fuente": "https://vanguardia.com.mx/vida/gastronomia-mexicana-en-la-cima-ocho-restaurantes-entre-los-mejores-de-latinoamerica-en-2025-PO18435569",
+  "claves": "quintonil"
+ },
+ {
+  "zona": "centro",
+  "nombre": "Sonora Grill Group CDMX",
+  "tipo": "Cadena de restaurantes",
+  "ciudades": "CDMX (más de 15 unidades)",
+  "razon": "La mayor concentración de unidades del grupo.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.excelsior.com.mx/trending/sonora-grill-restaurante-comenzo-con-5-mesas-su-historia/1530651",
+  "claves": "sonora grill"
+ },
+ {
+  "zona": "bajio",
+  "nombre": "Vinoteca Querétaro",
+  "tipo": "Retail",
+  "ciudades": "Querétaro",
+  "razon": "Misma negociación que Vinoteca Monterrey.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://www.rappi.com.mx/tiendas/marca-vinoteca-liquor",
+  "claves": "vinoteca"
+ },
+ {
+  "zona": "bajio",
+  "nombre": "Sonora Grill Group (Querétaro, Irapuato, Parrilla Urbana)",
+  "tipo": "Cadena de restaurantes",
+  "ciudades": "Querétaro, Irapuato, León, San Miguel",
+  "razon": "Parrilla Urbana anunció León y San Miguel.",
+  "estado": "Prospecto nuevo",
+  "fuente": "https://expansion.mx/empresas/2022/05/05/sonora-grill-abrira-14-restaurantes-en-2022",
+  "claves": "sonora grill|parrilla urbana"
+ },
+ {
+  "zona": "bajio",
+  "nombre": "SATO · Tostévere",
+  "tipo": "Restaurantes",
+  "ciudades": "Guanajuato",
+  "razon": "Top 50 OpenTable 2025; Tostévere ya es cliente.",
+  "estado": "Cliente: ampliar",
+  "fuente": "https://www.prnewswire.com/mx/comunicados-de-prensa/opentable-revela-el-top-50-restaurantes-de-2025-en-mexico-y-las-tendencias-gastronomicas-que-marcaran-la-agenda-de-2026-302620653.html",
+  "claves": "sato|tostevere"
+ },
+ {
+  "zona": "bajio",
+  "nombre": "Grupo Posadas (Live Aqua)",
+  "tipo": "Cadena hotelera",
+  "ciudades": "Nacional",
+  "razon": "Live Aqua San Miguel ya compra (+334%); llevarlo a nivel corporativo.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "live aqua|posadas"
+ },
+ {
+  "zona": "caribe",
+  "nombre": "Rosewood (Mayakoba, Las Ventanas, San Miguel)",
+  "tipo": "Cadena hotelera",
+  "ciudades": "Riviera Maya, Los Cabos, San Miguel",
+  "razon": "Tres hoteles ya compran por separado; negociar a nivel grupo.",
+  "estado": "Cliente: ampliar",
+  "fuente": "",
+  "claves": "rosewood|ventanas"
+ }
+]

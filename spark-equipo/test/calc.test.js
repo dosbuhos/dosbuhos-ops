@@ -1,0 +1,82 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { build, paraVer, lunes, matcher, vendedorDe, esContacto, clientesPorAno } from '../src/calc.js';
+import { rowsFromValues } from '../src/sheets.js';
+import zonasCfg from '../src/data/zonas.json' with { type: 'json' };
+import prospectos from '../src/data/prospectos.json' with { type: 'json' };
+
+const hoy = '2026-11-20'; // a Friday
+const a = (persona, fecha, cuenta, extra = {}) => ({ persona, fecha, cuenta, actividad: 'Seguimiento', medio: 'Presencial', tipo: '', resultado: '', siguiente_paso: '', proximo: '', etapa: '', ...extra });
+const inv = (id, fecha, cliente, vendedor, total) => ({ id, fecha, cliente_id: cliente, cliente, vendedor, total, estado: 'paid' });
+const base = (over = {}) => build({ activity: [], orders: [], invoices: [], alias: [], zonasCfg, prospectos, hoy, ...over });
+
+test('helpers', () => {
+  assert.equal(lunes('2026-11-20'), '2026-11-16');
+  assert.equal(lunes('2026-11-16'), '2026-11-16');
+  assert.equal(vendedorDe('José Luis Pérez '), 'José Luis');
+  assert.equal(vendedorDe('Carlos Tapia'), 'Carlos');
+  assert.equal(vendedorDe('Diane'), null);
+  assert.equal(esContacto({ actividad: 'Junta interna' }), false);
+  assert.equal(esContacto({ actividad: 'Prospección', cuenta: 'atrio' }), true);
+});
+
+test('alias table links a CRM name to the Zoho client', () => {
+  const m = matcher([{ cliente: 'Tessera Capital SA de CV', claves: 'numu' }]);
+  assert.equal(m('Numu', 'Tessera Capital SA de CV'), true);
+  assert.equal(m('atrio', 'Tessera Capital SA de CV'), false);
+  assert.equal(m('', 'Tessera Capital SA de CV'), false);
+});
+
+test('week verdicts: zero, weak, halfway, productive, and no data before the first row', () => {
+  const act = [];
+  for (let i = 0; i < 30; i++) act.push(a('José Luis', '2026-11-03', 'c' + i));  // week of Nov 2: 30
+  for (let i = 0; i < 15; i++) act.push(a('José Luis', '2026-10-27', 'c' + i));  // week of Oct 26: 15
+  act.push(a('José Luis', '2026-10-13', 'x'));                                    // week of Oct 12: 1; Oct 19 and Nov 9: 0
+  act.push(a('Carlos', '2026-11-10', 'y'));
+  const m = base({ activity: act });
+  const v = (w, p) => m.semanas.find((r) => r.semana === w && r.persona === p).veredicto;
+  assert.equal(v('2026-11-02', 'José Luis'), 'Productiva');
+  assert.equal(v('2026-10-26', 'José Luis'), 'A medias');
+  assert.equal(v('2026-10-12', 'José Luis'), 'Floja');
+  assert.equal(v('2026-10-19', 'José Luis'), 'En cero');
+  assert.equal(v('2026-10-19', 'Carlos'), 'Sin datos');
+  const cur = m.semanas.find((r) => r.semana === '2026-11-16' && r.persona === 'José Luis');
+  assert.equal(cur.meta, 30); assert.equal(cur.en_curso, true);
+  assert.equal(base({ hoy: '2026-11-17' }).semanas.find((r) => r.persona === 'Carlos').meta, 12); // Tuesday: 2 working days
+});
+
+test('follow-up states', () => {
+  const m = base({ activity: [a('Carlos', '2026-11-01', 'Uno', { proximo: '2026-11-10' }), a('Carlos', '2026-11-18', 'Dos', { proximo: '2026-11-30' }),
+    a('Carlos', '2026-11-05', 'Tres'), a('Carlos', '2026-11-06', 'Cuatro', { siguiente_paso: 'Cerrado - no interesa' })] });
+  const e = Object.fromEntries(m.seguimiento.map((r) => [r.cuenta, r]));
+  assert.equal(e.Uno.estado, 'vencida'); assert.equal(e.Uno.dias_vencido, 10);
+  assert.equal(e.Dos.estado, 'al día'); assert.equal(e.Tres.estado, 'sin fecha'); assert.equal(e.Cuatro.estado, 'cerrada');
+});
+
+test('year over year compares against the same date last year', () => {
+  const c = clientesPorAno([inv('1', '2025-03-01', 'A', 'Carlos Tapia', 100), inv('2', '2025-12-15', 'A', 'Carlos Tapia', 500), inv('3', '2026-02-01', 'A', 'Carlos Tapia', 150),
+    { ...inv('4', '2026-02-02', 'A', 'Carlos Tapia', 999), estado: 'void' }], hoy)[0];
+  assert.deepEqual([c.pasado, c.pasado_mp, c.actual, c.cambio_pct], [600, 100, 150, 50]);
+});
+
+test('a rep sees only their own rows and never Efectividad', () => {
+  const m = base({ activity: [a('Carlos', '2026-11-10', 'y'), a('José Luis', '2026-11-10', 'z')], invoices: [inv('1', '2026-02-01', 'A', 'Carlos Tapia', 150), inv('2', '2026-02-01', 'B', 'José Luis P', 150)] });
+  const v = paraVer(m, { admin: false, persona: 'Carlos' });
+  assert.ok(v.semanas.length && v.semanas.every((r) => r.persona === 'Carlos'));
+  assert.ok(v.contactos.every((r) => r.persona === 'Carlos') && v.clientes.every((r) => r.vendedor === 'Carlos') && v.foco.every((r) => r.persona === 'Carlos'));
+  assert.deepEqual(v.efectividad, []);
+  assert.equal(paraVer(m, { admin: true }).efectividad.length, 3);
+});
+
+test('zones and prospects come out complete', () => {
+  const m = base();
+  assert.equal(m.zonas.length, 9);
+  assert.equal(m.prospectos.length, prospectos.length);
+  assert.ok(m.prospectos.every((p) => ['dist', 'tienda', 'horeca', 'cliente'].includes(p.clase)));
+  assert.ok(m.prospectos.some((p) => p.clase === 'dist'));
+});
+
+test('sheet rows: header and undated rows are dropped', () => {
+  const rows = rowsFromValues('Carlos', [['Fecha', 'Zona', 'Cuenta'], ['2026-09-07', 'SMA', ' atrio '], ['', '', 'sin fecha'], ['7/9/2026', 'SMA', 'mal']]);
+  assert.equal(rows.length, 1); assert.equal(rows[0].cuenta, 'atrio'); assert.equal(rows[0].persona, 'Carlos'); assert.equal(rows[0].pedido, '');
+});

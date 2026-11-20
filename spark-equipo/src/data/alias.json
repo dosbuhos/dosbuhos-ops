@@ -1,0 +1,157 @@
+[
+ {
+  "cliente": "Jorge Alberto Sautto Olivares",
+  "claves": "cava sautto",
+  "nota": "Cava Sautto"
+ },
+ {
+  "cliente": "ANTONIO ARANDA LAVALLE",
+  "claves": "antonio aranda",
+  "nota": ""
+ },
+ {
+  "cliente": "Live Aqua",
+  "claves": "live aqua",
+  "nota": ""
+ },
+ {
+  "cliente": "SILVIA MARIA BLUME DEL RIO",
+  "claves": "blume|femsa",
+  "nota": "Pedidos Femsa / Coca-Cola"
+ },
+ {
+  "cliente": "El Chaneque Co",
+  "claves": "chaneque",
+  "nota": ""
+ },
+ {
+  "cliente": "Bistro Lounge",
+  "claves": "bistro loungue|bistro lounge",
+  "nota": ""
+ },
+ {
+  "cliente": "HOTEL REAL DE MINAS DE SAN MIGUEL ALLENDE",
+  "claves": "real de minas",
+  "nota": ""
+ },
+ {
+  "cliente": "Pueblo Bonito",
+  "claves": "pueblo bonito",
+  "nota": ""
+ },
+ {
+  "cliente": "Local",
+  "claves": "local",
+  "nota": ""
+ },
+ {
+  "cliente": "Jordi Casas Guzmán",
+  "claves": "asador catalan",
+  "nota": "Asador Catalán"
+ },
+ {
+  "cliente": "Culinaria Selina San Miguel",
+  "claves": "selina",
+  "nota": ""
+ },
+ {
+  "cliente": "Disruptivo Vinos Y Espíritus",
+  "claves": "disruptivo",
+  "nota": ""
+ },
+ {
+  "cliente": "Aperi",
+  "claves": "aperi|apperi",
+  "nota": ""
+ },
+ {
+  "cliente": "Rafael De Jesus Solano Avilés",
+  "claves": "reserva de guanajuato",
+  "nota": "La Reserva de Guanajuato"
+ },
+ {
+  "cliente": "Cielo Rooftop",
+  "claves": "cielo",
+  "nota": ""
+ },
+ {
+  "cliente": "Amapola",
+  "claves": "amapola",
+  "nota": ""
+ },
+ {
+  "cliente": "Hanks",
+  "claves": "hanks",
+  "nota": ""
+ },
+ {
+  "cliente": "Filigrana",
+  "claves": "filigrana",
+  "nota": ""
+ },
+ {
+  "cliente": "Jacqueline Malpica Sarabia",
+  "claves": "numu",
+  "nota": "Probable: Numu (contacto Jacqueline). Confirmar"
+ },
+ {
+  "cliente": "ROSEWOOD MAYAKOBA",
+  "claves": "rosewood",
+  "nota": "Solo aparece en notas de entregas"
+ },
+ {
+  "cliente": "AGAVE DESTILADOS",
+  "claves": "agave",
+  "nota": "Solo aparece en notas de entregas"
+ },
+ {
+  "cliente": "Miguel Angel Quiroz Arroyo",
+  "claves": "wine team|miguel quiroz",
+  "nota": "Wine Team"
+ },
+ {
+  "cliente": "LIZA STIKER",
+  "claves": "acuyo|liza stiker|lisa sticker",
+  "nota": "Acuyo"
+ },
+ {
+  "cliente": "Ventanas al Paraiso",
+  "claves": "ventanas al paraiso|rosewood",
+  "nota": "Ventanas al Paraíso (Rosewood)"
+ },
+ {
+  "cliente": "Grandes Viñedos de Francia",
+  "claves": "grandes vinedos de francia|gvf",
+  "nota": "GVF"
+ },
+ {
+  "cliente": "VIÑA DEL MAR CANCÚN",
+  "claves": "vina del mar",
+  "nota": "Viña del Mar Cancún"
+ },
+ {
+  "cliente": "VIÑA DEL PUERTO",
+  "claves": "vina del puerto",
+  "nota": "Viña del Puerto"
+ },
+ {
+  "cliente": "Vivid Distribución",
+  "claves": "vivid distribucion|vivid",
+  "nota": "Vivid"
+ },
+ {
+  "cliente": "VINPAR",
+  "claves": "vinpar",
+  "nota": "Vinpar"
+ },
+ {
+  "cliente": "G SALINAS",
+  "claves": "g salinas|gisela salinas",
+  "nota": "G Salinas"
+ },
+ {
+  "cliente": "Cuarto de vinos",
+  "claves": "cuarto de vinos",
+  "nota": "Cuarto de Vinos"
+ }
+]
