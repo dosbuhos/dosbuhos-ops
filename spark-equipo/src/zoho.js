@@ -56,10 +56,14 @@ export async function syncZoho(env) {
     save: (o) => env.DB.prepare(`INSERT INTO orders (id, numero, fecha, cliente_id, cliente, vendedor, total, estado, facturacion, pago) VALUES (?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET numero=excluded.numero, fecha=excluded.fecha, cliente=excluded.cliente, vendedor=excluded.vendedor, total=excluded.total, estado=excluded.estado, facturacion=excluded.facturacion, pago=excluded.pago`)
       .bind(String(o.salesorder_id), o.salesorder_number, o.date, String(o.customer_id), o.customer_name, (o.salesperson_name || '').trim(), Number(o.total), o.status, o.invoiced_status, o.paid_status) });
-  const invoices = await walk(env, token, { path: '/invoices', key: 'invoices', cursor: 'inv_page', perRun: 10, fresh: 2,
+  // The Muestras Worker's Zoho token may not be allowed to read invoices. Then the app counts invoiced sales orders
+  // instead (worker.js) and says so in Ajustes.
+  let invoices = 0, aviso = '';
+  try { invoices = await walk(env, token, { path: '/invoices', key: 'invoices', cursor: 'inv_page', perRun: 10, fresh: 2,
     save: (x) => env.DB.prepare(`INSERT INTO invoices (id, fecha, cliente_id, cliente, vendedor, total, estado) VALUES (?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET fecha=excluded.fecha, cliente=excluded.cliente, vendedor=excluded.vendedor, total=excluded.total, estado=excluded.estado`)
       .bind(String(x.invoice_id), x.date, String(x.customer_id), x.customer_name, (x.salesperson_name || '').trim(), Number(x.total), x.status) });
-  const pending = (await getMeta(env, 'so_page')) !== '0' || (await getMeta(env, 'inv_page')) !== '0';
-  return { orders, invoices, pending };
+  } catch (e) { aviso = 'Sin acceso a facturas en Zoho (' + String(e.message || e) + '): se usan las órdenes facturadas.'; }
+  const pending = (await getMeta(env, 'so_page')) !== '0' || (!aviso && (await getMeta(env, 'inv_page')) !== '0');
+  return { orders, invoices, pending, ...(aviso ? { aviso } : {}) };
 }

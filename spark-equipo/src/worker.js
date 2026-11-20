@@ -28,7 +28,10 @@ async function modelo(env) {
   const all = (sql) => env.DB.prepare(sql).all().then((r) => r.results);
   const [activity, orders, invoices, alias] = await Promise.all([
     all('SELECT * FROM activity'), all('SELECT * FROM orders'), all('SELECT * FROM invoices'), all('SELECT * FROM alias')]);
-  return build({ activity, orders, invoices, alias, zonasCfg, prospectos, hoy: hoyEn(env.TZ) });
+  // No invoice copy (the Zoho token can't read invoices): an invoiced sales order stands in for its invoice, dated as the order.
+  const inv = invoices.length ? invoices : orders.filter((o) => ['invoiced', 'partially_invoiced'].includes(o.facturacion))
+    .map((o) => ({ id: o.id, fecha: o.fecha, cliente_id: o.cliente_id, cliente: o.cliente, vendedor: o.vendedor, total: o.total, estado: o.estado }));
+  return build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, hoy: hoyEn(env.TZ) });
 }
 
 async function sync(env, what) {
