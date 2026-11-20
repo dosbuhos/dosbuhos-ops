@@ -7,6 +7,8 @@
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/auth/*"] },
   // Copies of the CRM sheet and of Zoho orders and invoices, the Zoho ↔ CRM name table and who is who.
   "d1_databases": [{ "binding": "DB", "database_name": "spark-equipo", "database_id": "4b2b0c5a-265d-4971-afdf-6470dadd7bc7", "migrations_dir": "migrations" }],
+  // Zoho through the Muestras Worker (zoho-inventory/, Worker dosbuhos-ops): it holds the Zoho secrets and exposes read-only lists.
+  "services": [{ "binding": "ZOHO", "service": "dosbuhos-ops", "entrypoint": "ZohoRead" }],
   // UTC. 12:00 = 6:00 in San Miguel (sheet + Zoho); 18:00 and 00:00 = noon and 6 pm (Zoho only).
   "triggers": { "crons": ["0 12 * * *", "0 18 * * *", "0 0 * * *"] },
   "vars": {
@@ -14,15 +16,11 @@
     "TZ": "America/Mexico_City",
     // Google Sheet "CRM Ventas Dos Búhos" (the reps' activity tabs).
     "CRM_SHEET_ID": "1dDoE0tRzGAEjnFv4ng2E4oLOk6a2h_ySepwUNrb7yd8",
-    // Zoho Inventory, Comercializadora Dos Búhos (same as zoho-inventory/).
-    "ZOHO_ORG_ID": "843697568",
-    "ZOHO_ACCOUNTS_URL": "https://accounts.zoho.com",
-    "ZOHO_API_URL": "https://www.zohoapis.com/inventory/v1",
     // Always admins here, besides Hub admins (comma separated).
     "ADMIN_EMAILS": "cabosari@dosbuhos.com"
   }
   // Secrets (Worker → Settings → Variables and Secrets):
   //   HUB_SECRET           required: the same value as the Hub's SESSION_SECRET. Without it every /api route is refused.
   //   GOOGLE_SA_KEY        the service account's JSON key; share the CRM sheet with its client_email (viewer).
-  //   ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN   read-only Zoho Inventory (salesorders.READ, invoices.READ).
+  // Zoho needs no secrets here: it goes through the ZOHO binding. The token on dosbuhos-ops must be able to read invoices.
 }

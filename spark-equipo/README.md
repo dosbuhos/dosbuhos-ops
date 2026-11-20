@@ -22,12 +22,12 @@ Without `HUB_SECRET` every `/api` route answers 401, so the workers.dev address 
 ## Bindings
 - `DB`: D1 `spark-equipo` (activity, orders, invoices, alias, people, meta)
 - `ASSETS`: `public/`
+- `ZOHO`: service binding to `dosbuhos-ops` (entrypoint `ZohoRead`), which holds the Zoho secrets; its token must be able to read sales orders and invoices
 - Cron: 12:00, 18:00, 00:00 UTC
 
 ## Secrets
 - `HUB_SECRET`: same value as the Hub's `SESSION_SECRET`
 - `GOOGLE_SA_KEY`: service account JSON key; the CRM sheet must be shared with its `client_email` as viewer
-- `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_REFRESH_TOKEN`: scopes `ZohoInventory.salesorders.READ`, `ZohoInventory.invoices.READ`
 
 ## Local
 ```

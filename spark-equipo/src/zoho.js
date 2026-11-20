@@ -1,4 +1,5 @@
-// Read-only copies of Zoho Inventory sales orders and invoices. Same OAuth setup as the Muestras app (zoho-inventory/).
+// Read-only copies of Zoho Inventory sales orders and invoices, fetched through the Muestras Worker (zoho-inventory/),
+// which already holds the Zoho secrets. The direct OAuth path below is only a fallback when the ZOHO binding is absent.
 
 async function accessToken(env) {
   const u = new URL((env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com') + '/oauth/v2/token');
@@ -11,7 +12,9 @@ async function accessToken(env) {
   return j.access_token;
 }
 
+// One page of a Zoho list. With the ZOHO binding the Muestras Worker (dosbuhos-ops) makes the call with its own secrets.
 async function page(env, token, path, n) {
+  if (env.ZOHO) return env.ZOHO.list(path.slice(1), n);
   const u = new URL((env.ZOHO_API_URL || 'https://www.zohoapis.com/inventory/v1') + path);
   u.searchParams.set('organization_id', env.ZOHO_ORG_ID);
   u.searchParams.set('page', String(n));
@@ -47,8 +50,8 @@ async function walk(env, token, { path, key, cursor, perRun, fresh, save }) {
 }
 
 export async function syncZoho(env) {
-  if (!env.ZOHO_REFRESH_TOKEN) return { skipped: 'Faltan los secretos de Zoho' };
-  const token = await accessToken(env);
+  if (!env.ZOHO && !env.ZOHO_REFRESH_TOKEN) return { skipped: 'Falta la conexión con Zoho' };
+  const token = env.ZOHO ? null : await accessToken(env);
   const orders = await walk(env, token, { path: '/salesorders', key: 'salesorders', cursor: 'so_page', perRun: 10, fresh: 2,
     save: (o) => env.DB.prepare(`INSERT INTO orders (id, numero, fecha, cliente_id, cliente, vendedor, total, estado, facturacion, pago) VALUES (?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET numero=excluded.numero, fecha=excluded.fecha, cliente=excluded.cliente, vendedor=excluded.vendedor, total=excluded.total, estado=excluded.estado, facturacion=excluded.facturacion, pago=excluded.pago`)
