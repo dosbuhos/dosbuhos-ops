@@ -832,7 +832,10 @@ function summarize(days, weekKey) {
   const byBoard = group(t => t.kind === 'meeting' ? 'Meetings' : t.board ? (S.boards.get(t.board)?.name || 'Board') : 'No board');
   const byTag = group(t => t.kind === 'meeting' ? 'Meetings' : (t.tags || [])[0] ? (tagById(t.tags[0])?.name || 'Tag') : 'Untagged');
   const perDay = days.map(k => { const l = live().filter(t => t.when === k); return { k, meet: sum(l.filter(t => t.kind === 'meeting')), done: sum(l.filter(t => t.kind !== 'meeting' && !isOpen(t))), open: sum(l.filter(t => t.kind !== 'meeting' && isOpen(t))) }; });
-  return { meetings, tasks, done, open, targets, tDone: targets.filter(t => !isOpen(t)).length, meetMin: sum(meetings), doneMin: sum(done), openMin: sum(open),
+  // Checked off during these days but never placed on them (inbox, a board, another horizon): counts as done, not as time spent here.
+  const doneDay = (t) => t.doneAt ? dkey(new Date(t.doneAt)) : null;
+  const cleared = live().filter(t => !isOpen(t) && t.kind !== 'meeting' && !list.includes(t) && days.includes(doneDay(t)));
+  return { meetings, tasks, done, open, targets, cleared, tDone: targets.filter(t => !isOpen(t)).length, meetMin: sum(meetings), doneMin: sum(done), openMin: sum(open),
     pushed: tasks.filter(t => (t.rolls || 0) > 0), stuck: open.filter(t => (t.rolls || 0) >= 3), byBoard, byTag, perDay, work: workMin() * days.length };
 }
 function insight(S_, mode, k) {
@@ -863,14 +866,14 @@ function summarySheet(k = S.ui.sumK || todayK(), mode = S.ui.sumMode || 'day') {
   openSheet(`<div class="grab"></div>
 <div class="sheethead"><div><div class="sheettitle">In review</div><div class="muted" style="font-size:14px">${esc(title)}</div></div><div class="seg small"><button data-act="sum-mode" data-m="day" aria-pressed="${mode === 'day'}">Day</button><button data-act="sum-mode" data-m="week" aria-pressed="${mode === 'week'}">Week</button></div></div>
 <div class="row" style="justify-content:space-between"><button class="btn icon" data-act="sum-nav" data-n="-1" aria-label="Earlier">${I.left}</button><button class="link" data-act="sum-nav" data-n="0">${mode === 'day' ? 'Today' : 'This week'}</button><button class="btn icon" data-act="sum-nav" data-n="1" aria-label="Later">${I.right}</button></div>
-${!R.tasks.length && !R.meetings.length ? `<div class="empty">Nothing was planned ${mode === 'day' ? 'on this day' : 'this week'}.</div>` : `
+${!R.tasks.length && !R.meetings.length && !R.cleared.length ? `<div class="empty">Nothing was planned ${mode === 'day' ? 'on this day' : 'this week'}.</div>` : `
 <div class="grp">${bar(seg)}${legend(seg)}</div>
-<div class="stats"><div><b>${R.tDone}<span class="muted">/${R.targets.length}</span></b><span>targets</span></div><div><b>${R.done.length}</b><span>done</span></div><div><b>${R.open.length}</b><span>open</span></div><div><b>${R.pushed.length}</b><span>pushed</span></div></div>
+<div class="stats"><div><b>${R.tDone}<span class="muted">/${R.targets.length}</span></b><span>targets</span></div><div><b>${R.done.length}</b><span>done</span>${R.cleared.length ? `<small>+${R.cleared.length} from inbox</small>` : ''}</div><div><b>${R.open.length}</b><span>open</span></div><div><b>${R.pushed.length}</b><span>pushed</span></div></div>
 ${dayStrip}
 ${ins ? `<div class="sins"><span>${esc(ins.text)}</span>${ins.act ? `<button class="btn" data-act="${ins.act}">${ins.label}</button>` : ''}</div>` : ''}
 <div class="grp"><div class="eyebrow">By board</div>${rows(R.byBoard)}</div>
 <div class="grp"><div class="eyebrow">By tag</div>${rows(R.byTag)}</div>
-${R.done.length ? `<div class="grp"><div class="eyebrow">Done</div><div class="sdone">${R.done.map(t => `<span>${esc(t.title)}<small> ${fmtDur(t.dur || 30)}</small></span>`).join('')}</div></div>` : ''}`}
+${R.done.length || R.cleared.length ? `<div class="grp"><div class="eyebrow">Done</div><div class="sdone">${R.done.map(t => `<span>${esc(t.title)}<small> ${fmtDur(t.dur || 30)}</small></span>`).join('')}${R.cleared.map(t => `<span class="muted">${esc(t.title)}<small> · ${t.when ? esc(periodLabel(t.when)) : t.board ? esc(S.boards.get(t.board)?.name || 'board') : 'inbox'}</small></span>`).join('')}</div></div>` : ''}`}
 <button class="bigbtn" data-act="close">Done</button>`, { summary: true });
 }
 function settingsSheet() {
