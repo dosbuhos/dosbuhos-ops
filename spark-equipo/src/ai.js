@@ -19,7 +19,7 @@ Reglas:
 - Si la cuenta de verdad está fría (varios intentos sin respuesta), di cuál es el último intento que vale la pena y cuándo cerrarla.
 - Tono: directo, de colega que quiere que venda, sin regaños ni adornos. Español de México, de tú. Una o dos frases, máximo 40 palabras. Sin emojis ni signos de exclamación.
 
-Entrega el resultado con la herramienta guardar_pasos: un paso por cuenta, con el mismo "i" que recibiste. Sin panorama general ni comentarios aparte.`;
+Entrega el resultado llamando a la herramienta guardar_pasos, una sola vez, con un paso por cuenta y el mismo "i" que recibiste. No escribas nada más: ni panorama general, ni diagnóstico, ni comentarios. Si no pudieras usar la herramienta, responde únicamente con JSON: [{"i": 0, "paso": "..."}].`;
 
 const HERRAMIENTA = { name: 'guardar_pasos', description: 'Guarda el siguiente paso sugerido de cada cuenta.',
   input_schema: { type: 'object', required: ['pasos'], properties: { pasos: { type: 'array', items: { type: 'object', required: ['i', 'paso'], properties: { i: { type: 'integer', description: 'El mismo i de la cuenta recibida' }, paso: { type: 'string', description: 'Una o dos frases, máximo 40 palabras' } } } } } } };
@@ -72,7 +72,7 @@ export async function sugerir(env, modelo, activity, { max = 40, lote = 10 } = {
       method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 4000, system: SISTEMA,
         thinking: { type: 'between_tools' },                                             // this model's way of saying "no extended thinking"
-        tools: [HERRAMIENTA], tool_choice: { type: 'tool', name: 'guardar_pasos' },      // forces a structured reply
+        tools: [HERRAMIENTA],                                                             // this model does not accept a forced tool_choice; the prompt asks for the tool and plain JSON is read as a fallback
        
         messages: [{ role: 'user', content: `Hoy es ${modelo.hoy}.\nCuentas (JSON):\n` + JSON.stringify(grupo.map((g, j) => ({ i: j, ...g.datos }))) }] }) });
     if (!r.ok) throw new Error(`Claude ${r.status}: ${(await r.text()).slice(0, 160)}`);
