@@ -61,13 +61,25 @@ test('year over year compares against the same date last year', () => {
   assert.deepEqual([c.pasado, c.pasado_mp, c.actual, c.cambio_pct], [600, 100, 150, 50]);
 });
 
-test('a rep sees only their own rows and never Efectividad', () => {
+test('a rep sees the whole team but never Efectividad', () => {
   const m = base({ activity: [a('Carlos', '2026-11-10', 'y'), a('José Luis', '2026-11-10', 'z')], invoices: [inv('1', '2026-02-01', 'A', 'Carlos Tapia', 150), inv('2', '2026-02-01', 'B', 'José Luis P', 150)] });
   const v = paraVer(m, { admin: false, persona: 'Carlos' });
-  assert.ok(v.semanas.length && v.semanas.every((r) => r.persona === 'Carlos'));
-  assert.ok(v.contactos.every((r) => r.persona === 'Carlos') && v.clientes.every((r) => r.vendedor === 'Carlos') && v.foco.every((r) => r.persona === 'Carlos'));
+  assert.ok(v.semanas.some((r) => r.persona === 'José Luis') && v.contactos.some((r) => r.persona === 'José Luis'));
   assert.deepEqual(v.efectividad, []);
+  assert.equal(v.yo.persona, 'Carlos');
   assert.equal(paraVer(m, { admin: true }).efectividad.length, 3);
+});
+
+test('a count becomes contacts per day and estimated hours', () => {
+  const act = [];
+  for (let i = 0; i < 7; i++) act.push(a('José Luis', '2026-11-03', 'v' + i));                                   // 7 visits
+  for (let i = 0; i < 4; i++) act.push(a('José Luis', '2026-11-04', 'l' + i, { medio: 'Llamada' }));              // 4 calls
+  for (let i = 0; i < 2; i++) act.push(a('José Luis', '2026-11-05', 'w' + i, { medio: 'WhatsApp' }));             // 2 messages
+  const m = base({ activity: act });
+  const w = m.semanas.find((r) => r.semana === '2026-11-02' && r.persona === 'José Luis');
+  assert.deepEqual([w.contactos, w.por_dia, w.presencial, w.llamadas, w.mensajes, w.horas, w.horas_habiles], [13, 2.6, 7, 4, 2, 7.8, 40]);
+  const mes = m.meses.find((r) => r.mes === '2026-11' && r.persona === 'José Luis');
+  assert.deepEqual([mes.contactos, mes.habiles, mes.meta, mes.veredicto], [13, 15, 90, 'Flojo']);              // Nov 2–20, from the Monday of the first logged week: 15 working days
 });
 
 test('zones and prospects come out complete', () => {

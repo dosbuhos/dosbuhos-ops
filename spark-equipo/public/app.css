@@ -110,3 +110,9 @@ a { color: var(--accent); } .tbl a { text-decoration-thickness: 1px; text-underl
 .linkb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (min-width: 960px) { .mapwide .map { max-height: 560px; margin: 0 auto; } }
 .brand { display: flex; align-items: center; gap: 6px; white-space: nowrap; } .logo { width: 26px; height: 26px; fill: var(--accent); flex: none; }
+.ritmo { margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--bad); background: color-mix(in srgb, var(--bad) 7%, transparent); border-radius: 0 6px 6px 0; font-size: .9rem; }
+.ritmo.warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent); } .ritmo.ok { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.alert.warn { border-left-color: var(--warn); } .alert.team { max-width: none; }
+.toolbar .weeknav { margin: 0; flex: 1; min-width: 240px; }
+.brand .crm { font-weight: 400; letter-spacing: .08em; font-size: .7em; color: var(--muted); }
+@media (max-width: 480px) { .brand .crm { display: none; } }

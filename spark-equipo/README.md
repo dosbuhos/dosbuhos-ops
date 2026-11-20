@@ -2,7 +2,7 @@
 
 Los números del equipo de ventas en el teléfono: ritmo semanal de contactos, seguimientos, ventas del mes, clientes año contra año, zonas y prospectos, y efectividad. Es el "Tablero de ventas" llevado al Hub (`/spark/`).
 
-Cada vendedor ve solo lo suyo. Eric y los administradores del Hub ven a todos, la pantalla de Efectividad y Ajustes.
+Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y Ajustes son solo para Eric y los administradores.
 
 ## How it works
 - `src/sheets.js` copies the three "Actividad" tabs of the CRM Google Sheet into D1 once a day (06:00 San Miguel).
@@ -14,7 +14,7 @@ Cada vendedor ve solo lo suyo. Eric y los administradores del Hub ven a todos, l
 ## Routes
 | Route | Who | What |
 |---|---|---|
-| `GET /api/data` | signed in | The view model, filtered to the person |
+| `GET /api/data` | signed in | The view model for the whole team (Efectividad only for admins) |
 | `POST /api/admin/sync[?solo=hoja\|zoho\|ia]` | admin | Run a sync now |
 | `GET/POST /api/admin/people` | admin | Link a Hub email to a person or make it an admin |
 

@@ -21,25 +21,26 @@ const dia = (iso) => (iso ? Number(iso.slice(8)) + ' ' + MES[Number(iso.slice(5,
 const peso = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString('en-US'));
 const pct = (p) => (p == null ? '—' : (p > 0 ? '+' : '') + p + '%');
 const mas = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const KIND = { Productiva: 'ok', 'A medias': 'warn', Floja: 'bad', 'En cero': 'bad', Pendiente: 'mute', 'Sin datos': 'mute' };
+const KIND = { Productiva: 'ok', Productivo: 'ok', 'A medias': 'warn', Floja: 'bad', Flojo: 'bad', 'En cero': 'bad', Pendiente: 'mute', 'Sin datos': 'mute' };
+const vtxt = (r) => (r.veredicto === 'Pendiente' ? 'Pendiente de registrar' : r.veredicto) + (r.en_curso ? ' · en curso' : '');
 const pill = (text, kind) => h('span', { class: 'pill ' + kind }, text);
 
 let D = null;
-const S = { vista: 'hoy', persona: '', semana: null, segFiltro: 'vencida', segOrden: 'viejo', zona: '', clase: '', abierto: {}, orden: {} };
+const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: null, segFiltro: 'vencida', segOrden: 'viejo', zona: '', clase: '', abierto: {}, orden: {} };
 
 // Bottom tabs: the four daily screens plus "Más".
 const TABS = [['hoy', 'Hoy'], ['semanas', 'Semanas'], ['seguimiento', 'Seguimiento'], ['ventas', 'Ventas'], ['mas', 'Más']];
 const MAS = [['clientes', 'Clientes año contra año'], ['zonas', 'Zonas y prospectos'], ['efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', true]];
 
 function ir(vista, persona) {
-  if (persona !== undefined && D.yo.admin) S.persona = persona;
+  if (persona !== undefined) S.persona = persona;
   S.vista = vista; $('sheet').hidden = true;
   if (location.hash.slice(1) !== vista) history.pushState(null, '', '#' + vista); // so the phone's back button walks the screens
   pintar(); window.scrollTo(0, 0);
 }
 const deHash = () => { const v = location.hash.slice(1); S.vista = VISTAS[v] && (D.yo.admin || !['efectividad', 'ajustes'].includes(v)) ? v : 'hoy'; };
 addEventListener('popstate', () => { if (D) { deHash(); $('sheet').hidden = true; pintar(); } });
-const personas = () => (D.yo.admin ? (S.persona ? [S.persona] : ['José Luis', 'Carlos', 'Daniel']) : [D.yo.persona]);
+const personas = () => (S.persona ? [S.persona] : ['José Luis', 'Carlos', 'Daniel']);
 const vendedores = () => personas().filter((p) => p !== 'Daniel');
 const veo = (p) => personas().includes(p);
 
@@ -93,90 +94,123 @@ function tendencia(p, ws) {
       ws.map((w, i) => (i === 0 || w.semana.slice(5, 7) !== ws[i - 1].semana.slice(5, 7) ? svg('text', { x: x(i), y: H - 6, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)' }, MES[Number(w.semana.slice(5, 7)) - 1]) : null))),
     h('p', { class: 'note', style: 'margin:6px 0 0' }, txt));
 }
+// What a count means day to day: contacts per working day against the goal of 6, and roughly how many hours of work it is.
+// The hours are an estimate (a visit ≈ 1 h with the trip, a call ≈ 10 min, a message ≈ 5 min).
+function ritmo(r, detalle) {
+  if (!r.contactos || !r.habiles) return null;
+  const k = r.por_dia >= 6 ? 'ok' : r.por_dia >= 3 ? 'warn' : 'bad', pd = r.por_dia === 1 ? '1 contacto' : `${r.por_dia} contactos`;
+  const partes = [r.presencial && `${r.presencial} ${r.presencial === 1 ? 'visita' : 'visitas'} × 1 h`, r.llamadas && `${r.llamadas} ${r.llamadas === 1 ? 'llamada' : 'llamadas'} × 10 min`, r.mensajes && `${r.mensajes} ${r.mensajes === 1 ? 'mensaje' : 'mensajes'} × 5 min`].filter(Boolean).join(' · ');
+  return h('div', { class: 'ritmo ' + k },
+    h('div', {}, h('b', {}, `${pd} al día`), ` en ${r.habiles} ${r.habiles === 1 ? 'día hábil' : 'días hábiles'}. La meta es 6.`),
+    h('div', {}, 'Trabajo registrado: ', h('b', {}, `≈ ${r.horas} h de ${r.horas_habiles} h`), '.'),
+    detalle && partes ? h('div', { class: 'note' }, 'Estimado: ' + partes) : null);
+}
+// The team as one line: everyone's contacts against the sum of their goals, and what was sold.
+function equipo(filas, cuando) {
+  if (filas.length < 2) return null;
+  const c = filas.reduce((t, r) => t + r.contactos, 0), meta = filas.reduce((t, r) => t + r.meta, 0), v = filas.reduce((t, r) => t + (r.ventas || 0), 0), hb = Math.max(...filas.map((r) => r.habiles || 0));
+  const pc = meta ? Math.round(c / meta * 100) : 0;
+  return h('div', { class: 'alert team ' + (pc >= 100 ? 'ok' : pc >= 50 ? 'warn' : '') }, h('b', {}, 'Equipo: '), `${c} de ${meta} contactos ${cuando} (${pc}%)`,
+    hb ? ` · ${Math.round(c / hb / filas.length * 10) / 10} por persona al día` : '', ` · ${peso(v)} vendidos`);
+}
 const chips = (opts, cur, set) => h('div', { class: 'chips' }, opts.map(([v, t]) => h('button', { class: 'chip', 'aria-pressed': String(cur === v), onclick: () => { set(v); pintar(); } }, t)));
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
 
 const VISTAS = {
   hoy() {
-    return h('div', { class: 'grid3' }, personas().map((p) => {
+    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => {
       const w = semDe(D.semana_actual, p), items = D.foco.filter((f) => f.persona === p).sort((a, b) => a.orden - b.orden);
-      const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, D.yo.admin ? p : undefined) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
+      const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, p) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
       const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');
       return h('section', { class: 'card' },
         h('div', { class: 'name' }, p, w ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : null),
         w ? h('div', {}, h('span', { class: 'num' }, `${w.contactos} / ${w.meta}`), h('span', { class: 'note' }, ' contactos esta semana')) : null,
+        w ? ritmo(w) : null,
         h('h3', {}, 'Enfócate en'), todo.length ? ul(todo) : h('p', { class: 'note' }, 'Sin pendientes urgentes.'),
         bien.length ? [h('h3', {}, 'Va bien'), ul(bien)] : null);
-    }));
+    })));
   },
 
   semanas() {
-    const todas = [...new Set(D.semanas.map((r) => r.semana))];
-    const w = S.semana && todas.includes(S.semana) ? S.semana : D.semana_actual, i = todas.indexOf(w), m = w.slice(0, 7);
-    const set = (x) => { S.semana = x; pintar(); };
-    const ps = personas();
-    const NW = ancho() ? 16 : 8;
-    const heat = h('div', { class: 'heat', style: `grid-template-columns:auto repeat(${Math.min(todas.length, NW)},minmax(0,1fr))` });
-    const ult = todas.slice(-NW);
-    heat.append(h('span'));
-    ult.forEach((x, k) => heat.append(h('span', { class: 'h' }, k === 0 || x.slice(5, 7) !== ult[k - 1].slice(5, 7) ? MES[Number(x.slice(5, 7)) - 1] : '·')));
-    for (const p of ps) {
-      heat.append(h('span', { class: 'rn' }, p));
-      for (const x of ult) {
-        const r = semDe(x, p);
-        if (!r || r.veredicto === 'Sin datos') { heat.append(h('span', { class: 'h' }, '–')); continue; }
-        heat.append(h('button', { class: (r.contactos ? '' : r.veredicto === 'Pendiente' ? 'pend' : 'zero') + (x === w ? ' cur' : ''), style: r.contactos ? `background:var(--${KIND[r.veredicto]})` : null,
-          'aria-label': `${p}, semana del ${dia(x)}: ${r.contactos} contactos, ${r.veredicto}`, onclick: () => set(x) }, r.contactos));
-      }
-    }
-    const delMes = D.semanas.filter((r) => r.semana.slice(0, 7) === m && ps.includes(r.persona));
-    const ceros = delMes.filter((r) => r.veredicto === 'En cero' && !r.en_curso);
-    const diag = D.meses.filter((r) => r.mes === m && ps.includes(r.persona));
-    const cont = D.contactos.filter((r) => r.semana === w && ps.includes(r.persona)).slice().reverse();
-    const ords = D.ordenes.filter((r) => r.semana === w && ps.includes(r.vendedor)).slice().reverse();
-    return h('div', {},
-      h('div', { class: 'weeknav' },
+    const ps = personas(), NW = ancho() ? 16 : 8;
+    const todas = [...new Set(D.semanas.map((r) => r.semana))], mesesT = [...new Set(D.meses.map((r) => r.mes))];
+    const esMes = S.periodo === 'mes';
+    const w = S.semana && todas.includes(S.semana) ? S.semana : D.semana_actual, i = todas.indexOf(w);
+    const m = S.mes && mesesT.includes(S.mes) ? S.mes : (esMes && S.semana ? w.slice(0, 7) : D.hoy.slice(0, 7)), mi = mesesT.indexOf(m);
+    const set = (x) => { S.semana = x; S.periodo = 'semana'; pintar(); };
+    const nav = h('div', { class: 'toolbar' },
+      chips([['semana', 'Semana'], ['mes', 'Mes']], S.periodo, (v) => { S.periodo = v; if (v === 'mes') S.mes = w.slice(0, 7); }),
+      esMes ? h('div', { class: 'weeknav' },
+        h('button', { 'aria-label': 'Mes anterior', disabled: mi <= 0, onclick: () => { S.mes = mesesT[mi - 1]; pintar(); } }, '‹'),
+        h('div', { class: 'lbl' }, `${MESL[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`),
+        h('button', { 'aria-label': 'Mes siguiente', disabled: mi >= mesesT.length - 1, onclick: () => { S.mes = mesesT[mi + 1]; pintar(); } }, '›'))
+      : h('div', { class: 'weeknav' },
         h('button', { 'aria-label': 'Semana anterior', disabled: i <= 0, onclick: () => set(todas[i - 1]) }, '‹'),
         h('div', { class: 'lbl' }, `${dia(w)} – ${dia(mas(w, 6))}`),
-        h('button', { 'aria-label': 'Semana siguiente', disabled: i >= todas.length - 1, onclick: () => set(todas[i + 1]) }, '›')),
-      h('div', { class: 'grid3' }, ps.map((p) => {
-        const r = semDe(w, p);
-        if (!r) return null;
-        return h('section', { class: 'card' },
-          h('div', { class: 'name' }, p, pill((r.veredicto === 'Pendiente' ? 'Pendiente de registrar' : r.veredicto) + (r.en_curso ? ' · en curso' : ''), KIND[r.veredicto])),
-          gauge(r.contactos, r.meta, `${p}: ${r.contactos} de ${r.meta} contactos`),
-          h('div', { style: 'text-align:center' }, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, ` de ${r.meta} contactos`)),
-          h('div', { class: 'kv', style: 'margin-top:8px' },
-            r.ventas != null ? [h('span', {}, 'Ventas de la semana'), h('b', {}, `${peso(r.ventas)} · ${r.ordenes} órd.`)] : null,
-            h('span', {}, 'Cuentas distintas'), h('b', {}, r.cuentas), h('span', {}, 'Presenciales'), h('b', {}, r.presencial),
-            h('span', {}, 'Prospección'), h('b', {}, r.prospeccion),
-            p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
-      })),
-      h('h2', {}, 'Semáforo'), h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana que se saltaron sin registrar nada; punteado: todavía no registran. Toca una semana para abrirla.')),
-      h('h2', {}, 'Tendencia'),
-      h('div', { class: 'grid3' }, ps.map((p) => tendencia(p, D.semanas.filter((r) => r.persona === p && r.veredicto !== 'Sin datos').slice(-NW)))),
-      h('p', { class: 'note' }, 'Línea: contactos por semana sobre las franjas verde (30+), ámbar (15–29) y roja. Barras: ventas de esa semana.'),
-      h('h2', {}, `Resumen de ${MESL[Number(m.slice(5)) - 1]}`),
-      h('div', { class: 'alert' + (ceros.length ? '' : ' ok') }, ceros.length ? [h('b', {}, 'Semanas en cero: '), ceros.map((r) => `${r.persona}, semana del ${dia(r.semana)}`).join(' · ')] : 'Nadie tuvo una semana en cero este mes.'),
-      h('div', { class: 'grid3' }, diag.map((r) => {
-        const kind = r.semanas === 0 || r.pendientes === r.semanas ? 'mute' : r.en_cero > 0 || r.flojas + r.en_cero > r.semanas / 2 ? 'bad' : r.productivas >= r.semanas / 2 ? 'ok' : 'warn';
-        return h('section', { class: 'card' },
-          h('div', { class: 'name' }, r.persona, pill({ ok: 'Buen mes', warn: 'Mes regular', bad: 'Mes flojo', mute: r.semanas ? 'Pendiente de registrar' : 'Sin datos' }[kind], kind)),
-          h('div', {}, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, ' contactos')),
+        h('button', { 'aria-label': 'Semana siguiente', disabled: i >= todas.length - 1, onclick: () => set(todas[i + 1]) }, '›')));
+    // One card per person for the period: gauge, what the count means per day, and the breakdown.
+    const tarjeta = (r, p) => h('section', { class: 'card' },
+      h('div', { class: 'name' }, p, pill(vtxt(r), KIND[r.veredicto])),
+      gauge(r.contactos, r.meta, `${p}: ${r.contactos} de ${r.meta} contactos`),
+      h('div', { style: 'text-align:center' }, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, ` de ${r.meta} contactos`)),
+      ritmo(r, true),
+      h('div', { class: 'kv', style: 'margin-top:10px' },
+        r.ventas != null ? [h('span', {}, esMes ? 'Ventas del mes' : 'Ventas de la semana'), h('b', {}, `${peso(r.ventas)} · ${r.ordenes} órd.`)] : null,
+        h('span', {}, 'Cuentas distintas'), h('b', {}, r.cuentas), h('span', {}, 'Visitas en persona'), h('b', {}, r.presencial),
+        h('span', {}, 'Llamadas'), h('b', {}, r.llamadas), h('span', {}, 'Mensajes (WhatsApp, correo)'), h('b', {}, r.mensajes),
+        h('span', {}, 'Prospección'), h('b', {}, r.prospeccion),
+        p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
+    const tablaCont = (cont, vacio) => h('div', { class: 'card' }, lista('cont', cont, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cuenta), h('span', { class: 'note' }, dia(r.fecha))), h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, r.actividad, r.medio].filter(Boolean).join(' · ')), r.resultado ? h('div', { class: 'l2' }, r.resultado) : null), vacio,
+      [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' }, { t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' },
+        { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio }, { t: 'Resultado', v: (r) => r.resultado, cls: 'mut' }]));
+    const tablaOrd = (ords, vacio) => (ps.some((p) => p !== 'Daniel') ? [h('h2', {}, 'Qué vendieron'),
+      h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null].filter(Boolean).join(' · '))), vacio,
+        [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, { t: 'Cliente', v: (r) => r.cliente, s: (r) => r.cliente.toLowerCase(), cls: 'b' }, { t: 'Orden', v: (r) => r.orden, cls: 'mut' },
+          ps.length > 1 && { t: 'Vendedor', v: (r) => r.vendedor, s: (r) => r.vendedor }, { t: 'Total', v: (r) => peso(r.total), s: (r) => r.total, num: true }]))] : null);
+    // Week blocks; `solo` limits them to a list of weeks (the month view shows that month's weeks).
+    const semaforo = (ult) => {
+      const heat = h('div', { class: 'heat', style: `grid-template-columns:auto repeat(${ult.length},minmax(0,1fr))` });
+      heat.append(h('span'));
+      ult.forEach((x, k) => heat.append(h('span', { class: 'h' }, esMes ? dia(x) : (k === 0 || x.slice(5, 7) !== ult[k - 1].slice(5, 7) ? MES[Number(x.slice(5, 7)) - 1] : '·'))));
+      for (const p of ps) {
+        heat.append(h('span', { class: 'rn' }, p));
+        for (const x of ult) {
+          const r = semDe(x, p);
+          if (!r || r.veredicto === 'Sin datos') { heat.append(h('span', { class: 'h' }, '–')); continue; }
+          heat.append(h('button', { class: (r.contactos ? '' : r.veredicto === 'Pendiente' ? 'pend' : 'zero') + (!esMes && x === w ? ' cur' : ''), style: r.contactos ? `background:var(--${KIND[r.veredicto]})` : null,
+            'aria-label': `${p}, semana del ${dia(x)}: ${r.contactos} contactos, ${r.veredicto}`, onclick: () => set(x) }, r.contactos));
+        }
+      }
+      return h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana que se saltaron sin registrar nada; punteado: todavía no registran. Toca una semana para abrirla.'));
+    };
+
+    if (esMes) {
+      const filas = D.meses.filter((r) => r.mes === m && ps.includes(r.persona) && r.veredicto !== 'Sin datos');
+      const ceros = D.semanas.filter((r) => r.semana.slice(0, 7) === m && ps.includes(r.persona) && r.veredicto === 'En cero' && !r.en_curso);
+      return h('div', {}, nav, equipo(filas, 'en el mes'),
+        filas.length ? h('div', { class: 'grid3' }, filas.map((r) => tarjeta(r, r.persona))) : h('p', { class: 'note' }, 'Sin registros en este mes.'),
+        h('h2', {}, 'Semana por semana'), semaforo(todas.filter((x) => x.slice(0, 7) === m)),
+        h('h2', {}, 'Diagnóstico del mes'),
+        h('div', { class: 'alert' + (ceros.length ? '' : ' ok') }, ceros.length ? [h('b', {}, 'Semanas en cero: '), ceros.map((r) => `${r.persona}, semana del ${dia(r.semana)}`).join(' · ')] : 'Nadie se saltó una semana completa este mes.'),
+        h('div', { class: 'grid3' }, filas.map((r) => h('section', { class: 'card' },
+          h('div', { class: 'name' }, r.persona),
           h('ul', { class: 'foco', style: 'margin-top:8px' },
             h('li', { class: r.en_cero ? '' : 'bien' }, h('span', {}, `Semanas: ${r.productivas} productivas · ${r.a_medias} a medias · ${r.flojas} flojas · ${r.en_cero} en cero` + (r.pendientes ? ` · ${r.pendientes} pendientes de registrar.` : '.'))),
             r.ventas != null ? h('li', { class: 'bien' }, h('span', {}, `Vendió ${peso(r.ventas)} en ${r.ordenes} órdenes.`)) : null,
             r.descuidados.length ? h('li', {}, h('span', {}, `Clientes a la baja que nadie tocó (${r.descuidados.length}): ${r.descuidados.join(' · ')}.`)) : null,
-            r.promesas.length ? h('li', {}, h('span', {}, `Prometió volver y no lo registró (${r.promesas.length}): ${r.promesas.join(' · ')}.`)) : h('li', { class: 'bien' }, h('span', {}, 'Cumplió los seguimientos que prometió.'))));
-      })),
-      h('h2', {}, 'A quién contactaron'),
-      h('div', { class: 'card' }, lista('cont', cont, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cuenta), h('span', { class: 'note' }, dia(r.fecha))), h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, r.actividad, r.medio].filter(Boolean).join(' · ')), r.resultado ? h('div', { class: 'l2' }, r.resultado) : null), 'Sin contactos registrados esta semana.',
-        [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' }, { t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' },
-          { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio }, { t: 'Resultado', v: (r) => r.resultado, cls: 'mut' }])),
-      ps.some((p) => p !== 'Daniel') ? [h('h2', {}, 'Qué vendieron'),
-        h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null].filter(Boolean).join(' · '))), 'Sin órdenes esta semana.',
-          [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, { t: 'Cliente', v: (r) => r.cliente, s: (r) => r.cliente.toLowerCase(), cls: 'b' }, { t: 'Orden', v: (r) => r.orden, cls: 'mut' },
-            ps.length > 1 && { t: 'Vendedor', v: (r) => r.vendedor, s: (r) => r.vendedor }, { t: 'Total', v: (r) => peso(r.total), s: (r) => r.total, num: true }]))] : null);
+            r.promesas.length ? h('li', {}, h('span', {}, `Prometió volver y no lo registró (${r.promesas.length}): ${r.promesas.join(' · ')}.`)) : h('li', { class: 'bien' }, h('span', {}, 'Cumplió los seguimientos que prometió.')))))),
+        h('h2', {}, 'A quién contactaron'), tablaCont(D.contactos.filter((r) => r.fecha.slice(0, 7) === m && ps.includes(r.persona)).slice().reverse(), 'Sin contactos registrados este mes.'),
+        tablaOrd(D.ordenes.filter((r) => r.fecha.slice(0, 7) === m && ps.includes(r.vendedor)).slice().reverse(), 'Sin órdenes este mes.'));
+    }
+    const filas = ps.map((p) => semDe(w, p)).filter(Boolean);
+    return h('div', {}, nav, equipo(filas.filter((r) => r.veredicto !== 'Sin datos'), 'en la semana'),
+      h('div', { class: 'grid3' }, filas.map((r) => tarjeta(r, r.persona))),
+      h('h2', {}, 'Semáforo'), semaforo(todas.slice(-NW)),
+      h('h2', {}, 'Tendencia'),
+      h('div', { class: 'grid3' }, ps.map((p) => tendencia(p, D.semanas.filter((r) => r.persona === p && r.veredicto !== 'Sin datos').slice(-NW)))),
+      h('p', { class: 'note' }, 'Línea: contactos por semana sobre las franjas verde (30+), ámbar (15–29) y roja. Barras: ventas de esa semana.'),
+      h('h2', {}, 'A quién contactaron'), tablaCont(D.contactos.filter((r) => r.semana === w && ps.includes(r.persona)).slice().reverse(), 'Sin contactos registrados esta semana.'),
+      tablaOrd(D.ordenes.filter((r) => r.semana === w && ps.includes(r.vendedor)).slice().reverse(), 'Sin órdenes esta semana.'));
   },
 
   seguimiento() {
@@ -327,7 +361,7 @@ const VISTAS = {
         h('h2', {}, 'Datos'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, st('hoja', 'Hoja del CRM (diario, 6:00)'), st('zoho', 'Zoho (6:00, 12:00 y 18:00)'), st('ia', 'Siguientes pasos sugeridos (Claude)')),
           r.correo_hoja && !(D.sync.hoja && D.sync.hoja.ok) ? h('p', { class: 'note' }, 'La hoja del CRM debe estar compartida (lector) con ', h('b', {}, r.correo_hoja), '.') : null,
           h('button', { class: 'btn', style: 'margin-top:8px;width:100%', onclick: async (ev) => { ev.target.disabled = true; ev.target.textContent = 'Sincronizando…'; await api('api/admin/sync', {}); await cargar(); } }, 'Sincronizar ahora')),
-        h('h2', {}, 'Quién ve qué'), h('p', { class: 'note' }, 'Cada vendedor ve solo sus números. Liga aquí el correo con el que entra al Hub.'),
+        h('h2', {}, 'Quién ve qué'), h('p', { class: 'note' }, 'Todos ven los números del equipo; cada quien abre en los suyos. Efectividad y Ajustes solo los ven los administradores. Liga aquí el correo con el que entra al Hub.'),
         h('div', { class: 'card' }, r.people.length ? h('ul', { class: 'rows' }, r.people.map((p) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, p.email), h('button', { class: 'chip', onclick: async () => { await api('api/admin/people', { email: p.email, borrar: true }); pintar(); } }, 'Quitar')), h('div', { class: 'l2' }, p.rol === 'admin' ? 'Administrador' : p.persona)))) : h('p', { class: 'note' }, 'Nadie dado de alta todavía.'), f));
     });
     return box;
@@ -343,8 +377,8 @@ async function api(path, body) {
 
 function pintar() {
   const admin = D.yo.admin;
-  $('who').replaceChildren(...(admin && !['zonas', 'ajustes'].includes(S.vista) ? [['', 'Todos'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel']].map(([v, t]) =>
-    h('button', { class: 'chip', 'aria-pressed': String(S.persona === v), onclick: () => { S.persona = v; pintar(); } }, t)) : [h('span', { class: 'note' }, admin ? '' : D.yo.persona)]));
+  $('who').replaceChildren(...(!['zonas', 'ajustes'].includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel']].map(([v, t]) =>
+    h('button', { class: 'chip', 'aria-pressed': String(S.persona === v), onclick: () => { S.persona = v; pintar(); } }, t)) : []));
   const enMas = MAS.some(([v]) => v === S.vista);
   const wide = ancho();
   document.body.classList.toggle('wide', wide);
@@ -359,6 +393,7 @@ $('sheet').addEventListener('click', (ev) => { if (ev.target === $('sheet')) $('
 async function cargar() {
   const r = await fetch('api/data'), j = await r.json().catch(() => ({ error: 'No se pudo leer la respuesta' }));
   if (!r.ok) { $('main').replaceChildren(h('div', { class: 'alert' }, j.error || 'No se pudo cargar.')); return; }
+  if (!D && j.yo.persona && !j.yo.admin) S.persona = j.yo.persona;   // a rep opens on their own numbers; Equipo is one tap away
   D = j; deHash(); pintar();
 }
 cargar().catch(() => $('main').replaceChildren(h('div', { class: 'alert' }, 'Sin conexión. Vuelve a intentar.')));

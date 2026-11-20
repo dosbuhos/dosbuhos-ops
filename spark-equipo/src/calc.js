@@ -4,6 +4,14 @@
 export const GENTE = ['José Luis', 'Carlos', 'Daniel'];
 export const VENDEDORES = ['José Luis', 'Carlos'];
 export const META_DIA = 6; // logged client touches per working day
+// Rough time a logged contact takes, to turn a count into hours of work: a visit in person about an hour with the trip,
+// a call ten minutes, a message five. An estimate, shown as such.
+export const MINUTOS = { presencial: 60, llamada: 10, mensaje: 5 };
+export function esfuerzo(c, habiles) {
+  const presencial = c.filter((r) => r.medio === 'Presencial').length, llamadas = c.filter((r) => /llamada|tel[eé]fono/i.test(r.medio || '')).length, mensajes = c.length - presencial - llamadas;
+  return { habiles, por_dia: habiles ? Math.round(c.length / habiles * 10) / 10 : 0, presencial, llamadas, mensajes,
+    horas: Math.round((presencial * MINUTOS.presencial + llamadas * MINUTOS.llamada + mensajes * MINUTOS.mensaje) / 6) / 10, horas_habiles: habiles * 8 };
+}
 // Accounts handed to each rep when they started (per Eric, 20 Nov 2026). Shown apart in Efectividad.
 export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', 'VIÑA DEL MAR CANCÚN'], 'Carlos': ['Cactus Wine', 'LIZA STIKER'] };
 // Daniel's distributors as they appear in Zoho (LIZA STIKER = Acuyo).
@@ -80,7 +88,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
       const c = contactos.filter((r) => r.semana === w && r.persona === v), o = ordenes.filter((r) => r.semana === w && r.vendedor === v), n = c.length;
       semanas.push({ semana: w, persona: v, en_curso: w === actual, meta, contactos: n,
         veredicto: w < (inicio[v] || '9999') ? 'Sin datos' : n === 0 ? (w > fin[v] ? 'Pendiente' : 'En cero') : n >= meta ? 'Productiva' : n >= meta / 2 ? 'A medias' : 'Floja',
-        cuentas: new Set(c.map((r) => norm(r.cuenta))).size, presencial: c.filter((r) => r.medio === 'Presencial').length,
+        cuentas: new Set(c.map((r) => norm(r.cuenta))).size, ...esfuerzo(c, habiles),
         prospeccion: c.filter((r) => r.actividad === 'Prospección').length, cobranza: c.filter((r) => r.actividad === 'Cobranza').length,
         catas: c.filter((r) => ['Cata / prueba de vino', 'Capacitación', 'Evento'].includes(r.actividad)).length,
         ventas: v === 'Daniel' ? null : r0(sum(o, (r) => r.total)), ordenes: v === 'Daniel' ? null : o.length });
@@ -161,7 +169,12 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
         if (!mine.some((x) => norm(x.cuenta) === k && x.fecha > r.fecha)) promesas.set(k, r.cuenta);
       }
       const n = (x) => ws.filter((w) => w.veredicto === x).length, cero = ws.filter((w) => w.veredicto === 'En cero' && !w.en_curso);
-      meses.push({ mes: m, persona: v, semanas: ws.length, pendientes: n('Pendiente'), productivas: n('Productiva'), a_medias: n('A medias'), flojas: n('Floja'), en_cero: cero.length, semanas_en_cero: cero.map((w) => w.semana),
+      // Working days of the month so far, from the person's first logged week on.
+      let habiles = 0;
+      for (let d = m + '-01'; d.slice(0, 7) === m && d <= hoy; d = masDias(d, 1)) if (d >= (inicio[v] || '9999') && ![0, 6].includes(new Date(d + 'T00:00:00Z').getUTCDay())) habiles++;
+      const meta = META_DIA * habiles, nc = c.length;
+      const nivel = !ws.length ? 'Sin datos' : nc === 0 ? (m > (fin[v] || '').slice(0, 7) ? 'Pendiente' : 'En cero') : nc >= meta ? 'Productivo' : nc >= meta / 2 ? 'A medias' : 'Flojo';
+      meses.push({ mes: m, persona: v, en_curso: m === hoy.slice(0, 7), meta, veredicto: nivel, ...esfuerzo(c, habiles), catas: c.filter((r) => ['Cata / prueba de vino', 'Capacitación', 'Evento'].includes(r.actividad)).length, cobranza: c.filter((r) => r.actividad === 'Cobranza').length, semanas: ws.length, pendientes: n('Pendiente'), productivas: n('Productiva'), a_medias: n('A medias'), flojas: n('Floja'), en_cero: cero.length, semanas_en_cero: cero.map((w) => w.semana),
         contactos: c.length, cuentas: new Set(c.map((r) => norm(r.cuenta))).size, prospeccion: c.filter((r) => r.actividad === 'Prospección').length,
         ventas: v === 'Daniel' ? null : r0(sum(o, (r) => r.total)), ordenes: v === 'Daniel' ? null : o.length, descuidados, promesas: [...promesas.values()] });
     }
@@ -250,12 +263,8 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
 }
 
 // What one signed-in person may see. Reps get their own rows; the map and prospects are for everyone; Efectividad is admin only.
+// What a signed-in person gets. The whole team's numbers are visible to everyone on the team; the effectiveness rating stays
+// with admins.
 export function paraVer(m, quien) {
-  if (quien.admin) return { ...m, yo: quien };
-  const p = quien.persona, mio = (k) => (r) => r[k] === p;
-  return { hoy: m.hoy, semana_actual: m.semana_actual, yo: quien,
-    semanas: m.semanas.filter(mio('persona')), contactos: m.contactos.filter(mio('persona')), ordenes: m.ordenes.filter(mio('vendedor')),
-    clientes: m.clientes.filter(mio('vendedor')), cobertura: m.cobertura.filter(mio('vendedor')), seguimiento: m.seguimiento.filter(mio('persona')),
-    mes: m.mes.filter(mio('vendedor')), foco: m.foco.filter(mio('persona')), meses: m.meses.filter(mio('persona')),
-    zonas: m.zonas, prospectos: m.prospectos, efectividad: [] };
+  return { ...m, efectividad: quien.admin ? m.efectividad : [], yo: { admin: !!quien.admin, persona: quien.persona || null, nombre: quien.nombre || '' } };
 }
