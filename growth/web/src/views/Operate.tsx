@@ -123,7 +123,16 @@ export function Controls({ session, reload }: { session: any; reload: () => void
             ))}
           </div>
           <div className="small">{MODE_INFO[st.mode]?.text}</div>
-          <div className="item">
+          {['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) && (
+            <div className="item">
+              <b>Sugerencias de la IA</b>
+              <div className="small">La revisión diaria corre a las 8:00. Para no esperar, pide una ahora: aparecen en Actividad del agente en 1–3 minutos y cada una espera tu aprobación. Máximo 3 al día.</div>
+              <button className="btn" disabled={!isAdmin || st.aiStopped || st.emergencyLock} onClick={() => void call('control/run-review', {}, 'Revisión iniciada')}>Pedir sugerencias ahora</button>
+            </div>
+          )}
+          {st.mode === 'LIMITED_AUTO' ? (
+            <div className="small muted">En vivo con la política <b>v{st.policyVersion}</b>.</div>
+          ) : <div className="item">
             <b>Activar en vivo (Automático limitado)</b>
             {missing.length ? <div className="notice small">Todavía no se puede. Define: {missing.join(', ')}. Los cambios en producción también necesitan la conexión con la API de Google Ads (Conexiones).</div> : (
               <>
@@ -139,7 +148,7 @@ export function Controls({ session, reload }: { session: any; reload: () => void
                 <button className="btn primary" disabled={!isAdmin || !ack} onClick={() => void call('control/mode', { mode: 'LIMITED_AUTO', policyVersion: st.policyVersion }, 'Automático limitado activado')}>Activar Automático limitado para la política v{st.policyVersion}</button>
               </>
             )}
-          </div>
+          </div>}
         </div>
       </section>
 

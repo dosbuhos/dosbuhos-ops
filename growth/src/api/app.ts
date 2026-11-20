@@ -21,7 +21,7 @@ import { APP_URL, EMAIL_FROM } from '../workflows/jobs.ts';
 import { syncAvailability } from '../connectors/opentable-availability.ts';
 import { parseServiceAccount } from '../connectors/ga4.ts';
 import { Mode, ManualCapacityInput, PolicyConfig } from '../domain/schemas.ts';
-import { addDays } from '../domain/time.ts';
+import { addDays, localDate } from '../domain/time.ts';
 import { runDemoBootstrap } from '../../fixtures/demo-actions.ts';
 import { DEMO_ACCOUNT } from '../../fixtures/demo-data.ts';
 
@@ -451,6 +451,26 @@ app.post('/api/control/run-report', async c => {
   const r = await writeReport(c.env, { runKey: `manual:${Date.now()}`, kind: c.req.query('kind') === 'weekly' ? 'weekly' : 'daily' }, Date.now());
   await watchdog(c.env, Date.now());
   return json(c, r);
+});
+// Same review as the 08:00 daily job (report + model suggestions), started on demand. Suggestions still go
+// through the policy and wait for approval. Capped to keep model cost and noise down.
+const MANUAL_REVIEWS_PER_DAY = 3;
+app.post('/api/control/run-review', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
+  const st = await a.stub.state();
+  if (!['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode)) return fail(c, 409, 'mode', 'Las sugerencias solo se generan en Sombra o Automático limitado');
+  if (st.aiStopped || st.emergencyLock) return fail(c, 409, 'stopped', 'Los cambios de la IA están detenidos o el bloqueo de emergencia está activo');
+  const now = Date.now();
+  const today = localDate(now, c.env.WINERY_TZ);
+  const running = await c.env.DB.prepare("SELECT 1 FROM job_runs WHERE job = 'manual_review' AND status IN ('claimed','running') AND started_at > ? LIMIT 1").bind(now - 10 * 60_000).first();
+  if (running) return fail(c, 409, 'running', 'Ya hay una revisión en curso; espera unos minutos');
+  const count = (await c.env.DB.prepare("SELECT COUNT(*) AS n FROM job_runs WHERE job = 'manual_review' AND run_key LIKE ?").bind(`manual_review:${today}:%`).first<{ n: number }>())?.n ?? 0;
+  if (count >= MANUAL_REVIEWS_PER_DAY) return fail(c, 409, 'limit', `Límite de ${MANUAL_REVIEWS_PER_DAY} revisiones manuales por día`);
+  const runKey = `manual_review:${today}:${now}`;
+  await c.env.DB.prepare("INSERT INTO job_runs (run_key, job, status, attempts, started_at) VALUES (?, 'manual_review', 'claimed', 1, ?)").bind(runKey, now).run();
+  await c.env.DAILY_REVIEW.create({ id: runKey.replace(/:/g, '-'), params: { runKey, kind: 'daily' } });
+  return json(c, { runKey, note: 'Revisión iniciada. Las sugerencias aparecen en Acciones en 1–3 minutos.' });
 });
 app.get('/api/export/coordinator', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
