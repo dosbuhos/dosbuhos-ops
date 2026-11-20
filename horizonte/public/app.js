@@ -17,6 +17,7 @@ const I = {
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
   minus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>',
   search: `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>`,
+  filter: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"/></svg>`,
   pin: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>`,
   star: (s = 14) => `<svg class="star" role="img" aria-label="Target" width="${s}" height="${s}" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l3 6.5 7 .9-5.1 4.9 1.3 7L12 17.8 5.8 21.3l1.3-7L2 9.4l7-.9z"/></svg>`,
   people: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.2c2.8.2 4.6 1.8 5 4.8"/></svg>`,
@@ -30,6 +31,7 @@ const I = {
   side: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
   chev: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   down: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
+  check: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 
 // ── dates and periods ─────────────────────────────────────────
@@ -451,15 +453,28 @@ function renderPanel() {
 <div class="listhead"><button class="link back" data-act="panelnav">${I.left} All lists</button>${board ? `<button class="link" data-act="editboard" data-bid="${board.id}">Edit board</button>` : ''}</div>
 <div class="listtitle"><b>${esc(name)}</b><span class="muted">${n}</span></div>
 <div class="qa"><label for="qa">${esc(addLabel)}</label><input id="qa" type="text" placeholder="Type a task and press Enter" autocomplete="off" enterkeyhint="done"></div>
-<div class="hint"><span>Drag onto any day, hour or horizon</span><button class="link" data-act="sort">Sort: ${S.ui.sort}</button></div>
-${tagStrip()}
+<div class="hint"><span>Drag onto any day, hour or horizon</span></div>
 ${renderPanelList(board)}
 </aside>`;
 }
-function tagStrip() {
-  const list = tagsList(); if (!list.length) return '';
+// ── filter & sort ─────────────────────────────────────────────
+// One control for both: a filter button next to the search box opens a sheet with the sort order and the tag filter.
+// While a filter is active a slim bar under the search box says so and clears it in one tap.
+const SORTS = [['manual', 'My order'], ['priority', 'Priority'], ['tag', 'Tag'], ['age', 'Oldest first'], ['duration', 'Shortest first']];
+const sortLabel = () => (SORTS.find(x => x[0] === S.ui.sort) || SORTS[0])[1];
+const filterActive = () => !!S.ui.tagFilter || (S.ui.sort && S.ui.sort !== 'manual');
+function filterBar() {
   const f = S.ui.tagFilter; if (f && !tagById(f)) S.ui.tagFilter = null;
-  return `<div class="tagstrip" aria-label="Filter by tag">${list.map(x => tagChip(x, `role="button" tabindex="0" data-act="tagfilter" data-t="${x.id}" aria-pressed="${f === x.id}"`)).join('')}${f ? `<button class="link" data-act="tagfilter" data-t="${f}">Clear</button>` : ''}</div>`;
+  if (!filterActive()) return '';
+  const parts = []; if (S.ui.tagFilter) parts.push(tagChip(tagById(S.ui.tagFilter))); if (S.ui.sort !== 'manual') parts.push(`<span class="muted">${esc(sortLabel())}</span>`);
+  return `<div class="filterbar">${parts.join('')}<button class="link" data-act="filterclear">Clear</button></div>`;
+}
+function filterSheet() {
+  const f = S.ui.tagFilter, tags = tagsList();
+  openSheet(`<div class="grab"></div><div class="sheethead"><div class="sheettitle">Filter &amp; sort</div><button class="link" data-act="filterclear">Clear</button></div>
+<div class="grp"><div class="eyebrow">Sort by</div><div class="list-pick">${SORTS.map(([k, l]) => `<button data-act="sortset" data-s="${k}" aria-pressed="${S.ui.sort === k}">${l}${S.ui.sort === k ? I.check : ''}</button>`).join('')}</div></div>
+${tags.length ? `<div class="grp"><div class="eyebrow">Show only</div><div class="tagpick">${tags.map(x => tagChip(x, `role="button" tabindex="0" data-act="tagfilter" data-t="${x.id}" aria-pressed="${f === x.id}"`)).join('')}</div></div>` : ''}
+<button class="bigbtn" data-act="close">Done</button>`, { filter: true });
 }
 const byTag = (list) => S.ui.tagFilter ? list.filter(t => (t.tags || []).includes(S.ui.tagFilter)) : list;
 // ── search ────────────────────────────────────────────────────
@@ -472,7 +487,9 @@ function searchTasks(q) {
   return [...S.tasks.values()].filter(t => !t.del && t.status !== 'dropped').filter(t => { const h = hay(t); return words.every(w => h.includes(w)); })
     .sort((a, b) => rank(a) - rank(b) || String(a.when || '9').localeCompare(String(b.when || '9')) || (a.at || '').localeCompare(b.at || '') || order(a, b)).slice(0, 60);
 }
-function searchBox(id) { return `<div class="search"><span class="sicon">${I.search}</span><input id="${id}" type="search" placeholder="Search tasks" autocomplete="off" value="${esc(S.ui.q || '')}" aria-label="Search tasks">${S.ui.q ? `<button class="sclear" data-act="qclear" aria-label="Clear search">✕</button>` : ''}</div>`; }
+function searchBox(id) {
+  return `<div class="searchrow"><div class="search"><span class="sicon">${I.search}</span><input id="${id}" type="search" placeholder="Search tasks" autocomplete="off" value="${esc(S.ui.q || '')}" aria-label="Search tasks">${S.ui.q ? `<button class="sclear" data-act="qclear" aria-label="Clear search">✕</button>` : ''}</div><button class="fbtn" data-act="filter" aria-label="Filter and sort" aria-pressed="${filterActive()}">${I.filter}</button></div>${S.ui.q ? '' : filterBar()}`;
+}
 function searchResults(mobile) {
   const list = searchTasks(S.ui.q);
   const where = (t) => { const b = S.boards.get(t.board); const parts = [b ? b.name : (t.when ? '' : 'Inbox'), t.when ? dayShort(t.when) + (t.at ? ' ' + clock(t.at) : '') : ''].filter(Boolean); return parts.join(' · '); };
@@ -667,8 +684,8 @@ function mBoards() {
 <main class="mm" style="gap:0">${rows}<button class="rowlink" data-act="settings" style="margin-top:24px;color:var(--ink-2)"><span>Settings</span><span class="n" data-sync></span></button></main>`;
 }
 function mInbox() {
-  const list = byTag(sortList(inboxTasks())), od = overdueTasks();
-  let body = tagStrip();
+  const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
+  let body = '';
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
   if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
@@ -857,9 +874,11 @@ document.addEventListener('click', async (e) => {
     case 'mtoday': S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
     case 'togglepanel': S.ui.panelHidden = !S.ui.panelHidden; render(); return;
-    case 'sort': { const m = ['manual', 'priority', 'tag', 'age', 'duration']; S.ui.sort = m[(m.indexOf(S.ui.sort) + 1) % m.length]; render(); return; }
+    case 'filter': filterSheet(); return;
+    case 'sortset': S.ui.sort = el.dataset.s; render(); if (sheetState?.filter) filterSheet(); return;
+    case 'filterclear': S.ui.sort = 'manual'; S.ui.tagFilter = null; render(); if (sheetState?.filter) filterSheet(); return;
     case 'qclear': { const inp = $('#q,#mq'); S.ui.q = ''; if (inp) { inp.value = ''; inp.blur(); } render(); $('#q,#mq')?.focus(); return; }
-    case 'tagfilter': S.ui.tagFilter = S.ui.tagFilter === el.dataset.t ? null : el.dataset.t; render(); return;
+    case 'tagfilter': S.ui.tagFilter = S.ui.tagFilter === el.dataset.t ? null : el.dataset.t; render(); if (sheetState?.filter) filterSheet(); return;
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); $('#newtag')?.focus(); return;
     case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }
