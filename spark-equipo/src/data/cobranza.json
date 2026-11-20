@@ -1,0 +1,294 @@
+{
+"corte": "2026-11-13",
+"fuente": "CRM Carlos Tapia avance NOV 2026.xlsx, hoja \"Pronostico Cobranza Nov 2026\"",
+"facturas": [
+{
+"vence": "2024-11-09",
+"factura": "F-000547",
+"cliente": "XOLAZUL",
+"saldo": 4149.18,
+"vendedor": "Ángeles Sánchez",
+"pronostico": 0,
+"comentario": "Insistir con los contactos que se tienen"
+},
+{
+"vence": "2024-12-28",
+"factura": "F-000664",
+"cliente": "XOLAZUL",
+"saldo": 6010.2,
+"vendedor": "Ángeles Sánchez",
+"pronostico": 0,
+"comentario": "Insistir con los contactos que se tienen"
+},
+{
+"vence": "2025-11-09",
+"factura": "F-001423",
+"cliente": "Miguel Angel Quiroz Arroyo",
+"saldo": 24715.09,
+"vendedor": "Carlos",
+"pronostico": 10000,
+"comentario": "Insistir con plan de pagos"
+},
+{
+"vence": "2025-12-20",
+"factura": "F-001490",
+"cliente": "Wine House",
+"saldo": 32871.09,
+"vendedor": "Carlos",
+"pronostico": 10000,
+"comentario": "Insistir con plan de pagos"
+},
+{
+"vence": "2026-06-14",
+"factura": "F-002010",
+"cliente": "Decantum",
+"saldo": 12251.12,
+"vendedor": "Carlos",
+"pronostico": 5000,
+"comentario": "Recuperar producto sobrante"
+},
+{
+"vence": "2026-08-28",
+"factura": "F-002219",
+"cliente": "ESPECIALISTAS EN VINOS Y  LICORES",
+"saldo": 666.76,
+"vendedor": "Carlos",
+"pronostico": 667,
+"comentario": ""
+},
+{
+"vence": "2026-09-07",
+"factura": "F-002211",
+"cliente": "Decantum",
+"saldo": 2239.93,
+"vendedor": "Carlos",
+"pronostico": 2240,
+"comentario": ""
+},
+{
+"vence": "2026-09-11",
+"factura": "F-002180",
+"cliente": "Cactus Wine",
+"saldo": 29119.34,
+"vendedor": "Carlos",
+"pronostico": 29119,
+"comentario": "Pagado 06 Nov 26"
+},
+{
+"vence": "2026-10-12",
+"factura": "F-002318",
+"cliente": "Decantum",
+"saldo": 2239.93,
+"vendedor": "Carlos",
+"pronostico": 2240,
+"comentario": ""
+},
+{
+"vence": "2026-10-18",
+"factura": "F-002335",
+"cliente": "Vivid Distribución",
+"saldo": 0.03,
+"vendedor": "Carlos",
+"pronostico": 0,
+"comentario": ""
+},
+{
+"vence": "2026-10-27",
+"factura": "F-002324",
+"cliente": "Cactus Wine",
+"saldo": 49210.03,
+"vendedor": "Carlos",
+"pronostico": 25000,
+"comentario": "Pagado 13 Nov 26"
+},
+{
+"vence": "2024-03-17",
+"factura": "F-000019",
+"cliente": "ANTONIO ARANDA LAVALLE",
+"saldo": 2226.64,
+"vendedor": "José Luis",
+"pronostico": 2227,
+"comentario": "En revision entrada de producto (respuesta pendiente)"
+},
+{
+"vence": "2024-10-11",
+"factura": "F-000410",
+"cliente": "Fernando Cortes Olalde",
+"saldo": 7870.21,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Sin movimiento en el juzgado, Edo de Mex"
+},
+{
+"vence": "2024-11-02",
+"factura": "F-000467",
+"cliente": "Fernando Cortes Olalde",
+"saldo": 11288.04,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Sin movimiento en el juzgado, Edo de Mex"
+},
+{
+"vence": "2024-11-23",
+"factura": "F-000504",
+"cliente": "Fernando Cortes Olalde",
+"saldo": 13915.93,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Sin movimiento en el juzgado, Edo de Mex"
+},
+{
+"vence": "2024-12-21",
+"factura": "F-000566",
+"cliente": "Fernando Cortes Olalde",
+"saldo": 4162.08,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Sin movimiento en el juzgado, Edo de Mex"
+},
+{
+"vence": "2024-12-26",
+"factura": "F-000584",
+"cliente": "Fernando Cortes Olalde",
+"saldo": 10628.4,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Sin movimiento en el juzgado, Edo de Mex"
+},
+{
+"vence": "2024-12-26",
+"factura": "F-000585",
+"cliente": "Fernando Cortes Olalde",
+"saldo": 13607.29,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Sin movimiento en el juzgado, Edo de Mex"
+},
+{
+"vence": "2025-01-17",
+"factura": "F-000728",
+"cliente": "ANTONIO ARANDA LAVALLE",
+"saldo": 2296.8,
+"vendedor": "José Luis",
+"pronostico": 2297,
+"comentario": "En revision entrada de producto (respuesta pendiente)"
+},
+{
+"vence": "2025-02-12",
+"factura": "F-000768",
+"cliente": "SMDA HOTELES",
+"saldo": 1948.8,
+"vendedor": "José Luis",
+"pronostico": 1949,
+"comentario": "Rosewood (se solicito comprobante de pago)"
+},
+{
+"vence": "2025-10-22",
+"factura": "F-001416",
+"cliente": "BOUTIQUE TIPICO MX",
+"saldo": 495.4,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Se elaboro N/C"
+},
+{
+"vence": "2025-11-22",
+"factura": "F-001498",
+"cliente": "HOTEL REAL DE MINAS DE SAN MIGUEL ALLENDE",
+"saldo": 3828.01,
+"vendedor": "José Luis",
+"pronostico": 3828,
+"comentario": "Pagado se envia comprobante (aclarar)"
+},
+{
+"vence": "2025-12-22",
+"factura": "F-001502",
+"cliente": "Rafael De Jesus Solano Avilés",
+"saldo": 5879.45,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Producto recuperado (cierre de consigna)"
+},
+{
+"vence": "2026-01-25",
+"factura": "F-001645",
+"cliente": "Miguel Angel Quiroz Arroyo",
+"saldo": 10921.14,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Insistir con plan de pagos"
+},
+{
+"vence": "2026-01-30",
+"factura": "F-001672",
+"cliente": "Operadora De Spa & Salon Hsp",
+"saldo": 7304.42,
+"vendedor": "José Luis",
+"pronostico": 2000,
+"comentario": "Pago $2,000.00 se envia comprobante"
+},
+{
+"vence": "2026-02-22",
+"factura": "F-001696",
+"cliente": "Miguel Angel Quiroz Arroyo",
+"saldo": 15884.19,
+"vendedor": "José Luis",
+"pronostico": 0,
+"comentario": "Insistir con plan de pagos"
+},
+{
+"vence": "2026-05-28",
+"factura": "F-001964",
+"cliente": "ANÓNIMA VINOS",
+"saldo": 3250.75,
+"vendedor": "José Luis",
+"pronostico": 3251,
+"comentario": ""
+},
+{
+"vence": "2026-09-10",
+"factura": "F-002230",
+"cliente": "El Chaneque Co",
+"saldo": 15000.0,
+"vendedor": "José Luis",
+"pronostico": 15000,
+"comentario": "Pago $10,000.00 10 nov 26"
+},
+{
+"vence": "2026-10-03",
+"factura": "F-002329",
+"cliente": "ANTONIO ARANDA LAVALLE",
+"saldo": 2474.05,
+"vendedor": "José Luis",
+"pronostico": 2474,
+"comentario": ""
+},
+{
+"vence": "2026-10-14",
+"factura": "F-002355",
+"cliente": "AGAVE DESTILADOS",
+"saldo": 18003.8,
+"vendedor": "José Luis",
+"pronostico": 18004,
+"comentario": ""
+},
+{
+"vence": "2026-10-24",
+"factura": "F-002379",
+"cliente": "AGAVE DESTILADOS",
+"saldo": 6438.61,
+"vendedor": "José Luis",
+"pronostico": 6439,
+"comentario": ""
+},
+{
+"vence": "2026-04-25",
+"factura": "F-001870",
+"cliente": "Srta Elizabeth Flores",
+"saldo": 23.32,
+"vendedor": "Manuel Gonzalez",
+"pronostico": 0,
+"comentario": "Se elaboro N/C"
+}
+]
+}

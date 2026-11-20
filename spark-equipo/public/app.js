@@ -1,3 +1,5 @@
+import { MAS_VISTAS, prospeccionCarlos } from './mas.js';
+
 // Spark Equipo — phone-first UI. Every figure comes computed from /api/data; this file only lays it out.
 const $ = (id) => document.getElementById(id);
 const h = (tag, attrs = {}, ...kids) => {
@@ -30,9 +32,17 @@ const pill = (text, kind) => h('span', { class: 'pill ' + kind }, text);
 let D = null;
 const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: null, segFiltro: 'vencida', segOrden: 'viejo', zona: '', clase: '', abierto: {}, orden: {} };
 
-// Bottom tabs: the four daily screens plus "Más".
-const TABS = [['hoy', 'Hoy'], ['semanas', 'Semanas'], ['seguimiento', 'Seguimiento'], ['ventas', 'Ventas'], ['mas', 'Más']];
-const MAS = [['pendientes', 'Preguntas pendientes'], ['clientes', 'Clientes año contra año'], ['zonas', 'Zonas y prospectos'], ['efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', true]];
+// Every screen, grouped the way the sidebar shows them. [slug, sidebar label, page title, admin only, coming soon]
+const GRUPOS = [
+  ['Mi trabajo', [['hoy', 'Hoy', 'Hoy'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['pendientes', 'Preguntas pendientes', 'Preguntas pendientes']]],
+  ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
+  ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
+  ['Recursos', [['materiales', 'Materiales de venta', 'Materiales de venta'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
+  ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
+];
+const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
+const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // phone bottom bar; the rest are under "Más"
+const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'comunicaciones', 'directorio'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
   if (persona !== undefined) S.persona = persona;
@@ -40,8 +50,10 @@ function ir(vista, persona) {
   if (location.hash.slice(1) !== vista) history.pushState(null, '', '#' + vista); // so the phone's back button walks the screens
   pintar(); window.scrollTo(0, 0);
 }
-const deHash = () => { const v = location.hash.slice(1); S.vista = VISTAS[v] && (D.yo.admin || !['efectividad', 'ajustes'].includes(v)) ? v : 'hoy'; };
+const deHash = () => { const v = location.hash.slice(1), x = PANT.get(v); S.vista = VISTAS[v] && x && (D.yo.admin || !x[3]) ? v : 'hoy'; };
 addEventListener('popstate', () => { if (D) { deHash(); $('sheet').hidden = true; pintar(); } });
+// Whether the signed-in person may write on behalf of p.
+const puede = (p) => D.yo.admin || D.yo.persona === p;
 const personas = () => (S.persona ? [S.persona] : ['José Luis', 'Carlos', 'Daniel']);
 const vendedores = () => personas().filter((p) => p !== 'Daniel');
 const veo = (p) => personas().includes(p);
@@ -138,6 +150,9 @@ function equipo(filas, cuando) {
 const chips = (opts, cur, set) => h('div', { class: 'chips' }, opts.map(([v, t]) => h('button', { class: 'chip', 'aria-pressed': String(cur === v), onclick: () => { set(v); pintar(); } }, t)));
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
 
+export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, pintar, cargar, ir };
+export const datos = () => D;
+
 const VISTAS = {
   hoy() {
     return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => {
@@ -148,7 +163,7 @@ const VISTAS = {
         h('div', { class: 'name' }, p, w ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : null),
         w ? h('div', {}, h('span', { class: 'num' }, `${w.contactos} / ${w.meta}`), h('span', { class: 'note' }, ' contactos esta semana')) : null,
         w ? ritmo(w) : null,
-        (D.preguntas || []).some((q) => !q.respondida && q.para === p) ? h('p', { class: 'note' }, h('button', { class: 'linkb', onclick: () => ir('pendientes', p) }, `Tienes ${(D.preguntas || []).filter((q) => !q.respondida && q.para === p).length} pregunta(s) pendiente(s) de Eric`)) : null,
+        (D.preguntas || []).some((q) => !q.respondida && q.para === p) ? h('p', { class: 'note' }, h('button', { class: 'linkb', onclick: () => ir('pendientes', p) }, ((n) => (n === 1 ? 'Tienes 1 pregunta pendiente de Eric' : `Tienes ${n} preguntas pendientes de Eric`))((D.preguntas || []).filter((q) => !q.respondida && q.para === p).length))) : null,
         h('h3', {}, 'Enfócate en'), todo.length ? ul(todo) : h('p', { class: 'note' }, 'Sin pendientes urgentes.'),
         bien.length ? [h('h3', {}, 'Va bien'), ul(bien)] : null);
     })));
@@ -183,9 +198,14 @@ const VISTAS = {
         h('span', {}, 'Llamadas'), h('b', {}, r.llamadas), h('span', {}, 'Mensajes (WhatsApp, correo)'), h('b', {}, r.mensajes),
         h('span', {}, 'Prospección'), h('b', {}, r.prospeccion),
         p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
-    const tablaCont = (cont, vacio) => h('div', { class: 'card' }, lista('cont', cont, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cuenta), h('span', { class: 'note' }, dia(r.fecha))), h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, r.actividad, r.medio].filter(Boolean).join(' · ')), r.resultado ? h('div', { class: 'l2' }, r.resultado) : null), vacio,
+    // Minutes per contact: estimated (≈) until the rep says how long it really took.
+    const tiempo = (r) => { const t = (r.min_real ? '' : '≈ ') + r.min + ' min';
+      return puede(r.persona) ? h('button', { class: 'linkb', title: 'Corregir el tiempo', onclick: () => formulario('Tiempo que tomó', [{ k: 'minutos', t: `${r.cuenta} · ${dia(r.fecha)} · minutos con el traslado`, tipo: 'number', v: r.min, req: true, max: 600 }],
+        (v) => enviar('api/tiempo', { persona: r.persona, fecha: r.fecha, cuenta: r.cuenta, actividad: r.actividad, minutos: v.minutos }), 'El estimado es 60 min por visita, 10 por llamada y 5 por mensaje. Corrígelo si fue más o menos.') }, t) : t; };
+    const tablaCont = (cont, vacio) => h('div', { class: 'card' }, lista('cont', cont, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cuenta), h('span', { class: 'note' }, dia(r.fecha))), h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, r.actividad, r.medio].filter(Boolean).join(' · '), ' · ', tiempo(r)), r.resultado ? h('div', { class: 'l2' }, r.resultado) : null), vacio,
       [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' }, { t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' },
-        { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio }, { t: 'Resultado', v: (r) => r.resultado, cls: 'mut' }]));
+        { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio },
+        { t: 'Tiempo', v: tiempo, s: (r) => r.min, num: true }, { t: 'Resultado', v: (r) => r.resultado, cls: 'mut' }]));
     const tablaOrd = (ords, vacio) => (ps.some((p) => p !== 'Daniel') ? [h('h2', {}, 'Qué vendieron'),
       h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null].filter(Boolean).join(' · '))), vacio,
         [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, { t: 'Cliente', v: (r) => r.cliente, s: (r) => r.cliente.toLowerCase(), cls: 'b' }, { t: 'Orden', v: (r) => r.orden, cls: 'mut' },
@@ -259,10 +279,12 @@ const VISTAS = {
         h('div', { class: 'l1' }, h('span', {}, r.cuenta), est(r)),
         h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, `Último contacto ${dia(r.ultimo_contacto)} (${r.dias_sin_contacto} días)`, r.proximo ? `próximo ${dia(r.proximo)}` : null].filter(Boolean).join(' · ')),
         r.ultima_nota ? h('div', { class: 'l2' }, r.ultima_nota.slice(0, 160)) : null,
-        r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso: '), r.sugerencia) : null), 'No hay cuentas en esta lista.',
+        r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso: '), r.sugerencia) : null,
+        puede(r.persona) ? h('div', { class: 'acc' }, h('button', { class: 'btn sm', onclick: () => registrar({ cuenta: r.cuenta, persona: r.persona }) }, 'Registrar contacto')) : null), 'No hay cuentas en esta lista.',
         [{ t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' },
           { t: 'Último contacto', v: (r) => dia(r.ultimo_contacto), s: (r) => r.ultimo_contacto, cls: 'nw' }, { t: 'Días sin contacto', v: (r) => r.dias_sin_contacto, s: (r) => r.dias_sin_contacto, num: true },
-          { t: 'Estado', v: (r) => [est(r), r.proximo && r.estado !== 'vencida' ? h('div', { class: 'note' }, 'próximo ' + dia(r.proximo)) : null], s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => (r.ultima_nota || '').slice(0, 140), cls: 'mut' }, { t: 'Siguiente paso sugerido', v: (r) => r.sugerencia || '—', cls: 'sugc' }])),
+          { t: 'Estado', v: (r) => [est(r), r.proximo && r.estado !== 'vencida' ? h('div', { class: 'note' }, 'próximo ' + dia(r.proximo)) : null], s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => (r.ultima_nota || '').slice(0, 140), cls: 'mut' }, { t: 'Siguiente paso sugerido', v: (r) => r.sugerencia || '—', cls: 'sugc' },
+          { t: '', v: (r) => (puede(r.persona) ? h('button', { class: 'btn sm sec', onclick: () => registrar({ cuenta: r.cuenta, persona: r.persona }) }, 'Registrar') : ''), cls: 'nw' }])),
       vendedores().length ? [h('h2', {}, 'Clientes principales'),
         h('p', { class: 'note' }, 'Los 15 más grandes de cada vendedor, primero los que llevan más tiempo sin contacto.'),
         h('div', { class: 'card' }, lista('cob', cob, 10, (c) => h('li', {},
@@ -278,13 +300,17 @@ const VISTAS = {
     const vs = vendedores();
     if (!vs.length) return h('p', { class: 'note' }, 'Daniel no factura: sus números están en Semanas y Seguimiento.');
     const ym = D.hoy.slice(0, 7), ords = D.ordenes.filter((o) => o.fecha.slice(0, 7) === ym && vs.includes(o.vendedor));
+    // Month budget from Carlos's 2026 plan, against what Zoho shows so far.
+    const presu = (r) => { const P = (D.presupuesto.meses[r.vendedor] || [])[Number(ym.slice(5)) - 1]; if (!P) return null; const pc = Math.round(r.total / P * 100);
+      return h('div', { style: 'margin-top:12px' }, h('div', { class: 'kv' }, h('span', {}, 'Presupuesto del mes'), h('b', {}, `${peso(P)} · ${pc}%`)), h('div', { class: 'barra', role: 'img', 'aria-label': `${pc}% del presupuesto` }, h('i', { class: pc >= 100 ? 'ok' : pc >= 60 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }))); };
     const E = { invoiced: 'Facturada', not_invoiced: 'Sin facturar', partially_invoiced: 'Factura parcial', paid: 'pagada', unpaid: 'sin pagar', partially_paid: 'pago parcial' };
     return h('div', {},
       h('h2', {}, `Ventas de ${MESL[Number(ym.slice(5)) - 1]}`),
       h('div', { class: 'grid3' }, D.mes.filter((r) => vs.includes(r.vendedor)).map((r) => h('section', { class: 'card' },
         h('div', { class: 'name' }, r.vendedor), h('div', { class: 'num' }, peso(r.total)),
         h('div', { class: 'kv' }, h('span', {}, 'Órdenes'), h('b', {}, r.ordenes), h('span', {}, 'Clientes'), h('b', {}, r.clientes),
-          h('span', {}, 'Sin facturar'), h('b', {}, peso(r.sin_facturar)), h('span', {}, 'Facturado sin pagar'), h('b', {}, peso(r.por_cobrar)))))),
+          h('span', {}, 'Sin facturar'), h('b', {}, peso(r.sin_facturar)), h('span', {}, 'Facturado sin pagar'), h('b', {}, peso(r.por_cobrar))),
+        presu(r)))),
       h('h2', {}, 'Órdenes del mes'),
       h('div', { class: 'card' }, lista('mes', ords, 12, (o) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, o.cliente), h('span', {}, peso(o.total))),
         h('div', { class: 'l2' }, [dia(o.fecha), o.orden, vs.length > 1 ? o.vendedor : null, E[o.facturacion] || o.facturacion, E[o.pago] || o.pago].filter(Boolean).join(' · '))), 'Todavía no hay órdenes este mes.',
@@ -405,6 +431,7 @@ const VISTAS = {
           { t: 'Tipo', v: (p) => p.tipo, s: (p) => p.tipo }, { t: 'Ciudades', v: (p) => p.ciudades, cls: 'mut' }, { t: 'Por qué', v: (p) => p.razon, cls: 'mut' },
           { t: 'Estado', v: (p) => pill(p.estado, p.estado === 'Prospecto nuevo' ? 'mute' : p.estado === 'Reactivar' ? 'bad' : 'warn'), s: (p) => p.estado, cls: 'nw' },
           { t: 'Último contacto', v: (p) => (p.ultimo_contacto ? `${dia(p.ultimo_contacto)} · ${p.contacto_por}` : 'Nunca'), s: (p) => p.ultimo_contacto || null, cls: 'nw' }])),
+      prospeccionCarlos(),
       h('p', { class: 'note' }, 'El peso de cada zona es una estimación: 65% economía (PIB estatal, INEGI) y 35% turismo (cuartos de hotel, DataTur). Ventas facturadas en Zoho a clientes de Carlos y José Luis.'));
   },
 
@@ -440,6 +467,8 @@ const VISTAS = {
   }
 };
 
+Object.assign(VISTAS, MAS_VISTAS);
+
 let _estados = null;
 const estados = () => (_estados ||= fetch('estados.json').then((r) => r.json()).then((rows) => rows.map((s) => ({ ...s, g: JSON.parse(s.geom) }))));
 async function api(path, body) {
@@ -448,19 +477,60 @@ async function api(path, body) {
 }
 
 function pintar() {
-  const admin = D.yo.admin;
-  $('who').replaceChildren(...(!['zonas', 'ajustes'].includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel']].map(([v, t]) =>
+  const admin = D.yo.admin, wide = ancho(), yo = PANT.get(S.vista) || PANT.get('hoy');
+  const nPend = (D.preguntas || []).filter((q) => !q.respondida && (admin || q.para === D.yo.persona)).length;
+  const visibles = GRUPOS.map(([g, L]) => [g, L.filter((x) => !x[3] || admin)]).filter(([, L]) => L.length);
+  const boton = ([v, t, , , prox]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, h('span', {}, t),
+    v === 'pendientes' && nPend ? h('span', { class: 'cnt', 'aria-label': `${nPend} sin responder` }, nPend) : prox ? h('span', { class: 'soon' }, 'Pronto') : null);
+  $('titulo').textContent = yo[2];
+  $('sub').textContent = new Date(D.hoy + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('who').replaceChildren(...(!SIN_FILTRO.includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel']].map(([v, t]) =>
     h('button', { class: 'chip', 'aria-pressed': String(S.persona === v), onclick: () => { S.persona = v; pintar(); } }, t)) : []));
-  const enMas = MAS.some(([v]) => v === S.vista);
-  const wide = ancho(), nPend = (D.preguntas || []).filter((q) => !q.respondida && (D.yo.admin || q.para === D.yo.persona)).length;
-  document.body.classList.toggle('wide', wide);
-  const tabs = wide ? [...TABS.filter(([v]) => v !== 'mas'), ...MAS.filter(([, , soloAdmin]) => !soloAdmin || admin).map(([v, t]) => [v, t.replace(' año contra año', '').replace(' y prospectos', '').replace('Preguntas pendientes', 'Pendientes' + (nPend ? ` (${nPend})` : ''))])] : TABS;
-  $('tabs').replaceChildren(...tabs.map(([v, t]) => h('button', { 'aria-current': (v === S.vista || (v === 'mas' && enMas)) ? 'page' : null,
-    onclick: () => { if (v !== 'mas') return ir(v); $('sheet').hidden = false; } }, t)));
-  $('sheet').replaceChildren(h('div', {}, MAS.filter(([, , soloAdmin]) => !soloAdmin || admin).map(([v, t]) => h('button', { onclick: () => ir(v) }, t)), h('button', { onclick: () => { $('sheet').hidden = true; } }, 'Cerrar')));
+  $('nuevo').hidden = !(D.yo.persona || admin) || !['hoy', 'semanas', 'seguimiento'].includes(S.vista);
+  $('nav').replaceChildren(...visibles.flatMap(([g, L]) => [h('h3', {}, g), ...L.map(boton)]));
+  $('me').textContent = (D.yo.nombre || '') + (admin ? ' · administrador' : D.yo.persona ? ' · ' + D.yo.persona : '');
+  const enMas = !ABAJO.includes(S.vista);
+  $('tabs').replaceChildren(...ABAJO.map((v) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, PANT.get(v)[1].replace(' y meses', ''))),
+    h('button', { 'aria-current': enMas ? 'page' : null, onclick: () => { $('sheet').hidden = false; } }, 'Más' + (nPend ? ` (${nPend})` : '')));
+  $('sheet').replaceChildren(h('div', {}, visibles.flatMap(([g, L]) => { const R = L.filter((x) => !ABAJO.includes(x[0])); return R.length ? [h('h3', {}, g), ...R.map(boton)] : []; }), h('button', { onclick: () => { $('sheet').hidden = true; } }, 'Cerrar')));
+  if (!wide) $('sheet').hidden = $('sheet').hidden;
   $('main').replaceChildren((VISTAS[S.vista] || VISTAS.hoy)());
 }
 $('sheet').addEventListener('click', (ev) => { if (ev.target === $('sheet')) $('sheet').hidden = true; });
+$('nuevo').addEventListener('click', () => registrar({}));
+
+// One dialog for every form in the app. campos: [{ k, t, tipo: text|textarea|select|date|number|email, ops, v, req, ph, mitad }].
+// guardar(values) returns an error message, or nothing when it worked.
+function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
+  const d = $('dlg'), err = h('span', { class: 'err', role: 'alert' });
+  const campo = (c) => { const a = { name: c.k, required: !!c.req, placeholder: c.ph || null };
+    const el = c.tipo === 'textarea' ? h('textarea', a, c.v || '') : c.tipo === 'select' ? h('select', a, c.ops.map((o) => { const [v, t] = Array.isArray(o) ? o : [o, o]; return h('option', { value: v, selected: String(c.v ?? '') === String(v) }, t); }))
+      : h('input', { ...a, type: c.tipo || 'text', value: c.v ?? null, min: c.tipo === 'number' ? 0 : null, inputmode: c.tipo === 'number' ? 'numeric' : null, max: c.max || null });
+    if (c.lista) { el.setAttribute('list', 'dl-' + c.k); el.setAttribute('autocomplete', 'off'); return h('label', {}, c.t, el, h('datalist', { id: 'dl-' + c.k }, c.lista.map((x) => h('option', { value: x })))); }
+    return h('label', {}, c.t, el); };
+  const filas = []; for (let i = 0; i < campos.length; i++) { const c = campos[i]; if (c.mitad && campos[i + 1] && campos[i + 1].mitad) { filas.push(h('div', { class: 'dos' }, campo(c), campo(campos[++i]))); } else filas.push(campo(c)); }
+  const f = h('form', { method: 'dialog', onsubmit: async (ev) => { ev.preventDefault(); const b = f.querySelector('.btn:not(.sec)'); b.disabled = true; err.textContent = '';
+      const e = await guardar(Object.fromEntries(new FormData(f))).catch((x) => String(x.message || x)); b.disabled = false; if (e) { err.textContent = e; return; } d.close(); } },
+    h('h2', { id: 'dlg-t' }, titulo), nota ? h('p', { class: 'dnote' }, nota) : null, filas,
+    h('div', { class: 'pie' }, err, h('button', { type: 'button', class: 'btn sec', onclick: () => d.close() }, 'Cancelar'), h('button', { class: 'btn' }, boton)));
+  d.replaceChildren(f); d.showModal();
+}
+const enviar = async (url, body) => { const r = await api(url, body); if (r.error) return r.error; await cargar(); };
+// Log a contact from the app. It lands in the same table the CRM sheet feeds, so it shows up everywhere at once.
+function registrar(pre) {
+  const quien = pre.persona || S.persona || D.yo.persona || 'José Luis', cuentas = [...new Set(D.seguimiento.map((r) => r.cuenta))].sort((a, b) => a.localeCompare(b));
+  formulario(pre.cuenta ? `Registrar contacto: ${pre.cuenta}` : 'Registrar contacto', [
+    D.yo.admin ? { k: 'persona', t: 'A nombre de', tipo: 'select', ops: ['José Luis', 'Carlos', 'Daniel'], v: quien } : null,
+    pre.cuenta ? null : { k: 'cuenta', t: 'Cuenta', req: true, ph: 'Nombre del cliente o prospecto', lista: cuentas },
+    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Cobranza', 'Entrega', 'Capacitación', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento', mitad: true },
+    { k: 'medio', t: 'Cómo', tipo: 'select', ops: ['Presencial', 'Llamada', 'WhatsApp', 'Correo'], v: 'Presencial', mitad: true },
+    { k: 'resultado', t: 'Qué pasó', tipo: 'textarea', req: true, ph: 'Con quién hablaste, qué dijeron, qué quedó pendiente' },
+    { k: 'siguiente_paso', t: 'Siguiente paso', ph: 'Lo que vas a hacer después' },
+    { k: 'proximo', t: 'Próximo contacto', tipo: 'date', mitad: true }, { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true },
+    { k: 'etapa', t: 'Etapa de la cuenta', tipo: 'select', ops: [['', 'Sin cambio'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: '', mitad: true },
+    { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', ph: 'Tu estimado', mitad: true },
+  ].filter(Boolean), (v) => enviar('api/actividad', { ...v, cuenta: pre.cuenta || v.cuenta, persona: v.persona || quien }), 'Queda guardado en Spark con la fecha de hoy.');
+}
 
 async function cargar() {
   const r = await fetch('api/data'), j = await r.json().catch(() => ({ error: 'No se pudo leer la respuesta' }));

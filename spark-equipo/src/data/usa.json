@@ -1,0 +1,692 @@
+{
+"fuente": "Dos Buhos - Anual Sales Report (Paulette, La Competencia Imports), 2026",
+"cuentas": [
+{
+"nombre": "Alma Fonda Fina",
+"direccion": "2556 15TH ST, , DENVER, CO80211",
+"ciudad": "Denver",
+"estado": "Colorado",
+"tipo": "Restaurante / bar",
+"cajas": 22.0,
+"rep": "Tony Zezas",
+"primer_mes": "2026-01",
+"ultimo_mes": "2026-07",
+"n_meses": 7,
+"vinos": [
+"Chenin Bl  750M 2023",
+"Temp Gran Rsv  750M"
+]
+},
+{
+"nombre": "Mixtli",
+"direccion": "812 S ALAMO ST STE 103, , SAN ANTONIO, TX78205",
+"ciudad": "San Antonio",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 3.3,
+"rep": "Dan Bryant           Opw Vg Sa",
+"primer_mes": "2026-01",
+"ultimo_mes": "2026-01",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2019",
+"Chenin Bl  750M 2022"
+]
+},
+{
+"nombre": "Tamayo",
+"direccion": "1400 LARIMER ST, , DENVER, CO80202",
+"ciudad": "Denver",
+"estado": "Colorado",
+"tipo": "Restaurante / bar",
+"cajas": 3.0,
+"rep": "Erik Padron",
+"primer_mes": "2026-06",
+"ultimo_mes": "2026-06",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Chenin Bl  750M 2023",
+"Temp Gran Rsv  750M"
+]
+},
+{
+"nombre": "The Mexican Design District",
+"direccion": "1401 TURTLE CREEK BLVD (FTX), (FTX), DALLAS, TX752073303",
+"ciudad": "Dallas",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 3.0,
+"rep": "Matthew Justman        Opw Ntx",
+"primer_mes": "2026-08",
+"ultimo_mes": "2026-08",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022"
+]
+},
+{
+"nombre": "Maria'S Mexican Kitchen",
+"direccion": "5240 N O'CONNOR BLVD #160, (FTX), IRVING, TX750395714",
+"ciudad": "Irving",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 2.0,
+"rep": "Aaron Springer         Opw Ntx",
+"primer_mes": "2026-01",
+"ultimo_mes": "2026-01",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2020"
+]
+},
+{
+"nombre": "Alteno",
+"direccion": "233 CLAYTON ST, , DENVER, CO80206",
+"ciudad": "Denver",
+"estado": "Colorado",
+"tipo": "Restaurante / bar",
+"cajas": 2.0,
+"rep": "Adam Vance",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-07",
+"n_meses": 2,
+"vinos": [
+"Aglianico Rsv  750M 2022"
+]
+},
+{
+"nombre": "Caracol",
+"direccion": "2200 POST OAK BOULEVARD SUITE, , HOUSTON, TX77056",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 2.0,
+"rep": "Nick Gomez            Opw Setx",
+"primer_mes": "2026-09",
+"ultimo_mes": "2026-09",
+"n_meses": 1,
+"vinos": [
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Pappas Bros Steakhse #01 (Fin)",
+"direccion": "5839 WESTHEIMER, , HOUSTON, TX77057",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.9,
+"rep": "Forest Wharton        Opw Setx",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2021"
+]
+},
+{
+"nombre": "The Olive Branch Bakery And Ca",
+"direccion": "215 S 2ND STREET, (FTX), WACO, TX76701",
+"ciudad": "Waco",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.9,
+"rep": "Joshua Engelman        Opw Ntx",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-05",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2020",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Mexico Ceaty",
+"direccion": "849 E COMMERCE STE 150, FTX, SAN ANTONIO, TX78205",
+"ciudad": "San Antonio",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.8,
+"rep": "Natalie Caraballo    Opw Stxsa",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-07",
+"n_meses": 3,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Cab Franc Rsv  750M 2020"
+]
+},
+{
+"nombre": "Zaranda",
+"direccion": "1550 LAMAR ST STE 101, FTX, HOUSTON, TX77010",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.6,
+"rep": "Nick Gomez            Opw Setx",
+"primer_mes": "2026-01",
+"ultimo_mes": "2026-08",
+"n_meses": 3,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Cab Franc Rsv  750M 2021",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Maya Maroma Restaurant",
+"direccion": "1333 OAK LAWN AVE STE 100, (FTX), DALLAS, TX75207",
+"ciudad": "Dallas",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.4,
+"rep": "Chelsea Ybarra         Opw Ntx",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-09",
+"n_meses": 2,
+"vinos": [
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Puerto Cocina   (Ftx)",
+"direccion": "155 RIVEREDGE DR SUITE 119, (FTX), DALLAS, TX752076805",
+"ciudad": "Dallas",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.3,
+"rep": "Chad Wherry            Opw Ntx",
+"primer_mes": "2026-06",
+"ultimo_mes": "2026-09",
+"n_meses": 3,
+"vinos": [
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Agave Blue",
+"direccion": "18168 W 92ND LN UNIT C, , ARVADA, CO80007",
+"ciudad": "Arvada",
+"estado": "Colorado",
+"tipo": "Restaurante / bar",
+"cajas": 1.0,
+"rep": "Tony Zezas",
+"primer_mes": "2026-02",
+"ultimo_mes": "2026-02",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022"
+]
+},
+{
+"nombre": "The Dunlavy",
+"direccion": "3422 ALLEN PARKWAY, , HOUSTON, TX77019",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 1.0,
+"rep": "Megan Rieck           Opw Setx",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2020"
+]
+},
+{
+"nombre": "Superior Liquor Market",
+"direccion": "100 SUPERIOR PLAZA WAY, , SUPERIOR, CO80027",
+"ciudad": "Superior",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 1.0,
+"rep": "Jennifer Burger De Jimenez",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-05",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022"
+]
+},
+{
+"nombre": "Hou Wine",
+"direccion": "8045 NORTHCOURT ROAD, , HOUSTON, TX77040",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.6,
+"rep": "Undefined Ho",
+"primer_mes": "2026-03",
+"ultimo_mes": "2026-09",
+"n_meses": 3,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Cab Franc Rsv  750M 2021",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Put A Cork In It",
+"direccion": "2964 PARK HILL DRIVE, , FORT WORTH, TX76109",
+"ciudad": "Fort Worth",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 0.5,
+"rep": "Madeline Riscky        Opw Ntx",
+"primer_mes": "2026-01",
+"ultimo_mes": "2026-01",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2021"
+]
+},
+{
+"nombre": "1 Hotel Austin",
+"direccion": "96 RED RIVER STREET, FTX, AUSTIN, TX78701",
+"ciudad": "Austin",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 0.5,
+"rep": "Rebecca Brassell     Opw Stxau",
+"primer_mes": "2026-07",
+"ultimo_mes": "2026-07",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Milligan, Evan Thomas",
+"direccion": "1010 ISUZU PARKWAY, , GRAND PRAIRIE, TX750506476",
+"ciudad": "Grand Prairie",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.3,
+"rep": "Undefined    Grand Prairie Ntx",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2021",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Tom Donlevy (Samples)",
+"direccion": "8000 SOUTHPARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.3,
+"rep": "Tom Donlevy",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-05",
+"n_meses": 1,
+"vinos": [
+"Aglianico Rsv  750M 2022",
+"Chenin Bl  750M 2024"
+]
+},
+{
+"nombre": "Anderson, Claire Nagy",
+"direccion": "2101 E. SAINT ELMO SUITE 200, , AUSTIN, TX78744",
+"ciudad": "Austin",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.3,
+"rep": "Undefined                  Saa",
+"primer_mes": "2026-07",
+"ultimo_mes": "2026-07",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022"
+]
+},
+{
+"nombre": "Mayahuel Upscale Mexican Cuisi",
+"direccion": "811 BUFFALO PARK DR SUITE 130, , HOUSTON, TX77019",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 0.2,
+"rep": "Megan Rieck           Opw Setx",
+"primer_mes": "2026-03",
+"ultimo_mes": "2026-03",
+"n_meses": 1,
+"vinos": [
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Messina, Daniel Jacob",
+"direccion": "8045 NORTHCOURT RD, , HOUSTON, TX77040",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Undefined Ho",
+"primer_mes": "2026-03",
+"ultimo_mes": "2026-03",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2021"
+]
+},
+{
+"nombre": "Denver Union Station/Crawford",
+"direccion": "1701 WYNKOOP ST, , DENVER, CO80202",
+"ciudad": "Denver",
+"estado": "Colorado",
+"tipo": "Restaurante / bar",
+"cajas": 0.2,
+"rep": "Taegen Zimdahl",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"Temp Gran Rsv  750M"
+]
+},
+{
+"nombre": "Engelman, Joshua David",
+"direccion": "1010 ISUZU PARKWAY, , GRAND PRAIRIE, TX750506476",
+"ciudad": "Grand Prairie",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Undefined    Grand Prairie Ntx",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2020",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Jen Burger De Jimenez(Samples)",
+"direccion": "8000 SOUTHPARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Jennifer Burger De Jimenez",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Adam Vance (Samples)",
+"direccion": "8000 SOUTH PARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Adam Vance",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-05",
+"n_meses": 1,
+"vinos": [
+"Aglianico Rsv  750M 2022"
+]
+},
+{
+"nombre": "Ryan Carson (Samples)",
+"direccion": "8000 SOUTHPARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Ryan Carson",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-05",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Aglianico Rsv  750M 2022"
+]
+},
+{
+"nombre": "Humcke, Dennis A",
+"direccion": "8045 NORTHCOURT RD, , HOUSTON, TX77040",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "399 Wholesale Vintage",
+"primer_mes": "2026-06",
+"ultimo_mes": "2026-06",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2020"
+]
+},
+{
+"nombre": "Toca Madera",
+"direccion": "1775 ALLEN PKWY SUITE 101, , HOUSTON, TX77019",
+"ciudad": "Houston",
+"estado": "Texas",
+"tipo": "Restaurante / bar",
+"cajas": 0.2,
+"rep": "Forest Wharton        Opw Setx",
+"primer_mes": "2026-06",
+"ultimo_mes": "2026-06",
+"n_meses": 1,
+"vinos": [
+"Cab Franc Rsv  750M 2020"
+]
+},
+{
+"nombre": "Tony Zezas (Samples)",
+"direccion": "8000 SOUTHPARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Tony Zezas",
+"primer_mes": "2026-06",
+"ultimo_mes": "2026-06",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Chenin Bl  750M 2024",
+"Temp Gran Rsv  750M"
+]
+},
+{
+"nombre": "Caraballo, Natalie A",
+"direccion": "6511 TRI-COUNTY PARKWAY, , SCHERTZ, TX78154",
+"ciudad": "Schertz",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.2,
+"rep": "Undefined                  Saa",
+"primer_mes": "2026-07",
+"ultimo_mes": "2026-07",
+"n_meses": 1,
+"vinos": [
+"1524 Espumoso Rose  750M 2022",
+"Cab Franc Rsv  750M 2020",
+"Chenin Bl  750M 2023"
+]
+},
+{
+"nombre": "Taegen Zimdahl (Samples)",
+"direccion": "8000 SOUTHPARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.1,
+"rep": "Taegen Zimdahl",
+"primer_mes": "2026-03",
+"ultimo_mes": "2026-03",
+"n_meses": 1,
+"vinos": [
+"Temp Gran Rsv  750M"
+]
+},
+{
+"nombre": "Quinn Mccandless (Samples)",
+"direccion": "8000 SOUTHPARK TERRACE, , LITTLETON, CO80120",
+"ciudad": "Littleton",
+"estado": "Colorado",
+"tipo": "Tienda",
+"cajas": 0.1,
+"rep": "Quinn Mccandless",
+"primer_mes": "2026-04",
+"ultimo_mes": "2026-04",
+"n_meses": 1,
+"vinos": [
+"Temp Gran Rsv  750M"
+]
+},
+{
+"nombre": "Liberati, Thomas",
+"direccion": "1010 ISUZU PARKWAY, , GRAND PRAIRIE, TX750506476",
+"ciudad": "Grand Prairie",
+"estado": "Texas",
+"tipo": "Tienda",
+"cajas": 0.1,
+"rep": "Undefined    Grand Prairie Ntx",
+"primer_mes": "2026-05",
+"ultimo_mes": "2026-05",
+"n_meses": 1,
+"vinos": [
+"Chenin Bl  750M 2023"
+]
+}
+],
+"envios": [
+{
+"cliente": "RNDC Colorado",
+"estado": "Colorado",
+"cajas": 63.0
+},
+{
+"cliente": "Maverick Beverage Co. Illinois",
+"estado": "Illinois",
+"cajas": 62.1
+},
+{
+"cliente": "Alluvial Wine & Spirits",
+"estado": "California-AL",
+"cajas": 58.7
+},
+{
+"cliente": "Compa Spirits",
+"estado": "Arizona",
+"cajas": 37.0
+},
+{
+"cliente": "Great Lakes Wine & Spirits",
+"estado": "Michigan",
+"cajas": 34.0
+},
+{
+"cliente": "RBG Spirits & Wine of Colorado",
+"estado": "Colorado",
+"cajas": 24.0
+},
+{
+"cliente": "RBG Spirits & Wine of Texas",
+"estado": "Texas-R",
+"cajas": 18.9
+},
+{
+"cliente": "Northgate Market LLC",
+"estado": "California",
+"cajas": 18.3
+},
+{
+"cliente": "Prime Wine & Spirits (Chalkboard Distributors)",
+"estado": "Georgia",
+"cajas": 14.0
+},
+{
+"cliente": "Compa Spirits",
+"estado": "Arizona-C",
+"cajas": 14.0
+},
+{
+"cliente": "Breakthru Bev. / Aspect FL",
+"estado": "Florida",
+"cajas": 12.0
+},
+{
+"cliente": "Alluvial Wine & Spirits",
+"estado": "California",
+"cajas": 11.0
+},
+{
+"cliente": "Wally's Wine & Spirits",
+"estado": "California",
+"cajas": 11.0
+},
+{
+"cliente": "Salveto Imports",
+"estado": "Virginia",
+"cajas": 11.0
+},
+{
+"cliente": "Californios",
+"estado": "California",
+"cajas": 9.2
+},
+{
+"cliente": "VOS Selections",
+"estado": "New York",
+"cajas": 8.8
+},
+{
+"cliente": "RNDC Texas",
+"estado": "Texas",
+"cajas": 7.0
+},
+{
+"cliente": "The 1894",
+"estado": "California",
+"cajas": 5.0
+},
+{
+"cliente": "Lipman Brothers",
+"estado": "Tenesse",
+"cajas": 4.0
+},
+{
+"cliente": "Finca",
+"estado": "California",
+"cajas": 3.5
+},
+{
+"cliente": "Prime Wine & Spirits (Chalkboard Distributors)",
+"estado": "Georgia-P",
+"cajas": 2.0
+},
+{
+"cliente": "San Manuel Casino",
+"estado": "California",
+"cajas": 1.2
+},
+{
+"cliente": "Bird Rock Fine Wine",
+"estado": "California",
+"cajas": 1.0
+},
+{
+"cliente": "Maverick Beverage Co. MN",
+"estado": "Minnesota-M",
+"cajas": 1.0
+},
+{
+"cliente": "Alta Baja Market",
+"estado": "California",
+"cajas": 1.0
+}
+]
+}

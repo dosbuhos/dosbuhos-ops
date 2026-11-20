@@ -11,6 +11,20 @@ Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y 
 - `src/ai.js` asks Claude for a suggested next step per account, from the rep's last notes (table `sugerencias`). It runs after each sync, 40 accounts at a time, and only rewrites a suggestion when the notes or the follow-up state change. Claude writes words only; every number comes from `calc.js`.
 - Activity rows carry `origen`: `hoja` rows are replaced on every sheet sync; `app` rows (logged in Spark, next phase) are kept.
 
+## Screens
+Mi trabajo: Hoy, Semanas y meses, Seguimiento, Preguntas pendientes. Ventas: Ventas del mes (with the 2026 budget), Cobranza, Clientes. Cuentas: Directorio, Copeo y embudo, Encuestas, Zonas y prospectos. Recursos: Materiales de venta, Comunicaciones (coming). Dirección (admins): Efectividad, Ajustes. `public/app.js` holds the shell and the first group; `public/mas.js` the account-side screens.
+
+## What people can write
+- A contact (`POST /api/actividad`): stored in `activity` with `origen = 'app'`, never touched by the sheet sync.
+- The time a contact took (`POST /api/tiempo`), account details, copeo and stage (`POST /api/cuenta`), a collection follow-up (`POST /api/cobros`), a survey link (`POST /api/encuestas`).
+- The client answers a survey on `/e/<token>`, a public page on the Worker's own address (no Hub sign-in). The token is 128 random bits.
+
+## Data that is a dated import, not a live feed
+- `src/data/cobranza.json`: receivables from Carlos's file (13 Nov 2026). Live receivables need Zoho invoice access.
+- `src/data/presupuesto.json`: the 2026 monthly budget per seller, from the same file.
+- `src/data/prospeccion_carlos.json`: Carlos's distributor prospecting list.
+- `src/data/usa.json`: US accounts and distributor shipments from La Competencia's 2026 annual report.
+
 ## Routes
 | Route | Who | What |
 |---|---|---|

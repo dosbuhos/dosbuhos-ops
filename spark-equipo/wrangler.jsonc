@@ -4,7 +4,7 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   // Phone app (static). The Worker answers /api/* only.
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/auth/*"] },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/auth/*", "/e/*"] },
   // Copies of the CRM sheet and of Zoho orders and invoices, the Zoho ↔ CRM name table and who is who.
   "d1_databases": [{ "binding": "DB", "database_name": "spark-equipo", "database_id": "4b2b0c5a-265d-4971-afdf-6470dadd7bc7", "migrations_dir": "migrations" }],
   // The Hub's session secret from the account Secrets Store: checks that requests really come from the Hub (src/hub-secret.js).

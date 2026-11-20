@@ -7,10 +7,13 @@ export const META_DIA = 6; // logged client touches per working day
 // Rough time a logged contact takes, to turn a count into hours of work: a visit in person about an hour with the trip,
 // a call ten minutes, a message five. An estimate, shown as such.
 export const MINUTOS = { presencial: 60, llamada: 10, mensaje: 5 };
+// Minutes one contact took: what the rep entered, or the estimate for its medium.
+export const tipoMedio = (r) => (r.medio === 'Presencial' ? 'presencial' : /llamada|tel[eé]fono/i.test(r.medio || '') ? 'llamada' : 'mensaje');
+export const minutosDe = (r) => (Number(r.minutos) > 0 ? Number(r.minutos) : MINUTOS[tipoMedio(r)]);
 export function esfuerzo(c, habiles) {
-  const presencial = c.filter((r) => r.medio === 'Presencial').length, llamadas = c.filter((r) => /llamada|tel[eé]fono/i.test(r.medio || '')).length, mensajes = c.length - presencial - llamadas;
-  return { habiles, por_dia: habiles ? Math.round(c.length / habiles * 10) / 10 : 0, presencial, llamadas, mensajes,
-    horas: Math.round((presencial * MINUTOS.presencial + llamadas * MINUTOS.llamada + mensajes * MINUTOS.mensaje) / 6) / 10, horas_habiles: habiles * 8 };
+  const n = (t) => c.filter((r) => tipoMedio(r) === t).length;
+  return { habiles, por_dia: habiles ? Math.round(c.length / habiles * 10) / 10 : 0, presencial: n('presencial'), llamadas: n('llamada'), mensajes: n('mensaje'),
+    horas: Math.round(c.reduce((t, r) => t + minutosDe(r), 0) / 6) / 10, horas_habiles: habiles * 8, con_tiempo: c.filter((r) => Number(r.minutos) > 0).length };
 }
 // Zoho "clients" that are not client sales: the house's own accounts (Eric, Diane, events, kitchen, tasting room, online
 // store) and sample accounts. They stay out of every salesperson's numbers.
@@ -123,7 +126,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   const match = matcher(alias);
   const actual = lunes(hoy);
   const act = activity.filter((r) => esFecha(r.fecha) && GENTE.includes(r.persona));
-  const contactos = act.filter(esContacto).map((r) => ({ ...r, semana: lunes(r.fecha) })).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  const contactos = act.filter(esContacto).map((r) => ({ ...r, semana: lunes(r.fecha), min: minutosDe(r), min_real: Number(r.minutos) > 0 })).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
   const ordenes = orders.filter((o) => o.estado !== 'void' && o.total >= 1 && vendedorDe(o.vendedor) && esFecha(o.fecha) && propia(o.cliente))
     .map((o) => ({ fecha: o.fecha, semana: lunes(o.fecha), orden: o.numero, cliente: o.cliente, vendedor: vendedorDe(o.vendedor), total: o.total, facturacion: o.facturacion, pago: o.pago }))
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
@@ -323,7 +326,23 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
       { nombre: 'Cuentas con contacto en 30 días', valor: `${cob} de ${cuentas.length}`, pts: pts[3], de: 15 }], nuevos: [], perdidos: [], prospeccion: [] });
   }
 
-  return { hoy, semana_actual: actual, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad, pedidos: pedidos.resumen, copeo: copeoEnNotas(contactos), eric };
+  // ---- Client book: every buying client with the contact details found in the reps' notes ----
+  const zonaNombre = new Map(zonasCfg.zonas.map((z) => [z.zona, z.nombre]));
+  const directorio = clientes.map((c) => {
+    const notas = contactos.filter((r) => match(r.cuenta, c.cliente));            // newest first
+    const con = notas.find((r) => (r.contacto || '').trim()), tel = notas.find((r) => (r.telefono || '').trim());
+    const dato = tel ? tel.telefono.trim() : '', correo = (dato.match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [''])[0];
+    return { clave: norm(c.cliente), nombre: c.cliente, pais: 'México', zona: zonaDe(c), zona_nombre: zonaNombre.get(zonaDe(c)) || '', vendedor: c.vendedor, tipo: (notas.find((r) => r.tipo) || {}).tipo || '',
+      contacto: con ? con.contacto.trim() : '', telefono: correo ? dato.replace(correo, '').replace(/[\/|,;\s]+$/, '').trim() : dato, email: correo, ciudad: '', estado: '', puesto: '', notas: '',
+      vendido: c.actual, ritmo: c.ritmo, dias_sin_pedir: c.dias_sin_pedir, ultimo_contacto: notas[0] ? notas[0].fecha : '' };
+  });
+
+  // ---- Pipeline: where each account stands, from the stage on its latest CRM entry ----
+  const FASES = ['Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'];
+  const embudo = GENTE.map((v) => ({ persona: v, fases: FASES.map((f) => { const L = seguimiento.filter((r) => r.persona === v && r.estado !== 'cerrada' && r.etapa === f); return { fase: f, n: L.length, cuentas: L.map((r) => r.cuenta) }; }),
+    sin_fase: seguimiento.filter((r) => r.persona === v && r.estado !== 'cerrada' && !FASES.includes(r.etapa)).length }));
+
+  return { hoy, semana_actual: actual, directorio, embudo, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad, pedidos: pedidos.resumen, copeo: copeoEnNotas(contactos), eric };
 }
 
 // What one signed-in person may see. Reps get their own rows; the map and prospects are for everyone; Efectividad is admin only.
