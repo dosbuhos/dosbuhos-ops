@@ -40,6 +40,8 @@ test('week verdicts: zero, weak, halfway, productive, and no data before the fir
   assert.equal(v('2026-10-12', 'José Luis'), 'Floja');
   assert.equal(v('2026-10-19', 'José Luis'), 'En cero');
   assert.equal(v('2026-10-19', 'Carlos'), 'Sin datos');
+  assert.equal(v('2026-11-09', 'José Luis'), 'Pendiente');   // nothing logged after Nov 3: not a gap yet
+  assert.equal(v('2026-11-16', 'José Luis'), 'Pendiente');
   const cur = m.semanas.find((r) => r.semana === '2026-11-16' && r.persona === 'José Luis');
   assert.equal(cur.meta, 30); assert.equal(cur.en_curso, true);
   assert.equal(base({ hoy: '2026-11-17' }).semanas.find((r) => r.persona === 'Carlos').meta, 12); // Tuesday: 2 working days

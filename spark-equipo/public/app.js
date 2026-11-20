@@ -21,7 +21,7 @@ const dia = (iso) => (iso ? Number(iso.slice(8)) + ' ' + MES[Number(iso.slice(5,
 const peso = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString('en-US'));
 const pct = (p) => (p == null ? '—' : (p > 0 ? '+' : '') + p + '%');
 const mas = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const KIND = { Productiva: 'ok', 'A medias': 'warn', Floja: 'bad', 'En cero': 'bad', 'Sin datos': 'mute' };
+const KIND = { Productiva: 'ok', 'A medias': 'warn', Floja: 'bad', 'En cero': 'bad', Pendiente: 'mute', 'Sin datos': 'mute' };
 const pill = (text, kind) => h('span', { class: 'pill ' + kind }, text);
 
 let D = null;
@@ -81,7 +81,7 @@ const VISTAS = {
       const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, D.yo.admin ? p : undefined) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
       const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');
       return h('section', { class: 'card' },
-        h('div', { class: 'name' }, p, w ? pill(w.veredicto, KIND[w.veredicto]) : null),
+        h('div', { class: 'name' }, p, w ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : null),
         w ? h('div', {}, h('span', { class: 'num' }, `${w.contactos} / ${w.meta}`), h('span', { class: 'note' }, ' contactos esta semana')) : null,
         h('h3', {}, 'Enfócate en'), todo.length ? ul(todo) : h('p', { class: 'note' }, 'Sin pendientes urgentes.'),
         bien.length ? [h('h3', {}, 'Va bien'), ul(bien)] : null);
@@ -103,7 +103,7 @@ const VISTAS = {
       for (const x of ult) {
         const r = semDe(x, p);
         if (!r || r.veredicto === 'Sin datos') { heat.append(h('span', { class: 'h' }, '–')); continue; }
-        heat.append(h('button', { class: (r.contactos ? '' : 'zero') + (x === w ? ' cur' : ''), style: r.contactos ? `background:var(--${KIND[r.veredicto]})` : null,
+        heat.append(h('button', { class: (r.contactos ? '' : r.veredicto === 'Pendiente' ? 'pend' : 'zero') + (x === w ? ' cur' : ''), style: r.contactos ? `background:var(--${KIND[r.veredicto]})` : null,
           'aria-label': `${p}, semana del ${dia(x)}: ${r.contactos} contactos, ${r.veredicto}`, onclick: () => set(x) }, r.contactos));
       }
     }
@@ -121,7 +121,7 @@ const VISTAS = {
         const r = semDe(w, p);
         if (!r) return null;
         return h('section', { class: 'card' },
-          h('div', { class: 'name' }, p, pill(r.veredicto + (r.en_curso ? ' · en curso' : ''), KIND[r.veredicto])),
+          h('div', { class: 'name' }, p, pill((r.veredicto === 'Pendiente' ? 'Pendiente de registrar' : r.veredicto) + (r.en_curso ? ' · en curso' : ''), KIND[r.veredicto])),
           gauge(r.contactos, r.meta, `${p}: ${r.contactos} de ${r.meta} contactos`),
           h('div', { style: 'text-align:center' }, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, ` de ${r.meta} contactos`)),
           h('div', { class: 'kv', style: 'margin-top:8px' },
@@ -130,16 +130,16 @@ const VISTAS = {
             h('span', {}, 'Prospección'), h('b', {}, r.prospeccion),
             p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
       })),
-      h('h2', {}, 'Semáforo'), h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana sin un solo registro. Toca una semana para abrirla.')),
+      h('h2', {}, 'Semáforo'), h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana que se saltaron sin registrar nada; punteado: todavía no registran. Toca una semana para abrirla.')),
       h('h2', {}, `Resumen de ${MESL[Number(m.slice(5)) - 1]}`),
       h('div', { class: 'alert' + (ceros.length ? '' : ' ok') }, ceros.length ? [h('b', {}, 'Semanas en cero: '), ceros.map((r) => `${r.persona}, semana del ${dia(r.semana)}`).join(' · ')] : 'Nadie tuvo una semana en cero este mes.'),
       h('div', { class: 'grid3' }, diag.map((r) => {
-        const kind = r.semanas === 0 ? 'mute' : r.en_cero > 0 || r.flojas + r.en_cero > r.semanas / 2 ? 'bad' : r.productivas >= r.semanas / 2 ? 'ok' : 'warn';
+        const kind = r.semanas === 0 || r.pendientes === r.semanas ? 'mute' : r.en_cero > 0 || r.flojas + r.en_cero > r.semanas / 2 ? 'bad' : r.productivas >= r.semanas / 2 ? 'ok' : 'warn';
         return h('section', { class: 'card' },
-          h('div', { class: 'name' }, r.persona, pill({ ok: 'Buen mes', warn: 'Mes regular', bad: 'Mes flojo', mute: 'Sin datos' }[kind], kind)),
+          h('div', { class: 'name' }, r.persona, pill({ ok: 'Buen mes', warn: 'Mes regular', bad: 'Mes flojo', mute: r.semanas ? 'Pendiente de registrar' : 'Sin datos' }[kind], kind)),
           h('div', {}, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, ' contactos')),
           h('ul', { class: 'foco', style: 'margin-top:8px' },
-            h('li', { class: r.en_cero ? '' : 'bien' }, h('span', {}, `Semanas: ${r.productivas} productivas · ${r.a_medias} a medias · ${r.flojas} flojas · ${r.en_cero} en cero.`)),
+            h('li', { class: r.en_cero ? '' : 'bien' }, h('span', {}, `Semanas: ${r.productivas} productivas · ${r.a_medias} a medias · ${r.flojas} flojas · ${r.en_cero} en cero` + (r.pendientes ? ` · ${r.pendientes} pendientes de registrar.` : '.'))),
             r.ventas != null ? h('li', { class: 'bien' }, h('span', {}, `Vendió ${peso(r.ventas)} en ${r.ordenes} órdenes.`)) : null,
             r.descuidados.length ? h('li', {}, h('span', {}, `Clientes a la baja que nadie tocó (${r.descuidados.length}): ${r.descuidados.join(' · ')}.`)) : null,
             r.promesas.length ? h('li', {}, h('span', {}, `Prometió volver y no lo registró (${r.promesas.length}): ${r.promesas.join(' · ')}.`)) : h('li', { class: 'bien' }, h('span', {}, 'Cumplió los seguimientos que prometió.'))));

@@ -68,6 +68,10 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   // ---- Weeks ----
   const inicio = {};
   for (const r of contactos) if (!inicio[r.persona] || r.semana < inicio[r.persona]) inicio[r.persona] = r.semana;
+  // The last week each person logged anything. A zero week before it is a real gap ('En cero'): they logged later weeks and
+  // skipped this one. A zero week after it is 'Pendiente': the reps log late, so it may still get filled in.
+  const fin = {};
+  for (const r of contactos) if (!fin[r.persona] || r.semana > fin[r.persona]) fin[r.persona] = r.semana;
   const primera = Object.values(inicio).sort()[0] || actual;
   const semanas = [];
   for (let w = primera; w <= actual; w = masDias(w, 7)) {
@@ -75,7 +79,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
     for (const v of GENTE) {
       const c = contactos.filter((r) => r.semana === w && r.persona === v), o = ordenes.filter((r) => r.semana === w && r.vendedor === v), n = c.length;
       semanas.push({ semana: w, persona: v, en_curso: w === actual, meta, contactos: n,
-        veredicto: w < (inicio[v] || '9999') ? 'Sin datos' : n === 0 ? 'En cero' : n >= meta ? 'Productiva' : n >= meta / 2 ? 'A medias' : 'Floja',
+        veredicto: w < (inicio[v] || '9999') ? 'Sin datos' : n === 0 ? (w > fin[v] ? 'Pendiente' : 'En cero') : n >= meta ? 'Productiva' : n >= meta / 2 ? 'A medias' : 'Floja',
         cuentas: new Set(c.map((r) => norm(r.cuenta))).size, presencial: c.filter((r) => r.medio === 'Presencial').length,
         prospeccion: c.filter((r) => r.actividad === 'Prospección').length, cobranza: c.filter((r) => r.actividad === 'Cobranza').length,
         catas: c.filter((r) => ['Cata / prueba de vino', 'Capacitación', 'Evento'].includes(r.actividad)).length,
@@ -157,7 +161,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
         if (!mine.some((x) => norm(x.cuenta) === k && x.fecha > r.fecha)) promesas.set(k, r.cuenta);
       }
       const n = (x) => ws.filter((w) => w.veredicto === x).length, cero = ws.filter((w) => w.veredicto === 'En cero' && !w.en_curso);
-      meses.push({ mes: m, persona: v, semanas: ws.length, productivas: n('Productiva'), a_medias: n('A medias'), flojas: n('Floja'), en_cero: cero.length, semanas_en_cero: cero.map((w) => w.semana),
+      meses.push({ mes: m, persona: v, semanas: ws.length, pendientes: n('Pendiente'), productivas: n('Productiva'), a_medias: n('A medias'), flojas: n('Floja'), en_cero: cero.length, semanas_en_cero: cero.map((w) => w.semana),
         contactos: c.length, cuentas: new Set(c.map((r) => norm(r.cuenta))).size, prospeccion: c.filter((r) => r.actividad === 'Prospección').length,
         ventas: v === 'Daniel' ? null : r0(sum(o, (r) => r.total)), ordenes: v === 'Daniel' ? null : o.length, descuidados, promesas: [...promesas.values()] });
     }
