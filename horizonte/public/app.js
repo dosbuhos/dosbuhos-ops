@@ -17,6 +17,7 @@ const I = {
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
   minus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>',
   search: `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>`,
+  chart: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>`,
   filter: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"/></svg>`,
   pin: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>`,
   star: (s = 14) => `<svg class="star" role="img" aria-label="Target" width="${s}" height="${s}" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l3 6.5 7 .9-5.1 4.9 1.3 7L12 17.8 5.8 21.3l1.3-7L2 9.4l7-.9z"/></svg>`,
@@ -438,7 +439,7 @@ function renderDesk() {
 <div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">${I.logo(22)}<span class="wm">Horizonte</span></button></div>
 <nav class="seg" aria-label="Zoom level">${ZOOMS.map(([z, l], i) => `<button aria-pressed="${S.ui.zoom === z}" data-zoom="${z}" title="${l} (${i + 1})">${l}</button>`).join('')}</nav>
 <div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button><div class="title">${esc(deskTitle())}</div></div>
-<div class="right"><button data-sync class="dot" data-act="settings"></button></div>
+<div class="right"><button class="btn icon" data-act="summary" aria-label="Day in review" title="Day in review (r)">${I.chart}</button><button data-sync class="dot" data-act="settings"></button></div>
 </header>
 <div class="main" style="--pw:${S.ui.pw || 320}px">${S.ui.panelHidden ? '' : renderPanel() + '<div class="resizer" data-resize="panel" role="separator" aria-orientation="vertical" aria-label="Resize lists panel" title="Drag to resize · double-click to reset"></div>'}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
 }
@@ -657,7 +658,7 @@ function mToday() {
   if (P.doneNonTarget.length) body += mDoneToggle('d' + k, P.doneNonTarget);
   const pct = Math.round(dayLoad(k) / workMin() * 100);
   return `<header class="mh"><div class="r1"><div class="mbrand">${I.logo(20)}<span class="wm">Horizonte</span></div><button data-sync class="dot" data-act="settings"></button></div><div class="r1"><h1>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</h1></div>
-<div class="loadrow"><div>${fmtDur(dayLoad(k))} planned of ${fmtDur(workMin())}<div class="meter ${pct >= 125 ? 'red' : pct >= 100 ? 'amber' : ''}" role="img" aria-label="Day is ${pct} percent full"><i style="width:${Math.min(100, pct)}%"></i></div></div></div></header>
+<div class="loadrow"><div><span>${fmtDur(dayLoad(k))} planned of ${fmtDur(workMin())}<button class="link" style="margin-left:auto;font-size:13px" data-act="summary">Review</button></span><div class="meter ${pct >= 125 ? 'red' : pct >= 100 ? 'amber' : ''}" role="img" aria-label="Day is ${pct} percent full"><i style="width:${Math.min(100, pct)}%"></i></div></div></div></header>
 <main class="mm" data-list="today">${body}</main>`;
 }
 function mDoneToggle(key, done) {
@@ -818,6 +819,60 @@ function boardSheet(id) {
 <div class="field"><label class="eyebrow" for="bsecs">Sections, one per line</label><textarea class="notes" id="bsecs" placeholder="e.g. Cellar&#10;Sales&#10;Events">${esc((b?.sections || []).join('\n'))}</textarea></div>
 <div class="foot">${b && b.id !== 'backlog' ? `<button class="link" style="font-size:14px;color:var(--now)" data-act="delboard" data-bid="${b.id}">Delete board</button>` : '<span></span>'}<button class="bigbtn dark" style="padding:0 20px" data-act="saveboard" data-bid="${b?.id || ''}">Save</button></div>`, { board: id });
 }
+// ── Day / week in review ───────────────────────────────────────
+// Where the time went, from what is on the calendar: meetings (fixed), tasks done, tasks still open — by board and by tag —
+// targets hit, pushed/stuck tasks, and one line that suggests the next move. Durations are the recorded ones
+// (a finished task's duration is what it took: the ±15 toast or an early finish adjusts it).
+function summarize(days, weekKey) {
+  const list = live().filter(t => t.when && (days.includes(t.when) || (weekKey && t.when === weekKey)));
+  const dur = (t) => t.dur || 30, sum = (l) => l.reduce((a, t) => a + dur(t), 0);
+  const meetings = list.filter(t => t.kind === 'meeting'), tasks = list.filter(t => t.kind !== 'meeting');
+  const done = tasks.filter(t => !isOpen(t)), open = tasks.filter(isOpen), targets = tasks.filter(t => t.pri === 'target');
+  const group = (fn) => { const m = new Map(); for (const t of tasks.concat(meetings)) { const key = fn(t); const g = m.get(key) || { key, done: 0, open: 0, n: 0 }; g[t.kind === 'meeting' || !isOpen(t) ? 'done' : 'open'] += dur(t); g.n++; m.set(key, g); } return [...m.values()].sort((a, b) => (b.done + b.open) - (a.done + a.open)); };
+  const byBoard = group(t => t.kind === 'meeting' ? 'Meetings' : t.board ? (S.boards.get(t.board)?.name || 'Board') : 'No board');
+  const byTag = group(t => t.kind === 'meeting' ? 'Meetings' : (t.tags || [])[0] ? (tagById(t.tags[0])?.name || 'Tag') : 'Untagged');
+  const perDay = days.map(k => { const l = live().filter(t => t.when === k); return { k, meet: sum(l.filter(t => t.kind === 'meeting')), done: sum(l.filter(t => t.kind !== 'meeting' && !isOpen(t))), open: sum(l.filter(t => t.kind !== 'meeting' && isOpen(t))) }; });
+  return { meetings, tasks, done, open, targets, tDone: targets.filter(t => !isOpen(t)).length, meetMin: sum(meetings), doneMin: sum(done), openMin: sum(open),
+    pushed: tasks.filter(t => (t.rolls || 0) > 0), stuck: open.filter(t => (t.rolls || 0) >= 3), byBoard, byTag, perDay, work: workMin() * days.length };
+}
+function insight(S_, mode, k) {
+  const late = mode === 'day' && k === todayK() && nowMin() >= toMin(S.prefs.dayEnd) - 60;
+  const openT = S_.targets.filter(isOpen);
+  if (openT.length && (late || k < todayK())) return { text: `${openT.length} target${openT.length > 1 ? 's' : ''} still open: ${openT.map(t => t.title).join(', ')}.`, act: 'sum-push', label: 'Move to tomorrow' };
+  if (S_.stuck.length) return { text: `Pushed three times or more: ${S_.stuck.map(t => t.title).join(', ')}. Schedule them, or let them go.` };
+  const top = S_.byBoard.find(b => b.key !== 'Meetings'); const total = S_.meetMin + S_.doneMin + S_.openMin;
+  if (total && S_.meetMin / total > 0.6) return { text: `Meetings took ${Math.round(100 * S_.meetMin / total)}% of the ${mode}. ${S_.open.length ? 'The open tasks need a protected block.' : ''}` };
+  if (top && total && (top.done + top.open) / total > 0.5 && S_.byBoard.length > 2) return { text: `${top.key} got ${Math.round(100 * (top.done + top.open) / total)}% of the time; everything else shared the rest.` };
+  if (S_.tasks.length && S_.done.length === S_.tasks.length) return { text: mode === 'day' ? 'Everything planned got done.' : 'Every planned task this week got done.' };
+  if (S_.targets.length && S_.tDone === S_.targets.length) return { text: 'All targets hit.' };
+  return null;
+}
+function summarySheet(k = S.ui.sumK || todayK(), mode = S.ui.sumMode || 'day') {
+  S.ui.sumK = k; S.ui.sumMode = mode;
+  const wk = isoWeek(k), days = mode === 'day' ? [k] : Array.from({ length: 7 }, (_, i) => addDays(weekStart(wk), i));
+  const R = summarize(days, mode === 'week' ? wk : null), total = Math.max(R.work, R.meetMin + R.doneMin + R.openMin) || 1;
+  const pct = (m) => Math.round(100 * m / total);
+  const bar = (seg) => `<div class="sbar" role="img" aria-label="${seg.map(([l, m]) => `${l} ${fmtDur(m)}`).join(', ')}">${seg.filter(([, m]) => m > 0).map(([l, m, c]) => `<i class="${c}" style="width:${pct(m)}%" title="${l} · ${fmtDur(m)}"></i>`).join('')}</div>`;
+  const legend = (seg) => `<div class="slegend">${seg.filter(([, m]) => m > 0).map(([l, m, c]) => `<span><i class="${c}"></i>${l} <b>${fmtDur(m)}</b></span>`).join('')}</div>`;
+  const free = Math.max(0, R.work - R.meetMin - R.doneMin - R.openMin);
+  const seg = [['Meetings', R.meetMin, 'm'], ['Done', R.doneMin, 'd'], ['Still open', R.openMin, 'o'], ['Unplanned', free, 'f']];
+  const rows = (groups) => { const max = Math.max(1, ...groups.map(g => g.done + g.open)); return `<div class="srows">${groups.slice(0, 8).map(g => `<div class="srow"><span class="l">${esc(g.key)}</span><span class="track"><i class="d" style="width:${100 * g.done / max}%"></i><i class="o" style="width:${100 * g.open / max}%"></i></span><span class="v">${fmtDur(g.done + g.open)}</span></div>`).join('')}</div>`; };
+  const ins = insight(R, mode, k);
+  const title = mode === 'day' ? `${relDay(k) || DOWL[parseD(k).getDay()]}, ${MON[parseD(k).getMonth()]} ${parseD(k).getDate()}` : periodLabel(wk, true);
+  const dayStrip = mode === 'week' ? `<div class="sdays">${R.perDay.map(d => { const m = Math.max(1, ...R.perDay.map(x => x.meet + x.done + x.open)); const h = (v) => Math.round(100 * v / m); return `<div class="sday ${d.k === todayK() ? 'today' : ''}" title="${dayShort(d.k)} · ${fmtDur(d.meet + d.done + d.open)}"><span class="col"><i class="o" style="height:${h(d.open)}%"></i><i class="d" style="height:${h(d.done)}%"></i><i class="m" style="height:${h(d.meet)}%"></i></span><span class="lbl">${DOW[parseD(d.k).getDay()][0]}</span></div>`; }).join('')}</div>` : '';
+  openSheet(`<div class="grab"></div>
+<div class="sheethead"><div><div class="sheettitle">In review</div><div class="muted" style="font-size:14px">${esc(title)}</div></div><div class="seg small"><button data-act="sum-mode" data-m="day" aria-pressed="${mode === 'day'}">Day</button><button data-act="sum-mode" data-m="week" aria-pressed="${mode === 'week'}">Week</button></div></div>
+<div class="row" style="justify-content:space-between"><button class="btn icon" data-act="sum-nav" data-n="-1" aria-label="Earlier">${I.left}</button><button class="link" data-act="sum-nav" data-n="0">${mode === 'day' ? 'Today' : 'This week'}</button><button class="btn icon" data-act="sum-nav" data-n="1" aria-label="Later">${I.right}</button></div>
+${!R.tasks.length && !R.meetings.length ? `<div class="empty">Nothing was planned ${mode === 'day' ? 'on this day' : 'this week'}.</div>` : `
+<div class="grp">${bar(seg)}${legend(seg)}</div>
+<div class="stats"><div><b>${R.tDone}<span class="muted">/${R.targets.length}</span></b><span>targets</span></div><div><b>${R.done.length}</b><span>done</span></div><div><b>${R.open.length}</b><span>open</span></div><div><b>${R.pushed.length}</b><span>pushed</span></div></div>
+${dayStrip}
+${ins ? `<div class="sins"><span>${esc(ins.text)}</span>${ins.act ? `<button class="btn" data-act="${ins.act}">${ins.label}</button>` : ''}</div>` : ''}
+<div class="grp"><div class="eyebrow">By board</div>${rows(R.byBoard)}</div>
+<div class="grp"><div class="eyebrow">By tag</div>${rows(R.byTag)}</div>
+${R.done.length ? `<div class="grp"><div class="eyebrow">Done</div><div class="sdone">${R.done.map(t => `<span>${esc(t.title)}<small> ${fmtDur(t.dur || 30)}</small></span>`).join('')}</div></div>` : ''}`}
+<button class="bigbtn" data-act="close">Done</button>`, { summary: true });
+}
 function settingsSheet() {
   setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0); setTimeout(mountTokens, 0);
   const s = syncState();
@@ -951,6 +1006,10 @@ document.addEventListener('click', async (e) => {
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
     case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
+    case 'summary': summarySheet(todayK(), S.ui.sumMode || 'day'); return;
+    case 'sum-mode': summarySheet(S.ui.sumK, el.dataset.m); return;
+    case 'sum-nav': { const n = +el.dataset.n, k = S.ui.sumK || todayK(); summarySheet(n === 0 ? todayK() : S.ui.sumMode === 'week' ? addDays(k, 7 * n) : addDays(k, n)); return; }
+    case 'sum-push': { const k = S.ui.sumK || todayK(), ids = live().filter(t => t.when === k && isOpen(t) && t.pri === 'target' && t.kind !== 'meeting').map(t => t.id); batch(g => ids.forEach(id => { const t = S.tasks.get(id); put('task', id, { when: addDays(k, 1), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }); })); render(); summarySheet(); toast(`${ids.length} moved to ${periodLabel(addDays(k, 1))}`, true); return; }
     case 'cm-done': closeMenu(); toggleDone(el.dataset.tid); return;
     case 'cm-open': closeMenu(); taskSheet(el.dataset.tid); return;
     case 'cm-when': { closeMenu(); const w = el.dataset.w, t = S.tasks.get(el.dataset.tid); put('task', t.id, { when: w || null, at: w && kindOf(w) === 'day' ? t.at : '' }); render(); toast(w ? `Moved to ${periodLabel(w)}` : 'Unscheduled', true); return; }
@@ -1113,6 +1172,7 @@ document.addEventListener('keydown', (e) => {
   const k = e.key;
   if (k >= '1' && k <= '6') { S.ui.zoom = ZOOMS[Number(k) - 1][0]; S.ui.pk = null; render(); }
   else if (k === 'n' || k === 'N') { e.preventDefault(); $('#qa')?.focus(); }
+  else if (k === 'r' || k === 'R') { e.preventDefault(); summarySheet(todayK()); }
   else if (k === 'd' || k === 'D') { e.preventDefault(); captureSheet(captureDest()); }
   else if (k === 't' || k === 'T') $('[data-act=today]')?.click();
   else if (k === '[' || k === ']') { const s = sources().map(x => x[0]); S.ui.src = s[(s.indexOf(S.ui.src) + (k === ']' ? 1 : s.length - 1)) % s.length]; S.ui.panelView = 'list'; render(); }

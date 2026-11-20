@@ -13,7 +13,7 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 2. Google Calendar two-way sync, appointments, reflow — **done** (reflow: today only, timeboxed tasks; finish early → following tasks slide up; run over → the block keeps its length and slides under the now line, pushing what follows; meetings and pinned tasks fixed; per-day switch in the Hours header)
 3. Google Tasks inbox
 4. Timestripe import
-5. Daily score
+5. Daily score — **done as “In review”** (day/week: time by meetings/done/open, by board and tag, targets, pushed, one suggested move; `r` on desktop, Review link on the phone's Today)
 6. Voice + assistant — **MCP endpoint done** (see below)
 
 ## Assistants (MCP)
