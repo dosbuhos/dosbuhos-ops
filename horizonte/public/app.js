@@ -951,6 +951,11 @@ document.addEventListener('click', async (e) => {
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
     case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
+    case 'cm-done': closeMenu(); toggleDone(el.dataset.tid); return;
+    case 'cm-open': closeMenu(); taskSheet(el.dataset.tid); return;
+    case 'cm-when': { closeMenu(); const w = el.dataset.w, t = S.tasks.get(el.dataset.tid); put('task', t.id, { when: w || null, at: w && kindOf(w) === 'day' ? t.at : '' }); render(); toast(w ? `Moved to ${periodLabel(w)}` : 'Unscheduled', true); return; }
+    case 'cm-pri': closeMenu(); put('task', el.dataset.tid, { pri: el.dataset.p }); render(); return;
+    case 'cm-delete': closeMenu(); put('task', el.dataset.tid, { del: new Date().toISOString() }); render(); toast('Deleted', true); return;
     case 'took': { const t = S.tasks.get(el.dataset.id); if (!t) return; put('task', t.id, { dur: Math.max(5, (t.dur || 30) + +el.dataset.d) }, { quiet: true }); render(); doneToast(t.id); return; }
     case 'timeclear': { const t = S.tasks.get(st.id); put('task', st.id, { at: '' }); render(); taskSheet(st.id); return; }
     case 'timeslot': timeList(null); setStart(st.id, el.dataset.at); return;
@@ -1153,7 +1158,29 @@ document.addEventListener('pointermove', (e) => {
 document.addEventListener('pointerup', (e) => { if (drag) { endDrag(e.clientX, e.clientY); return; } if (press?.swipe) swipeEnd(e.clientX - press.x); if (press) clearTimeout(press.timer); press = null; });
 document.addEventListener('pointercancel', () => { if (drag) cancelDrag(); if (press?.swipe) swipeEnd(0); if (press) clearTimeout(press.timer); press = null; });
 document.addEventListener('touchmove', (e) => { if (drag || press?.swipe) e.preventDefault(); }, { passive: false });
-document.addEventListener('contextmenu', (e) => { if (e.target.closest('.card')) e.preventDefault(); });
+// Desktop right-click menu on a task card: the common actions without opening the sheet.
+function closeMenu() { $('.ctxmenu')?.remove(); }
+document.addEventListener('contextmenu', (e) => {
+  const card = e.target.closest('.card[data-tid]'); if (!card) return; e.preventDefault();
+  if (!isDesk() || e.pointerType === 'touch') return;
+  const t = S.tasks.get(card.dataset.tid); if (!t) return; closeMenu();
+  const done = t.status === 'done', mtg = t.kind === 'meeting', tk = todayK();
+  const item = (act, label, extra = '') => `<button data-act="${act}" data-tid="${t.id}" ${extra}>${label}</button>`;
+  const items = [
+    item('cm-done', done ? 'Mark not done' : 'Mark done'),
+    item('cm-open', 'Open…'),
+    '<hr>',
+    t.when !== tk ? item('cm-when', 'Today', `data-w="${tk}"`) : '', t.when !== addDays(tk, 1) ? item('cm-when', 'Tomorrow', `data-w="${addDays(tk, 1)}"`) : '',
+    t.when !== isoWeek(tk) ? item('cm-when', 'This week', `data-w="${isoWeek(tk)}"`) : '', t.when ? item('cm-when', 'Unschedule', 'data-w=""') : '',
+    mtg ? '' : '<hr>' + item('cm-pri', t.pri === 'target' ? 'Remove target' : 'Make target', `data-p="${t.pri === 'target' ? 'normal' : 'target'}"`) + item('cm-pri', t.pri === 'someday' ? 'Not someday' : 'Someday', `data-p="${t.pri === 'someday' ? 'normal' : 'someday'}"`),
+    '<hr>', item('cm-delete', 'Delete', 'class="danger"')].filter(Boolean).join('');
+  document.body.insertAdjacentHTML('beforeend', `<div class="ctxmenu" role="menu">${items}</div>`);
+  const m = $('.ctxmenu'), r = m.getBoundingClientRect();
+  m.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + 'px'; m.style.top = Math.min(e.clientY, innerHeight - r.height - 8) + 'px';
+});
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctxmenu')) closeMenu(); }, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); }, true);
+window.addEventListener('blur', closeMenu); window.addEventListener('scroll', closeMenu, true);
 
 function swipeMove(dx) {
   const c = press.card; c.style.transform = `translateX(${dx}px)`;

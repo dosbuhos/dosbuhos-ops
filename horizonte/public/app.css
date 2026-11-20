@@ -154,6 +154,11 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .overlay-input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; }
 .tokrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; color: var(--ink); }
 .tokshow code { display: block; margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: var(--seg); color: var(--ink); font-size: 12px; word-break: break-all; user-select: all; }
+.ctxmenu { position: fixed; z-index: 120; min-width: 180px; padding: 5px; border-radius: 10px; background: var(--card); border: 1px solid var(--line-2); box-shadow: var(--shadow-3); display: flex; flex-direction: column; }
+.ctxmenu button { text-align: left; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 7px; cursor: pointer; }
+.ctxmenu button:hover, .ctxmenu button:focus-visible { background: var(--hover); outline: 0; }
+.ctxmenu button.danger { color: var(--now); }
+.ctxmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
 .timefield { position: relative; display: flex; }
 .timein { width: 100%; min-height: 44px; padding: 0 36px 0 14px; border: 1px solid var(--line-3); border-radius: 10px; background: var(--card); color: var(--ink); font: inherit; font-weight: 600; }
 .timein::placeholder { font-weight: 500; color: var(--ink-2); }
