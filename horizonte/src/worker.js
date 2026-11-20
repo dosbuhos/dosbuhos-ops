@@ -4,6 +4,7 @@
 import { applyOp, validOp } from './merge.js';
 import * as gcal from './gcal.js';
 import * as mcp from './mcp.js';
+import * as push from './push.js';
 
 const COOKIE = 'hz_session', STATE = 'hz_state', DAYS = 60;
 const enc = new TextEncoder();
@@ -170,7 +171,10 @@ async function tokens(request, env, url) {
 }
 
 export default {
-  async scheduled(event, env, ctx) { if (env.GOOGLE_CLIENT_SECRET) ctx.waitUntil(gcal.pull(env, applyOps, { force: true }).catch(e => console.log('cron pull', e.message))); },
+  async scheduled(event, env, ctx) {
+    if (env.GOOGLE_CLIENT_SECRET) ctx.waitUntil(gcal.pull(env, applyOps, { force: true }).catch(e => console.log('cron pull', e.message)));
+    ctx.waitUntil(push.tick(env, env.APP_ORIGIN || 'https://horizonte.dos-buhos.workers.dev').catch(e => console.log('push tick', e.message)));
+  },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/auth/')) return (await auth(request, env, url, ctx)) || new Response('Not found', { status: 404 });
@@ -182,6 +186,10 @@ export default {
       if (!user) return json({ error: 'sign in' }, 401);
       if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env, ctx);
       if (url.pathname.startsWith('/api/tokens')) return tokens(request, env, url);
+      if (url.pathname === '/api/push/done' && request.method === 'POST') { // 'Done' button on a reminder notification
+        const { id } = await request.json().catch(() => ({})); if (!id) return json({ error: 'id' }, 400);
+        await applyOps(env, [{ k: 'task', id: String(id), f: { status: 'done', doneAt: new Date().toISOString() }, t: `${Date.now().toString(36).padStart(9, '0')}.000.push` }]); return json({ ok: true }); }
+      if (url.pathname.startsWith('/api/push/')) return push.api(request, env, url);
       if (url.pathname === '/api/gcal' && request.method === 'GET') {
         const row = await gcal.gcalRow(env);
         return json({ available: !!env.GOOGLE_CLIENT_SECRET, connected: !!row?.refresh_token, email: row?.email || null, clientId: env.GOOGLE_CLIENT_ID });

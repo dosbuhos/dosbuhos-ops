@@ -21,6 +21,9 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 - Claude.ai: Settings → Connectors → Add custom connector → paste the link.
 - ChatGPT: Settings → Connectors → Create (developer mode) → MCP server URL, no authentication.
 
+## Reminders (web push)
+Settings → Reminders turns push on per device (Chrome/Android/desktop; iPhone only once added to the Home Screen). Two kinds, from the 5-minute cron (`src/push.js`): a nudge 10 minutes before a timed task (meetings are left to Google Calendar) with a Done action, and a morning digest at 9:00 in the planner's time zone. VAPID keys are generated once into `meta`; subscriptions in `push_subs`; `push_sent` dedupes. Library: `@block65/webcrypto-web-push` (RFC 8291/8292 on WebCrypto). No secrets to configure. Add `--test-scheduled` to `wrangler dev` and request `/__scheduled` to run the cron locally.
+
 ## Dev
 ```
 npm test                                   # merge rules

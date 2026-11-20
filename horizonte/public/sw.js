@@ -1,6 +1,6 @@
 // App shell cache: Horizonte opens with no network. API calls always go to the network.
-const V = 'hz-38';
-const SHELL = ['/', '/app.css?v=38', '/app.js?v=38', '/manifest.webmanifest', '/icon-192.png', '/icon.svg', '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2', '/fonts/geist-700.woff2', '/fonts/fraunces-wordmark.woff2'];
+const V = 'hz-39';
+const SHELL = ['/', '/app.css?v=39', '/app.js?v=39', '/manifest.webmanifest', '/icon-192.png', '/icon.svg', '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2', '/fonts/geist-700.woff2', '/fonts/fraunces-wordmark.woff2'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {
@@ -20,4 +20,21 @@ self.addEventListener('fetch', (e) => {
     const net = fetch(e.request).then(r => { if (r.ok || r.type === 'opaque') c.put(key, r.clone()); return r; }).catch(() => hit);
     return hit || net;
   }));
+});
+
+// ── push reminders ───────────────────────────────────────────
+self.addEventListener('push', (e) => {
+  let m = {}; try { m = e.data.json(); } catch { m = { title: 'Horizonte', body: e.data?.text() || '' }; }
+  e.waitUntil(self.registration.showNotification(m.title || 'Horizonte', {
+    body: m.body || '', tag: m.tag || 'hz', renotify: !!m.tag, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: m.url || '/', id: m.id || null },
+    actions: m.actions || [], timestamp: Date.now(),
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  const d = e.notification.data || {}; e.notification.close();
+  if (e.action === 'done' && d.id) { // mark it done without opening the app; the app picks the change up on its next sync
+    e.waitUntil(fetch('/api/push/done', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: d.id }) }).catch(() => {}));
+    return;
+  }
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => { const c = cs.find(x => 'focus' in x); if (c) { c.navigate?.(d.url || '/'); return c.focus(); } return self.clients.openWindow(d.url || '/'); }));
 });

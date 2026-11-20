@@ -22,6 +22,7 @@
   "vars": {
     // Only this Google account can sign in. Eric's personal planner, not part of the Hub.
     "OWNER_EMAIL": "emaycotte@gmail.com",
+    "APP_ORIGIN": "https://horizonte.dos-buhos.workers.dev", // VAPID subject and links inside push notifications
     // Horizonte's own OAuth client ("Horizonte" in Google Cloud project dos-buhos), separate from the Hub's.
     "GOOGLE_CLIENT_ID": "700169529332-h8g8o6bgvmu96jq77e70da5v51r2oojn.apps.googleusercontent.com"
   }

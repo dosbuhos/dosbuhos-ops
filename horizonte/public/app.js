@@ -907,7 +907,7 @@ ${R.done.length || R.cleared.length ? `<div class="grp"><div class="eyebrow">Don
 <button class="bigbtn" data-act="close">Done</button>`, { summary: true });
 }
 function settingsSheet() {
-  setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0); setTimeout(mountTokens, 0);
+  setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0); setTimeout(mountTokens, 0); setTimeout(mountPush, 0);
   const s = syncState();
   openSheet(`<div class="grab"></div><div class="sheettitle">Settings</div>
 <div class="grp"><div class="eyebrow">Account</div>
@@ -916,6 +916,7 @@ ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? 
   : `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sync turns on once Google sign-in is set up for Horizonte.</div>`}</div>
 ${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>
 <div class="grp"><div class="eyebrow">Assistants</div><div class="muted" style="font-size:14px">Let Claude or ChatGPT read and change your planner. Each gets its own access link; revoke it here any time.</div><div id="tokbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
+${S.me ? `<div class="grp"><div class="eyebrow">Reminders</div><div id="pushbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
 <div class="grp"><div class="eyebrow">Appearance</div><div class="seg">${[['', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button data-act="theme" data-t="${k}" aria-pressed="${(S.ui.theme || '') === k}">${l}</button>`).join('')}</div></div>
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
@@ -946,6 +947,22 @@ async function mountGoogleButton() {
 }
 
 // Google Calendar link: meetings go to Google, Google events come back as meetings. Tasks stay in Horizonte.
+// Settings › Reminders: web push for this device. Two kinds: the morning digest and a nudge 10 minutes before a timed task.
+const pushReady = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function pushSub() { try { const reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); } catch { return null; } }
+async function mountPush() {
+  const box = $('#pushbox'); if (!box) return;
+  if (!pushReady()) { box.innerHTML = /iPhone|iPad/.test(navigator.userAgent) ? 'On iPhone, add Horizonte to the Home Screen first (Share → Add to Home Screen); reminders work from there.' : 'This browser does not support notifications.'; return; }
+  if (location.hostname === 'localhost') { box.textContent = 'Reminders need the live site (service worker is off on localhost).'; return; }
+  if (Notification.permission === 'denied') { box.textContent = 'Notifications are blocked for this site in the browser settings.'; return; }
+  const sub = await pushSub(); let st = { subscribed: false, digest: true, alerts: true, devices: 0, digestHour: 9 };
+  try { st = await (await fetch('/api/push/status', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: sub?.endpoint }) })).json(); } catch { box.textContent = 'Connect to the internet to manage reminders.'; return; }
+  if (!sub || !st.subscribed) { box.innerHTML = `<div>Get a morning summary and a nudge 10 minutes before a timed task.${st.devices ? ` <span class="muted">On for ${st.devices} other device${st.devices > 1 ? 's' : ''}.</span>` : ''}</div><button class="btn" style="margin-top:8px" data-act="pushon">Turn on for this device</button>`; return; }
+  box.innerHTML = `<label class="chk"><input type="checkbox" data-act="pushopt" data-o="digest" ${st.digest ? 'checked' : ''}> Morning summary at ${st.digestHour}:00</label>
+<label class="chk"><input type="checkbox" data-act="pushopt" data-o="alerts" ${st.alerts ? 'checked' : ''}> 10 minutes before a timed task</label>
+<div class="row" style="margin-top:6px"><button class="link" data-act="pushtest">Send a test</button><button class="link" style="color:var(--now)" data-act="pushoff">Turn off on this device</button></div>`;
+}
+async function pushSave(sub, digest, alerts) { await fetch('/api/push/subscribe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sub: sub.toJSON(), label: navigator.userAgent.slice(0, 80), digest: digest ? 1 : 0, alerts: alerts ? 1 : 0 }) }); }
 // Settings › Assistants: list, mint and revoke MCP access tokens. The link is shown once, right after minting.
 async function mountTokens() {
   const box = $('#tokbox'); if (!box) return;
@@ -1051,6 +1068,16 @@ document.addEventListener('click', async (e) => {
     case 'took': { const t = S.tasks.get(el.dataset.id); if (!t) return; put('task', t.id, { dur: Math.max(5, (t.dur || 30) + +el.dataset.d) }, { quiet: true }); render(); doneToast(t.id); return; }
     case 'timeclear': { const t = S.tasks.get(st.id); put('task', st.id, { at: '' }); render(); taskSheet(st.id); return; }
     case 'timeslot': timeList(null); setStart(st.id, el.dataset.at); return;
+    case 'pushon': { el.disabled = true;
+      try { const perm = await Notification.requestPermission(); if (perm !== 'granted') { mountPush(); return; }
+        const { key } = await (await fetch('/api/push/key')).json(); const reg = await navigator.serviceWorker.ready;
+        const raw = Uint8Array.from(atob(key.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: raw });
+        await pushSave(sub, true, true); toast('Reminders on'); } catch (e) { toast('Could not turn on reminders: ' + e.message); }
+      mountPush(); return; }
+    case 'pushopt': { const sub = await pushSub(); if (!sub) return; const d = $('#pushbox [data-o=digest]').checked, a = $('#pushbox [data-o=alerts]').checked; await pushSave(sub, d, a); return; }
+    case 'pushtest': { const sub = await pushSub(); const r = await (await fetch('/api/push/test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: sub?.endpoint }) })).json(); toast(r.ok ? 'Test sent' : 'Could not send (' + (r.status || r.error) + ')'); return; }
+    case 'pushoff': { const sub = await pushSub(); if (sub) { await fetch('/api/push/unsubscribe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); } toast('Reminders off on this device'); mountPush(); return; }
     case 'toknew': { const name = $('#tokname')?.value.trim() || 'Assistant'; el.disabled = true;
       let r; try { r = await (await fetch('/api/tokens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })).json(); } catch { toast('Could not create the link'); el.disabled = false; return; }
       const box = $('#tokbox'); if (!box) return;
