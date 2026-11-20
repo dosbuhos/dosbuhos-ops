@@ -28,7 +28,9 @@
     // Personal para eventos (/personal/) is a page of the cotizador Worker; it answers with that page when X-DB-App = personal.
     { "binding": "COTIZADOR", "service": "cotizador" },
     // Growth Terminal (/growth/): ads and bookings analysis. It only answers requests signed by the Hub.
-    { "binding": "GROWTH", "service": "growth" }
+    { "binding": "GROWTH", "service": "growth" },
+    // Spark Equipo (/spark/): the sales team's numbers. It only answers requests signed by the Hub.
+    { "binding": "SPARK_EQUIPO", "service": "spark-equipo" }
   ],
   "vars": {
     // Same OAuth client as the cellar app ("Cellar calendar", Google Cloud project dos-buhos).
