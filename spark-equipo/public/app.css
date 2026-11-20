@@ -125,3 +125,6 @@ a { color: var(--accent); } .tbl a { text-decoration-thickness: 1px; text-underl
 .rows.mov .l1 span:last-child { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
 .fuerte { font-weight: 700; } .movs { margin-bottom: 4px; }
 @media (min-width: 960px) { .cols2.movs { grid-template-columns: 1fr 1fr; } }
+.preg { margin-bottom: 16px; } .preg .l1 span:first-child { font-weight: 600; } .preg details { margin-top: 8px; } .preg summary { cursor: pointer; color: var(--muted); min-height: 32px; }
+.resp { display: grid; gap: 8px; margin-top: 8px; } .resp textarea, form.inline input { font: inherit; color: inherit; border: 1px solid var(--rule); border-radius: var(--radius); padding: 8px 10px; background: var(--bg); width: 100%; }
+.resp .btn { justify-self: start; } .preg form.inline { margin-top: 12px; max-width: none; }

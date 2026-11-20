@@ -130,3 +130,13 @@ test('copeo is picked up from the notes, one line per account', () => {
   const c = copeoEnNotas(rows);
   assert.equal(c.length, 1); assert.deepEqual([c[0].cuenta, c[0].fecha, c[0].menciones], ['Rosetta', '2026-11-10', 2]);
 });
+
+test('house accounts and samples are nobody\'s sales; La Competencia is reported under Eric', () => {
+  const o = (id, cliente, vendedor, total) => ({ id, numero: id, fecha: '2026-11-10', cliente_id: cliente, cliente, vendedor, total, estado: 'confirmed', facturacion: 'invoiced', pago: 'paid' });
+  const orders = [o('1', 'DOS BUHOS - ERIC', 'José Luis Zamora', 1210), o('2', 'JOSE LUIS MUESTRAS', 'José Luis Zamora', 500), o('3', 'Carlos Tapia La Competencia Imports', 'Carlos Tapia', 64000), o('4', 'Atrio', 'José Luis Zamora', 9000), o('5', 'TIENDA ONLINE - DOS BUHOS', 'José Luis Zamora', 5908)];
+  const m = base({ orders, invoices: orders.map((x) => ({ ...x, estado: 'paid' })) });
+  assert.deepEqual(m.ordenes.map((x) => x.cliente), ['Atrio']);
+  assert.deepEqual(m.clientes.map((x) => x.cliente), ['Atrio']);
+  assert.deepEqual([m.eric[0].cliente, m.eric[0].actual, m.eric[0].ultima], ['La Competencia Imports', 64000, '2026-11-10']);
+  assert.equal(m.mes.find((x) => x.vendedor === 'Carlos').total, 0);
+});

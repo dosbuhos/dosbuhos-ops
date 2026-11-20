@@ -16,6 +16,8 @@ Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y 
 |---|---|---|
 | `GET /api/data` | signed in | The view model for the whole team (Efectividad only for admins) |
 | `POST /api/admin/sync[?solo=hoja\|zoho\|ia]` | admin | Run a sync now |
+| `POST /api/preguntas/responder` | the person asked, or an admin | Answer an open question |
+| `POST /api/admin/preguntas` | admin | Ask, reopen or remove a question |
 | `GET/POST /api/admin/people` | admin | Link a Hub email to a person or make it an admin |
 
 Without `HUB_SECRET` every `/api` route answers 401, so the workers.dev address shows nothing.
@@ -46,3 +48,4 @@ npm test
 - `src/data/prospectos.json`: prospect list with sources
 - `src/data/alias.json`: first load of the Zoho ↔ CRM name table (then it lives in D1 `alias`)
 - `HEREDADAS` and `DIST_DANIEL` in `src/calc.js`: inherited accounts and Daniel's distributors
+- `esInterno` and `DE_ERIC` in `src/calc.js`: house and sample accounts (nobody's sales) and Eric's own accounts (La Competencia Imports), reported apart

@@ -12,6 +12,14 @@ export function esfuerzo(c, habiles) {
   return { habiles, por_dia: habiles ? Math.round(c.length / habiles * 10) / 10 : 0, presencial, llamadas, mensajes,
     horas: Math.round((presencial * MINUTOS.presencial + llamadas * MINUTOS.llamada + mensajes * MINUTOS.mensaje) / 6) / 10, horas_habiles: habiles * 8 };
 }
+// Zoho "clients" that are not client sales: the house's own accounts (Eric, Diane, events, kitchen, tasting room, online
+// store) and sample accounts. They stay out of every salesperson's numbers.
+export const esInterno = (cliente) => /^(dos b[uú]hos\b|tienda online)/i.test(String(cliente || '').trim()) || /\bmuestras\b/i.test(cliente || '');
+// Eric's own accounts, whoever keyed the order (per Eric, 20 Nov 2026: La Competencia Imports is his US importer; Carlos only
+// helps maintain it). Reported apart, never under a salesperson.
+export const DE_ERIC = [{ patron: /la competencia/i, nombre: 'La Competencia Imports', lugar: 'Estados Unidos (Texas)' }];
+export const deEric = (cliente) => DE_ERIC.find((e) => e.patron.test(cliente || '')) || null;
+const propia = (cliente) => !esInterno(cliente) && !deEric(cliente);
 // Accounts handed to each rep when they started (per Eric, 20 Nov 2026). Shown apart in Efectividad.
 export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', 'VIÑA DEL MAR CANCÚN'], 'Carlos': ['Cactus Wine', 'LIZA STIKER'] };
 // Daniel's distributors as they appear in Zoho (LIZA STIKER = Acuyo).
@@ -46,7 +54,7 @@ export function matcher(alias) {
 // Invoiced totals per client and year. Owner = salesperson on the client's latest invoice since last year.
 export function clientesPorAno(invoices, hoy) {
   const y = Number(hoy.slice(0, 4)), md = hoy.slice(5);
-  const inv = invoices.filter((x) => !['void', 'draft'].includes(x.estado) && x.total >= 1 && esFecha(x.fecha)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+  const inv = invoices.filter((x) => !['void', 'draft'].includes(x.estado) && x.total >= 1 && esFecha(x.fecha) && propia(x.cliente)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
   const owner = new Map();
   for (const x of inv) { const v = vendedorDe(x.vendedor); if (v && x.fecha >= (y - 1) + '-01-01') owner.set(x.cliente_id, v); }
   const g = new Map();
@@ -116,9 +124,16 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   const actual = lunes(hoy);
   const act = activity.filter((r) => esFecha(r.fecha) && GENTE.includes(r.persona));
   const contactos = act.filter(esContacto).map((r) => ({ ...r, semana: lunes(r.fecha) })).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-  const ordenes = orders.filter((o) => o.estado !== 'void' && o.total >= 1 && vendedorDe(o.vendedor) && esFecha(o.fecha))
+  const ordenes = orders.filter((o) => o.estado !== 'void' && o.total >= 1 && vendedorDe(o.vendedor) && esFecha(o.fecha) && propia(o.cliente))
     .map((o) => ({ fecha: o.fecha, semana: lunes(o.fecha), orden: o.numero, cliente: o.cliente, vendedor: vendedorDe(o.vendedor), total: o.total, facturacion: o.facturacion, pago: o.pago }))
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  // Eric's own accounts, from sales orders: this year, last year to the same date, and the last order.
+  const y0 = hoy.slice(0, 4), y1 = String(Number(y0) - 1), md = hoy.slice(5);
+  const eric = DE_ERIC.map((e) => {
+    const o = orders.filter((x) => x.estado !== 'void' && x.total >= 1 && esFecha(x.fecha) && e.patron.test(x.cliente || ''));
+    return { cliente: e.nombre, lugar: e.lugar, actual: r0(sum(o.filter((x) => x.fecha.slice(0, 4) === y0), (x) => x.total)), pasado_mp: r0(sum(o.filter((x) => x.fecha.slice(0, 4) === y1 && x.fecha.slice(5) <= md), (x) => x.total)),
+      pedidos_12m: o.filter((x) => diff(x.fecha, hoy) <= 365).length, ultima: o.reduce((m, x) => (x.fecha > m ? x.fecha : m), '') };
+  });
   const pedidos = metricasPedidos(ordenes, hoy), pedidoDe = new Map(pedidos.clientes.map((c) => [c.cliente, c]));
   const clientes = clientesPorAno(invoices, hoy).map((c) => { const p = pedidoDe.get(c.cliente); return { ...c, pedidos_12m: p ? p.pedidos_12m : 0, cada_dias: p ? p.cada_dias : null, dias_sin_pedir: p ? p.dias_sin_pedir : null, ritmo: p ? p.estado : '' }; });
 
@@ -308,7 +323,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
       { nombre: 'Cuentas con contacto en 30 días', valor: `${cob} de ${cuentas.length}`, pts: pts[3], de: 15 }], nuevos: [], perdidos: [], prospeccion: [] });
   }
 
-  return { hoy, semana_actual: actual, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad, pedidos: pedidos.resumen, copeo: copeoEnNotas(contactos) };
+  return { hoy, semana_actual: actual, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad, pedidos: pedidos.resumen, copeo: copeoEnNotas(contactos), eric };
 }
 
 // What one signed-in person may see. Reps get their own rows; the map and prospects are for everyone; Efectividad is admin only.

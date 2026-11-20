@@ -96,6 +96,26 @@ function tendencia(p, ws) {
       ws.map((w, i) => (i === 0 || w.semana.slice(5, 7) !== ws[i - 1].semana.slice(5, 7) ? svg('text', { x: x(i), y: H - 6, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)' }, MES[Number(w.semana.slice(5, 7)) - 1]) : null))),
     h('p', { class: 'note', style: 'margin:6px 0 0' }, txt));
 }
+// Open questions: asked by Eric, answered here by the person they are for. Everyone sees them; admins can add and remove.
+function preguntas() {
+  const ps = personas(), admin = D.yo.admin, L = (D.preguntas || []).filter((q) => ps.includes(q.para)), abiertas = L.filter((q) => !q.respondida), hechas = L.filter((q) => q.respondida);
+  if (!L.length && !admin) return null;
+  const enviar = async (url, body) => { const r = await api(url, body); if (r.error) alert(r.error); await cargar(); };
+  const una = (q) => {
+    const mia = admin || q.para === D.yo.persona, ta = h('textarea', { rows: 3, placeholder: 'Escribe tu respuesta', 'aria-label': 'Respuesta para: ' + q.texto.slice(0, 60) });
+    return h('li', { class: q.respondida ? 'bien' : '' },
+      h('div', { class: 'l1' }, h('span', {}, q.texto), pill(q.para, q.respondida ? 'ok' : 'warn')),
+      h('div', { class: 'l2' }, `Preguntó ${q.creada_por || 'Eric'} el ${dia(q.creada)}` + (q.respondida ? ` · respondida el ${dia(q.respondida)}` : '')),
+      q.respondida ? h('div', { class: 'sug' }, q.respuesta) : mia ? h('div', { class: 'resp' }, ta, h('button', { class: 'btn', onclick: () => enviar('api/preguntas/responder', { id: q.id, respuesta: ta.value }) }, 'Responder')) : null,
+      admin ? h('div', { class: 'l2' }, q.respondida ? h('button', { class: 'linkb', onclick: () => enviar('api/admin/preguntas', { reabrir: q.id }) }, 'Reabrir') : null, ' ', h('button', { class: 'linkb', onclick: () => { if (confirm('¿Quitar esta pregunta?')) enviar('api/admin/preguntas', { borrar: q.id }); } }, 'Quitar')) : null);
+  };
+  const f = admin ? h('form', { class: 'inline', onsubmit: (ev) => { ev.preventDefault(); const fd = new FormData(f); enviar('api/admin/preguntas', { para: fd.get('para'), texto: fd.get('texto') }); } },
+    h('input', { name: 'texto', placeholder: 'Nueva pregunta para el equipo', required: true, 'aria-label': 'Nueva pregunta' }),
+    h('select', { name: 'para', 'aria-label': 'Para quién' }, ['José Luis', 'Carlos', 'Daniel'].map((g) => h('option', { value: g, selected: S.persona === g }, g))), h('button', { class: 'btn' }, 'Preguntar')) : null;
+  return h('section', { class: 'card preg' }, h('div', { class: 'name' }, 'Preguntas abiertas', pill(abiertas.length ? `${abiertas.length} sin responder` : 'Al día', abiertas.length ? 'warn' : 'ok')),
+    abiertas.length ? h('ul', { class: 'rows' }, abiertas.map(una)) : h('p', { class: 'note' }, 'No hay preguntas pendientes.'),
+    hechas.length ? h('details', {}, h('summary', {}, `Respondidas (${hechas.length})`), h('ul', { class: 'rows' }, hechas.map(una))) : null, f);
+}
 // What a count means day to day: contacts per working day against the goal of 6, and roughly how many hours of work it is.
 // The hours are an estimate (a visit ≈ 1 h with the trip, a call ≈ 10 min, a message ≈ 5 min).
 function ritmo(r, detalle) {
@@ -120,7 +140,7 @@ const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p)
 
 const VISTAS = {
   hoy() {
-    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => {
+    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), preguntas(), h('div', { class: 'grid3' }, personas().map((p) => {
       const w = semDe(D.semana_actual, p), items = D.foco.filter((f) => f.persona === p).sort((a, b) => a.orden - b.orden);
       const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, p) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
       const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');
@@ -338,9 +358,13 @@ const VISTAS = {
       const d = (g) => (g.type === 'Polygon' ? [g.coordinates] : g.coordinates).map((poly) => poly.map(ring).join('')).join('');
       const box = (rows) => { let a = [1e9, 1e9, -1e9, -1e9]; for (const s of rows) for (const poly of (s.g.type === 'Polygon' ? [s.g.coordinates] : s.g.coordinates)) for (const p of poly[0]) { const [x, y] = P(p); a = [Math.min(a[0], x), Math.min(a[1], y), Math.max(a[2], x), Math.max(a[3], y)]; } return a; };
       const b = box(S.zona ? E.filter((s) => s.zona === S.zona) : E), pad = S.zona ? 30 : 6;
+      const [ux, uy] = P([-99.2, 30.6]), usa = (D.eric || [])[0];
       const el = svg('svg', { class: 'map', viewBox: `${b[0] - pad} ${b[1] - pad} ${b[2] - b[0] + 2 * pad} ${b[3] - b[1] + 2 * pad}`, role: 'img', 'aria-label': 'Mapa de México por zona: verde fuerte, ámbar presencia débil, rojo sin presencia' },
         E.map((s) => svg('path', { d: d(s.g), fill: COL[(byZ.get(s.zona) || {}).estado] || 'var(--muted)', 'fill-opacity': !S.zona || s.zona === S.zona ? 0.6 : 0.2 }, svg('title', {}, `${s.nombre} · ${(byZ.get(s.zona) || {}).nombre}`))));
-      el.addEventListener('click', (ev) => { const i = [...el.children].indexOf(ev.target); if (i >= 0) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
+      // Eric's importer, just north of the border. Not a sales zone: a marker only.
+      if (usa && !S.zona) el.append(svg('g', { 'aria-label': `${usa.cliente}, ${usa.lugar}: ${peso(usa.actual)} este año` }, svg('circle', { cx: ux, cy: uy, r: 7, fill: 'var(--accent)', stroke: 'var(--card)', 'stroke-width': 2 }),
+        svg('text', { x: ux + 12, y: uy - 2, 'font-size': 11, 'font-weight': 600, fill: 'var(--text)' }, usa.cliente), svg('text', { x: ux + 12, y: uy + 11, 'font-size': 10, fill: 'var(--muted)' }, `EE. UU. · ${peso(usa.actual)} este año · cuenta de Eric`)));
+      el.addEventListener('click', (ev) => { const i = [...el.children].indexOf(ev.target); if (i >= 0 && E[i]) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
       map.replaceChildren(el, h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Toca una zona para acercarte y ver sus prospectos.'));
     }).catch(() => map.replaceChildren(h('p', { class: 'note' }, 'No se pudo cargar el mapa.')));
     const ord = new Map(D.zonas.map((z, i) => [z.zona, i])), kO = { dist: 0, tienda: 1, horeca: 2, cliente: 3 };
@@ -361,6 +385,9 @@ const VISTAS = {
             { t: 'Vendido este año', v: (z) => peso(z.ventas), s: (z) => z.ventas, num: true }, { t: 'Potencial', v: (z) => peso(z.potencial), s: (z) => z.potencial, num: true },
             { t: 'Brecha', v: (z) => (z.brecha ? peso(z.brecha) : 'sin brecha'), s: (z) => z.brecha, num: true }, { t: 'Clientes activos', v: (z) => z.clientes_activos, s: (z) => z.clientes_activos, num: true },
             { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', cls: 'mut' }]))] : null),
+      !cur && (D.eric || []).length ? [h('h2', {}, 'Fuera de México'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, D.eric.map((e) => h('li', {},
+        h('div', { class: 'l1' }, h('span', {}, `${e.cliente} · ${e.lugar}`), h('span', {}, peso(e.actual))),
+        h('div', { class: 'l2' }, `Cuenta de Eric, no de un vendedor. ${peso(e.pasado_mp)} a la misma fecha del año pasado · ${e.pedidos_12m} pedidos en 12 meses · último ${dia(e.ultima)}.`)))))] : null,
       h('h2', {}, 'Prospectos'),
       chips([['', 'Todos'], ['dist', 'Distribuidores'], ['tienda', 'Tiendas'], ['horeca', 'Restaurantes y hoteles'], ['cliente', 'Clientes actuales']], S.clase, (v) => { S.clase = v; }),
       h('div', { class: 'card', style: 'margin-top:8px' }, lista('pros', pros, 10, (p) => h('li', {},
