@@ -298,10 +298,10 @@ function toggleDone(id) {
     put('task', id, f, { group: g });
   });
   S.ui.flip = true; render();
-  if (done) toast(moved ? `Done · ${moved} task${moved > 1 ? 's' : ''} moved up` : 'Done', true);
+  if (done) { if (t.at && t.when && t.kind !== 'meeting') doneToast(id); else toast('Done', true); }
 }
 // ── reflow (today, timeboxed tasks only) ──────────────────────
-// Meetings and pinned tasks never move. Finish early → following tasks slide up to now; run over → they slide down.
+// Meetings and pinned tasks never move. Finish early → following tasks slide up to now; run over → the block slides down under the now line (never grows).
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
 const round5 = (m) => Math.round(m / 5) * 5;
 const reflowOn = (k) => !(S.prefs.reflowOff || {})[k];
@@ -315,9 +315,9 @@ function firstFit(start, dur, blocks, limit) {
 }
 // mode 'up': tasks starting at/after `from` come up by `shift` (never before `cursor` = now), keeping their spacing.
 // mode 'down': tasks starting at/after `from` are pushed only as far as needed to clear `cursor` (the stretched task's new end).
-function reflowDay(k, from, mode, cursor, g, shift = 0) {
+function reflowDay(k, from, mode, cursor, g, shift = 0, skip = null) {
   const limit = toMin(S.prefs.dayEnd), now = nowMin();
-  const movers = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && toMin(t.at) >= from).sort((a, b) => toMin(a.at) - toMin(b.at));
+  const movers = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && t.id !== skip && toMin(t.at) >= from).sort((a, b) => toMin(a.at) - toMin(b.at));
   const blocks = placedOn(k).filter(t => t.at && isFixed(t) && (isOpen(t) || t.kind === 'meeting')).map(t => [toMin(t.at), toMin(t.at) + (t.dur || 30)]);
   let moved = 0; // 'up': shift < 0 is how far every mover may come up (now minus the finished task's planned end)
   for (const t of movers) {
@@ -337,12 +337,12 @@ function reflowTick() {
   const now = nowMin();
   const running = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && toMin(t.at) <= now && toMin(t.at) + (t.dur || 30) < now).sort((a, b) => toMin(b.at) - toMin(a.at))[0];
   if (!running) return;
-  const start = toMin(running.at), over = now - (start + (running.dur || 30));
-  if (over < 5 || over > 120) return;
-  const dur = round5(now - start); if (dur === running.dur) return;
-  let moved = 0;
-  batch(g => { put('task', running.id, { dur }, { group: g }); moved = reflowDay(k, start + 1, 'down', start + dur, g); });
-  S.ui.flip = true; render(); if (moved) toast(`${esc(running.title)} is running over · ${moved} task${moved > 1 ? 's' : ''} moved down`, true);
+  // The block keeps its length and slides down to sit under the now line; what follows is pushed. Nothing ever grows on its own.
+  const start = toMin(running.at), dur = running.dur || 30, over = now - (start + dur);
+  if (over < 5 || over > 180) return;
+  const at = round5(now) - dur + 5; if (at <= start) return; // its end lands just after now
+  batch(g => { reflowDay(k, start + 1, 'down', at + dur, g, 0, running.id); put('task', running.id, { at: fromMin(at) }, { group: g }); });
+  S.ui.flip = true; render();
 }
 function place(id, when, at, label) {
   const t = S.tasks.get(id); if (!t) return;
@@ -895,11 +895,14 @@ function signInWithCalendar() {
 
 // ── toast ─────────────────────────────────────────────────────
 let toastTimer;
-function toast(msg, withUndo) {
+function toast(msg, withUndo, extra = '') {
   $('.toast')?.remove(); clearTimeout(toastTimer);
-  (isDesk() ? document.body : ($('.m') || document.body)).insertAdjacentHTML('beforeend', `<div class="toast" role="status"><span>${esc(msg)}</span>${withUndo ? '<button data-act="undo">Undo</button>' : ''}</div>`);
+  (isDesk() ? document.body : ($('.m') || document.body)).insertAdjacentHTML('beforeend', `<div class="toast" role="status"><span>${esc(msg)}</span>${extra}${withUndo ? '<button data-act="undo">Undo</button>' : ''}</div>`);
   toastTimer = setTimeout(() => $('.toast')?.remove(), 5000);
 }
+// After checking off a timed task: one tap to say it took longer or shorter. Optional; the toast goes away on its own.
+function doneToast(id) { const t = S.tasks.get(id); if (!t) return;
+  toast(`Done · ${fmtDur(t.dur || 30)}`, true, `<button class="tk" data-act="took" data-id="${id}" data-d="-15" aria-label="Took 15 minutes less">−15</button><button class="tk" data-act="took" data-id="${id}" data-d="15" aria-label="Took 15 minutes more">+15</button>`); }
 
 // ── clicks ────────────────────────────────────────────────────
 document.addEventListener('click', async (e) => {
@@ -939,6 +942,7 @@ document.addEventListener('click', async (e) => {
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
     case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
+    case 'took': { const t = S.tasks.get(el.dataset.id); if (!t) return; put('task', t.id, { dur: Math.max(5, (t.dur || 30) + +el.dataset.d) }, { quiet: true }); render(); doneToast(t.id); return; }
     case 'timeclear': { const t = S.tasks.get(st.id); put('task', st.id, { at: '' }); render(); taskSheet(st.id); return; }
     case 'timeslot': timeList(null); setStart(st.id, el.dataset.at); return;
     case 'theme': S.ui.theme = el.dataset.t; saveUI(); applyTheme(); settingsSheet(); return;

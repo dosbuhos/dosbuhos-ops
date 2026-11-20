@@ -125,6 +125,8 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .toast { position: fixed; z-index: 100; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 11px 16px; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-3); max-width: calc(100vw - 32px); animation: toast-in .2s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .toast button { border: 0; background: transparent; color: var(--sun); font-weight: 600; text-decoration: none; padding: 4px 2px; }
+.toast .tk { color: var(--bg); background: rgba(255,255,255,0.14); border-radius: 7px; padding: 4px 9px; font-variant-numeric: tabular-nums; min-width: 40px; }
+.toast .tk + .tk { margin-left: 2px; } .toast .tk + [data-act=undo] { margin-left: 6px; }
 .m .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
 
 /* sheet (task, capture, review, settings) */
