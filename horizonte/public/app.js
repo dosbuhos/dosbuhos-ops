@@ -697,14 +697,30 @@ function mInbox() {
 
 // ── sheets ────────────────────────────────────────────────────
 let sheetState = null;
-function closeSheet() { $('.scrim')?.remove(); $('.sheet')?.remove(); sheetState = null; }
+// Sheets and the board detail screen are history entries, so the phone's back button/gesture closes them instead of leaving the app.
+let popping = false;
+const removeSheetDom = () => { $('.scrim')?.remove(); $('.sheet')?.remove(); sheetState = null; };
+function closeSheet() { removeSheetDom(); if (history.state?.hz === 'sheet') { popping = true; history.back(); } }
 function openSheet(html, state) {
   if (sheetState?.id !== state?.id) { S.ui.tagAdding = false; S.ui.tagEdit = null; } // transient picker state belongs to one sheet
-  closeSheet(); $('.toast')?.remove(); sheetState = state;
+  const had = !!sheetState; removeSheetDom(); $('.toast')?.remove(); sheetState = state;
+  if (!had && history.state?.hz !== 'sheet') history.pushState({ hz: 'sheet' }, '');
   const root = isDesk() ? document.body : ($('.m') || document.body);
   root.insertAdjacentHTML('beforeend', `<div class="scrim" data-act="close"></div><section class="sheet" role="dialog" aria-modal="true">${html}</section>`);
   const sh = $('.sheet'); const f = sh.querySelector('[autofocus]'); if (f) setTimeout(() => f.focus(), 30);
+  if (!isDesk()) sheetSwipe(sh);
   return sh;
+}
+// Drag a phone sheet down to dismiss it (only when its content is scrolled to the top and the drag did not start in a text field).
+function sheetSwipe(sh) {
+  let y0 = null, dy = 0;
+  sh.addEventListener('pointerdown', (e) => { const top = e.clientY - sh.getBoundingClientRect().top; if (e.pointerType === 'mouse' || (sh.scrollTop > 0 && !e.target.closest('.grab')) || top > 72 || e.target.closest('input,textarea,select')) return; y0 = e.clientY; dy = 0; }, { passive: true });
+  sh.addEventListener('pointermove', (e) => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); if (dy > 6) { sh.style.transition = 'none'; sh.style.transform = `translateY(${dy}px)`; } }, { passive: true });
+  let swallow = false; // a drag must not also count as a tap on whatever is under the finger
+  sh.addEventListener('click', (e) => { if (swallow) { e.stopPropagation(); e.preventDefault(); swallow = false; } }, true);
+  const end = () => { if (y0 == null) return; y0 = null; sh.style.transition = 'transform .18s ease-out'; swallow = dy > 10;
+    if (dy > 90) { sh.style.transform = 'translateY(100%)'; setTimeout(() => { closeSheet(); render(); }, 150); } else sh.style.transform = ''; setTimeout(() => { swallow = false; }, 300); };
+  sh.addEventListener('pointerup', end); sh.addEventListener('pointercancel', end);
 }
 function taskSheet(id, view = 'main') {
   const t = S.tasks.get(id); if (!t) return;
@@ -862,7 +878,10 @@ document.addEventListener('click', async (e) => {
   const card = e.target.closest('[data-tid]'), tid = card?.dataset.tid;
   if (el.dataset.zoom) { S.ui.zoom = el.dataset.zoom; S.ui.pk = null; render(); if (S.ui.zoom === 'hours') scrollHoursToNow(); return; }
   if (el.dataset.src) { S.ui.src = el.dataset.src; S.ui.panelView = 'list'; render(); const p = $('.panel'); if (p) p.scrollTop = 0; return; }
-  if (el.dataset.tab) { S.ui.mtab = el.dataset.tab; if (el.dataset.tab !== 'boards') S.ui.board = null; render(); $('.mm') && ($('.mm').scrollTop = 0); return; }
+  if (el.dataset.tab) { // remember where each tab was scrolled to; tapping the current tab scrolls it to the top
+    const cur = S.ui.mtab, mm = $('.mm'); S.ui.scroll ??= {}; if (mm) S.ui.scroll[cur] = mm.scrollTop;
+    if (el.dataset.tab === cur) { if (mm) mm.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    S.ui.mtab = el.dataset.tab; if (el.dataset.tab !== 'boards') S.ui.board = null; render(); const n = $('.mm'); if (n) n.scrollTop = S.ui.scroll[el.dataset.tab] || 0; return; }
   if (el.dataset.mzoom) { S.ui.mzoom = el.dataset.mzoom; render(); return; }
   const act = el.dataset.act, st = sheetState;
   switch (act) {
@@ -936,8 +955,8 @@ document.addEventListener('click', async (e) => {
       closeSheet(); if (!el.dataset.bid) { S.ui.src = 'b:' + id; S.ui.board = id; S.ui.panelView = 'list'; } render(); return; }
     case 'delboard': { const id = el.dataset.bid; batch(g => { put('board', id, { del: new Date().toISOString() }, { group: g }); boardTasks(id).forEach(t => put('task', t.id, { board: '', section: '' }, { group: g })); });
       closeSheet(); S.ui.board = null; S.ui.src = 'inbox'; render(); toast('Board deleted; its tasks moved to Inbox', true); return; }
-    case 'openboard': S.ui.board = el.dataset.bid; render(); $('.mm').scrollTop = 0; return;
-    case 'boardsback': S.ui.board = null; render(); return;
+    case 'openboard': S.ui.board = el.dataset.bid; if (!isDesk() && history.state?.hz !== 'board') history.pushState({ hz: 'board' }, ''); render(); $('.mm').scrollTop = 0; return;
+    case 'boardsback': if (history.state?.hz === 'board') { history.back(); return; } S.ui.board = null; render(); return;
     case 'settings': settingsSheet(); return;
     case 'gcalon': connectGcal(); return;
     case 'signincal': signInWithCalendar(); return;
@@ -964,6 +983,11 @@ document.addEventListener('change', (e) => {
   else if (el.dataset.field) sheetField(el);
 });
 document.addEventListener('focusout', (e) => { if (e.target.dataset?.field) sheetField(e.target); });
+window.addEventListener('popstate', () => {
+  if (popping) { popping = false; return; }
+  if (sheetState) { removeSheetDom(); render(); return; }
+  if (!isDesk() && S.ui.board && S.ui.mtab === 'boards') { S.ui.board = null; render(); }
+});
 document.addEventListener('keydown', (e) => {
   const el = e.target;
   if ((el.id === 'q' || el.id === 'mq') && e.key === 'Escape') { e.preventDefault(); const id = el.id; S.ui.q = ''; el.value = ''; el.blur(); render(); $('#' + id)?.focus(); return; }

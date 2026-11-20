@@ -301,8 +301,9 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .m .rowlink svg { color: var(--ink-3); }
 .m .rowlink .n { margin-left: auto; font-size: 14px; color: var(--ink-3); font-weight: 500; }
 .m .sec { display: flex; align-items: center; gap: 8px; min-height: 44px; border: 0; background: transparent; padding: 0; width: 100%; text-align: left; }
-.m .sheet { left: 0; right: 0; top: auto; bottom: 0; transform: none; width: auto; max-height: 92vh; padding: 10px 16px max(30px, calc(env(safe-area-inset-bottom) + 16px)); border-radius: 20px 20px 0 0; box-shadow: none; font-size: 17px; }
-.m .sheet .grab { display: block; align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line-3); flex: none; }
+.m .sheet { left: 0; right: 0; top: auto; bottom: 0; transform: none; width: auto; max-height: 90vh; padding: 10px 16px max(30px, calc(env(safe-area-inset-bottom) + 16px)); border-radius: 20px 20px 0 0; box-shadow: none; font-size: 17px; }
+.m .sheet .grab { display: flex; justify-content: center; width: 100%; padding: 2px 0 6px; margin: -4px 0 -8px; flex: none; touch-action: none; }
+.m .sheet .grab::after { content: ''; width: 40px; height: 4px; border-radius: 2px; background: var(--line-3); }
 .m .sheet .eyebrow { font-size: 13px; }
 .m .sheet .when button, .m .sheet .bigbtn { min-height: 48px; font-size: 15px; }
 .m .sheet .seg button { min-height: 44px; font-size: 15px; }
@@ -369,7 +370,8 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .tagpick .tag[aria-pressed=true], .tagstrip .tag[aria-pressed=true] { opacity: 1; box-shadow: 0 0 0 2px var(--tc); }
 .m .tagpick .tag, .m .tagstrip .tag { line-height: 32px; padding: 0 12px; font-size: 13px; }
 .tag.c-new { --tc: var(--ink-2); background: transparent; border: 1px dashed var(--line-3); opacity: 1; }
-.newtag { font: inherit; font-size: 13px; padding: 3px 8px; border: 1px solid var(--line-3); border-radius: 999px; background: var(--card); color: var(--ink); width: 140px; }
+.newtag { font: inherit; font-size: 14px; padding: 6px 12px; border: 1px solid var(--line-3); border-radius: 10px; background: var(--card); color: var(--ink); min-width: 0; }
+.m .newtag { font-size: 16px; min-height: 44px; }
 .tagstrip { padding: 0 0 4px; } .m .tagstrip { padding: 6px 0 4px; }
 .taglist { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
 .tagrow { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
