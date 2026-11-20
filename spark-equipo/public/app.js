@@ -32,7 +32,7 @@ const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: nul
 
 // Bottom tabs: the four daily screens plus "Más".
 const TABS = [['hoy', 'Hoy'], ['semanas', 'Semanas'], ['seguimiento', 'Seguimiento'], ['ventas', 'Ventas'], ['mas', 'Más']];
-const MAS = [['clientes', 'Clientes año contra año'], ['zonas', 'Zonas y prospectos'], ['efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', true]];
+const MAS = [['pendientes', 'Preguntas pendientes'], ['clientes', 'Clientes año contra año'], ['zonas', 'Zonas y prospectos'], ['efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', true]];
 
 function ir(vista, persona) {
   if (persona !== undefined) S.persona = persona;
@@ -140,7 +140,7 @@ const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p)
 
 const VISTAS = {
   hoy() {
-    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), preguntas(), h('div', { class: 'grid3' }, personas().map((p) => {
+    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => {
       const w = semDe(D.semana_actual, p), items = D.foco.filter((f) => f.persona === p).sort((a, b) => a.orden - b.orden);
       const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, p) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
       const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');
@@ -148,6 +148,7 @@ const VISTAS = {
         h('div', { class: 'name' }, p, w ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : null),
         w ? h('div', {}, h('span', { class: 'num' }, `${w.contactos} / ${w.meta}`), h('span', { class: 'note' }, ' contactos esta semana')) : null,
         w ? ritmo(w) : null,
+        (D.preguntas || []).some((q) => !q.respondida && q.para === p) ? h('p', { class: 'note' }, h('button', { class: 'linkb', onclick: () => ir('pendientes', p) }, `Tienes ${(D.preguntas || []).filter((q) => !q.respondida && q.para === p).length} pregunta(s) pendiente(s) de Eric`)) : null,
         h('h3', {}, 'Enfócate en'), todo.length ? ul(todo) : h('p', { class: 'note' }, 'Sin pendientes urgentes.'),
         bien.length ? [h('h3', {}, 'Va bien'), ul(bien)] : null);
     })));
@@ -233,6 +234,11 @@ const VISTAS = {
       h('p', { class: 'note' }, 'Línea: contactos por semana sobre las franjas verde (30+), ámbar (15–29) y roja. Barras: ventas de esa semana.'),
       h('h2', {}, 'A quién contactaron'), tablaCont(D.contactos.filter((r) => r.semana === w && ps.includes(r.persona)).slice().reverse(), 'Sin contactos registrados esta semana.'),
       tablaOrd(D.ordenes.filter((r) => r.semana === w && ps.includes(r.vendedor)).slice().reverse(), 'Sin órdenes esta semana.'));
+  },
+
+  // Questions Eric needs answered (what is inside "Público en general", whose account something is). Kept off the home screen.
+  pendientes() {
+    return h('div', {}, h('h2', {}, 'Preguntas pendientes'), h('p', { class: 'note' }, 'Dudas sobre clientes y ventas que solo el vendedor puede aclarar. Lo que respondas aquí lo ve Eric.'), preguntas() || h('p', { class: 'note' }, 'No hay preguntas.'));
   },
 
   seguimiento() {
@@ -446,9 +452,9 @@ function pintar() {
   $('who').replaceChildren(...(!['zonas', 'ajustes'].includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel']].map(([v, t]) =>
     h('button', { class: 'chip', 'aria-pressed': String(S.persona === v), onclick: () => { S.persona = v; pintar(); } }, t)) : []));
   const enMas = MAS.some(([v]) => v === S.vista);
-  const wide = ancho();
+  const wide = ancho(), nPend = (D.preguntas || []).filter((q) => !q.respondida && (D.yo.admin || q.para === D.yo.persona)).length;
   document.body.classList.toggle('wide', wide);
-  const tabs = wide ? [...TABS.filter(([v]) => v !== 'mas'), ...MAS.filter(([, , soloAdmin]) => !soloAdmin || admin).map(([v, t]) => [v, t.replace(' año contra año', '').replace(' y prospectos', '')])] : TABS;
+  const tabs = wide ? [...TABS.filter(([v]) => v !== 'mas'), ...MAS.filter(([, , soloAdmin]) => !soloAdmin || admin).map(([v, t]) => [v, t.replace(' año contra año', '').replace(' y prospectos', '').replace('Preguntas pendientes', 'Pendientes' + (nPend ? ` (${nPend})` : ''))])] : TABS;
   $('tabs').replaceChildren(...tabs.map(([v, t]) => h('button', { 'aria-current': (v === S.vista || (v === 'mas' && enMas)) ? 'page' : null,
     onclick: () => { if (v !== 'mas') return ir(v); $('sheet').hidden = false; } }, t)));
   $('sheet').replaceChildren(h('div', {}, MAS.filter(([, , soloAdmin]) => !soloAdmin || admin).map(([v, t]) => h('button', { onclick: () => ir(v) }, t)), h('button', { onclick: () => { $('sheet').hidden = true; } }, 'Cerrar')));

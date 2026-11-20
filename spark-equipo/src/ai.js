@@ -19,7 +19,10 @@ Reglas:
 - Si la cuenta de verdad está fría (varios intentos sin respuesta), di cuál es el último intento que vale la pena y cuándo cerrarla.
 - Tono: directo, de colega que quiere que venda, sin regaños ni adornos. Español de México, de tú. Una o dos frases, máximo 40 palabras. Sin emojis ni signos de exclamación.
 
-Responde solo con JSON: [{"i": 0, "paso": "..."}, ...], un objeto por cuenta, con el mismo "i" que recibiste.`;
+Entrega el resultado con la herramienta guardar_pasos: un paso por cuenta, con el mismo "i" que recibiste. Sin panorama general ni comentarios aparte.`;
+
+const HERRAMIENTA = { name: 'guardar_pasos', description: 'Guarda el siguiente paso sugerido de cada cuenta.',
+  input_schema: { type: 'object', required: ['pasos'], properties: { pasos: { type: 'array', items: { type: 'object', required: ['i', 'paso'], properties: { i: { type: 'integer', description: 'El mismo i de la cuenta recibida' }, paso: { type: 'string', description: 'Una o dos frases, máximo 40 palabras' } } } } } } };
 
 async function secreto(v) { try { return typeof v === 'string' ? v : (v && typeof v.get === 'function' ? (await v.get()) || '' : ''); } catch { return ''; } }
 
@@ -67,12 +70,15 @@ export async function sugerir(env, modelo, activity, { max = 40, lote = 10 } = {
     const grupo = cola.slice(i, Math.min(i + lote, max));
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 4000, thinking: { type: 'between_tools' },   // this model's way of saying "no extended thinking" system: SISTEMA,
+      body: JSON.stringify({ model: env.AI_MODEL || 'claude-sonnet-5-5', max_tokens: 4000, system: SISTEMA,
+        thinking: { type: 'between_tools' },                                             // this model's way of saying "no extended thinking"
+        tools: [HERRAMIENTA], tool_choice: { type: 'tool', name: 'guardar_pasos' },      // forces a structured reply
+       
         messages: [{ role: 'user', content: `Hoy es ${modelo.hoy}.\nCuentas (JSON):\n` + JSON.stringify(grupo.map((g, j) => ({ i: j, ...g.datos }))) }] }) });
     if (!r.ok) throw new Error(`Claude ${r.status}: ${(await r.text()).slice(0, 160)}`);
     const j = await r.json();
-    const crudo = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
-    const pasos = leer(crudo);
+    const uso = (j.content || []).find((c) => c.type === 'tool_use'), crudo = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+    const pasos = uso && Array.isArray(uso.input?.pasos) ? uso.input.pasos.filter((x) => x && Number.isInteger(x.i) && typeof x.paso === 'string' && x.paso.trim()) : leer(crudo);
     // Nothing usable came back: say what did, so the cause shows in Ajustes instead of a silent zero.
     if (!pasos.length) throw new Error(`Claude no devolvió pasos (stop: ${j.stop_reason}; bloques: ${(j.content || []).map((c) => c.type).join(',') || 'ninguno'}): ${crudo.slice(0, 200)}`);
     const stmts = pasos.filter((x) => grupo[x.i]).map((x) => env.DB.prepare('INSERT INTO sugerencias (persona, clave, firma, texto, creado) VALUES (?,?,?,?,?) ON CONFLICT(persona, clave) DO UPDATE SET firma=excluded.firma, texto=excluded.texto, creado=excluded.creado')
