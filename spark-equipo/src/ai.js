@@ -71,7 +71,10 @@ export async function sugerir(env, modelo, activity, { max = 40, lote = 10 } = {
         messages: [{ role: 'user', content: `Hoy es ${modelo.hoy}.\nCuentas (JSON):\n` + JSON.stringify(grupo.map((g, j) => ({ i: j, ...g.datos }))) }] }) });
     if (!r.ok) throw new Error(`Claude ${r.status}: ${(await r.text()).slice(0, 160)}`);
     const j = await r.json();
-    const pasos = leer((j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(''));
+    const crudo = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+    const pasos = leer(crudo);
+    // Nothing usable came back: say what did, so the cause shows in Ajustes instead of a silent zero.
+    if (!pasos.length) throw new Error(`Claude no devolvió pasos (stop: ${j.stop_reason}; bloques: ${(j.content || []).map((c) => c.type).join(',') || 'ninguno'}): ${crudo.slice(0, 200)}`);
     const stmts = pasos.filter((x) => grupo[x.i]).map((x) => env.DB.prepare('INSERT INTO sugerencias (persona, clave, firma, texto, creado) VALUES (?,?,?,?,?) ON CONFLICT(persona, clave) DO UPDATE SET firma=excluded.firma, texto=excluded.texto, creado=excluded.creado')
       .bind(grupo[x.i].persona, grupo[x.i].clave, grupo[x.i].firma, x.paso.trim().slice(0, 400), modelo.hoy));
     if (stmts.length) await env.DB.batch(stmts);
