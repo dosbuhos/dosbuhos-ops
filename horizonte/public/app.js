@@ -377,8 +377,8 @@ function cardHTML(t, opts = {}) {
   const meta = opts.meta ?? (done ? '' : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30));
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
-<div class="body" data-act="open"><span class="t">${t.emoji ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
+<div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -397,7 +397,9 @@ function render() {
   const keep = document.activeElement && document.activeElement.id && app.contains(document.activeElement) ? { id: document.activeElement.id, v: document.activeElement.value } : null;
   const tl = $('.tl'), tlScroll = tl ? [tl.scrollLeft, tl.scrollTop] : null, mm = $('.mm'), mScroll = mm ? mm.scrollTop : null, pnl = $('.panel'), pScroll = pnl ? pnl.scrollTop : 0;
   let before = null; if (S.ui.flip) { before = new Map(); for (const c of app.querySelectorAll('.d .grid .card[data-tid]')) before.set(c.dataset.tid, c.getBoundingClientRect()); }
+  const overlay = [...app.querySelectorAll(':scope .scrim, :scope .sheet')]; // a phone sheet lives inside the app root; carry it across the re-render
   app.innerHTML = desk ? renderDesk() : renderMobile();
+  if (overlay.length) ($('.m') || app).append(...overlay);
   if (before) { S.ui.flip = false;
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) for (const c of app.querySelectorAll('.d .grid .card[data-tid]')) { const b = before.get(c.dataset.tid); if (!b) continue; const n = c.getBoundingClientRect(), dy = b.top - n.top, dh = b.height - n.height;
       if (Math.abs(dy) < 1 && Math.abs(dh) < 1) continue; c.style.transition = 'none'; c.style.transform = `translateY(${dy}px)`; c.style.height = (n.height + dh) + 'px';
@@ -714,6 +716,10 @@ const removeSheetDom = () => { $('.scrim')?.remove(); $('.sheet')?.remove(); she
 function closeSheet() { removeSheetDom(); if (history.state?.hz === 'sheet') { popping = true; history.back(); } }
 function openSheet(html, state) {
   if (sheetState?.id !== state?.id) { S.ui.tagAdding = false; S.ui.tagEdit = null; } // transient picker state belongs to one sheet
+  const cur = $('.sheet'), same = cur && sheetState?.id && sheetState.id === state?.id;
+  if (same) { // same task: swap the content in place so the sheet does not re-animate or lose its scroll position
+    const top = cur.scrollTop; cur.innerHTML = html; cur.scrollTop = top; sheetState = state; $('.toast')?.remove(); return cur;
+  }
   const had = !!sheetState; removeSheetDom(); $('.toast')?.remove(); sheetState = state;
   if (!had && history.state?.hz !== 'sheet') history.pushState({ hz: 'sheet' }, '');
   const root = isDesk() ? document.body : ($('.m') || document.body);

@@ -360,7 +360,8 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .card.hl::before { display: none; } /* the colour bar takes the edge; a target still shows its star */
 .card.hl .box { border-color: color-mix(in srgb, var(--mt) 70%, var(--line-3)); }
 .m .card.hl { border-left-width: 6px; }
-.card .emo { font-size: 1.05em; line-height: 1; margin-right: 6px; vertical-align: -1px; }
+.card .emo { font-size: 15px; line-height: 18px; flex: none; }
+.d .grid .card .emo { font-size: 13px; }
 .emopick { display: flex; flex-wrap: wrap; gap: 6px; }
 .emopick button { min-width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--card); font-size: 20px; cursor: pointer; }
 .emopick button[aria-pressed=true] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
