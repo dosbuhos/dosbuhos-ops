@@ -273,14 +273,18 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .m .appt .t { flex: 1; } .m .appt .time { font-size: 15px; font-weight: 700; }
 .m .dayhead { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--line); }
 .m .dayhead:first-child { border-top: 0; }
-.m .dayhead b { font-weight: 700; }
-.m .dayhead .small { font-size: 13px; color: var(--ink-2); }
-.m .dayhead .plain { margin-left: auto; }
+.m .dayhead b { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.m .dayhead .small { font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+.m .dayhead .pill { flex: none; }
+.m .dayhead .plain { margin-left: auto; flex: none; }
 .m .showmore { align-self: flex-start; min-height: 44px; padding: 0 4px; font-size: 15px; border: 0; background: transparent; text-decoration: underline; }
 .m .empty { font-size: 15px; }
 .m nav.tabs { display: flex; align-items: flex-end; padding: 6px 8px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); }
 .m .tabs button { flex: 1; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11.5px; font-weight: 500; border: 0; background: transparent; color: var(--ink-3); transition: color .12s; }
 .m .tabs button svg { transition: transform .15s; }
+.m .tabs button { white-space: nowrap; }
+.m .tabs .ti { position: relative; display: flex; }
+.m .tabs .badge { position: absolute; top: -5px; left: 14px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--sun); color: #14161C; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--bg); letter-spacing: 0; }
 .m .tabs button[aria-current=page] { font-weight: 600; color: var(--ink); }
 .m .tabs button[aria-current=page] svg { transform: translateY(-1px); }
 .m .tabs button:active svg { transform: scale(.92); }
@@ -367,9 +371,16 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .tag.c-new { --tc: var(--ink-2); background: transparent; border: 1px dashed var(--line-3); opacity: 1; }
 .newtag { font: inherit; font-size: 13px; padding: 3px 8px; border: 1px solid var(--line-3); border-radius: 999px; background: var(--card); color: var(--ink); width: 140px; }
 .tagstrip { padding: 0 0 4px; } .m .tagstrip { padding: 6px 0 4px; }
-.taglist { display: flex; flex-direction: column; gap: 8px; }
-.tagrow { display: flex; align-items: center; gap: 10px; }
-.tagrow .dots { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.taglist { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
+.tagrow { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.tagrow:first-child { border-top: 0; }
+.tagrow .tagbtn { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.tagrow .tagbtn .muted { margin-left: auto; font-size: 13px; }
+.tagrow .tagbtn svg { color: var(--ink-3); transition: transform .15s; }
+.tagrow[aria-expanded=true] .tagbtn svg { transform: rotate(180deg); }
+.tagrow .tagopts { display: flex; align-items: center; gap: 12px; padding: 4px 12px 12px; background: var(--card); }
+.tagrow .dots { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.tagrow .tagopts .link { font-size: 13px; flex: none; }
 .cdot { width: 18px; height: 18px; border-radius: 50%; border: 0; background: var(--tc); opacity: 0.45; cursor: pointer; }
 .cdot.c-red { --tc: #DC2626; } .cdot.c-orange { --tc: #EA580C; } .cdot.c-amber { --tc: #D97706; } .cdot.c-yellow { --tc: #CA8A04; } .cdot.c-green { --tc: #16A34A; } .cdot.c-teal { --tc: #0D9488; }
 .cdot.c-cyan { --tc: #0891B2; } .cdot.c-blue { --tc: #2563EB; } .cdot.c-indigo { --tc: #4F46E5; } .cdot.c-purple { --tc: #9333EA; } .cdot.c-pink { --tc: #DB2777; } .cdot.c-grey { --tc: #6B7280; }

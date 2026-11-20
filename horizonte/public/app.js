@@ -615,9 +615,9 @@ function renderMobile() {
   const tab = S.ui.mtab, n = inboxTasks().length;
   let main = tab === 'plan' ? mPlan() : tab === 'boards' ? mBoards() : tab === 'inbox' ? mInbox() : mToday();
   const sb = signinBanner(); if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
-  const btn = (k, label, icon) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${icon(tab === k ? 2.2 : 2)}${label}</button>`;
+  const btn = (k, label, icon, badge) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''} ${badge ? `aria-label="${label}, ${badge}"` : ''}><span class="ti">${icon(tab === k ? 2.2 : 2)}${badge ? `<span class="badge">${badge > 99 ? '99+' : badge}</span>` : ''}</span>${label}</button>`;
   return `<div class="m">${main}
-<nav class="tabs" aria-label="Main">${btn('today', 'Today', I.today)}${btn('plan', 'Plan', I.plan)}<button class="cap" aria-label="Capture a task" data-act="capture">${I.plus(26, 2.5)}</button>${btn('boards', 'Boards', I.boards)}${btn('inbox', `Inbox${n ? ' · ' + n : ''}`, I.inbox)}</nav></div>`;
+<nav class="tabs" aria-label="Main">${btn('today', 'Today', I.today)}${btn('plan', 'Plan', I.plan)}<button class="cap" aria-label="Capture a task" data-act="capture">${I.plus(26, 2.5)}</button>${btn('boards', 'Boards', I.boards)}${btn('inbox', 'Inbox', I.inbox, n)}</nav></div>`;
 }
 const mcard = (t, o = {}) => cardHTML(t, { mobile: true, ...o });
 function mToday() {
@@ -654,7 +654,9 @@ function mPlan() {
     const kind = { weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z];
     let k = periodOf(kind, S.ui.manchor);
     for (let i = 0; i < 8; i++, k = shiftPeriod(k, 1)) { const list = sortList(placedOn(k).filter(isOpen), 'priority');
-      body += head(k, periodLabel(k, true), `<span class="small">${list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed'}</span>`) + items(k, list); }
+      const [lbl, range] = kind === 'week' ? periodLabel(k, true).split(' · ') : [periodLabel(k, true), ''];
+      const count = list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed';
+      body += head(k, lbl, `<span class="small">${range ? esc(range) + ' · ' : ''}${count}</span>`) + items(k, list); }
   }
   return `<header class="mh" style="padding-bottom:10px"><div class="r1"><h1>Plan</h1><div style="display:flex;align-items:center;gap:4px">
 <button class="ib" aria-label="Earlier" data-act="mprev">${I.left.replace(/16/g, '20')}</button><button class="tb" data-act="mtoday">Today</button><button class="ib" aria-label="Later" data-act="mnext">${I.right.replace(/16/g, '20')}</button></div></div>
@@ -677,7 +679,7 @@ function mBoards() {
     if (done.length) body += mDoneToggle('b' + b.id, done);
     return `<header class="mh"><div class="r1"><button class="ib" aria-label="All boards" data-act="boardsback">${I.left.replace(/16/g, '20')}</button><h1 style="flex:1">${esc(b.name)}</h1>
 <button class="plain" aria-label="Edit board" data-act="editboard" data-bid="${b.id}">•••</button><button class="ib" aria-label="Add to ${esc(b.name)}" data-act="capture" data-board="${b.id}">${I.plus(20)}</button></div></header>
-<main class="mm" data-list="board">${body}<div class="empty" style="margin-top:12px">Tip: hold a task to open the day, then drop it on an hour.</div></main>`;
+<main class="mm" data-list="board">${body}</main>`;
   }
   const rows = boardsSorted().map((x, i) => `<button class="rowlink" data-act="openboard" data-bid="${x.id}"><i class="bdot b${i % 4}"></i><span>${esc(x.name)}</span><span class="n">${boardTasks(x.id).filter(isOpen).length}</span>${I.chev}</button>`).join('');
   return `<header class="mh"><div class="r1"><h1>Boards</h1><button class="tb" data-act="newboard">New board</button></div></header>
@@ -687,8 +689,8 @@ function mInbox() {
   const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
   let body = '';
   if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
-  body += capped('minbox', list, t => mcard(t)) || `<div class="empty">Inbox is empty. Tap + to capture.</div>`;
-  if (list.length) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
+  body += capped('minbox', list, t => mcard(t)) || `<div class="empty">${S.ui.tagFilter ? 'Nothing in Inbox with this tag.' : 'Inbox is empty. Tap + to capture what’s on your mind.'}</div>`;
+  if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
   if (S.ui.q) body = searchResults(true);
   return `<header class="mh"><div class="r1"><h1>${S.ui.q ? 'Search' : `Inbox${list.length ? ' · ' + list.length : ''}`}</h1></div>${searchBox('mq')}</header><main class="mm" data-list="inbox">${body}</main>`;
 }
@@ -697,6 +699,7 @@ function mInbox() {
 let sheetState = null;
 function closeSheet() { $('.scrim')?.remove(); $('.sheet')?.remove(); sheetState = null; }
 function openSheet(html, state) {
+  if (sheetState?.id !== state?.id) { S.ui.tagAdding = false; S.ui.tagEdit = null; } // transient picker state belongs to one sheet
   closeSheet(); $('.toast')?.remove(); sheetState = state;
   const root = isDesk() ? document.body : ($('.m') || document.body);
   root.insertAdjacentHTML('beforeend', `<div class="scrim" data-act="close"></div><section class="sheet" role="dialog" aria-modal="true">${html}</section>`);
@@ -728,7 +731,9 @@ ${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
 <div class="grp" ${t.kind === 'meeting' ? 'style="display:none"' : ''}><div class="eyebrow">Priority</div><div class="seg">
 <button data-act="pri" data-p="target" aria-pressed="${pri === 'target'}">${I.star(15)}Target</button><button data-act="pri" data-p="normal" aria-pressed="${pri === 'normal'}">Normal</button><button data-act="pri" data-p="someday" aria-pressed="${pri === 'someday'}">Someday</button></div></div>
-<div class="grp"><div class="eyebrow">Tags</div><div class="tagpick">${tagsList().map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="${(t.tags || []).includes(x.id)}"`)).join('')}${S.ui.tagAdding ? `<input id="newtag" class="newtag" placeholder="New tag, Enter" autocomplete="off">` : `<button class="tag c-new" data-act="tagnew">+ Tag</button>`}</div></div>
+<div class="grp"><div class="eyebrow">Tags</div>${S.ui.tagAdding
+    ? `<div class="tagpick">${tagsList().map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="${(t.tags || []).includes(x.id)}"`)).join('')}</div><div class="row"><input id="newtag" class="newtag" style="flex:1" placeholder="New tag" autocomplete="off" enterkeyhint="done"><button class="link" data-act="tagdone">Done</button></div>`
+    : `<div class="tagpick">${taskTags(t).map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="true" title="Remove tag"`)).join('')}<button class="tag c-new" data-act="tagnew">+ Tag</button></div>`}</div>
 <button class="boardrow" data-act="sheetboard"><span><span style="color:var(--ink-2)">Board</span>&nbsp;&nbsp;<b style="font-weight:600">${esc(bd ? bd.name + (t.section ? ' · ' + t.section : '') : 'Inbox')}</b></span>${I.chev}</button>
 ${t.notes || S.ui.notesOpen === id ? `<textarea class="notes" data-field="notes" placeholder="Notes">${esc(t.notes || '')}</textarea>` : `<button class="link" style="align-self:flex-start;font-size:14px" data-act="notes">Add notes</button>`}
 <div class="foot">${t.when ? `<button class="link" style="font-size:14px" data-act="unschedule">Unschedule</button>` : '<span></span>'}
@@ -777,7 +782,8 @@ ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? 
 ${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
-${tagsList().length ? `<div class="grp"><div class="eyebrow">Tags</div><div class="taglist">${tagsList().map(x => `<div class="tagrow">${tagChip(x)}<span class="dots">${TAGCOLORS.map(c => `<button class="cdot c-${c}" data-act="tagcolor" data-t="${x.id}" data-c="${c}" aria-label="${c}" aria-pressed="${x.color === c}"></button>`).join('')}</span><button class="link" style="color:var(--now);font-size:13px" data-act="tagdel" data-t="${x.id}">Remove</button></div>`).join('')}</div><div class="muted" style="font-size:13px">Add a tag from any task, or type #tag when adding one.</div></div>` : ''}
+${tagsList().length ? `<div class="grp"><div class="eyebrow">Tags</div><div class="taglist">${tagsList().map(x => { const n = live().filter(t => (t.tags || []).includes(x.id)).length, ed = S.ui.tagEdit === x.id;
+    return `<div class="tagrow" aria-expanded="${ed}"><button class="tagbtn" data-act="tagedit" data-t="${x.id}">${tagChip(x)}<span class="muted">${n}</span>${I.down}</button>${ed ? `<div class="tagopts"><span class="dots">${TAGCOLORS.map(c => `<button class="cdot c-${c}" data-act="tagcolor" data-t="${x.id}" data-c="${c}" aria-label="${c}" aria-pressed="${x.color === c}"></button>`).join('')}</span><button class="link" style="color:var(--now)" data-act="tagdel" data-t="${x.id}">Remove tag</button></div>` : ''}</div>`; }).join('')}</div><div class="muted" style="font-size:13px">Add a tag from any task, or type #tag when capturing.</div></div>` : ''}
 <div class="row"><button class="bigbtn" style="flex:1" data-act="export">Export all data</button><button class="bigbtn" style="flex:1" data-act="close">Close</button></div>`, { settings: true });
 }
 
@@ -880,7 +886,9 @@ document.addEventListener('click', async (e) => {
     case 'qclear': { const inp = $('#q,#mq'); S.ui.q = ''; if (inp) { inp.value = ''; inp.blur(); } render(); $('#q,#mq')?.focus(); return; }
     case 'tagfilter': S.ui.tagFilter = S.ui.tagFilter === el.dataset.t ? null : el.dataset.t; render(); if (sheetState?.filter) filterSheet(); return;
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
-    case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); $('#newtag')?.focus(); return;
+    case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
+    case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
+    case 'tagedit': S.ui.tagEdit = S.ui.tagEdit === el.dataset.t ? null : el.dataset.t; settingsSheet(); return;
     case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }
     case 'tagdel': { const id = el.dataset.t; batch(g => { put('pref', 'main', { tags: tagsList().filter(t => t.id !== id) }, { group: g }); for (const t of live()) if ((t.tags || []).includes(id)) put('task', t.id, { tags: t.tags.filter(x => x !== id) }, { group: g }); }); if (S.ui.tagFilter === id) S.ui.tagFilter = null; render(); settingsSheet(); toast('Tag removed', true); return; }
     case 'toggle': S.ui.open[el.dataset.key] = !S.ui.open[el.dataset.key]; render(); return;
@@ -1045,6 +1053,7 @@ function swipeMove(dx) {
 function swipeEnd(dx) {
   const c = press.card, id = press.id; suppressClick = Math.abs(dx) > 12;
   setTimeout(() => { suppressClick = false; }, 50);
+  if (Math.abs(dx) > 80 && !S.ui.hintSeen) { S.ui.hintSeen = true; store.set('hintSeen', true); } // they know how to swipe now
   if (dx > 80) { navigator.vibrate?.(15); toggleDone(id); return; }
   c.style.transition = 'transform 150ms ease-out'; c.style.transform = ''; setTimeout(() => { c.querySelector('.swipe-hint')?.remove(); c.classList.remove('swiping'); c.style.transition = ''; }, 160);
   if (dx < -80) taskSheet(id);
