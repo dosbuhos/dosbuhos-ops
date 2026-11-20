@@ -859,6 +859,26 @@ function insight(S_, mode, k) {
   if (S_.targets.length && S_.tDone === S_.targets.length) return { text: 'All targets hit.' };
   return null;
 }
+// Activity: which days had at least one task checked off (by doneAt), current and longest streak, and a 26-week heatmap.
+function activity() {
+  const counts = new Map();
+  for (const t of S.tasks.values()) { if (t.del || t.status !== 'done' || !t.doneAt || t.kind === 'meeting') continue; const k = dkey(new Date(t.doneAt)); counts.set(k, (counts.get(k) || 0) + 1); }
+  const today = todayK(); let cur = 0, k = counts.has(today) ? today : addDays(today, -1);
+  while (counts.has(k)) { cur++; k = addDays(k, -1); }
+  let best = 0, bestEnd = null; const days = [...counts.keys()].sort(); let run = 0, prev = null;
+  for (const d of days) { run = prev && addDays(prev, 1) === d ? run + 1 : 1; if (run > best) { best = run; bestEnd = d; } prev = d; }
+  const weeks = 26, end = addDays(weekStart(isoWeek(today)), 6), start = addDays(end, -7 * weeks + 1), max = Math.max(1, ...counts.values());
+  const cells = []; for (let i = 0; i < 7 * weeks; i++) { const d = addDays(start, i); cells.push({ d, n: counts.get(d) || 0, future: d > today }); }
+  const yearDays = [...counts.keys()].filter(d => d.startsWith(today.slice(0, 4))).length, dayOfYear = Math.round((parseD(today) - parseD(today.slice(0, 4) + '-01-01')) / 864e5) + 1;
+  return { cur, best, bestEnd, cells, max, weeks, yearPct: Math.round(100 * yearDays / dayOfYear), total: [...counts.values()].reduce((a, b) => a + b, 0) };
+}
+function activityHTML() {
+  const A = activity(); if (!A.total) return '';
+  const lvl = (n) => n === 0 ? 0 : n >= A.max * 0.75 ? 4 : n >= A.max * 0.5 ? 3 : n >= A.max * 0.25 ? 2 : 1;
+  return `<div class="grp"><div class="eyebrow">Activity</div>
+<div class="streaks"><div><b>${A.cur}</b><span>day streak</span></div><div><b>${A.best}</b><span>longest${A.bestEnd ? ' · to ' + esc(dayShort(A.bestEnd)) : ''}</span></div><div><b>${A.yearPct}%</b><span>active days this year</span></div></div>
+<div class="heat" role="img" aria-label="Tasks done per day, last ${A.weeks} weeks" style="grid-template-columns:repeat(${A.weeks}, 1fr)">${A.cells.map(c => `<i class="l${lvl(c.n)} ${c.future ? 'fut' : ''} ${c.d === todayK() ? 'now' : ''}" title="${esc(dayShort(c.d))} · ${c.n} done"></i>`).join('')}</div></div>`;
+}
 function summarySheet(k = S.ui.sumK || todayK(), mode = S.ui.sumMode || 'day') {
   S.ui.sumK = k; S.ui.sumMode = mode;
   const wk = isoWeek(k), days = mode === 'day' ? [k] : Array.from({ length: 7 }, (_, i) => addDays(weekStart(wk), i));
@@ -880,6 +900,7 @@ ${!R.tasks.length && !R.meetings.length && !R.cleared.length ? `<div class="empt
 <div class="stats"><div><b>${R.tDone}<span class="muted">/${R.targets.length}</span></b><span>targets</span></div><div><b>${R.done.length}</b><span>done</span>${R.cleared.length ? `<small>+${R.cleared.length} from inbox</small>` : ''}</div><div><b>${R.open.length}</b><span>open</span></div><div><b>${R.pushed.length}</b><span>pushed</span></div></div>
 ${dayStrip}
 ${ins ? `<div class="sins"><span>${esc(ins.text)}</span>${ins.act ? `<button class="btn" data-act="${ins.act}">${ins.label}</button>` : ''}</div>` : ''}
+${activityHTML()}
 <div class="grp"><div class="eyebrow">By board</div>${rows(R.byBoard)}</div>
 <div class="grp"><div class="eyebrow">By tag</div>${rows(R.byTag)}</div>
 ${R.done.length || R.cleared.length ? `<div class="grp"><div class="eyebrow">Done</div><div class="sdone">${R.done.map(t => `<span>${esc(t.title)}<small> ${fmtDur(t.dur || 30)}</small></span>`).join('')}${R.cleared.map(t => `<span class="muted">${esc(t.title)}<small> · ${t.when ? esc(periodLabel(t.when)) : t.board ? esc(S.boards.get(t.board)?.name || 'board') : 'inbox'}</small></span>`).join('')}</div></div>` : ''}`}
