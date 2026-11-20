@@ -3,6 +3,7 @@
 // D1 and hands back what other devices changed. The app itself runs entirely from the device's own copy.
 import { applyOp, validOp } from './merge.js';
 import * as gcal from './gcal.js';
+import * as mcp from './mcp.js';
 
 const COOKIE = 'hz_session', STATE = 'hz_state', DAYS = 60;
 const enc = new TextEncoder();
@@ -149,17 +150,38 @@ async function importOps(request, env) {
   return new Response(JSON.stringify({ ok: true, n: body.ops.length }), { headers: { ...cors, 'content-type': 'application/json' } });
 }
 
+// Writes that did not come from a device (MCP): same Google Calendar follow-up as /api/sync does.
+async function afterWrite(env, ctx, touched) {
+  if (!env.GOOGLE_CLIENT_SECRET || !touched.length) return;
+  try { await gcal.pushTasks(env, touched, applyOps); } catch (e) { console.log('gcal push', e.message); }
+}
+
+// Access tokens for assistants: GET lists, POST {name} mints one (returned once), DELETE /api/tokens/<id> revokes.
+async function tokens(request, env, url) {
+  if (request.method === 'GET') { const { results } = await env.DB.prepare('SELECT id, name, created, last_used FROM api_tokens ORDER BY created DESC').all(); return json({ tokens: results }); }
+  if (request.method === 'POST') {
+    const { name } = await request.json().catch(() => ({})); const token = mcp.newToken(), id = token.slice(3, 11);
+    await env.DB.prepare('INSERT INTO api_tokens (id, hash, name, created) VALUES (?, ?, ?, ?)').bind(id, await mcp.sha256(token), String(name || 'Assistant').slice(0, 60), Date.now()).run();
+    return json({ id, token, url: `${url.origin}/mcp/${token}` });
+  }
+  const m = url.pathname.match(/^\/api\/tokens\/([A-Za-z0-9_-]+)$/);
+  if (request.method === 'DELETE' && m) { await env.DB.prepare('DELETE FROM api_tokens WHERE id = ?').bind(m[1]).run(); return json({ ok: true }); }
+  return json({ error: 'not found' }, 404);
+}
+
 export default {
   async scheduled(event, env, ctx) { if (env.GOOGLE_CLIENT_SECRET) ctx.waitUntil(gcal.pull(env, applyOps, { force: true }).catch(e => console.log('cron pull', e.message))); },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/auth/')) return (await auth(request, env, url, ctx)) || new Response('Not found', { status: 404 });
     if (url.pathname === '/api/import') return importOps(request, env);
+    if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) return mcp.handle(request, env, ctx, url, { applyOps, afterWrite: (touched) => afterWrite(env, ctx, touched) });
     if (url.pathname.startsWith('/api/')) {
       const user = await currentUser(request, env).catch(() => null);
       if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID, calendarReady: !!env.GOOGLE_CLIENT_SECRET }, user ? 200 : 401);
       if (!user) return json({ error: 'sign in' }, 401);
       if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env, ctx);
+      if (url.pathname.startsWith('/api/tokens')) return tokens(request, env, url);
       if (url.pathname === '/api/gcal' && request.method === 'GET') {
         const row = await gcal.gcalRow(env);
         return json({ available: !!env.GOOGLE_CLIENT_SECRET, connected: !!row?.refresh_token, email: row?.email || null, clientId: env.GOOGLE_CLIENT_ID });

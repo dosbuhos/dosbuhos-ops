@@ -819,14 +819,15 @@ function boardSheet(id) {
 <div class="foot">${b && b.id !== 'backlog' ? `<button class="link" style="font-size:14px;color:var(--now)" data-act="delboard" data-bid="${b.id}">Delete board</button>` : '<span></span>'}<button class="bigbtn dark" style="padding:0 20px" data-act="saveboard" data-bid="${b?.id || ''}">Save</button></div>`, { board: id });
 }
 function settingsSheet() {
-  setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0);
+  setTimeout(mountGoogleButton, 0); setTimeout(mountGcal, 0); setTimeout(mountTokens, 0);
   const s = syncState();
   openSheet(`<div class="grab"></div><div class="sheettitle">Settings</div>
 <div class="grp"><div class="eyebrow">Account</div>
 ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? ' · ' + new Date(S.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</span></div><div class="row"><button class="bigbtn" style="flex:1" data-act="syncnow">Sync now</button><a class="bigbtn" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit" href="/auth/logout">Sign out</a></div>`
   : S.setup ? `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sign in to sync between phone and computer and load your boards.</div><div id="gsi" style="min-height:44px;display:flex;justify-content:center"></div><div id="gsimsg" class="muted" style="font-size:13px"></div>`
   : `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sync turns on once Google sign-in is set up for Horizonte.</div>`}</div>
-${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
+${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>
+<div class="grp"><div class="eyebrow">Assistants</div><div class="muted" style="font-size:14px">Let Claude or ChatGPT read and change your planner. Each gets its own access link; revoke it here any time.</div><div id="tokbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
 <div class="grp"><div class="eyebrow">Appearance</div><div class="seg">${[['', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button data-act="theme" data-t="${k}" aria-pressed="${(S.ui.theme || '') === k}">${l}</button>`).join('')}</div></div>
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
@@ -857,6 +858,14 @@ async function mountGoogleButton() {
 }
 
 // Google Calendar link: meetings go to Google, Google events come back as meetings. Tasks stay in Horizonte.
+// Settings › Assistants: list, mint and revoke MCP access tokens. The link is shown once, right after minting.
+async function mountTokens() {
+  const box = $('#tokbox'); if (!box) return;
+  let st; try { st = await (await fetch('/api/tokens', { cache: 'no-store' })).json(); } catch { box.textContent = 'Connect to the internet to manage assistant access.'; return; }
+  const rows = (st.tokens || []).map(t => `<div class="tokrow"><span><b>${esc(t.name)}</b><span class="muted"> · ${t.last_used ? 'used ' + relTime(t.last_used) : 'never used'}</span></span><button class="link" style="color:var(--now)" data-act="tokdel" data-id="${t.id}">Revoke</button></div>`).join('');
+  box.innerHTML = `${rows || ''}<div class="row" style="margin-top:${rows ? 8 : 0}px"><input id="tokname" class="newtag" style="flex:1" placeholder="Name, e.g. Claude" autocomplete="off"><button class="btn" data-act="toknew">Create link</button></div>`;
+}
+function relTime(ms) { const d = Date.now() - ms; return d < 36e5 ? `${Math.max(1, Math.round(d / 6e4))} min ago` : d < 864e5 ? `${Math.round(d / 36e5)} h ago` : `${Math.round(d / 864e5)} d ago`; }
 async function mountGcal() {
   const box = $('#gcalbox'); if (!box) return;
   let st; try { st = await (await fetch('/api/gcal', { cache: 'no-store' })).json(); } catch { box.textContent = 'Connect to the internet to see the calendar link.'; return; }
@@ -945,6 +954,14 @@ document.addEventListener('click', async (e) => {
     case 'took': { const t = S.tasks.get(el.dataset.id); if (!t) return; put('task', t.id, { dur: Math.max(5, (t.dur || 30) + +el.dataset.d) }, { quiet: true }); render(); doneToast(t.id); return; }
     case 'timeclear': { const t = S.tasks.get(st.id); put('task', st.id, { at: '' }); render(); taskSheet(st.id); return; }
     case 'timeslot': timeList(null); setStart(st.id, el.dataset.at); return;
+    case 'toknew': { const name = $('#tokname')?.value.trim() || 'Assistant'; el.disabled = true;
+      let r; try { r = await (await fetch('/api/tokens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })).json(); } catch { toast('Could not create the link'); el.disabled = false; return; }
+      const box = $('#tokbox'); if (!box) return;
+      box.innerHTML = `<div class="tokshow"><div><b>${esc(name)}</b> · copy this link now; it is not shown again.</div><code>${esc(r.url)}</code><div class="row"><button class="btn" data-act="tokcopy" data-url="${esc(r.url)}">Copy link</button><button class="link" data-act="tokdone">Done</button></div>
+<div class="muted" style="font-size:13px;margin-top:8px">Claude: Settings → Connectors → Add custom connector → paste the link. ChatGPT: Settings → Connectors → Create (developer mode) → MCP server URL, no authentication.</div></div>`; return; }
+    case 'tokcopy': { try { await navigator.clipboard.writeText(el.dataset.url); toast('Link copied'); } catch { toast('Select the link and copy it'); } return; }
+    case 'tokdone': mountTokens(); return;
+    case 'tokdel': { if (!confirm('Revoke this assistant\'s access?')) return; await fetch('/api/tokens/' + el.dataset.id, { method: 'DELETE' }); mountTokens(); return; }
     case 'theme': S.ui.theme = el.dataset.t; saveUI(); applyTheme(); settingsSheet(); return;
     case 'tagedit': S.ui.tagEdit = S.ui.tagEdit === el.dataset.t ? null : el.dataset.t; settingsSheet(); return;
     case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }

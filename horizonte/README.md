@@ -10,11 +10,16 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 
 ## Phases (from the scope doc)
 1. Core planner — **this version**
-2. Google Calendar two-way sync, appointments, reflow — **done** (reflow: today only, timeboxed tasks; finish early → following tasks slide up; run over → the running task stretches and overlapped tasks move to the next gap; meetings and pinned tasks fixed; per-day switch in the Hours header)
+2. Google Calendar two-way sync, appointments, reflow — **done** (reflow: today only, timeboxed tasks; finish early → following tasks slide up; run over → the block keeps its length and slides under the now line, pushing what follows; meetings and pinned tasks fixed; per-day switch in the Hours header)
 3. Google Tasks inbox
 4. Timestripe import
 5. Daily score
-6. Voice + assistant
+6. Voice + assistant — **MCP endpoint done** (see below)
+
+## Assistants (MCP)
+`POST /mcp/<token>` (or `POST /mcp` with `Authorization: Bearer <token>`) is a stateless MCP server over Streamable HTTP (JSON-RPC; no SSE, no sessions). Tokens are minted in Settings → Assistants (`/api/tokens`, session auth) and stored as SHA-256 in `api_tokens`; the link is shown once. Tools: `get_day`, `list_tasks`, `list_boards`, `add_task`, `update_task`, `complete_task`, `delete_task`, `day_summary`. Writes go through `applyOps` with device clock `mcp`, so devices converge and meetings push to Google Calendar. Code: `src/mcp.js`.
+- Claude.ai: Settings → Connectors → Add custom connector → paste the link.
+- ChatGPT: Settings → Connectors → Create (developer mode) → MCP server URL, no authentication.
 
 ## Dev
 ```
