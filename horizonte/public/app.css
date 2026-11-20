@@ -222,7 +222,9 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .d .gutter { flex: 0 0 52px; font-size: 12px; color: var(--ink-2); text-align: right; }
 .d .hcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .d .grid { flex: 1 1 0; min-width: 0; position: relative; border: 1px solid var(--line); border-radius: 8px; background: repeating-linear-gradient(to bottom, var(--bg) 0, var(--bg) 55px, var(--line) 55px, var(--line) 56px); }
-.d .grid .card, .d .grid .appt { position: absolute; left: 6px; right: 6px; overflow: hidden; align-items: flex-start; padding-top: 6px; padding-bottom: 6px; }
+.d .grid .card, .d .grid .appt { position: absolute; left: 6px; right: 6px; overflow: hidden; align-items: flex-start; padding-top: 6px; padding-bottom: 6px; border-radius: 5px; }
+.d .grid .card::before { top: 0; bottom: 0; border-radius: 0; } /* the target bar runs the full height of a timed block */
+.d .grid .card.hl { border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
 /* in the hour grid a card reads like a calendar block: one-line title with an ellipsis, the time on the right, full text on hover */
 .d .grid .card .body { gap: 0; }
 .d .grid .card .t { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -353,6 +355,20 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 
 /* meeting colors (Google Calendar's palette) */
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+/* highlighted task: a wash of the chosen colour over the whole card, ring on the checkbox; readable in both themes */
+.card.hl { border-left: 5px solid var(--mt); padding-left: 8px; background: color-mix(in srgb, var(--mt) 7%, var(--card)); border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.card.hl::before { display: none; } /* the colour bar takes the edge; a target still shows its star */
+.card.hl .box { border-color: color-mix(in srgb, var(--mt) 70%, var(--line-3)); }
+.m .card.hl { border-left-width: 6px; }
+.card .emo { font-size: 1.05em; line-height: 1; margin-right: 6px; vertical-align: -1px; }
+.emopick { display: flex; flex-wrap: wrap; gap: 6px; }
+.emopick button { min-width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--card); font-size: 20px; cursor: pointer; }
+.emopick button[aria-pressed=true] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.emopick button.none { font-size: 13px; color: var(--ink-2); padding: 0 10px; }
+@keyframes cardin { 0% { background: var(--sun-bg); box-shadow: 0 0 0 2px var(--sun); } 100% { background: var(--card); box-shadow: var(--shadow-1); } }
+.card.new { animation: cardin 1.6s ease-out; }
+.sw.none { background: var(--card); border: 1.5px solid var(--line-3); box-shadow: none; }
+.sw.none::before { content: ''; position: absolute; left: 50%; top: 50%; width: 18px; height: 1.5px; background: var(--line-3); transform: translate(-50%, -50%) rotate(-45deg); }
 .sw { width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: 0 0 0 2px var(--card) inset; position: relative; }
 .sw[aria-pressed=true] { box-shadow: 0 0 0 2px var(--card) inset, 0 0 0 2px var(--ink); }
 .sw[aria-pressed=true]::after { content: ''; position: absolute; left: 9px; top: 5px; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }

@@ -215,7 +215,7 @@ const taskTags = (t) => (t.tags || []).map(tagById).filter(Boolean);
 const tagSortKey = (t) => taskTags(t).map(x => x.name.toLowerCase()).sort()[0] || '\uffff';
 function sortList(list, mode = 'manual') {
   const by = { manual: order, priority: (a, b) => priRank[a.pri || 'normal'] - priRank[b.pri || 'normal'] || order(a, b),
-    age: (a, b) => String(a.created).localeCompare(String(b.created)), duration: (a, b) => (a.dur || 30) - (b.dur || 30) || order(a, b),
+    age: (a, b) => String(a.created).localeCompare(String(b.created)), newest: (a, b) => String(b.created).localeCompare(String(a.created)), duration: (a, b) => (a.dur || 30) - (b.dur || 30) || order(a, b),
     tag: (a, b) => tagSortKey(a).localeCompare(tagSortKey(b)) || order(a, b) }[mode] || order;
   return [...list].sort(by);
 }
@@ -260,14 +260,22 @@ function parseQuick(line, fields) {
   title = title.replace(/\s[#!]([\p{L}\p{N}][\p{L}\p{N}_-]*)(?=\s)/gu, (m0, name) => { const id = ensureTag(name.replace(/[-_]+/g, ' ')); if (id && !tags.includes(id)) tags.push(id); return ' '; });
   if (tags.length) out.tags = [...(fields.tags || []), ...tags.filter(t => !(fields.tags || []).includes(t))];
   out.title = title.replace(/\s+/g, ' ').trim() || line.trim();
+  const em = out.title.match(/^(\p{Extended_Pictographic}\uFE0F?)\s+(.+)$/u); // a leading emoji becomes the task's icon
+  if (em) { out.emoji = em[1]; out.title = em[2]; }
   return out;
 }
 function addLines(text, fields) {
   const lines = String(text).split(/\n+/).map(s => s.replace(/^\s*[-*•]\s*/, '').trim()).filter(Boolean);
-  batch(g => lines.forEach((line, i) => { const id = rid('t_');
-    put('task', id, { title: line, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: 30, when: null, at: '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: Date.now() + i, ...fields, ...parseQuick(line, fields) }, { group: g }); }));
+  // New tasks go to the top of their list (smaller `o` sorts first); the first line typed stays first.
+  const minO = Math.min(0, ...live().map(t => t.o ?? 0)), ids = [];
+  batch(g => lines.forEach((line, i) => { const id = rid('t_'); ids.push(id);
+    put('task', id, { title: line, notes: '', board: '', section: '', pri: 'normal', status: 'open', dur: 30, when: null, at: '', rolls: 0, src: 'typed', created: new Date().toISOString(), o: minO - lines.length + i, ...fields, ...parseQuick(line, fields) }, { group: g }); }));
+  flash(ids);
   return lines.length;
 }
+// Briefly mark freshly added cards so the eye finds them.
+const flashed = new Set(); let flashTimer;
+function flash(ids) { ids.forEach(i => flashed.add(i)); clearTimeout(flashTimer); flashTimer = setTimeout(() => { flashed.clear(); $$('.card.new').forEach(c => c.classList.remove('new')); }, 1800); }
 function toggleDone(id) {
   const t = S.tasks.get(id); if (!t) return;
   const done = t.status !== 'done';
@@ -349,6 +357,7 @@ function capped(key, list, render) { // long lists show the first 100, then a bu
 const isDesk = () => matchMedia('(min-width: 900px)').matches;
 // Google Calendar's event colors (colorId 1–11); '' = default blue. Stored on the task as `color`, synced as colorId.
 const GCOLORS = [['', '#1D4ED8', 'Default'], ['1', '#7986CB', 'Lavender'], ['2', '#33B679', 'Sage'], ['3', '#8E24AA', 'Grape'], ['4', '#E67C73', 'Flamingo'], ['5', '#F6BF26', 'Banana'], ['6', '#F4511E', 'Tangerine'], ['7', '#039BE5', 'Peacock'], ['8', '#616161', 'Graphite'], ['9', '#3F51B5', 'Blueberry'], ['10', '#0B8043', 'Basil'], ['11', '#D50000', 'Tomato']];
+const EMOJIS = ['🔥', '❗', '⭐', '💰', '📞', '✉️', '🍷', '🏠', '🚗', '🛒', '💡', '🎯'];
 const colorHex = (c) => (GCOLORS.find(x => x[0] === String(c || '')) || GCOLORS[0])[1];
 const colorStyle = (t) => t.color ? `--mt:${colorHex(t.color)};${t.color === '5' ? 'color:#16181D;' : ''}` : '';
 function meetingHTML(t, opts = {}) {
@@ -362,12 +371,13 @@ function meetingHTML(t, opts = {}) {
 function cardHTML(t, opts = {}) {
   if (t.kind === 'meeting') return meetingHTML(t, opts);
   const pri = t.pri || 'normal', done = t.status === 'done';
-  const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : ''].join(' ');
+  const hl = !done && t.color; // highlighted task: coloured left bar + faint wash (meetings are solid; targets show a star; independent signals)
+  const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : ''].join(' ');
   const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
   const meta = opts.meta ?? (done ? '' : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30));
-  return `<div class="${cls}" data-tid="${t.id}" style="${opts.style || ''}">
+  return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
-<div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
+<div class="body" data-act="open"><span class="t">${t.emoji ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
 ${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
@@ -460,7 +470,7 @@ ${renderPanelList(board)}
 // ── filter & sort ─────────────────────────────────────────────
 // One control for both: a filter button next to the search box opens a sheet with the sort order and the tag filter.
 // While a filter is active a slim bar under the search box says so and clears it in one tap.
-const SORTS = [['manual', 'My order'], ['priority', 'Priority'], ['tag', 'Tag'], ['age', 'Oldest first'], ['duration', 'Shortest first']];
+const SORTS = [['manual', 'My order'], ['newest', 'Newest first'], ['age', 'Oldest first'], ['priority', 'Priority'], ['tag', 'Tag'], ['duration', 'Shortest first']];
 const sortLabel = () => (SORTS.find(x => x[0] === S.ui.sort) || SORTS[0])[1];
 const filterActive = () => !!S.ui.tagFilter || (S.ui.sort && S.ui.sort !== 'manual');
 function filterBar() {
@@ -738,7 +748,6 @@ function taskSheet(id, view = 'main') {
   openSheet(`<div class="grab"></div>
 <div style="display:flex;flex-direction:column;gap:2px"><textarea class="ttl" rows="1" data-field="title" aria-label="Task name">${esc(t.title)}</textarea><div style="font-size:13px;color:var(--ink-2)">${esc(where)}</div></div>
 <div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.people(15)}Meeting</button></div>
-${t.kind === 'meeting' ? `<div class="grp"><div class="eyebrow">Color</div><div class="swatches">${GCOLORS.map(([c, hex, name]) => `<button class="sw" data-act="color" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(t.color || '') === c}" title="${name}"></button>`).join('')}</div></div>` : ''}
 <div class="grp"><div class="eyebrow">When</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
@@ -748,6 +757,8 @@ ${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
 <div class="grp" ${t.kind === 'meeting' ? 'style="display:none"' : ''}><div class="eyebrow">Priority</div><div class="seg">
 <button data-act="pri" data-p="target" aria-pressed="${pri === 'target'}">${I.star(15)}Target</button><button data-act="pri" data-p="normal" aria-pressed="${pri === 'normal'}">Normal</button><button data-act="pri" data-p="someday" aria-pressed="${pri === 'someday'}">Someday</button></div></div>
+<div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Color' : 'Highlight'}</div><div class="swatches">${GCOLORS.map(([c, hex, name]) => c === '' && t.kind !== 'meeting' ? `<button class="sw none" data-act="color" data-c="" aria-label="No highlight" aria-pressed="${!t.color}" title="None"></button>` : `<button class="sw" data-act="color" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(t.color || '') === c}" title="${name}"></button>`).join('')}</div></div>
+${t.kind === 'meeting' ? '' : `<div class="grp"><div class="eyebrow">Icon</div><div class="emopick"><button class="none" data-act="emoji" data-e="" aria-pressed="${!t.emoji}">None</button>${EMOJIS.map(e => `<button data-act="emoji" data-e="${e}" aria-pressed="${t.emoji === e}">${e}</button>`).join('')}</div></div>`}
 <div class="grp"><div class="eyebrow">Tags</div>${S.ui.tagAdding
     ? `<div class="tagpick">${tagsList().map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="${(t.tags || []).includes(x.id)}"`)).join('')}</div><div class="row"><input id="newtag" class="newtag" style="flex:1" placeholder="New tag" autocomplete="off" enterkeyhint="done"><button class="link" data-act="tagdone">Done</button></div>`
     : `<div class="tagpick">${taskTags(t).map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="true" title="Remove tag"`)).join('')}<button class="tag c-new" data-act="tagnew">+ Tag</button></div>`}</div>
@@ -920,7 +931,7 @@ document.addEventListener('click', async (e) => {
     case 'qcsave': { const id = saveDraft(); if (id) toast(`Added ${S.ui.draft?.kind === 'meeting' ? 'meeting' : 'task'} at ${clock(S.tasks.get(id).at)}`, true); S.ui.draft = null; render(); return; }
     case 'qcmore': { const id = saveDraft(); S.ui.draft = null; render(); if (id) taskSheet(id); return; }
     case 'capture': captureSheet(el.dataset.board ? { board: el.dataset.board } : el.dataset.k ? { when: el.dataset.k } : S.ui.mtab === 'today' && !isDesk() ? { when: todayK() } : {}); return;
-    case 'savecapture': { const n = addLines($('#dump').value, captureDest(st?.capture)); closeSheet(); render(); if (n) toast(`Added ${n} task${n > 1 ? 's' : ''}`, true); return; }
+    case 'savecapture': { const n = addLines($('#dump').value, captureDest(st?.capture)); closeSheet(); render(); $('.mm')?.scrollTo({ top: 0, behavior: 'smooth' }); if (n) toast(`Added ${n} task${n > 1 ? 's' : ''}`, true); return; }
     case 'review': reviewSheet(); return;
     case 'rv': { const id = el.closest('[data-tid]').dataset.tid; pushTask(id, el.dataset.k); render(); reviewSheet(); return; }
     case 'rvdrop': { const id = el.closest('[data-tid]').dataset.tid; put('task', id, { status: 'dropped' }); render(); reviewSheet(); return; }
@@ -932,6 +943,7 @@ document.addEventListener('click', async (e) => {
     case 'dur': { const t = S.tasks.get(st.id); put('task', st.id, { dur: Math.max(15, Math.min(480, (t.dur || 30) + Number(el.dataset.d))) }); render(); taskSheet(st.id); return; }
     case 'pri': put('task', st.id, { pri: el.dataset.p }); render(); taskSheet(st.id); return;
     case 'color': put('task', st.id, { color: el.dataset.c }); render(); taskSheet(st.id); return;
+    case 'emoji': put('task', st.id, { emoji: el.dataset.e }); render(); taskSheet(st.id); return;
     case 'kind': { const t = S.tasks.get(st.id); if (!t) return;
       if (el.dataset.v === 'meeting') { const f = { kind: 'meeting' };
         if (!t.at) { const n = new Date(); f.at = `${pad(Math.min(23, n.getHours() + 1))}:00`; }
