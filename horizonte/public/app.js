@@ -431,7 +431,7 @@ function renderPanel() {
   const srcs = sources();
   if (!srcs.some(x => x[0] === S.ui.src)) S.ui.src = 'inbox';
   const od = overdueTasks().filter(t => t.pri === 'target').length;
-  const banner = signinBanner() + (od ? `<button class="banner" data-act="review"><span>${od} unfinished target${od > 1 ? 's' : ''} from earlier days</span>Review</button>` : '');
+  const banner = signinBanner() + (od ? `<button class="banner" data-act="review"><span>${od} overdue from earlier days</span>Review</button>` : '');
   if (S.ui.panelView !== 'list') {
     const ico = { inbox: I.inbox(1.8), overdue: I.clock, week: I.plan(1.8), month: I.month };
     const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span class="ni">${ico[k] || `<i class="bdot"></i>`}</span><span class="lbl">${esc(name)}</span><span class="n">${n}</span></button>`;
@@ -625,7 +625,7 @@ function mToday() {
   const k = todayK(), d = parseD(k), P = dayParts(k), od = overdueTasks();
   const tgDone = P.targets.filter(t => !isOpen(t)).length;
   let body = '';
-  if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} unfinished from earlier days</span>Review</button>`;
+  if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
   if (P.targets.length) body += `<div class="eyebrow">Targets · ${tgDone} of ${Math.max(P.targets.length, S.prefs.cap)}</div>` + P.targets.map(t => mcard(t, { meta: t.at && isOpen(t) ? clock(t.at) : '' })).join('');
   if (P.meetings.length) body += `<div class="eyebrow ${P.targets.length ? 'gap' : ''}">Meetings</div>` + P.meetings.map(t => mcard(t)).join('');
   if (P.timed.length) body += `<div class="eyebrow ${P.targets.length || P.meetings.length ? 'gap' : ''}">Schedule</div>` + P.timed.map(t => mcard(t, { meta: clock(t.at) })).join('');
@@ -773,10 +773,10 @@ function reviewSheet() {
   const item = (t) => `<div class="review-item" data-tid="${t.id}"><div style="font-weight:600">${esc(t.title)}${(t.rolls || 0) >= 3 ? ` <span class="sub" style="font-size:12px;color:var(--warn)">· pushed ${t.rolls} times</span>` : ''}</div>
 <div style="font-size:13px;color:var(--ink-2)">Was on ${esc(periodLabel(t.when, true))}</div><div class="row">
 <button data-act="rv" data-k="${todayK()}">Today</button><button data-act="rv" data-k="${tm}">Tomorrow</button>
-<button>Pick a day<input class="overlay-input" type="date" data-act="rvpick" aria-label="Pick a day"></button>${(t.rolls || 0) >= 3 ? `<button data-act="rvdrop">Drop</button>` : `<button data-act="rv" data-k="">To list</button>`}</div></div>`;
+<button>Pick day<input class="overlay-input" type="date" data-act="rvpick" aria-label="Pick a day"></button>${(t.rolls || 0) >= 3 ? `<button data-act="rvdrop">Drop</button>` : `<button data-act="rv" data-k="">To list</button>`}</div></div>`;
   openSheet(`<div class="grab"></div><div class="sheettitle">Review</div>
-<div style="font-size:13px;color:var(--ink-2)">Nothing rolls over by itself. Decide each unfinished target; the rest go back to their lists.</div>
-${targets.map(item).join('') || '<div class="empty">No unfinished targets.</div>'}
+<div style="font-size:13px;color:var(--ink-2)">Nothing rolls over by itself. Decide each overdue target; the rest go back to their lists.</div>
+${targets.map(item).join('') || '<div class="empty">No overdue targets.</div>'}
 ${others.length ? `<button class="bigbtn" data-act="rvrest">Return ${others.length} other task${others.length > 1 ? 's' : ''} to ${others.length > 1 ? 'their lists' : 'its list'}</button>` : ''}
 <button class="bigbtn dark" data-act="close">Done</button>`, { review: true });
 }
