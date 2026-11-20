@@ -12,7 +12,11 @@
     { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
   ],
   // Zoho through the Muestras Worker (zoho-inventory/, Worker dosbuhos-ops): it holds the Zoho secrets and exposes read-only lists.
-  "services": [{ "binding": "ZOHO", "service": "dosbuhos-ops", "entrypoint": "ZohoRead" }],
+  "services": [
+    { "binding": "ZOHO", "service": "dosbuhos-ops", "entrypoint": "ZohoRead" },
+    // Google Sheets through the cellar Worker: it holds the service-account key and reads the CRM sheet for us (read-only).
+    { "binding": "SHEETS", "service": "cellar", "entrypoint": "SheetsRead" }
+  ],
   // UTC. 12:00 = 6:00 in San Miguel (sheet + Zoho); 18:00 and 00:00 = noon and 6 pm (Zoho only).
   "triggers": { "crons": ["0 12 * * *", "0 18 * * *", "0 0 * * *"] },
   "vars": {
@@ -25,6 +29,6 @@
   }
   // Secrets (Worker → Settings → Variables and Secrets):
   //   (HUB_SECRET is not pasted here: it comes from HUB_SESSION_SECRET in the Secrets Store.)
-  //   GOOGLE_SA_KEY        the service account's JSON key; share the CRM sheet with its client_email (viewer).
+  //   None. The CRM sheet is read through the SHEETS binding; share the sheet (viewer) with the email shown in Ajustes.
   // Zoho needs no secrets here: it goes through the ZOHO binding. The token on dosbuhos-ops must be able to read invoices.
 }

@@ -22,12 +22,12 @@ Without `HUB_SECRET` every `/api` route answers 401, so the workers.dev address 
 ## Bindings
 - `DB`: D1 `spark-equipo` (activity, orders, invoices, alias, people, meta)
 - `ASSETS`: `public/`
+- `SHEETS`: service binding to `cellar` (entrypoint `SheetsRead`), which holds the Google service-account key; the CRM sheet must be shared with that account's email (shown in Ajustes) and listed in cellar's `SHEETS_READ_IDS`
 - `ZOHO`: service binding to `dosbuhos-ops` (entrypoint `ZohoRead`), which holds the Zoho secrets; its token must be able to read sales orders and invoices
 - Cron: 12:00, 18:00, 00:00 UTC
 
 ## Secrets
 - None for the Hub: the session secret comes from `HUB_SESSION_SECRET` in the account Secrets Store (binding in `wrangler.jsonc`)
-- `GOOGLE_SA_KEY`: service account JSON key; the CRM sheet must be shared with its `client_email` as viewer
 
 ## Local
 ```

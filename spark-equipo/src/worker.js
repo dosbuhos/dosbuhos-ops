@@ -4,7 +4,7 @@ import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
 import { build, paraVer, hoyEn, GENTE } from './calc.js';
 import { syncZoho } from './zoho.js';
-import { syncSheet } from './sheets.js';
+import { syncSheet, sheetEmail } from './sheets.js';
 import zonasCfg from './data/zonas.json';
 import prospectos from './data/prospectos.json';
 import aliasSeed from './data/alias.json';
@@ -65,7 +65,7 @@ export default {
     if (!yo.admin) return json({ error: 'Solo administradores' }, 403);
 
     if (p === '/api/admin/sync' && request.method === 'POST') return json(await sync(env, url.searchParams.get('solo')));
-    if (p === '/api/admin/people' && request.method === 'GET') return json({ people: (await env.DB.prepare('SELECT * FROM people ORDER BY persona, email').all()).results, gente: GENTE });
+    if (p === '/api/admin/people' && request.method === 'GET') return json({ people: (await env.DB.prepare('SELECT * FROM people ORDER BY persona, email').all()).results, gente: GENTE, correo_hoja: await sheetEmail(env).catch(() => '') });
     if (p === '/api/admin/people' && request.method === 'POST') {
       const b = await request.json().catch(() => ({}));
       const email = String(b.email || '').trim().toLowerCase();

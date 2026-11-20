@@ -1,4 +1,4 @@
-// Daily copy of the reps' CRM sheet ("CRM Ventas Dos Búhos"), read with a Google service account the sheet is shared with.
+// Daily copy of the reps' CRM sheet ("CRM Ventas Dos Búhos"), read through the cellar Worker's service account (the sheet is shared with it).
 // Goes away when the reps log straight into Spark.
 
 const TABS = { 'José Luis': 'Actividad - José Luis', 'Carlos': 'Actividad - Carlos', 'Daniel': 'Actividad - Daniel' };
@@ -25,15 +25,29 @@ export function rowsFromValues(persona, values) {
     .map((r) => ({ persona, ...Object.fromEntries(COLS.map((k, i) => [k, String(r[i] ?? '').trim()])) }));
 }
 
-export async function syncSheet(env) {
-  if (!env.GOOGLE_SA_KEY) return { skipped: 'Falta el secreto GOOGLE_SA_KEY' };
+// Email the CRM sheet has to be shared with (viewer is enough).
+export async function sheetEmail(env) {
+  if (env.SHEETS) return env.SHEETS.email();
+  try { return JSON.parse(env.GOOGLE_SA_KEY).client_email; } catch { return ''; }
+}
+
+// With the SHEETS binding the cellar Worker reads the sheet with its own service account; GOOGLE_SA_KEY is only a fallback.
+async function tabValues(env) {
+  const ranges = Object.values(TABS).map((tab) => `'${tab}'!A1:O5000`);
+  if (env.SHEETS) return env.SHEETS.values(env.CRM_SHEET_ID, ranges);
   const token = await googleToken(JSON.parse(env.GOOGLE_SA_KEY));
   const u = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${env.CRM_SHEET_ID}/values:batchGet`);
-  for (const tab of Object.values(TABS)) u.searchParams.append('ranges', `'${tab}'!A1:O5000`);
+  for (const r of ranges) u.searchParams.append('ranges', r);
   const r = await fetch(u, { headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json();
   if (!j.valueRanges) throw new Error('Google Sheets: ' + (j.error?.message || r.status));
-  const rows = Object.keys(TABS).flatMap((p, i) => rowsFromValues(p, j.valueRanges[i].values));
+  return j.valueRanges.map((v) => v.values || []);
+}
+
+export async function syncSheet(env) {
+  if (!env.SHEETS && !env.GOOGLE_SA_KEY) return { skipped: 'Falta la conexión con Google Sheets' };
+  const vals = await tabValues(env);
+  const rows = Object.keys(TABS).flatMap((p, i) => rowsFromValues(p, vals[i]));
   if (!rows.length) throw new Error('La hoja no devolvió renglones; no se reemplazó nada');
   // The sheet is the source of truth for now: replace the copy in one batch.
   const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}) VALUES (${Array(COLS.length + 1).fill('?').join(',')})`);
