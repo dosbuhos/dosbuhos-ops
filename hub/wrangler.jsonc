@@ -11,7 +11,8 @@
     { "pattern": "apps.dosbuhos.com", "custom_domain": true },
     // Short addresses that send people to the app under the Hub (SHORT_HOSTS in src/index.js).
     { "pattern": "spark.dosbuhos.com", "custom_domain": true },
-    { "pattern": "growth.dosbuhos.com", "custom_domain": true }
+    { "pattern": "growth.dosbuhos.com", "custom_domain": true },
+    { "pattern": "horizonte.dosbuhos.com", "custom_domain": true }
   ],
   // Every request goes through the Worker first: pages and the kit sit behind Google sign-in.
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none", "not_found_handling": "none" },

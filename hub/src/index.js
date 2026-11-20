@@ -15,7 +15,8 @@ import { bibliotecaRoute } from './biblioteca.js';
 // Served without sign-in: the kit (the login page uses it), the logos, PWA bits.
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
 // <name>.dosbuhos.com → the app's slug under the Hub.
-const SHORT_HOSTS = { 'spark.dosbuhos.com': 'spark', 'growth.dosbuhos.com': 'growth' };
+// A full URL is an app outside the Hub (Horizonte has its own Google sign-in, tied to its workers.dev address).
+const SHORT_HOSTS = { 'spark.dosbuhos.com': 'spark', 'growth.dosbuhos.com': 'growth', 'horizonte.dosbuhos.com': 'https://horizonte.dos-buhos.workers.dev' };
 const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads', 'club', 'c', 'biblioteca']);
 
 export default {
@@ -29,7 +30,7 @@ export default {
     const url = new URL(request.url), p = url.pathname;
     // Short addresses: spark.dosbuhos.com → apps.dosbuhos.com/spark/ (same sign-in, same app). Hosts are routes in wrangler.jsonc.
     const short = SHORT_HOSTS[url.hostname];
-    if (short) return Response.redirect(`${env.PUBLIC_ORIGIN || 'https://apps.dosbuhos.com'}/${short}${p}${url.search}`, 302);
+    if (short) return Response.redirect((short.startsWith('https://') ? short : `${env.PUBLIC_ORIGIN || 'https://apps.dosbuhos.com'}/${short}`) + p + url.search, 302);
     env = await withHubSecret(env);   // SESSION_SECRET from the Secrets Store
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     if (OPEN.test(p)) return assets(request, env, 'public, max-age=3600');
