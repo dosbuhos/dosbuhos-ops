@@ -1,7 +1,8 @@
 // Cellar Target Calendar (Calendario de bodega) — Bodega Dos Búhos.
 // The page is the Claude artifact, plus app/web-shim.js which points its window.claude API at the routes below.
 import { handleAuth, loginPage, sessionEmail, isViewer, isAdmin, isCrew, initialsFor } from './google.js';
-import { sheetsTool } from './sheets.js';
+import { WorkerEntrypoint } from 'cloudflare:workers';
+import { sheetsTool, readValues, saEmail } from './sheets.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
 import { pushPurchase, pullPurchases } from './compras.js';
@@ -271,4 +272,10 @@ async function brandAsset(env, p) {
   const buf = await r.arrayBuffer();
   if (env.LABS) { try { await env.LABS.put(key, buf, { httpMetadata: { contentType: 'image/webp' } }); } catch (e) {} }
   return new Response(buf, { headers });
+}
+
+// Service-binding entrypoint ({ "service": "cellar", "entrypoint": "SheetsRead" }). Read-only; not reachable from the internet.
+export class SheetsRead extends WorkerEntrypoint {
+  async email() { return saEmail(this.env); }
+  async values(sheetId, ranges) { return readValues(this.env, sheetId, ranges); }
 }

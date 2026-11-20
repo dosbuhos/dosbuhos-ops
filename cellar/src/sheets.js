@@ -56,3 +56,18 @@ export async function sheetsTool(env, tool, a) {
   if (!r.ok) return { status: r.status === 429 ? 429 : 502, body: { code: 'tool_error', message: (j.error && j.error.message) || 'Google Sheets error ' + r.status, result: j } };
   return { status: 200, body: { payload: j } };
 }
+
+// Read-only values for other Dos Búhos Workers (Spark Equipo reads the reps' CRM sheet), so the service-account key lives in
+// this Worker only. Reached through the SheetsRead entrypoint in index.js: service bindings only, never a public URL.
+// Only the sheets listed in SHEETS_READ_IDS can be read this way, and each must be shared with the service account's email.
+export function saEmail(env) { try { return JSON.parse(env.GOOGLE_SA_JSON).client_email || ''; } catch { return ''; } }
+export async function readValues(env, sheetId, ranges) {
+  const ok = String(env.SHEETS_READ_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (!ok.includes(sheetId)) throw new Error('Hoja no permitida: ' + sheetId);
+  const u = new URL(sheetsBase(env) + sheetId + '/values:batchGet');
+  for (const r of ranges || []) u.searchParams.append('ranges', r);
+  const r = await fetch(u, { headers: { Authorization: 'Bearer ' + await accessToken(env) } });
+  const j = await r.json();
+  if (!r.ok) throw new Error('Google Sheets: ' + (j.error?.message || r.status));
+  return (j.valueRanges || []).map((v) => v.values || []);
+}

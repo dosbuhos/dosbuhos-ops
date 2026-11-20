@@ -14,6 +14,8 @@
     { "binding": "DB", "database_name": "cellar", "database_id": "b1bae952-daa0-461b-8757-87b5665d5e42", "migrations_dir": "migrations" }
   ],
   "vars": {
+    // Sheets other Workers may read through the SheetsRead entrypoint (comma-separated ids). Now: the reps' CRM sheet, for Spark Equipo.
+    "SHEETS_READ_IDS": "1dDoE0tRzGAEjnFv4ng2E4oLOk6a2h_ySepwUNrb7yd8",
     "PUBLIC": "0",
     "SHEET_ID": "1DFvcD1i73vaVQqjw05vBnqmX_sYd9xTZze5H7ImGqsU",
     "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
