@@ -35,6 +35,10 @@
 - Never put secrets in the repo, in wrangler.jsonc vars, or in chat.
 - Tell Eric the secret's name and where it goes (Worker → Settings → Variables and Secrets). He pastes the value himself.
 - Shared secrets live in the account Secrets Store (for example ANTHROPIC_API_KEY, bound with `secrets_store_secrets`).
+- The Hub's session secret is HUB_SESSION_SECRET in that store. An app behind the Hub binds it and calls `withHubSecret(env)`
+  (copy `src/hub-secret.js` from spark-equipo/): Eric pastes nothing for a new app.
+- Before asking Eric for a third-party secret, check whether another Worker already holds it and reach it through a service
+  binding (spark-equipo reads Zoho through dosbuhos-ops's `ZohoRead` entrypoint).
 - List required secrets in a comment at the bottom of wrangler.jsonc.
 
 ## Sign-in and the Hub

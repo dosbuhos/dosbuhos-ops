@@ -16,6 +16,7 @@ export interface Env {
   OPENTABLE_RID?: string;           // OpenTable restaurant id (public, same as canario's RID)
   // secrets (optional where noted)
   HUB_SECRET?: string;              // required outside dev
+  HUB_SESSION_SECRET?: { get(): Promise<string> }; // Secrets Store binding; fills HUB_SECRET (src/api/hub-secret.ts)
   DEV_USER_EMAIL?: string;          // dev only
   ANTHROPIC_API_KEY?: string | { get(): Promise<string> }; // shared key from the account Secrets Store (or a plain secret); optional
   FEED_TOKEN_PEPPER?: string;       // required to create/verify feed tokens

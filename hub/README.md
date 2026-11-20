@@ -26,7 +26,7 @@ no build step. Scope: https://claude.ai/artifact/J8sWyuAjcF942KVg2KcoiD
 
 1. Secrets on the `hub` Worker (dashboard → hub → Settings → Variables and Secrets):
    - `GOOGLE_CLIENT_SECRET` — same value as on the `cellar` Worker (OAuth client "Cellar calendar", project dos-buhos)
-   - `SESSION_SECRET` — any long random string
+   - `SESSION_SECRET` — not pasted: it is `HUB_SESSION_SECRET` in the account Secrets Store (binding in `wrangler.jsonc`, read in `src/hub-secret.js`)
    - `HUB_ADMIN_EMAILS` — comma-separated Google accounts that are Hub admins from their first sign-in
 2. Google Cloud → that OAuth client → add redirect URI `https://hub.dos-buhos.workers.dev/auth/callback` (later also `https://apps.dosbuhos.com/auth/callback`).
 3. Sign in. Admin → People: add each person by Gmail and pick their apps and roles. Nobody not on the list can sign in.
@@ -39,7 +39,7 @@ Once dosbuhos.com's DNS is on Cloudflare: uncomment `routes` in `wrangler.jsonc`
 
 ## Putting an app behind the Hub
 
-1. Copy `lib/hub-auth.js` into the app; call `hubUser(request, env)` instead of its own login. Set secret `HUB_SECRET` on the app = the Hub's `SESSION_SECRET` so the header signature is checked.
+1. Copy `lib/hub-auth.js` into the app; call `hubUser(request, env)` instead of its own login. Copy `src/hub-secret.js` from `spark-equipo/` too, add the `HUB_SESSION_SECRET` Secrets Store binding to the app's `wrangler.jsonc` and call `env = await withHubSecret(env)` first: the signature is then checked with the Hub's secret and nothing has to be pasted.
 2. Make the app work under a prefix: `withPrefix(request)` gives `/cellar`; use it in front of absolute links and `fetch()` paths.
 3. In the Hub's `wrangler.jsonc` the binding already exists (CELLAR, HUERTO, MANTENIMIENTO, SPARK, WINECLUB, OPS, COTIZADOR); in Admin → Apps set the app's mode to `proxy`.
 4. When it works, set `"workers_dev": false` on the app so the Hub is the only way in.

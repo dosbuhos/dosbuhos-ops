@@ -6,7 +6,9 @@
   "workers_dev": true,
   "browser": { "binding": "BROWSER" },
   "secrets_store_secrets": [
-    { "binding": "ANTHROPIC_API_KEY", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "ANTHROPIC_API_KEY" }
+    { "binding": "ANTHROPIC_API_KEY", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "ANTHROPIC_API_KEY" },
+    // The Hub's session secret (src/hub-secret.js): lets the Hub's signed header in without a PIN.
+    { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
   ],
   "vars": { "HUB_ORIGIN": "https://apps.dosbuhos.com" },
   // Cotizaciones guardadas (migrations/). Applied with the Cloudflare D1 tool from chat; 0001 is applied.

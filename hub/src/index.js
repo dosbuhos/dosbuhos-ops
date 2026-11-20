@@ -3,6 +3,7 @@
 import { handleAuth, loginPage, currentUser } from './auth.js';
 import { api, roleFor, J } from './api.js';
 import { proxy } from './proxy.js';
+import { withHubSecret } from './hub-secret.js';
 import { isPublicThemePath, publicTheme } from './theme.js';
 import { adsRoute, ingest, isIngest } from './ads.js';
 import { syncMeta } from './ads-meta.js';
@@ -23,6 +24,7 @@ export default {
     ctx.waitUntil(syncWineclub(env).then(r => console.log('club wineclub sync', JSON.stringify(r))).catch(e => console.log('club wineclub sync failed', String(e && e.message || e))));
   },
   async fetch(request, env, ctx) {
+    env = await withHubSecret(env);   // SESSION_SECRET from the Secrets Store
     const url = new URL(request.url), p = url.pathname;
     if (p.startsWith('/auth/')) { const a = await handleAuth(request, env, url); if (a) return a; }
     if (OPEN.test(p)) return assets(request, env, 'public, max-age=3600');

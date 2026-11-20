@@ -3,6 +3,7 @@
 // Optional secret ANTHROPIC_API_KEY: Claude writes the proposal's opening note for the client; without it a template note is used.
 import puppeteer from '@cloudflare/puppeteer';
 import { hubUser } from './hub-auth.js';
+import { withHubSecret } from './hub-secret.js';
 import { proposalHTML, introText } from './proposal.js';
 
 const enc = new TextEncoder();
@@ -106,6 +107,7 @@ async function quotesApi(request, env, url) {
 
 export default {
   async fetch(request, env) {
+    env = await withHubSecret(env);   // HUB_SECRET from the Secrets Store
     const url = new URL(request.url);
     const who = await hubUser(request, env);   // set when proxied through the Hub (signed with HUB_SECRET)
 

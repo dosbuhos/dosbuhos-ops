@@ -1,6 +1,7 @@
 // Spark Equipo — the sales team's numbers on their phone: weekly pace, follow-ups, sales, zones and effectiveness.
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
+import { withHubSecret } from './hub-secret.js';
 import { build, paraVer, hoyEn, GENTE } from './calc.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet } from './sheets.js';
@@ -47,6 +48,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(request);
+    env = await withHubSecret(env);   // HUB_SECRET from the Secrets Store
     const yo = await quien(request, env);
     if (!yo) return json({ error: 'Entra por el Hub: apps.dosbuhos.com' }, 401);
     if (!yo.admin && !yo.persona) return json({ error: 'Tu correo todavía no está ligado a un vendedor. Pídele a Eric que te dé de alta en Ajustes.', yo }, 403);

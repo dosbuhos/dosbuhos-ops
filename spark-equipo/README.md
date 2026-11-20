@@ -26,7 +26,7 @@ Without `HUB_SECRET` every `/api` route answers 401, so the workers.dev address 
 - Cron: 12:00, 18:00, 00:00 UTC
 
 ## Secrets
-- `HUB_SECRET`: same value as the Hub's `SESSION_SECRET`
+- None for the Hub: the session secret comes from `HUB_SESSION_SECRET` in the account Secrets Store (binding in `wrangler.jsonc`)
 - `GOOGLE_SA_KEY`: service account JSON key; the CRM sheet must be shared with its `client_email` as viewer
 
 ## Local

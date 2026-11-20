@@ -32,6 +32,10 @@
     // Spark Equipo (/spark/): the sales team's numbers. It only answers requests signed by the Hub.
     { "binding": "SPARK_EQUIPO", "service": "spark-equipo" }
   ],
+  // The session secret, shared by name with every app behind the Hub (account Secrets Store). Read in src/hub-secret.js.
+  "secrets_store_secrets": [
+    { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
+  ],
   "vars": {
     // Same OAuth client as the cellar app ("Cellar calendar", Google Cloud project dos-buhos).
     "GOOGLE_CLIENT_ID": "700169529332-m23018v6lhm16cvll8gi9e7hj4ak4l73.apps.googleusercontent.com",
@@ -40,6 +44,7 @@
   }
   // Secrets (Cloudflare dashboard → hub → Settings → Variables and Secrets, or `npx wrangler secret put NAME`):
   // GOOGLE_CLIENT_SECRET  the same value the cellar Worker has
-  // SESSION_SECRET        any long random string; also signs the X-DB-User header the apps receive
+  // SESSION_SECRET        no longer pasted here: it is HUB_SESSION_SECRET in the account Secrets Store (see above). It signs
+  //                       the session cookie and the X-DB-User header the apps receive
   // HUB_ADMIN_EMAILS      comma-separated Google accounts that are Hub admins from their first sign-in (e.g. Eric's)
 }

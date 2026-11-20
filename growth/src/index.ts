@@ -4,6 +4,7 @@ import type { Env } from './env.ts';
 import { app } from './api/app.ts';
 import { runSchedule } from './workflows/jobs.ts';
 import { authenticate } from './api/auth.ts';
+import { withHubSecret } from './api/hub-secret.ts';
 
 export { AccountCoordinator } from './coordinator/do.ts';
 export { DailyReviewWorkflow, WeeklyReviewWorkflow } from './workflows/workflows.ts';
@@ -20,6 +21,7 @@ const withHeaders = (res: Response) => { const r = new Response(res.body, res); 
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    env = await withHubSecret(env);   // HUB_SECRET from the Secrets Store
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/') || url.pathname === '/healthz') return withHeaders(await app.fetch(request, env, ctx));
     // The dashboard itself is private too: no page without a valid Hub identity (or dev).

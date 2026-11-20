@@ -12,7 +12,7 @@ Follows the repo's `CLAUDE.md`: Workers Builds deploys from `main`; nobody runs 
 ## Eric: one-time steps
 
 1. **Create the Worker.** Workers & Pages → Create → Continue with GitHub → `dosbuhos-ops`. Set the Worker name to `growth` and Build → Root directory to `/growth`. The build command stays empty: the dashboard is prebuilt in `public/`. Cancel the first automatic build if the root directory is still `/`.
-2. **Secret.** Worker `growth` → Settings → Variables and Secrets → add `HUB_SECRET` with the same value as the Hub's `SESSION_SECRET`. Until this is set, the app refuses every request (it fails closed).
+2. **Secret.** Worker `growth` → Settings → Variables and Secrets → nothing to paste: `HUB_SECRET` is read from `HUB_SESSION_SECRET` in the account Secrets Store (binding in `wrangler.jsonc`, `src/api/hub-secret.ts`). If the store can't be read, the app refuses every request (it fails closed).
 3. **Optional secret.** `ANTHROPIC_API_KEY`, for the AI review and the written report summary. You can also bind it from the account Secrets Store. Without it, reports use the factual template and no proposals are drafted.
 4. **Put it behind the Hub** (after step 1 has deployed once). Add `{ "binding": "GROWTH", "service": "growth" }` to `services` in `hub/wrangler.jsonc`. Then Hub → Admin → Apps → slug `growth`, binding `GROWTH`, mode `proxy`. Then grant yourself Admin on it. Claude can do the `hub/` change and the registry row once step 1 is done.
 
