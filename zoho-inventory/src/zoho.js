@@ -123,3 +123,12 @@ export async function runSync(env) {
     return { ok: false, message: String(e.message || e) };
   }
 }
+
+// Read-only Zoho lists for other Dos Búhos Workers (Spark Equipo), so the Zoho secrets live in this Worker only.
+// Reached through the ZohoRead entrypoint in index.js: service bindings only, never a public URL.
+const LISTAS = { salesorders: '/salesorders', invoices: '/invoices' };
+export async function zohoList(env, recurso, pagina = 1) {
+  if (!LISTAS[recurso]) throw new Error('Recurso no permitido: ' + recurso);
+  const get = api(env, await accessToken(env));
+  return get(LISTAS[recurso], { page: String(Math.max(1, Number(pagina) || 1)), per_page: '200' });
+}

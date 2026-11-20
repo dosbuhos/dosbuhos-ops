@@ -1,7 +1,8 @@
 import { identify } from './auth.js';
 import { layout, esc } from './ui.js';
 import { holdings, eventFull, validateEvent } from './data.js';
-import { runSync, importOrder } from './zoho.js';
+import { WorkerEntrypoint } from 'cloudflare:workers';
+import { runSync, importOrder, zohoList } from './zoho.js';
 import * as rep from './rep.js';
 import * as admin from './admin.js';
 
@@ -194,3 +195,8 @@ export default {
     ctx.waitUntil(runSync(env));
   },
 };
+
+// Service-binding entrypoint ({ "service": "dosbuhos-ops", "entrypoint": "ZohoRead" }). Read-only; not reachable from the internet.
+export class ZohoRead extends WorkerEntrypoint {
+  async list(recurso, pagina) { return zohoList(this.env, recurso, pagina); }
+}
