@@ -329,8 +329,21 @@ app.post('/api/control/policy', async c => {
   const st = await a.stub.state();
   const b = PolicyConfig.safeParse({ ...(await c.req.json().catch(() => ({}))), mode: st.mode });
   if (!b.success) return fail(c, 400, 'bad_request', b.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
-  try { const v = await a.stub.setPolicy(b.data, c.get('user').email); return json(c, { policyVersion: v }); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
+  let v: number;
+  try { v = await a.stub.setPolicy(b.data, c.get('user').email); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
+  await syncWritableCampaigns(c.env.DB, a.id, b.data.approvedCampaignIds, Date.now());
+  return json(c, { policyVersion: v });
 });
+/** The approved list is the one place the owner says which campaigns the app may change, so the registry flags the
+ *  policy engine checks (writable, managed_by = 'app') follow it. Campaigns dropped from the list stop being writable
+ *  and go back to the owner as budget controller. */
+async function syncWritableCampaigns(db: D1Database, accountId: string, approved: string[], now: number) {
+  const list = JSON.stringify(approved);
+  await db.batch([
+    db.prepare("UPDATE campaign_registry SET writable = 1, managed_by = 'app', updated_at = ? WHERE account_id = ? AND kind = 'campaign' AND external_id IN (SELECT value FROM json_each(?))").bind(now, accountId, list),
+    db.prepare("UPDATE campaign_registry SET writable = 0, managed_by = CASE WHEN managed_by = 'app' THEN 'owner' ELSE managed_by END, updated_at = ? WHERE account_id = ? AND kind = 'campaign' AND writable = 1 AND external_id NOT IN (SELECT value FROM json_each(?))").bind(now, accountId, list),
+  ]);
+}
 app.post('/api/control/baseline', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;
   const b = z.object({ dailyBudgetNative: z.number().int().positive().max(10_000_000) }).safeParse(await c.req.json().catch(() => ({})));
