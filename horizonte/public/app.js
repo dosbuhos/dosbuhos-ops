@@ -17,6 +17,8 @@ const I = {
   plus: (s = 22, w = 2) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}"><path d="M12 5v14M5 12h14"/></svg>`,
   minus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>',
   search: `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>`,
+  play: `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>`,
+  stopsq: `<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`,
   chart: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>`,
   filter: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"/></svg>`,
   pin: (s = 12) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>`,
@@ -291,16 +293,36 @@ function toggleDone(id) {
   let moved = 0;
   batch(g => {
     const f = { status: done ? 'done' : 'open', doneAt: done ? new Date().toISOString() : null };
+    if (done && t.timer) { const mins = Math.max(1, Math.round(elapsedSec(t) / 60)); f.timer = null; f.spent = (t.spent || 0) + mins; }
+    if (done && (f.spent ?? t.spent)) f.dur = Math.max(5, round5(f.spent ?? t.spent)); // what it took, not what was planned
     // Reflow: a timeboxed task on today, finished before its end, shrinks to the time it took and the rest slide up.
     if (done && canReflow(t)) { const start = toMin(t.at), now = nowMin();
       if (start <= now) { const took = Math.max(5, round5(now - start)), planned = t.dur || 30;
-        if (took !== planned) f.dur = took;
+        if (took !== planned && !(f.spent ?? t.spent)) f.dur = took;
         if (took < planned) { put('task', id, f, { group: g }); moved = reflowDay(t.when, start + 1, 'up', now, g, now - (start + planned)); return; } } }
     put('task', id, f, { group: g });
   });
   S.ui.flip = true; render();
   if (done) { if (t.at && t.when && t.kind !== 'meeting') doneToast(id); else toast('Done', true); }
 }
+// ── timer ─────────────────────────────────────────────────────
+// t.timer = ISO start while running; t.spent = minutes logged so far. One timer at a time. When a task with logged time
+// is checked off, its duration becomes the logged time, so In review reports what it took rather than what was planned.
+const runningTask = () => live().find(t => t.timer && isOpen(t));
+const elapsedSec = (t) => t.timer ? Math.max(0, Math.round((Date.now() - new Date(t.timer)) / 1000)) : 0;
+const fmtClock = (sec) => { const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`; };
+function startTimer(id) {
+  batch(g => { for (const o of live()) if (o.timer && o.id !== id) stopTimer(o.id, g); put('task', id, { timer: new Date().toISOString() }, { group: g }); });
+  render(); const t = S.tasks.get(id); toast(`Timer started · ${t.title}`);
+}
+function stopTimer(id, g) {
+  const t = S.tasks.get(id); if (!t?.timer) return 0;
+  const mins = Math.max(1, Math.round(elapsedSec(t) / 60)); put('task', id, { timer: null, spent: (t.spent || 0) + mins }, g ? { group: g } : {}); return mins;
+}
+function addTime(id, mins) { const t = S.tasks.get(id); if (!t) return; put('task', id, { spent: Math.max(0, (t.spent || 0) + mins) }); }
+// Live counters tick without a full re-render.
+setInterval(() => { for (const el of $$('[data-timer]')) { const t = S.tasks.get(el.dataset.timer); if (t?.timer) el.textContent = fmtClock(elapsedSec(t)); } }, 1000);
+function runPill(mobile) { const t = runningTask(); if (!t) return ''; return `<button class="runpill" data-act="open" data-tid="${t.id}" title="Timer running"><i></i><span class="rt">${esc(t.title)}</span><b data-timer="${t.id}">${fmtClock(elapsedSec(t))}</b><span class="stop" data-act="tstop" data-tid="${t.id}" role="button" aria-label="Stop timer">${I.stopsq}</span></button>`; }
 // ── reflow (today, timeboxed tasks only) ──────────────────────
 // Meetings and pinned tasks never move. Finish early → following tasks slide up to now; run over → the block slides down under the now line (never grows).
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
@@ -341,8 +363,13 @@ function reflowTick() {
   // The block keeps its length and slides down to sit under the now line; what follows is pushed. Nothing ever grows on its own.
   const start = toMin(running.at), dur = running.dur || 30, over = now - (start + dur);
   if (over < 5 || over > 180) return;
-  const at = round5(now) - dur + 5; if (at <= start) return; // its end lands just after now
-  batch(g => { reflowDay(k, start + 1, 'down', at + dur, g, 0, running.id); put('task', running.id, { at: fromMin(at) }, { group: g }); });
+  if (running.timer) { // the timer proves it is being worked on: the block grows to now so it records what it is taking
+    const nd = round5(now - start) + 5; if (nd <= dur) return;
+    batch(g => { put('task', running.id, { dur: nd }, { group: g }); reflowDay(k, start + 1, 'down', start + nd, g, 0, running.id); });
+  } else { // not being timed: keep its length and slide it under the now line
+    const at = round5(now) - dur + 5; if (at <= start) return;
+    batch(g => { reflowDay(k, start + 1, 'down', at + dur, g, 0, running.id); put('task', running.id, { at: fromMin(at) }, { group: g }); });
+  }
   S.ui.flip = true; render();
 }
 function place(id, when, at, label) {
@@ -380,14 +407,16 @@ function meetingHTML(t, opts = {}) {
 function cardHTML(t, opts = {}) {
   if (t.kind === 'meeting') return meetingHTML(t, opts);
   const pri = t.pri || 'normal', done = t.status === 'done';
+  const run = !done && !!t.timer;
   const hl = !done && t.color; // highlighted task: coloured left bar + faint wash (meetings are solid; targets show a star; independent signals)
-  const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : ''].join(' ');
+  const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : '', run ? 'running' : ''].join(' ');
   const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
-  const meta = opts.meta ?? (done ? '' : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30));
+  const meta = run ? '' : opts.meta ?? (done ? (t.spent ? fmtDur(t.dur || 30) : '') : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30) + (t.spent ? ` · ${fmtDur(t.spent)} logged` : ''));
+  const live_ = run ? `<span class="meta live"><i></i><span data-timer="${t.id}">${fmtClock(elapsedSec(t))}</span></span>` : '';
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}</div>`;
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -439,7 +468,7 @@ function renderDesk() {
 <div class="brandrow"><button class="btn icon" data-act="togglepanel" aria-label="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'}" title="${S.ui.panelHidden ? 'Show lists' : 'Hide lists'} (\\)" aria-pressed="${!S.ui.panelHidden}">${I.side}</button><button class="brand" data-act="settings" title="Settings">${I.logo(22)}<span class="wm">Horizonte</span></button></div>
 <nav class="seg" aria-label="Zoom level">${ZOOMS.map(([z, l], i) => `<button aria-pressed="${S.ui.zoom === z}" data-zoom="${z}" title="${l} (${i + 1})">${l}</button>`).join('')}</nav>
 <div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button><div class="title">${esc(deskTitle())}</div></div>
-<div class="right"><button class="btn icon" data-act="summary" aria-label="Day in review" title="Day in review (r)">${I.chart}</button><button data-sync class="dot" data-act="settings"></button></div>
+<div class="right">${runPill()}<button class="btn icon" data-act="summary" aria-label="Day in review" title="Day in review (r)">${I.chart}</button><button data-sync class="dot" data-act="settings"></button></div>
 </header>
 <div class="main" style="--pw:${S.ui.pw || 320}px">${S.ui.panelHidden ? '' : renderPanel() + '<div class="resizer" data-resize="panel" role="separator" aria-orientation="vertical" aria-label="Resize lists panel" title="Drag to resize · double-click to reset"></div>'}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
 }
@@ -641,7 +670,7 @@ function signinBanner() {
 function renderMobile() {
   const tab = S.ui.mtab, n = inboxTasks().length;
   let main = tab === 'plan' ? mPlan() : tab === 'boards' ? mBoards() : tab === 'inbox' ? mInbox() : mToday();
-  const sb = signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : '');
+  const sb = (runPill(true) || '') + (signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : ''));
   if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
   const btn = (k, label, icon, badge) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''} ${badge ? `aria-label="${label}, ${badge}"` : ''}><span class="ti">${icon(tab === k ? 2.2 : 2)}${badge ? `<span class="badge">${badge > 99 ? '99+' : badge}</span>` : ''}</span>${label}</button>`;
   return `<div class="m">${main}
@@ -783,7 +812,11 @@ ${isDesk()
   : `<button class="bigbtn" style="flex:1">${t.at ? `Starts ${clockAP(t.at)}` : 'Add a start time'}<input class="overlay-input" type="time" step="900" data-act="picktime" value="${t.at || ''}" aria-label="Start time"></button>`}
 ${t.at ? `<button class="bigbtn" style="padding:0 12px" data-act="cleartime" aria-label="Remove time">✕</button>` : ''}
 ${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0 12px;display:flex;align-items:center;gap:6px" data-act="pin" aria-pressed="${!!t.pin}" title="Pinned tasks keep their time when the day reflows">${I.pin(16)}${t.pin ? 'Pinned' : 'Pin'}</button>` : ''}
-<div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div></div>
+<div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div>
+${t.kind === 'meeting' || t.status === 'done' ? '' : `<div class="timerrow">${t.timer
+    ? `<button class="bigbtn tstop" data-act="tstop" data-tid="${t.id}">${I.stopsq} Stop · <span data-timer="${t.id}">${fmtClock(elapsedSec(t))}</span></button>`
+    : `<button class="bigbtn tstart" data-act="tstart" data-tid="${t.id}">${I.play} Start timer</button>`}
+  <div class="logged"><span>${t.spent ? `${fmtDur(t.spent)} logged` : 'Nothing logged yet'}</span><span class="chips"><button data-act="tadd" data-m="15">+15</button><button data-act="tadd" data-m="30">+30</button><button data-act="tadd" data-m="60">+1h</button>${t.spent ? `<button data-act="tadd" data-m="-15" aria-label="Remove 15 minutes">−15</button>` : ''}</span></div></div>`}</div>
 <div class="grp" ${t.kind === 'meeting' ? 'style="display:none"' : ''}><div class="eyebrow">Priority</div><div class="seg">
 <button data-act="pri" data-p="target" aria-pressed="${pri === 'target'}">${I.star(15)}Target</button><button data-act="pri" data-p="normal" aria-pressed="${pri === 'normal'}">Normal</button><button data-act="pri" data-p="someday" aria-pressed="${pri === 'someday'}">Someday</button></div></div>
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Color' : 'Highlight'}</div><div class="swatches">${GCOLORS.map(([c, hex, name]) => c === '' && t.kind !== 'meeting' ? `<button class="sw none" data-act="color" data-c="" aria-label="No highlight" aria-pressed="${!t.color}" title="None"></button>` : `<button class="sw" data-act="color" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(t.color || '') === c}" title="${name}"></button>`).join('')}</div></div>
@@ -1060,6 +1093,10 @@ document.addEventListener('click', async (e) => {
     case 'sum-mode': summarySheet(S.ui.sumK, el.dataset.m); return;
     case 'sum-nav': { const n = +el.dataset.n, k = S.ui.sumK || todayK(); summarySheet(n === 0 ? todayK() : S.ui.sumMode === 'week' ? addDays(k, 7 * n) : addDays(k, n)); return; }
     case 'sum-push': { const k = S.ui.sumK || todayK(), ids = live().filter(t => t.when === k && isOpen(t) && t.pri === 'target' && t.kind !== 'meeting').map(t => t.id); batch(g => ids.forEach(id => { const t = S.tasks.get(id); put('task', id, { when: addDays(k, 1), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }); })); render(); summarySheet(); toast(`${ids.length} moved to ${periodLabel(addDays(k, 1))}`, true); return; }
+    case 'tstart': startTimer(el.dataset.tid || st?.id); if (sheetState) taskSheet(sheetState.id); return;
+    case 'tstop': { e.stopPropagation(); const id = el.dataset.tid || st?.id, m = stopTimer(id); render(); if (sheetState) taskSheet(sheetState.id); toast(`Stopped · ${fmtDur(m)} logged`); return; }
+    case 'tadd': addTime(st.id, +el.dataset.m); render(); taskSheet(st.id); return;
+    case 'cm-timer': closeMenu(); { const t = S.tasks.get(el.dataset.tid); if (t.timer) { const m = stopTimer(t.id); render(); toast(`Stopped · ${fmtDur(m)} logged`); } else startTimer(t.id); } return;
     case 'cm-done': closeMenu(); toggleDone(el.dataset.tid); return;
     case 'cm-open': closeMenu(); taskSheet(el.dataset.tid); return;
     case 'cm-when': { closeMenu(); const w = el.dataset.w, t = S.tasks.get(el.dataset.tid); put('task', t.id, { when: w || null, at: w && kindOf(w) === 'day' ? t.at : '' }); render(); toast(w ? `Moved to ${periodLabel(w)}` : 'Unscheduled', true); return; }
@@ -1289,6 +1326,7 @@ document.addEventListener('contextmenu', (e) => {
   const items = [
     item('cm-done', done ? 'Mark not done' : 'Mark done'),
     item('cm-open', 'Open…'),
+    !done && !mtg ? item('cm-timer', t.timer ? 'Stop timer' : 'Start timer') : '',
     '<hr>',
     t.when !== tk ? item('cm-when', 'Today', `data-w="${tk}"`) : '', t.when !== addDays(tk, 1) ? item('cm-when', 'Tomorrow', `data-w="${addDays(tk, 1)}"`) : '',
     t.when !== isoWeek(tk) ? item('cm-when', 'This week', `data-w="${isoWeek(tk)}"`) : '', t.when ? item('cm-when', 'Unschedule', 'data-w=""') : '',

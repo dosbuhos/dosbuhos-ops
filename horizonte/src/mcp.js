@@ -60,6 +60,7 @@ function view(t, ctx) {
   if (board) o.board = board.name; if (t.section) o.section = t.section;
   if (t.tags?.length) o.tags = t.tags.map(id => ctx.tagName(id));
   if (t.notes) o.notes = t.notes; if (t.emoji) o.icon = t.emoji; if (t.color) o.highlight = t.color; if (t.pin) o.pinned = true;
+  if (t.spent) o.logged_minutes = t.spent; if (t.timer) o.timer_running_since = t.timer;
   if (t.rolls) o.times_pushed = t.rolls; if (t.doneAt) o.done_at = t.doneAt; if (t.created) o.created = t.created;
   return o;
 }
