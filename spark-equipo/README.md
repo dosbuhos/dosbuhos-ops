@@ -8,13 +8,14 @@ Cada vendedor ve solo lo suyo. Eric y los administradores del Hub ven a todos, l
 - `src/sheets.js` copies the three "Actividad" tabs of the CRM Google Sheet into D1 once a day (06:00 San Miguel).
 - `src/zoho.js` copies Zoho Inventory sales orders and invoices three times a day. The first runs walk the whole history, 10 pages per run; the "Sincronizar ahora" button in Ajustes runs one more step.
 - `src/calc.js` turns those rows into every figure on screen. Pure functions, covered by `test/calc.test.js`. The page (`public/app.js`) only lays the figures out.
+- `src/ai.js` asks Claude for a suggested next step per account, from the rep's last notes (table `sugerencias`). It runs after each sync, 40 accounts at a time, and only rewrites a suggestion when the notes or the follow-up state change. Claude writes words only; every number comes from `calc.js`.
 - Activity rows carry `origen`: `hoja` rows are replaced on every sheet sync; `app` rows (logged in Spark, next phase) are kept.
 
 ## Routes
 | Route | Who | What |
 |---|---|---|
 | `GET /api/data` | signed in | The view model, filtered to the person |
-| `POST /api/admin/sync[?solo=hoja\|zoho]` | admin | Run a sync now |
+| `POST /api/admin/sync[?solo=hoja\|zoho\|ia]` | admin | Run a sync now |
 | `GET/POST /api/admin/people` | admin | Link a Hub email to a person or make it an admin |
 
 Without `HUB_SECRET` every `/api` route answers 401, so the workers.dev address shows nothing.
@@ -22,6 +23,7 @@ Without `HUB_SECRET` every `/api` route answers 401, so the workers.dev address 
 ## Bindings
 - `DB`: D1 `spark-equipo` (activity, orders, invoices, alias, people, meta)
 - `ASSETS`: `public/`
+- `ANTHROPIC_API_KEY`: account Secrets Store (model in var `AI_MODEL`, default `claude-sonnet-5-5`)
 - `SHEETS`: service binding to `cellar` (entrypoint `SheetsRead`), which holds the Google service-account key; the CRM sheet must be shared with that account's email (shown in Ajustes) and listed in cellar's `SHEETS_READ_IDS`
 - `ZOHO`: service binding to `dosbuhos-ops` (entrypoint `ZohoRead`), which holds the Zoho secrets; its token must be able to read sales orders and invoices
 - Cron: 12:00, 18:00, 00:00 UTC

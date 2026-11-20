@@ -2,7 +2,8 @@
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
-import { build, paraVer, hoyEn, GENTE } from './calc.js';
+import { build, paraVer, hoyEn, GENTE, norm } from './calc.js';
+import { sugerir } from './ai.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet, sheetEmail } from './sheets.js';
 import zonasCfg from './data/zonas.json';
@@ -24,14 +25,15 @@ async function quien(request, env) {
   return { email, nombre: who.name || email, admin, persona: p?.persona || null };
 }
 
-async function modelo(env) {
+async function modelo(env, conActividad) {
   const all = (sql) => env.DB.prepare(sql).all().then((r) => r.results);
   const [activity, orders, invoices, alias] = await Promise.all([
     all('SELECT * FROM activity'), all('SELECT * FROM orders'), all('SELECT * FROM invoices'), all('SELECT * FROM alias')]);
   // No invoice copy (the Zoho token can't read invoices): an invoiced sales order stands in for its invoice, dated as the order.
   const inv = invoices.length ? invoices : orders.filter((o) => ['invoiced', 'partially_invoiced'].includes(o.facturacion))
     .map((o) => ({ id: o.id, fecha: o.fecha, cliente_id: o.cliente_id, cliente: o.cliente, vendedor: o.vendedor, total: o.total, estado: o.estado }));
-  return build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, hoy: hoyEn(env.TZ) });
+  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, hoy: hoyEn(env.TZ) });
+  return conActividad ? { m, activity } : m;
 }
 
 async function sync(env, what) {
@@ -43,6 +45,11 @@ async function sync(env, what) {
     if (what && what !== name) continue;
     try { out[name] = await fn(env); await setMeta(env, 'sync_' + name, JSON.stringify({ at: new Date().toISOString(), ok: !out[name].skipped, ...out[name] })); }
     catch (e) { out[name] = { error: String(e.message || e) }; await setMeta(env, 'sync_' + name, JSON.stringify({ at: new Date().toISOString(), ok: false, error: out[name].error })); }
+  }
+  // Claude's suggested next steps, from the notes just synced. A few accounts per run; the rest follow on the next runs.
+  if (!what || what === 'ia') {
+    try { const { m, activity } = await modelo(env, true); out.ia = await sugerir(env, m, activity); await setMeta(env, 'sync_ia', JSON.stringify({ at: new Date().toISOString(), ok: !out.ia.skipped, ...out.ia })); }
+    catch (e) { out.ia = { error: String(e.message || e) }; await setMeta(env, 'sync_ia', JSON.stringify({ at: new Date().toISOString(), ok: false, error: out.ia.error })); }
   }
   return out;
 }
@@ -58,6 +65,8 @@ export default {
 
     if (p === '/api/data' && request.method === 'GET') {
       const m = paraVer(await modelo(env), yo);
+      const sug = new Map((await env.DB.prepare('SELECT persona, clave, texto FROM sugerencias').all()).results.map((r) => [r.persona + '|' + r.clave, r.texto]));
+      for (const r of m.seguimiento) r.sugerencia = sug.get(r.persona + '|' + norm(r.cuenta)) || '';
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
       return json({ ...m, sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
     }
@@ -81,6 +90,7 @@ export default {
 
   // 12:00 UTC = 6:00 in San Miguel: the CRM sheet and Zoho. 18:00 and 00:00 UTC (noon and 6 pm): Zoho only.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(sync(env, event.cron === '0 12 * * *' ? null : 'zoho'));
+    // The noon and 6 pm runs also continue the suggestions (sync writes them whenever `what` is empty or 'ia').
+    ctx.waitUntil(event.cron === '0 12 * * *' ? sync(env, null) : sync(env, 'zoho').then(() => sync(env, 'ia')));
   }
 };

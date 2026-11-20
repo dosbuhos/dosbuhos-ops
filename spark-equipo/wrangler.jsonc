@@ -9,6 +9,8 @@
   "d1_databases": [{ "binding": "DB", "database_name": "spark-equipo", "database_id": "4b2b0c5a-265d-4971-afdf-6470dadd7bc7", "migrations_dir": "migrations" }],
   // The Hub's session secret from the account Secrets Store: checks that requests really come from the Hub (src/hub-secret.js).
   "secrets_store_secrets": [
+    // Claude writes the suggested next step for each account from the reps' notes (src/ai.js). Model: var AI_MODEL, default claude-sonnet-5-5.
+    { "binding": "ANTHROPIC_API_KEY", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "ANTHROPIC_API_KEY" },
     { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
   ],
   // Zoho through the Muestras Worker (zoho-inventory/, Worker dosbuhos-ops): it holds the Zoho secrets and exposes read-only lists.

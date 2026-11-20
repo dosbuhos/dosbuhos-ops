@@ -71,6 +71,28 @@ function lista(key, items, n, fila, vacio, cols) {
   return h('div', {}, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, cols.map(th))),
     h('tbody', {}, (open ? items : items.slice(0, n)).map((r) => h('tr', {}, cols.map((c) => h('td', { class: (c.num ? 'r ' : '') + (c.cls || '') }, c.v(r)))))))), mas);
 }
+// Weekly trend for one person: contacts as a line over the green/amber/red bands (30 and 15), that week's sales as bars behind.
+// Weeks still waiting to be logged are left out of the line.
+function tendencia(p, ws) {
+  const W = 340, H = 170, pl = 26, pr = 6, pt = 8, pb = 22, n = ws.length, iw = (W - pl - pr) / Math.max(n, 1);
+  const maxC = Math.max(45, ...ws.map((w) => w.contactos)), maxV = Math.max(1, ...ws.map((w) => w.ventas || 0));
+  const x = (i) => pl + (i + 0.5) * iw, y = (c) => pt + (H - pt - pb) * (1 - c / maxC), band = (a, b, col) => svg('rect', { x: pl, y: y(b), width: W - pl - pr, height: y(a) - y(b), fill: col, 'fill-opacity': 0.13 });
+  const log = ws.map((w, i) => ({ w, i })).filter((d) => d.w.veredicto !== 'Pendiente');
+  const prom = (a) => (a.length ? a.reduce((t, d) => t + d.w.contactos, 0) / a.length : null);
+  const hechas = log.filter((d) => !d.w.en_curso), ult = prom(hechas.slice(-4)), ant = prom(hechas.slice(-8, -4));
+  const dir = ult == null || ant == null ? '' : ult > ant * 1.15 ? 'subiendo' : ult < ant * 0.85 ? 'bajando' : 'estable';
+  const txt = dir ? `Contactos ${dir}: ${Math.round(ant)} → ${Math.round(ult)} por semana (últimas 4 contra las 4 anteriores).` : 'Todavía no hay 8 semanas registradas para ver la tendencia.';
+  return h('section', { class: 'card' },
+    h('div', { class: 'name' }, p, dir ? pill(dir === 'subiendo' ? 'Subiendo' : dir === 'bajando' ? 'Bajando' : 'Estable', dir === 'subiendo' ? 'ok' : dir === 'bajando' ? 'bad' : 'mute') : null),
+    svg('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${p}. ${txt}`, style: 'width:100%;height:auto;display:block;margin-top:6px' },
+      band(30, maxC, 'var(--ok)'), band(15, 30, 'var(--warn)'), band(0, 15, 'var(--bad)'),
+      [15, 30].map((t) => svg('text', { x: pl - 4, y: y(t) + 3, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--muted)' }, t)),
+      ws.map((w, i) => (w.ventas ? svg('rect', { x: x(i) - iw * 0.3, y: H - pb - (H - pt - pb) * 0.55 * (w.ventas / maxV), width: iw * 0.6, height: (H - pt - pb) * 0.55 * (w.ventas / maxV), fill: 'var(--text)', 'fill-opacity': 0.22 }, svg('title', {}, `Semana del ${dia(w.semana)}: ${peso(w.ventas)}`)) : null)),
+      svg('polyline', { points: log.map((d) => `${x(d.i).toFixed(1)},${y(d.w.contactos).toFixed(1)}`).join(' '), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }),
+      log.map((d) => svg('circle', { cx: x(d.i), cy: y(d.w.contactos), r: 3, fill: 'var(--accent)' }, svg('title', {}, `Semana del ${dia(d.w.semana)}: ${d.w.contactos} contactos`))),
+      ws.map((w, i) => (i === 0 || w.semana.slice(5, 7) !== ws[i - 1].semana.slice(5, 7) ? svg('text', { x: x(i), y: H - 6, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)' }, MES[Number(w.semana.slice(5, 7)) - 1]) : null))),
+    h('p', { class: 'note', style: 'margin:6px 0 0' }, txt));
+}
 const chips = (opts, cur, set) => h('div', { class: 'chips' }, opts.map(([v, t]) => h('button', { class: 'chip', 'aria-pressed': String(cur === v), onclick: () => { set(v); pintar(); } }, t)));
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
 
@@ -131,6 +153,9 @@ const VISTAS = {
             p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
       })),
       h('h2', {}, 'Semáforo'), h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana que se saltaron sin registrar nada; punteado: todavía no registran. Toca una semana para abrirla.')),
+      h('h2', {}, 'Tendencia'),
+      h('div', { class: 'grid3' }, ps.map((p) => tendencia(p, D.semanas.filter((r) => r.persona === p && r.veredicto !== 'Sin datos').slice(-NW)))),
+      h('p', { class: 'note' }, 'Línea: contactos por semana sobre las franjas verde (30+), ámbar (15–29) y roja. Barras: ventas de esa semana.'),
       h('h2', {}, `Resumen de ${MESL[Number(m.slice(5)) - 1]}`),
       h('div', { class: 'alert' + (ceros.length ? '' : ' ok') }, ceros.length ? [h('b', {}, 'Semanas en cero: '), ceros.map((r) => `${r.persona}, semana del ${dia(r.semana)}`).join(' · ')] : 'Nadie tuvo una semana en cero este mes.'),
       h('div', { class: 'grid3' }, diag.map((r) => {
@@ -171,10 +196,11 @@ const VISTAS = {
       h('div', { class: 'card' }, lista('seg', seg, 10, (r) => h('li', {},
         h('div', { class: 'l1' }, h('span', {}, r.cuenta), est(r)),
         h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, `Último contacto ${dia(r.ultimo_contacto)} (${r.dias_sin_contacto} días)`, r.proximo ? `próximo ${dia(r.proximo)}` : null].filter(Boolean).join(' · ')),
-        r.ultima_nota ? h('div', { class: 'l2' }, r.ultima_nota.slice(0, 160)) : null), 'No hay cuentas en esta lista.',
+        r.ultima_nota ? h('div', { class: 'l2' }, r.ultima_nota.slice(0, 160)) : null,
+        r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso: '), r.sugerencia) : null), 'No hay cuentas en esta lista.',
         [{ t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' },
           { t: 'Último contacto', v: (r) => dia(r.ultimo_contacto), s: (r) => r.ultimo_contacto, cls: 'nw' }, { t: 'Días sin contacto', v: (r) => r.dias_sin_contacto, s: (r) => r.dias_sin_contacto, num: true },
-          { t: 'Próximo', v: (r) => dia(r.proximo), s: (r) => r.proximo || null, cls: 'nw' }, { t: 'Estado', v: est, s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => (r.ultima_nota || '').slice(0, 140), cls: 'mut' }])),
+          { t: 'Estado', v: (r) => [est(r), r.proximo && r.estado !== 'vencida' ? h('div', { class: 'note' }, 'próximo ' + dia(r.proximo)) : null], s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => (r.ultima_nota || '').slice(0, 140), cls: 'mut' }, { t: 'Siguiente paso sugerido', v: (r) => r.sugerencia || '—', cls: 'sugc' }])),
       vendedores().length ? [h('h2', {}, 'Clientes principales'),
         h('p', { class: 'note' }, 'Los 15 más grandes de cada vendedor, primero los que llevan más tiempo sin contacto.'),
         h('div', { class: 'card' }, lista('cob', cob, 10, (c) => h('li', {},
@@ -249,13 +275,19 @@ const VISTAS = {
       .sort((a, b) => (ord.get(a.zona) - ord.get(b.zona)) || (kO[a.clase] - kO[b.clase]));
     return h('div', {},
       h('h2', {}, cur ? cur.nombre : '¿Dónde tenemos presencia?'),
-      h('div', { class: 'cols2' }, h('div', {}, map), h('div', {},
+      h('div', { class: 'mapwide' }, map),
+      h('div', {},
       cur ? h('div', { class: 'card' }, h('div', { class: 'name' }, cur.nombre, pill(cur.estado, K[cur.estado])), h('p', {}, `${cur.peso}% del mercado y ${cur.pct_ventas}% de nuestras ventas: ${peso(cur.ventas)} este año con ${cur.clientes_activos} clientes activos. ` + (cur.brecha ? `Al ritmo de Caribe vendería ${peso(cur.potencial)}; la brecha es ${peso(cur.brecha)}.` : 'Va al ritmo de nuestras mejores zonas.')), h('p', { class: 'note' }, cur.distribuidores || 'Sin distribuidor')) : null,
-      !cur ? [h('h3', {}, 'Ranking de oportunidad'),
-        h('div', { class: 'card' }, h('ul', { class: 'rows' }, D.zonas.map((z, i) => h('li', { onclick: () => { S.zona = z.zona; pintar(); window.scrollTo(0, 0); }, style: 'cursor:pointer' },
-          h('div', { class: 'l1' }, h('span', {}, `${z.brecha ? i + 1 + '. ' : ''}${z.nombre}`), pill(z.estado, K[z.estado])),
+      !cur ? [h('h2', {}, 'Ranking de oportunidad'),
+        h('div', { class: 'card' }, lista('rank', D.zonas, 9, (z) => h('li', { onclick: () => { S.zona = z.zona; pintar(); window.scrollTo(0, 0); }, style: 'cursor:pointer' },
+          h('div', { class: 'l1' }, h('span', {}, `${z.brecha ? D.zonas.indexOf(z) + 1 + '. ' : ''}${z.nombre}`), pill(z.estado, K[z.estado])),
           h('div', { class: 'l2' }, `${z.peso}% del mercado · ${peso(z.ventas)} vendidos · ` + (z.brecha ? `brecha ${peso(z.brecha)}` : 'sin brecha')),
-          h('div', { class: 'l2' }, z.distribuidores || 'Sin distribuidor')))))] : null)),
+          h('div', { class: 'l2' }, z.distribuidores || 'Sin distribuidor')), 'Sin zonas.',
+          [{ t: 'Zona', v: (z) => h('button', { class: 'linkb', onclick: () => { S.zona = z.zona; pintar(); window.scrollTo(0, 0); } }, z.nombre), s: (z) => z.nombre, cls: 'b' },
+            { t: 'Estado', v: (z) => pill(z.estado, K[z.estado]), s: (z) => z.estado, cls: 'nw' }, { t: '% del mercado', v: (z) => z.peso + '%', s: (z) => z.peso, num: true },
+            { t: 'Vendido este año', v: (z) => peso(z.ventas), s: (z) => z.ventas, num: true }, { t: 'Potencial', v: (z) => peso(z.potencial), s: (z) => z.potencial, num: true },
+            { t: 'Brecha', v: (z) => (z.brecha ? peso(z.brecha) : 'sin brecha'), s: (z) => z.brecha, num: true }, { t: 'Clientes activos', v: (z) => z.clientes_activos, s: (z) => z.clientes_activos, num: true },
+            { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', cls: 'mut' }]))] : null),
       h('h2', {}, 'Prospectos'),
       chips([['', 'Todos'], ['dist', 'Distribuidores'], ['tienda', 'Tiendas'], ['horeca', 'Restaurantes y hoteles'], ['cliente', 'Clientes actuales']], S.clase, (v) => { S.clase = v; }),
       h('div', { class: 'card', style: 'margin-top:8px' }, lista('pros', pros, 10, (p) => h('li', {},
@@ -290,9 +322,9 @@ const VISTAS = {
         h('input', { name: 'email', type: 'email', placeholder: 'correo con el que entra al Hub', required: true, 'aria-label': 'Correo' }),
         h('select', { name: 'persona', 'aria-label': 'Quién es' }, [...r.gente.map((g) => h('option', { value: g }, g)), h('option', { value: 'admin' }, 'Administrador (ve a todos)')]),
         h('button', { class: 'btn' }, 'Guardar'));
-      const st = (k, t) => { const s = D.sync[k]; return h('li', {}, h('div', { class: 'l1' }, h('span', {}, t), pill(!s ? 'Nunca' : s.ok ? 'Bien' : 'Falló', !s ? 'mute' : s.ok ? 'ok' : 'bad')), h('div', { class: 'l2' }, !s ? 'Todavía no corre.' : new Date(s.at).toLocaleString('es-MX') + (s.error ? ' · ' + s.error : s.skipped ? ' · ' + s.skipped : s.rows != null ? ` · ${s.rows} renglones` : ` · ${s.orders} órdenes, ${s.invoices} facturas` + (s.pending ? ' (todavía cargando el histórico)' : '') + (s.aviso ? ' · ' + s.aviso : '')))); };
+      const st = (k, t) => { const s = D.sync[k]; return h('li', {}, h('div', { class: 'l1' }, h('span', {}, t), pill(!s ? 'Nunca' : s.ok ? 'Bien' : 'Falló', !s ? 'mute' : s.ok ? 'ok' : 'bad')), h('div', { class: 'l2' }, !s ? 'Todavía no corre.' : new Date(s.at).toLocaleString('es-MX') + (s.error ? ' · ' + s.error : s.skipped ? ' · ' + s.skipped : s.rows != null ? ` · ${s.rows} renglones` : s.escritas != null ? ` · ${s.escritas} nuevas` + (s.faltan ? `, faltan ${s.faltan}` : '') : ` · ${s.orders} órdenes, ${s.invoices} facturas` + (s.pending ? ' (todavía cargando el histórico)' : '') + (s.aviso ? ' · ' + s.aviso : '')))); };
       box.replaceChildren(
-        h('h2', {}, 'Datos'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, st('hoja', 'Hoja del CRM (diario, 6:00)'), st('zoho', 'Zoho (6:00, 12:00 y 18:00)')),
+        h('h2', {}, 'Datos'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, st('hoja', 'Hoja del CRM (diario, 6:00)'), st('zoho', 'Zoho (6:00, 12:00 y 18:00)'), st('ia', 'Siguientes pasos sugeridos (Claude)')),
           r.correo_hoja && !(D.sync.hoja && D.sync.hoja.ok) ? h('p', { class: 'note' }, 'La hoja del CRM debe estar compartida (lector) con ', h('b', {}, r.correo_hoja), '.') : null,
           h('button', { class: 'btn', style: 'margin-top:8px;width:100%', onclick: async (ev) => { ev.target.disabled = true; ev.target.textContent = 'Sincronizando…'; await api('api/admin/sync', {}); await cargar(); } }, 'Sincronizar ahora')),
         h('h2', {}, 'Quién ve qué'), h('p', { class: 'note' }, 'Cada vendedor ve solo sus números. Liga aquí el correo con el que entra al Hub.'),

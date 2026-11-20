@@ -82,3 +82,16 @@ test('sheet rows: header and undated rows are dropped', () => {
   const rows = rowsFromValues('Carlos', [['Fecha', 'Zona', 'Cuenta'], ['2026-09-07', 'SMA', ' atrio '], ['', '', 'sin fecha'], ['7/9/2026', 'SMA', 'mal']]);
   assert.equal(rows.length, 1); assert.equal(rows[0].cuenta, 'atrio'); assert.equal(rows[0].persona, 'Carlos'); assert.equal(rows[0].pedido, '');
 });
+
+test('suggestions: which accounts need one, and reading the reply', async () => {
+  const { pendientes, leer } = await import('../src/ai.js');
+  const act = [a('Carlos', '2026-11-01', 'Uno', { proximo: '2026-11-10', resultado: 'no estaba el que paga' }), a('Carlos', '2026-11-18', 'Dos', { proximo: '2026-11-30', resultado: 'probaron el vino' }),
+    a('Carlos', '2026-11-06', 'Cuatro', { siguiente_paso: 'Cerrado - no interesa', resultado: 'x' }), a('Carlos', '2026-11-05', 'Tres')];
+  const m = base({ activity: act });
+  const q = pendientes(m.seguimiento, act, [], hoy);
+  assert.deepEqual(q.map((x) => x.clave), ['uno', 'dos']);           // overdue first; closed and note-less accounts are skipped
+  assert.match(q[0].datos.seguimiento, /vencido hace 10 días/);
+  assert.equal(pendientes(m.seguimiento, act, [{ persona: 'Carlos', clave: 'uno', firma: q[0].firma }], hoy).length, 1);
+  assert.deepEqual(leer('Claro:\n```json\n[{"i":0,"paso":"Llama hoy"},{"i":"x"}]\n```'), [{ i: 0, paso: 'Llama hoy' }]);
+  assert.deepEqual(leer('sin json'), []);
+});
