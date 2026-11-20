@@ -184,8 +184,13 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .d .right .dot { padding: 6px 10px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); white-space: nowrap; }
 @media (max-width: 1180px) { .d .right .dot { font-size: 0; gap: 0; padding: 9px; } .d .right .dot i { width: 10px; height: 10px; } }
 .d .main { flex: 1; min-height: 0; display: flex; }
-.d .panel { flex: 0 0 var(--pw, 320px); min-width: 260px; max-width: 480px; overflow-y: auto; padding: 14px 14px 16px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.d .panel { flex: 0 0 var(--pw, 320px); min-width: 260px; max-width: 60vw; overflow-y: auto; padding: 14px 14px 16px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
 .d .panel.collapsed { display: none; }
+/* draggable divider between the panel and the timeline */
+.d .resizer { flex: none; width: 7px; margin: 0 -3px; cursor: col-resize; position: relative; z-index: 3; touch-action: none; }
+.d .resizer::after { content: ''; position: absolute; inset: 0 3px; background: transparent; transition: background .12s; }
+.d .resizer:hover::after, .d .resizer.active::after { background: var(--sun); }
+body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body.resizing .panel { pointer-events: none; }
 .d .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .d .qa { display: flex; flex-direction: column; gap: 4px; }
 .d .qa label { font-size: 12px; color: var(--ink-2); }

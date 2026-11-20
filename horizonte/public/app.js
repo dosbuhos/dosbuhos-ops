@@ -417,7 +417,7 @@ function renderDesk() {
 <div class="steps"><button class="btn icon" aria-label="Earlier" data-act="prev">${I.left}</button><button class="btn" data-act="today">Today</button><button class="btn icon" aria-label="Later" data-act="next">${I.right}</button><div class="title">${esc(deskTitle())}</div></div>
 <div class="right"><button data-sync class="dot" data-act="settings"></button></div>
 </header>
-<div class="main">${S.ui.panelHidden ? '' : renderPanel()}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
+<div class="main" style="--pw:${S.ui.pw || 320}px">${S.ui.panelHidden ? '' : renderPanel() + '<div class="resizer" data-resize="panel" role="separator" aria-orientation="vertical" aria-label="Resize lists panel" title="Drag to resize · double-click to reset"></div>'}<main class="tl" aria-label="Timeline">${renderTimeline()}</main></div></div>`;
 }
 function sources() {
   const out = [['inbox', `Inbox · ${inboxTasks().length}`]];
@@ -984,6 +984,16 @@ document.addEventListener('change', (e) => {
   else if (el.dataset.field) sheetField(el);
 });
 document.addEventListener('focusout', (e) => { if (e.target.dataset?.field) sheetField(e.target); });
+// Drag the divider between the lists panel and the timeline to resize the panel (persisted in ui.pw). Double-click resets.
+document.addEventListener('pointerdown', (e) => {
+  const h = e.target.closest('[data-resize=panel]'); if (!h) return;
+  const main = h.parentElement, x0 = e.clientX, w0 = main.querySelector('.panel').getBoundingClientRect().width;
+  h.setPointerCapture(e.pointerId); h.classList.add('active'); document.body.classList.add('resizing');
+  const mv = (ev) => { const w = Math.max(260, Math.min(Math.round(innerWidth * 0.6), w0 + ev.clientX - x0)); main.style.setProperty('--pw', w + 'px'); S.ui.pw = w; };
+  const up = () => { h.classList.remove('active'); document.body.classList.remove('resizing'); h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); store.set('ui', S.ui); };
+  h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up); e.preventDefault();
+});
+document.addEventListener('dblclick', (e) => { if (e.target.closest('[data-resize=panel]')) { S.ui.pw = 320; store.set('ui', S.ui); render(); } });
 window.addEventListener('popstate', () => {
   if (popping) { popping = false; return; }
   if (sheetState) { removeSheetDom(); render(); return; }
