@@ -21,6 +21,8 @@ const dia = (iso) => (iso ? Number(iso.slice(8)) + ' ' + MES[Number(iso.slice(5,
 const peso = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString('en-US'));
 const pct = (p) => (p == null ? '—' : (p > 0 ? '+' : '') + p + '%');
 const mas = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+// A client move of this many pesos against the same date last year counts as a critical loss or a strong gain.
+const UMBRAL = 30000;
 const KIND = { Productiva: 'ok', Productivo: 'ok', 'A medias': 'warn', Floja: 'bad', Flojo: 'bad', 'En cero': 'bad', Pendiente: 'mute', 'Sin datos': 'mute' };
 const vtxt = (r) => (r.veredicto === 'Pendiente' ? 'Pendiente de registrar' : r.veredicto) + (r.en_curso ? ' · en curso' : '');
 const pill = (text, kind) => h('span', { class: 'pill ' + kind }, text);
@@ -267,25 +269,62 @@ const VISTAS = {
   },
 
   clientes() {
-    const vs = vendedores();
-    if (!vs.length) return h('p', { class: 'note' }, 'Sin clientes facturados.');
+    const vs = vendedores(), ps = personas();
     const Y = Number(D.hoy.slice(0, 4));
+    const RK = { 'Al corriente': 'ok', 'Ya le tocaba': 'bad', Nuevo: 'warn', Inactivo: 'mute' };
+    const copeo = D.copeo.filter((c) => ps.includes(c.persona));
+    // Vino por copa: the CRM has no field for it yet, so this is what the notes mention.
+    const secCopeo = [h('h2', {}, 'Copeo (vino por copa)'),
+      h('p', { class: 'note' }, 'El CRM todavía no tiene un campo de copeo: esto sale de las notas donde lo mencionan. No distingue entre "ya lo sirven por copa" y "se lo propuse".'),
+      h('div', { class: 'card' }, lista('copeo', copeo, 10, (c) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, c.cuenta), h('span', { class: 'note' }, dia(c.fecha))), h('div', { class: 'l2' }, c.persona), h('div', { class: 'l2' }, (c.nota || '').slice(0, 200))), 'Nadie ha registrado copeo en sus notas.',
+        [{ t: 'Cuenta', v: (c) => c.cuenta, s: (c) => c.cuenta.toLowerCase(), cls: 'b' }, { t: 'Quién', v: (c) => c.persona, s: (c) => c.persona, cls: 'nw' }, { t: 'Última mención', v: (c) => dia(c.fecha), s: (c) => c.fecha, cls: 'nw' },
+          { t: 'Veces', v: (c) => c.menciones, s: (c) => c.menciones, num: true }, { t: 'Nota', v: (c) => (c.nota || '').slice(0, 220), cls: 'mut wide' }]))];
+    if (!vs.length) return h('div', {}, secCopeo);
     return h('div', {}, vs.map((v) => {
       const L = D.clientes.filter((c) => c.vendedor === v), t = (k) => L.reduce((s, c) => s + c[k], 0), ch = t('pasado_mp') ? Math.round((t('actual') - t('pasado_mp')) / t('pasado_mp') * 1000) / 10 : null;
+      const P = D.pedidos.find((x) => x.vendedor === v);
+      // The biggest moves in pesos against the same date last year. A percentage alone hides how much money a client is worth.
+      const dif = (c) => c.actual - c.pasado_mp;
+      const perdidas = L.filter((c) => dif(c) <= -UMBRAL && (c.cambio_pct == null || c.cambio_pct <= -30)).sort((a, b) => dif(a) - dif(b));
+      const ganancias = L.filter((c) => dif(c) >= UMBRAL && (c.cambio_pct == null || c.cambio_pct >= 25)).sort((a, b) => dif(b) - dif(a));
+      const mov = (c, k) => h('li', { class: k }, h('div', { class: 'l1' }, h('span', {}, c.cliente), h('span', { class: k === 'bad' ? 'down' : 'up' }, (dif(c) > 0 ? '+' : '−') + peso(Math.abs(dif(c))))),
+        h('div', { class: 'l2' }, `${peso(c.pasado_mp)} → ${peso(c.actual)}` + (c.cambio_pct == null ? ' · cliente nuevo' : ` · ${pct(c.cambio_pct)}`) + (c.dias_sin_pedir != null ? ` · último pedido hace ${c.dias_sin_pedir} días` : '')));
+      const movimientos = h('div', { class: 'cols2 movs' },
+        h('section', { class: 'card' }, h('div', { class: 'name' }, 'Pérdidas críticas', pill(perdidas.length ? '−' + peso(Math.abs(perdidas.reduce((t, c) => t + dif(c), 0))) : 'Ninguna', perdidas.length ? 'bad' : 'ok')),
+          perdidas.length ? h('ul', { class: 'rows mov' }, perdidas.slice(0, 8).map((c) => mov(c, 'bad'))) : h('p', { class: 'note' }, `Ningún cliente ha bajado ${peso(UMBRAL)} o más contra el año pasado.`)),
+        h('section', { class: 'card' }, h('div', { class: 'name' }, 'Ganancias fuertes', pill(ganancias.length ? '+' + peso(ganancias.reduce((t, c) => t + dif(c), 0)) : 'Ninguna', ganancias.length ? 'ok' : 'mute')),
+          ganancias.length ? h('ul', { class: 'rows mov' }, ganancias.slice(0, 8).map((c) => mov(c, 'ok'))) : h('p', { class: 'note' }, `Ningún cliente ha subido ${peso(UMBRAL)} o más contra el año pasado.`)));
+      const kpi = (n, label, sub) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, label), sub ? h('div', { class: 'note' }, sub) : null);
+      const metricas = P ? [h('div', { class: 'card kpis' },
+          kpi(P.activos_90, 'Clientes activos', 'pidieron en los últimos 90 días'),
+          kpi(P.nuevos_mes.length, 'Clientes nuevos este mes', P.nuevos_mes.length ? P.nuevos_mes.join(' · ') : `${P.nuevos_semana.length} esta semana`),
+          kpi(P.recompra_pct == null ? '—' : P.recompra_pct + '%', 'Recompra de clientes nuevos', P.recompra_base ? `${P.recompra_n} de ${P.recompra_base} volvieron a pedir` : 'sin clientes nuevos con 60+ días'),
+          kpi(peso(P.ticket), 'Pedido promedio', `${P.pedidos_90} pedidos en 90 días`),
+          h('div', { class: 'kpi' }, h('div', { class: 'minibars', role: 'img', 'aria-label': 'Clientes nuevos por mes: ' + P.nuevos_por_mes.map((x) => `${MES[Number(x.mes.slice(5)) - 1]} ${x.n}`).join(', ') },
+            P.nuevos_por_mes.map((x) => h('span', {}, h('b', {}, x.n), h('i', { style: `height:${Math.max(3, x.n / Math.max(1, ...P.nuevos_por_mes.map((y) => y.n)) * 34)}px` }), h('small', {}, MES[Number(x.mes.slice(5)) - 1])))), h('div', { class: 'kl' }, 'Clientes nuevos por mes'))),
+        h('h3', {}, `Ya les tocaba pedir (${P.ya_les_tocaba.length})`),
+        h('div', { class: 'card' }, lista('toca' + v, P.ya_les_tocaba, 8, (c) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, c.cliente), pill(`${c.dias_sin_pedir} días sin pedir`, 'bad')), h('div', { class: 'l2' }, `Suele pedir cada ${c.cada_dias} días · último pedido ${dia(c.ultima)} · ${peso(c.total_12m)} en 12 meses`)), 'Todos los clientes con ritmo de compra van al corriente.',
+          [{ t: 'Cliente', v: (c) => c.cliente, s: (c) => c.cliente.toLowerCase(), cls: 'b' }, { t: 'Último pedido', v: (c) => dia(c.ultima), s: (c) => c.ultima, cls: 'nw' }, { t: 'Días sin pedir', v: (c) => c.dias_sin_pedir, s: (c) => c.dias_sin_pedir, num: true },
+            { t: 'Suele pedir cada', v: (c) => c.cada_dias + ' días', s: (c) => c.cada_dias, num: true }, { t: 'Pedidos 12 meses', v: (c) => c.pedidos_12m, s: (c) => c.pedidos_12m, num: true }, { t: 'Vendido 12 meses', v: (c) => peso(c.total_12m), s: (c) => c.total_12m, num: true }])),
+        h('h3', {}, 'Año contra año')] : [];
       return [h('h2', {}, v),
         h('p', { class: 'note' }, `${peso(t('actual'))} este año contra ${peso(t('pasado_mp'))} a la misma fecha del año pasado (`, h('span', { class: ch >= 0 ? 'up' : 'down' }, pct(ch)), ').'),
+        movimientos, metricas,
         h('div', { class: 'card' }, lista('yoy' + v, L, 15, (c) => {
           const mx = Math.max(c.antepasado, c.pasado, c.actual, 1);
           return h('li', {}, h('div', { class: 'l1' }, h('span', {}, c.cliente),
             h('span', { class: 'bar3', role: 'img', 'aria-label': `Hace dos años ${peso(c.antepasado)}, año pasado ${peso(c.pasado)}, este año ${peso(c.actual)}` }, [c.antepasado, c.pasado, c.actual].map((x) => h('i', { style: `height:${Math.round(x / mx * 100)}%` })))),
+            c.ritmo ? h('div', { class: 'l2' }, pill(c.ritmo, RK[c.ritmo]), c.cada_dias ? ` pide cada ${c.cada_dias} días · ${c.pedidos_12m} pedidos en 12 meses` : ` ${c.pedidos_12m} pedidos en 12 meses`) : null,
             h('div', { class: 'l2' }, `${peso(c.actual)} este año · `, c.cambio_pct == null ? (c.actual > 0 ? 'nuevo' : '—') : h('span', { class: c.cambio_pct >= 0 ? 'up' : 'down' }, pct(c.cambio_pct)), ` · última factura ${dia(c.ultima_factura)}${c.ultima_factura && c.ultima_factura.slice(0, 4) !== D.hoy.slice(0, 4) ? ' ' + c.ultima_factura.slice(0, 4) : ''}`));
         }, 'Sin clientes facturados.',
-        [{ t: 'Cliente', v: (c) => c.cliente, s: (c) => c.cliente.toLowerCase(), cls: 'b' }, { t: Y - 2, v: (c) => peso(c.antepasado), s: (c) => c.antepasado, num: true }, { t: Y - 1, v: (c) => peso(c.pasado), s: (c) => c.pasado, num: true },
+        [{ t: 'Cliente', v: (c) => c.cliente, s: (c) => c.cliente.toLowerCase(), cls: 'b' }, { t: Y - 1, v: (c) => peso(c.pasado), s: (c) => c.pasado, num: true },
           { t: `${Y - 1} a la fecha`, v: (c) => peso(c.pasado_mp), s: (c) => c.pasado_mp, num: true }, { t: Y, v: (c) => peso(c.actual), s: (c) => c.actual, num: true },
+          { t: 'Diferencia', v: (c) => { const d = c.actual - c.pasado_mp; return h('span', { class: (d < 0 ? 'down' : d > 0 ? 'up' : '') + (Math.abs(d) >= UMBRAL ? ' fuerte' : '') }, (d > 0 ? '+' : d < 0 ? '−' : '') + peso(Math.abs(d))); }, s: (c) => c.actual - c.pasado_mp, num: true },
           { t: 'Cambio', v: (c) => (c.cambio_pct == null ? (c.actual > 0 ? 'nuevo' : '—') : h('span', { class: c.cambio_pct >= 0 ? 'up' : 'down' }, pct(c.cambio_pct))), s: (c) => c.cambio_pct, num: true },
-          { t: 'Tendencia', v: (c) => { const mx = Math.max(c.antepasado, c.pasado, c.actual, 1); return h('span', { class: 'bar3', 'aria-hidden': 'true' }, [c.antepasado, c.pasado, c.actual].map((x) => h('i', { style: `height:${Math.round(x / mx * 100)}%` }))); } },
+          { t: 'Pedidos 12 m', v: (c) => c.pedidos_12m, s: (c) => c.pedidos_12m, num: true }, { t: 'Pide cada', v: (c) => (c.cada_dias ? c.cada_dias + ' días' : '—'), s: (c) => c.cada_dias, num: true },
+          { t: 'Ritmo', v: (c) => (c.ritmo ? pill(c.ritmo, RK[c.ritmo]) : '—'), s: (c) => c.ritmo, cls: 'nw' },
           { t: 'Última factura', v: (c) => dia(c.ultima_factura) + (c.ultima_factura && c.ultima_factura.slice(0, 4) != Y ? ' ' + c.ultima_factura.slice(0, 4) : ''), s: (c) => c.ultima_factura, cls: 'nw' }]))];
-    }));
+    }), secCopeo);
   },
 
   zonas() {

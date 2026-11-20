@@ -116,3 +116,12 @@ a { color: var(--accent); } .tbl a { text-decoration-thickness: 1px; text-underl
 .toolbar .weeknav { margin: 0; flex: 1; min-width: 240px; }
 .brand .crm { font-weight: 400; letter-spacing: .08em; font-size: .7em; color: var(--muted); }
 @media (max-width: 480px) { .brand .crm { display: none; } }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 20px; }
+.kpi .num { font-size: 1.9rem; } .kpi .kl { font-weight: 600; font-size: .9rem; }
+.minibars { display: flex; align-items: flex-end; gap: 6px; height: 62px; } .minibars span { display: grid; justify-items: center; gap: 2px; font-size: .7rem; color: var(--muted); }
+.minibars i { display: block; width: 16px; background: var(--accent); border-radius: 2px 2px 0 0; } .minibars b { font-size: .75rem; color: var(--text); }
+.tbl td.wide { max-width: 60ch; }
+.rows.mov li { border-left: 4px solid var(--bad); padding-left: 10px; border-bottom: 0; margin-bottom: 4px; } .rows.mov li.ok { border-left-color: var(--ok); }
+.rows.mov .l1 span:last-child { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.fuerte { font-weight: 700; } .movs { margin-bottom: 4px; }
+@media (min-width: 960px) { .cols2.movs { grid-template-columns: 1fr 1fr; } }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { build, paraVer, lunes, matcher, vendedorDe, esContacto, clientesPorAno } from '../src/calc.js';
+import { build, paraVer, lunes, matcher, vendedorDe, esContacto, clientesPorAno, metricasPedidos, copeoEnNotas } from '../src/calc.js';
 import { rowsFromValues } from '../src/sheets.js';
 import zonasCfg from '../src/data/zonas.json' with { type: 'json' };
 import prospectos from '../src/data/prospectos.json' with { type: 'json' };
@@ -106,4 +106,27 @@ test('suggestions: which accounts need one, and reading the reply', async () => 
   assert.equal(pendientes(m.seguimiento, act, [{ persona: 'Carlos', clave: 'uno', firma: q[0].firma }], hoy).length, 1);
   assert.deepEqual(leer('Claro:\n```json\n[{"i":0,"paso":"Llama hoy"},{"i":"x"}]\n```'), [{ i: 0, paso: 'Llama hoy' }]);
   assert.deepEqual(leer('sin json'), []);
+});
+
+test('ordering metrics: new clients, repeat rate, rhythm and who is overdue', () => {
+  const o = (fecha, cliente, total = 1000) => ({ fecha, cliente, vendedor: 'Carlos', total });
+  const ord = [o('2025-01-10', 'Viejo'), o('2025-03-10', 'Viejo'), o('2025-05-10', 'Viejo'), o('2025-07-10', 'Viejo'),   // every ~60 days, last one 16 months ago
+    o('2026-03-01', 'Ritmo'), o('2026-04-01', 'Ritmo'), o('2026-05-01', 'Ritmo'), o('2026-06-01', 'Ritmo'),               // monthly, then silent since June
+    o('2026-06-15', 'Volvio'), o('2026-08-15', 'Volvio'), o('2026-07-01', 'Una vez'),                                    // two clients new this year: one came back
+    o('2026-11-17', 'Recien', 5000), o('2026-11-03', 'Del mes')];
+  const m = metricasPedidos(ord, hoy), c = Object.fromEntries(m.clientes.map((x) => [x.cliente, x])), r = m.resumen[0];
+  assert.equal(c.Viejo.estado, 'Inactivo');
+  assert.deepEqual([c.Ritmo.cada_dias, c.Ritmo.estado], [31, 'Ya le tocaba']);
+  assert.equal(c.Recien.estado, 'Nuevo');
+  assert.deepEqual(r.nuevos_semana, ['Recien']);
+  assert.deepEqual(r.nuevos_mes.sort(), ['Del mes', 'Recien']);
+  assert.deepEqual([r.recompra_base, r.recompra_n, r.recompra_pct], [3, 2, 67]);     // Ritmo, Volvio, Una vez had 60+ days to reorder
+  assert.deepEqual(r.ya_les_tocaba.map((x) => x.cliente), ['Ritmo']);
+  assert.equal(r.nuevos_por_mes.at(-1).n, 2);
+});
+
+test('copeo is picked up from the notes, one line per account', () => {
+  const rows = [a('Daniel', '2026-11-10', 'Rosetta', { resultado: 'Ya tienen el rosado en copeo' }), a('Daniel', '2026-10-01', 'Rosetta', { resultado: 'proponer vino por copa' }), a('Daniel', '2026-11-01', 'Otro', { resultado: 'sin interés' })];
+  const c = copeoEnNotas(rows);
+  assert.equal(c.length, 1); assert.deepEqual([c[0].cuenta, c[0].fecha, c[0].menciones], ['Rosetta', '2026-11-10', 2]);
 });

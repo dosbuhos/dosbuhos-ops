@@ -63,6 +63,54 @@ export function clientesPorAno(invoices, hoy) {
     .sort((a, b) => (b.pasado + b.actual) - (a.pasado + a.actual));
 }
 
+// Ordering behaviour per salesperson, from sales orders: new clients, repeat rate, how often each client orders and who is
+// overdue against their own rhythm. `ordenes` rows: { fecha, cliente, vendedor, total }.
+export function metricasPedidos(ordenes, hoy) {
+  const med = (a) => { const b = a.slice().sort((x, y) => x - y), n = b.length; return n ? (n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2) : null; };
+  const desde = ordenes.reduce((m, o) => (o.fecha < m ? o.fecha : m), hoy);        // first order on record, any client
+  const por = new Map();
+  for (const o of ordenes.slice().sort((a, b) => (a.fecha < b.fecha ? -1 : 1))) {
+    const c = por.get(o.cliente) || { cliente: o.cliente, vendedor: o.vendedor, fechas: [], total_12m: 0 };
+    c.vendedor = o.vendedor;                                                          // the latest order decides whose client it is
+    if (c.fechas[c.fechas.length - 1] !== o.fecha) c.fechas.push(o.fecha);           // two orders the same day count as one purchase
+    if (diff(o.fecha, hoy) <= 365) c.total_12m += o.total;
+    por.set(o.cliente, c);
+  }
+  const clientes = [...por.values()].map((c) => {
+    const gaps = c.fechas.slice(1).map((f, i) => diff(c.fechas[i], f)), cada = gaps.length ? Math.round(med(gaps)) : null;
+    const primera = c.fechas[0], ultima = c.fechas[c.fechas.length - 1], dias = diff(ultima, hoy);
+    // "New" needs the first order to be well after the start of the records; otherwise the client may simply be older than them.
+    const nuevo = diff(desde, primera) > 90 && diff(primera, hoy) <= 90;
+    const estado = dias > 180 ? 'Inactivo' : nuevo && c.fechas.length === 1 ? 'Nuevo' : cada && c.fechas.length >= 3 && dias > Math.max(45, cada * 1.5) ? 'Ya le tocaba' : 'Al corriente';
+    return { cliente: c.cliente, vendedor: c.vendedor, pedidos: c.fechas.length, pedidos_12m: c.fechas.filter((f) => diff(f, hoy) <= 365).length, primera, ultima, dias_sin_pedir: dias, cada_dias: cada,
+      total_12m: r0(c.total_12m), estado, es_nuevo: diff(desde, primera) > 90 };
+  });
+  const lun = lunes(hoy), mes = hoy.slice(0, 7);
+  const resumen = [...new Set(clientes.map((c) => c.vendedor))].map((v) => {
+    const L = clientes.filter((c) => c.vendedor === v), o90 = ordenes.filter((o) => o.vendedor === v && diff(o.fecha, hoy) <= 90);
+    const nuevos = L.filter((c) => c.es_nuevo), base = nuevos.filter((c) => diff(c.primera, hoy) >= 60 && diff(c.primera, hoy) <= 365), volvieron = base.filter((c) => c.pedidos >= 2);
+    const meses = []; for (let i = 5; i >= 0; i--) { const d = new Date(Date.UTC(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)) - 1 - i, 1)).toISOString().slice(0, 7); meses.push({ mes: d, n: nuevos.filter((c) => c.primera.slice(0, 7) === d).length }); }
+    return { vendedor: v, activos_90: L.filter((c) => c.dias_sin_pedir <= 90).length, clientes: L.length,
+      nuevos_semana: nuevos.filter((c) => c.primera >= lun).map((c) => c.cliente), nuevos_mes: nuevos.filter((c) => c.primera.slice(0, 7) === mes).map((c) => c.cliente), nuevos_por_mes: meses,
+      recompra_base: base.length, recompra_n: volvieron.length, recompra_pct: base.length ? Math.round(volvieron.length / base.length * 100) : null,
+      ticket: o90.length ? r0(o90.reduce((t, o) => t + o.total, 0) / o90.length) : null, pedidos_90: o90.length,
+      ya_les_tocaba: L.filter((c) => c.estado === 'Ya le tocaba').sort((a, b) => b.total_12m - a.total_12m) };
+  });
+  return { clientes, resumen, desde };
+}
+
+// Accounts whose notes mention pouring by the glass (copeo). The CRM has no field for it yet, so this only reads the notes.
+export function copeoEnNotas(contactos) {
+  const out = new Map();
+  for (const r of contactos) {            // newest first
+    if (!/cope|por copa|by the glass/i.test(`${r.resultado || ''} ${r.siguiente_paso || ''}`)) continue;
+    const k = r.persona + '|' + norm(r.cuenta);
+    const e = out.get(k) || { persona: r.persona, cuenta: r.cuenta, fecha: r.fecha, nota: r.resultado || r.siguiente_paso, menciones: 0 };
+    e.menciones++; out.set(k, e);
+  }
+  return [...out.values()];
+}
+
 export function build({ activity, orders, invoices, alias, zonasCfg, prospectos, hoy }) {
   const match = matcher(alias);
   const actual = lunes(hoy);
@@ -71,7 +119,8 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   const ordenes = orders.filter((o) => o.estado !== 'void' && o.total >= 1 && vendedorDe(o.vendedor) && esFecha(o.fecha))
     .map((o) => ({ fecha: o.fecha, semana: lunes(o.fecha), orden: o.numero, cliente: o.cliente, vendedor: vendedorDe(o.vendedor), total: o.total, facturacion: o.facturacion, pago: o.pago }))
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-  const clientes = clientesPorAno(invoices, hoy);
+  const pedidos = metricasPedidos(ordenes, hoy), pedidoDe = new Map(pedidos.clientes.map((c) => [c.cliente, c]));
+  const clientes = clientesPorAno(invoices, hoy).map((c) => { const p = pedidoDe.get(c.cliente); return { ...c, pedidos_12m: p ? p.pedidos_12m : 0, cada_dias: p ? p.cada_dias : null, dias_sin_pedir: p ? p.dias_sin_pedir : null, ritmo: p ? p.estado : '' }; });
 
   // ---- Weeks ----
   const inicio = {};
@@ -259,7 +308,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
       { nombre: 'Cuentas con contacto en 30 días', valor: `${cob} de ${cuentas.length}`, pts: pts[3], de: 15 }], nuevos: [], perdidos: [], prospeccion: [] });
   }
 
-  return { hoy, semana_actual: actual, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad };
+  return { hoy, semana_actual: actual, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad, pedidos: pedidos.resumen, copeo: copeoEnNotas(contactos) };
 }
 
 // What one signed-in person may see. Reps get their own rows; the map and prospects are for everyone; Efectividad is admin only.
