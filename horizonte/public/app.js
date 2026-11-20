@@ -388,6 +388,9 @@ function meterHTML(k) {
 function saveUI() { store.set('ui', S.ui); }
 
 let lastLayout = null;
+// Theme: '' follows the system, 'light'/'dark' force one (stored per device, applied before first paint by index.html too).
+function applyTheme() { const t = S.ui.theme || ''; if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  const dark = t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches); for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = dark ? '#111318' : '#FFFFFF'; }
 function render() {
   const desk = isDesk();
   if (!S.ui.anchor) S.ui.anchor = addDays(todayK(), -1);
@@ -814,6 +817,7 @@ ${S.me ? `<div>${esc(S.me)} · <span class="muted">${esc(s.text)}${S.lastSync ? 
   : S.setup ? `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sign in to sync between phone and computer and load your boards.</div><div id="gsi" style="min-height:44px;display:flex;justify-content:center"></div><div id="gsimsg" class="muted" style="font-size:13px"></div>`
   : `<div class="muted" style="font-size:14px">Your tasks are saved on this device. Sync turns on once Google sign-in is set up for Horizonte.</div>`}</div>
 ${S.me ? `<div class="grp"><div class="eyebrow">Google Calendar</div><div id="gcalbox" class="muted" style="font-size:14px">Checking…</div></div>` : ''}
+<div class="grp"><div class="eyebrow">Appearance</div><div class="seg">${[['', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button data-act="theme" data-t="${k}" aria-pressed="${(S.ui.theme || '') === k}">${l}</button>`).join('')}</div></div>
 <div class="grp"><div class="eyebrow">Workday</div><div class="row"><label class="field" style="flex:1">Starts<input type="time" data-pref="dayStart" value="${S.prefs.dayStart}"></label><label class="field" style="flex:1">Ends<input type="time" data-pref="dayEnd" value="${S.prefs.dayEnd}"></label></div></div>
 <div class="grp"><div class="eyebrow">Daily targets</div><div class="row"><div class="stepper"><button aria-label="Fewer" data-act="cap" data-d="-1">${I.minus}</button><div>${S.prefs.cap}</div><button aria-label="More" data-act="cap" data-d="1">${I.plus(18, 2.5)}</button></div><span class="muted" style="font-size:14px">targets per day</span></div></div>
 ${tagsList().length ? `<div class="grp"><div class="eyebrow">Tags</div><div class="taglist">${tagsList().map(x => { const n = live().filter(t => (t.tags || []).includes(x.id)).length, ed = S.ui.tagEdit === x.id;
@@ -925,6 +929,7 @@ document.addEventListener('click', async (e) => {
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
     case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
+    case 'theme': S.ui.theme = el.dataset.t; saveUI(); applyTheme(); settingsSheet(); return;
     case 'tagedit': S.ui.tagEdit = S.ui.tagEdit === el.dataset.t ? null : el.dataset.t; settingsSheet(); return;
     case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }
     case 'tagdel': { const id = el.dataset.t; batch(g => { put('pref', 'main', { tags: tagsList().filter(t => t.id !== id) }, { group: g }); for (const t of live()) if ((t.tags || []).includes(id)) put('task', t.id, { tags: t.tags.filter(x => x !== id) }, { group: g }); }); if (S.ui.tagFilter === id) S.ui.tagFilter = null; render(); settingsSheet(); toast('Tag removed', true); return; }
@@ -1250,7 +1255,7 @@ async function start() {
   try { await loadAll(); } catch (err) { console.error('local storage unavailable', err); }
   ensureDefaults();
   try { const zone = Intl.DateTimeFormat().resolvedOptions().timeZone; if (zone && S.prefs.tz !== zone) put('pref', 'main', { tz: zone }, { quiet: true }); } catch {}
-  render(); whoami();
+  applyTheme(); render(); whoami();
   matchMedia('(min-width: 900px)').addEventListener('change', () => { closeSheet(); render(); });
   addEventListener('online', () => { render(); syncNow(); }); addEventListener('offline', render);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!sheetState && !drag && !S.ui.draft) reflowTick(); if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
