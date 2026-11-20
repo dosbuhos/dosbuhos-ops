@@ -43,7 +43,8 @@ main { max-width: 760px; margin: 0 auto; padding: 12px; }
 .weeknav .lbl { flex: 1; text-align: center; font-family: var(--f-display); font-size: 1.2rem; }
 .heat { display: grid; gap: 4px; overflow-x: auto; align-items: center; font-size: .8rem; }
 .heat button { border: 2px solid transparent; border-radius: 6px; min-height: 36px; min-width: 34px; color: #fff; font-weight: 600; cursor: pointer; padding: 0; }
-.heat button.zero { background: transparent; color: var(--bad); border: 2px dashed var(--bad); }
+/* A week with nothing logged is the worst case: solid, darker than a weak week. */
+.heat button.zero { background: color-mix(in srgb, var(--bad) 72%, #000); color: #fff; }
 .heat button.cur { outline: 2px solid var(--text); outline-offset: 1px; }
 .heat .h { color: var(--muted); text-align: center; } .heat .rn { white-space: nowrap; padding-right: 4px; }
 .alert { border-left: 4px solid var(--bad); background: var(--card); padding: 10px 12px; border-radius: var(--radius); margin-bottom: 12px; }

@@ -130,7 +130,7 @@ const VISTAS = {
             h('span', {}, 'Prospección'), h('b', {}, r.prospeccion),
             p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
       })),
-      h('h2', {}, 'Semáforo'), h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15. Toca una semana para abrirla.')),
+      h('h2', {}, 'Semáforo'), h('div', { class: 'card' }, heat, h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Verde 30+, ámbar 15–29, rojo menos de 15, rojo oscuro: semana sin un solo registro. Toca una semana para abrirla.')),
       h('h2', {}, `Resumen de ${MESL[Number(m.slice(5)) - 1]}`),
       h('div', { class: 'alert' + (ceros.length ? '' : ' ok') }, ceros.length ? [h('b', {}, 'Semanas en cero: '), ceros.map((r) => `${r.persona}, semana del ${dia(r.semana)}`).join(' · ')] : 'Nadie tuvo una semana en cero este mes.'),
       h('div', { class: 'grid3' }, diag.map((r) => {
