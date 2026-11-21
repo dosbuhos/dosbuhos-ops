@@ -165,6 +165,48 @@ function comunicaciones() {
     h('div', { class: 'card' }, h('ul', { class: 'foco' }, ['¿Número nuevo para el WhatsApp de ventas o se migra uno existente? Migrar un número a la API lo saca de la app normal de WhatsApp.', '¿respond.io o Bonnie para la bandeja? Bonnie ya contesta reservaciones; respond.io está pensado para equipos de ventas.', 'Correo @dosbuhos.com para José Luis y Daniel.', '¿Quién puede mandar avisos masivos a clientes?'].map((t) => h('li', { class: 'meta' }, h('span', { style: 'color:var(--text)' }, t))))));
 }
 
+// ---------------------------------------------------------------- Estrategia, metas y promociones
+const MESN = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const promoEstado = (p, hoy) => (p.fin && p.fin < hoy ? ['Terminó', 'mute'] : p.inicio && p.inicio > hoy ? ['Próxima', 'warn'] : ['Vigente', 'ok']);
+function estrategia() {
+  const d = D(), admin = d.yo.admin, hoy = d.hoy, Y = hoy.slice(0, 4), mesHoy = Number(hoy.slice(5, 7));
+  const E = d.estrategia || [], P = d.promociones || [], metas = E.filter((e) => e.tipo === 'meta'), docs = E.filter((e) => e.tipo !== 'meta');
+  const real = (v, m) => suma(d.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m), (o) => o.total);
+  const vis = (t, x) => (admin ? h('button', { class: 'linkb note', onclick: () => enviar(`api/admin/${t}`, { visible_id: x.id, visible: !x.visible }) }, x.visible ? 'Visible para el equipo' : 'Solo administradores') : null);
+  const quitar = (t, x) => (admin ? h('button', { class: 'linkb note', onclick: () => { if (confirm('¿Quitar?')) enviar(`api/admin/${t}`, { borrar: x.id }); } }, 'Quitar') : null);
+  const nuevoDoc = (tipo) => formulario(tipo === 'meta' ? 'Nueva meta' : 'Nuevo documento de estrategia', [{ k: 'titulo', t: tipo === 'meta' ? 'Meta' : 'Título', req: true, ph: tipo === 'meta' ? 'Por ejemplo: 40 cuentas con copeo al cierre de 2027' : 'Plan comercial 2027' },
+    { k: 'url', t: 'Liga al documento (opcional)', tipo: 'url', ph: 'https://' }, { k: 'nota', t: tipo === 'meta' ? 'Cómo se mide y para cuándo' : 'De qué trata', tipo: 'textarea' },
+    { k: 'anio', t: 'Año', tipo: 'number', v: Y, mitad: true }, { k: 'visible', t: 'Quién lo ve', tipo: 'select', ops: [['no', 'Solo administradores'], ['si', 'Todo el equipo']], v: 'no', mitad: true }], (v) => enviar('api/admin/estrategia', { ...v, tipo }));
+  const nuevaPromo = () => formulario('Nueva promoción', [{ k: 'nombre', t: 'Promoción', req: true, ph: 'Por ejemplo: 6 + 1 en Mosaico Blanco' }, { k: 'detalle', t: 'En qué consiste', tipo: 'textarea' }, { k: 'aplica', t: 'A quién aplica', ph: 'Restaurantes de San Miguel, distribuidores, todos' },
+    { k: 'inicio', t: 'Empieza', tipo: 'date', mitad: true }, { k: 'fin', t: 'Termina', tipo: 'date', mitad: true }, { k: 'autorizo', t: 'Quién la autorizó', v: d.yo.nombre || '', mitad: true }, { k: 'autorizada', t: 'Fecha de autorización', tipo: 'date', v: hoy, mitad: true },
+    { k: 'visible', t: 'Quién la ve', tipo: 'select', ops: [['si', 'Todo el equipo'], ['no', 'Solo administradores']], v: 'si' }], (v) => enviar('api/admin/promociones', v));
+  const vend = ['José Luis', 'Carlos'].filter((v) => (d.presupuesto.meses[v] || []).length);
+  const filas = MESN.map((n, i) => ({ mes: n, i, ...Object.fromEntries(vend.flatMap((v) => [[v + '_p', d.presupuesto.meses[v][i]], [v + '_r', i + 1 <= mesHoy ? real(v, i + 1) : null]])) }));
+  const pct = (r, p) => (r == null || !p ? '—' : h('span', { class: r >= p ? 'up' : r >= p * 0.6 ? '' : 'down' }, Math.round(r / p * 100) + '%'));
+  const otros = Object.entries(d.presupuesto.meses).filter(([k]) => !vend.includes(k));
+  return h('div', {},
+    !admin && !E.length && !P.length ? h('p', { class: 'note', style: 'margin-bottom:12px' }, 'Dirección todavía no comparte documentos ni promociones aquí. Abajo está el presupuesto del año.') : null,
+    h('h2', {}, 'Promociones'), admin ? h('div', { class: 'toolbar' }, h('button', { class: 'btn sm', onclick: nuevaPromo }, 'Agregar promoción')) : null,
+    h('div', { class: 'card' }, lista('promos', P, 8, (p) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, p.nombre), pill(...promoEstado(p, hoy))), h('div', { class: 'l2' }, [p.inicio || p.fin ? `${p.inicio ? dia(p.inicio) : '?'} a ${p.fin ? dia(p.fin) : 'sin fecha de fin'}` : 'Sin fechas', p.aplica].filter(Boolean).join(' · ')),
+      p.detalle ? h('div', {}, p.detalle) : null, h('div', { class: 'l2' }, p.autorizo || p.autorizada ? `Autorizó ${p.autorizo || '?'}` + (p.autorizada ? ` el ${dia(p.autorizada)} ${p.autorizada.slice(0, 4)}` : '') : 'Sin registro de quién la autorizó', ' ', vis('promociones', p), ' ', quitar('promociones', p))),
+      admin ? 'Todavía no hay promociones registradas. Agrega las vigentes y las pasadas, con quién las autorizó y cuándo.' : 'No hay promociones vigentes.',
+      [{ t: 'Promoción', v: (p) => p.nombre, s: (p) => p.nombre.toLowerCase(), cls: 'b' }, { t: 'Estado', v: (p) => pill(...promoEstado(p, hoy)), s: (p) => promoEstado(p, hoy)[0], cls: 'nw' }, { t: 'Empieza', v: (p) => (p.inicio ? dia(p.inicio) + ' ' + p.inicio.slice(0, 4) : '—'), s: (p) => p.inicio, cls: 'nw' },
+        { t: 'Termina', v: (p) => (p.fin ? dia(p.fin) + ' ' + p.fin.slice(0, 4) : '—'), s: (p) => p.fin, cls: 'nw' }, { t: 'Aplica a', v: (p) => p.aplica || '—' }, { t: 'En qué consiste', v: (p) => p.detalle || '—', cls: 'mut wide' },
+        { t: 'Autorizó', v: (p) => (p.autorizo || '?') + (p.autorizada ? ` · ${dia(p.autorizada)} ${p.autorizada.slice(0, 4)}` : ''), s: (p) => p.autorizada, cls: 'nw' }, admin && { t: '', v: (p) => [vis('promociones', p), ' · ', quitar('promociones', p)], cls: 'nw' }])),
+    h('h2', {}, `Metas ${Y}`), admin ? h('div', { class: 'toolbar' }, h('button', { class: 'btn sm', onclick: () => nuevoDoc('meta') }, 'Agregar meta')) : null,
+    metas.length ? h('div', { class: 'cols2' }, metas.map((e) => h('section', { class: 'card' }, h('div', { class: 'name' }, e.titulo, e.anio ? pill(String(e.anio), 'mute') : null), e.nota ? h('p', { style: 'margin-top:6px' }, e.nota) : null,
+      e.url ? h('p', { style: 'margin-top:6px' }, h('a', { href: e.url, target: '_blank', rel: 'noopener' }, 'Abrir documento')) : null, h('p', { class: 'note', style: 'margin-top:8px' }, vis('estrategia', e), ' ', quitar('estrategia', e))))) : h('p', { class: 'note' }, admin ? 'Sin metas escritas todavía, fuera del presupuesto de abajo.' : 'Dirección no ha compartido metas aquí, fuera del presupuesto de abajo.'),
+    h('h2', {}, `Presupuesto de ventas ${d.presupuesto.anio}`), h('p', { class: 'note' }, 'Del plan de Carlos. "Real" son los pedidos en Zoho con IVA, sin cuentas de la casa ni muestras.'),
+    h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Mes'), vend.flatMap((v) => [h('th', { class: 'r' }, v + ' · presupuesto'), h('th', { class: 'r' }, 'Real'), h('th', { class: 'r' }, '%')]))),
+      h('tbody', {}, filas.map((f) => h('tr', {}, h('td', { class: 'b' }, f.mes), vend.flatMap((v) => [h('td', { class: 'r' }, peso(f[v + '_p'])), h('td', { class: 'r' }, f[v + '_r'] == null ? '—' : peso(f[v + '_r'])), h('td', { class: 'r' }, pct(f[v + '_r'], f[v + '_p']))]))),
+        h('tr', {}, h('td', { class: 'b' }, `Acumulado a ${MESN[mesHoy - 1].toLowerCase()}`), vend.flatMap((v) => { const p = suma(filas.slice(0, mesHoy), (f) => f[v + '_p']), r = suma(filas.slice(0, mesHoy), (f) => f[v + '_r']); return [h('td', { class: 'r b' }, peso(p)), h('td', { class: 'r b' }, peso(r)), h('td', { class: 'r b' }, pct(r, p))]; })),
+        h('tr', {}, h('td', { class: 'b' }, 'Año completo'), vend.flatMap((v) => [h('td', { class: 'r b' }, peso(suma(filas, (f) => f[v + '_p']))), h('td', {}), h('td', {})])))))),
+    otros.length ? h('p', { class: 'note' }, 'Otros renglones del presupuesto anual: ' + otros.map(([k, v]) => `${k} ${peso(suma(v, (x) => x))}`).join(' · ') + '.') : null,
+    h('h2', {}, 'Documentos de estrategia'), admin ? h('div', { class: 'toolbar' }, h('button', { class: 'btn sm', onclick: () => nuevoDoc('documento') }, 'Agregar documento')) : null,
+    docs.length ? h('div', { class: 'card' }, h('div', { class: 'links' }, docs.map((e) => h('div', {}, e.url ? h('a', { href: e.url, target: '_blank', rel: 'noopener' }, e.titulo, e.nota ? h('span', {}, e.nota) : null) : h('div', {}, h('b', {}, e.titulo), e.nota ? h('div', { class: 'note' }, e.nota) : null),
+      h('span', { class: 'note' }, vis('estrategia', e), ' ', quitar('estrategia', e)))))) : h('p', { class: 'note' }, admin ? 'Sin documentos todavía. Por ahora se agregan como liga (Drive o PDF); nacen visibles solo para administradores.' : 'Dirección no ha compartido documentos aquí.'));
+}
+
 // Carlos's own distributor prospecting list (from his file), shown under the map.
 export function prospeccionCarlos() {
   const P = D().prosp_carlos || [], f = S.pcF || 'En proceso', L = P.filter((p) => p.grupo === f), K = { 'En proceso': 'warn', 'Por contactar': 'mute', Rechazada: 'bad' };
@@ -176,4 +218,4 @@ export function prospeccionCarlos() {
         { t: 'Estado', v: (p) => p.status || '—', cls: 'mut' }, { t: 'Avance', v: (p) => p.avance || '—', cls: 'mut' }, { t: 'Siguiente', v: (p) => p.comentarios || '—', cls: 'mut' }, { t: 'Último contacto', v: (p) => (p.ultimo ? dia(p.ultimo) : '?'), s: (p) => p.ultimo || null, cls: 'nw' }]))];
 }
 
-export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, comunicaciones };
+export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, comunicaciones, estrategia };

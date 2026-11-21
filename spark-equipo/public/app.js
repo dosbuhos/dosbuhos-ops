@@ -37,12 +37,12 @@ const GRUPOS = [
   ['Mi trabajo', [['hoy', 'Hoy', 'Hoy'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['pendientes', 'Preguntas pendientes', 'Preguntas pendientes']]],
   ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
   ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
-  ['Recursos', [['materiales', 'Materiales de venta', 'Materiales de venta'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
+  ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
   ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
 ];
 const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
 const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // phone bottom bar; the rest are under "Más"
-const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'comunicaciones', 'directorio'];   // screens the person filter does not apply to
+const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'comunicaciones', 'directorio', 'estrategia'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
   if (persona !== undefined) S.persona = persona;
@@ -155,7 +155,9 @@ export const datos = () => D;
 
 const VISTAS = {
   hoy() {
-    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => {
+    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'),
+      (D.promociones || []).filter((p) => p.visible && (!p.inicio || p.inicio <= D.hoy) && (!p.fin || p.fin >= D.hoy)).slice(0, 3).map((p) => h('div', { class: 'alert ok' }, h('b', {}, 'Promoción vigente: '), h('button', { class: 'linkb', onclick: () => ir('estrategia') }, p.nombre), p.fin ? ` · hasta el ${dia(p.fin)}` : '')),
+      h('div', { class: 'grid3' }, personas().map((p) => {
       const w = semDe(D.semana_actual, p), items = D.foco.filter((f) => f.persona === p).sort((a, b) => a.orden - b.orden);
       const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, p) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
       const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');

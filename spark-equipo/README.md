@@ -12,7 +12,7 @@ Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y 
 - Activity rows carry `origen`: `hoja` rows are replaced on every sheet sync; `app` rows (logged in Spark, next phase) are kept.
 
 ## Screens
-Mi trabajo: Hoy, Semanas y meses, Seguimiento, Preguntas pendientes. Ventas: Ventas del mes (with the 2026 budget), Cobranza, Clientes. Cuentas: Directorio, Copeo y embudo, Encuestas, Zonas y prospectos. Recursos: Materiales de venta, Comunicaciones (coming). Dirección (admins): Efectividad, Ajustes. `public/app.js` holds the shell and the first group; `public/mas.js` the account-side screens.
+Mi trabajo: Hoy, Semanas y meses, Seguimiento, Preguntas pendientes. Ventas: Ventas del mes (with the 2026 budget), Cobranza, Clientes. Cuentas: Directorio, Copeo y embudo, Encuestas, Zonas y prospectos. Recursos: Estrategia y promociones (strategy documents, goals, the year's budget against actual, and promotions with who authorized them and when; each row is admin-only or visible to the team), Materiales de venta, Comunicaciones (coming). Dirección (admins): Efectividad, Ajustes. `public/app.js` holds the shell and the first group; `public/mas.js` the account-side screens.
 
 ## What people can write
 - A contact (`POST /api/actividad`): stored in `activity` with `origen = 'app'`, never touched by the sheet sync.

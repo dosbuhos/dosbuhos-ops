@@ -85,6 +85,9 @@ export default {
       for (const d of m.directorio) { const e = edit.get(d.clave); if (e) for (const k of CAMPOS) if (e[k]) d[k] = e[k]; }
       for (const u of usa.cuentas) { const clave = norm(u.nombre), e = edit.get(clave) || {}; m.directorio.push({ clave, nombre: u.nombre, pais: 'Estados Unidos', zona: 'usa', zona_nombre: 'Estados Unidos · ' + u.estado, vendedor: 'Eric (La Competencia)', tipo: e.tipo || u.tipo,
         contacto: e.contacto || '', puesto: e.puesto || '', email: e.email || '', telefono: e.telefono || '', ciudad: e.ciudad || u.ciudad, estado: e.estado || u.estado, notas: e.notas || `${u.cajas} cajas en 2026 · ${u.vinos.join(', ')} · rep. ${u.rep}`, direccion: u.direccion, cajas: u.cajas, ultimo_mes: u.ultimo_mes }); }
+      // Strategy and promotions: admins see everything, the team only what was marked visible.
+      const ve = yo.admin ? '' : ' WHERE visible = 1';
+      m.estrategia = await todo('SELECT * FROM estrategia' + ve + ' ORDER BY tipo DESC, id DESC'); m.promociones = await todo('SELECT * FROM promociones' + ve + ' ORDER BY inicio DESC, id DESC');
       m.cuentas = cuentas; m.encuestas = encuestas; m.encuesta_base = env.SURVEY_ORIGIN || 'https://spark-equipo.dos-buhos.workers.dev';
       m.materiales = materiales; m.usa_envios = usa.envios; m.prosp_carlos = prospCarlos; m.presupuesto = presupuesto;
       // Receivables: Carlos's file (a dated snapshot, since the Zoho token can't read invoices) plus the follow-up notes made here.
@@ -162,6 +165,19 @@ export default {
       const txt = String(b.texto || '').trim().slice(0, 1000);
       if (!GENTE.includes(b.para) || !txt) return json({ error: 'Elige para quién es y escribe la pregunta' }, 400);
       await env.DB.prepare('INSERT INTO preguntas (para, texto, creada, creada_por) VALUES (?,?,?,?)').bind(b.para, txt, hoyEn(env.TZ), yo.nombre || yo.email).run();
+      return json({ ok: true });
+    }
+    if ((p === '/api/admin/estrategia' || p === '/api/admin/promociones') && request.method === 'POST') {
+      const b = await cuerpo(), T = p.endsWith('estrategia') ? 'estrategia' : 'promociones', fecha = (v) => (/^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '');
+      if (b.borrar) { await env.DB.prepare(`DELETE FROM ${T} WHERE id = ?`).bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
+      if (b.visible_id) { await env.DB.prepare(`UPDATE ${T} SET visible = ? WHERE id = ?`).bind(b.visible ? 1 : 0, Number(b.visible_id) || 0).run(); return json({ ok: true }); }
+      if (T === 'estrategia') {
+        if (!txt(b.titulo) || (b.url && !/^https:\/\//.test(b.url))) return json({ error: 'Pon un título; la liga, si hay, debe empezar con https://' }, 400);
+        await env.DB.prepare('INSERT INTO estrategia (tipo, titulo, url, nota, anio, visible, creado, por) VALUES (?,?,?,?,?,?,?,?)').bind(b.tipo === 'meta' ? 'meta' : 'documento', txt(b.titulo, 200), txt(b.url, 600), txt(b.nota, 2000), Number(b.anio) || Number(HOY.slice(0, 4)), b.visible === 'si' ? 1 : 0, HOY, yo.nombre || yo.email).run();
+      } else {
+        if (!txt(b.nombre)) return json({ error: 'Falta el nombre de la promoción' }, 400);
+        await env.DB.prepare('INSERT INTO promociones (nombre, detalle, aplica, inicio, fin, autorizo, autorizada, visible, creado, por) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(txt(b.nombre, 200), txt(b.detalle, 2000), txt(b.aplica, 200), fecha(b.inicio), fecha(b.fin), txt(b.autorizo, 80), fecha(b.autorizada), b.visible === 'no' ? 0 : 1, HOY, yo.nombre || yo.email).run();
+      }
       return json({ ok: true });
     }
     if (p === '/api/admin/materiales' && request.method === 'POST') {
