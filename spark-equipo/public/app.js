@@ -260,7 +260,7 @@ function marcador(p, compacto) {
       fila('Mes', vMes, M ? M[mH - 1] : 0, peso, true), fila('Año', vAnio, aFecha, peso, true))] : null,
     // Growth, said plainly: against last year without the inherited accounts, and what was opened and lost this year.
     ((e) => (e && e.total ? [h('h3', {}, 'Crecimiento'), h('button', { class: 'mbtn crec', onclick: () => ir('clientes', p) },
-      h('div', { class: 'cr' }, h('b', { class: e.crecimiento_pct >= 0 ? 'up' : 'down' }, (e.crecimiento_pct > 0 ? '+' : '') + e.crecimiento_pct + '%'), h('span', {}, 'contra 2025 sin las cuentas heredadas')),
+      h('div', { class: 'cr' }, h('b', { class: e.crecimiento_pct >= 0 ? 'up' : 'down' }, (e.crecimiento_pct > 0 ? '+' : '') + e.crecimiento_pct + '%'), h('span', {}, `las mismas cuentas contra ${Number(D.hoy.slice(0, 4)) - 1}, sin las heredadas`)),
       h('div', { class: 'cr' }, h('b', {}, e.nuevos.length), h('span', {}, `cuentas nuevas este año · ${peso(neto(sumar(e.nuevos, (c) => c.monto)))}`)),
       h('div', { class: 'cr' }, h('b', { class: e.perdidos.length ? 'down' : '' }, e.perdidos.length), h('span', {}, 'cuentas que dejaron de comprar')))] : null))((D.crecimiento || []).find((x) => x.persona === p)),
     h('h3', {}, 'Contactos'), h('button', { class: 'mbtn', onclick: () => ir('semanas', p) },
@@ -290,7 +290,9 @@ const VISTAS = {
       q ? [h('h2', {}, 'Preguntas de Eric'), q] : null,
       promos.length ? [h('h2', {}, 'Promociones'), h('div', { class: 'card' }, h('ul', { class: 'foco' }, promos.map(item)))] : null,
       porP.length ? [h('h2', {}, 'Notas'), h('div', { class: 'grid3' }, porP.map(([p, N]) => { const A = N.filter((n) => !n.bien), B = N.filter((n) => n.bien);
-        return h('section', { class: 'card' }, ps.length > 1 ? h('div', { class: 'name' }, p) : null, A.length ? [h('h3', {}, 'Por atender'), h('ul', { class: 'foco' }, A.map(item))] : null, B.length ? [h('h3', {}, 'Va bien'), h('ul', { class: 'foco' }, B.map(item))] : null); }))] : null,
+        const ct = !ancho() && ps.length > 1, resto = ct ? Math.max(0, A.length - 3) + B.length : 0;
+        return h('section', { class: 'card' }, ps.length > 1 ? h('div', { class: 'name' }, p) : null, A.length ? [h('h3', {}, 'Por atender'), h('ul', { class: 'foco' }, (ct ? A.slice(0, 3) : A).map(item))] : null, B.length && !ct ? [h('h3', {}, 'Va bien'), h('ul', { class: 'foco' }, B.map(item))] : null,
+          resto ? h('p', {}, h('button', { class: 'more', onclick: () => ir('buzon', p) }, `Ver ${resto} más de ${p}`)) : null); }))] : null,
       !q && !promos.length && !porP.length ? h('p', { class: 'note' }, 'Buzón vacío.') : null,
       nHechas || ver ? h('p', { style: 'margin-top:14px' }, h('button', { class: 'linkb note', onclick: () => { S.buzonHechas = !ver; pintar(); } }, ver ? 'Ocultar las hechas' : `Ver las hechas (${nHechas})`)) : null);
   },
@@ -487,6 +489,7 @@ const VISTAS = {
         [{ t: 'Cuenta', v: (c) => c.cuenta, s: (c) => c.cuenta.toLowerCase(), cls: 'b' }, { t: 'Quién', v: (c) => c.persona, s: (c) => c.persona, cls: 'nw' }, { t: 'Última mención', v: (c) => dia(c.fecha), s: (c) => c.fecha, cls: 'nw' },
           { t: 'Veces', v: (c) => c.menciones, s: (c) => c.menciones, num: true }, { t: 'Nota', v: (c) => (c.nota || '').slice(0, 220), cls: 'mut wide' }]))];
     if (!vs.length) return h('div', {}, secCopeo);
+    const corto = !ancho() && vs.length > 1;
     return h('div', {}, vs.map((v) => {
       const L = D.clientes.filter((c) => c.vendedor === v), t = (k) => L.reduce((s, c) => s + c[k], 0), ch = t('pasado_mp') ? Math.round((t('actual') - t('pasado_mp')) / t('pasado_mp') * 1000) / 10 : null;
       const P = D.pedidos.find((x) => x.vendedor === v);
@@ -498,9 +501,9 @@ const VISTAS = {
         h('div', { class: 'l2' }, `${peso(c.pasado_mp)} → ${peso(c.actual)}` + (c.cambio_pct == null ? ' · cliente nuevo' : ` · ${pct(c.cambio_pct)}`) + (c.dias_sin_pedir != null ? ` · último pedido hace ${c.dias_sin_pedir} días` : '')));
       const movimientos = h('div', { class: 'cols2 movs' },
         h('section', { class: 'card' }, h('div', { class: 'name' }, 'Pérdidas críticas', pill(perdidas.length ? '−' + peso(Math.abs(perdidas.reduce((t, c) => t + dif(c), 0))) : 'Ninguna', perdidas.length ? 'bad' : 'ok')),
-          perdidas.length ? h('ul', { class: 'rows mov' }, perdidas.slice(0, 8).map((c) => mov(c, 'bad'))) : h('p', { class: 'note' }, `Ningún cliente ha bajado ${peso(UMBRAL)} o más contra el año pasado.`)),
+          perdidas.length ? h('ul', { class: 'rows mov' }, perdidas.slice(0, corto ? 4 : 8).map((c) => mov(c, 'bad'))) : h('p', { class: 'note' }, `Ningún cliente ha bajado ${peso(UMBRAL)} o más contra el año pasado.`)),
         h('section', { class: 'card' }, h('div', { class: 'name' }, 'Ganancias fuertes', pill(ganancias.length ? '+' + peso(ganancias.reduce((t, c) => t + dif(c), 0)) : 'Ninguna', ganancias.length ? 'ok' : 'mute')),
-          ganancias.length ? h('ul', { class: 'rows mov' }, ganancias.slice(0, 8).map((c) => mov(c, 'ok'))) : h('p', { class: 'note' }, `Ningún cliente ha subido ${peso(UMBRAL)} o más contra el año pasado.`)));
+          ganancias.length ? h('ul', { class: 'rows mov' }, ganancias.slice(0, corto ? 4 : 8).map((c) => mov(c, 'ok'))) : h('p', { class: 'note' }, `Ningún cliente ha subido ${peso(UMBRAL)} o más contra el año pasado.`)));
       const kpi = (n, label, sub) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, label), sub ? h('div', { class: 'note' }, sub) : null);
       const metricas = P ? [h('div', { class: 'card kpis' },
           kpi(P.activos_90, 'Clientes activos', 'pidieron en los últimos 90 días'),
@@ -516,8 +519,8 @@ const VISTAS = {
         h('h3', {}, 'Año contra año')] : [];
       return [h('h2', {}, v),
         h('p', { class: 'note' }, `${peso(t('actual'))} este año contra ${peso(t('pasado_mp'))} a la misma fecha del año pasado (`, h('span', { class: ch >= 0 ? 'up' : 'down' }, pct(ch)), ').'),
-        movimientos, metricas,
-        h('div', { class: 'card' }, lista('yoy' + v, L, 15, (c) => {
+        movimientos, corto ? h('p', {}, h('button', { class: 'more', onclick: () => ir('clientes', v) }, `Ver todo de ${v}`)) : null, corto ? null : metricas,
+        corto ? null : h('div', { class: 'card' }, lista('yoy' + v, L, 15, (c) => {
           const mx = Math.max(c.antepasado, c.pasado, c.actual, 1);
           return h('li', {}, h('div', { class: 'l1' }, h('span', {}, c.cliente),
             h('span', { class: 'bar3', role: 'img', 'aria-label': `Hace dos años ${peso(c.antepasado)}, año pasado ${peso(c.pasado)}, este año ${peso(c.actual)}` }, [c.antepasado, c.pasado, c.actual].map((x) => h('i', { style: `height:${Math.round(x / mx * 100)}%` })))),

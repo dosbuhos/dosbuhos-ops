@@ -41,8 +41,10 @@ async function modelo(env, conActividad) {
   // Sales credited to someone other than the salesperson on the Zoho order: a single order, or every order of an account.
   const asig = await all('SELECT * FROM asignaciones'), porOrden = new Map(asig.filter((a) => a.tipo === 'orden').map((a) => [a.clave, a.vendedor])), porCuenta = new Map(asig.filter((a) => a.tipo === 'cuenta').map((a) => [norm(a.clave), a.vendedor]));
   for (const o of orders) { const v = porOrden.get(o.numero) || porCuenta.get(norm(o.cliente)); if (v) { o.vendedor_zoho = o.vendedor; o.vendedor = v; } }
-  // No invoice copy (the Zoho token can't read invoices): an invoiced sales order stands in for its invoice, dated as the order.
-  const inv = invoices.length ? invoices : orders.filter((o) => ['invoiced', 'partially_invoiced'].includes(o.facturacion))
+  // No invoice copy (the Zoho token can't read invoices): a sales order stands in for its invoice, dated as the order.
+  // Every order that is not void or draft counts, invoiced or not: counting only invoiced ones made the current year look
+  // worse than last year, whose orders are all invoiced by now.
+  const inv = invoices.length ? invoices : orders.filter((o) => !['void', 'draft'].includes(o.estado))
     .map((o) => ({ id: o.id, fecha: o.fecha, cliente_id: o.cliente_id, cliente: o.cliente, vendedor: o.vendedor, total: o.total, estado: o.estado }));
   // Distributor scouting: the copy of the sheet's "Distribuidores" tab; until the first sync, the list imported from Carlos's file.
   const zonaDe = (n) => { const k = norm(n); const z = zonasCfg.zonas.find((x) => k && (norm(x.nombre).startsWith(k) || k.startsWith(norm(x.nombre).split(' (')[0]))); return z ? z.zona : ''; };
