@@ -56,3 +56,17 @@ A reviewer with no context checked screenshots and code. Fixed:
 - **Safety:** turning off "Can sign in" asks first.
 - **Launcher on small lists:** chips appear only with 4+ sections; favourites and recents only with 5+ apps; a one-line hint teaches the star.
 - **Kit:** `/kit/demo.html` shows every component with the markup to copy.
+
+## Home as a launcher (Nov 2026)
+
+The home page is an app launcher in the pattern business suites share (Odoo's home grid, Okta's end-user dashboard,
+Google Workspace's launcher): one icon and one label per app, dense, grouped by area. Decisions:
+
+- Icon tiles carry the business-card look (black, warm-gold line art); their colours are fixed, the rest follows the theme.
+  Each app's drawing lives in `ICON` in `public/index.html`, keyed by slug; an app without one shows its initials.
+- "Mis apps" on top holds the person's picks, or what they opened last until they pick. "Organizar" turns taps into
+  pin/unpin (no star on every tile).
+- Phone: four icons per row, areas stacked. Desktop: each area is a cluster as wide as its apps and clusters flow side by
+  side, in an 800px column, so everything fits one screen.
+- Descriptions are in the tooltip and in search results, not on the tile. Typing anywhere searches; Enter opens the first hit.
+- Apps not built yet are one collapsed line at the bottom.
