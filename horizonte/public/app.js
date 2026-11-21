@@ -425,7 +425,7 @@ function cardHTML(t, opts = {}) {
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}${taskTags(t).length > 2 ? `<span class="more">+${taskTags(t).length - 2}</span>` : ''}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done && opts.roll !== false ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -699,7 +699,7 @@ function mLate() {
     else lbl = periodLabel(k, true);
     // Each row is a plain card: tap to open and reschedule, hold to drag it onto a day or an hour, swipe left to delete.
     body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${esc(sub)}</span></div>`;
-    body += g.map(t => mcard(t, { late: true, roll: false })).join('');
+    body += g.map(t => mcard(t, { late: true })).join('');
   }
   if (!list.length) body = `<div class="empty">Nothing late. Tasks whose day has passed show up here, grouped by the day they were planned for.</div>`;
   return `<header class="mh">${mtop(`<span class="date">Late${list.length ? ' · ' + list.length : ''}</span>`)}</header><main class="mm" data-list="late">${body}</main>`;
@@ -708,7 +708,6 @@ function signinBanner() {
   return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
 }
 const MBAR = [['inbox', 'Inbox'], ['late', 'Late'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years'], ['horizons', 'Horizons']];
-const MBAR_MAIN = 4; // the first four are on the bottom bar; the rest live under More
 // Late = open tasks whose day or period has passed. Meetings that passed are not late, they just happened.
 const lateTasks = () => overdueTasks().filter(t => t.kind !== 'meeting');
 const MG = 56; // px per hour on the phone grid
@@ -718,8 +717,8 @@ function renderMobile() {
   let main = tab === 'inbox' ? mInbox() : tab === 'late' ? mLate() : tab === 'board' ? mBoards() : tab === 'hours' ? mHours() : mPlan();
   const sb = (runPill(true) || '') + (signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : ''));
   if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
-  const more = MBAR.slice(MBAR_MAIN).find(x => x[0] === tab);
-  const bar = MBAR.slice(0, MBAR_MAIN).map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : k === 'late' && nl ? `<span class="n late">${nl > 99 ? '99+' : nl}</span>` : ''}</button>`).join('') + `<button data-act="moreviews" ${more ? 'aria-current="page"' : ''}>${more ? more[1] : 'More'}</button>`;
+  // One ribbon with every view; it scrolls sideways and the current tab is kept in view after each render.
+  const bar = MBAR.map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : k === 'late' && nl ? `<span class="n late">${nl > 99 ? '99+' : nl}</span>` : ''}</button>`).join('');
   return `<div class="m">${main}<button class="fab" aria-label="Add a task" data-act="capture">${I.plus(28, 2.4)}</button>
 <nav class="mbar" aria-label="Views">${bar}</nav></div>`;
 }
@@ -739,7 +738,7 @@ function mHours() {
   let body = '';
   // Everything that is not on the grid folds into one line each, so the hours get the screen.
   if (past) { const open = !S.ui.open.mlate; // past days open unfolded: you came here to pull things forward
-    if (late.length) body += `<div class="foldrow late"><button class="lbl" data-act="toggle" data-key="mlate" aria-expanded="${open}">${late.length} not done ${open ? I.down : I.chev}</button><button class="act" data-act="rollall" data-k="${k}">Move all to today</button></div>`;
+    if (late.length) body += `<div class="foldrow late"><button class="lbl" data-act="toggle" data-key="mlate" aria-expanded="${open}">${late.length} not done ${open ? I.down : I.chev}</button></div>`; // move one by dragging it, or open it and Remove date
     if (open) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
     if (done.length) body += mDoneToggle('d' + k, done);
   } else {
@@ -812,7 +811,6 @@ const boardRows = () => boardsSorted().map((x, i) => `<button class="rowlink" da
 function menuSheet() {
   openSheet(`<div class="grab"></div><div class="sheettitle" style="display:flex;justify-content:space-between;align-items:center">Boards<button class="link" style="font-size:14px" data-act="newboard">New board</button></div>
 <div class="rows">${boardRows()}</div>
-<div class="rows" style="margin-top:14px">${MBAR.slice(MBAR_MAIN).map(([k, l]) => `<button class="rowlink" data-act="gotab" data-v="${k}"><span>${l}</span><span class="n"></span>${I.chev}</button>`).join('')}</div>
 <div class="rows" style="margin-top:14px"><button class="rowlink" data-act="summary" data-k="${todayK()}"><span>In review</span><span class="n"></span>${I.chev}</button><button class="rowlink" data-act="settings"><span>Settings</span><span class="n" data-sync></span>${I.chev}</button></div>`, { menu: true });
 }
 function mInbox() {
@@ -1157,7 +1155,6 @@ document.addEventListener('click', async (e) => {
     case 'mday': S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); return;
     case 'menu': menuSheet(); return;
     case 'odhide': S.ui.odHide = todayK(); render(); return;
-    case 'moreviews': openSheet(`<div class="grab"></div><div class="sheettitle">More views</div><div class="rows">${MBAR.slice(MBAR_MAIN).map(([k, l]) => `<button class="rowlink" data-act="gotab" data-v="${k}" aria-current="${S.ui.mtab === k ? 'page' : 'false'}"><span>${l}</span><span class="n"></span>${I.chev}</button>`).join('')}</div>`, { menu: true }); return;
     case 'gotab': closeSheet(); S.ui.mtab = el.dataset.v; S.ui.board = null; render(); return;
     case 'rollgrp': { const open = lateTasks().filter(x => x.when === el.dataset.k); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'rollod': { const open = lateTasks(); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
