@@ -40,3 +40,13 @@ Timestripe-style: a scrolling bar at the bottom (Inbox · Hours · Days · Weeks
 with a week strip (tap a day, swipe the strip for the next week, swipe the screen for the next day), an inline "Add…" row, and a floating +.
 Boards, In review, Overdue and Settings live under the grid icon top-left. Tapping an empty slot in the grid opens Capture at that time.
 Past days list what did not get done, each with a "Today ›" button, and a "Move all to today" bar; dropping an Inbox task on a day stays in Hours on that day.
+
+## Phone density spec
+One set of numbers for every phone screen (CSS under `.m`), so nothing is sized per screen:
+- Grid 4px. Screen gutters 14px. List gap 6px. Section gap 12px.
+- Type: screen title 17/700 (secondary 17/500 muted); row text 15/500; meta 12; micro 11; bottom bar 16/500, active 700. Line height 1.25.
+- Rows: 44px min; card padding 7/10/7/12, radius 10; checkbox box 20px inside a 44px hit area.
+- Controls: icon buttons 40×40 (44 hit area), text buttons 36px, segmented 36px; sheet buttons/fields 44px.
+- Hours: week strip letters 11 / numbers 15 in a 32px circle; quick-add row 44px; grid 60px per hour, 44px gutter with 11px labels.
+- Floating + 52px; bottom bar 44px rows + safe area.
+Audit = screenshot every screen at 360/390/430, light and dark, and check: nothing overflows, no text spills its card, every tap target ≥36px visual / 44px hit, and the numbers above are the only ones in use.
