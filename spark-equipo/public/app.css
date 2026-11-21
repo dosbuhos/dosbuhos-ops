@@ -210,10 +210,6 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
 .sug.nueva { display: block; }
 
 /* Way back to the Hub */
-.hub { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 2px 10px 10px; }
-.hub:hover { color: var(--accent); }
-.hub.mob { padding: 0 8px 0 0; white-space: nowrap; }
-@media (min-width: 960px) { .hub.mob { display: none; } }
 .alert.fuerte { background: color-mix(in srgb, var(--bad) 9%, var(--card)); border-color: color-mix(in srgb, var(--bad) 45%, var(--rule)); border-left-width: 5px; } .alert.fuerte > b { color: var(--bad); }
 
 /* ---- Materiales de venta, Dónde nos venden, Premios ---- */
@@ -261,3 +257,32 @@ details.card > summary { cursor: pointer; font-weight: 650; min-height: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { .doc { transition: none; } }
 @media (max-width: 719px) { .dest { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -12px; padding: 0 12px 4px; } .de { min-width: 236px; scroll-snap-align: start; } }
+
+/* ---- Phone pass (audit 21 nov) ---- */
+dialog label input, dialog label select, dialog label textarea, form.inline input, form.inline select { font-size: 1rem; font-weight: 400; color: var(--text); }   /* 16px: iOS does not zoom the page on focus */
+dialog form { max-height: calc(100dvh - 20px); overflow-y: auto; overscroll-behavior: contain; }
+dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding: 10px 0 18px; margin-bottom: -18px; border-top: 1px solid var(--rule); }
+.linkb + .linkb { margin-left: 16px; }
+@media (max-width: 719px) {
+  .top .ttl { min-width: 0; } .top .ttl p { display: none; }
+  h1 { font-size: 1.12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .linkb { display: inline-flex; align-items: center; min-height: 36px; }
+  .foco button { min-height: 32px; }
+  dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 16px 16px 0 0; max-height: 94dvh; }
+  dialog form { max-height: 94dvh; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .tblwrap { background: linear-gradient(to right, var(--card) 30%, transparent) left / 24px 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 24px 100% no-repeat local,
+    linear-gradient(to right, rgba(0, 0, 0, .12), transparent) left / 10px 100% no-repeat scroll, linear-gradient(to left, rgba(0, 0, 0, .12), transparent) right / 10px 100% no-repeat scroll; }
+  .tbl th { white-space: normal; font-size: .72rem; } .tbl .r { padding-right: 12px; padding-left: 6px; }
+  .tbl th:first-child, .tbl td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
+  .map .usa text { display: none; }
+  .pt small { font-size: .68rem; } .doc .thumb i { font-size: .7rem; }
+}
+@media (max-width: 719px) {
+  .tapli { cursor: pointer; position: relative; padding-right: 18px; } .tapli .acc { display: none; }
+  .tapli::after { content: "›"; position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.2rem; }
+  .kpi small, .card small { font-size: .7rem; }
+}
+@media (max-width: 719px) {
+  .tbl { font-size: .82rem; } .tbl th.r { white-space: normal; } .tbl .r { padding-right: 8px; padding-left: 4px; } .tbl td:last-child.r, .tbl th:last-child.r { padding-right: 2px; }
+  .tapli { padding-right: 0; } .tapli > div { margin-right: 20px; }
+}

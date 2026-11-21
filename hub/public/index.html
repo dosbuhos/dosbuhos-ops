@@ -124,7 +124,7 @@ const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 
 // One row per app: its name, one line on what it is for, and an arrow. The star pins it under "Mis apps".
 function row(a, first) {
   const fav = store.favs.includes(a.slug), rol = !me.admin && a.role ? ' · ' + ROLE[a.role] : '';
-  return `<a class="row${first ? ' first' : ''}" href="${esc(a.href)}" data-slug="${esc(a.slug)}"><span class="nm">${esc(a.name)}</span><span class="ds">${esc(a.description)}${esc(rol)}</span>
+  return `<a class="row${first ? ' first' : ''}" href="${esc(a.href)}" target="_blank" rel="noopener" data-slug="${esc(a.slug)}"><span class="nm">${esc(a.name)}</span><span class="ds">${esc(a.description)}${esc(rol)}</span>
     <span class="go"><button class="pin" type="button" data-fav="${esc(a.slug)}" aria-pressed="${fav}" aria-label="${fav ? 'Quitar de mis apps' : 'Poner en mis apps'}" title="${fav ? 'Quitar de mis apps' : 'Poner en mis apps'}">${STAR.replace('FILL', fav ? 'currentColor' : 'none')}</button>${ARROW}</span></a>`;
 }
 

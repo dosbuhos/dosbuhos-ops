@@ -316,13 +316,13 @@ const VISTAS = {
       vendedores().length ? [h('h2', {}, 'Clientes principales'),
         h('p', { class: 'note' }, 'Los 15 más grandes de cada vendedor, primero los que llevan más tiempo sin contacto.'),
         h('div', { class: 'card' }, lista('cob', cob, 10, (c) => h('li', puede(c.vendedor) ? toca(() => registrar(deCob(c))) : {},
-          h('div', { class: 'l1' }, h('span', {}, c.cliente), pill(c.dias == null ? 'Sin registro' : `${c.dias} días`, dot[c.estado])),
+          h('div', { class: 'l1' }, h('span', {}, c.cliente), pill(c.dias == null ? 'Sin registro' : (c.dias === 1 ? '1 día' : `${c.dias} días`), dot[c.estado])),
           c.pausa ? h('div', { class: 'l2' }, pausado(c)) : null,
           h('div', { class: 'l2' }, [ps.length > 1 ? c.vendedor : null, `${peso(c.actual)} este año`, c.cambio_pct != null ? `${pct(c.cambio_pct)} vs. año pasado` : 'nuevo'].filter(Boolean).join(' · ')),
           c.ultima_nota ? h('div', { class: 'l2' }, (c.contacto_por && c.contacto_por !== c.vendedor ? `(${c.contacto_por}) ` : '') + c.ultima_nota.slice(0, 140)) : null), 'Sin clientes.',
           [{ t: 'Cliente', v: (c) => [c.cliente, c.pausa ? h('div', {}, pausado(c)) : null], s: (c) => c.cliente.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Vendedor', v: (c) => c.vendedor, s: (c) => c.vendedor, cls: 'nw' },
             { t: 'Este año', v: (c) => peso(c.actual), s: (c) => c.actual, num: true }, { t: 'vs. año pasado', v: (c) => (c.cambio_pct == null ? 'nuevo' : h('span', { class: c.cambio_pct >= 0 ? 'up' : 'down' }, pct(c.cambio_pct))), s: (c) => c.cambio_pct, num: true },
-            { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : `${c.dias} días`, dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), cls: 'mut' }], (c) => { if (puede(c.vendedor)) registrar(deCob(c)); }))] : null);
+            { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : (c.dias === 1 ? '1 día' : `${c.dias} días`), dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), cls: 'mut' }], (c) => { if (puede(c.vendedor)) registrar(deCob(c)); }))] : null);
   },
 
   ventas() {
@@ -356,10 +356,10 @@ const VISTAS = {
           h('div', { class: 'kv' }, h('span', {}, 'Meta del año'), h('b', {}, `${peso(a.meta)} · ${a.pcA}%`)), barra(a.pcA, `${a.pcA}% de la meta del año`),
           h('p', { class: 'note', style: 'margin:4px 0 0' }, `Faltan ${peso(Math.max(0, a.meta - a.real))} en lo que queda del año.`)))),
         h('h3', { style: 'margin-top:14px' }, 'Mes por mes'),
-        h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Mes'), anual.flatMap((a) => [h('th', { class: 'r' }, a.v + ' · meta'), h('th', { class: 'r' }, 'Vendido'), h('th', { class: 'r' }, '%')]))),
-          h('tbody', {}, MESL.map((n, i) => h('tr', { style: i + 1 === mH ? 'font-weight:600' : null }, h('td', {}, n.charAt(0).toUpperCase() + n.slice(1) + (i + 1 === mH ? ' (en curso)' : '')),
+        (ancho() ? [anual] : anual.map((a) => [a])).map((anual) => h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Mes'), anual.flatMap((a) => [h('th', { class: 'r' }, a.v + ' · meta'), h('th', { class: 'r' }, 'Vendido'), h('th', { class: 'r' }, '%')]))),
+          h('tbody', {}, MESL.map((n, i) => h('tr', { style: i + 1 === mH ? 'font-weight:600' : null }, h('td', {}, n.charAt(0).toUpperCase() + n.slice(1) + (i + 1 === mH && ancho() ? ' (en curso)' : '')),
             anual.flatMap((a) => { const r = a.R[i], pc = r == null ? null : Math.round(r / a.M[i] * 100); return [h('td', { class: 'r' }, peso(a.M[i])), h('td', { class: 'r' }, r == null ? '—' : peso(r)), h('td', { class: 'r' }, pc == null ? '—' : h('span', { class: pc >= 100 ? 'up' : pc >= 60 ? '' : 'down' }, pc + '%'))]; }))),
-            h('tr', { style: 'font-weight:700' }, h('td', {}, 'Año'), anual.flatMap((a) => [h('td', { class: 'r' }, peso(a.meta)), h('td', { class: 'r' }, peso(a.real)), h('td', { class: 'r' }, a.pcA + '%')])))))),
+            h('tr', { style: 'font-weight:700' }, h('td', {}, 'Año'), anual.flatMap((a) => [h('td', { class: 'r' }, peso(a.meta)), h('td', { class: 'r' }, peso(a.real)), h('td', { class: 'r' }, a.pcA + '%')]))))))),
         h('p', { class: 'note' }, 'Metas del archivo "Ajuste de metas", antes de IEPS e IVA; de agosto a diciembre son las ajustadas. "Vendido" son los pedidos en Zoho sin impuestos (el total entre 1.4674: IEPS 26.5% más IVA 16%), sin muestras ni cuentas de la casa; la exportación y lo reasignado a Tito no cuentan para ningún vendedor.')] : null,
       h('h2', {}, 'Órdenes del mes'),
       h('div', { class: 'card' }, lista('mes', ords, 12, (o) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, o.cliente), h('span', {}, peso(o.total))),
@@ -457,7 +457,7 @@ const VISTAS = {
           svg('title', {}, `${z.nombre}: ${peso(z.ventas)} este año, ${z.clientes_activos} clientes activos` + (z.brecha ? `, brecha ${peso(z.brecha)}` : ''))); }));
       el.append(burbujas);
       // Eric's importer, just north of the border. Not a sales zone: a marker only.
-      if (usa && !S.zona) el.append(svg('g', { 'aria-label': `${usa.cliente}, ${usa.lugar}: ${peso(usa.actual)} este año` }, svg('circle', { cx: ux, cy: uy, r: 7, fill: 'var(--accent)', stroke: 'var(--card)', 'stroke-width': 2 }),
+      if (usa && !S.zona) el.append(svg('g', { class: 'usa', 'aria-label': `${usa.cliente}, ${usa.lugar}: ${peso(usa.actual)} este año` }, svg('circle', { cx: ux, cy: uy, r: 7, fill: 'var(--accent)', stroke: 'var(--card)', 'stroke-width': 2 }),
         svg('text', { x: ux + 12, y: uy - 2, 'font-size': 11, 'font-weight': 600, fill: 'var(--text)' }, usa.cliente), svg('text', { x: ux + 12, y: uy + 11, 'font-size': 10, fill: 'var(--muted)' }, `EE. UU. · ${peso(usa.actual)} este año · cuenta de la casa (Tito)`)));
       // Zoom where the pointer is (wheel), with the + and − buttons, and drag to move. A drag does not count as a tap on a zone.
       const base = [b[0] - pad, b[1] - pad, b[2] - b[0] + 2 * pad, b[3] - b[1] + 2 * pad]; let vb = base.slice(), arr = null, movio = false;
@@ -473,7 +473,7 @@ const VISTAS = {
       el.addEventListener('click', (ev) => { if (movio) { movio = false; return; } const bz = ev.target.closest('[data-zona]'); if (bz) { S.zona = S.zona === bz.dataset.zona ? '' : bz.dataset.zona; pintar(); return; } const i = [...el.children].indexOf(ev.target); if (i >= 0 && E[i]) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
       const ctl = h('div', { class: 'mapctl' }, h('button', { type: 'button', 'aria-label': 'Acercar', onclick: () => zoom(0.7) }, '+'), h('button', { type: 'button', 'aria-label': 'Alejar', onclick: () => zoom(1.43) }, '−'),
         h('button', { type: 'button', 'aria-label': 'Ver todo', title: 'Ver todo', onclick: () => { vb = base.slice(); pon(); } }, '⤢'));
-      map.replaceChildren(h('div', { class: 'mapbox' }, el, ctl), h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Verde: zona fuerte. Ámbar: presencia débil. Rojo: sin presencia; más oscuro mientras más mercado estamos dejando. El círculo es lo vendido este año. Toca una zona para ver sus prospectos; acerca con la rueda del ratón o con + y −.'));
+      map.replaceChildren(h('div', { class: 'mapbox' }, el, ctl), h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Verde: zona fuerte. Ámbar: presencia débil. Rojo: sin presencia; más oscuro mientras más mercado estamos dejando. El círculo es lo vendido este año. Toca una zona para ver sus prospectos; ' + (ancho() ? 'acerca con la rueda del ratón o con + y −.' : 'acerca con + y − y arrastra para moverte.')));
     }).catch(() => map.replaceChildren(h('p', { class: 'note' }, 'No se pudo cargar el mapa.')));
     const ord = new Map(D.zonas.map((z, i) => [z.zona, i])), kO = { dist: 0, tienda: 1, horeca: 2, cliente: 3 };
     const base = D.prospectos.filter((p) => !S.zona || p.zona === S.zona), nA = (a) => base.filter((p) => p.avance === a).length;
@@ -595,7 +595,7 @@ function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
   const d = $('dlg'), err = h('span', { class: 'err', role: 'alert' });
   const campo = (c) => { if (c.el) return c.el; const a = { name: c.k, required: !!c.req, placeholder: c.ph || null, autofocus: c.foco ? '' : null };
     const el = c.tipo === 'textarea' ? h('textarea', a, c.v || '') : c.tipo === 'select' ? h('select', a, c.ops.map((o) => { const [v, t] = Array.isArray(o) ? o : [o, o]; return h('option', { value: v, selected: String(c.v ?? '') === String(v) }, t); }))
-      : h('input', { ...a, type: c.tipo || 'text', value: c.v ?? null, min: c.tipo === 'number' ? 0 : null, inputmode: c.tipo === 'number' ? 'numeric' : null, max: c.max || null });
+      : h('input', { ...a, type: c.tipo || 'text', value: c.v ?? null, min: c.tipo === 'number' ? 0 : null, inputmode: c.tipo === 'number' ? 'numeric' : c.k === 'telefono' ? 'tel' : null, max: c.max || null });
     if (c.lista) { el.setAttribute('list', 'dl-' + c.k); el.setAttribute('autocomplete', 'off'); return h('label', {}, c.t, el, h('datalist', { id: 'dl-' + c.k }, c.lista.map((x) => h('option', { value: x })))); }
     return h('label', {}, c.t, el); };
   const filas = []; for (let i = 0; i < campos.length; i++) { const c = campos[i]; if (c.mitad && campos[i + 1] && campos[i + 1].mitad) { filas.push(h('div', { class: 'dos' }, campo(c), campo(campos[++i]))); } else filas.push(campo(c)); }
