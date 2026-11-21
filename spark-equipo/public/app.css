@@ -212,3 +212,4 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
 .hub:hover { color: var(--accent); }
 .hub.mob { padding: 0 8px 0 0; white-space: nowrap; }
 @media (min-width: 960px) { .hub.mob { display: none; } }
+.alert.fuerte { background: color-mix(in srgb, var(--bad) 9%, var(--card)); border-color: color-mix(in srgb, var(--bad) 45%, var(--rule)); border-left-width: 5px; } .alert.fuerte > b { color: var(--bad); }

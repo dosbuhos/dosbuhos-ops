@@ -74,7 +74,7 @@ function directorio() {
   const mx = A.filter((d) => d.pais === 'México'), deuda = ['José Luis', 'Carlos', 'Daniel', 'Tito'].map((v) => ({ v, n: mx.filter((d) => d.vendedor === v && faltan(d).length).length, de: mx.filter((d) => d.vendedor === v).length })).filter((x) => x.n);
   const yo = D().yo.persona, mia = deuda.find((x) => x.v === yo), totalF = deuda.reduce((t, x) => t + x.n, 0);
   const ver = (v) => { S.dirV = v; S.dirF = 'falta'; pintar(); };
-  const aviso = totalF ? h('div', { class: 'alert', role: 'status' }, h('b', {}, mia ? `Te faltan datos en ${mia.n} de tus ${mia.de} cuentas. ` : `Faltan datos de contacto en ${totalF} cuentas. `),
+  const aviso = totalF ? h('div', { class: 'alert fuerte', role: 'status' }, h('b', {}, mia ? `Te faltan datos en ${mia.n} de tus ${mia.de} cuentas. ` : `Faltan datos de contacto en ${totalF} cuentas. `),
     'Cada cuenta necesita persona de contacto, teléfono y correo. ', deuda.map((x, i) => [i ? ' · ' : '', h('button', { class: 'linkb', onclick: () => ver(x.v) }, `${x.v}: ${x.n} de ${x.de}`)]),
     S.dirV ? [' · ', h('button', { class: 'linkb', onclick: () => { S.dirV = ''; S.dirF = ''; pintar(); } }, 'Ver todas')] : null)
     : h('div', { class: 'alert ok' }, 'Todas las cuentas tienen persona de contacto, teléfono y correo.');
