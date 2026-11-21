@@ -28,7 +28,7 @@ async function quien(request, env) {
   const email = who.email.toLowerCase();
   const p = await env.DB.prepare('SELECT persona, rol FROM people WHERE email = ?').bind(email).first();
   const admin = !!who.hubAdmin || (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).includes(email) || p?.rol === 'admin';
-  return { email, nombre: who.name || email, admin, persona: p?.persona || null };
+  return { email, nombre: who.name || email, admin, dueno: !!who.hubAdmin, persona: p?.persona || null };
 }
 
 async function modelo(env, conActividad) {
@@ -211,7 +211,7 @@ export default {
 
     // Sales mailboxes, read-only, for the owner only (Hub admin or ADMIN_EMAILS), not for every Spark admin.
     if (p === '/api/admin/correo' && request.method === 'GET') {
-      const dueno = (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).includes(yo.email);
+      const dueno = yo.dueno || (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).includes(yo.email);
       if (!dueno) return json({ error: 'Solo Dirección' }, 403);
       const u = new URL(request.url).searchParams;
       try {
