@@ -1,5 +1,6 @@
 // Spark CRM — the account-side screens: collections, client book, surveys, by-the-glass and pipeline, sales materials, and
 // what is coming for client communications. Helpers come from app.js; data from /api/data.
+import { PREMIOS, DONDE } from './marca.js';
 import { h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar, registrar, nuevaCuenta, toca } from './app.js';
 
 const D = () => datos();
@@ -144,18 +145,102 @@ function copeo() {
 }
 
 // ---------------------------------------------------------------- Materiales
+// Files we host on the QR card (hola.dosbuhos.com/docs): pages and size, for the caption under each preview in public/mat/.
+const DOCS = { 'Dos-Buhos-Brand-Deck-2025': [16, 3.4], 'Dos-Buhos-Brand-Deck-2025-JP': [16, 3.5], 'Dos-Buhos-Presentacion-Sommeliers-2026': [9, 1.9], 'Dos-Buhos-Fichas-Tecnicas-2025-ES': [22, 3.8], 'Dos-Buhos-Technical-Sheets-2025-EN': [22, 1.8],
+  'Dos-Buhos-Kit-de-Prensa-ES': [16, 8.5], 'Dos-Buhos-Press-Kit-EN': [16, 8.5], 'Dos-Buhos-Premios-ES': [1, 0.4], 'Dos-Buhos-Awards-EN': [1, 0.4], 'Dos-Buhos-Press-Photos': [27, 6.6, 'fotos'], 'Dos-Buhos-Logos': [13, 1.5, 'archivos'] };
+const VINOS = { aglianico: 'Aglianico Gran Reserva', anaranjado: 'Espontáneo Anaranjado', 'cab-franc': 'Cabernet Franc Gran Reserva', 'cab-sauvignon': 'Cabernet Sauvignon Gran Reserva', chenin: 'Chenin Blanc', 'espumoso-rose': '1524 Espumoso Rosé', grenache: 'Grenache Gran Reserva',
+  montepulciano: '1524 Montepulciano', 'mosaico-blanco': '1524 Mosaico Blanco', 'mosaico-tinto': '1524 Mosaico Tinto', petnat: 'Espontáneo Pet Nat', roble: 'Blend Roble', 'rose-1524': '1524 Rosé', sauvignon: 'Sauvignon Blanc', seleccion: 'Selección Especial',
+  'semillon-sb': 'Sauvignon Blanc – Semillón', 'tempranillo-1524': '1524 Tempranillo', 'tempranillo-gr': 'Tempranillo Gran Reserva', 'vin-dorange': "1524 Vin d'Orange Amères" };
+const HOLA = 'https://hola.dosbuhos.com';
+const sinAcento = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// Copy to the clipboard and say so on the button itself.
+const copiar = (texto, rotulo = 'Copiar liga') => { const b = h('button', { class: 'linkb', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(texto); b.textContent = 'Copiado ✓'; } catch { b.textContent = 'No se pudo copiar'; } setTimeout(() => { b.textContent = rotulo; }, 1800); } }, rotulo); return b; };
+const mandar = (titulo, url) => (navigator.share ? h('button', { class: 'linkb', type: 'button', onclick: () => navigator.share({ title: titulo, url }).catch(() => {}) }, 'Compartir') : null);
+// One document: a preview of its first page when we have one, a plain file tile when we do not.
+function docCard(m, admin) {
+  const base = (m.url.split('/').pop() || '').replace(/\.(pdf|zip)$/i, ''), info = m.url.startsWith(HOLA + '/docs/') ? DOCS[base] : null, ext = (/\.(pdf|zip)$/i.exec(m.url) || [])[1];
+  const tipo = ext ? ext.toUpperCase() : /drive\.google|docs\.google/.test(m.url) ? 'Drive' : 'Liga';
+  const meta = info ? `${tipo} · ${info[0]} ${info[2] || (info[0] === 1 ? 'página' : 'páginas')} · ${info[1]} MB` : tipo;
+  return h('article', { class: 'doc' },
+    h('a', { class: 'thumb' + (info ? '' : ' sin'), href: m.url, target: '_blank', rel: 'noopener', 'aria-label': 'Abrir ' + m.titulo }, info ? h('img', { src: `mat/${base}.webp`, alt: '', loading: 'lazy' }) : h('span', {}, tipo), info ? h('i', {}, tipo) : null),
+    h('div', { class: 'dc' }, h('a', { class: 'dt', href: m.url, target: '_blank', rel: 'noopener' }, m.titulo), m.nota ? h('p', { class: 'note' }, m.nota) : null, h('p', { class: 'dm' }, meta),
+      h('div', { class: 'da' }, h('a', { href: m.url, target: '_blank', rel: 'noopener' }, 'Abrir'), copiar(m.url), mandar(m.titulo, m.url), admin && m.id ? h('button', { class: 'linkb quita', type: 'button', onclick: () => { if (confirm('¿Quitar este material?')) enviar('api/admin/materiales', { borrar: m.id }); } }, 'Quitar') : null)));
+}
+
 function materiales() {
-  const M = D().materiales || [], cats = [...new Set(M.map((m) => m.categoria))], admin = D().yo.admin;
+  const M = D().materiales || [], admin = D().yo.admin, tab = S.mat || 'docs';
+  const sub = chips([['docs', 'Documentos'], ['botellas', 'Botellas'], ['donde', 'Dónde nos venden']], tab, (v) => { S.mat = v; });
+  if (tab === 'botellas') return h('div', { class: 'matp' }, sub, h('p', { class: 'note' }, 'Fotos de botella con fondo transparente. Toca una para abrirla y guardarla o mandarla.'),
+    h('div', { class: 'bots' }, BOTELLAS.map((b) => h('a', { href: `${HOLA}/bottles/${b}.webp`, target: '_blank', rel: 'noopener' }, h('img', { src: `${HOLA}/bottles/${b}.webp`, alt: '', loading: 'lazy' }), h('span', {}, VINOS[b] || b)))));
+  if (tab === 'donde') return h('div', { class: 'matp' }, sub, donde());
+  const orden = ['Listas de precios', 'Presentaciones', 'Notas de cata', 'Prensa y premios', 'Fotos y logos'], cats = [...new Set([...orden, ...M.map((m) => m.categoria)])].filter((c) => M.some((m) => m.categoria === c));
+  const TIT = { 'Notas de cata': 'Fichas técnicas y notas de cata' };
   const f = admin ? h('form', { class: 'inline', style: 'grid-template-columns:1fr', onsubmit: async (ev) => { ev.preventDefault(); const e = await enviar('api/admin/materiales', Object.fromEntries(new FormData(f))); if (e) alert(e); } },
     h('input', { name: 'titulo', placeholder: 'Título (por ejemplo: Lista de precios restaurantes 2027)', required: true, 'aria-label': 'Título' }), h('input', { name: 'url', type: 'url', placeholder: 'Liga https:// (Drive, PDF, carpeta de fotos)', required: true, 'aria-label': 'Liga' }),
-    h('select', { name: 'categoria', 'aria-label': 'Categoría' }, ['Listas de precios', 'Presentaciones', 'Notas de cata', 'Fotos y logos', 'Prensa y premios', 'Otros'].map((c) => h('option', {}, c))), h('input', { name: 'nota', placeholder: 'Nota corta (opcional)', 'aria-label': 'Nota' }), h('button', { class: 'btn' }, 'Agregar material')) : null;
+    h('select', { name: 'categoria', 'aria-label': 'Categoría' }, ['Listas de precios', 'Presentaciones', 'Notas de cata', 'Fotos y logos', 'Prensa y premios', 'Otros'].map((c) => h('option', {}, c))), h('input', { name: 'nota', placeholder: 'Nota corta (opcional)', 'aria-label': 'Nota' }), h('button', { class: 'btn' }, 'Agregar')) : null;
+  return h('div', { class: 'matp' }, sub,
+    !M.some((m) => m.categoria === 'Listas de precios') ? h('div', { class: 'alert warn' }, h('b', {}, 'Falta la lista de precios. '), admin ? 'Es lo primero que un vendedor necesita aquí. Agrégala abajo con su liga.' : 'Pídesela a Dirección mientras se sube aquí.') : null,
+    cats.map((c) => h('section', {}, h('h2', {}, TIT[c] || c), h('div', { class: 'docs' }, M.filter((m) => m.categoria === c).map((m) => docCard(m, admin))))),
+    h('p', { class: 'note', style: 'margin-top:18px' }, 'Los premios y puntajes, vino por vino, están en ', h('a', { href: '#premios' }, 'Recursos → Premios'), '.'),
+    admin ? h('details', { class: 'card', style: 'margin-top:18px' }, h('summary', {}, 'Agregar material'), h('p', { class: 'note', style: 'margin:8px 0' }, 'Por ahora son ligas (Drive o un PDF). Los que no tienen vista previa salen con un recuadro sencillo.'), f) : null);
+}
+
+// Where Dos Búhos is sold: the same list as the QR card and the press kit (public/marca.js).
+function donde() {
+  const pais = DONDE.find((d) => d.pais === S.pais) || DONDE[0], n = (g) => new Set(g.filas.flatMap((f) => f[1])).size;
+  const texto = (g) => `Dos Búhos · ${g.titulo} en ${pais.pais}\n` + g.filas.map(([r, L]) => (r ? r + ': ' : '') + L.join(', ')).join('\n');
+  const caja = h('div', {}, pais.grupos.map((g) => h('section', { class: 'card dg' }, h('div', { class: 'nm' }, h('span', {}, g.titulo, n(g) > 1 ? h('small', {}, ' ' + n(g)) : null), n(g) > 1 ? copiar(texto(g), 'Copiar lista') : null),
+    g.filas.map(([r, L]) => h('div', { class: 'dr' + (r ? '' : ' solo') }, r ? h('b', {}, r) : null, h('p', {}, L.map((x, i) => [i ? h('span', { class: 'sep' }, ' · ') : null, h('span', { class: 'lug', 'data-n': sinAcento(x) }, x)])))))));
+  const vacio = h('p', { class: 'note', hidden: true }, 'No aparece en esta lista. Revisa el otro país o el Directorio.');
+  const q = h('input', { type: 'search', placeholder: '¿Está en…? Busca un restaurante, tienda o distribuidor', 'aria-label': 'Buscar lugar', oninput: () => { const t = sinAcento(q.value.trim()); let hay = 0;
+    caja.querySelectorAll('.lug').forEach((e) => { const ok = t && e.dataset.n.includes(t); e.classList.toggle('hit', !!ok); if (ok) hay++; });
+    caja.querySelectorAll('.dr').forEach((e) => { e.hidden = !!t && !e.querySelector('.hit'); }); caja.querySelectorAll('.dg').forEach((e) => { e.hidden = !!t && !e.querySelector('.hit'); }); vacio.hidden = !t || hay > 0; } });
   return h('div', {},
-    !M.some((m) => m.categoria === 'Listas de precios') ? h('div', { class: 'alert warn' }, h('b', {}, 'Falta la lista de precios. '), 'Es lo primero que un vendedor necesita aquí. Un administrador puede agregarla abajo con su liga.') : null,
-    h('div', { class: 'cols2' }, cats.map((c) => h('section', { class: 'card' }, h('h3', { style: 'margin-top:0' }, c), h('div', { class: 'links' }, M.filter((m) => m.categoria === c).map((m) => h('div', {}, h('a', { href: m.url, target: '_blank', rel: 'noopener' }, m.titulo, m.nota ? h('span', {}, m.nota) : null),
-      admin ? h('button', { class: 'linkb note', onclick: () => { if (confirm('¿Quitar este material?')) enviar('api/admin/materiales', { borrar: m.id }); } }, 'Quitar') : null)))))),
-    h('h2', {}, 'Botellas'), h('p', { class: 'note' }, 'Toca una botella para abrir la imagen y guardarla o mandarla.'),
-    h('div', { class: 'card' }, h('div', { class: 'gal' }, BOTELLAS.map((b) => h('a', { href: `https://hola.dosbuhos.com/bottles/${b}.webp`, target: '_blank', rel: 'noopener' }, h('img', { src: `https://hola.dosbuhos.com/bottles/${b}.webp`, alt: 'Botella ' + b.replace(/-/g, ' '), loading: 'lazy' }), b.replace(/-/g, ' '))))),
-    admin ? [h('h2', {}, 'Agregar material'), h('div', { class: 'card' }, h('p', { class: 'note' }, 'Por ahora son ligas (Drive, PDF en la tarjeta QR). Subir archivos directo a Spark es el siguiente paso.'), f)] : null);
+    h('div', { class: 'toolbar' }, chips(DONDE.map((d) => [d.pais, d.pais]), pais.pais, (v) => { S.pais = v; }), q),
+    h('div', { class: 'card' }, h('div', { class: 'kpis' }, pais.grupos.filter((g) => n(g) > 1).map((g) => kpi(n(g), g.titulo)))),
+    vacio, caja,
+    h('p', { class: 'note' }, 'Es la misma lista de la tarjeta QR y del kit de prensa. México: CRM y Zoho, corte al 10 de noviembre de 2026. Estados Unidos: reporte de ventas 2026. Si falta o sobra un lugar, avísale a Eric.'));
+}
+
+// ---------------------------------------------------------------- Premios y puntajes
+const MED = { gg: ['Gran Oro', 4], g: ['Oro', 3], s: ['Plata', 2], b: ['Bronce', 1], m: ['Mérito', 0] };
+const pts = (m) => (/pts/.test(m) ? Number(m.split(' ')[0]) : 0);
+const corto = (c) => c.replace('Concours Mondial de Bruxelles', 'Bruselas').replace('Los Angeles International Wine Competition', 'Los Ángeles').replace('Los Angeles International · Label Design', 'Los Ángeles').replace(/Bacchus.*/, 'Bacchus').replace(/Guía Catadores.*/, 'Guía Catadores');
+// Awards name the vintage; group them under the wine a buyer knows, with its bottle when we have the photo.
+const FAMILIA = [['Moscato Giallo Pet Nat', 'Espontáneo Pet Nat', 'petnat'], ['Moscato Giallo', '1524 Moscato Giallo'], ['Anaranjado', 'Espontáneo Anaranjado', 'anaranjado'], ['Grenache', 'Grenache Gran Reserva', 'grenache'], ['Aglianico', 'Aglianico Gran Reserva', 'aglianico'],
+  ['Tempranillo', 'Tempranillo Gran Reserva', 'tempranillo-gr'], ['Cabernet Franc', 'Cabernet Franc Gran Reserva', 'cab-franc'], ['Cabernet Sauvignon', 'Cabernet Sauvignon Gran Reserva', 'cab-sauvignon'], ['Sauvignon Blanc', 'Sauvignon Blanc', 'sauvignon'], ['Chenin Blanc', 'Chenin Blanc', 'chenin'],
+  ['Espumoso Ros', '1524 Espumoso Rosé', 'espumoso-rose'], ['Espumoso Blanco', '1524 Espumoso Blanco'], ['Mosaico Tinto', '1524 Mosaico Tinto', 'mosaico-tinto'], ['Selección Especial', 'Selección Especial', 'seleccion'], ['Chardonnay', 'Chardonnay']];
+function premios() {
+  const todos = PREMIOS.flatMap((p) => p.vinos.map(([vino, m]) => ({ vino, m, p, cosecha: (/(?:19|20)\d{2}/.exec(vino) || [''])[0], fam: FAMILIA.find((f) => vino.includes(f[0])) || [vino, vino] })));
+  const etq = (x) => x.p.concurso.includes('Label Design'), cuenta = (k) => todos.filter((x) => x.m === k && !etq(x)).length, mejor = todos.reduce((a, x) => (pts(x.m) > pts(a.m) ? x : a)), n90 = new Set(todos.filter((x) => pts(x.m) >= 90).map((x) => x.vino)).size;
+  const anio = (p) => (p.anio ? (pts(p.vinos[0][1]) ? 'Edición ' : '') + p.anio : 'Ediciones anteriores');
+  const marca = (m) => (pts(m) ? h('b', { class: 'pt' }, pts(m), h('small', {}, 'pts')) : h('i', { class: 'disc ' + m, title: MED[m][0] }));
+  const frase = (x) => (pts(x.m) ? `${pts(x.m)} puntos` : MED[x.m][0] + (etq(x) ? ' al diseño de etiqueta' : '')) + ` · ${corto(x.p.concurso)}${x.p.anio ? ' ' + x.p.anio : ''}`;
+  const destacados = [todos.find((x) => x.m === 'gg'), mejor, ...todos.filter((x) => x.m === 'g')].filter(Boolean).slice(0, 5);
+  const modo = S.prem || 'vino';
+  let cuerpo;
+  if (modo === 'concurso') cuerpo = h('div', { class: 'pgrid' }, PREMIOS.map((p) => h('section', { class: 'card pc' },
+    h('div', { class: 'ph' }, p.icono ? h('img', { src: `mat/${p.icono}.webp`, alt: '', loading: 'lazy' }) : h('span', { class: 'guia' }, 'GC'), h('div', {}, h('b', {}, p.concurso), h('span', { class: 'note' }, anio(p)))),
+    h('ul', { class: 'pl' }, p.vinos.map(([v, m]) => h('li', {}, marca(m), h('span', {}, v), pts(m) ? null : h('em', {}, MED[m][0])))))));
+  else {
+    const G = new Map(); todos.forEach((x) => { const k = x.fam[1]; if (!G.has(k)) G.set(k, { nombre: k, bot: x.fam[2], L: [] }); G.get(k).L.push(x); });
+    const peso = (x) => (pts(x.m) ? pts(x.m) / 10 - 6 : MED[x.m][1] + .5), fam = [...G.values()].map((g) => ({ ...g, L: g.L.sort((a, b) => peso(b) - peso(a) || (b.p.anio || 0) - (a.p.anio || 0)) })).sort((a, b) => peso(b.L[0]) - peso(a.L[0]) || b.L.length - a.L.length);
+    cuerpo = h('div', { class: 'pgrid' }, fam.map((g) => h('section', { class: 'card pv', 'data-n': sinAcento(g.nombre) },
+      g.bot ? h('img', { class: 'bot', src: `${HOLA}/bottles/${g.bot}.webp`, alt: '', loading: 'lazy', onerror: (e) => { e.target.style.visibility = 'hidden'; } }) : h('span', { class: 'bot' }),
+      h('div', {}, h('div', { class: 'nm' }, h('span', {}, g.nombre), copiar(`${g.nombre} · Dos Búhos\n` + g.L.map((x) => `${frase(x)}${x.cosecha ? ' (cosecha ' + x.cosecha + ')' : ''}`).join('\n'), 'Copiar')),
+        h('ul', { class: 'pl' }, g.L.map((x) => h('li', {}, marca(x.m), h('span', {}, pts(x.m) ? corto(x.p.concurso) + (x.p.anio ? ' ' + x.p.anio : '') : frase(x), null), x.cosecha ? h('em', {}, 'Cosecha ' + x.cosecha) : null)))))));
+  }
+  const q = modo === 'vino' ? h('input', { type: 'search', placeholder: 'Buscar vino', 'aria-label': 'Buscar vino', oninput: () => { const t = sinAcento(q.value.trim()); cuerpo.querySelectorAll('.pv').forEach((e) => { e.hidden = !!t && !e.dataset.n.includes(t); }); } }) : null;
+  const pdf = (base, titulo) => docCard({ url: `${HOLA}/docs/${base}.pdf`, titulo, nota: 'Una hoja para mandar o imprimir' }, false);
+  return h('div', { class: 'matp' },
+    h('div', { class: 'card' }, h('div', { class: 'kpis' }, kpi(cuenta('gg'), 'Gran Medalla de Oro', 'Bruselas 2024'), kpi(cuenta('g'), 'Medallas de oro'), kpi(cuenta('s'), 'Medallas de plata'), kpi(pts(mejor.m), 'Puntaje más alto', mejor.vino + ' · Guía Catadores'), kpi(n90, 'Vinos con 90 puntos o más', 'Guía Catadores del Vino Mexicano'))),
+    h('h2', {}, 'Para abrir la conversación'),
+    h('div', { class: 'dest' }, destacados.map((x) => h('div', { class: 'de' }, x.p.icono ? h('img', { src: `mat/${x.p.icono}.webp`, alt: '' }) : h('b', { class: 'pt' }, pts(x.m), h('small', {}, 'pts')), h('div', {}, h('b', {}, pts(x.m) ? `${pts(x.m)} puntos` : MED[x.m][0] === 'Gran Oro' ? 'Gran Medalla de Oro' : 'Medalla de ' + MED[x.m][0].toLowerCase()), h('span', {}, x.vino), h('small', {}, corto(x.p.concurso) + (x.p.anio ? ' ' + x.p.anio : '')))))),
+    h('h2', {}, 'Todos los reconocimientos'),
+    h('div', { class: 'toolbar' }, chips([['vino', 'Por vino'], ['concurso', 'Por concurso']], modo, (v) => { S.prem = v; }), q),
+    cuerpo,
+    h('h2', {}, 'Para mandar'), h('div', { class: 'docs' }, pdf('Dos-Buhos-Premios-ES', 'Premios y puntajes (español)'), pdf('Dos-Buhos-Awards-EN', 'Awards and scores (English)')),
+    h('p', { class: 'note', style: 'margin-top:14px' }, 'Fuente: la hoja de premios de Dos Búhos y la Guía Catadores del Vino Mexicano de Rodolfo Gerschman. Es la misma lista de la tarjeta QR y el kit de prensa.'));
 }
 
 // ---------------------------------------------------------------- Comunicaciones (what is coming)
@@ -250,4 +335,4 @@ function distribuidores() {
         return h('tr', {}, h('td', { class: 'b' }, x.z), h('td', { class: 'r' }, c('En proceso')), h('td', { class: 'r' }, c('Catalogado')), h('td', { class: 'r' }, c('Por contactar')), h('td', { class: 'r' }, c('Rechazado')), h('td', {}, u ? dia(u) : x.L.length ? 'Nunca' : 'Sin distribuidores en lista')); }))))));
 }
 
-export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, comunicaciones, estrategia, distribuidores };
+export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, premios, comunicaciones, estrategia, distribuidores };

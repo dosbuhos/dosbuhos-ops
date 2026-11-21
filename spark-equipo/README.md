@@ -84,3 +84,12 @@ npm test
 
 ## Receivables
 - `orders.saldo` (migration 0010) is Zoho's `balance` on each sales order. Cobranza lists invoiced orders with a balance, due 30 days after the order date (the invoice's own due date needs invoice access). Until orders have been re-read after this change, the dated copy of Carlos's file (`src/data/cobranza.json`) is shown; its comments stay attached by client.
+
+## Materiales de venta, Dónde nos venden y Premios
+
+- **Materiales de venta** (`#materiales`): documents from the `materiales` table shown as cards with a first-page preview
+  (`public/mat/<file name>.webp`, made with `pdftoppm`; files without a preview get a plain tile), a bottle gallery, and
+  **Dónde nos venden** (distributors, restaurants, hotels and shops by country, searchable, with a copy-list button).
+- **Premios** (`#premios`): medals and scores by wine or by competition, with a copy button per wine.
+- Awards and the where-sold list live in `public/marca.js`, generated from the QR card (`card/build_app.py`) so both say
+  the same thing. After changing `AWARDS` or `WHERE` there, run `python3 tools/marca_desde_tarjeta.py` from this folder.

@@ -37,12 +37,12 @@ const GRUPOS = [
   ['Mi trabajo', [['hoy', 'Hoy', 'Hoy'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['pendientes', 'Preguntas pendientes', 'Preguntas pendientes']]],
   ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
   ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
-  ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
+  ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
   ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
 ];
 const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
 const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // phone bottom bar; the rest are under "Más"
-const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores'];   // screens the person filter does not apply to
+const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
   if (persona !== undefined) S.persona = persona;
