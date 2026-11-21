@@ -312,7 +312,7 @@ function toggleDone(id) {
     put('task', id, f, { group: g });
   });
   S.ui.flip = true; render();
-  if (done) { if (t.at && t.when && t.kind !== 'meeting') doneToast(id); else toast('Done', true); }
+  if (done) { if (t.kind !== 'meeting') doneToast(id); else toast('Done', true); } // any task: log what it took from its planned length
 }
 // ── timer ─────────────────────────────────────────────────────
 // t.timer = ISO start while running; t.spent = minutes logged so far. One timer at a time. When a task with logged time
@@ -1114,14 +1114,16 @@ function signInWithCalendar() {
 
 // ── toast ─────────────────────────────────────────────────────
 let toastTimer;
-function toast(msg, withUndo, extra = '') {
+// Toasts live on <body>, not inside the screen, so a re-render (sync arriving, the clock ticking) does not take them away.
+function toast(msg, withUndo, extra = '', ms = 5000) {
   $('.toast')?.remove(); clearTimeout(toastTimer);
-  (isDesk() ? document.body : ($('.m') || document.body)).insertAdjacentHTML('beforeend', `<div class="toast" role="status"><span>${esc(msg)}</span>${extra}${withUndo ? '<button data-act="undo">Undo</button>' : ''}</div>`);
-  toastTimer = setTimeout(() => $('.toast')?.remove(), 5000);
+  document.body.insertAdjacentHTML('beforeend', `<div class="toast ${isDesk() ? '' : 'mt'}" role="status"><span>${esc(msg)}</span>${extra}${withUndo ? '<button data-act="undo">Undo</button>' : ''}</div>`);
+  toastTimer = setTimeout(() => $('.toast')?.remove(), ms);
 }
-// After checking off a timed task: one tap to say it took longer or shorter. Optional; the toast goes away on its own.
+// After checking off a task: log what it took. −5 / +5 tick the time (saved on every tap, the toast stays while you tick),
+// OK puts it away. Optional; it goes away on its own after a while.
 function doneToast(id) { const t = S.tasks.get(id); if (!t) return;
-  toast(`Done · ${fmtDur(t.dur || 30)}`, true, `<button class="tk" data-act="took" data-id="${id}" data-d="-15" aria-label="Took 15 minutes less">−15</button><button class="tk" data-act="took" data-id="${id}" data-d="15" aria-label="Took 15 minutes more">+15</button>`); }
+  toast(`Done · ${fmtDur(t.dur || 30)}`, true, `<button class="tk" data-act="took" data-id="${id}" data-d="-5" aria-label="Took 5 minutes less">−5</button><button class="tk" data-act="took" data-id="${id}" data-d="5" aria-label="Took 5 minutes more">+5</button><button class="tk ok" data-act="toastok" aria-label="Done logging">OK</button>`, 10000); }
 
 // ── clicks ────────────────────────────────────────────────────
 document.addEventListener('click', async (e) => {
@@ -1185,7 +1187,9 @@ document.addEventListener('click', async (e) => {
     case 'cm-when': { closeMenu(); const w = el.dataset.w, t = S.tasks.get(el.dataset.tid); put('task', t.id, { when: w || null, at: w && kindOf(w) === 'day' ? t.at : '' }); render(); toast(w ? `Moved to ${periodLabel(w)}` : 'Unscheduled', true); return; }
     case 'cm-pri': closeMenu(); put('task', el.dataset.tid, { pri: el.dataset.p }); render(); return;
     case 'cm-delete': closeMenu(); put('task', el.dataset.tid, { del: new Date().toISOString() }); render(); toast('Deleted', true); return;
-    case 'took': { const t = S.tasks.get(el.dataset.id); if (!t) return; put('task', t.id, { dur: Math.max(5, (t.dur || 30) + +el.dataset.d) }, { quiet: true }); render(); doneToast(t.id); return; }
+    case 'took': { const t = S.tasks.get(el.dataset.id); if (!t) return; put('task', t.id, { dur: Math.max(5, (t.dur || 30) + +el.dataset.d) }, { quiet: true }); render();
+      const span = $('.toast span'); if (span) { span.textContent = `Done · ${fmtDur(S.tasks.get(t.id).dur)}`; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('.toast')?.remove(), 10000); } else doneToast(t.id); return; }
+    case 'toastok': $('.toast')?.remove(); clearTimeout(toastTimer); return;
     case 'timeclear': { const t = S.tasks.get(st.id); put('task', st.id, { at: '' }); render(); taskSheet(st.id); return; }
     case 'timeslot': timeList(null); setStart(st.id, el.dataset.at); return;
     case 'pushon': { el.disabled = true;
