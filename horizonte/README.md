@@ -34,3 +34,9 @@ node test/seed.mjs && node test/shots.mjs http://localhost:8799 /tmp/shots
 
 ## Timestripe import (done Nov 9 2026)
 Read from the Timestripe web app in Eric's Chrome (read-only) and posted to `POST /api/import` with a one-time token from `import_tokens` (deleted after). Mapping: own boards → boards (buckets → sections); open board tasks → same board; past-dated open day/week/month/quarter goals with no board → **Backlog**, original date in notes; future goals keep their placement; Life horizon → Someday; recurring tasks collapsed to one; completed and untitled tasks skipped. Imported ids are `ts_<timestripe id>`, so a re-run updates instead of duplicating. Not imported: "Feature Requests" (a public board he follows) and "⭐️ Garden Project" (owned by another account).
+
+## Phone layout (v41)
+Timestripe-style: a scrolling bar at the bottom (Inbox · Hours · Days · Weeks · Months · Quarters · Years · Horizons), Hours as the default view
+with a week strip (tap a day, swipe the strip for the next week, swipe the screen for the next day), an inline "Add…" row, and a floating +.
+Boards, In review, Overdue and Settings live under the grid icon top-left. Tapping an empty slot in the grid opens Capture at that time.
+Past days list what did not get done, each with a "Today ›" button, and a "Move all to today" bar; dropping an Inbox task on a day stays in Hours on that day.

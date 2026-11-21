@@ -33,6 +33,8 @@ const I = {
   month: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M8 14h2M12 14h2M16 14h2M8 17h2M12 17h2"/></svg>',
   side: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
   chev: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
+  grid: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>',
+  more: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   down: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
   check: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
@@ -115,8 +117,10 @@ const S = {
   tasks: new Map(), boards: new Map(),
   prefs: { dayStart: '09:00', dayEnd: '18:00', cap: 3 },
   outbox: [], cursor: 0, me: null, setup: true, net: 'idle', lastSync: 0, undo: [],
-  ui: Object.assign({ zoom: 'days', anchor: null, hday: null, src: 'inbox', sort: 'manual', mtab: 'today', mzoom: 'days', manchor: null, board: null, open: {} }, store.get('ui', {})),
+  ui: Object.assign({ zoom: 'days', anchor: null, hday: null, src: 'inbox', sort: 'manual', mtab: 'hours', mzoom: 'days', manchor: null, board: null, open: {} }, store.get('ui', {})),
 };
+// Phone tabs used to be today/plan/boards/inbox; map a stored one onto the new bar. The hours view always opens on today.
+{ const m = { today: 'hours', plan: S.ui.mzoom || 'days', boards: 'hours', board: 'hours' }; if (m[S.ui.mtab]) S.ui.mtab = m[S.ui.mtab]; S.ui.mday = todayK(); S.ui.board = null; }
 const device = store.get('device', null) || (() => { const d = Math.random().toString(36).slice(2, 8); store.set('device', d); return d; })();
 let lastMs = 0, ctr = 0;
 function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; } else ctr++; return `${lastMs.toString(36).padStart(9, '0')}.${ctr.toString(36).padStart(3, '0')}.${device}`; }
@@ -409,14 +413,14 @@ function cardHTML(t, opts = {}) {
   const pri = t.pri || 'normal', done = t.status === 'done';
   const run = !done && !!t.timer;
   const hl = !done && t.color; // highlighted task: coloured left bar + faint wash (meetings are solid; targets show a star; independent signals)
-  const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : '', run ? 'running' : ''].join(' ');
+  const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : '', run ? 'running' : '', opts.late && !done ? 'late' : ''].join(' ');
   const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
   const meta = run ? '' : opts.meta ?? (done ? (t.spent ? fmtDur(t.dur || 30) : '') : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30) + (t.spent ? ` · ${fmtDur(t.spent)} logged` : ''));
   const live_ = run ? `<span class="meta live"><i></i><span data-timer="${t.id}">${fmtClock(elapsedSec(t))}</span></span>` : '';
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}</div>`;
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -447,7 +451,9 @@ function render() {
       requestAnimationFrame(() => { c.style.transition = 'transform 220ms ease-out, height 220ms ease-out'; c.style.transform = ''; c.style.height = (n.height) + 'px'; setTimeout(() => { c.style.transition = ''; }, 260); }); } }
   if (desk && lastLayout === 'desk' && tlScroll) { const n = $('.tl'); n.scrollLeft = tlScroll[0]; n.scrollTop = tlScroll[1]; }
   if (desk && pnl) { const n = $('.panel'); if (n) n.scrollTop = pScroll; }
-  if (!desk && lastLayout === 'mob' && mScroll != null && $('.mm')) $('.mm').scrollTop = mScroll;
+  if (!desk && lastLayout === 'mob' && mScroll != null && $('.mm') && !S.ui.mjump) $('.mm').scrollTop = mScroll;
+  if (!desk && S.ui.mtab === 'hours' && (S.ui.mjump || lastLayout !== 'mob')) scrollPhoneHours();
+  if (!desk) { S.ui.mjump = false; $('.mbar [aria-current]')?.scrollIntoView({ inline: 'center', block: 'nearest' }); }
   if (desk && S.ui.zoom === 'hours' && !tlScroll) scrollHoursToNow();
   lastLayout = desk ? 'desk' : 'mob';
   if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus(); if ('value' in el && keep.v != null) el.value = keep.v; } }
@@ -631,16 +637,21 @@ function renderHours() {
     return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:flex-end"><div class="date"><span class="num ${k === todayK() ? 'today' : ''}">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${k === todayK() ? ' · Today' : ''}</span></div><span class="small" style="font-size:12px;color:var(--ink-2);display:flex;gap:10px;align-items:center">${k === todayK() ? `<button class="link reflowsw" data-act="reflowtoggle" data-k="${k}" aria-pressed="${reflowOn(k)}" title="Finish a task early and the rest slide up; run over and they slide down. Meetings and pinned tasks stay put.">Reflow ${reflowOn(k) ? 'on' : 'off'}</button>` : ''}${loadText(k)}</span></div>
 <div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>`}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
-  const grids = days.map(k => {
-    const timed = placedOn(k).filter(t => t.at);
-    const lanes = layoutLanes(timed);
-    const cards = timed.map(t => { const top = (toMin(t.at) / 60 - h0) * HPX + 1, ht = Math.max(24, (t.dur || 30) / 60 * HPX - 2), L = lanes.get(t.id);
-      const style = `top:${top}px;height:${ht}px;left:calc(6px + (100% - 12px) * ${L.i / L.n});right:auto;width:calc((100% - 12px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
-      return cardHTML(t, { style, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}${ht >= 80 ? ' tall' : ''}`).replace('data-tid=', `title="${esc(t.title)}" data-tid=`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
-    let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" style="top:${(m / 60 - h0) * HPX}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
+  const grids = days.map(k => gridHTML(k, HPX, h0, h1)).join('');
+  return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move, drag the bottom edge to change length. Today reflows: finish early and the next tasks slide up; meetings and pinned tasks stay.</div></div>`;
+}
+// One day's hour grid: timed blocks in lanes, the now line, and (desktop) the block being drawn. Shared by the desktop Hours zoom and the phone.
+function gridHTML(k, hpx, h0, h1, opts = {}) {
+    const timed = placedOn(k).filter(t => t.at && !(opts.skipOpen && isOpen(t) && t.kind !== 'meeting'));
+    const lanes = layoutLanes(timed), edge = opts.edge ?? 6;
+    const cards = timed.map(t => { const top = (toMin(t.at) / 60 - h0) * hpx + 1, ht = Math.max(24, (t.dur || 30) / 60 * hpx - 2), L = lanes.get(t.id);
+      const style = `top:${top}px;height:${ht}px;left:calc(${edge}px + (100% - ${2 * edge}px) * ${L.i / L.n});right:auto;width:calc((100% - ${2 * edge}px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
+      return cardHTML(t, { style, mobile: opts.mobile, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}${ht >= 80 ? ' tall' : ''}`).replace('data-tid=', `title="${esc(t.title)}" data-tid=`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
+    let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" style="top:${(m / 60 - h0) * hpx}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
     // a block being created (click or drag on empty space), with its quick-create popover
-    let add = ''; const D = S.ui.draft;
-    if (D && D.k === k) { const top = (toMin(D.at) / 60 - h0) * HPX + 1, ht = Math.max(24, D.dur / 60 * HPX - 2), gridH = (h1 - h0) * HPX;
+    let add = ''; const D = opts.mobile ? null : S.ui.draft;
+    if (D && D.k === k) { const top = (toMin(D.at) / 60 - h0) * hpx + 1, ht = Math.max(24, D.dur / 60 * hpx - 2), gridH = (h1 - h0) * hpx;
       const below = top + ht + 230 < gridH; const end = clock(fromMin(toMin(D.at) + D.dur));
       add = `<div class="card draft ${D.kind === 'meeting' ? 'meeting' : ''}" style="${colorStyle(D)}top:${top}px;height:${ht}px"><div class="body"><span class="t">${esc(D.title) || '<span class="muted">(No title)</span>'}</span></div><span class="meta">${clock(D.at)} – ${end}</span><div class="resize" data-draftresize="1"></div></div>
 <div class="qc" style="${below ? `top:${top + ht + 8}px` : `bottom:${gridH - top + 8}px`}">
@@ -649,10 +660,7 @@ function renderHours() {
 ${D.kind === 'meeting' ? `<div class="swatches">${GCOLORS.map(([c, hex, name]) => `<button class="sw" data-act="qccolor" data-c="${c}" style="background:${hex}" aria-label="${name}" aria-pressed="${String(D.color || '') === c}" title="${name}"></button>`).join('')}</div>` : ''}
 <div class="qc-time"><span>${dayShort(k)} · ${clock(D.at)} – ${end}</span><div class="stepper"><button aria-label="Shorter" data-act="qcdur" data-d="-15">${I.minus}</button><div>${fmtDur(D.dur)}</div><button aria-label="Longer" data-act="qcdur" data-d="15">${I.plus(16, 2.5)}</button></div></div>
 <div class="qc-foot"><button class="link" data-act="qcmore">More options</button><span><button class="btn" data-act="qccancel">Cancel</button><button class="btn primary" data-act="qcsave">Save</button></span></div></div>`; }
-    return `<div class="grid" data-drop="slot:${k}" data-hpx="${HPX}" data-h0="${h0}" style="height:${(h1 - h0) * HPX}px">${cards}${now}${add}</div>`;
-  }).join('');
-  return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move, drag the bottom edge to change length. Today reflows: finish early and the next tasks slide up; meetings and pinned tasks stay.</div></div>`;
+    return `<div class="grid" data-drop="slot:${k}" data-hpx="${hpx}" data-h0="${h0}" style="height:${(h1 - h0) * hpx}px">${cards}${now}${add}</div>`;
 }
 function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   const items = list.map(t => ({ id: t.id, s: toMin(t.at), e: toMin(t.at) + (t.dur || 30) })).sort((a, b) => a.s - b.s || b.e - a.e);
@@ -661,43 +669,61 @@ function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   for (const it of items) { if (it.s >= end && group.length) flush(); group.push(it); end = Math.max(end, it.e); }
   if (group.length) flush(); return out;
 }
+// Phone hours: land on the now line for today, on the start of the working day otherwise.
+function scrollPhoneHours() { const mm = $('.mm'), g = $('.m .grid'); if (!mm || !g) return;
+  if (S.ui.mday !== todayK()) { mm.scrollTop = 0; return; } // other days open at the top: the list first, then the hours
+  const n = new Date(), y = g.offsetTop - mm.offsetTop + (n.getHours() + n.getMinutes() / 60 - H0()) * MG; // now line, in list coordinates
+  if (y > mm.scrollTop + 120 && y < mm.scrollTop + mm.clientHeight - 140) return; // already in view
+  mm.scrollTop = Math.max(0, y - mm.clientHeight * 0.4); }
 function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl'); if (!tl) return; const n = new Date(); tl.scrollTop = Math.max(0, (n.getHours() - 1 - H0()) * HPX); }); }
 
 // ── rendering: mobile ─────────────────────────────────────────
 function signinBanner() {
   return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
 }
+const MBAR = [['inbox', 'Inbox'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years'], ['horizons', 'Horizons']];
+const MG = 60; // px per hour on the phone grid
 function renderMobile() {
   const tab = S.ui.mtab, n = inboxTasks().length;
-  let main = tab === 'plan' ? mPlan() : tab === 'boards' ? mBoards() : tab === 'inbox' ? mInbox() : mToday();
+  if (['days', 'weeks', 'months', 'quarters', 'years', 'horizons'].includes(tab)) S.ui.mzoom = tab;
+  let main = tab === 'inbox' ? mInbox() : tab === 'board' ? mBoards() : tab === 'hours' ? mHours() : mPlan();
   const sb = (runPill(true) || '') + (signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : ''));
   if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
-  const btn = (k, label, icon, badge) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''} ${badge ? `aria-label="${label}, ${badge}"` : ''}><span class="ti">${icon(tab === k ? 2.2 : 2)}${badge ? `<span class="badge">${badge > 99 ? '99+' : badge}</span>` : ''}</span>${label}</button>`;
-  return `<div class="m">${main}
-<nav class="tabs" aria-label="Main">${btn('today', 'Today', I.today)}${btn('plan', 'Plan', I.plan)}<button class="cap" aria-label="Capture a task" data-act="capture">${I.plus(26, 2.5)}</button>${btn('boards', 'Boards', I.boards)}${btn('inbox', 'Inbox', I.inbox, n)}</nav></div>`;
+  const bar = MBAR.map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('');
+  return `<div class="m">${main}<button class="fab" aria-label="Add a task" data-act="capture">${I.plus(28, 2.4)}</button>
+<nav class="mbar" aria-label="Views">${bar}</nav></div>`;
 }
 const mcard = (t, o = {}) => cardHTML(t, { mobile: true, ...o });
-function mToday() {
-  const k = todayK(), d = parseD(k), P = dayParts(k), od = overdueTasks();
-  const tgDone = P.targets.filter(t => !isOpen(t)).length;
+// Top row of every phone screen: menu (boards, review, settings) · title · actions.
+const mtop = (title, right = '') => `<div class="mtop"><button class="plain" aria-label="Menu" data-act="menu">${I.grid}</button><div class="ttl">${title}</div><div class="acts">${right}</div></div>`;
+function weekStrip(k) {
+  const t = todayK(), mon = weekStart(isoWeek(k)); let h = '';
+  for (let i = 0; i < 7; i++) { const kk = addDays(mon, i), P = dayParts(kk), late = kk < t && P.open.length;
+    h += `<button data-act="mday" data-k="${kk}" aria-pressed="${kk === k}" class="${kk === t ? 'today' : ''}" aria-label="${DOWL[parseD(kk).getDay()]} ${Number(kk.slice(8))}${kk === t ? ', today' : ''}${late ? `, ${P.open.length} not done` : ''}"><span class="dw">${DOW[parseD(kk).getDay()][0]}</span><span class="dn">${Number(kk.slice(8))}</span><i class="${late ? 'late' : P.all.length ? 'has' : ''}"></i></button>`; }
+  return `<div class="wstrip" data-swipe="week">${h}</div>`;
+}
+function mHours() {
+  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k), od = overdueTasks();
+  const late = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : []; // meetings that passed are not "not done"
   let body = '';
-  if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
-  if (P.targets.length) body += `<div class="eyebrow">Targets · ${tgDone} of ${Math.max(P.targets.length, S.prefs.cap)}</div>` + P.targets.map(t => mcard(t, { meta: t.at && isOpen(t) ? clock(t.at) : '' })).join('');
-  if (P.meetings.length) body += `<div class="eyebrow ${P.targets.length ? 'gap' : ''}">Meetings</div>` + P.meetings.map(t => mcard(t)).join('');
-  if (P.timed.length) body += `<div class="eyebrow ${P.targets.length || P.meetings.length ? 'gap' : ''}">Schedule</div>` + P.timed.map(t => mcard(t, { meta: clock(t.at) })).join('');
-  if (P.rest.length) body += `<div class="eyebrow ${P.targets.length || P.timed.length || P.meetings.length ? 'gap' : ''}">${P.targets.length || P.timed.length || P.meetings.length ? "If there's time" : 'Today'}</div>` + P.rest.map(t => mcard(t)).join('');
-  if (!P.all.length) body += `<div class="empty">Nothing planned today. Tap + to dump what's on your mind.</div>`;
-  if (P.doneNonTarget.length) body += mDoneToggle('d' + k, P.doneNonTarget);
-  const pct = Math.round(dayLoad(k) / workMin() * 100);
-  return `<header class="mh"><div class="r1"><div class="mbrand">${I.logo(20)}<span class="wm">Horizonte</span></div><button data-sync class="dot" data-act="settings"></button></div><div class="r1"><h1>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</h1></div>
-<div class="loadrow"><div><span>${fmtDur(dayLoad(k))} planned of ${fmtDur(workMin())}<button class="link" style="margin-left:auto;font-size:13px" data-act="summary">Review</button></span><div class="meter ${pct >= 125 ? 'red' : pct >= 100 ? 'amber' : ''}" role="img" aria-label="Day is ${pct} percent full"><i style="width:${Math.min(100, pct)}%"></i></div></div></div></header>
-<main class="mm" data-list="today">${body}</main>`;
+  if (late.length) body += `<div class="latebar"><span>${late.length} not done</span><button data-act="rollall" data-k="${k}">Move all to today ${I.right}</button></div>`;
+  else if (k === t && od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
+  body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
+  if (past) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
+  else { const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen);
+    body += untimed.map(x => mcard(x)).join(''); }
+  const done = past ? P.done : P.doneNonTarget; if (done.length) body += mDoneToggle('d' + k, done);
+  const h0 = H0(), h1 = H1(); let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${MG}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
+  body += `<div class="hgrid"><div class="gutter" aria-hidden="true">${gutter}</div>${gridHTML(k, MG, h0, h1, { mobile: true, edge: 3, skipOpen: past })}</div>`;
+  const title = `<button class="tdy ${k === t ? 'cur' : ''}" data-act="mtoday" ${k === t ? 'aria-current="date"' : ''}>Today</button><span class="date">${MON[d.getMonth()]} ${d.getDate()}, ${DOW[d.getDay()]}</span>`;
+  const right = `<button class="plain" aria-label="In review" data-act="summary" data-k="${k}">${I.chart}</button><button class="plain" data-sync aria-label="Sync status" data-act="settings"></button>`;
+  return `<header class="mh hours">${mtop(title, right)}${weekStrip(k)}</header>
+<main class="mm" data-list="hours" data-swipe="day" data-k="${k}">${body}</main>`;
 }
 function mDoneToggle(key, done) {
   const open = S.ui.open[key];
   return `<button class="showmore" style="text-decoration:none;color:var(--ink-2)" data-act="toggle" data-key="${key}">Done · ${done.length} ${open ? '▴' : '▾'}</button>${open ? sortList(done).map(t => mcard(t)).join('') : ''}`;
 }
-const MZ = [['horizons', 'Horizons'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Qtrs'], ['years', 'Years']];
 function mPlan() {
   const z = S.ui.mzoom; let body = '';
   const head = (k, label, extra) => `<div class="dayhead" data-drop="${kindOf(k) === 'day' ? 'day' : 'period'}:${k}"><b>${esc(label)}</b>${extra}<button class="plain" aria-label="Add to ${esc(label)}" data-act="capture" data-k="${k}">${I.plus(22)}</button></div>`;
@@ -710,9 +736,9 @@ function mPlan() {
       const lbl = kind === 'week' ? 'This week' : kind === 'month' ? MONL[parseD(d).getMonth()] : periodLabel(k, true), range = kind === 'week' ? periodLabel(k, true).split(' · ')[1] || '' : '';
       body += head(k, lbl, `<span class="small">${range ? esc(range) + ' · ' : ''}${list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed'}</span>`) + items(k, list); }
   } else if (z === 'days') {
-    for (let i = 0; i < 14; i++) { const k = addDays(S.ui.manchor, i), P = dayParts(k), list = [...P.meetings.filter(isOpen), ...P.timed, ...P.targets.filter(isOpen), ...P.rest];
-      const isT = k === todayK(); const load = P.all.length ? loadText(k) : 'Nothing planned';
-      body += head(k, dayShort(k), `${isT ? '<span class="pill">Today</span>' : ''}<span class="small">${load}</span>`) + items(k, list); }
+    for (let i = 0; i < 14; i++) { const k = addDays(S.ui.manchor, i), P = dayParts(k), past = k < todayK(), list = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : [...P.meetings.filter(isOpen), ...P.timed, ...P.targets.filter(isOpen), ...P.rest];
+      const isT = k === todayK(); const load = past ? (list.length ? `${list.length} not done` : P.all.length ? 'Done' : '') : P.all.length ? loadText(k) : 'Nothing planned';
+      body += head(k, dayShort(k), `${isT ? '<span class="pill">Today</span>' : ''}<span class="small">${load}</span>`) + (past ? list.map(t => mcard(t, { late: true, meta: t.at ? clock(t.at) : undefined })).join('') : items(k, list)); }
   } else {
     const kind = { weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z];
     let k = periodOf(kind, S.ui.manchor);
@@ -721,9 +747,9 @@ function mPlan() {
       const count = list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed';
       body += head(k, lbl, `<span class="small">${range ? esc(range) + ' · ' : ''}${count}</span>`) + items(k, list); }
   }
-  return `<header class="mh" style="padding-bottom:10px"><div class="r1"><h1>Plan</h1><div style="display:flex;align-items:center;gap:4px">
-<button class="ib" aria-label="Earlier" data-act="mprev">${I.left.replace(/16/g, '20')}</button><button class="tb" data-act="mtoday">Today</button><button class="ib" aria-label="Later" data-act="mnext">${I.right.replace(/16/g, '20')}</button></div></div>
-<nav class="seg" aria-label="Zoom level">${MZ.map(([k, l]) => `<button aria-pressed="${z === k}" data-mzoom="${k}">${l}</button>`).join('')}</nav></header>
+  const name = MBAR.find(x => x[0] === z)?.[1] || 'Plan';
+  const right = `<button class="plain" aria-label="Earlier" data-act="mprev">${I.left.replace(/16/g, '20')}</button><button class="tb" data-act="mtoday">Today</button><button class="plain" aria-label="Later" data-act="mnext">${I.right.replace(/16/g, '20')}</button>`;
+  return `<header class="mh">${mtop(`<span class="date">${name}</span>`, right)}</header>
 <main class="mm" style="gap:6px;padding-top:4px" data-list="plan">${body}</main>`;
 }
 function mBoards() {
@@ -740,13 +766,18 @@ function mBoards() {
     }
     if (!open.length) body += `<div class="empty">Nothing on this board yet. Tap + to add a task.</div>`;
     if (done.length) body += mDoneToggle('b' + b.id, done);
-    return `<header class="mh"><div class="r1"><button class="ib" aria-label="All boards" data-act="boardsback">${I.left.replace(/16/g, '20')}</button><h1 style="flex:1">${esc(b.name)}</h1>
-<button class="plain" aria-label="Edit board" data-act="editboard" data-bid="${b.id}">•••</button><button class="ib" aria-label="Add to ${esc(b.name)}" data-act="capture" data-board="${b.id}">${I.plus(20)}</button></div></header>
+    return `<header class="mh">${mtop(`<span class="date">${esc(b.name)}</span>`, `<button class="plain" aria-label="Edit board" data-act="editboard" data-bid="${b.id}">${I.more}</button>`).replace('data-act="menu"', 'data-act="boardsback" aria-label="Back"').replace(I.grid, I.left.replace(/16/g, '22'))}</header>
 <main class="mm" data-list="board">${body}</main>`;
   }
-  const rows = boardsSorted().map((x, i) => `<button class="rowlink" data-act="openboard" data-bid="${x.id}"><i class="bdot b${i % 4}"></i><span>${esc(x.name)}</span><span class="n">${boardTasks(x.id).filter(isOpen).length}</span>${I.chev}</button>`).join('');
-  return `<header class="mh"><div class="r1"><h1>Boards</h1><button class="tb" data-act="newboard">New board</button></div></header>
-<main class="mm" style="gap:0">${rows || '<div class="empty">No boards yet. A board holds the tasks for one project or area.</div>'}<button class="rowlink" data-act="settings" style="margin-top:24px;color:var(--ink-2)"><span>Settings</span><span class="n" data-sync></span></button></main>`;
+  return `<header class="mh">${mtop('<span class="date">Boards</span>', `<button class="tb" data-act="newboard">New board</button>`)}</header><main class="mm" style="gap:0">${boardRows()}</main>`;
+}
+const boardRows = () => boardsSorted().map((x, i) => `<button class="rowlink" data-act="openboard" data-bid="${x.id}"><i class="bdot b${i % 4}"></i><span>${esc(x.name)}</span><span class="n">${boardTasks(x.id).filter(isOpen).length}</span>${I.chev}</button>`).join('') || '<div class="empty">No boards yet. A board holds the tasks for one project or area.</div>';
+// The grid-icon menu: boards, then the things that are not a view.
+function menuSheet() {
+  const od = overdueTasks().length;
+  openSheet(`<div class="grab"></div><div class="sheettitle" style="display:flex;justify-content:space-between;align-items:center">Boards<button class="link" style="font-size:14px" data-act="newboard">New board</button></div>
+<div class="rows">${boardRows()}</div>
+<div class="rows" style="margin-top:14px"><button class="rowlink" data-act="summary" data-k="${todayK()}"><span>In review</span><span class="n"></span>${I.chev}</button>${od ? `<button class="rowlink" data-act="review"><span>Overdue</span><span class="n">${od}</span>${I.chev}</button>` : ''}<button class="rowlink" data-act="settings"><span>Settings</span><span class="n" data-sync></span>${I.chev}</button></div>`, { menu: true });
 }
 function mInbox() {
   const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
@@ -755,7 +786,7 @@ function mInbox() {
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">${S.ui.tagFilter ? 'Nothing in Inbox with this tag.' : 'Inbox is empty. Tap + to capture what’s on your mind.'}</div>`;
   if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
   if (S.ui.q) body = searchResults(true);
-  return `<header class="mh"><div class="r1"><h1>${S.ui.q ? 'Search' : `Inbox${list.length ? ' · ' + list.length : ''}`}</h1></div>${searchBox('mq')}</header><main class="mm" data-list="inbox">${body}</main>`;
+  return `<header class="mh">${mtop(`<span class="date">${S.ui.q ? 'Search' : `Inbox${list.length ? ' · ' + list.length : ''}`}</span>`)}${searchBox('mq')}</header><main class="mm" data-list="inbox">${body}</main>`;
 }
 
 // ── sheets ────────────────────────────────────────────────────
@@ -835,7 +866,7 @@ function sheetField(el) { // title and notes save on change
   const t = S.tasks.get(id); if (t && t[f] !== v) { put('task', id, { [f]: v }); render(); }
 }
 function captureSheet(dest = {}) {
-  const label = dest.board ? S.boards.get(dest.board)?.name : dest.when ? periodLabel(dest.when, true) : 'Inbox';
+  const label = dest.board ? S.boards.get(dest.board)?.name : dest.when ? periodLabel(dest.when, true) + (dest.at ? ' · ' + clock(dest.at) : '') : 'Inbox';
   openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div class="sheettitle">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one task per line · add @meeting 5pm for a meeting</div></div>
 <textarea class="dump" id="dump" autofocus placeholder="What's on your mind?" enterkeyhint="enter"></textarea>
 <button class="bigbtn dark" data-act="savecapture">Add</button>`, { capture: dest });
@@ -1056,6 +1087,8 @@ document.addEventListener('click', async (e) => {
   if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); return; }
   // a quick-create popover is open: a click anywhere outside it dismisses it (like Google Calendar)
   if (S.ui.draft && !e.target.closest('.qc,.draft')) { S.ui.draft = null; render(); return; }
+  if (!isDesk() && e.target.matches('.m .grid')) { const g = e.target, r = g.getBoundingClientRect(), h0 = Number(g.dataset.h0), hpx = Number(g.dataset.hpx);
+    const m = Math.max(0, Math.min(23 * 60 + 30, Math.floor(((e.clientY - r.top) / hpx * 60 + h0 * 60) / 30) * 30)); captureSheet({ when: g.dataset.drop.slice(5), at: fromMin(m) }); return; }
   const el = e.target.closest('[data-act],[data-zoom],[data-src],[data-tab],[data-mzoom]'); if (!el) return;
   const card = e.target.closest('[data-tid]'), tid = card?.dataset.tid;
   if (el.dataset.zoom) { S.ui.zoom = el.dataset.zoom; S.ui.pk = null; render(); if (S.ui.zoom === 'hours') scrollHoursToNow(); return; }
@@ -1063,7 +1096,7 @@ document.addEventListener('click', async (e) => {
   if (el.dataset.tab) { // remember where each tab was scrolled to; tapping the current tab scrolls it to the top
     const cur = S.ui.mtab, mm = $('.mm'); S.ui.scroll ??= {}; if (mm) S.ui.scroll[cur] = mm.scrollTop;
     if (el.dataset.tab === cur) { if (mm) mm.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    S.ui.mtab = el.dataset.tab; if (el.dataset.tab !== 'boards') S.ui.board = null; render(); const n = $('.mm'); if (n) n.scrollTop = S.ui.scroll[el.dataset.tab] || 0; return; }
+    S.ui.mtab = el.dataset.tab; if (el.dataset.tab !== 'board') S.ui.board = null; if (el.dataset.tab === 'hours') S.ui.mjump = true; render(); const n = $('.mm'); if (n && el.dataset.tab !== 'hours') n.scrollTop = S.ui.scroll[el.dataset.tab] || 0; return; }
   if (el.dataset.mzoom) { S.ui.mzoom = el.dataset.mzoom; render(); return; }
   const act = el.dataset.act, st = sheetState;
   switch (act) {
@@ -1078,7 +1111,11 @@ document.addEventListener('click', async (e) => {
     case 'mprev': case 'mnext': { const n = act === 'mprev' ? -1 : 1, z = S.ui.mzoom;
       S.ui.manchor = z === 'horizons' ? addDays(S.ui.manchor, n) : z === 'days' ? addDays(S.ui.manchor, 7 * n) : periodRange(shiftPeriod(periodOf({ weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z], S.ui.manchor), 8 * n))[0];
       render(); $('.mm').scrollTop = 0; return; }
-    case 'mtoday': S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
+    case 'mtoday': if (S.ui.mtab === 'hours') { S.ui.mday = todayK(); S.ui.mjump = true; render(); return; } S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
+    case 'mday': S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); return;
+    case 'menu': menuSheet(); return;
+    case 'rollto': if (tid) { pushTask(tid, todayK()); render(); toast('Moved to today', true); } return;
+    case 'rollall': { const open = dayParts(el.dataset.k).open.filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
     case 'togglepanel': S.ui.panelHidden = !S.ui.panelHidden; render(); return;
     case 'filter': filterSheet(); return;
@@ -1089,7 +1126,7 @@ document.addEventListener('click', async (e) => {
     case 'tagtoggle': { const t = S.tasks.get(st.id); if (!t) return; const cur = t.tags || [], id = el.dataset.t; put('task', st.id, { tags: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }); render(); taskSheet(st.id); return; }
     case 'tagnew': S.ui.tagAdding = true; taskSheet(st.id); return;
     case 'tagdone': { const v = $('#newtag')?.value.trim(); S.ui.tagAdding = false; if (v) { const t = S.tasks.get(st.id), id = ensureTag(v); if (id && t && !(t.tags || []).includes(id)) put('task', t.id, { tags: [...(t.tags || []), id] }); render(); } taskSheet(st.id); return; }
-    case 'summary': summarySheet(todayK(), S.ui.sumMode || 'day'); return;
+    case 'summary': summarySheet(el.dataset.k || todayK(), S.ui.sumMode || 'day'); return;
     case 'sum-mode': summarySheet(S.ui.sumK, el.dataset.m); return;
     case 'sum-nav': { const n = +el.dataset.n, k = S.ui.sumK || todayK(); summarySheet(n === 0 ? todayK() : S.ui.sumMode === 'week' ? addDays(k, 7 * n) : addDays(k, n)); return; }
     case 'sum-push': { const k = S.ui.sumK || todayK(), ids = live().filter(t => t.when === k && isOpen(t) && t.pri === 'target' && t.kind !== 'meeting').map(t => t.id); batch(g => ids.forEach(id => { const t = S.tasks.get(id); put('task', id, { when: addDays(k, 1), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }); })); render(); summarySheet(); toast(`${ids.length} moved to ${periodLabel(addDays(k, 1))}`, true); return; }
@@ -1135,7 +1172,7 @@ document.addEventListener('click', async (e) => {
     case 'qccancel': S.ui.draft = null; render(); return;
     case 'qcsave': { const id = saveDraft(); if (id) toast(`Added ${S.ui.draft?.kind === 'meeting' ? 'meeting' : 'task'} at ${clock(S.tasks.get(id).at)}`, true); S.ui.draft = null; render(); return; }
     case 'qcmore': { const id = saveDraft(); S.ui.draft = null; render(); if (id) taskSheet(id); return; }
-    case 'capture': captureSheet(el.dataset.board ? { board: el.dataset.board } : el.dataset.k ? { when: el.dataset.k } : S.ui.mtab === 'today' && !isDesk() ? { when: todayK() } : {}); return;
+    case 'capture': captureSheet(el.dataset.board ? { board: el.dataset.board } : el.dataset.k ? { when: el.dataset.k, at: el.dataset.at || '' } : isDesk() ? {} : S.ui.mtab === 'hours' ? { when: S.ui.mday } : S.ui.mtab === 'board' && S.ui.board ? { board: S.ui.board } : {}); return;
     case 'savecapture': { const n = addLines($('#dump').value, captureDest(st?.capture)); closeSheet(); render(); $('.mm')?.scrollTo({ top: 0, behavior: 'smooth' }); if (n) toast(`Added ${n} task${n > 1 ? 's' : ''}`, true); return; }
     case 'review': reviewSheet(); return;
     case 'rv': { const id = el.closest('[data-tid]').dataset.tid; pushTask(id, el.dataset.k); render(); reviewSheet(); return; }
@@ -1173,8 +1210,8 @@ document.addEventListener('click', async (e) => {
       closeSheet(); if (!el.dataset.bid) { S.ui.src = 'b:' + id; S.ui.board = id; S.ui.panelView = 'list'; } render(); return; }
     case 'delboard': { const id = el.dataset.bid; batch(g => { put('board', id, { del: new Date().toISOString() }, { group: g }); boardTasks(id).forEach(t => put('task', t.id, { board: '', section: '' }, { group: g })); });
       closeSheet(); S.ui.board = null; S.ui.src = 'inbox'; render(); toast('Board deleted; its tasks moved to Inbox', true); return; }
-    case 'openboard': S.ui.board = el.dataset.bid; if (!isDesk() && history.state?.hz !== 'board') history.pushState({ hz: 'board' }, ''); render(); $('.mm').scrollTop = 0; return;
-    case 'boardsback': if (history.state?.hz === 'board') { history.back(); return; } S.ui.board = null; render(); return;
+    case 'openboard': S.ui.board = el.dataset.bid; if (!isDesk()) { if (sheetState) removeSheetDom(); if (S.ui.mtab !== 'board') S.ui.mprev = S.ui.mtab; S.ui.mtab = 'board'; if (history.state?.hz !== 'board') history.pushState({ hz: 'board' }, ''); } render(); $('.mm').scrollTop = 0; return;
+    case 'boardsback': if (history.state?.hz === 'board') { history.back(); return; } S.ui.board = null; if (!isDesk()) S.ui.mtab = S.ui.mprev || 'hours'; render(); return;
     case 'settings': settingsSheet(); return;
     case 'gcalon': connectGcal(); return;
     case 'signincal': signInWithCalendar(); return;
@@ -1188,7 +1225,7 @@ document.addEventListener('click', async (e) => {
 });
 function captureDest(d = {}) {
   if (d.board) return { board: d.board };
-  if (d.when) return { when: d.when };
+  if (d.when) return d.at ? { when: d.when, at: d.at } : { when: d.when };
   if (isDesk()) { const s = S.ui.src; if (s.startsWith('b:')) return { board: s.slice(2) }; if (s === 'week') return { when: isoWeek(todayK()) }; if (s === 'month') return { when: periodOf('month', todayK()) }; }
   return {};
 }
@@ -1236,7 +1273,7 @@ document.addEventListener('dblclick', (e) => { if (e.target.closest('[data-resiz
 window.addEventListener('popstate', () => {
   if (popping) { popping = false; return; }
   if (sheetState) { removeSheetDom(); render(); return; }
-  if (!isDesk() && S.ui.board && S.ui.mtab === 'boards') { S.ui.board = null; render(); }
+  if (!isDesk() && S.ui.mtab === 'board') { S.ui.board = null; S.ui.mtab = S.ui.mprev || 'hours'; render(); }
 });
 document.addEventListener('keydown', (e) => {
   const el = e.target;
@@ -1302,6 +1339,19 @@ document.addEventListener('pointerdown', (e) => {
   press = { id: card.dataset.tid, card, x: e.clientX, y: e.clientY, type: e.pointerType, resize: !!resize, pid: e.pointerId, t: Date.now(), swipe: null };
   if (e.pointerType !== 'mouse') press.timer = setTimeout(() => { if (press && !press.swipe) startDrag(e.clientX, e.clientY); }, 350);
 });
+// Phone: a horizontal swipe on the week strip moves a week, on the hours screen a day (cards keep their own swipe).
+let hswipe = null;
+document.addEventListener('pointerdown', (e) => {
+  if (isDesk() || sheetState || e.pointerType === 'mouse' || e.target.closest('.card[data-tid],input,button')) return;
+  const z = e.target.closest('[data-swipe]'); if (!z) return; hswipe = { x: e.clientX, y: e.clientY, pid: e.pointerId, kind: z.dataset.swipe };
+}, { passive: true });
+document.addEventListener('pointermove', (e) => {
+  if (!hswipe || e.pointerId !== hswipe.pid) return; const dx = e.clientX - hswipe.x, dy = e.clientY - hswipe.y;
+  if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) { hswipe = null; return; }
+  if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.5) { const n = dx < 0 ? 1 : -1, kind = hswipe.kind; hswipe = null;
+    S.ui.mday = addDays(S.ui.mday, kind === 'week' ? 7 * n : n); S.ui.mjump = true; render(); const mm = $('.mm'); if (mm) { mm.classList.add(n > 0 ? 'in-l' : 'in-r'); setTimeout(() => mm.classList.remove('in-l', 'in-r'), 240); } navigator.vibrate?.(8); }
+}, { passive: true });
+document.addEventListener('pointerup', () => { hswipe = null; }); document.addEventListener('pointercancel', () => { hswipe = null; });
 document.addEventListener('pointermove', (e) => {
   if (drag) { e.preventDefault(); moveDrag(e.clientX, e.clientY); return; }
   if (!press || e.pointerId !== press.pid) return;
@@ -1440,8 +1490,10 @@ function cancelDrag() { cleanupDrag(); }
 function endDrag(x, y) {
   const d = cleanupDrag(), t = d.over; if (!t) return;
   const [kind, val] = t.dataset.drop.split(/:(.*)/s), task = S.tasks.get(d.id); if (!task) return;
-  if (kind === 'day') { if (task.when === val && kindOf(task.when) === 'day' && !task.at) return; place(d.id, val, kindOf(task.when) === 'day' && task.when !== val ? task.at : '', null); }
+  if (!isDesk() && (kind === 'day' || kind === 'slot')) { if (S.ui.mtab !== 'hours' || S.ui.mday !== val) { S.ui.mtab = 'hours'; S.ui.mday = val; S.ui.mjump = true; S.ui.board = null; } }
+  if (kind === 'day') { if (task.when === val && kindOf(task.when) === 'day' && !task.at) { render(); return; } place(d.id, val, kindOf(task.when) === 'day' && task.when !== val ? task.at : '', null); }
   else if (kind === 'slot') place(d.id, val, d.slot, `${dayShort(val)} ${clockAP(d.slot)}`);
+  if (!isDesk() && (kind === 'day' || kind === 'slot')) $(`.m .mm [data-tid="${d.id}"]`)?.scrollIntoView({ block: 'center' });
   else if (kind === 'period') place(d.id, val, '');
   else if (kind === 'list') { if (task.when) place(d.id, null, ''); }
   else if (kind === 'board') { if ((task.board || '') !== val) { put('task', d.id, { board: val, section: '' }); render(); toast(`Moved to ${val ? S.boards.get(val)?.name : 'Inbox'}`, true); } }
