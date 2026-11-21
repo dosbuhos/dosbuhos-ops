@@ -321,3 +321,7 @@ dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding:
 .r48.bad { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); } .r48 b { display: block; } .r48 span { color: var(--muted); }
 .cr { display: grid; grid-template-columns: 62px 1fr; column-gap: 6px; align-items: baseline; } .cr b { font-size: 1.15rem; font-variant-numeric: tabular-nums; } .cr b.up { color: var(--ok); } .cr b.down { color: var(--bad); } .cr span { color: var(--muted); font-size: .85rem; }
 .mbtn.crec { gap: 4px; }
+
+/* Phone: the logging badge on the team cards, and inline links tall enough to tap. */
+.mreg { margin: 2px 0 6px; }
+@media (max-width: 760px) { main a:not(.btn):not(.dt) { display: inline-block; padding: 7px 0; } main a.dt { padding: 8px 0; display: inline-block; } }

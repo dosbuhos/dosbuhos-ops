@@ -89,6 +89,7 @@ const pausado = (r) => (r.pausa ? pill('Envíos pausados por cobranza', 'warn') 
 // it is a table whose headers sort. cols: [{ t: header, v: row => cell, s: row => sort value, num: right-aligned }].
 function lista(key, items, n, fila, vacio, cols, tocar) {
   if (!items.length) return h('p', { class: 'note' }, vacio);
+  if (!ancho()) n = Math.min(n, 8);   // on a phone a long list is a long scroll: show the first few, the rest behind the button
   const open = S.abierto[key], mas = items.length > n ? h('button', { class: 'more', onclick: () => { S.abierto[key] = !open; pintar(); } }, open ? 'Ver menos' : `Ver los ${items.length}`) : null;
   if (!cols || !ancho()) return h('div', {}, h('ul', { class: 'rows' }, (open ? items : items.slice(0, n)).map(fila)), mas);
   cols = cols.filter(Boolean);
@@ -249,6 +250,7 @@ function marcador(p, compacto) {
   if (compacto) { const pcd = (a, b) => (b ? h('b', { class: a / b >= 1 ? 'up' : a / b >= .6 ? '' : 'down' }, Math.round(a / b * 100) + '%') : h('b', {}, '—'));
     return h('button', { class: 'card marc mini', onclick: () => { S.persona = p; pintar(); scrollTo(0, 0); } },
       h('div', { class: 'name' }, p, U.length ? pill(U.length === 1 ? '1 urgente' : `${U.length} urgentes`, 'bad') : pill('Sin urgentes', 'ok')),
+      p !== 'Tito' ? h('div', { class: 'mreg' }, regPill(p, null)) : null,
       p !== 'Daniel' ? h('div', { class: 'mi' }, h('span', {}, 'Ventas'), h('span', {}, 'mes ', M ? pcd(vMes, M[mH - 1]) : h('b', {}, peso(vMes))), h('span', {}, 'año ', M ? pcd(vAnio, aFecha) : h('b', {}, peso(vAnio)))) : null,
       h('div', { class: 'mi' }, h('span', {}, 'Contactos'), h('span', {}, 'sem. ', w && w.meta ? pcd(w.contactos, w.meta) : h('b', {}, w ? w.contactos : 0)), h('span', {}, 'mes ', pcd(sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta))), h('span', {}, 'año ', pcd(sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta)))),
       M ? h('div', { class: 'mn' }, `${peso(vMes)} de ${peso(M[mH - 1])} este mes`) : null); }
