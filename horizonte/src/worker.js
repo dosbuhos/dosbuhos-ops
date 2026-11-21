@@ -182,7 +182,16 @@ export default {
     if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) return mcp.handle(request, env, ctx, url, { applyOps, afterWrite: (touched) => afterWrite(env, ctx, touched) });
     if (url.pathname.startsWith('/api/')) {
       const user = await currentUser(request, env).catch(() => null);
-      if (url.pathname === '/api/me') return json(user ? { email: user.email } : { email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID, calendarReady: !!env.GOOGLE_CLIENT_SECRET }, user ? 200 : 401);
+      if (url.pathname === '/api/me') {
+        if (!user) return json({ email: null, setup: true, clientId: env.GOOGLE_CLIENT_ID, calendarReady: !!env.GOOGLE_CLIENT_SECRET }, 401);
+        // Sliding session: every visit pushes the expiry out again, so a device in regular use never has to sign in twice.
+        const res = json({ email: user.email });
+        if (user.sid) { // (the local DEV_USER shortcut has no session row)
+          ctx.waitUntil(env.DB.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(Date.now() + DAYS * 864e5, user.sid).run().catch(() => {}));
+          res.headers.append('Set-Cookie', cookie(COOKIE, user.sid, DAYS * 86400));
+        }
+        return res;
+      }
       if (!user) return json({ error: 'sign in' }, 401);
       if (url.pathname === '/api/sync' && request.method === 'POST') return sync(request, env, ctx);
       if (url.pathname.startsWith('/api/tokens')) return tokens(request, env, url);

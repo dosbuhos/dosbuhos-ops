@@ -117,7 +117,7 @@ const clockAP = (t) => { const n = toMin(t), h = Math.floor(n / 60) % 24; return
 const S = {
   tasks: new Map(), boards: new Map(),
   prefs: { dayStart: '09:00', dayEnd: '18:00', cap: 3 },
-  outbox: [], cursor: 0, me: null, setup: true, net: 'idle', lastSync: 0, undo: [],
+  outbox: [], cursor: 0, me: store.get('me', null), setup: true, net: 'idle', lastSync: 0, undo: [],
   ui: Object.assign({ zoom: 'days', anchor: null, hday: null, src: 'inbox', sort: 'manual', mtab: 'hours', mzoom: 'days', manchor: null, board: null, open: {} }, store.get('ui', {})),
 };
 // Phone tabs used to be today/plan/boards/inbox; map a stored one onto the new bar. The hours view always opens on today.
@@ -179,7 +179,7 @@ async function syncNow() {
     for (let i = 0; i < 20; i++) {
       const ops = S.outbox.slice(0, 500);
       const r = await fetch('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops, cursor: S.cursor }) });
-      if (r.status === 401) { S.me = null; break; }
+      if (r.status === 401) { S.me = null; store.set('me', null); render(); break; }
       if (!r.ok) throw new Error('sync ' + r.status);
       const res = await r.json();
       S.outbox.splice(0, ops.length);
@@ -196,10 +196,14 @@ async function syncNow() {
   } catch { S.net = 'error'; }
   syncing = false; paintSync();
 }
+// Who is signed in. The last answer is remembered on the device so the first paint does not flash the sign-in banner;
+// the server's answer (signed in, or a 401) replaces it, and the screen repaints only if that changed anything.
 async function whoami() {
-  try { const r = await fetch('/api/me', { cache: 'no-store' }); const j = await r.json(); S.me = j.email || null; S.setup = j.setup !== false; if (j.clientId) S.clientId = j.clientId; S.calReady = !!j.calendarReady; }
-  catch { /* offline: keep working locally */ }
-  paintSync(); if (S.me) syncNow();
+  const was = S.me;
+  try { const r = await fetch('/api/me', { cache: 'no-store' }); const j = await r.json(); S.me = j.email || null; S.setup = j.setup !== false; if (j.clientId) S.clientId = j.clientId; S.calReady = !!j.calendarReady; store.set('me', S.me); }
+  catch { /* offline or server unreachable: keep the remembered answer and work locally */ }
+  if (S.me !== was) render(); else paintSync();
+  if (S.me) syncNow();
 }
 function syncState() {
   if (!S.me) return { cls: 'off', text: S.setup ? 'Not signed in' : 'Local only' };
@@ -1041,7 +1045,7 @@ async function mountGoogleButton() {
     const r = await fetch('/auth/gsi', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential: resp.credential }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { $('#gsimsg') && ($('#gsimsg').textContent = j.error || 'Sign-in failed.'); return; }
-    S.me = j.email; toast('Signed in · loading your boards'); closeSheet(); render(); await syncNow(); render();
+    S.me = j.email; store.set('me', S.me); toast('Signed in · loading your boards'); closeSheet(); render(); await syncNow(); render();
   } });
   google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: Math.min(320, box.clientWidth || 320) });
 }
@@ -1102,7 +1106,7 @@ function signInWithCalendar() {
       const r = await fetch('/auth/code', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: resp.code }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { $('#gsimsg') && ($('#gsimsg').textContent = j.error || 'Sign-in failed.'); return; }
-      S.me = j.email; toast(j.calendar ? 'Signed in · calendar linked' : 'Signed in'); closeSheet(); render(); await syncNow(); render();
+      S.me = j.email; store.set('me', S.me); toast(j.calendar ? 'Signed in · calendar linked' : 'Signed in'); closeSheet(); render(); await syncNow(); render();
     } });
   client.requestCode();
 }
