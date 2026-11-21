@@ -615,6 +615,9 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .mm > .eyebrow + .card, .m .mm > .eyebrow + .arow, .m .mm > .qadd + .card { margin-top: 2px; }
 .m .mm .card:not(.meeting) { min-height: 40px; gap: 8px; padding: 5px 2px 5px 4px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
 .m .mm .card:not(.meeting):hover { box-shadow: none; }
+/* …but a timed block on the hour grid is a box again: its height is the duration, so it needs a fill and an edge */
+.m .mm .grid .card:not(.meeting) { padding: 4px 8px 4px 10px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--card); box-shadow: 0 1px 2px rgba(22,24,29,.06); }
+.m .mm .grid .card.short:not(.meeting) { padding-top: 1px; padding-bottom: 1px; }
 .m .mm .card.someday { border-bottom-style: dashed; border-bottom-color: var(--line-2); }
 .m .mm .card.late { border-bottom-color: color-mix(in srgb, var(--warn) 45%, var(--line-2)); }
 .m .mm .card.running { box-shadow: none; }
