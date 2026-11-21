@@ -60,7 +60,16 @@ const veo = (p) => personas().includes(p);
 
 // Semicircle gauge: red under half the goal, amber up to it, green from there.
 function gauge(n, meta, label) {
-  const W = 200, r = 88, cx = 100, cy = 100, max = Math.max(meta * 1.5, 1);
+  const max = Math.max(meta * 1.5, 1);
+  // Phone: a flat meter. The same three bands laid out left to right, with a marker that slides to where the person is.
+  if (!ancho()) {
+    const W = 300, x = (v) => 4 + (W - 8) * Math.min(v, max) / max, seg = (a, b, c) => svg('rect', { x: x(a), y: 14, width: x(b) - x(a) - 2, height: 12, rx: 3, fill: c });
+    return svg('svg', { class: 'meter', viewBox: `0 0 ${W} 44`, role: 'img', 'aria-label': label },
+      seg(0, meta / 2, 'var(--bad)'), seg(meta / 2, meta, 'var(--warn)'), seg(meta, max, 'var(--ok)'),
+      svg('path', { d: `M${x(n) - 7} 2h14l-7 10z`, fill: 'var(--text)' }), svg('rect', { x: x(n) - 1.5, y: 10, width: 3, height: 20, rx: 1.5, fill: 'var(--text)' }),
+      [[0, 'start'], [meta / 2, 'middle'], [meta, 'middle']].map(([v, an]) => svg('text', { x: v ? x(v) : 4, y: 42, 'text-anchor': an, 'font-size': 10, fill: 'var(--muted)' }, Math.round(v))));
+  }
+  const W = 200, r = 88, cx = 100, cy = 100;
   const pt = (v, rad) => { const a = Math.PI * (1 - Math.min(v, max) / max); return [cx + rad * Math.cos(a), cy - rad * Math.sin(a)]; };
   const arc = (a, b, color) => { const [x0, y0] = pt(a, r), [x1, y1] = pt(b, r); return svg('path', { d: `M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}`, fill: 'none', stroke: color, 'stroke-width': 22 }); };
   const [nx, ny] = pt(n, r - 4);
