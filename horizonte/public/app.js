@@ -404,7 +404,7 @@ const colorStyle = (t) => t.color ? `--mt:${colorHex(t.color)};${t.color === '5'
 function meetingHTML(t, opts = {}) {
   const done = t.status === 'done';
   const range = t.at ? `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 60)))}` : 'No time set';
-  const meta = opts.sched ? (whenText(t) || 'Not scheduled') : range;
+  const meta = opts.meta ?? (opts.sched ? (whenText(t) || 'Not scheduled') : range);
   return `<div class="card meeting ${done ? 'done' : ''}" data-tid="${t.id}" style="${colorStyle(t)}${opts.style || ''}" title="Meeting">
 <span class="lk">${I.people(opts.mobile ? 17 : 15)}</span>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || 'Untitled meeting'}</span></div><span class="meta">${esc(meta)}</span></div>`;
@@ -671,9 +671,9 @@ function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   if (group.length) flush(); return out;
 }
 // Phone hours: land on the now line for today, on the start of the working day otherwise.
-function scrollPhoneHours() { const mm = $('.mm'), g = $('.m .grid'); if (!mm || !g) return;
+function scrollPhoneHours() { const mm = $('.mm'), g = $('.m .grid'), nr = $('.m .nowrow'); if (!mm || !(g || nr)) return;
   if (S.ui.mday !== todayK()) { mm.scrollTop = 0; return; } // other days open at the top: the list first, then the hours
-  const n = new Date(), y = g.offsetTop - mm.offsetTop + (n.getHours() + n.getMinutes() / 60 - H0()) * MG; // now line, in list coordinates
+  const n = new Date(), y = g ? g.offsetTop - mm.offsetTop + (n.getHours() + n.getMinutes() / 60 - H0()) * MG : nr.offsetTop - mm.offsetTop; // now line, in list coordinates
   if (y > mm.scrollTop + 120 && y < mm.scrollTop + mm.clientHeight - 140) return; // already in view
   mm.scrollTop = Math.max(0, y - mm.clientHeight * 0.4); }
 function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl'); if (!tl) return; const n = new Date(); tl.scrollTop = Math.max(0, (n.getHours() - 1 - H0()) * HPX); }); }
@@ -706,7 +706,7 @@ function weekStrip(k) {
   return `<div class="wstrip" data-swipe="week">${h}</div>`;
 }
 function mHours() {
-  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k), od = overdueTasks();
+  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k), od = overdueTasks(), grid = !!S.ui.mgrid;
   const late = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : []; // meetings that passed are not "not done"
   let body = '';
   if (late.length) body += `<div class="latebar"><span>${late.length} not done</span><button data-act="rollall" data-k="${k}">Move all to today ${I.right}</button></div>`;
@@ -714,14 +714,34 @@ function mHours() {
   body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
   if (past) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
   else { const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen);
+    if (untimed.length && (P.timed.length || grid)) body += `<div class="eyebrow">Anytime</div>`;
     body += untimed.map(x => mcard(x)).join(''); }
-  const done = past ? P.done : P.doneNonTarget; if (done.length) body += mDoneToggle('d' + k, done);
-  const h0 = H0(), h1 = H1(); let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${MG}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
-  body += `<div class="hgrid"><div class="gutter" aria-hidden="true">${gutter}</div>${gridHTML(k, MG, h0, h1, { mobile: true, edge: 3, skipOpen: past })}</div>`;
+  const done = (past ? P.done : P.doneNonTarget).filter(x => !x.at || past); if (done.length) body += mDoneToggle('d' + k, done);
+  if (grid) { const h0 = H0(), h1 = H1(); let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${MG}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
+    body += `<div class="hgrid"><div class="gutter" aria-hidden="true">${gutter}</div>${gridHTML(k, MG, h0, h1, { mobile: true, edge: 3, skipOpen: past })}</div>`; }
+  else body += agendaHTML(k, past);
   const title = `<button class="tdy ${k === t ? 'cur' : ''}" data-act="mtoday" ${k === t ? 'aria-current="date"' : ''}>Today</button><span class="date">${MON[d.getMonth()]} ${d.getDate()}, ${DOW[d.getDay()]}</span>`;
-  const right = `<button class="plain" aria-label="In review" data-act="summary" data-k="${k}">${I.chart}</button><button class="plain" data-sync aria-label="Sync status" data-act="settings"></button>`;
+  const right = `<button class="plain" aria-label="${grid ? 'Show as list' : 'Show hour grid'}" aria-pressed="${grid}" data-act="mgrid">${I.clock}</button><button class="plain" aria-label="In review" data-act="summary" data-k="${k}">${I.chart}</button><button class="plain" data-sync aria-label="Sync status" data-act="settings"></button>`;
   return `<header class="mh hours">${mtop(title, right)}${weekStrip(k)}</header>
 <main class="mm" data-list="hours" data-swipe="day" data-k="${k}">${body}</main>`;
+}
+// The day as a time-ordered list: a time rail, the now line in its place, and free gaps named. Past days list what happened, dimmed.
+function agendaHTML(k, past) {
+  const t = todayK(), today = k === t, nowM = nowMin();
+  const items = placedOn(k).filter(x => x.at && !(past && isOpen(x) && x.kind !== 'meeting')).sort((a, b) => toMin(a.at) - toMin(b.at) || order(a, b));
+  if (!items.length) return today || k > t ? `<div class="empty">Nothing scheduled${today ? ' yet' : ''}. Hold a task and drop it on an hour, or tap the clock for the grid.</div>` : '';
+  let h = `<div class="eyebrow gap">Scheduled</div>`, nowDone = !today, lastEnd = null;
+  const row = (x) => { const end = toMin(x.at) + (x.dur || 30), over = today && end <= nowMin() && isOpen(x) && x.kind !== 'meeting';
+    const meta = x.kind === 'meeting' ? `to ${clock(fromMin(end))}` : isOpen(x) && today && toMin(x.at) > nowM && toMin(x.at) - nowM <= 120 ? `in ${fmtDur(toMin(x.at) - nowM)}` : !isOpen(x) && x.spent ? fmtDur(x.dur || 30) : '';
+    return `<div class="arow"><div class="tm"><b>${clock(x.at)}</b><span>${fmtDur(x.dur || 30)}</span></div>${mcard(x, { meta, style: past || (!isOpen(x)) ? 'opacity:.55' : over ? 'opacity:.8' : '' })}</div>`; };
+  for (const x of items) {
+    const st = toMin(x.at);
+    if (!nowDone && st > nowM) { h += `<div class="nowrow" aria-label="Now ${clock(fromMin(nowM))}"><span>${clock(fromMin(nowM))}</span><i></i></div>`; nowDone = true; }
+    if (lastEnd != null && st - lastEnd >= 30 && (k > t || (today && st > nowM))) h += `<div class="gaprow"><span></span><span>${fmtDur(st - lastEnd)} free</span></div>`;
+    h += row(x); lastEnd = Math.max(lastEnd ?? 0, st + (x.dur || 30));
+  }
+  if (!nowDone && nowM <= toMin(S.prefs.dayEnd)) h += `<div class="nowrow" aria-label="Now ${clock(fromMin(nowM))}"><span>${clock(fromMin(nowM))}</span><i></i></div>`;
+  return h;
 }
 function mDoneToggle(key, done) {
   const open = S.ui.open[key];
@@ -1118,6 +1138,7 @@ document.addEventListener('click', async (e) => {
     case 'mday': S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); return;
     case 'menu': menuSheet(); return;
     case 'odhide': S.ui.odHide = todayK(); render(); return;
+    case 'mgrid': S.ui.mgrid = !S.ui.mgrid; S.ui.mjump = true; render(); return;
     case 'rollto': if (tid) { pushTask(tid, todayK()); render(); toast('Moved to today', true); } return;
     case 'rollall': { const open = dayParts(el.dataset.k).open.filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;

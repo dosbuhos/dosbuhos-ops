@@ -38,6 +38,7 @@ Read from the Timestripe web app in Eric's Chrome (read-only) and posted to `POS
 ## Phone layout (v41)
 Timestripe-style: a scrolling bar at the bottom (Inbox · Hours · Days · Weeks · Months · Quarters · Years · Horizons), Hours as the default view
 with a week strip (tap a day, swipe the strip for the next week, swipe the screen for the next day), an inline "Add…" row, and a floating +.
+Hours shows the day as an agenda (v44): "Anytime" tasks on deck, then the scheduled items on a time rail with the now line and free gaps named; the clock button in the header switches to the hour grid.
 Boards, In review, Overdue and Settings live under the grid icon top-left. Tapping an empty slot in the grid opens Capture at that time.
 Past days list what did not get done, each with a "Today ›" button, and a "Move all to today" bar; dropping an Inbox task on a day stays in Hours on that day.
 
