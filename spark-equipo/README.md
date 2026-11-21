@@ -93,3 +93,11 @@ npm test
 - **Premios** (`#premios`): medals and scores by wine or by competition, with a copy button per wine.
 - Awards and the where-sold list live in `public/marca.js`, generated from the QR card (`card/build_app.py`) so both say
   the same thing. After changing `AWARDS` or `WHERE` there, run `python3 tools/marca_desde_tarjeta.py` from this folder.
+
+## Inicio y Buzón
+
+- **Inicio** (`#hoy`, the default): per person, sales for the month and the year against the goal to date, contacts for the
+  week, month and year, and up to five urgent items (open questions, late logging, follow-ups more than 14 days overdue,
+  clients past their reorder date, balances over 90 days). On phones the team view is one compact card per person.
+- **Buzón** (`#buzon`): Eric's questions, the "por atender" and "va bien" notes, and promotions in force. "Hecho" hides a
+  note for that user (`buzon_hechos`, `POST /api/buzon/hecho`). `#pendientes` still opens Buzón.

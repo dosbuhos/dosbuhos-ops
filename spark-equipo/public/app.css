@@ -288,3 +288,18 @@ dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding:
   .tbl { font-size: .82rem; } .tbl th.r { white-space: normal; } .tbl .r { padding-right: 8px; padding-left: 4px; } .tbl td:last-child.r, .tbl th:last-child.r { padding-right: 2px; }
   .tapli { padding-right: 0; } .tapli > div { margin-right: 20px; }
 }
+
+/* ---- Inicio scoreboard and Buzón ---- */
+.marc h3 { margin: 14px 0 4px; } .marc h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.mbtn { all: unset; box-sizing: border-box; display: grid; gap: 8px; width: 100%; cursor: pointer; border-radius: 8px; }
+.mbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.mf { display: grid; grid-template-columns: 62px auto 1fr auto; align-items: baseline; column-gap: 6px; }
+.mf .ml { color: var(--muted); font-size: .85rem; } .mf b { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.mf .mm { color: var(--muted); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mf em { font-style: normal; font-weight: 650; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.mf .barra { grid-column: 2 / -1; margin: 4px 0 0; } .mf .mn { grid-column: 2 / -1; }
+.mn { color: var(--muted); font-size: .8rem; margin-top: 3px; display: block; } .mbtn > .mn { padding-left: 68px; margin-top: -2px; }
+.foco li.hecho { opacity: .55; } .foco .bz { margin-top: 2px; } .foco .bz .linkb { font-size: .82rem; color: var(--accent); font-weight: 600; }
+.marc.mini { all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.marc.mini .name { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 650; margin-bottom: 8px; }
+.mi { display: grid; grid-template-columns: 82px repeat(3, 1fr); gap: 6px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--rule); font-size: .85rem; color: var(--muted); }
+.mi > span:first-child { color: var(--text); font-weight: 600; } .mi b { color: var(--text); font-size: 1rem; font-variant-numeric: tabular-nums; } .mi b.up { color: var(--ok); } .mi b.down { color: var(--bad); }

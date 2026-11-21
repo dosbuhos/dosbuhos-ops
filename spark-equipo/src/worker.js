@@ -122,6 +122,7 @@ export default {
       if (deZoho) m.cobranza = { fuente: 'zoho', corte: m.hoy, facturas: deZoho.map((f) => ({ ...f, comentario: nota.get(norm(f.cliente)) || '', dias: diff(f.vence, m.hoy) })), gestiones: cobros };
       else m.cobranza = { fuente: 'archivo', corte: cobranzaArchivo.corte, facturas: cobranzaArchivo.facturas.map((f) => ({ ...f, dias: /^\d{4}-\d\d-\d\d$/.test(f.vence) ? diff(f.vence, m.hoy) : null })), gestiones: cobros };
       m.preguntas = (await env.DB.prepare('SELECT * FROM preguntas ORDER BY respondida != \'\', id DESC').all()).results;
+      m.hechos = (await env.DB.prepare('SELECT clave FROM buzon_hechos WHERE email = ?').bind(yo.email).all()).results.map((r) => r.clave);   // inbox notes this person marked done
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
       return json({ ...m, sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
     }
@@ -189,6 +190,13 @@ export default {
       return json({ ok: true });
     }
     // Open questions: the person asked (or an admin) writes the answer.
+    if (p === '/api/buzon/hecho' && request.method === 'POST') {
+      const b = await cuerpo(), clave = txt(b.clave, 200);
+      if (!clave) return json({ error: 'Falta la nota' }, 400);
+      if (b.deshacer) await env.DB.prepare('DELETE FROM buzon_hechos WHERE email = ? AND clave = ?').bind(yo.email, clave).run();
+      else await env.DB.prepare('INSERT OR IGNORE INTO buzon_hechos (email, clave, fecha) VALUES (?,?,?)').bind(yo.email, clave, hoyEn(env.TZ)).run();
+      return json({ ok: true });
+    }
     if (p === '/api/preguntas/responder' && request.method === 'POST') {
       const b = await request.json().catch(() => ({})), txt = String(b.respuesta || '').trim().slice(0, 2000);
       const q = await env.DB.prepare('SELECT * FROM preguntas WHERE id = ?').bind(Number(b.id) || 0).first();

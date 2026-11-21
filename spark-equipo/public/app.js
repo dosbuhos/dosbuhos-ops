@@ -34,14 +34,14 @@ const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: nul
 
 // Every screen, grouped the way the sidebar shows them. [slug, sidebar label, page title, admin only, coming soon]
 const GRUPOS = [
-  ['Mi trabajo', [['hoy', 'Hoy', 'Hoy'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['pendientes', 'Preguntas pendientes', 'Preguntas pendientes']]],
+  ['Mi trabajo', [['hoy', 'Inicio', 'Inicio'], ['buzon', 'Buzón', 'Buzón'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['semanas', 'Semanas y meses', 'Semanas y meses']]],
   ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
   ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
   ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
   ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
 ];
 const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
-const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // first on the phone ribbon; the rest follow in menu order
+const ABAJO = ['hoy', 'buzon', 'seguimiento', 'semanas', 'clientes'];           // first on the phone ribbon; the rest follow in menu order
 const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
@@ -50,7 +50,7 @@ function ir(vista, persona) {
   if (location.hash.slice(1) !== vista) history.pushState(null, '', '#' + vista); // so the phone's back button walks the screens
   pintar(); window.scrollTo(0, 0);
 }
-const deHash = () => { const v = location.hash.slice(1), x = PANT.get(v); S.vista = VISTAS[v] && x && (D.yo.admin || !x[3]) ? v : 'hoy'; };
+const deHash = () => { const v = location.hash.slice(1) === 'pendientes' ? 'buzon' : location.hash.slice(1), x = PANT.get(v); S.vista = VISTAS[v] && x && (D.yo.admin || !x[3]) ? v : 'hoy'; };
 addEventListener('popstate', () => { if (D) { deHash(); $('sheet').hidden = true; pintar(); } });
 // Whether the signed-in person may write on behalf of p.
 const puede = (p) => D.yo.admin || D.yo.persona === p;
@@ -173,22 +173,82 @@ const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p)
 export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, nuevaCuenta, pintar, cargar, ir, toca };
 export const datos = () => D;
 
+// ---- Inicio: where each person stands (sales and contacts against their goals), then the few things that cannot wait.
+// Notes, nudges and Eric's questions live in Buzón.
+const sumar = (L, f) => L.reduce((t, x) => t + (f(x) || 0), 0);
+const abiertasDe = (p) => (D.preguntas || []).filter((q) => !q.respondida && q.para === p);
+function urgente(p) {
+  const U = [], nq = abiertasDe(p).length;
+  if (nq) U.push({ k: 'bad', t: nq === 1 ? '1 pregunta de Eric sin responder' : `${nq} preguntas de Eric sin responder`, vista: 'buzon' });
+  const reg = D.foco.find((f) => f.persona === p && f.tipo === 'registrar');
+  if (reg) U.push({ k: 'warn', t: reg.titulo, d: reg.detalle, vista: 'semanas' });
+  const venc = D.seguimiento.filter((r) => r.persona === p && r.estado === 'vencida' && r.dias_vencido > 14).sort((a, b) => b.dias_vencido - a.dias_vencido);
+  if (venc.length) U.push({ k: 'bad', t: venc.length === 1 ? '1 seguimiento con más de 14 días de atraso' : `${venc.length} seguimientos con más de 14 días de atraso`, d: venc.slice(0, 3).map((r) => `${r.cuenta} (${r.dias_vencido} d)`).join(' · '), vista: 'seguimiento' });
+  const toca = (D.pedidos.find((x) => x.vendedor === p) || {}).ya_les_tocaba || [];
+  if (toca.length) U.push({ k: 'warn', t: toca.length === 1 ? '1 cliente ya debía pedir' : `${toca.length} clientes ya debían pedir`, d: toca.slice(0, 3).map((c) => c.cliente).join(' · '), vista: 'clientes' });
+  const viejas = ((D.cobranza || {}).facturas || []).filter((f) => f.vendedor === p && (f.dias || 0) > 90);
+  if (viejas.length) U.push({ k: 'bad', t: `${peso(sumar(viejas, (f) => f.saldo))} por cobrar con más de 90 días`, d: `${new Set(viejas.map((f) => f.cliente)).size} clientes`, vista: 'cobranza' });
+  return U;
+}
+// The notes that go to Buzón: what to work on, what is going well, and the promotions in force.
+function notasDe(p) {
+  const N = D.foco.filter((f) => f.persona === p && f.tipo !== 'registrar').sort((a, b) => a.orden - b.orden).map((f) => ({ clave: `${p}|${f.titulo}`, persona: p, bien: f.tipo === 'bien', t: f.titulo, d: f.detalle, vista: f.vista }));
+  return N.map((n) => ({ ...n, hecho: (D.hechos || []).includes(n.clave) }));
+}
+const promosHoy = () => (D.promociones || []).filter((p) => p.visible && (!p.inicio || p.inicio <= D.hoy) && (!p.fin || p.fin >= D.hoy)).map((p) => ({ clave: 'promo|' + p.id, promo: true, t: 'Promoción vigente: ' + p.nombre, d: [p.detalle, p.aplica, p.fin ? `hasta el ${dia(p.fin)}` : ''].filter(Boolean).join(' · '), vista: 'estrategia', hecho: (D.hechos || []).includes('promo|' + p.id) }));
+// What shows as unread: for a rep, their open questions and notes to act on; for an admin, the questions still unanswered.
+const sinLeer = () => (D.yo.persona && !D.yo.admin ? abiertasDe(D.yo.persona).length + notasDe(D.yo.persona).filter((n) => !n.bien && !n.hecho).length + promosHoy().filter((n) => !n.hecho).length : (D.preguntas || []).filter((q) => !q.respondida).length);
+function marcador(p, compacto) {
+  const Y = D.hoy.slice(0, 4), ym = D.hoy.slice(0, 7), mH = Number(D.hoy.slice(5, 7)), dH = Number(D.hoy.slice(8)), dMes = new Date(Number(Y), mH, 0).getDate();
+  const M = String(D.presupuesto.anio) === Y && (D.presupuesto.meses[p] || []).length === 12 ? D.presupuesto.meses[p] : null;
+  const vMesDe = (m) => neto(sumar(D.ordenes.filter((o) => o.vendedor === p && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m), (o) => o.total));
+  const vMes = vMesDe(mH), vAnio = sumar([...Array(mH).keys()], (i) => vMesDe(i + 1)), aFecha = M ? Math.round(sumar(M.slice(0, mH - 1), (x) => x) + M[mH - 1] * dH / dMes) : 0;
+  const ws = D.semanas.filter((r) => r.persona === p && r.veredicto !== 'Sin datos' && r.semana.slice(0, 4) === Y), w = semDe(D.semana_actual, p), wm = ws.filter((r) => r.semana.slice(0, 7) === ym);
+  // One line of the scoreboard: label, "real de meta", a bar, and what is missing.
+  const fila = (rot, real, meta, f, falta) => { const pc = meta ? Math.round(real / meta * 100) : null;
+    return h('div', { class: 'mf' }, h('span', { class: 'ml' }, rot), h('b', {}, f(real)), meta ? h('span', { class: 'mm' }, ` de ${f(meta)}`) : null, pc != null ? h('em', { class: pc >= 100 ? 'up' : pc >= 60 ? '' : 'down' }, pc + '%') : null,
+      pc != null ? h('div', { class: 'barra', role: 'img', 'aria-label': `${pc}% de la meta` }, h('i', { class: pc >= 100 ? 'ok' : pc >= 60 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` })) : null,
+      pc != null && falta ? h('span', { class: 'mn' }, real >= meta ? `Vas ${f(real - meta)} arriba` : `Te faltan ${f(meta - real)}`) : null); };
+  const n = (x) => String(x), U = urgente(p), nb = notasDe(p).filter((x) => !x.bien && !x.hecho).length;
+  const quien = (v) => (S.persona || D.yo.persona === p ? v : v.replace('Te faltan', 'Le faltan').replace('Vas ', 'Va '));
+  if (compacto) { const pcd = (a, b) => (b ? h('b', { class: a / b >= 1 ? 'up' : a / b >= .6 ? '' : 'down' }, Math.round(a / b * 100) + '%') : h('b', {}, '—'));
+    return h('button', { class: 'card marc mini', onclick: () => { S.persona = p; pintar(); scrollTo(0, 0); } },
+      h('div', { class: 'name' }, p, U.length ? pill(U.length === 1 ? '1 urgente' : `${U.length} urgentes`, 'bad') : pill('Sin urgentes', 'ok')),
+      p !== 'Daniel' ? h('div', { class: 'mi' }, h('span', {}, 'Ventas'), h('span', {}, 'mes ', M ? pcd(vMes, M[mH - 1]) : h('b', {}, peso(vMes))), h('span', {}, 'año ', M ? pcd(vAnio, aFecha) : h('b', {}, peso(vAnio)))) : null,
+      h('div', { class: 'mi' }, h('span', {}, 'Contactos'), h('span', {}, 'sem. ', w && w.meta ? pcd(w.contactos, w.meta) : h('b', {}, w ? w.contactos : 0)), h('span', {}, 'mes ', pcd(sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta))), h('span', {}, 'año ', pcd(sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta)))),
+      M ? h('div', { class: 'mn' }, `${peso(vMes)} de ${peso(M[mH - 1])} este mes`) : null); }
+  const card = h('section', { class: 'card marc' },
+    h('div', { class: 'name' }, p, w && w.meta ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : p === 'Tito' ? pill('Casa', 'mute') : null),
+    p !== 'Daniel' ? [h('h3', {}, 'Ventas', h('small', {}, ' antes de impuestos')), h('button', { class: 'mbtn', onclick: () => ir('ventas', p) },
+      fila('Mes', vMes, M ? M[mH - 1] : 0, peso, true), fila('Año', vAnio, aFecha, peso, true))] : null,
+    h('h3', {}, 'Contactos'), h('button', { class: 'mbtn', onclick: () => ir('semanas', p) },
+      fila('Semana', w ? w.contactos : 0, w ? w.meta : 0, n, true), fila('Mes', sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta), n), fila('Año', sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta), n), ws.length && ws[0].semana.slice(5, 7) !== '01' ? h('span', { class: 'mn' }, `El año cuenta desde el ${dia(ws[0].semana)} (primer registro).`) : null),
+    h('h3', {}, 'Urgente'), U.length ? h('ul', { class: 'foco' }, U.map((u) => h('li', { class: u.k === 'bad' ? 'cliente' : 'meta' }, h('button', { onclick: () => ir(u.vista, p) }, u.t), u.d ? h('span', {}, u.d) : null))) : h('p', { class: 'note' }, 'Nada urgente.'),
+    nb ? h('p', { class: 'note', style: 'margin-top:10px' }, h('button', { class: 'linkb', onclick: () => ir('buzon', p) }, nb === 1 ? '1 nota en el Buzón' : `${nb} notas en el Buzón`)) : null);
+  card.querySelectorAll('.mn').forEach((e) => { e.textContent = quien(e.textContent); });
+  return card;
+}
+
 const VISTAS = {
   hoy() {
-    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'),
-      (D.promociones || []).filter((p) => p.visible && (!p.inicio || p.inicio <= D.hoy) && (!p.fin || p.fin >= D.hoy)).slice(0, 3).map((p) => h('div', { class: 'alert ok' }, h('b', {}, 'Promoción vigente: '), h('button', { class: 'linkb', onclick: () => ir('estrategia') }, p.nombre), p.fin ? ` · hasta el ${dia(p.fin)}` : '')),
-      h('div', { class: 'grid3' }, personas().map((p) => {
-      const w = semDe(D.semana_actual, p), items = D.foco.filter((f) => f.persona === p).sort((a, b) => a.orden - b.orden);
-      const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, p) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
-      const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');
-      return h('section', { class: 'card' },
-        h('div', { class: 'name' }, p, w && w.meta ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : p === 'Tito' ? pill('Casa', 'mute') : null),
-        w ? h('div', {}, h('span', { class: 'num' }, w.meta ? `${w.contactos} / ${w.meta}` : String(w.contactos)), h('span', { class: 'note' }, w.meta ? ' contactos esta semana' : ' contactos esta semana · sin meta')) : p === 'Tito' ? h('p', { class: 'note' }, 'Cuenta de la casa: ventas y prospección de Eric y Diane. Sin meta de contactos.') : null,
-        w ? ritmo(w) : null,
-        (D.preguntas || []).some((q) => !q.respondida && q.para === p) ? h('p', { class: 'note' }, h('button', { class: 'linkb', onclick: () => ir('pendientes', p) }, ((n) => (n === 1 ? 'Tienes 1 pregunta pendiente de Eric' : `Tienes ${n} preguntas pendientes de Eric`))((D.preguntas || []).filter((q) => !q.respondida && q.para === p).length))) : null,
-        h('h3', {}, 'Enfócate en'), todo.length ? ul(todo) : h('p', { class: 'note' }, 'Sin pendientes urgentes.'),
-        bien.length ? [h('h3', {}, 'Va bien'), ul(bien)] : null);
-    })));
+    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => marcador(p, !ancho() && personas().length > 1))),
+      !ancho() && personas().length > 1 ? h('p', { class: 'note' }, 'Porcentajes contra la meta a la fecha. Toca a una persona para ver su tablero completo.') : null);
+  },
+
+  // Buzón: Eric's questions, the notes on what to work on and what is going well, and promotions. A note leaves when marked done.
+  buzon() {
+    const ps = personas(), ver = S.buzonHechas, hecho = (n) => h('button', { class: 'linkb', onclick: () => enviar('api/buzon/hecho', { clave: n.clave, deshacer: n.hecho || undefined }) }, n.hecho ? 'Regresar' : 'Hecho');
+    const item = (n) => h('li', { class: (n.bien ? 'bien' : n.promo ? 'meta' : 'cliente') + (n.hecho ? ' hecho' : '') }, h('button', { onclick: () => ir(n.vista, n.persona) }, n.t), n.d ? h('span', {}, n.d) : null, h('div', { class: 'bz' }, hecho(n)));
+    const promos = promosHoy().filter((n) => ver || !n.hecho), q = preguntas();
+    const porP = ps.map((p) => [p, notasDe(p).filter((n) => ver || !n.hecho)]).filter(([, N]) => N.length);
+    const nHechas = ps.reduce((t, p) => t + notasDe(p).filter((n) => n.hecho).length, 0) + promosHoy().filter((n) => n.hecho).length;
+    return h('div', {},
+      q ? [h('h2', {}, 'Preguntas de Eric'), q] : null,
+      promos.length ? [h('h2', {}, 'Promociones'), h('div', { class: 'card' }, h('ul', { class: 'foco' }, promos.map(item)))] : null,
+      porP.length ? [h('h2', {}, 'Notas'), h('div', { class: 'grid3' }, porP.map(([p, N]) => { const A = N.filter((n) => !n.bien), B = N.filter((n) => n.bien);
+        return h('section', { class: 'card' }, ps.length > 1 ? h('div', { class: 'name' }, p) : null, A.length ? [h('h3', {}, 'Por atender'), h('ul', { class: 'foco' }, A.map(item))] : null, B.length ? [h('h3', {}, 'Va bien'), h('ul', { class: 'foco' }, B.map(item))] : null); }))] : null,
+      !q && !promos.length && !porP.length ? h('p', { class: 'note' }, 'Buzón vacío.') : null,
+      nHechas || ver ? h('p', { style: 'margin-top:14px' }, h('button', { class: 'linkb note', onclick: () => { S.buzonHechas = !ver; pintar(); } }, ver ? 'Ocultar las hechas' : `Ver las hechas (${nHechas})`)) : null);
   },
 
   semanas() {
@@ -568,10 +628,10 @@ async function api(path, body) {
 
 function pintar() {
   const admin = D.yo.admin, wide = ancho(), yo = PANT.get(S.vista) || PANT.get('hoy');
-  const nPend = (D.preguntas || []).filter((q) => !q.respondida && (admin || q.para === D.yo.persona)).length;
+  const nPend = sinLeer();
   const visibles = GRUPOS.map(([g, L]) => [g, L.filter((x) => !x[3] || admin)]).filter(([, L]) => L.length);
   const boton = ([v, t, , , prox]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, h('span', {}, t),
-    v === 'pendientes' && nPend ? h('span', { class: 'cnt', 'aria-label': `${nPend} sin responder` }, nPend) : prox ? h('span', { class: 'soon' }, 'Pronto') : null);
+    v === 'buzon' && nPend ? h('span', { class: 'cnt', 'aria-label': `${nPend} sin responder` }, nPend) : prox ? h('span', { class: 'soon' }, 'Pronto') : null);
   $('titulo').textContent = yo[2];
   $('sub').textContent = new Date(D.hoy + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
   $('who').replaceChildren(...(!SIN_FILTRO.includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel'], ['Tito', 'Tito · casa']].map(([v, t]) =>
@@ -580,9 +640,9 @@ function pintar() {
   $('nav').replaceChildren(...visibles.flatMap(([g, L]) => [h('h3', {}, g), ...L.map(boton)]));
   $('me').textContent = (D.yo.nombre || '') + (admin ? ' · administrador' : D.yo.persona ? ' · ' + D.yo.persona : '');
   // Phone: one ribbon with every screen, most used first; it scrolls sideways and keeps the current one in view.
-  const CORTO = { semanas: 'Semanas', pendientes: 'Preguntas', ventas: 'Ventas', copeo: 'Copeo', zonas: 'Zonas', estrategia: 'Estrategia', materiales: 'Materiales' };
+  const CORTO = { semanas: 'Semanas', ventas: 'Ventas', copeo: 'Copeo', zonas: 'Zonas', estrategia: 'Estrategia', materiales: 'Materiales' };
   const todas = visibles.flatMap(([, L]) => L), cinta = [...ABAJO.map((v) => PANT.get(v)), ...todas.filter((x) => !ABAJO.includes(x[0]))];
-  $('tabs').replaceChildren(...cinta.map(([v, t]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, CORTO[v] || t, v === 'pendientes' && nPend ? h('span', { class: 'cnt' }, nPend) : null)));
+  $('tabs').replaceChildren(...cinta.map(([v, t]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, CORTO[v] || t, v === 'buzon' && nPend ? h('span', { class: 'cnt' }, nPend) : null)));
   if (!wide) { const act = $('tabs').querySelector('[aria-current]'); if (act) $('tabs').scrollLeft = Math.max(0, act.offsetLeft - ($('tabs').clientWidth - act.offsetWidth) / 2); }
   $('main').replaceChildren((VISTAS[S.vista] || VISTAS.hoy)());
 }
