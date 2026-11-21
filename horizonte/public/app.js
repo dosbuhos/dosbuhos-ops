@@ -1434,7 +1434,7 @@ function swipeEnd(dx) {
 function startDrag(x, y) {
   const p = press; if (!p) return; press = null; clearTimeout(p.timer);
   const r = p.card.getBoundingClientRect();
-  const ghost = p.card.cloneNode(true); ghost.classList.add('ghost'); ghost.style.width = (isDesk() ? r.width : Math.min(r.width, innerWidth * 0.62)) + 'px'; ghost.style.height = Math.min(r.height, 80) + 'px';
+  const ghost = p.card.cloneNode(true); ghost.classList.add('ghost'); ghost.style.width = (isDesk() ? r.width : Math.min(r.width, innerWidth * 0.7)) + 'px'; ghost.style.height = (isDesk() ? Math.min(r.height, 80) : 44) + 'px';
   ghost.style.left = '0px'; ghost.style.top = '0px'; ghost.style.position = 'fixed'; ghost.style.right = 'auto';
   (isDesk() ? document.body : $('.m')).appendChild(ghost);
   p.card.classList.add('dragging'); document.body.classList.add('is-dragging');

@@ -111,7 +111,13 @@ svg { flex: none; }
 .appt .t { font-weight: 600; }
 
 /* drag */
-.ghost { position: fixed; z-index: 90; pointer-events: none; box-shadow: 0 8px 20px rgba(22,24,29,0.18); transform: rotate(-1.5deg); opacity: 0.97; margin: 0; }
+.ghost { position: fixed; z-index: 90; pointer-events: none; box-shadow: 0 8px 20px rgba(22,24,29,0.18); transform: rotate(-1.5deg); opacity: 0.97; margin: 0; overflow: hidden; align-items: center; min-height: 0; }
+/* the ghost is a one-line summary of the card: title on one line, no tags/notes, meta only if there is room */
+.ghost .body { min-width: 0; flex: 1; gap: 0; overflow: hidden; }
+.ghost .t { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.ghost .tags, .card.ghost .sub, .card.ghost .resize, .card.ghost .rollbtn, .card.ghost .meta.live, .m .card.ghost .tags { display: none; }
+.ghost .meta { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.m .ghost { height: 44px; padding: 0 10px 0 12px; border-radius: 10px; }
 body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
 .dropcol.over { background: var(--drop) !important; }
 .dropcol.over > .dropzone { display: block; }
