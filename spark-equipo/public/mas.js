@@ -56,7 +56,7 @@ function directorio() {
   const A = D().directorio, caja = h('div', {});
   const pinta = () => {
     const q = (S.dirQ || '').toLowerCase(), f = S.dirF || '';
-    let L = A.filter((d) => (!q || `${d.nombre} ${d.contacto} ${d.ciudad} ${d.estado} ${d.email}`.toLowerCase().includes(q)) && (f === 'falta' ? faltan(d).length : f === 'mx' ? d.pais === 'México' : f === 'usa' ? d.pais !== 'México' : true));
+    let L = A.filter((d) => (!S.dirV || d.vendedor === S.dirV) && (!q || `${d.nombre} ${d.contacto} ${d.ciudad} ${d.estado} ${d.email}`.toLowerCase().includes(q)) && (f === 'falta' ? faltan(d).length : f === 'mx' ? d.pais === 'México' : f === 'usa' ? d.pais !== 'México' : true));
     const grupos = [...new Set(L.map((d) => d.zona_nombre || 'Sin zona'))].sort((a, b) => (a.startsWith('Estados') ? 1 : 0) - (b.startsWith('Estados') ? 1 : 0) || a.localeCompare(b));
     caja.replaceChildren(...(L.length ? grupos.flatMap((g) => { const G = L.filter((d) => (d.zona_nombre || 'Sin zona') === g).sort((a, b) => a.nombre.localeCompare(b.nombre));
       return [h('h2', {}, `${g} (${G.length})`), h('div', { class: 'card' }, lista('dir' + g, G, 12, (d) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, d.nombre), faltan(d).length ? pill(faltan(d).length === 1 ? 'Falta 1 dato' : `Faltan ${faltan(d).length} datos`, 'warn') : pill('Completo', 'ok')),
@@ -70,7 +70,15 @@ function directorio() {
   };
   const comp = A.filter((d) => !faltan(d).length).length, busca = h('input', { type: 'search', placeholder: 'Buscar cuenta, contacto o ciudad', 'aria-label': 'Buscar', value: S.dirQ || '', oninput: (ev) => { S.dirQ = ev.target.value; pinta(); } });
   pinta();
-  return h('div', {},
+  // Who still owes contact details, said plainly: per rep, how many of their accounts are missing a contact, a phone or an email.
+  const mx = A.filter((d) => d.pais === 'México'), deuda = ['José Luis', 'Carlos', 'Daniel', 'Tito'].map((v) => ({ v, n: mx.filter((d) => d.vendedor === v && faltan(d).length).length, de: mx.filter((d) => d.vendedor === v).length })).filter((x) => x.n);
+  const yo = D().yo.persona, mia = deuda.find((x) => x.v === yo), totalF = deuda.reduce((t, x) => t + x.n, 0);
+  const ver = (v) => { S.dirV = v; S.dirF = 'falta'; pintar(); };
+  const aviso = totalF ? h('div', { class: 'alert', role: 'status' }, h('b', {}, mia ? `Te faltan datos en ${mia.n} de tus ${mia.de} cuentas. ` : `Faltan datos de contacto en ${totalF} cuentas. `),
+    'Cada cuenta necesita persona de contacto, teléfono y correo. ', deuda.map((x, i) => [i ? ' · ' : '', h('button', { class: 'linkb', onclick: () => ver(x.v) }, `${x.v}: ${x.n} de ${x.de}`)]),
+    S.dirV ? [' · ', h('button', { class: 'linkb', onclick: () => { S.dirV = ''; S.dirF = ''; pintar(); } }, 'Ver todas')] : null)
+    : h('div', { class: 'alert ok' }, 'Todas las cuentas tienen persona de contacto, teléfono y correo.');
+  return h('div', {}, aviso,
     h('div', { class: 'card kpis' }, kpi(A.length, 'Cuentas en el libro', `${A.filter((d) => d.pais === 'México').length} en México · ${A.filter((d) => d.pais !== 'México').length} en Estados Unidos`),
       kpi(`${comp} de ${A.length}`, 'Con datos completos', 'contacto, correo y teléfono'), kpi(A.filter((d) => !d.email).length, 'Sin correo'), kpi(A.filter((d) => !d.contacto).length, 'Sin persona de contacto')),
     h('div', { class: 'toolbar' }, busca, chips([['', 'Todas'], ['falta', 'Incompletas'], ['mx', 'México'], ['usa', 'Estados Unidos']], S.dirF || '', (v) => { S.dirF = v; }), h('button', { class: 'btn sm', onclick: () => nuevaCuenta() }, 'Nueva cuenta')),
