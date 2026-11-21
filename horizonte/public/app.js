@@ -640,7 +640,7 @@ function renderHours() {
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
   const grids = days.map(k => gridHTML(k, HPX, h0, h1)).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move, drag the bottom edge to change length. Today reflows: finish early and the next tasks slide up; meetings and pinned tasks stay.</div></div>`;
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move (hold at the left or right edge to turn the page a day), drag the bottom edge to change length. Today reflows: finish early and the next tasks slide up; meetings and pinned tasks stay.</div></div>`;
 }
 // One day's hour grid: timed blocks in lanes, the now line, and (desktop) the block being drawn. Shared by the desktop Hours zoom and the phone.
 function gridHTML(k, hpx, h0, h1, opts = {}) {
@@ -1494,14 +1494,20 @@ function moveDrag(x, y) {
   // auto-scroll the timeline near its edges
   const tl = $('.tl'); clearInterval(autoScroll);
   if (tl && isDesk()) { const r = tl.getBoundingClientRect(); let vx = 0, vy = 0;
-    if (x > r.right - 60 && x < r.right + 10) vx = 14; else if (x < r.left + 40 && x > r.left - 10) vx = -14;
+    if (S.ui.zoom === 'hours') { // Hours shows two days and does not scroll sideways: holding at an edge turns the page a day at a time
+      const dir = x > r.right - 48 && x < r.right + 10 ? 1 : x < r.left + 48 && x > r.left - 10 ? -1 : 0;
+      if (dir !== d.edgeDir) { clearTimeout(d.edgeTimer); d.edgeDir = dir; tl.classList.toggle('edge-r', dir > 0); tl.classList.toggle('edge-l', dir < 0);
+        if (dir) d.edgeTimer = setTimeout(function flip() { if (!drag || drag.edgeDir !== dir) return;
+          const st = $(".tl")?.scrollTop || 0; S.ui.hday = addDays(S.ui.hday, dir); render(); const t2 = $('.tl'); if (t2) { t2.scrollTop = st; t2.classList.toggle('edge-r', dir > 0); t2.classList.toggle('edge-l', dir < 0); }
+          $(`.tl [data-tid="${d.id}"]`)?.classList.add('dragging'); d.over = null; $('.slotline')?.remove(); d.edgeTimer = setTimeout(flip, 800); }, 450); }
+    } else if (x > r.right - 60 && x < r.right + 10) vx = 14; else if (x < r.left + 40 && x > r.left - 10) vx = -14;
     if (S.ui.zoom === 'hours') { if (y > r.bottom - 50) vy = 12; else if (y < r.top + 40 && y > r.top - 10) vy = -12; }
     if (vx || vy) autoScroll = setInterval(() => { tl.scrollLeft += vx; tl.scrollTop += vy; }, 16); }
 }
 function cleanupDrag() {
   clearInterval(autoScroll); const d = drag; drag = null;
   d.ghost.remove(); d.card.classList.remove('dragging'); d.over?.classList.remove('over'); $('.slotline')?.remove(); document.body.classList.remove('is-dragging');
-  clearTimeout(d.edgeTimer); if (d.rail) { d.rail.classList.remove('in'); setTimeout(() => d.rail.remove(), 200); }
+  clearTimeout(d.edgeTimer); $('.tl')?.classList.remove('edge-r', 'edge-l'); if (d.rail) { d.rail.classList.remove('in'); setTimeout(() => d.rail.remove(), 200); }
   suppressClick = true; setTimeout(() => { suppressClick = false; }, 50);
   return d;
 }

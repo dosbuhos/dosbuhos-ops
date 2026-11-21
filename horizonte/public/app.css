@@ -642,3 +642,7 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .mm > .foldrow + .card, .m .mm > .foldrow + .qadd { margin-top: 0; }
 .m .mm > .foldrow + .foldrow { margin-top: 0; }
 .m .mm > .hgrid { margin-top: 6px; }
+
+/* Desktop Hours: holding a drag at the left/right edge turns the page a day at a time; the edge glows while it is armed. */
+.d .tl.edge-r { box-shadow: inset -6px 0 12px -6px var(--blue); }
+.d .tl.edge-l { box-shadow: inset 6px 0 12px -6px var(--blue); }
