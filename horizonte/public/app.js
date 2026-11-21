@@ -681,22 +681,41 @@ function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl');
 // ── rendering: mobile ─────────────────────────────────────────
 // Overdue bar: tap to review, × hides it until tomorrow (Overdue stays in the menu / lists).
 function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
-// Phone overdue line: tap the text to review, or move everything to today.
-const odRow = (n) => n ? `<div class="foldrow od"><button class="lbl" data-act="review">${n} from earlier days ${I.chev}</button><button class="act" data-act="rollod">Move all to today</button></div>` : '';
+// Phone Late tab: everything that slipped, grouped under the day (or week, month…) it was planned for, newest first.
+// Tap a task to reschedule it in its sheet, swipe left for the date picker, or move a whole day (or all of it) to today.
+function mLate() {
+  const list = lateTasks(), groups = new Map();
+  for (const t of list) { if (!groups.has(t.when)) groups.set(t.when, []); groups.get(t.when).push(t); }
+  const keys = [...groups.keys()].sort((a, b) => periodRange(b)[1].localeCompare(periodRange(a)[1]) || b.localeCompare(a));
+  const T = todayK(); let body = '';
+  for (const k of keys) {
+    const g = groups.get(k).sort(order), kind = kindOf(k);
+    let lbl, sub;
+    if (kind === 'day') { const d = parseD(k), ago = Math.round((parseD(T) - d) / 864e5); lbl = relDay(k) || `${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; sub = relDay(k) ? `${DOW[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}` : ago < 14 ? `${ago} days ago` : ''; }
+    else { lbl = periodLabel(k, true); sub = ''; }
+    body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${sub ? esc(sub) + ' · ' : ''}${g.length} task${g.length > 1 ? 's' : ''}</span><button class="act" data-act="rollgrp" data-k="${k}">To today</button></div>`;
+    body += g.map(t => mcard(t, { late: true, meta: t.at ? clock(t.at) : undefined })).join('');
+  }
+  if (!list.length) body = `<div class="empty">Nothing late. Tasks whose day has passed show up here, grouped by the day they were planned for.</div>`;
+  const right = list.length ? `<button class="tb" data-act="rollod">All to today</button>` : '';
+  return `<header class="mh">${mtop(`<span class="date">Late${list.length ? ' · ' + list.length : ''}</span>`, right)}</header><main class="mm" data-list="late">${body}</main>`;
+}
 function signinBanner() {
   return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
 }
-const MBAR = [['inbox', 'Inbox'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years'], ['horizons', 'Horizons']];
+const MBAR = [['inbox', 'Inbox'], ['late', 'Late'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years'], ['horizons', 'Horizons']];
 const MBAR_MAIN = 4; // the first four are on the bottom bar; the rest live under More
+// Late = open tasks whose day or period has passed. Meetings that passed are not late, they just happened.
+const lateTasks = () => overdueTasks().filter(t => t.kind !== 'meeting');
 const MG = 56; // px per hour on the phone grid
 function renderMobile() {
-  const tab = S.ui.mtab, n = inboxTasks().length;
+  const tab = S.ui.mtab, n = inboxTasks().length, nl = lateTasks().length;
   if (['days', 'weeks', 'months', 'quarters', 'years', 'horizons'].includes(tab)) S.ui.mzoom = tab;
-  let main = tab === 'inbox' ? mInbox() : tab === 'board' ? mBoards() : tab === 'hours' ? mHours() : mPlan();
+  let main = tab === 'inbox' ? mInbox() : tab === 'late' ? mLate() : tab === 'board' ? mBoards() : tab === 'hours' ? mHours() : mPlan();
   const sb = (runPill(true) || '') + (signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : ''));
   if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
   const more = MBAR.slice(MBAR_MAIN).find(x => x[0] === tab);
-  const bar = MBAR.slice(0, MBAR_MAIN).map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('') + `<button data-act="moreviews" ${more ? 'aria-current="page"' : ''}>${more ? more[1] : 'More'}</button>`;
+  const bar = MBAR.slice(0, MBAR_MAIN).map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : k === 'late' && nl ? `<span class="n late">${nl > 99 ? '99+' : nl}</span>` : ''}</button>`).join('') + `<button data-act="moreviews" ${more ? 'aria-current="page"' : ''}>${more ? more[1] : 'More'}</button>`;
   return `<div class="m">${main}<button class="fab" aria-label="Add a task" data-act="capture">${I.plus(28, 2.4)}</button>
 <nav class="mbar" aria-label="Views">${bar}</nav></div>`;
 }
@@ -710,7 +729,7 @@ function weekStrip(k) {
   return `<div class="wstrip" data-swipe="week">${h}</div>`;
 }
 function mHours() {
-  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k), od = overdueTasks();
+  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k);
   const late = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : []; // meetings that passed are not "not done"
   const done = (past ? P.done : P.doneNonTarget).filter(x => !x.at || past);
   let body = '';
@@ -720,7 +739,6 @@ function mHours() {
     if (open) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
     if (done.length) body += mDoneToggle('d' + k, done);
   } else {
-    if (k === t && od.length) body += odRow(od.length);
     const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen), open = !!S.ui.open.mun;
     body += `<div class="foldrow"><button class="lbl" data-act="toggle" data-key="mun" aria-expanded="${open}">${untimed.length ? `${untimed.length} unscheduled` : 'Add a task'} ${open ? I.down : I.chev}</button>${done.length ? `<button class="act muted" data-act="toggle" data-key="d${k}">Done · ${done.length}</button>` : ''}</div>`;
     if (open) { body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
@@ -788,16 +806,14 @@ function mBoards() {
 const boardRows = () => boardsSorted().map((x, i) => `<button class="rowlink" data-act="openboard" data-bid="${x.id}"><i class="bdot b${i % 4}"></i><span>${esc(x.name)}</span><span class="n">${boardTasks(x.id).filter(isOpen).length}</span>${I.chev}</button>`).join('') || '<div class="empty">No boards yet. A board holds the tasks for one project or area.</div>';
 // The grid-icon menu: boards, then the things that are not a view.
 function menuSheet() {
-  const od = overdueTasks().length;
   openSheet(`<div class="grab"></div><div class="sheettitle" style="display:flex;justify-content:space-between;align-items:center">Boards<button class="link" style="font-size:14px" data-act="newboard">New board</button></div>
 <div class="rows">${boardRows()}</div>
 <div class="rows" style="margin-top:14px">${MBAR.slice(MBAR_MAIN).map(([k, l]) => `<button class="rowlink" data-act="gotab" data-v="${k}"><span>${l}</span><span class="n"></span>${I.chev}</button>`).join('')}</div>
-<div class="rows" style="margin-top:14px"><button class="rowlink" data-act="summary" data-k="${todayK()}"><span>In review</span><span class="n"></span>${I.chev}</button>${od ? `<button class="rowlink" data-act="review"><span>Overdue</span><span class="n">${od}</span>${I.chev}</button>` : ''}<button class="rowlink" data-act="settings"><span>Settings</span><span class="n" data-sync></span>${I.chev}</button></div>`, { menu: true });
+<div class="rows" style="margin-top:14px"><button class="rowlink" data-act="summary" data-k="${todayK()}"><span>In review</span><span class="n"></span>${I.chev}</button><button class="rowlink" data-act="settings"><span>Settings</span><span class="n" data-sync></span>${I.chev}</button></div>`, { menu: true });
 }
 function mInbox() {
-  const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
+  const list = byTag(sortList(inboxTasks(), S.ui.sort));
   let body = '';
-  body += odRow(od.length);
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">${S.ui.tagFilter ? 'Nothing in Inbox with this tag.' : 'Inbox is empty. Tap + to capture what’s on your mind.'}</div>`;
   if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
   if (S.ui.q) body = searchResults(true);
@@ -811,6 +827,8 @@ let popping = false;
 const removeSheetDom = () => { $('.scrim')?.remove(); $('.sheet')?.remove(); $('.timelist')?.remove(); sheetState = null; };
 function closeSheet() { removeSheetDom(); if (history.state?.hz === 'sheet') { popping = true; history.back(); } }
 function openSheet(html, state) {
+  // Phone sheets get a real close button in the handle row: swiping the handle down works too, but it is easy to miss.
+  if (!isDesk()) { const grab = `<div class="grab"><button class="sheetx" data-act="close" aria-label="Close">${I.close}</button></div>`; html = html.includes('<div class="grab"></div>') ? html.replace('<div class="grab"></div>', grab) : grab + html; }
   if (sheetState?.id !== state?.id) { S.ui.tagAdding = false; S.ui.tagEdit = null; } // transient picker state belongs to one sheet
   const cur = $('.sheet'), same = cur && sheetState?.id && sheetState.id === state?.id;
   if (same) { // same task: swap the content in place so the sheet does not re-animate or lose its scroll position
@@ -829,6 +847,9 @@ function sheetSwipe(sh) {
   let y0 = null, dy = 0;
   sh.addEventListener('pointerdown', (e) => { const top = e.clientY - sh.getBoundingClientRect().top; if (e.pointerType === 'mouse' || (sh.scrollTop > 0 && !e.target.closest('.grab')) || top > 72 || e.target.closest('input,textarea,select')) return; y0 = e.clientY; dy = 0; }, { passive: true });
   sh.addEventListener('pointermove', (e) => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); if (dy > 6) { sh.style.transition = 'none'; sh.style.transform = `translateY(${dy}px)`; } }, { passive: true });
+  // While the sheet is being dragged, the browser must not read the same finger as pull-to-refresh (Chrome on iOS ignores overscroll-behavior).
+  sh.addEventListener('touchmove', (e) => { if (y0 != null && e.cancelable && e.touches[0].clientY - y0 > 0) e.preventDefault(); }, { passive: false });
+  $('.scrim')?.addEventListener('touchmove', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
   let swallow = false; // a drag must not also count as a tap on whatever is under the finger
   sh.addEventListener('click', (e) => { if (swallow) { e.stopPropagation(); e.preventDefault(); swallow = false; } }, true);
   const end = () => { if (y0 == null) return; y0 = null; sh.style.transition = 'transform .18s ease-out'; swallow = dy > 10;
@@ -1132,7 +1153,8 @@ document.addEventListener('click', async (e) => {
     case 'odhide': S.ui.odHide = todayK(); render(); return;
     case 'moreviews': openSheet(`<div class="grab"></div><div class="sheettitle">More views</div><div class="rows">${MBAR.slice(MBAR_MAIN).map(([k, l]) => `<button class="rowlink" data-act="gotab" data-v="${k}" aria-current="${S.ui.mtab === k ? 'page' : 'false'}"><span>${l}</span><span class="n"></span>${I.chev}</button>`).join('')}</div>`, { menu: true }); return;
     case 'gotab': closeSheet(); S.ui.mtab = el.dataset.v; S.ui.board = null; render(); return;
-    case 'rollod': { const open = overdueTasks().filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
+    case 'rollgrp': { const open = lateTasks().filter(x => x.when === el.dataset.k); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
+    case 'rollod': { const open = lateTasks(); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'rollto': if (tid) { pushTask(tid, todayK()); render(); toast('Moved to today', true); } return;
     case 'rollall': { const open = dayParts(el.dataset.k).open.filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;

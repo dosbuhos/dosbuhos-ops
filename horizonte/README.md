@@ -39,15 +39,22 @@ Read from the Timestripe web app in Eric's Chrome (read-only) and posted to `POS
 Timestripe-style: a scrolling bar at the bottom (Inbox · Hours · Days · Weeks · Months · Quarters · Years · Horizons), Hours as the default view
 with a week strip (tap a day, swipe the strip for the next week, swipe the screen for the next day), an inline "Add…" row, and a floating +.
 Hours shows the day as an agenda (v44): "Anytime" tasks on deck, then the scheduled items on a time rail with the now line and free gaps named; the clock button in the header switches to the hour grid.
-Boards, In review, Overdue and Settings live under the grid icon top-left. Tapping an empty slot in the grid opens Capture at that time.
+Boards, In review and Settings live under the grid icon top-left. Tapping an empty slot in the grid opens Capture at that time.
 Past days list what did not get done, each with a "Today ›" button, and a "Move all to today" bar; dropping an Inbox task on a day stays in Hours on that day.
 
 ## Phone Hours (v48)
 The phone's Hours screen is the hour grid, full height, opened at the now line. Nothing sits above it but fold rows (one 36px line each):
-"N from earlier days · Move all to today" (today only), "N unscheduled ▸" (expands to the quick-add row and the day's untimed tasks; tap
+"N unscheduled ▸" (expands to the quick-add row and the day's untimed tasks; tap
 the row when empty to add), and on past days "N not done · Move all to today" (open by default, so you can pull things forward).
 Done tasks fold under the unscheduled row. Untimed work is meant to be dragged in from Inbox or a board, so there is no on-deck list.
-Bottom bar: Inbox · Hours · Days · Weeks · More; More opens a sheet with Months, Quarters, Years and Horizons (also in the menu).
+Bottom bar: Inbox · Late · Hours · Days · More; More opens a sheet with Weeks, Months, Quarters, Years and Horizons (also in the menu).
+
+## Phone Late tab (v50)
+Open tasks whose day or period has passed (meetings excluded) get their own tab between Inbox and Hours, with the count on the bar.
+They are grouped under the day they were planned for, newest first ("Yesterday", "Thursday, Nov 19 · 2 days ago", or the week/month label),
+each group with a "To today" button and the header with "All to today". Tap a task to reschedule it in its sheet, or swipe left for the date picker.
+Hours and Inbox no longer carry an overdue line. Phone sheets have an × in the handle row, and dragging the handle no longer triggers the
+browser's pull-to-refresh.
 
 ## Phone density spec
 One set of numbers for every phone screen (CSS under `.m`), so nothing is sized per screen:
