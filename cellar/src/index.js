@@ -3,6 +3,7 @@
 import { handleAuth, loginPage, sessionEmail, isViewer, isAdmin, isCrew, initialsFor } from './google.js';
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { sheetsTool, readValues, saEmail } from './sheets.js';
+import { gmailList, gmailThread } from './gmail.js';
 import { chat, chatHistory, houseNotes } from './chat.js';
 import { xlRoute, sync } from './xl.js';
 import { pushPurchase, pullPurchases } from './compras.js';
@@ -278,4 +279,9 @@ async function brandAsset(env, p) {
 export class SheetsRead extends WorkerEntrypoint {
   async email() { return saEmail(this.env); }
   async values(sheetId, ranges) { return readValues(this.env, sheetId, ranges); }
+}
+// Service-binding entrypoint ({ "service": "cellar", "entrypoint": "GmailRead" }). Read-only, dosbuhos.com mailboxes only.
+export class GmailRead extends WorkerEntrypoint {
+  async list(mailbox, q, pageToken, max) { return gmailList(this.env, mailbox, q, pageToken, max); }
+  async thread(mailbox, id) { return gmailThread(this.env, mailbox, id); }
 }

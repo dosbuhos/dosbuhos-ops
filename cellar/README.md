@@ -27,3 +27,8 @@ Right now `PUBLIC` = "1": no sign-in, anyone with the link can view and edit (in
 2. Secrets on the `cellar` Worker: `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `ALLOWED_EMAILS`, `GOOGLE_SA_JSON`, `ANTHROPIC_API_KEY` (optional `VIEWER_EMAILS`). Emails stay out of Git: this repo is public.
 3. Google Cloud (same project as wineclub): add `https://cellar.<subdomain>.workers.dev/auth/callback` to the OAuth client's redirect URIs; create a service account and a JSON key → `GOOGLE_SA_JSON`; share Excellovint with the service account's email as Editor.
 4. Copy the artifact's database into D1 right before switching over (done from Claude with the artifact export).
+
+
+## Gmail (read-only)
+
+`src/gmail.js` reads dosbuhos.com mailboxes with the same service account (`GOOGLE_SA_JSON`), through the `GmailRead` service-binding entrypoint used by Spark. It needs domain-wide delegation for the account's client ID with the scope `https://www.googleapis.com/auth/gmail.readonly` (Workspace Admin console) and the Gmail API enabled in Google Cloud project `dos-buhos`. No route exposes it.
