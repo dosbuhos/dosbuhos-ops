@@ -432,6 +432,9 @@ const VISTAS = {
     const byZ = new Map(D.zonas.map((z) => [z.zona, z])), cur = byZ.get(S.zona);
     const prosZ = (z) => `Prospectos: ${z.prospectos - z.sin_contactar} de ${z.prospectos} contactados · ${z.en_proceso} en proceso · ${z.rechazados} rechazados` + (z.ultimo_prospecto ? ` · último contacto ${dia(z.ultimo_prospecto)}` : ' · ningún contacto');
     const map = h('div', { class: 'card' });
+    // Shade: the bigger the market we are missing in a zone, the deeper its colour. Strong zones stay an even green.
+    const maxB = Math.max(1, ...D.zonas.map((z) => z.brecha || 0)), tono = (z) => (!z ? 0.4 : z.estado === 'Fuerte' ? 0.6 : 0.3 + 0.55 * Math.sqrt((z.brecha || 0) / maxB));
+    const corto = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + ' M' : n >= 1e3 ? '$' + Math.round(n / 1e3) + ' mil' : peso(n));
     estados().then((E) => {
       // Plain Mercator; good enough at Mexico's size.
       const P = ([lon, lat]) => [lon * 20, -Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * 180 / Math.PI * 20];
@@ -441,7 +444,16 @@ const VISTAS = {
       const b = box(S.zona ? E.filter((s) => s.zona === S.zona) : E), pad = S.zona ? 30 : 6;
       const [ux, uy] = P([-99.2, 30.6]), usa = (D.eric || [])[0];
       const el = svg('svg', { class: 'map', viewBox: `${b[0] - pad} ${b[1] - pad} ${b[2] - b[0] + 2 * pad} ${b[3] - b[1] + 2 * pad}`, role: 'img', 'aria-label': 'Mapa de México por zona: verde fuerte, ámbar presencia débil, rojo sin presencia' },
-        E.map((s) => svg('path', { d: d(s.g), fill: COL[(byZ.get(s.zona) || {}).estado] || 'var(--muted)', 'fill-opacity': !S.zona || s.zona === S.zona ? 0.6 : 0.2 }, svg('title', {}, `${s.nombre} · ${(byZ.get(s.zona) || {}).nombre}`))));
+        E.map((s) => svg('path', { d: d(s.g), fill: COL[(byZ.get(s.zona) || {}).estado] || 'var(--muted)', 'fill-opacity': (!S.zona || s.zona === S.zona ? 1 : 0.3) * tono(byZ.get(s.zona)) }, svg('title', {}, `${s.nombre} · ${(byZ.get(s.zona) || {}).nombre}`))));
+      // One bubble per zone, sized by what we sold there this year, with the zone's name and amount beside it.
+      const maxV = Math.max(1, ...D.zonas.map((z) => z.ventas)), LADO = { bajio: [-1, -0.9], centro: [-1, 1.5], occidente: [-1, 0.2], golfo: [1, 0.3], pacsur: [0, 1.8], caribe: [0, -1.5], cabos: [-1, 0], noroeste: [0, -1.6], noreste: [1, -0.2] };
+      const burbujas = svg('g', { class: 'burb' }, D.zonas.filter((z) => !S.zona || z.zona === S.zona).map((z) => { const [x, y] = P([z.lon, z.lat]), r = z.ventas ? 5 + 17 * Math.sqrt(z.ventas / maxV) : 4, [lx, ly] = LADO[z.zona] || [1, 0];
+        const tx = x + lx * (r + 5), ty = y + ly * (r + 6) - (ly < 0 ? 11 : 0) + (ly === 0 ? -2 : 0), anc = lx < 0 ? 'end' : lx > 0 ? 'start' : 'middle';
+        return svg('g', { 'data-zona': z.zona, style: 'cursor:pointer' }, svg('circle', { cx: x, cy: y, r, fill: z.ventas ? 'var(--text)' : 'var(--card)', 'fill-opacity': z.ventas ? 0.82 : 1, stroke: z.ventas ? 'var(--card)' : 'var(--text)', 'stroke-width': 1.5 }),
+          svg('text', { x: tx, y: ty, 'text-anchor': anc, 'font-size': 10.5, 'font-weight': 700 }, z.nombre.split(' (')[0]),
+          svg('text', { x: tx, y: ty + 11, 'text-anchor': anc, 'font-size': 9.5 }, z.ventas ? `${corto(z.ventas)} · ${z.pct_ventas}% de la venta` : `$0 · ${z.peso}% del mercado`),
+          svg('title', {}, `${z.nombre}: ${peso(z.ventas)} este año, ${z.clientes_activos} clientes activos` + (z.brecha ? `, brecha ${peso(z.brecha)}` : ''))); }));
+      el.append(burbujas);
       // Eric's importer, just north of the border. Not a sales zone: a marker only.
       if (usa && !S.zona) el.append(svg('g', { 'aria-label': `${usa.cliente}, ${usa.lugar}: ${peso(usa.actual)} este año` }, svg('circle', { cx: ux, cy: uy, r: 7, fill: 'var(--accent)', stroke: 'var(--card)', 'stroke-width': 2 }),
         svg('text', { x: ux + 12, y: uy - 2, 'font-size': 11, 'font-weight': 600, fill: 'var(--text)' }, usa.cliente), svg('text', { x: ux + 12, y: uy + 11, 'font-size': 10, fill: 'var(--muted)' }, `EE. UU. · ${peso(usa.actual)} este año · cuenta de la casa (Tito)`)));
@@ -456,10 +468,10 @@ const VISTAS = {
         const k = Math.max(arr.vb[2] / el.clientWidth, arr.vb[3] / el.clientHeight); vb = [arr.vb[0] - dx * k, arr.vb[1] - dy * k, arr.vb[2], arr.vb[3]]; pon(); });
       const suelta = () => { arr = null; el.style.cursor = ''; };
       el.addEventListener('pointerup', suelta); el.addEventListener('pointercancel', suelta);
-      el.addEventListener('click', (ev) => { if (movio) { movio = false; return; } const i = [...el.children].indexOf(ev.target); if (i >= 0 && E[i]) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
+      el.addEventListener('click', (ev) => { if (movio) { movio = false; return; } const bz = ev.target.closest('[data-zona]'); if (bz) { S.zona = S.zona === bz.dataset.zona ? '' : bz.dataset.zona; pintar(); return; } const i = [...el.children].indexOf(ev.target); if (i >= 0 && E[i]) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
       const ctl = h('div', { class: 'mapctl' }, h('button', { type: 'button', 'aria-label': 'Acercar', onclick: () => zoom(0.7) }, '+'), h('button', { type: 'button', 'aria-label': 'Alejar', onclick: () => zoom(1.43) }, '−'),
         h('button', { type: 'button', 'aria-label': 'Ver todo', title: 'Ver todo', onclick: () => { vb = base.slice(); pon(); } }, '⤢'));
-      map.replaceChildren(h('div', { class: 'mapbox' }, el, ctl), h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Toca una zona para ver sus prospectos. Acerca con la rueda del ratón o con + y −; arrastra para moverte.'));
+      map.replaceChildren(h('div', { class: 'mapbox' }, el, ctl), h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Verde: zona fuerte. Ámbar: presencia débil. Rojo: sin presencia; más oscuro mientras más mercado estamos dejando. El círculo es lo vendido este año. Toca una zona para ver sus prospectos; acerca con la rueda del ratón o con + y −.'));
     }).catch(() => map.replaceChildren(h('p', { class: 'note' }, 'No se pudo cargar el mapa.')));
     const ord = new Map(D.zonas.map((z, i) => [z.zona, i])), kO = { dist: 0, tienda: 1, horeca: 2, cliente: 3 };
     const base = D.prospectos.filter((p) => !S.zona || p.zona === S.zona), nA = (a) => base.filter((p) => p.avance === a).length;
