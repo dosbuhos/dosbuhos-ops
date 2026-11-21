@@ -56,6 +56,13 @@ with "All to today" in the header. Rows are plain cards (no per-row button): tap
 Hours and Inbox no longer carry an overdue line. Phone sheets have an × in the handle row, and dragging the handle no longer triggers the
 browser's pull-to-refresh.
 
+## Months (v62)
+Months is a real calendar on both layouts: a Mon–Sun grid where meetings are colour bars (titles on desktop, bars on the phone),
+each day's task load is a thin bar (desktop also prints "3 tasks · 2h", or "2 not done" in amber on a past day), today is ringed.
+Tap a day to open it in Hours; drop a task on a day to schedule it. Under the grid: a roll-up line ("5 meetings · 2 done · 20 open · 13h 30m")
+and the tasks placed on the month itself. Desktop shows the month's list in a column on the right; ‹ › and swipe move one month.
+Weeks, Quarters and Years are still the stacked task lists.
+
 ## Phone density spec
 One set of numbers for every phone screen (CSS under `.m`), so nothing is sized per screen:
 - Grid 4px. Screen gutters 14px. List gap 0 (rows touch, hairline dividers). Section gap 12px.

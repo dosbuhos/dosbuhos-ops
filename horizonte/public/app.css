@@ -665,3 +665,38 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 /* section head with an action on the right (When · Remove date) */
 .grphead { display: flex; align-items: center; justify-content: space-between; }
 .grphead .link { font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 6px 2px; margin: -6px 0; }
+
+/* ── Month calendar ─────────────────────────────────────────── */
+.mcal { display: flex; flex-direction: column; min-width: 0; }
+.mdow { display: grid; grid-template-columns: repeat(7, 1fr); font-size: 11px; font-weight: 600; color: var(--ink-3); text-align: center; padding: 4px 0; }
+.mcells { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.mcell { position: relative; min-height: 96px; padding: 4px 4px 6px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; cursor: pointer; background: var(--bg); }
+.mcell.out { background: var(--past); cursor: default; } .mcell.out .dn { color: var(--line-3); }
+.mcell.past { background: var(--past); }
+.mcell:not(.out):hover { background: var(--hover); }
+.mcell .dn { font-size: 12px; font-weight: 600; color: var(--ink-2); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 0 2px -2px; flex: none; }
+.mcell.today .dn { background: var(--ink); color: var(--bg); }
+.mcell.late .dn { color: var(--warn); }
+.mcell .bar { display: block; height: 16px; line-height: 16px; border-radius: 3px; padding: 0 5px; color: #fff; font-size: 11px; font-weight: 600; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.mcell .morebar { font-size: 11px; color: var(--ink-2); font-style: normal; padding-left: 4px; flex: none; }
+.mcell .tn { margin-top: auto; font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 1px; } .mcell.late .tn { color: var(--warn); }
+.mcell .tn + .load { margin-top: 2px; }
+.m .mcal.mob .mcell .tn { display: none; }
+.mcell .load { display: block; margin-top: auto; height: 4px; border-radius: 2px; background: var(--seg); position: relative; flex: none; }
+.mcell .load::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: 2px; background: var(--ink-3); }
+.mcell.late .load { background: var(--warn-bg); } .mcell .load.late::after { background: var(--warn); }
+/* desktop: the grid fills the timeline, the month's own list on the right */
+.d .monthview { display: flex; min-height: 100%; }
+.d .monthview .mwrap { flex: 1 1 auto; min-width: 0; padding: 12px 14px 16px; display: flex; flex-direction: column; }
+.d .monthview .mhead { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px 8px; }
+.d .monthview .mhead b { font-size: 15px; } .d .monthview .mhead .small { font-size: 12px; color: var(--ink-2); }
+.d .monthview .mcal { flex: 1; } .d .monthview .mcells { flex: 1; grid-auto-rows: minmax(104px, 1fr); }
+.d .monthview .col { flex: 0 0 300px; border-left: 1px solid var(--line); border-right: 0; }
+/* phone: compact cells, bars without titles */
+.m .mcal.mob .mcell { min-height: 54px; padding: 3px 3px 4px; gap: 1px; }
+.m .mcal.mob .mcell .dn { width: 20px; height: 20px; font-size: 12px; margin: 0 0 1px -1px; }
+.m .mcal.mob .mcell .bar { height: 5px; line-height: 5px; padding: 0; border-radius: 2px; } .m .mcal.mob .mcell .bar span { display: none; }
+.m .mcal.mob .mcell .morebar { font-size: 9px; line-height: 9px; padding-left: 1px; }
+.m .mcal.mob .mcell .load { height: 3px; }
+.m .mcal.mob .mdow { padding: 0 0 4px; }
+.m .mroll { font-size: 12px; color: var(--ink-2); padding: 2px 2px 0; }

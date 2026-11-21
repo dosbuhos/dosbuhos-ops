@@ -471,6 +471,7 @@ function deskTitle() {
   const z = S.ui.zoom;
   if (z === 'hours' || z === 'horizons') { const d = parseD(z === 'hours' ? S.ui.hday : (S.ui.hzday || todayK())); return `${DOWL[d.getDay()]}, ${MONL[d.getMonth()]} ${d.getDate()}`; }
   if (z === 'days') { const d = parseD(addDays(S.ui.anchor, 1)); return `${MONL[d.getMonth()]} ${d.getFullYear()}`; }
+  if (z === 'months') { const d = parseD(periodRange(S.ui.pk && kindOf(S.ui.pk) === 'month' ? S.ui.pk : periodOf('month', todayK()))[0]); return `${MONL[d.getMonth()]} ${d.getFullYear()}`; }
   return String(parseD(periodRange(S.ui.pk || todayK())[0]).getFullYear());
 }
 function renderDesk() {
@@ -596,6 +597,8 @@ function renderTimeline() {
   const kind = { weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z];
   const n = { week: 8, month: 6, quarter: 4, year: 3 }[kind];
   let k = S.ui.pk && kindOf(S.ui.pk) === kind ? S.ui.pk : periodOf(kind, todayK()); S.ui.pk = k;
+  if (z === 'months') { const d = parseD(periodRange(k)[0]);
+    return `<div class="monthview"><div class="mwrap"><div class="mhead"><b>${MONL[d.getMonth()]} ${d.getFullYear()}</b><span class="small">${esc(monthRoll(k))}</span></div>${monthHTML(k)}</div>${periodCol(k)}</div>`; }
   const cols = []; for (let i = 0; i < n; i++) cols.push(periodCol(shiftPeriod(k, i)));
   return `<div class="cols">${cols.join('')}</div>`;
 }
@@ -634,6 +637,35 @@ function periodCol(k) {
   return `<section class="col dropcol ${cur ? 'today' : ''} ${k < periodOf(kindOf(k), todayK()) ? 'past' : ''}" data-drop="period:${k}" aria-label="${esc(periodLabel(k, true))}">
 <div class="head"><div><b>${esc(kindOf(k) === 'week' ? periodLabel(k) : periodLabel(k, true))}</b>${cur ? ' <span class="pill">Now</span>' : ''}</div><span class="small">${open.length ? fmtDur(mins) : ''}</span></div>
 ${range ? `<div class="small">${range}</div>` : ''}${body}<div class="dropzone">Drop to place in ${esc(periodLabel(k, true))}</div></section>`;
+}
+// ── Month calendar ─────────────────────────────────────────────
+// A real month: Mon–Sun grid, meetings as colour bars (titles on desktop), the day's task load as a thin bar, late days
+// flagged. Tap a day to open it in Hours; drop a task on a day to schedule it. Shared by the desktop Months zoom and the phone.
+function monthStats(mk) {
+  const [s, e] = periodRange(mk); let meet = 0, done = 0, open = 0, mins = 0;
+  for (const t of live()) { if (!t.when) continue; const inM = kindOf(t.when) === 'day' ? (t.when >= s && t.when <= e) : t.when === mk; if (!inM) continue;
+    if (t.kind === 'meeting') meet++; else if (isOpen(t)) { open++; mins += t.dur || 30; } else done++; }
+  return { meet, done, open, mins };
+}
+function monthRoll(mk) { const x = monthStats(mk), p = [];
+  if (x.meet) p.push(`${x.meet} meeting${x.meet > 1 ? 's' : ''}`); if (x.done) p.push(`${x.done} done`); if (x.open) p.push(`${x.open} open · ${fmtDur(x.mins)}`);
+  return p.join(' · ') || 'Nothing planned yet'; }
+const meetColor = (m) => (GCOLORS.find(c => c[0] === String(m.color || '')) || GCOLORS[0])[1];
+function monthHTML(mk, opts = {}) {
+  const [s, e] = periodRange(mk), t = todayK(), first = parseD(s);
+  let k = addDays(s, -((first.getDay() + 6) % 7)); // the Monday on or before the 1st
+  let cells = '';
+  for (let i = 0; i < 42; i++, k = addDays(k, 1)) {
+    if (i === 35 && k > e) break; // five rows when the sixth would be all next month
+    const out = k < s || k > e, P = out ? null : dayParts(k), past = k < t;
+    if (out) { cells += `<div class="mcell out"><span class="dn">${Number(k.slice(8))}</span></div>`; continue; }
+    const lateN = past ? P.open.filter(x => x.kind !== 'meeting').length : 0, load = Math.min(1, dayLoad(k) / workMin());
+    const meets = P.meetings.slice(0, 3), more = P.meetings.length - meets.length, taskN = P.all.filter(x => x.kind !== 'meeting').length;
+    cells += `<div class="mcell dropcol ${k === t ? 'today' : ''} ${past ? 'past' : ''} ${lateN ? 'late' : ''}" data-drop="day:${k}" data-act="mopen" data-k="${k}" role="button" tabindex="0" aria-label="${DOWL[parseD(k).getDay()]} ${Number(k.slice(8))}${P.all.length ? `, ${P.all.length} items` : ''}${lateN ? `, ${lateN} not done` : ''}">
+<span class="dn">${Number(k.slice(8))}</span>${meets.map(m => `<i class="bar" style="background:${meetColor(m)}" title="${esc(m.title)}${m.at ? ' · ' + clock(m.at) : ''}"><span>${esc(m.title)}</span></i>`).join('')}${more > 0 ? `<i class="morebar">+${more}</i>` : ''}
+${taskN ? `<span class="tn">${lateN ? `${lateN} not done` : `${taskN} task${taskN > 1 ? 's' : ''}${P.open.some(x => x.kind !== 'meeting') ? ' · ' + fmtDur(dayLoad(k)) : ''}`}</span><i class="load ${lateN ? 'late' : ''}" style="--w:${Math.round(Math.max(0.12, load) * 100)}%" title="${taskN} task${taskN > 1 ? 's' : ''} · ${loadText(k)}"></i>` : ''}</div>`;
+  }
+  return `<div class="mcal ${opts.mobile ? 'mob' : ''}"><div class="mdow">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => `<span>${d}</span>`).join('')}</div><div class="mcells">${cells}</div></div>`;
 }
 const HPX = 56; const H0 = () => Math.max(0, Math.min(toMin(S.prefs.dayStart) / 60 - 2, 7)); const H1 = () => Math.min(24, Math.max(toMin(S.prefs.dayEnd) / 60 + 4, 20));
 function renderHours() {
@@ -774,6 +806,11 @@ function mPlan() {
     for (let i = 0; i < 14; i++) { const k = addDays(S.ui.manchor, i), P = dayParts(k), past = k < todayK(), list = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : [...P.meetings.filter(isOpen), ...P.timed, ...P.targets.filter(isOpen), ...P.rest];
       const isT = k === todayK(); const load = past ? (list.length ? `${list.length} not done` : P.all.length ? 'Done' : '') : P.all.length ? loadText(k) : 'Nothing planned';
       body += head(k, dayShort(k), `${isT ? '<span class="pill">Today</span>' : ''}<span class="small">${load}</span>`) + (past ? list.map(t => mcard(t, { late: true, meta: t.at ? clock(t.at) : undefined })).join('') : items(k, list)); }
+  } else if (z === 'months') {
+    const k = periodOf('month', S.ui.manchor), list = sortList(placedOn(k).filter(isOpen), 'priority');
+    body += monthHTML(k, { mobile: true });
+    body += `<div class="small mroll">${esc(monthRoll(k))}</div>`;
+    body += head(k, 'This month', `<span class="small">${list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed'}</span>`) + items(k, list);
   } else {
     const kind = { weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z];
     let k = periodOf(kind, S.ui.manchor);
@@ -782,10 +819,10 @@ function mPlan() {
       const count = list.length ? list.length + ' task' + (list.length > 1 ? 's' : '') : 'Nothing placed';
       body += head(k, lbl, `<span class="small">${range ? esc(range) + ' · ' : ''}${count}</span>`) + items(k, list); }
   }
-  const name = MBAR.find(x => x[0] === z)?.[1] || 'Plan';
+  const md = parseD(S.ui.manchor), name = z === 'months' ? `${MONL[md.getMonth()]} ${md.getFullYear()}` : (MBAR.find(x => x[0] === z)?.[1] || 'Plan');
   const right = `<button class="plain" aria-label="Earlier" data-act="mprev">${I.left.replace(/16/g, '20')}</button><button class="tb" data-act="mtoday">Today</button><button class="plain" aria-label="Later" data-act="mnext">${I.right.replace(/16/g, '20')}</button>`;
   return `<header class="mh">${mtop(`<span class="date">${name}</span>`, right)}</header>
-<main class="mm" style="gap:6px;padding-top:4px" data-list="plan">${body}</main>`;
+<main class="mm" style="gap:6px;padding-top:4px" data-list="plan" ${z === 'months' ? 'data-swipe="month"' : ''}>${body}</main>`;
 }
 function mBoards() {
   const b = S.ui.board ? S.boards.get(S.ui.board) : null;
@@ -1149,10 +1186,11 @@ document.addEventListener('click', async (e) => {
       if (S.ui.zoom === 'hours') S.ui.hday = addDays(S.ui.hday, n); else if (S.ui.zoom === 'horizons') S.ui.hzday = addDays(S.ui.hzday || todayK(), n); else if (S.ui.zoom === 'days') S.ui.anchor = addDays(S.ui.anchor, 7 * n); else S.ui.pk = shiftPeriod(S.ui.pk, n);
       render(); return; }
     case 'mprev': case 'mnext': { const n = act === 'mprev' ? -1 : 1, z = S.ui.mzoom;
-      S.ui.manchor = z === 'horizons' ? addDays(S.ui.manchor, n) : z === 'days' ? addDays(S.ui.manchor, 7 * n) : periodRange(shiftPeriod(periodOf({ weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z], S.ui.manchor), 8 * n))[0];
+      S.ui.manchor = z === 'horizons' ? addDays(S.ui.manchor, n) : z === 'days' ? addDays(S.ui.manchor, 7 * n) : z === 'months' ? periodRange(shiftPeriod(periodOf('month', S.ui.manchor), n))[0] : periodRange(shiftPeriod(periodOf({ weeks: 'week', months: 'month', quarters: 'quarter', years: 'year' }[z], S.ui.manchor), 8 * n))[0];
       render(); $('.mm').scrollTop = 0; return; }
     case 'mtoday': if (S.ui.mtab === 'hours') { S.ui.mday = todayK(); S.ui.mjump = true; render(); return; } S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
     case 'mday': S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); return;
+    case 'mopen': if (isDesk()) { S.ui.zoom = 'hours'; S.ui.hday = el.dataset.k; render(); scrollHoursToNow(); } else { S.ui.mtab = 'hours'; S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); } return;
     case 'menu': menuSheet(); return;
     case 'odhide': S.ui.odHide = todayK(); render(); return;
     case 'gotab': closeSheet(); S.ui.mtab = el.dataset.v; S.ui.board = null; render(); return;
@@ -1395,7 +1433,7 @@ document.addEventListener('pointermove', (e) => {
   if (!hswipe || e.pointerId !== hswipe.pid) return; const dx = e.clientX - hswipe.x, dy = e.clientY - hswipe.y;
   if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) { hswipe = null; return; }
   if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.5) { const n = dx < 0 ? 1 : -1, kind = hswipe.kind; hswipe = null;
-    S.ui.mday = addDays(S.ui.mday, kind === 'week' ? 7 * n : n); S.ui.mjump = true; render(); const mm = $('.mm'); if (mm) { mm.classList.add(n > 0 ? 'in-l' : 'in-r'); setTimeout(() => mm.classList.remove('in-l', 'in-r'), 240); } navigator.vibrate?.(8); }
+    if (kind === 'month') S.ui.manchor = periodRange(shiftPeriod(periodOf('month', S.ui.manchor), n))[0]; else { S.ui.mday = addDays(S.ui.mday, kind === 'week' ? 7 * n : n); S.ui.mjump = true; } render(); const mm = $('.mm'); if (mm) { mm.classList.add(n > 0 ? 'in-l' : 'in-r'); setTimeout(() => mm.classList.remove('in-l', 'in-r'), 240); } navigator.vibrate?.(8); }
 }, { passive: true });
 document.addEventListener('pointerup', () => { hswipe = null; }); document.addEventListener('pointercancel', () => { hswipe = null; });
 document.addEventListener('pointermove', (e) => {
