@@ -2,7 +2,7 @@
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
-import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm } from './calc.js';
+import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias } from './calc.js';
 import { sugerir } from './ai.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet, sheetEmail } from './sheets.js';
@@ -48,9 +48,17 @@ async function modelo(env, conActividad) {
   const zonaDe = (n) => { const k = norm(n); const z = zonasCfg.zonas.find((x) => k && (norm(x.nombre).startsWith(k) || k.startsWith(norm(x.nombre).split(' (')[0]))); return z ? z.zona : ''; };
   const hoja = (await all('SELECT * FROM distribuidores')).map((d) => ({ ...d, zona: zonaDe(d.zona), comentarios: d.siguiente, status: /^rechaz/i.test(d.estado) ? d.motivo || d.status : d.status,
     grupo: /^rechaz/i.test(d.estado) ? 'Rechazada' : /^catalog/i.test(d.estado) ? 'Catalogado' : /^por contactar/i.test(d.estado) || !d.estado ? 'Por contactar' : 'En proceso' })).filter((d) => d.zona);
-  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, distribuidores: hoja.length ? hoja : prospCarlos, hoy: hoyEn(env.TZ) });
+  // Accounts created in Spark join the prospect list of their zone until they buy.
+  const nuevas = (await all("SELECT * FROM cuentas WHERE origen = 'app'")).filter((c) => zonasCfg.zonas.some((z) => z.zona === c.zona))
+    .map((c) => ({ zona: c.zona, nombre: c.nombre, tipo: c.tipo || 'Prospecto', ciudades: [c.ciudad, c.estado].filter(Boolean).join(', '), razon: '', estado: 'Prospecto del equipo', fuente: '', claves: norm(c.nombre),
+      nueva: true, contacto: c.contacto, telefono: c.telefono, email: c.email, vendedor: c.vendedor }));
+  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos: [...prospectos, ...nuevas], distribuidores: hoja.length ? hoja : prospCarlos, hoy: hoyEn(env.TZ) });
   m.dist_fuente = hoja.length ? 'hoja' : 'archivo'; m.crm_hoja = env.CRM_SHEET_ID;
   m.asignaciones = asig;
+  // Receivables straight from Zoho: invoiced sales orders with a balance. Due date is taken as 30 days after the order
+  // (the usual terms); the invoice's own due date needs invoice access the Zoho token does not have.
+  if (orders.some((o) => o.saldo != null)) m.por_cobrar = orders.filter((o) => o.saldo > 0.5 && o.estado !== 'void' && ['invoiced', 'partially_invoiced'].includes(o.facturacion) && !esInterno(o.cliente))
+    .map((o) => ({ vence: masDias(o.fecha, 30), factura: o.numero, cliente: o.cliente, saldo: Math.round(o.saldo * 100) / 100, vendedor: deEric(o.cliente) ? CASA : vendedorDe(o.vendedor) || 'Sin vendedor', pronostico: 0, comentario: '' }));
   return conActividad ? { m, activity } : m;
 }
 
@@ -97,6 +105,10 @@ export default {
       for (const r of m.seguimiento) r.pausa = pausa(r.cuenta);
       for (const c of m.cobertura) c.pausa = pausa(c.cliente);
       for (const d of m.directorio) d.pausa = pausa(d.nombre);
+      // Accounts created in Spark that are not Zoho clients yet.
+      const yaEsta = new Set(m.directorio.map((d) => d.clave)), zn = new Map(zonasCfg.zonas.map((z) => [z.zona, z.nombre]));
+      for (const c of cuentas.filter((x) => x.origen === 'app' && !yaEsta.has(x.clave))) m.directorio.push({ clave: c.clave, nombre: c.nombre, pais: 'México', zona: c.zona, zona_nombre: zn.get(c.zona) || 'Sin zona', vendedor: c.vendedor || '',
+        tipo: c.tipo, contacto: c.contacto, puesto: c.puesto, email: c.email, telefono: c.telefono, ciudad: c.ciudad, estado: c.estado, notas: c.notas, vendido: 0, prospecto: true, ultimo_contacto: '' });
       for (const u of usa.cuentas) { const clave = norm(u.nombre), e = edit.get(clave) || {}; m.directorio.push({ clave, nombre: u.nombre, pais: 'Estados Unidos', zona: 'usa', zona_nombre: 'Estados Unidos · ' + u.estado, vendedor: 'Eric (La Competencia)', tipo: e.tipo || u.tipo,
         contacto: e.contacto || '', puesto: e.puesto || '', email: e.email || '', telefono: e.telefono || '', ciudad: e.ciudad || u.ciudad, estado: e.estado || u.estado, notas: e.notas || `${u.cajas} cajas en 2026 · ${u.vinos.join(', ')} · rep. ${u.rep}`, direccion: u.direccion, cajas: u.cajas, ultimo_mes: u.ultimo_mes }); }
       // Strategy and promotions: admins see everything, the team only what was marked visible.
@@ -105,7 +117,10 @@ export default {
       m.cuentas = cuentas; m.encuestas = encuestas; m.encuesta_base = env.SURVEY_ORIGIN || 'https://spark-equipo.dos-buhos.workers.dev';
       m.materiales = materiales; m.usa_envios = usa.envios; m.prosp_carlos = prospCarlos; m.presupuesto = presupuesto;
       // Receivables: Carlos's file (a dated snapshot, since the Zoho token can't read invoices) plus the follow-up notes made here.
-      m.cobranza = { corte: cobranzaArchivo.corte, facturas: cobranzaArchivo.facturas.map((f) => ({ ...f, dias: /^\d{4}-\d\d-\d\d$/.test(f.vence) ? diff(f.vence, m.hoy) : null })), gestiones: cobros };
+      const deZoho = m.por_cobrar; delete m.por_cobrar;
+      const nota = new Map(cobranzaArchivo.facturas.filter((f) => f.comentario).map((f) => [norm(f.cliente), f.comentario]));
+      if (deZoho) m.cobranza = { fuente: 'zoho', corte: m.hoy, facturas: deZoho.map((f) => ({ ...f, comentario: nota.get(norm(f.cliente)) || '', dias: diff(f.vence, m.hoy) })), gestiones: cobros };
+      else m.cobranza = { fuente: 'archivo', corte: cobranzaArchivo.corte, facturas: cobranzaArchivo.facturas.map((f) => ({ ...f, dias: /^\d{4}-\d\d-\d\d$/.test(f.vence) ? diff(f.vence, m.hoy) : null })), gestiones: cobros };
       m.preguntas = (await env.DB.prepare('SELECT * FROM preguntas ORDER BY respondida != \'\', id DESC').all()).results;
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
       return json({ ...m, sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
@@ -134,6 +149,18 @@ export default {
       return json({ ok: true });
     }
     // What someone adds or corrects about an account (contact details, by-the-glass, stage).
+    // A new account: a prospect that is not in Zoho yet. Needs a name, a zone and a way to reach someone there.
+    if (p === '/api/cuenta/nueva' && request.method === 'POST') {
+      const b = await cuerpo(), nombre = txt(b.nombre, 160), persona = quienEs(b) || (yo.admin ? CASA : null);
+      if (!nombre) return json({ error: 'Falta el nombre de la cuenta' }, 400);
+      if (!zonasCfg.zonas.some((z) => z.zona === b.zona)) return json({ error: 'Elige la zona' }, 400);
+      if (!txt(b.telefono) && !txt(b.email)) return json({ error: 'Pon al menos un teléfono o un correo del contacto' }, 400);
+      const ya = await env.DB.prepare('SELECT nombre FROM cuentas WHERE clave = ?').bind(norm(nombre)).first();
+      if (ya) return json({ error: `Ya existe la cuenta "${ya.nombre}". Elígela de la lista.` }, 409);
+      await env.DB.prepare(`INSERT INTO cuentas (clave, nombre, contacto, puesto, email, telefono, ciudad, estado, tipo, notas, zona, vendedor, origen, creado, actualizado, por) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'app',?,?,?)`)
+        .bind(norm(nombre), nombre, txt(b.contacto, 120), txt(b.puesto, 80), txt(b.email, 160), txt(b.telefono, 80), txt(b.ciudad, 80), txt(b.estado, 60), txt(b.tipo, 60), txt(b.notas, 1000), b.zona, persona || '', HOY, HOY, yo.nombre || yo.email).run();
+      return json({ ok: true });
+    }
     if (p === '/api/cuenta' && request.method === 'POST') {
       const b = await cuerpo(), nombre = txt(b.nombre, 160);
       if (!nombre) return json({ error: 'Falta el nombre de la cuenta' }, 400);

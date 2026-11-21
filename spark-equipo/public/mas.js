@@ -1,6 +1,6 @@
 // Spark CRM — the account-side screens: collections, client book, surveys, by-the-glass and pipeline, sales materials, and
 // what is coming for client communications. Helpers come from app.js; data from /api/data.
-import { h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar, registrar, toca } from './app.js';
+import { h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar, registrar, nuevaCuenta, toca } from './app.js';
 
 const D = () => datos();
 const kpi = (n, label, sub) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, label), sub ? h('div', { class: 'note' }, sub) : null);
@@ -37,7 +37,7 @@ function cobranza() {
   const ultima = (g) => { const x = gest(g.cliente); return x ? `${dia(x.creado)}: ${x.nota.slice(0, 120)}` + (x.promesa ? ` · prometió pagar el ${dia(x.promesa)}` : '') : (g.comentario || '—'); };
   return h('div', {},
     h('div', { class: 'card kpis' }, kpi(peso(total), 'Por cobrar', `${F.length} facturas de ${L.length} clientes`), kpi(peso(T[3][1]), 'Vencido más de 90 días', total ? Math.round(T[3][1] / total * 100) + '% del saldo' : ''),
-      kpi(peso(suma(F, (f) => f.pronostico)), 'Pronóstico de cobro del mes', 'según el archivo de Carlos'), kpi((C.gestiones || []).filter((g) => L.some((x) => x.cliente === g.cliente)).length, 'Gestiones registradas aquí', 'llamadas y promesas de pago')),
+      C.fuente === 'zoho' ? kpi(L.filter((g) => g.dias > 90).length, 'Clientes con más de 90 días', 'de vencido') : kpi(peso(suma(F, (f) => f.pronostico)), 'Pronóstico de cobro del mes', 'según el archivo de Carlos'), kpi((C.gestiones || []).filter((g) => L.some((x) => x.cliente === g.cliente)).length, 'Gestiones registradas aquí', 'llamadas y promesas de pago')),
     h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Antigüedad del saldo'), h('div', { class: 'fases' }, T.map(([t, v, k]) => h('div', {}, h('span', {}, t), h('div', { class: 'barra', role: 'img', 'aria-label': `${t}: ${peso(v)}` }, h('i', { class: k, style: `width:${total ? Math.max(1, v / total * 100) : 0}%` })), h('b', {}, peso(v)))))),
     h('h2', {}, 'Por cliente'),
     h('div', { class: 'card' }, lista('cob2', L, 12, (g) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, g.cliente), h('span', {}, peso(g.saldo))),
@@ -45,9 +45,9 @@ function cobranza() {
       h('div', { class: 'l2' }, ultima(g)), h('div', { class: 'acc' }, h('button', { class: 'btn sm sec', onclick: () => gestion(g) }, 'Registrar gestión'))), 'Sin facturas por cobrar.',
       [{ t: 'Cliente', v: (g) => g.cliente, s: (g) => g.cliente.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Vendedor', v: (g) => g.vendedor, s: (g) => g.vendedor, cls: 'nw' }, { t: 'Facturas', v: (g) => g.n, s: (g) => g.n, num: true },
         { t: 'Saldo', v: (g) => peso(g.saldo), s: (g) => g.saldo, num: true }, { t: 'Más antigua', v: (g) => pill(`${g.dias} días`, g.dias > 90 ? 'bad' : g.dias > 30 ? 'warn' : 'ok'), s: (g) => g.dias, num: true },
-        { t: 'Pronóstico', v: (g) => (g.pronostico ? peso(g.pronostico) : '—'), s: (g) => g.pronostico, num: true }, { t: 'Última gestión', v: ultima, cls: 'mut wide' },
+        C.fuente !== 'zoho' && { t: 'Pronóstico', v: (g) => (g.pronostico ? peso(g.pronostico) : '—'), s: (g) => g.pronostico, num: true }, { t: 'Última gestión', v: ultima, cls: 'mut wide' },
         { t: '', v: (g) => h('button', { class: 'btn sm sec', onclick: () => gestion(g) }, 'Registrar'), cls: 'nw' }])),
-    h('p', { class: 'note' }, `Saldos al ${dia(C.corte)}, del archivo de cobranza de Carlos. Todavía no se actualizan solos: para eso Spark necesita permiso de leer facturas en Zoho.`));
+    h('p', { class: 'note' }, C.fuente === 'zoho' ? 'Saldos de Zoho: pedidos facturados con saldo pendiente, con los pagos ya aplicados. Se actualizan tres veces al día. El vencimiento se toma a 30 días del pedido.' : `Saldos al ${dia(C.corte)}, del archivo de cobranza de Carlos. Cambia a los saldos de Zoho en la próxima sincronización.`));
 }
 
 // ---------------------------------------------------------------- Directorio
@@ -73,7 +73,7 @@ function directorio() {
   return h('div', {},
     h('div', { class: 'card kpis' }, kpi(A.length, 'Cuentas en el libro', `${A.filter((d) => d.pais === 'México').length} en México · ${A.filter((d) => d.pais !== 'México').length} en Estados Unidos`),
       kpi(`${comp} de ${A.length}`, 'Con datos completos', 'contacto, correo y teléfono'), kpi(A.filter((d) => !d.email).length, 'Sin correo'), kpi(A.filter((d) => !d.contacto).length, 'Sin persona de contacto')),
-    h('div', { class: 'toolbar' }, busca, chips([['', 'Todas'], ['falta', 'Incompletas'], ['mx', 'México'], ['usa', 'Estados Unidos']], S.dirF || '', (v) => { S.dirF = v; })),
+    h('div', { class: 'toolbar' }, busca, chips([['', 'Todas'], ['falta', 'Incompletas'], ['mx', 'México'], ['usa', 'Estados Unidos']], S.dirF || '', (v) => { S.dirF = v; }), h('button', { class: 'btn sm', onclick: () => nuevaCuenta() }, 'Nueva cuenta')),
     caja,
     h('p', { class: 'note' }, 'México: clientes con compras en Zoho; el contacto sale de las notas del CRM hasta que alguien lo corrige aquí. Estados Unidos: cuentas del reporte anual de La Competencia Imports (Texas y Colorado).'),
     (D().usa_envios || []).length ? [h('h2', {}, 'Distribuidores en Estados Unidos (cajas enviadas en 2026)'), h('div', { class: 'card' }, lista('usaenv', D().usa_envios, 10, (e) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, e.cliente), h('span', {}, e.cajas + ' cajas')), h('div', { class: 'l2' }, e.estado)), '',
@@ -172,7 +172,7 @@ const promoEstado = (p, hoy) => (p.fin && p.fin < hoy ? ['Terminó', 'mute'] : p
 function estrategia() {
   const d = D(), admin = d.yo.admin, hoy = d.hoy, Y = hoy.slice(0, 4), mesHoy = Number(hoy.slice(5, 7));
   const E = d.estrategia || [], P = d.promociones || [], metas = E.filter((e) => e.tipo === 'meta'), docs = E.filter((e) => e.tipo !== 'meta');
-  const real = (v, m) => suma(d.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m), (o) => o.total);
+  const real = (v, m) => Math.round(suma(d.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m), (o) => o.total) / 1.4674);   // before IEPS and IVA, like the goals
   const vis = (t, x) => (admin ? h('button', { class: 'linkb note', onclick: () => enviar(`api/admin/${t}`, { visible_id: x.id, visible: !x.visible }) }, x.visible ? 'Visible para el equipo' : 'Solo administradores') : null);
   const quitar = (t, x) => (admin ? h('button', { class: 'linkb note', onclick: () => { if (confirm('¿Quitar?')) enviar(`api/admin/${t}`, { borrar: x.id }); } }, 'Quitar') : null);
   const nuevoDoc = (tipo) => formulario(tipo === 'meta' ? 'Nueva meta' : 'Nuevo documento de estrategia', [{ k: 'titulo', t: tipo === 'meta' ? 'Meta' : 'Título', req: true, ph: tipo === 'meta' ? 'Por ejemplo: 40 cuentas con copeo al cierre de 2027' : 'Plan comercial 2027' },
@@ -197,7 +197,7 @@ function estrategia() {
     h('h2', {}, `Metas ${Y}`), admin ? h('div', { class: 'toolbar' }, h('button', { class: 'btn sm', onclick: () => nuevoDoc('meta') }, 'Agregar meta')) : null,
     metas.length ? h('div', { class: 'cols2' }, metas.map((e) => h('section', { class: 'card' }, h('div', { class: 'name' }, e.titulo, e.anio ? pill(String(e.anio), 'mute') : null), e.nota ? h('p', { style: 'margin-top:6px' }, e.nota) : null,
       e.url ? h('p', { style: 'margin-top:6px' }, h('a', { href: e.url, target: '_blank', rel: 'noopener' }, 'Abrir documento')) : null, h('p', { class: 'note', style: 'margin-top:8px' }, vis('estrategia', e), ' ', quitar('estrategia', e))))) : h('p', { class: 'note' }, admin ? 'Sin metas escritas todavía, fuera del presupuesto de abajo.' : 'Dirección no ha compartido metas aquí, fuera del presupuesto de abajo.'),
-    h('h2', {}, `Presupuesto de ventas ${d.presupuesto.anio}`), h('p', { class: 'note' }, 'Del plan de Carlos. "Real" son los pedidos en Zoho con IVA, sin cuentas de la casa ni muestras.'),
+    h('h2', {}, `Presupuesto de ventas ${d.presupuesto.anio}`), h('p', { class: 'note' }, 'Metas antes de impuestos. "Real" son los pedidos en Zoho sin IEPS ni IVA, sin cuentas de la casa ni muestras.'),
     h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Mes'), vend.flatMap((v) => [h('th', { class: 'r' }, v + ' · presupuesto'), h('th', { class: 'r' }, 'Real'), h('th', { class: 'r' }, '%')]))),
       h('tbody', {}, filas.map((f) => h('tr', {}, h('td', { class: 'b' }, f.mes), vend.flatMap((v) => [h('td', { class: 'r' }, peso(f[v + '_p'])), h('td', { class: 'r' }, f[v + '_r'] == null ? '—' : peso(f[v + '_r'])), h('td', { class: 'r' }, pct(f[v + '_r'], f[v + '_p']))]))),
         h('tr', {}, h('td', { class: 'b' }, `Acumulado a ${MESN[mesHoy - 1].toLowerCase()}`), vend.flatMap((v) => { const p = suma(filas.slice(0, mesHoy), (f) => f[v + '_p']), r = suma(filas.slice(0, mesHoy), (f) => f[v + '_r']); return [h('td', { class: 'r b' }, peso(p)), h('td', { class: 'r b' }, peso(r)), h('td', { class: 'r b' }, pct(r, p))]; })),
@@ -225,7 +225,7 @@ function distribuidores() {
       kpi(n('Por contactar'), 'Por contactar', 'identificados, sin primer contacto'), kpi(n('Rechazado'), 'Rechazados', `${L0.filter((p) => /dos b[uú]hos/i.test(p.motivo + ' ' + p.siguiente)).length} por decisión nuestra`)),
     h('p', { class: 'note' }, 'La lista se lleva en la pestaña "Distribuidores" de la hoja del CRM: ahí se agrega un distribuidor nuevo y se cambia su estado (en proceso, catalogado, rechazado). Spark la lee tres veces al día. ',
       'Un contacto registrado aquí, tocando el renglón, actualiza la fecha de inmediato. ', hoja ? h('a', { href: hoja, target: '_blank', rel: 'noopener' }, 'Abrir la hoja') : null, d.dist_fuente === 'archivo' ? ' · Mostrando el archivo de Carlos del 21 de noviembre; cambia a la hoja en la próxima sincronización.' : ''),
-    h('div', { class: 'toolbar' }, chips([['En proceso', `En proceso ${n('En proceso')}`], ['frio', `Fríos ${n('frio')}`], ['Catalogado', `Catalogados ${n('Catalogado')}`], ['Por contactar', `Por contactar ${n('Por contactar')}`], ['Rechazado', `Rechazados ${n('Rechazado')}`]], f, (v) => { S.distF = v; })),
+    h('div', { class: 'toolbar' }, chips([['En proceso', `En proceso ${n('En proceso')}`], ['frio', `Fríos ${n('frio')}`], ['Catalogado', `Catalogados ${n('Catalogado')}`], ['Por contactar', `Por contactar ${n('Por contactar')}`], ['Rechazado', `Rechazados ${n('Rechazado')}`]], f, (v) => { S.distF = v; }), h('button', { class: 'btn sm', onclick: () => nuevaCuenta({ titulo: 'Nuevo distribuidor', tipo: 'Distribuidor' }) }, 'Nuevo distribuidor')),
     h('div', { class: 'card' }, lista('dist', L, 12, (p) => h('li', toca(() => tocar(p)),
       h('div', { class: 'l1' }, h('span', {}, p.nombre), pill(p.avance, K[p.avance])),
       h('div', { class: 'l2' }, [p.plaza, zn.get(p.zona), p.tipo, p.responsable].filter(Boolean).join(' · ')),

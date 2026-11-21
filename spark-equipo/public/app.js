@@ -166,9 +166,11 @@ const reasignar = (r) => h('button', { class: 'linkb', onclick: () => formulario
   { k: 'vendedor', t: 'Esta venta es de', tipo: 'select', ops: ['José Luis', 'Carlos', ['Tito', 'Tito (casa: Eric y Diane)'], r.en_zoho ? ['', `Como está en Zoho (${r.en_zoho})`] : null].filter(Boolean), v: r.vendedor },
   { k: 'nota', t: 'Por qué', ph: 'Quién la vendió en realidad' }],
   (v) => enviar('api/admin/asignar', { tipo: 'orden', clave: r.orden, vendedor: v.vendedor, nota: v.nota }), `${peso(r.total)} · ${dia(r.fecha)}. Solo cambia Spark; la orden en Zoho queda igual.`) }, 'Reasignar');
+// Sales before taxes: Zoho order totals carry IEPS (26.5%) and IVA (16%) on wine; the reps' goals do not.
+const neto = (n) => Math.round(n / 1.4674);
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
 
-export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, pintar, cargar, ir, toca };
+export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, nuevaCuenta, pintar, cargar, ir, toca };
 export const datos = () => D;
 
 const VISTAS = {
@@ -328,11 +330,11 @@ const VISTAS = {
     if (!vs.length) return h('p', { class: 'note' }, 'Daniel no factura: sus números están en Semanas y Seguimiento.');
     const ym = D.hoy.slice(0, 7), ords = D.ordenes.filter((o) => o.fecha.slice(0, 7) === ym && vs.includes(o.vendedor));
     // Month budget from Carlos's 2026 plan, against what Zoho shows so far.
-    const presu = (r) => { const P = (D.presupuesto.meses[r.vendedor] || [])[Number(ym.slice(5)) - 1]; if (!P) return null; const pc = Math.round(r.total / P * 100);
-      return h('div', { style: 'margin-top:12px' }, h('div', { class: 'kv' }, h('span', {}, 'Meta del mes'), h('b', {}, `${peso(P)} · ${pc}%`)), h('div', { class: 'barra', role: 'img', 'aria-label': `${pc}% de la meta del mes` }, h('i', { class: pc >= 100 ? 'ok' : pc >= 60 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }))); };
+    const presu = (r) => { const P = (D.presupuesto.meses[r.vendedor] || [])[Number(ym.slice(5)) - 1]; if (!P) return null; const pc = Math.round(neto(r.total) / P * 100);
+      return h('div', { style: 'margin-top:12px' }, h('div', { class: 'kv' }, h('span', {}, 'Antes de impuestos'), h('b', {}, peso(neto(r.total))), h('span', {}, 'Meta del mes'), h('b', {}, `${peso(P)} · ${pc}%`)), h('div', { class: 'barra', role: 'img', 'aria-label': `${pc}% de la meta del mes` }, h('i', { class: pc >= 100 ? 'ok' : pc >= 60 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }))); };
     // The year against each rep's sales goal: so far against the goal to date (this month counted by days gone), and against the whole year.
     const Y = D.hoy.slice(0, 4), mH = Number(D.hoy.slice(5, 7)), dH = Number(D.hoy.slice(8)), dMes = new Date(Number(Y), mH, 0).getDate();
-    const realMes = (v, m) => Math.round(D.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m).reduce((t, o) => t + o.total, 0));
+    const realMes = (v, m) => neto(D.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m).reduce((t, o) => t + o.total, 0));
     const barra = (pc, txt) => h('div', { class: 'barra', role: 'img', 'aria-label': txt }, h('i', { class: pc >= 100 ? 'ok' : pc >= 80 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }));
     const conMeta = vs.filter((v) => (D.presupuesto.meses[v] || []).length === 12 && String(D.presupuesto.anio) === Y);
     const anual = conMeta.map((v) => { const M = D.presupuesto.meses[v], R = M.map((_, i) => (i + 1 <= mH ? realMes(v, i + 1) : null));
@@ -348,7 +350,7 @@ const VISTAS = {
         presu(r)))),
       anual.length ? [h('h2', {}, `Meta de ventas ${Y}`),
         h('div', { class: 'grid3' }, anual.map((a) => h('section', { class: 'card' }, h('div', { class: 'name' }, a.v, pill(a.pcF >= 100 ? 'Arriba de la meta' : a.pcF >= 80 ? 'Cerca de la meta' : 'Abajo de la meta', a.pcF >= 100 ? 'ok' : a.pcF >= 80 ? 'warn' : 'bad')),
-          h('div', { class: 'num' }, peso(a.real)), h('p', { class: 'note', style: 'margin:0 0 10px' }, `vendido de enero al ${dia(D.hoy)}`),
+          h('div', { class: 'num' }, peso(a.real)), h('p', { class: 'note', style: 'margin:0 0 10px' }, `vendido antes de impuestos, de enero al ${dia(D.hoy)}`),
           h('div', { class: 'kv' }, h('span', {}, 'Meta a la fecha'), h('b', {}, `${peso(a.aFecha)} · ${a.pcF}%`)), barra(a.pcF, `${a.pcF}% de la meta a la fecha`),
           h('p', { class: 'note', style: 'margin:4px 0 10px' }, a.real >= a.aFecha ? `Va ${peso(a.real - a.aFecha)} arriba.` : `Le faltan ${peso(a.aFecha - a.real)} para ir al día.`),
           h('div', { class: 'kv' }, h('span', {}, 'Meta del año'), h('b', {}, `${peso(a.meta)} · ${a.pcA}%`)), barra(a.pcA, `${a.pcA}% de la meta del año`),
@@ -358,7 +360,7 @@ const VISTAS = {
           h('tbody', {}, MESL.map((n, i) => h('tr', { style: i + 1 === mH ? 'font-weight:600' : null }, h('td', {}, n.charAt(0).toUpperCase() + n.slice(1) + (i + 1 === mH ? ' (en curso)' : '')),
             anual.flatMap((a) => { const r = a.R[i], pc = r == null ? null : Math.round(r / a.M[i] * 100); return [h('td', { class: 'r' }, peso(a.M[i])), h('td', { class: 'r' }, r == null ? '—' : peso(r)), h('td', { class: 'r' }, pc == null ? '—' : h('span', { class: pc >= 100 ? 'up' : pc >= 60 ? '' : 'down' }, pc + '%'))]; }))),
             h('tr', { style: 'font-weight:700' }, h('td', {}, 'Año'), anual.flatMap((a) => [h('td', { class: 'r' }, peso(a.meta)), h('td', { class: 'r' }, peso(a.real)), h('td', { class: 'r' }, a.pcA + '%')])))))),
-        h('p', { class: 'note' }, 'Metas del archivo "Ajuste de metas": de agosto a diciembre son las ajustadas. "Vendido" son los pedidos en Zoho con impuestos, sin muestras ni cuentas de la casa; la exportación y lo reasignado a Tito no cuentan para ningún vendedor.')] : null,
+        h('p', { class: 'note' }, 'Metas del archivo "Ajuste de metas", antes de IEPS e IVA; de agosto a diciembre son las ajustadas. "Vendido" son los pedidos en Zoho sin impuestos (el total entre 1.4674: IEPS 26.5% más IVA 16%), sin muestras ni cuentas de la casa; la exportación y lo reasignado a Tito no cuentan para ningún vendedor.')] : null,
       h('h2', {}, 'Órdenes del mes'),
       h('div', { class: 'card' }, lista('mes', ords, 12, (o) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, o.cliente), h('span', {}, peso(o.total))),
         h('div', { class: 'l2' }, [dia(o.fecha), o.orden, vs.length > 1 ? o.vendedor : null, E[o.facturacion] || o.facturacion, E[o.pago] || o.pago].filter(Boolean).join(' · '))), 'Todavía no hay órdenes este mes.',
@@ -591,7 +593,7 @@ $('nuevo').addEventListener('click', () => registrar({}));
 // guardar(values) returns an error message, or nothing when it worked.
 function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
   const d = $('dlg'), err = h('span', { class: 'err', role: 'alert' });
-  const campo = (c) => { const a = { name: c.k, required: !!c.req, placeholder: c.ph || null, autofocus: c.foco ? '' : null };
+  const campo = (c) => { if (c.el) return c.el; const a = { name: c.k, required: !!c.req, placeholder: c.ph || null, autofocus: c.foco ? '' : null };
     const el = c.tipo === 'textarea' ? h('textarea', a, c.v || '') : c.tipo === 'select' ? h('select', a, c.ops.map((o) => { const [v, t] = Array.isArray(o) ? o : [o, o]; return h('option', { value: v, selected: String(c.v ?? '') === String(v) }, t); }))
       : h('input', { ...a, type: c.tipo || 'text', value: c.v ?? null, min: c.tipo === 'number' ? 0 : null, inputmode: c.tipo === 'number' ? 'numeric' : null, max: c.max || null });
     if (c.lista) { el.setAttribute('list', 'dl-' + c.k); el.setAttribute('autocomplete', 'off'); return h('label', {}, c.t, el, h('datalist', { id: 'dl-' + c.k }, c.lista.map((x) => h('option', { value: x })))); }
@@ -604,15 +606,51 @@ function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
   d.replaceChildren(f); d.showModal();
 }
 const enviar = async (url, body) => { const r = await api(url, body); if (r.error) return r.error; await cargar(); };
+// Every account name the app knows: Zoho clients, accounts with logged contacts, prospects and accounts created here.
+const todasLasCuentas = () => { const m = new Map(); for (const n of [...D.directorio.map((d) => d.nombre), ...D.seguimiento.map((r) => r.cuenta), ...D.prospectos.map((p) => p.nombre)]) { const k = n.trim().toLowerCase(); if (k && !m.has(k)) m.set(k, n.trim()); }
+  return [...m.values()].sort((a, b) => a.localeCompare(b)); };
+const plano = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const TIPOS_CUENTA = ['Restaurante', 'Hotel', 'Tienda', 'Distribuidor', 'Bar', 'Evento / catering', 'Particular'];
+// The fields a new account needs: what it is, where, and one way to reach someone there.
+const camposNueva = (pre = {}) => h('div', { class: 'nueva' },
+  h('div', { class: 'dos' }, h('label', {}, 'Tipo', h('select', { name: 'n_tipo' }, TIPOS_CUENTA.map((t) => h('option', { value: t, selected: pre.tipo === t }, t)))),
+    h('label', {}, 'Zona', h('select', { name: 'n_zona' }, [h('option', { value: '' }, 'Elige la zona'), ...D.zonas.map((z) => h('option', { value: z.zona, selected: pre.zona === z.zona }, z.nombre.split(' (')[0]))]))),
+  h('div', { class: 'dos' }, h('label', {}, 'Ciudad', h('input', { name: 'n_ciudad', placeholder: 'San Miguel de Allende' })), h('label', {}, 'Persona de contacto', h('input', { name: 'n_contacto', placeholder: 'Nombre y puesto' }))),
+  h('div', { class: 'dos' }, h('label', {}, 'Teléfono o WhatsApp', h('input', { name: 'n_telefono', inputmode: 'tel' })), h('label', {}, 'Correo', h('input', { name: 'n_email', type: 'email' }))),
+  h('p', { class: 'dnote', style: 'margin:0' }, 'Teléfono o correo: al menos uno.'));
+// Account field for the contact form: type to search; the first choice is always "Nueva cuenta", which opens the new-account fields.
+function selectorCuenta() {
+  const todas = todasLasCuentas(), claves = new Set(todas.map(plano)); let nueva = false;
+  const inp = h('input', { name: 'cuenta', required: true, autocomplete: 'off', placeholder: 'Escribe el nombre del cliente o prospecto', 'aria-label': 'Cuenta' });
+  const sug = h('div', { class: 'sugs', role: 'listbox' }), extra = h('div', { hidden: true });
+  const elegir = (n) => { inp.value = n; nueva = false; extra.hidden = true; extra.replaceChildren(); sug.replaceChildren(); };
+  const abrirNueva = () => { nueva = true; sug.replaceChildren(); extra.replaceChildren(h('p', { class: 'dnote', style: 'margin:0 0 6px' }, h('b', {}, 'Cuenta nueva. '), 'Queda en el Directorio y en su zona del mapa.'), camposNueva()); extra.hidden = false; if (!inp.value.trim()) inp.focus(); };
+  const pinta = () => { const q = plano(inp.value); if (nueva) { return; }
+    const hits = q ? todas.filter((n) => plano(n).includes(q)).slice(0, 7) : [];
+    sug.replaceChildren(h('button', { type: 'button', class: 'sug nueva', onclick: abrirNueva }, h('b', {}, '＋ Nueva cuenta'), q && !claves.has(q) ? h('span', {}, ` · dar de alta "${inp.value.trim()}"`) : null),
+      ...hits.map((n) => h('button', { type: 'button', class: 'sug', onclick: () => elegir(n) }, n))); };
+  inp.addEventListener('input', () => { if (nueva && claves.has(plano(inp.value))) { nueva = false; extra.hidden = true; extra.replaceChildren(); } pinta(); });
+  inp.addEventListener('focus', pinta);
+  return { el: h('div', { class: 'pick' }, h('label', {}, 'Cuenta', inp), sug, extra), nueva: () => nueva, existe: (n) => claves.has(plano(n)) };
+}
+// A new account on its own, with no contact to log yet (a lead someone passed along).
+function nuevaCuenta(pre = {}) {
+  const todas = todasLasCuentas(), aviso = h('p', { class: 'dnote', style: 'margin:0' });
+  const inp = h('input', { name: 'nombre', required: true, autocomplete: 'off', placeholder: 'Nombre del negocio', oninput: () => { const q = plano(inp.value), p = q.length >= 3 ? todas.filter((n) => plano(n).includes(q)).slice(0, 3) : []; aviso.textContent = p.length ? 'Ya existe algo parecido: ' + p.join(' · ') : ''; } });
+  formulario(pre.titulo || 'Nueva cuenta', [{ el: h('div', {}, h('label', {}, 'Nombre', inp), aviso) }, D.yo.admin ? { k: 'persona', t: 'La lleva', tipo: 'select', ops: ['José Luis', 'Carlos', 'Daniel', ['Tito', 'Tito (casa)']], v: S.persona || D.yo.persona || 'Tito' } : null, { el: camposNueva(pre) }].filter(Boolean),
+    async (v) => { const r = await api('api/cuenta/nueva', { nombre: v.nombre, tipo: v.n_tipo, zona: v.n_zona, ciudad: v.n_ciudad, contacto: v.n_contacto, telefono: v.n_telefono, email: v.n_email, persona: v.persona }); if (r.error) return r.error; await cargar(); },
+    'Para un prospecto que todavía no compra. Queda en el Directorio y en su zona; el primer contacto se registra después.', 'Crear cuenta');
+}
 // Log a contact from the app. It lands in the same table the CRM sheet feeds, so it shows up everywhere at once.
 // pre: { cuenta, persona, ultimo_contacto, dias_sin_contacto, ultima_nota, sugerencia, pausa } when opened from an account row.
 function registrar(pre) {
   const quien = pre.persona || S.persona || D.yo.persona || 'Tito', cuentas = [...new Set(D.seguimiento.map((r) => r.cuenta))].sort((a, b) => a.localeCompare(b));
   const hoy = D.hoy || new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
   const antes = pre.ultimo_contacto ? `Último contacto registrado: ${dia(pre.ultimo_contacto)} (hace ${pre.dias_sin_contacto} días).` + (pre.ultima_nota ? ' "' + pre.ultima_nota.slice(0, 180) + '"' : '') : pre.cuenta ? 'Sin contacto registrado todavía.' : '';
+  const pick = pre.cuenta ? null : selectorCuenta();
   formulario(pre.cuenta || 'Registrar contacto', [
     D.yo.admin ? { k: 'persona', t: 'A nombre de', tipo: 'select', ops: ['José Luis', 'Carlos', 'Daniel', ['Tito', 'Tito (casa: Eric y Diane)']], v: quien } : null,
-    pre.cuenta ? null : { k: 'cuenta', t: 'Cuenta', req: true, ph: 'Nombre del cliente o prospecto', lista: cuentas },
+    pre.cuenta ? null : { el: pick.el },
     { k: 'fecha', t: 'Cuándo fue', tipo: 'date', v: hoy, max: hoy, req: true, mitad: true },
     { k: 'medio', t: 'Cómo', tipo: 'select', ops: ['Presencial', 'Llamada', 'WhatsApp', 'Correo'], v: 'Presencial', mitad: true },
     { k: 'resultado', t: 'Qué pasó', tipo: 'textarea', req: true, foco: !!pre.cuenta, ph: 'Con quién hablaste, qué dijeron, qué quedó pendiente' },
@@ -623,7 +661,12 @@ function registrar(pre) {
     { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true },
     { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', ph: 'Tu estimado', mitad: true },
     { k: 'etapa', t: 'Etapa de la cuenta', tipo: 'select', ops: [['', 'Sin cambio'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: '' },
-  ].filter(Boolean), (v) => enviar('api/actividad', { ...v, cuenta: pre.cuenta || v.cuenta, persona: v.persona || quien }), [antes, pre.pausa ? 'Envíos pausados por cobranza: igual toca contactarlos, para cobrar y para que vuelvan a pedir.' : ''].filter(Boolean).join(' ') || 'Queda guardado en Spark.');
+  ].filter(Boolean), async (v) => {
+    // A new account is created first; then the contact is logged against it.
+    if (pick && pick.nueva()) { const r = await api('api/cuenta/nueva', { nombre: v.cuenta, tipo: v.n_tipo, zona: v.n_zona, ciudad: v.n_ciudad, contacto: v.n_contacto, telefono: v.n_telefono, email: v.n_email, persona: v.persona || quien }); if (r.error) return r.error; }
+    else if (pick && !pick.existe(v.cuenta)) return 'Elige una cuenta de la lista, o toca "Nueva cuenta" para darla de alta.';
+    return enviar('api/actividad', { ...v, cuenta: pre.cuenta || v.cuenta, persona: v.persona || quien, contacto: v.n_contacto || '', telefono: v.n_telefono || '' });
+  }, [antes, pre.pausa ? 'Envíos pausados por cobranza: igual toca contactarlos, para cobrar y para que vuelvan a pedir.' : ''].filter(Boolean).join(' ') || 'Queda guardado en Spark.');
 }
 
 async function cargar() {

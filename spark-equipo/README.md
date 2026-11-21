@@ -76,3 +76,11 @@ npm test
 ## Sales goals
 - `src/data/presupuesto.json`: monthly goals per rep for the year (file "AJUSTE DE METAS", Aug–Dec are the adjusted goals; exports count for no rep). Ventas del mes shows the month, the year to date against the goal to date (current month by days elapsed), the whole year, and month by month.
 - La Competencia Imports (`DE_ERIC`) counts as a house sale under Tito and is left out of the Mexican zones.
+- Goals are before IEPS and IVA. Zoho's order list only gives totals with taxes, so sales compared against goals are `total / 1.4674` (IEPS 26.5% then IVA 16%), an estimate that is exact for wine-only orders.
+
+## New accounts
+- `POST /api/cuenta/nueva` creates a prospect that is not a Zoho client yet (name, type, zone, and a phone or an email; duplicate names are refused). Stored in `cuentas` with `origen = 'app'`, `zona` and `vendedor` (migration 0009). It shows in the Directorio and joins the prospects of its zone.
+- In the contact form the account field searches every known account; the first choice is always "Nueva cuenta", which opens the new-account fields in the same form. Directorio and Distribuidores also have a button for it.
+
+## Receivables
+- `orders.saldo` (migration 0010) is Zoho's `balance` on each sales order. Cobranza lists invoiced orders with a balance, due 30 days after the order date (the invoice's own due date needs invoice access). Until orders have been re-read after this change, the dated copy of Carlos's file (`src/data/cobranza.json`) is shown; its comments stay attached by client.

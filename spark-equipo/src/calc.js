@@ -292,7 +292,9 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
     const last = contactos.find((r) => keys.some((k) => norm(r.cuenta).includes(k)));
     const d = dist.find((x) => x.zona === p.zona && !usados.has(x) && keys.some((k) => x.k.includes(k) || (x.k.length >= 5 && k.includes(x.k))));
     if (d) usados.add(d);
-    return unir({ zona: p.zona, nombre: p.nombre, tipo: p.tipo, clase: tipoDe(p), ciudades: p.ciudades, razon: p.razon, estado: p.estado, fuente: p.fuente }, d, last);
+    const u = unir({ zona: p.zona, nombre: p.nombre, tipo: p.tipo, clase: tipoDe(p), ciudades: p.ciudades, razon: p.razon, estado: p.estado, fuente: p.fuente }, d, last);
+    // An account someone created in Spark carries its own contact details and owner.
+    return p.nueva ? { ...u, nueva: true, contacto: u.contacto || p.contacto || '', telefono: u.telefono || p.telefono || '', email: u.email || p.email || '', responsable: p.vendedor || '' } : u;
   });
   for (const d of dist) {
     if (usados.has(d)) continue;

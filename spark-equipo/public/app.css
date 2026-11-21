@@ -195,3 +195,14 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
 .map .burb text { fill: var(--text); paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
 .map .burb circle { vector-effect: non-scaling-stroke; }
 @media (max-width: 719px) { .map .burb text { display: none; } }
+
+/* Account search in the contact form */
+.pick { display: grid; gap: 6px; }
+.sugs { display: grid; gap: 2px; max-height: 232px; overflow: auto; }
+.sugs:empty { display: none; }
+.sug { all: unset; box-sizing: border-box; cursor: pointer; padding: 9px 10px; border-radius: 8px; font-size: .92rem; min-height: 40px; display: flex; align-items: center; }
+.sug:hover, .sug:focus-visible { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.sug.nueva { color: var(--accent); border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); }
+.nueva { display: grid; gap: 10px; }
+.pick > div[hidden] { display: none; }
+.sug.nueva { display: block; }
