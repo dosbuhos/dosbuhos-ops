@@ -659,3 +659,7 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .d .tl.edge-l { box-shadow: inset 6px 0 12px -6px var(--blue); }
 /* Late tab rows: the group head already says how old a task is, so the "pushed N times" note stays out of the row */
 .m .mm[data-list=late] .card .sub { display: none; }
+
+/* section head with an action on the right (When · Remove date) */
+.grphead { display: flex; align-items: center; justify-content: space-between; }
+.grphead .link { font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 6px 2px; margin: -6px 0; }

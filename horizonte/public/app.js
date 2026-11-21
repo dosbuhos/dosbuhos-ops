@@ -876,7 +876,7 @@ function taskSheet(id, view = 'main') {
   openSheet(`<div class="grab"></div>
 <div style="display:flex;flex-direction:column;gap:2px"><textarea class="ttl" rows="1" data-field="title" aria-label="Task name">${esc(t.title)}</textarea><div style="font-size:13px;color:var(--ink-2)">${esc(where)}</div></div>
 <div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.people(15)}Meeting</button></div>
-<div class="grp"><div class="eyebrow">When</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
+<div class="grp"><div class="eyebrow grphead">When${t.when ? `<button class="link" data-act="unschedule" title="Keep it on its board, with no date">Remove date</button>` : ''}</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
 ${isDesk()
@@ -898,7 +898,7 @@ ${t.kind === 'meeting' ? '' : `<div class="grp"><div class="eyebrow">Icon</div><
     : `<div class="tagpick">${taskTags(t).map(x => tagChip(x, `role="button" tabindex="0" data-act="tagtoggle" data-t="${x.id}" aria-pressed="true" title="Remove tag"`)).join('')}<button class="tag c-new" data-act="tagnew">+ Tag</button></div>`}</div>
 <button class="boardrow" data-act="sheetboard"><span><span style="color:var(--ink-2)">Board</span>&nbsp;&nbsp;<b style="font-weight:600">${esc(bd ? bd.name + (t.section ? ' · ' + t.section : '') : 'Inbox')}</b></span>${I.chev}</button>
 ${t.notes || S.ui.notesOpen === id ? `<textarea class="notes" data-field="notes" placeholder="Notes">${esc(t.notes || '')}</textarea>` : `<button class="link" style="align-self:flex-start;font-size:14px" data-act="notes">Add notes</button>`}
-<div class="foot">${t.when ? `<button class="link" style="font-size:14px" data-act="unschedule">Unschedule</button>` : '<span></span>'}
+<div class="foot"><span></span>
 <span><button class="link" style="font-size:14px" data-act="${t.status === 'done' ? 'reopen' : 'markdone'}">${t.status === 'done' ? 'Mark not done' : 'Mark done'}</button><button class="link" style="font-size:14px;color:var(--now)" data-act="delete">Delete</button></span></div>`, { id, view: 'main' });
   const ta = $('.sheet .ttl'); const fit = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }; fit(); ta.addEventListener('input', fit);
 }
@@ -1245,7 +1245,7 @@ document.addEventListener('click', async (e) => {
     case 'sheetback': taskSheet(st.id); return;
     case 'setboard': put('task', st.id, { board: el.dataset.b, section: el.dataset.s }); render(); taskSheet(st.id); return;
     case 'notes': S.ui.notesOpen = st.id; taskSheet(st.id); $('.sheet .notes')?.focus(); return;
-    case 'unschedule': put('task', st.id, { when: null, at: '' }); closeSheet(); render(); toast('Unscheduled', true); return;
+    case 'unschedule': { const t = S.tasks.get(st.id), b = t?.board ? S.boards.get(t.board) : null; put('task', st.id, { when: null, at: '' }); closeSheet(); render(); toast(`Date removed · stays in ${b ? b.name : 'Inbox'}`, true); return; }
     case 'markdone': case 'reopen': toggleDone(st.id); closeSheet(); render(); return;
     case 'delete': put('task', st.id, { del: new Date().toISOString() }); closeSheet(); render(); toast('Deleted', true); return;
     case 'newboard': boardSheet(null); return;
