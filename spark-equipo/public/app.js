@@ -25,7 +25,7 @@ const pct = (p) => (p == null ? '—' : (p > 0 ? '+' : '') + p + '%');
 const mas = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 // A client move of this many pesos against the same date last year counts as a critical loss or a strong gain.
 const UMBRAL = 30000;
-const KIND = { Productiva: 'ok', Productivo: 'ok', 'A medias': 'warn', Floja: 'bad', Flojo: 'bad', 'En cero': 'bad', Pendiente: 'mute', 'Sin datos': 'mute' };
+const KIND = { Productiva: 'ok', Productivo: 'ok', 'A medias': 'warn', Floja: 'bad', Flojo: 'bad', 'En cero': 'bad', Pendiente: 'bad', 'Sin datos': 'mute' };
 const vtxt = (r) => (r.veredicto === 'Pendiente' ? 'Pendiente de registrar' : r.veredicto) + (r.en_curso ? ' · en curso' : '');
 const pill = (text, kind) => h('span', { class: 'pill ' + kind }, text);
 
@@ -197,8 +197,16 @@ const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T1
 function regla48(p) {
   const mes = D.hoy.slice(0, 7), L = D.contactos.filter((c) => c.persona === p && c.fecha >= REGLA_DESDE && c.fecha.slice(0, 7) === mes && c.registrado);
   const tarde = L.filter((c) => dDias(c.fecha, c.registrado) > 2).length, ult = D.contactos.find((c) => c.persona === p), sin = ult ? dDias(ult.registrado && ult.registrado > ult.fecha ? ult.registrado : ult.fecha, D.hoy) : null;
-  const cumple = sin != null && sin <= 3 && tarde === 0;
+  const cumple = sin != null && sin <= 2 && tarde === 0;
   return { n: L.length, tarde, sin, cumple };
+}
+// Badge for how late the log is: fine up to 2 days, yellow at 3 and 4, red from 5 on (or with nothing logged at all).
+function regPill(p, w) {
+  const g = regla48(p), v = w && w.veredicto;
+  if (g.sin == null) return pill('Sin ningún registro', 'bad');
+  if (g.sin >= 5) return pill(`Sin registrar · ${g.sin} días`, 'bad');
+  if (g.sin >= 3) return pill(`Registro atrasado · ${g.sin} días`, 'warn');
+  return v && v !== 'Pendiente' ? pill(v, KIND[v]) : pill('Registro al corriente', 'ok');
 }
 function urgente(p) {
   const U = [], nq = abiertasDe(p).length;
@@ -245,7 +253,7 @@ function marcador(p, compacto) {
       h('div', { class: 'mi' }, h('span', {}, 'Contactos'), h('span', {}, 'sem. ', w && w.meta ? pcd(w.contactos, w.meta) : h('b', {}, w ? w.contactos : 0)), h('span', {}, 'mes ', pcd(sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta))), h('span', {}, 'año ', pcd(sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta)))),
       M ? h('div', { class: 'mn' }, `${peso(vMes)} de ${peso(M[mH - 1])} este mes`) : null); }
   const card = h('section', { class: 'card marc' },
-    h('div', { class: 'name' }, p, w && w.meta ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : p === 'Tito' ? pill('Casa', 'mute') : null),
+    h('div', { class: 'name' }, p, p === 'Tito' ? pill('Casa', 'mute') : regPill(p, w)),
     p !== 'Daniel' ? [h('h3', {}, 'Ventas', h('small', {}, ' antes de impuestos')), h('button', { class: 'mbtn', onclick: () => ir('ventas', p) },
       fila('Mes', vMes, M ? M[mH - 1] : 0, peso, true), fila('Año', vAnio, aFecha, peso, true))] : null,
     // Growth, said plainly: against last year without the inherited accounts, and what was opened and lost this year.
@@ -255,7 +263,7 @@ function marcador(p, compacto) {
       h('div', { class: 'cr' }, h('b', { class: e.perdidos.length ? 'down' : '' }, e.perdidos.length), h('span', {}, 'cuentas que dejaron de comprar')))] : null))((D.crecimiento || []).find((x) => x.persona === p)),
     h('h3', {}, 'Contactos'), h('button', { class: 'mbtn', onclick: () => ir('semanas', p) },
       fila('Semana', w ? w.contactos : 0, w ? w.meta : 0, n, true), fila('Mes', sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta), n), fila('Año', sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta), n), ws.length && ws[0].semana.slice(5, 7) !== '01' ? h('span', { class: 'mn' }, `El año cuenta desde el ${dia(ws[0].semana)} (primer registro).`) : null),
-    p !== 'Tito' ? ((g) => h('div', { class: 'r48 ' + (g.cumple ? 'ok' : 'bad') }, h('b', {}, 'Regla de 48 horas: ' + (g.cumple ? 'al corriente' : 'fuera')),
+    p !== 'Tito' ? ((g) => h('div', { class: 'r48 ' + (g.cumple ? 'ok' : g.sin != null && g.sin < 5 && !g.tarde ? 'warn' : 'bad') }, h('b', {}, 'Regla de 48 horas: ' + (g.cumple ? 'al corriente' : g.sin != null && g.sin < 5 && !g.tarde ? 'atrasado' : 'fuera')),
       h('span', {}, g.sin == null ? 'Sin ningún registro.' : `Último registro hace ${g.sin} ${g.sin === 1 ? 'día' : 'días'}` + (g.n ? ` · ${g.n - g.tarde} de ${g.n} a tiempo este mes` : '') + (g.tarde ? ` · ${g.tarde} fuera de plazo` : '') + '. El variable del mes se paga con el registro al corriente.')))(regla48(p)) : null,
     h('h3', {}, 'Urgente'), U.length ? h('ul', { class: 'foco' }, U.map((u) => h('li', { class: u.k === 'bad' ? 'cliente' : 'meta' }, h('button', { onclick: () => ir(u.vista, p) }, u.t), u.d ? h('span', {}, u.d) : null))) : h('p', { class: 'note' }, 'Nada urgente.'),
     nb ? h('p', { class: 'note', style: 'margin-top:10px' }, h('button', { class: 'linkb', onclick: () => ir('buzon', p) }, nb === 1 ? '1 nota en el Buzón' : `${nb} notas en el Buzón`)) : null);
