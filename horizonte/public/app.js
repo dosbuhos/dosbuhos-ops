@@ -1599,6 +1599,9 @@ async function start() {
   try { const zone = Intl.DateTimeFormat().resolvedOptions().timeZone; if (zone && S.prefs.tz !== zone) put('pref', 'main', { tz: zone }, { quiet: true }); } catch {}
   applyTheme(); render(); whoami();
   matchMedia('(min-width: 900px)').addEventListener('change', () => { closeSheet(); render(); });
+  // Keyboard height for the phone sheet (iOS lays the keyboard over the page instead of shrinking it): --kb lifts the sheet above it.
+  if (visualViewport) { const kb = () => { const h = Math.max(0, Math.round(innerHeight - visualViewport.height - visualViewport.offsetTop)); document.documentElement.style.setProperty('--kb', (h > 60 ? h : 0) + 'px'); };
+    visualViewport.addEventListener('resize', kb); visualViewport.addEventListener('scroll', kb); }
   addEventListener('online', () => { render(); syncNow(); }); addEventListener('offline', render);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!sheetState && !drag && !S.ui.draft) reflowTick(); if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
   setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) { reflowTick(); render(); } }, 60000);
