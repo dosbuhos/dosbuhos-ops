@@ -6,7 +6,7 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 - Local-first: the app keeps every task in the device's IndexedDB and works offline; changes queue in an outbox and sync through `POST /api/sync` (field-by-field, latest edit wins — `src/merge.js`)
 - Sign-in: the Sign in with Google button (Google Identity Services), only `OWNER_EMAIL`. Uses its own OAuth client ("Horizonte"), no secret for sign-in: the Worker checks the ID token against Google's public keys and keeps a random session id in D1. Needs `https://horizonte.dos-buhos.workers.dev` as an Authorized JavaScript origin on the client. Without sign-in the app still works on one device
 - Front end: plain JS, no build step (`public/app.js`, `public/app.css`), Geist self-hosted, service worker for offline start
-- Desktop ≥900 px: list panel + timeline (Hours / Days / Weeks / Months / Quarters / Years), drag and drop. Phone: Today / Plan / Capture / Boards / Inbox, schedule sheet, swipe right = done, swipe left = schedule, hold + drag = week rail
+- Desktop ≥900 px: list panel + timeline (Hours / Days / Weeks / Months / Quarters / Years), drag and drop. Phone: Today / Plan / Capture / Boards / Inbox, schedule sheet, swipe right = done, swipe left = delete (Undo), hold + drag to a day or hour
 
 ## Phases (from the scope doc)
 1. Core planner — **this version**
@@ -52,7 +52,7 @@ Bottom bar: Inbox · Late · Hours · Days · More; More opens a sheet with Week
 ## Phone Late tab (v50)
 Open tasks whose day or period has passed (meetings excluded) get their own tab between Inbox and Hours, with the count on the bar.
 They are grouped under the day they were planned for, newest first ("Yesterday", "Thursday, Nov 19 · 2 days ago", or the week/month label),
-each group with a quiet "To today" and the header with "All to today". Rows are plain cards (no per-row button): tap to reschedule in the sheet, swipe left for the date picker, hold to drag onto a day or hour.
+each group with a quiet "To today" and the header with "All to today". Rows are plain cards (no per-row button): tap to reschedule in the sheet, hold to drag onto a day or hour, swipe left to delete (Undo in the toast).
 Hours and Inbox no longer carry an overdue line. Phone sheets have an × in the handle row, and dragging the handle no longer triggers the
 browser's pull-to-refresh.
 

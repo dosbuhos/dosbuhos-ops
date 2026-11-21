@@ -686,7 +686,7 @@ function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl');
 // Overdue bar: tap to review, × hides it until tomorrow (Overdue stays in the menu / lists).
 function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
 // Phone Late tab: everything that slipped, grouped under the day (or week, month…) it was planned for, newest first.
-// Tap a task to reschedule it in its sheet, swipe left for the date picker, or move a whole day (or all of it) to today.
+// Tap a task to reschedule it in its sheet, hold to drag it, or move a whole day (or all of it) to today.
 function mLate() {
   const list = lateTasks(), groups = new Map();
   for (const t of list) { if (!groups.has(t.when)) groups.set(t.when, []); groups.get(t.when).push(t); }
@@ -697,7 +697,7 @@ function mLate() {
     let lbl, sub = `${g.length} task${g.length > 1 ? 's' : ''}`;
     if (kind === 'day') { const d = parseD(k), ago = Math.round((parseD(T) - d) / 864e5); lbl = relDay(k) || `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; if (!relDay(k) && ago < 30) sub = `${ago} days ago · ${sub}`; }
     else lbl = periodLabel(k, true);
-    // Each row is a plain card: tap to open and reschedule, swipe left for a date, hold to drag it onto a day or an hour.
+    // Each row is a plain card: tap to open and reschedule, hold to drag it onto a day or an hour, swipe left to delete.
     body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${esc(sub)}</span><button class="act" data-act="rollgrp" data-k="${k}">To today</button></div>`;
     body += g.map(t => mcard(t, { late: true, roll: false })).join('');
   }
@@ -820,7 +820,7 @@ function mInbox() {
   const list = byTag(sortList(inboxTasks(), S.ui.sort));
   let body = '';
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">${S.ui.tagFilter ? 'Nothing in Inbox with this tag.' : 'Inbox is empty. Tap + to capture what’s on your mind.'}</div>`;
-  if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
+  if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to delete. Hold to drag it onto a day or hour.</div>`;
   if (S.ui.q) body = searchResults(true);
   return `<header class="mh">${mtop(`<span class="date">${S.ui.q ? 'Search' : `Inbox${list.length ? ' · ' + list.length : ''}`}</span>`)}${searchBox('mq')}</header><main class="mm" data-list="inbox">${body}</main>`;
 }
@@ -1439,9 +1439,9 @@ window.addEventListener('blur', closeMenu); window.addEventListener('scroll', cl
 function swipeMove(dx) {
   const c = press.card; c.style.transform = `translateX(${dx}px)`;
   let hint = c.querySelector('.swipe-hint'); if (!hint) { c.insertAdjacentHTML('afterbegin', '<div class="swipe-hint"></div>'); hint = c.querySelector('.swipe-hint'); }
-  hint.style.background = dx > 0 ? 'var(--ok)' : 'var(--ink)'; hint.style.justifyContent = dx > 0 ? 'flex-start' : 'flex-end';
+  hint.style.background = dx > 0 ? 'var(--ok)' : 'var(--now)'; hint.style.justifyContent = dx > 0 ? 'flex-start' : 'flex-end';
   hint.style.transform = `translateX(${-dx}px)`; hint.style.width = '100%'; hint.style.zIndex = -1;
-  hint.textContent = dx > 0 ? (S.tasks.get(press.id)?.status === 'done' ? 'Not done' : 'Done') : 'Schedule';
+  hint.textContent = dx > 0 ? (S.tasks.get(press.id)?.status === 'done' ? 'Not done' : 'Done') : 'Delete';
   c.style.zIndex = 1;
 }
 function swipeEnd(dx) {
@@ -1449,8 +1449,9 @@ function swipeEnd(dx) {
   setTimeout(() => { suppressClick = false; }, 50);
   if (Math.abs(dx) > 80 && !S.ui.hintSeen) { S.ui.hintSeen = true; store.set('hintSeen', true); } // they know how to swipe now
   if (dx > 80) { navigator.vibrate?.(15); toggleDone(id); return; }
+  // Swipe left deletes (the toast has Undo); scheduling is a hold-and-drag or a tap into the sheet.
+  if (dx < -100) { navigator.vibrate?.(15); c.style.transition = 'transform 150ms ease-out'; c.style.transform = 'translateX(-110%)'; setTimeout(() => { put('task', id, { del: new Date().toISOString() }); render(); toast('Deleted', true); }, 140); return; }
   c.style.transition = 'transform 150ms ease-out'; c.style.transform = ''; setTimeout(() => { c.querySelector('.swipe-hint')?.remove(); c.classList.remove('swiping'); c.style.transition = ''; }, 160);
-  if (dx < -80) taskSheet(id);
 }
 function startDrag(x, y) {
   const p = press; if (!p) return; press = null; clearTimeout(p.timer);
