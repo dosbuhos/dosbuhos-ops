@@ -87,6 +87,8 @@ main { max-width: 760px; margin: 0 auto; padding: 14px 12px 24px; }
 .ritmo { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--bad); background: color-mix(in srgb, var(--bad) 6%, transparent); border-radius: 0 6px 6px 0; font-size: .875rem; }
 .ritmo.warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent); } .ritmo.ok { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }
 .sug { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 0 6px 6px 0; font-size: .9rem; }
+.sug > b { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); padding-bottom: 4px; margin-bottom: 5px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.sug > span { display: block; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 20px; }
 .kpi .num { font-size: 1.7rem; } .kpi .kl { font-weight: 600; font-size: .85rem; margin-top: 2px; }
 .minibars { display: flex; align-items: flex-end; gap: 6px; height: 62px; } .minibars span { display: grid; justify-items: center; gap: 2px; font-size: .7rem; color: var(--muted); }
@@ -202,12 +204,12 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
 .pick { display: grid; gap: 6px; }
 .sugs { display: grid; gap: 2px; max-height: 232px; overflow: auto; }
 .sugs:empty { display: none; }
-.sug { all: unset; box-sizing: border-box; cursor: pointer; padding: 9px 10px; border-radius: 8px; font-size: .92rem; min-height: 40px; display: flex; align-items: center; }
-.sug:hover, .sug:focus-visible { background: color-mix(in srgb, var(--text) 6%, transparent); }
-.sug.nueva { color: var(--accent); border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); }
+.opc { all: unset; box-sizing: border-box; cursor: pointer; padding: 9px 10px; border-radius: 8px; font-size: .92rem; min-height: 40px; display: flex; align-items: center; }
+.opc:hover, .opc:focus-visible { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.opc.nueva { color: var(--accent); border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); }
 .nueva { display: grid; gap: 10px; }
 .pick > div[hidden] { display: none; }
-.sug.nueva { display: block; }
+.opc.nueva { display: block; }
 
 /* Way back to the Hub */
 .alert.fuerte { background: color-mix(in srgb, var(--bad) 9%, var(--card)); border-color: color-mix(in srgb, var(--bad) 45%, var(--rule)); border-left-width: 5px; } .alert.fuerte > b { color: var(--bad); }

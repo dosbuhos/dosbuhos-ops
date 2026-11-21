@@ -307,7 +307,7 @@ const VISTAS = {
         r.de_archivo ? h('div', { class: 'l2' }, pill('Del archivo de Carlos, sin registro en el CRM', 'mute')) : null,
         h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, `Último contacto ${dia(r.ultimo_contacto)} (${r.dias_sin_contacto} días)`, r.proximo ? `próximo ${dia(r.proximo)}` : null].filter(Boolean).join(' · ')),
         r.ultima_nota ? h('div', { class: 'l2' }, r.ultima_nota.slice(0, 160)) : null,
-        r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso: '), r.sugerencia) : null,
+        r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso'), h('span', {}, r.sugerencia)) : null,
         puede(r.persona) ? h('div', { class: 'acc' }, h('button', { class: 'btn sm', onclick: () => registrar(r) }, 'Registrar contacto')) : null), 'No hay cuentas en esta lista.',
         [{ t: 'Cuenta', v: (r) => [r.cuenta, r.pausa ? h('div', {}, pausado(r)) : null], s: (r) => r.cuenta.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' },
           { t: 'Último contacto', v: (r) => dia(r.ultimo_contacto), s: (r) => r.ultimo_contacto, cls: 'nw' }, { t: 'Días sin contacto', v: (r) => r.dias_sin_contacto, s: (r) => r.dias_sin_contacto, num: true },
@@ -627,8 +627,8 @@ function selectorCuenta() {
   const abrirNueva = () => { nueva = true; sug.replaceChildren(); extra.replaceChildren(h('p', { class: 'dnote', style: 'margin:0 0 6px' }, h('b', {}, 'Cuenta nueva. '), 'Queda en el Directorio y en su zona del mapa.'), camposNueva()); extra.hidden = false; if (!inp.value.trim()) inp.focus(); };
   const pinta = () => { const q = plano(inp.value); if (nueva) { return; }
     const hits = q ? todas.filter((n) => plano(n).includes(q)).slice(0, 7) : [];
-    sug.replaceChildren(h('button', { type: 'button', class: 'sug nueva', onclick: abrirNueva }, h('b', {}, '＋ Nueva cuenta'), q && !claves.has(q) ? h('span', {}, ` · dar de alta "${inp.value.trim()}"`) : null),
-      ...hits.map((n) => h('button', { type: 'button', class: 'sug', onclick: () => elegir(n) }, n))); };
+    sug.replaceChildren(h('button', { type: 'button', class: 'opc nueva', onclick: abrirNueva }, h('b', {}, '＋ Nueva cuenta'), q && !claves.has(q) ? h('span', {}, ` · dar de alta "${inp.value.trim()}"`) : null),
+      ...hits.map((n) => h('button', { type: 'button', class: 'opc', onclick: () => elegir(n) }, n))); };
   inp.addEventListener('input', () => { if (nueva && claves.has(plano(inp.value))) { nueva = false; extra.hidden = true; extra.replaceChildren(); } pinta(); });
   inp.addEventListener('focus', pinta);
   return { el: h('div', { class: 'pick' }, h('label', {}, 'Cuenta', inp), sug, extra), nueva: () => nueva, existe: (n) => claves.has(plano(n)) };
