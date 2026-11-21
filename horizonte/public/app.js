@@ -1311,7 +1311,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (el.dataset?.addto) {
     if (e.key === 'Escape') { S.ui.adding = null; render(); return; }
-    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto; if (v) addLines(v, { when: k }); render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto; if (v) addLines(v, { when: k }); el.value = ''; render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
   }
   if (el.id === 'newtag') {
     if (e.key === 'Escape') { S.ui.tagAdding = false; taskSheet(sheetState.id); return; }
