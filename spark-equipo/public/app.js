@@ -190,6 +190,16 @@ export const datos = () => D;
 // Notes, nudges and Eric's questions live in Buzón.
 const sumar = (L, f) => L.reduce((t, x) => t + (f(x) || 0), 0);
 const abiertasDe = (p) => (D.preguntas || []).filter((q) => !q.respondida && q.para === p);
+// The 48-hour rule: a contact counts as on time when it was logged within two days of the day it happened. Applies to
+// contacts from the day the rule started; sheet rows are dated by the sync that first saw them.
+const REGLA_DESDE = '2026-11-21';
+const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
+function regla48(p) {
+  const mes = D.hoy.slice(0, 7), L = D.contactos.filter((c) => c.persona === p && c.fecha >= REGLA_DESDE && c.fecha.slice(0, 7) === mes && c.registrado);
+  const tarde = L.filter((c) => dDias(c.fecha, c.registrado) > 2).length, ult = D.contactos.find((c) => c.persona === p), sin = ult ? dDias(ult.registrado && ult.registrado > ult.fecha ? ult.registrado : ult.fecha, D.hoy) : null;
+  const cumple = sin != null && sin <= 3 && tarde === 0;
+  return { n: L.length, tarde, sin, cumple };
+}
 function urgente(p) {
   const U = [], nq = abiertasDe(p).length;
   if (nq) U.push({ k: 'bad', t: nq === 1 ? '1 pregunta de Eric sin responder' : `${nq} preguntas de Eric sin responder`, vista: 'buzon' });
@@ -199,6 +209,10 @@ function urgente(p) {
   if (venc.length) U.push({ k: 'bad', t: venc.length === 1 ? '1 seguimiento con más de 14 días de atraso' : `${venc.length} seguimientos con más de 14 días de atraso`, d: venc.slice(0, 3).map((r) => `${r.cuenta} (${r.dias_vencido} d)`).join(' · '), vista: 'seguimiento' });
   const toca = (D.pedidos.find((x) => x.vendedor === p) || {}).ya_les_tocaba || [];
   if (toca.length) U.push({ k: 'warn', t: toca.length === 1 ? '1 cliente ya debía pedir' : `${toca.length} clientes ya debían pedir`, d: toca.slice(0, 3).map((c) => c.cliente).join(' · '), vista: 'clientes' });
+  // Dependence: one account carrying more than a quarter of the book, worse when that same account owes past 90 days.
+  const C = D.clientes.filter((c) => c.vendedor === p && c.actual > 0).sort((a, b) => b.actual - a.actual), tot = sumar(C, (c) => c.actual);
+  if (C.length && tot && C[0].actual / tot > .25) { const debe = sumar(((D.cobranza || {}).facturas || []).filter((f) => f.cliente === C[0].cliente && (f.dias || 0) > 90), (f) => f.saldo);
+    U.push({ k: debe ? 'bad' : 'warn', t: `${C[0].cliente} es el ${Math.round(C[0].actual / tot * 100)}% de la cartera`, d: debe ? `Y debe ${peso(debe)} con más de 90 días. Abre cuentas para depender menos.` : 'Una sola cuenta pesa demasiado. Abre cuentas para depender menos.', vista: 'clientes' }); }
   const viejas = ((D.cobranza || {}).facturas || []).filter((f) => f.vendedor === p && (f.dias || 0) > 90);
   if (viejas.length) U.push({ k: 'bad', t: `${peso(sumar(viejas, (f) => f.saldo))} por cobrar con más de 90 días`, d: `${new Set(viejas.map((f) => f.cliente)).size} clientes`, vista: 'cobranza' });
   return U;
@@ -234,8 +248,15 @@ function marcador(p, compacto) {
     h('div', { class: 'name' }, p, w && w.meta ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : p === 'Tito' ? pill('Casa', 'mute') : null),
     p !== 'Daniel' ? [h('h3', {}, 'Ventas', h('small', {}, ' antes de impuestos')), h('button', { class: 'mbtn', onclick: () => ir('ventas', p) },
       fila('Mes', vMes, M ? M[mH - 1] : 0, peso, true), fila('Año', vAnio, aFecha, peso, true))] : null,
+    // Growth, said plainly: against last year without the inherited accounts, and what was opened and lost this year.
+    ((e) => (e && e.total ? [h('h3', {}, 'Crecimiento'), h('button', { class: 'mbtn crec', onclick: () => ir('clientes', p) },
+      h('div', { class: 'cr' }, h('b', { class: e.crecimiento_pct >= 0 ? 'up' : 'down' }, (e.crecimiento_pct > 0 ? '+' : '') + e.crecimiento_pct + '%'), h('span', {}, 'contra 2025 sin las cuentas heredadas')),
+      h('div', { class: 'cr' }, h('b', {}, e.nuevos.length), h('span', {}, `cuentas nuevas este año · ${peso(neto(sumar(e.nuevos, (c) => c.monto)))}`)),
+      h('div', { class: 'cr' }, h('b', { class: e.perdidos.length ? 'down' : '' }, e.perdidos.length), h('span', {}, 'cuentas que dejaron de comprar')))] : null))((D.crecimiento || []).find((x) => x.persona === p)),
     h('h3', {}, 'Contactos'), h('button', { class: 'mbtn', onclick: () => ir('semanas', p) },
       fila('Semana', w ? w.contactos : 0, w ? w.meta : 0, n, true), fila('Mes', sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta), n), fila('Año', sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta), n), ws.length && ws[0].semana.slice(5, 7) !== '01' ? h('span', { class: 'mn' }, `El año cuenta desde el ${dia(ws[0].semana)} (primer registro).`) : null),
+    p !== 'Tito' ? ((g) => h('div', { class: 'r48 ' + (g.cumple ? 'ok' : 'bad') }, h('b', {}, 'Regla de 48 horas: ' + (g.cumple ? 'al corriente' : 'fuera')),
+      h('span', {}, g.sin == null ? 'Sin ningún registro.' : `Último registro hace ${g.sin} ${g.sin === 1 ? 'día' : 'días'}` + (g.n ? ` · ${g.n - g.tarde} de ${g.n} a tiempo este mes` : '') + (g.tarde ? ` · ${g.tarde} fuera de plazo` : '') + '. El variable del mes se paga con el registro al corriente.')))(regla48(p)) : null,
     h('h3', {}, 'Urgente'), U.length ? h('ul', { class: 'foco' }, U.map((u) => h('li', { class: u.k === 'bad' ? 'cliente' : 'meta' }, h('button', { onclick: () => ir(u.vista, p) }, u.t), u.d ? h('span', {}, u.d) : null))) : h('p', { class: 'note' }, 'Nada urgente.'),
     nb ? h('p', { class: 'note', style: 'margin-top:10px' }, h('button', { class: 'linkb', onclick: () => ir('buzon', p) }, nb === 1 ? '1 nota en el Buzón' : `${nb} notas en el Buzón`)) : null);
   card.querySelectorAll('.mn').forEach((e) => { e.textContent = quien(e.textContent); });
@@ -292,7 +313,8 @@ const VISTAS = {
         h('span', {}, 'Cuentas distintas'), h('b', {}, r.cuentas), h('span', {}, 'Visitas en persona'), h('b', {}, r.presencial),
         h('span', {}, 'Llamadas'), h('b', {}, r.llamadas), h('span', {}, 'Mensajes (WhatsApp, correo)'), h('b', {}, r.mensajes),
         h('span', {}, 'Prospección'), h('b', {}, r.prospeccion),
-        p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)]));
+        p === 'Daniel' ? [h('span', {}, 'Catas, capacitaciones, eventos'), h('b', {}, r.catas)] : [h('span', {}, 'Cobranza'), h('b', {}, r.cobranza)],
+        r.entregas ? [h('span', {}, 'Entregas (no cuentan como contacto)'), h('b', {}, r.entregas)] : null));
     // Minutes per contact: estimated (≈) until the rep says how long it really took.
     const tiempo = (r) => { const t = (r.min_real ? '' : '≈ ') + r.min + ' min';
       return puede(r.persona) ? h('button', { class: 'linkb', title: 'Corregir el tiempo', onclick: () => formulario('Tiempo que tomó', [{ k: 'minutos', t: `${r.cuenta} · ${dia(r.fecha)} · minutos con el traslado`, tipo: 'number', v: r.min, req: true, max: 600 }],

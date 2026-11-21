@@ -58,8 +58,12 @@ export async function syncSheet(env) {
   const rows = Object.keys(TABS).flatMap((p, i) => rowsFromValues(p, vals[i]));
   if (!rows.length) throw new Error('La hoja no devolvió renglones; no se reemplazó nada');
   // The sheet is the source of truth for now: replace the copy in one batch.
-  const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}) VALUES (${Array(COLS.length + 1).fill('?').join(',')})`);
-  const stmts = [env.DB.prepare("DELETE FROM activity WHERE origen = 'hoja'"), ...rows.map((x) => ins.bind(x.persona, ...COLS.map((k) => x[k])))];
+  // The sheet has no timestamp, so the first sync that sees a row dates it: that is the "logged on" date for the 48-hour rule.
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'America/Mexico_City' }).format(new Date());
+  const clave = (x) => [x.persona, x.fecha, x.cuenta, (x.resultado || '').slice(0, 80)].join('|');
+  const visto = env.DB.prepare('INSERT OR IGNORE INTO vistos (clave, visto) VALUES (?, ?)');
+  const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}, registrado) VALUES (${Array(COLS.length + 1).fill('?').join(',')}, COALESCE((SELECT visto FROM vistos WHERE clave = ?), ''))`);
+  const stmts = [...rows.map((x) => visto.bind(clave(x), hoy)), env.DB.prepare("DELETE FROM activity WHERE origen = 'hoja'"), ...rows.map((x) => ins.bind(x.persona, ...COLS.map((k) => x[k]), clave(x)))];
   for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
   // Distributor scouting tab. A missing or empty tab leaves the last copy in place.
   let distribuidores = 0;

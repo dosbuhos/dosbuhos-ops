@@ -48,7 +48,7 @@ const cut = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s || '');
 
 export const vendedorDe = (s) => { s = String(s || '').trim(); return s === CASA ? CASA : s.startsWith('Carlos') ? 'Carlos' : /^Jos[eé] Luis/.test(s) ? 'José Luis' : null; };
 // A client touch: any CRM row except internal work.
-export const esContacto = (r) => !['Otro', 'Administrativo', 'Junta interna'].includes(r.actividad) && r.tipo !== 'Interno' && !/^interno/i.test(r.cuenta || '');
+export const esContacto = (r) => !['Otro', 'Administrativo', 'Junta interna', 'Entrega'].includes(r.actividad) && r.tipo !== 'Interno' && !/^interno/i.test(r.cuenta || '');
 
 // Does a CRM account name refer to this Zoho client? Uses the Zoho ↔ CRM alias table.
 export function matcher(alias) {
@@ -172,6 +172,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
         cuentas: new Set(c.map((r) => norm(r.cuenta))).size, ...esfuerzo(c, habiles),
         prospeccion: c.filter((r) => r.actividad === 'Prospección').length, cobranza: c.filter((r) => r.actividad === 'Cobranza').length,
         catas: c.filter((r) => ['Cata / prueba de vino', 'Capacitación', 'Evento'].includes(r.actividad)).length,
+        entregas: act.filter((r) => r.actividad === 'Entrega' && r.persona === v && lunes(r.fecha) === w).length,   // logged, but not counted as a sales contact
         ventas: v === 'Daniel' ? null : r0(sum(o, (r) => r.total)), ordenes: v === 'Daniel' ? null : o.length });
     }
   }
@@ -398,5 +399,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
 // What a signed-in person gets. The whole team's numbers are visible to everyone on the team; the effectiveness rating stays
 // with admins.
 export function paraVer(m, quien) {
-  return { ...m, efectividad: quien.admin ? m.efectividad : [], yo: { admin: !!quien.admin, persona: quien.persona || null, nombre: quien.nombre || '' } };
+  // Everyone sees the growth facts (against last year without inherited accounts, accounts opened and lost); the full score stays with admins.
+  const crecimiento = (m.efectividad || []).map((e) => ({ persona: e.persona, total: e.total, crecimiento_pct: e.crecimiento_pct, nuevos: e.nuevos, perdidos: e.perdidos }));
+  return { ...m, crecimiento, efectividad: quien.admin ? m.efectividad : [], yo: { admin: !!quien.admin, persona: quien.persona || null, nombre: quien.nombre || '' } };
 }

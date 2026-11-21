@@ -134,9 +134,9 @@ export default {
       if (!persona) return json({ error: 'Elige a nombre de quién se registra' }, 400);
       if (!txt(b.cuenta) || !txt(b.resultado, 2000)) return json({ error: 'Faltan la cuenta y lo que pasó' }, 400);
       const fecha = /^\d{4}-\d\d-\d\d$/.test(b.fecha || '') && b.fecha <= HOY ? b.fecha : HOY, prox = /^\d{4}-\d\d-\d\d$/.test(b.proximo || '') ? b.proximo : '';
-      await env.DB.prepare("INSERT INTO activity (persona, fecha, zona, cuenta, tipo, actividad, medio, etapa, contacto, telefono, resultado, siguiente_paso, proximo, minutos, botellas_mes, origen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'app')")
+      await env.DB.prepare("INSERT INTO activity (persona, fecha, zona, cuenta, tipo, actividad, medio, etapa, contacto, telefono, resultado, siguiente_paso, proximo, minutos, botellas_mes, registrado, origen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'app')")
         .bind(persona, fecha, txt(b.zona, 40), txt(b.cuenta, 120), txt(b.tipo, 40), txt(b.actividad, 40) || 'Seguimiento', txt(b.medio, 40), txt(b.etapa, 40), txt(b.contacto, 120), txt(b.telefono, 120), txt(b.resultado, 2000), txt(b.siguiente_paso, 500), prox,
-          Number(b.minutos) > 0 ? Math.min(600, Math.round(Number(b.minutos))) : null, Number(b.botellas_mes) > 0 ? Math.round(Number(b.botellas_mes)) : null).run();
+          Number(b.minutos) > 0 ? Math.min(600, Math.round(Number(b.minutos))) : null, Number(b.botellas_mes) > 0 ? Math.round(Number(b.botellas_mes)) : null, HOY).run();
       if (b.pausa === 'si' || b.pausa === 'no') await ponPausa(env, txt(b.cuenta, 120), b.pausa === 'si', HOY, yo.nombre || yo.email);
       return json({ ok: true });
     }
