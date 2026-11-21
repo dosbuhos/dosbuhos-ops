@@ -211,6 +211,13 @@ export default {
     if (!p.startsWith('/api/admin/')) return json({ error: 'No existe' }, 404);
     if (!yo.admin) return json({ error: 'Solo administradores' }, 403);
 
+    // Order detail from Zoho (lines, reference, addresses, invoice status), for the owner's reviews. Up to 15 orders per call.
+    if (p === '/api/admin/pedidos' && request.method === 'GET') {
+      if (!(yo.dueno || (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).includes(yo.email))) return json({ error: 'Solo Dirección' }, 403);
+      const ids = (new URL(request.url).searchParams.get('ids') || '').split(',').filter((x) => /^\d+$/.test(x)).slice(0, 15), out = [];
+      for (const id of ids) { try { out.push(await env.ZOHO.order(id)); } catch (e) { out.push({ id, error: String(e && e.message || e) }); } }
+      return json({ pedidos: out });
+    }
     // Sales mailboxes, read-only, for the owner only (Hub admin or ADMIN_EMAILS), not for every Spark admin.
     if (p === '/api/admin/correo' && request.method === 'GET') {
       const dueno = yo.dueno || (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).includes(yo.email);
