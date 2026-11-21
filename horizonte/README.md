@@ -52,7 +52,7 @@ Bottom bar: Inbox · Late · Hours · Days · More; More opens a sheet with Week
 ## Phone Late tab (v50)
 Open tasks whose day or period has passed (meetings excluded) get their own tab between Inbox and Hours, with the count on the bar.
 They are grouped under the day they were planned for, newest first ("Yesterday", "Thursday, Nov 19 · 2 days ago", or the week/month label),
-each group with a quiet "To today" and the header with "All to today". Rows are plain cards (no per-row button): tap to reschedule in the sheet, hold to drag onto a day or hour, swipe left to delete (Undo in the toast).
+with "All to today" in the header. Rows are plain cards (no per-row button): tap to reschedule in the sheet, hold to drag onto a day or hour, swipe left to delete (Undo in the toast).
 Hours and Inbox no longer carry an overdue line. Phone sheets have an × in the handle row, and dragging the handle no longer triggers the
 browser's pull-to-refresh.
 

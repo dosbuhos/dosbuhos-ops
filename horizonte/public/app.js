@@ -686,7 +686,7 @@ function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl');
 // Overdue bar: tap to review, × hides it until tomorrow (Overdue stays in the menu / lists).
 function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
 // Phone Late tab: everything that slipped, grouped under the day (or week, month…) it was planned for, newest first.
-// Tap a task to reschedule it in its sheet, hold to drag it, or move a whole day (or all of it) to today.
+// Tap a task to reschedule it in its sheet, hold to drag it onto a day or hour, or move everything to today from the header.
 function mLate() {
   const list = lateTasks(), groups = new Map();
   for (const t of list) { if (!groups.has(t.when)) groups.set(t.when, []); groups.get(t.when).push(t); }
@@ -698,7 +698,7 @@ function mLate() {
     if (kind === 'day') { const d = parseD(k), ago = Math.round((parseD(T) - d) / 864e5); lbl = relDay(k) || `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; if (!relDay(k) && ago < 30) sub = `${ago} days ago · ${sub}`; }
     else lbl = periodLabel(k, true);
     // Each row is a plain card: tap to open and reschedule, hold to drag it onto a day or an hour, swipe left to delete.
-    body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${esc(sub)}</span><button class="act" data-act="rollgrp" data-k="${k}">To today</button></div>`;
+    body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${esc(sub)}</span></div>`;
     body += g.map(t => mcard(t, { late: true, roll: false })).join('');
   }
   if (!list.length) body = `<div class="empty">Nothing late. Tasks whose day has passed show up here, grouped by the day they were planned for.</div>`;
