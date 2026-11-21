@@ -34,6 +34,7 @@ const I = {
   side: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
   chev: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
   grid: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>',
+  close: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   more: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   down: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
   check: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
@@ -490,7 +491,7 @@ function renderPanel() {
   const srcs = sources();
   if (!srcs.some(x => x[0] === S.ui.src)) S.ui.src = 'inbox';
   const od = overdueTasks().filter(t => t.pri === 'target').length;
-  const banner = signinBanner() + (od ? `<button class="banner" data-act="review"><span>${od} overdue from earlier days</span>Review</button>` : '');
+  const banner = signinBanner() + odBanner(od);
   if (S.ui.panelView !== 'list') {
     const ico = { inbox: I.inbox(1.8), overdue: I.clock, week: I.plan(1.8), month: I.month };
     const row = (k, name, n, drop) => `<button class="navrow" data-src="${k}" ${drop ? `data-drop="${drop}"` : ''} aria-current="${S.ui.src === k}"><span class="ni">${ico[k] || `<i class="bdot"></i>`}</span><span class="lbl">${esc(name)}</span><span class="n">${n}</span></button>`;
@@ -678,6 +679,8 @@ function scrollPhoneHours() { const mm = $('.mm'), g = $('.m .grid'); if (!mm ||
 function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl'); if (!tl) return; const n = new Date(); tl.scrollTop = Math.max(0, (n.getHours() - 1 - H0()) * HPX); }); }
 
 // ── rendering: mobile ─────────────────────────────────────────
+// Overdue bar: tap to review, × hides it until tomorrow (Overdue stays in the menu / lists).
+function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
 function signinBanner() {
   return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
 }
@@ -707,7 +710,7 @@ function mHours() {
   const late = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : []; // meetings that passed are not "not done"
   let body = '';
   if (late.length) body += `<div class="latebar"><span>${late.length} not done</span><button data-act="rollall" data-k="${k}">Move all to today ${I.right}</button></div>`;
-  else if (k === t && od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
+  else if (k === t) body += odBanner(od.length);
   body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
   if (past) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
   else { const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen);
@@ -782,7 +785,7 @@ function menuSheet() {
 function mInbox() {
   const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
   let body = '';
-  if (od.length) body += `<button class="banner" data-act="review"><span>${od.length} overdue from earlier days</span>Review</button>`;
+  body += odBanner(od.length);
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">${S.ui.tagFilter ? 'Nothing in Inbox with this tag.' : 'Inbox is empty. Tap + to capture what’s on your mind.'}</div>`;
   if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
   if (S.ui.q) body = searchResults(true);
@@ -1114,6 +1117,7 @@ document.addEventListener('click', async (e) => {
     case 'mtoday': if (S.ui.mtab === 'hours') { S.ui.mday = todayK(); S.ui.mjump = true; render(); return; } S.ui.manchor = todayK(); render(); $('.mm').scrollTop = 0; return;
     case 'mday': S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); return;
     case 'menu': menuSheet(); return;
+    case 'odhide': S.ui.odHide = todayK(); render(); return;
     case 'rollto': if (tid) { pushTask(tid, todayK()); render(); toast('Moved to today', true); } return;
     case 'rollall': { const open = dayParts(el.dataset.k).open.filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
