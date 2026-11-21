@@ -41,7 +41,7 @@ const GRUPOS = [
   ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
 ];
 const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
-const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // phone bottom bar; the rest are under "Más"
+const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // first on the phone ribbon; the rest follow in menu order
 const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
@@ -579,11 +579,11 @@ function pintar() {
   $('nuevo').hidden = !(D.yo.persona || admin) || !['hoy', 'semanas', 'seguimiento'].includes(S.vista);
   $('nav').replaceChildren(...visibles.flatMap(([g, L]) => [h('h3', {}, g), ...L.map(boton)]));
   $('me').textContent = (D.yo.nombre || '') + (admin ? ' · administrador' : D.yo.persona ? ' · ' + D.yo.persona : '');
-  const enMas = !ABAJO.includes(S.vista);
-  $('tabs').replaceChildren(...ABAJO.map((v) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, PANT.get(v)[1].replace(' y meses', ''))),
-    h('button', { 'aria-current': enMas ? 'page' : null, onclick: () => { $('sheet').hidden = false; } }, 'Más' + (nPend ? ` (${nPend})` : '')));
-  $('sheet').replaceChildren(h('div', {}, visibles.flatMap(([g, L]) => { const R = L.filter((x) => !ABAJO.includes(x[0])); return R.length ? [h('h3', {}, g), ...R.map(boton)] : []; }), h('button', { onclick: () => { $('sheet').hidden = true; } }, 'Cerrar')));
-  if (!wide) $('sheet').hidden = $('sheet').hidden;
+  // Phone: one ribbon with every screen, most used first; it scrolls sideways and keeps the current one in view.
+  const CORTO = { semanas: 'Semanas', pendientes: 'Preguntas', ventas: 'Ventas', copeo: 'Copeo', zonas: 'Zonas', estrategia: 'Estrategia', materiales: 'Materiales' };
+  const todas = visibles.flatMap(([, L]) => L), cinta = [...ABAJO.map((v) => PANT.get(v)), ...todas.filter((x) => !ABAJO.includes(x[0]))];
+  $('tabs').replaceChildren(...cinta.map(([v, t]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, CORTO[v] || t, v === 'pendientes' && nPend ? h('span', { class: 'cnt' }, nPend) : null)));
+  if (!wide) { const act = $('tabs').querySelector('[aria-current]'); if (act) $('tabs').scrollLeft = Math.max(0, act.offsetLeft - ($('tabs').clientWidth - act.offsetWidth) / 2); }
   $('main').replaceChildren((VISTAS[S.vista] || VISTAS.hoy)());
 }
 $('sheet').addEventListener('click', (ev) => { if (ev.target === $('sheet')) $('sheet').hidden = true; });

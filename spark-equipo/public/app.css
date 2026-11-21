@@ -35,9 +35,11 @@ a { color: var(--accent); }
 .brand.mob span { display: none; }
 .logo { width: 24px; height: 24px; fill: var(--accent); flex: none; }
 main { max-width: 760px; margin: 0 auto; padding: 14px 12px 24px; }
-.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--card); border-top: 1px solid var(--rule); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding-bottom: env(safe-area-inset-bottom); }
-.tabs button { background: none; border: 0; min-height: 56px; font-size: .78rem; color: var(--muted); cursor: pointer; border-top: 2px solid transparent; }
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--card); border-top: 1px solid var(--rule); display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; padding: 0 6px env(safe-area-inset-bottom); }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; background: none; border: 0; min-height: 56px; padding: 0 13px; font-size: .9rem; color: var(--muted); cursor: pointer; border-top: 2px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
 .tabs button[aria-current="page"] { color: var(--accent); border-top-color: var(--accent); font-weight: 650; }
+.tabs .cnt { background: var(--accent); color: var(--on-accent); border-radius: 999px; font-size: .68rem; font-weight: 700; min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; }
 .sheet { position: fixed; inset: 0; z-index: 7; background: rgba(0, 0, 0, .4); display: flex; align-items: flex-end; }
 .sheet[hidden] { display: none; }
 .sheet > div { background: var(--card); width: 100%; max-height: 82vh; overflow: auto; border-radius: 16px 16px 0 0; padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); }
