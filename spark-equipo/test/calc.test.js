@@ -135,8 +135,12 @@ test('house accounts and samples are nobody\'s sales; La Competencia is reported
   const o = (id, cliente, vendedor, total) => ({ id, numero: id, fecha: '2026-11-10', cliente_id: cliente, cliente, vendedor, total, estado: 'confirmed', facturacion: 'invoiced', pago: 'paid' });
   const orders = [o('1', 'DOS BUHOS - ERIC', 'José Luis Zamora', 1210), o('2', 'JOSE LUIS MUESTRAS', 'José Luis Zamora', 500), o('3', 'Carlos Tapia La Competencia Imports', 'Carlos Tapia', 64000), o('4', 'Atrio', 'José Luis Zamora', 9000), o('5', 'TIENDA ONLINE - DOS BUHOS', 'José Luis Zamora', 5908)];
   const m = base({ orders, invoices: orders.map((x) => ({ ...x, estado: 'paid' })) });
-  assert.deepEqual(m.ordenes.map((x) => x.cliente), ['Atrio']);
-  assert.deepEqual(m.clientes.map((x) => x.cliente), ['Atrio']);
+  assert.deepEqual(m.ordenes.filter((x) => x.vendedor !== 'Tito').map((x) => x.cliente), ['Atrio']);
+  assert.deepEqual(m.clientes.filter((x) => x.vendedor !== 'Tito').map((x) => x.cliente), ['Atrio']);
+  // La Competencia is Eric's: it counts as a house sale (Tito), never Carlos's, and stays out of the Mexican zones.
+  assert.deepEqual(m.ordenes.filter((x) => x.vendedor === 'Tito').map((x) => [x.cliente, x.en_zoho]), [['Carlos Tapia La Competencia Imports', 'Carlos']]);
+  assert.equal(m.mes.find((x) => x.vendedor === 'Tito').total, 64000);
+  assert.equal(m.zonas.reduce((t, z) => t + z.ventas, 0), 9000);
   assert.deepEqual([m.eric[0].cliente, m.eric[0].actual, m.eric[0].ultima], ['La Competencia Imports', 64000, '2026-11-10']);
   assert.equal(m.mes.find((x) => x.vendedor === 'Carlos').total, 0);
 });

@@ -36,13 +36,13 @@ const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: nul
 const GRUPOS = [
   ['Mi trabajo', [['hoy', 'Hoy', 'Hoy'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['pendientes', 'Preguntas pendientes', 'Preguntas pendientes']]],
   ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
-  ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
+  ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
   ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
   ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
 ];
 const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
 const ABAJO = ['hoy', 'semanas', 'seguimiento', 'clientes'];           // phone bottom bar; the rest are under "Más"
-const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'comunicaciones', 'directorio', 'estrategia'];   // screens the person filter does not apply to
+const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
   if (persona !== undefined) S.persona = persona;
@@ -168,7 +168,7 @@ const reasignar = (r) => h('button', { class: 'linkb', onclick: () => formulario
   (v) => enviar('api/admin/asignar', { tipo: 'orden', clave: r.orden, vendedor: v.vendedor, nota: v.nota }), `${peso(r.total)} · ${dia(r.fecha)}. Solo cambia Spark; la orden en Zoho queda igual.`) }, 'Reasignar');
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
 
-export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, pintar, cargar, ir };
+export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, pintar, cargar, ir, toca };
 export const datos = () => D;
 
 const VISTAS = {
@@ -329,7 +329,15 @@ const VISTAS = {
     const ym = D.hoy.slice(0, 7), ords = D.ordenes.filter((o) => o.fecha.slice(0, 7) === ym && vs.includes(o.vendedor));
     // Month budget from Carlos's 2026 plan, against what Zoho shows so far.
     const presu = (r) => { const P = (D.presupuesto.meses[r.vendedor] || [])[Number(ym.slice(5)) - 1]; if (!P) return null; const pc = Math.round(r.total / P * 100);
-      return h('div', { style: 'margin-top:12px' }, h('div', { class: 'kv' }, h('span', {}, 'Presupuesto del mes'), h('b', {}, `${peso(P)} · ${pc}%`)), h('div', { class: 'barra', role: 'img', 'aria-label': `${pc}% del presupuesto` }, h('i', { class: pc >= 100 ? 'ok' : pc >= 60 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }))); };
+      return h('div', { style: 'margin-top:12px' }, h('div', { class: 'kv' }, h('span', {}, 'Meta del mes'), h('b', {}, `${peso(P)} · ${pc}%`)), h('div', { class: 'barra', role: 'img', 'aria-label': `${pc}% de la meta del mes` }, h('i', { class: pc >= 100 ? 'ok' : pc >= 60 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }))); };
+    // The year against each rep's sales goal: so far against the goal to date (this month counted by days gone), and against the whole year.
+    const Y = D.hoy.slice(0, 4), mH = Number(D.hoy.slice(5, 7)), dH = Number(D.hoy.slice(8)), dMes = new Date(Number(Y), mH, 0).getDate();
+    const realMes = (v, m) => Math.round(D.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m).reduce((t, o) => t + o.total, 0));
+    const barra = (pc, txt) => h('div', { class: 'barra', role: 'img', 'aria-label': txt }, h('i', { class: pc >= 100 ? 'ok' : pc >= 80 ? 'warn' : 'bad', style: `width:${Math.min(100, pc)}%` }));
+    const conMeta = vs.filter((v) => (D.presupuesto.meses[v] || []).length === 12 && String(D.presupuesto.anio) === Y);
+    const anual = conMeta.map((v) => { const M = D.presupuesto.meses[v], R = M.map((_, i) => (i + 1 <= mH ? realMes(v, i + 1) : null));
+      const real = R.reduce((t, x) => t + (x || 0), 0), meta = M.reduce((t, x) => t + x, 0), aFecha = Math.round(M.slice(0, mH - 1).reduce((t, x) => t + x, 0) + M[mH - 1] * dH / dMes);
+      return { v, M, R, real, meta, aFecha, pcF: aFecha ? Math.round(real / aFecha * 100) : 0, pcA: Math.round(real / meta * 100) }; });
     const E = { invoiced: 'Facturada', not_invoiced: 'Sin facturar', partially_invoiced: 'Factura parcial', paid: 'pagada', unpaid: 'sin pagar', partially_paid: 'pago parcial' };
     return h('div', {},
       h('h2', {}, `Ventas de ${MESL[Number(ym.slice(5)) - 1]}`),
@@ -338,6 +346,19 @@ const VISTAS = {
         h('div', { class: 'kv' }, h('span', {}, 'Órdenes'), h('b', {}, r.ordenes), h('span', {}, 'Clientes'), h('b', {}, r.clientes),
           h('span', {}, 'Sin facturar'), h('b', {}, peso(r.sin_facturar)), h('span', {}, 'Facturado sin pagar'), h('b', {}, peso(r.por_cobrar))),
         presu(r)))),
+      anual.length ? [h('h2', {}, `Meta de ventas ${Y}`),
+        h('div', { class: 'grid3' }, anual.map((a) => h('section', { class: 'card' }, h('div', { class: 'name' }, a.v, pill(a.pcF >= 100 ? 'Arriba de la meta' : a.pcF >= 80 ? 'Cerca de la meta' : 'Abajo de la meta', a.pcF >= 100 ? 'ok' : a.pcF >= 80 ? 'warn' : 'bad')),
+          h('div', { class: 'num' }, peso(a.real)), h('p', { class: 'note', style: 'margin:0 0 10px' }, `vendido de enero al ${dia(D.hoy)}`),
+          h('div', { class: 'kv' }, h('span', {}, 'Meta a la fecha'), h('b', {}, `${peso(a.aFecha)} · ${a.pcF}%`)), barra(a.pcF, `${a.pcF}% de la meta a la fecha`),
+          h('p', { class: 'note', style: 'margin:4px 0 10px' }, a.real >= a.aFecha ? `Va ${peso(a.real - a.aFecha)} arriba.` : `Le faltan ${peso(a.aFecha - a.real)} para ir al día.`),
+          h('div', { class: 'kv' }, h('span', {}, 'Meta del año'), h('b', {}, `${peso(a.meta)} · ${a.pcA}%`)), barra(a.pcA, `${a.pcA}% de la meta del año`),
+          h('p', { class: 'note', style: 'margin:4px 0 0' }, `Faltan ${peso(Math.max(0, a.meta - a.real))} en lo que queda del año.`)))),
+        h('h3', { style: 'margin-top:14px' }, 'Mes por mes'),
+        h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Mes'), anual.flatMap((a) => [h('th', { class: 'r' }, a.v + ' · meta'), h('th', { class: 'r' }, 'Vendido'), h('th', { class: 'r' }, '%')]))),
+          h('tbody', {}, MESL.map((n, i) => h('tr', { style: i + 1 === mH ? 'font-weight:600' : null }, h('td', {}, n.charAt(0).toUpperCase() + n.slice(1) + (i + 1 === mH ? ' (en curso)' : '')),
+            anual.flatMap((a) => { const r = a.R[i], pc = r == null ? null : Math.round(r / a.M[i] * 100); return [h('td', { class: 'r' }, peso(a.M[i])), h('td', { class: 'r' }, r == null ? '—' : peso(r)), h('td', { class: 'r' }, pc == null ? '—' : h('span', { class: pc >= 100 ? 'up' : pc >= 60 ? '' : 'down' }, pc + '%'))]; }))),
+            h('tr', { style: 'font-weight:700' }, h('td', {}, 'Año'), anual.flatMap((a) => [h('td', { class: 'r' }, peso(a.meta)), h('td', { class: 'r' }, peso(a.real)), h('td', { class: 'r' }, a.pcA + '%')])))))),
+        h('p', { class: 'note' }, 'Metas del archivo "Ajuste de metas": de agosto a diciembre son las ajustadas. "Vendido" son los pedidos en Zoho con impuestos, sin muestras ni cuentas de la casa; la exportación y lo reasignado a Tito no cuentan para ningún vendedor.')] : null,
       h('h2', {}, 'Órdenes del mes'),
       h('div', { class: 'card' }, lista('mes', ords, 12, (o) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, o.cliente), h('span', {}, peso(o.total))),
         h('div', { class: 'l2' }, [dia(o.fecha), o.orden, vs.length > 1 ? o.vendedor : null, E[o.facturacion] || o.facturacion, E[o.pago] || o.pago].filter(Boolean).join(' · '))), 'Todavía no hay órdenes este mes.',
@@ -423,9 +444,22 @@ const VISTAS = {
         E.map((s) => svg('path', { d: d(s.g), fill: COL[(byZ.get(s.zona) || {}).estado] || 'var(--muted)', 'fill-opacity': !S.zona || s.zona === S.zona ? 0.6 : 0.2 }, svg('title', {}, `${s.nombre} · ${(byZ.get(s.zona) || {}).nombre}`))));
       // Eric's importer, just north of the border. Not a sales zone: a marker only.
       if (usa && !S.zona) el.append(svg('g', { 'aria-label': `${usa.cliente}, ${usa.lugar}: ${peso(usa.actual)} este año` }, svg('circle', { cx: ux, cy: uy, r: 7, fill: 'var(--accent)', stroke: 'var(--card)', 'stroke-width': 2 }),
-        svg('text', { x: ux + 12, y: uy - 2, 'font-size': 11, 'font-weight': 600, fill: 'var(--text)' }, usa.cliente), svg('text', { x: ux + 12, y: uy + 11, 'font-size': 10, fill: 'var(--muted)' }, `EE. UU. · ${peso(usa.actual)} este año · cuenta de Eric`)));
-      el.addEventListener('click', (ev) => { const i = [...el.children].indexOf(ev.target); if (i >= 0 && E[i]) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
-      map.replaceChildren(el, h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Toca una zona para acercarte y ver sus prospectos.'));
+        svg('text', { x: ux + 12, y: uy - 2, 'font-size': 11, 'font-weight': 600, fill: 'var(--text)' }, usa.cliente), svg('text', { x: ux + 12, y: uy + 11, 'font-size': 10, fill: 'var(--muted)' }, `EE. UU. · ${peso(usa.actual)} este año · cuenta de la casa (Tito)`)));
+      // Zoom where the pointer is (wheel), with the + and − buttons, and drag to move. A drag does not count as a tap on a zone.
+      const base = [b[0] - pad, b[1] - pad, b[2] - b[0] + 2 * pad, b[3] - b[1] + 2 * pad]; let vb = base.slice(), arr = null, movio = false;
+      const pon = () => el.setAttribute('viewBox', vb.map((n) => n.toFixed(1)).join(' '));
+      const aSvg = (x, y) => { const p = el.createSVGPoint(); p.x = x; p.y = y; const q = p.matrixTransform(el.getScreenCTM().inverse()); return [q.x, q.y]; };
+      const zoom = (f, cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2) => { const w = Math.min(base[2], Math.max(base[2] / 14, vb[2] * f)), k = w / vb[2]; vb = w >= base[2] ? base.slice() : [cx - (cx - vb[0]) * k, cy - (cy - vb[1]) * k, w, vb[3] * k]; pon(); };
+      el.addEventListener('wheel', (ev) => { ev.preventDefault(); zoom(ev.deltaY < 0 ? 0.8 : 1.25, ...aSvg(ev.clientX, ev.clientY)); }, { passive: false });
+      el.addEventListener('pointerdown', (ev) => { if (ev.pointerType !== 'mouse' || vb[2] >= base[2]) return; arr = { x: ev.clientX, y: ev.clientY, vb: vb.slice() }; movio = false; });
+      el.addEventListener('pointermove', (ev) => { if (!arr) return; const dx = ev.clientX - arr.x, dy = ev.clientY - arr.y; if (Math.abs(dx) + Math.abs(dy) < 4) return; movio = true; el.setPointerCapture(ev.pointerId); el.style.cursor = 'grabbing';
+        const k = Math.max(arr.vb[2] / el.clientWidth, arr.vb[3] / el.clientHeight); vb = [arr.vb[0] - dx * k, arr.vb[1] - dy * k, arr.vb[2], arr.vb[3]]; pon(); });
+      const suelta = () => { arr = null; el.style.cursor = ''; };
+      el.addEventListener('pointerup', suelta); el.addEventListener('pointercancel', suelta);
+      el.addEventListener('click', (ev) => { if (movio) { movio = false; return; } const i = [...el.children].indexOf(ev.target); if (i >= 0 && E[i]) { S.zona = S.zona === E[i].zona ? '' : E[i].zona; pintar(); } });
+      const ctl = h('div', { class: 'mapctl' }, h('button', { type: 'button', 'aria-label': 'Acercar', onclick: () => zoom(0.7) }, '+'), h('button', { type: 'button', 'aria-label': 'Alejar', onclick: () => zoom(1.43) }, '−'),
+        h('button', { type: 'button', 'aria-label': 'Ver todo', title: 'Ver todo', onclick: () => { vb = base.slice(); pon(); } }, '⤢'));
+      map.replaceChildren(h('div', { class: 'mapbox' }, el, ctl), h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Toca una zona para ver sus prospectos. Acerca con la rueda del ratón o con + y −; arrastra para moverte.'));
     }).catch(() => map.replaceChildren(h('p', { class: 'note' }, 'No se pudo cargar el mapa.')));
     const ord = new Map(D.zonas.map((z, i) => [z.zona, i])), kO = { dist: 0, tienda: 1, horeca: 2, cliente: 3 };
     const base = D.prospectos.filter((p) => !S.zona || p.zona === S.zona), nA = (a) => base.filter((p) => p.avance === a).length;
@@ -455,7 +489,7 @@ const VISTAS = {
             { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', cls: 'mut' }]))] : null),
       !cur && (D.eric || []).length ? [h('h2', {}, 'Fuera de México'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, D.eric.map((e) => h('li', {},
         h('div', { class: 'l1' }, h('span', {}, `${e.cliente} · ${e.lugar}`), h('span', {}, peso(e.actual))),
-        h('div', { class: 'l2' }, `Cuenta de Eric, no de un vendedor. ${peso(e.pasado_mp)} a la misma fecha del año pasado · ${e.pedidos_12m} pedidos en 12 meses · último ${dia(e.ultima)}.`)))))] : null,
+        h('div', { class: 'l2' }, `Cuenta de la casa: sus ventas cuentan para Tito, no para un vendedor. ${peso(e.pasado_mp)} a la misma fecha del año pasado · ${e.pedidos_12m} pedidos en 12 meses · último ${dia(e.ultima)}.`)))))] : null,
       h('h2', {}, 'Prospectos'),
       h('p', { class: 'note' }, `${base.length} en la lista: ${nA('En proceso')} en proceso, ${nA('Sin contactar') + nA('Por contactar')} sin contactar, ${nA('Rechazado')} rechazados. Incluye la lista de distribuidores de Carlos (su archivo del 21 de noviembre) y lo registrado en Spark. Toca uno para registrar un contacto.`),
       h('div', { class: 'toolbar' }, chips([['', 'Todos'], ['dist', 'Distribuidores'], ['tienda', 'Tiendas'], ['horeca', 'Restaurantes y hoteles'], ['cliente', 'Clientes actuales']], S.clase, (v) => { S.clase = v; }),

@@ -31,9 +31,17 @@ export async function sheetEmail(env) {
   try { return JSON.parse(env.GOOGLE_SA_KEY).client_email; } catch { return ''; }
 }
 
+// The "Distribuidores" tab: distributor scouting, one row per distributor. Columns A–Q in this order.
+const DIST_COLS = ['nombre', 'plaza', 'zona', 'tipo', 'estado', 'contacto', 'telefono', 'email', 'status', 'avance', 'siguiente', 'ultimo', 'proximo', 'motivo', 'linea', 'responsable', 'notas'];
+// Dates typed as 2026-11-17 or 17/11/2026 both end up as 2026-11-17; anything else is dropped.
+const fecha = (v) => { v = String(v || '').trim(); const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : ''; };
+export function distFromValues(values) {
+  return (values || []).slice(1).filter((r) => r && String(r[0] || '').trim())
+    .map((r) => { const o = Object.fromEntries(DIST_COLS.map((k, i) => [k, String(r[i] ?? '').trim()])); o.ultimo = fecha(o.ultimo); o.proximo = fecha(o.proximo); return o; });
+}
+
 // With the SHEETS binding the cellar Worker reads the sheet with its own service account; GOOGLE_SA_KEY is only a fallback.
-async function tabValues(env) {
-  const ranges = Object.values(TABS).map((tab) => `'${tab}'!A1:O5000`);
+async function tabValues(env, ranges = Object.values(TABS).map((tab) => `'${tab}'!A1:O5000`)) {
   if (env.SHEETS) return env.SHEETS.values(env.CRM_SHEET_ID, ranges);
   const token = await googleToken(JSON.parse(env.GOOGLE_SA_KEY));
   const u = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${env.CRM_SHEET_ID}/values:batchGet`);
@@ -53,5 +61,16 @@ export async function syncSheet(env) {
   const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}) VALUES (${Array(COLS.length + 1).fill('?').join(',')})`);
   const stmts = [env.DB.prepare("DELETE FROM activity WHERE origen = 'hoja'"), ...rows.map((x) => ins.bind(x.persona, ...COLS.map((k) => x[k])))];
   for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
-  return { rows: rows.length };
+  // Distributor scouting tab. A missing or empty tab leaves the last copy in place.
+  let distribuidores = 0;
+  try {
+    const d = distFromValues((await tabValues(env, ["'Distribuidores'!A1:Q1000"]))[0]);
+    if (d.length) {
+      const insD = env.DB.prepare(`INSERT INTO distribuidores (${DIST_COLS.join(', ')}) VALUES (${Array(DIST_COLS.length).fill('?').join(',')})`);
+      const sd = [env.DB.prepare('DELETE FROM distribuidores'), ...d.map((x) => insD.bind(...DIST_COLS.map((k) => x[k])))];
+      for (let i = 0; i < sd.length; i += 90) await env.DB.batch(sd.slice(i, i + 90));
+      distribuidores = d.length;
+    }
+  } catch (e) { return { rows: rows.length, distribuidores_error: String(e.message || e) }; }
+  return { rows: rows.length, distribuidores };
 }

@@ -68,6 +68,11 @@ npm test
 - `Tito` (`CASA` in `src/calc.js`) is the shared house account for sales and prospecting Eric and Diane do themselves. It logs contacts and owns orders like a rep, has no contact goal or rating, and is left out of the team totals. It is the fourth person chip; an admin with no rep identity logs contacts as Tito by default.
 - `asignaciones` (migration 0007) credits one order (`tipo = 'orden'`, by order number) or a whole account (`tipo = 'cuenta'`) to someone other than the salesperson on the Zoho order. Applied in `modelo()` before the calculations; Zoho is not changed. Admins set it with "Reasignar" in Semanas y meses → Qué vendieron (`POST /api/admin/asignar`). A carved-out house order leaves the client with its rep and is listed as a house client for that amount.
 
-## Carlos's distributor list
-- `src/data/prospeccion_carlos.json` is generated from his file "Prospeccion distribuidores 2026" (received 21 Nov 2026): name, plaza, zone, contact, status, last contact date, and group (En proceso / Rechazada / Por contactar). It does not update itself; regenerate it when he sends a new file.
-- `build()` merges it into the prospects of Zonas y prospectos (matched to the researched list by zone and name, the rest added), counts worked prospects per zone, and adds his open distributors to his Seguimiento list when the CRM has no contact for them. Those rows carry `de_archivo` and do not count as logged contacts.
+## Distributor scouting
+- Kept in the "Distribuidores" tab of the CRM sheet (one row per distributor: plaza, zone, type, status, contact, what happened, next step, last and next contact, rejection reason, line of interest, owner). `syncSheet` copies it into the `distribuidores` table (migration 0008) on every sheet sync; an empty or missing tab leaves the last copy. Until the first copy, `src/data/prospeccion_carlos.json` (Carlos's file of 21 Nov 2026, the tab's starting content) is used.
+- `build()` merges the list into the prospects of Zonas y prospectos (matched to the researched list by zone and name, the rest added), counts worked prospects per zone, and adds open distributors to their owner's Seguimiento when the CRM has no contact for them (`de_archivo`; they do not count as logged contacts). The newer of the tab's date and a contact logged in Spark wins.
+- Screen: Cuentas → Distribuidores. Status changes and new distributors go in the sheet tab; contacts can be logged from the screen.
+
+## Sales goals
+- `src/data/presupuesto.json`: monthly goals per rep for the year (file "AJUSTE DE METAS", Aug–Dec are the adjusted goals; exports count for no rep). Ventas del mes shows the month, the year to date against the goal to date (current month by days elapsed), the whole year, and month by month.
+- La Competencia Imports (`DE_ERIC`) counts as a house sale under Tito and is left out of the Mexican zones.

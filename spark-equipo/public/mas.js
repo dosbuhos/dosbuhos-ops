@@ -1,6 +1,6 @@
 // Spark CRM — the account-side screens: collections, client book, surveys, by-the-glass and pipeline, sales materials, and
 // what is coming for client communications. Helpers come from app.js; data from /api/data.
-import { h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar } from './app.js';
+import { h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar, registrar, toca } from './app.js';
 
 const D = () => datos();
 const kpi = (n, label, sub) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, label), sub ? h('div', { class: 'note' }, sub) : null);
@@ -208,4 +208,38 @@ function estrategia() {
       h('span', { class: 'note' }, vis('estrategia', e), ' ', quitar('estrategia', e)))))) : h('p', { class: 'note' }, admin ? 'Sin documentos todavía. Por ahora se agregan como liga (Drive o PDF); nacen visibles solo para administradores.' : 'Dirección no ha compartido documentos aquí.'));
 }
 
-export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, comunicaciones, estrategia };
+// ---------------------------------------------------------------- Distribuidores
+// Distributor scouting: who is being worked, where it stands and when it was last touched. The list itself is kept in the
+// "Distribuidores" tab of the CRM sheet; contacts logged here count too.
+function distribuidores() {
+  const d = D(), L0 = d.prospectos.filter((p) => p.de_carlos), f = S.distF || 'En proceso', zn = new Map(d.zonas.map((z) => [z.zona, z.nombre.split(' (')[0]]));
+  const es = (p, g) => (g === 'frio' ? ['En proceso', 'Catalogado'].includes(p.avance) && p.dias > 30 : g === 'Rechazado' ? p.avance === 'Rechazado' : p.avance === g);
+  const n = (g) => L0.filter((p) => es(p, g)).length, K = { 'En proceso': 'warn', Catalogado: 'ok', 'Por contactar': 'mute', Rechazado: 'bad' };
+  const L = L0.filter((p) => es(p, f)).sort((a, b) => (b.dias ?? -1) - (a.dias ?? -1));
+  const cuando = (p) => (p.ultimo_contacto ? `${dia(p.ultimo_contacto)} · hace ${p.dias} días` : 'Nunca');
+  const tocar = (p) => registrar({ cuenta: p.nombre, actividad: 'Prospección', ultimo_contacto: p.ultimo_contacto, dias_sin_contacto: p.dias, ultima_nota: [p.status, p.paso, p.siguiente].filter(Boolean).join(' · '), persona: S.persona || d.yo.persona || (p.responsable === 'Carlos' && d.yo.admin ? 'Tito' : p.responsable) });
+  const hoja = d.crm_hoja ? `https://docs.google.com/spreadsheets/d/${d.crm_hoja}/edit#gid=120` : null;
+  const porZona = d.zonas.map((z) => ({ z: z.nombre.split(' (')[0], L: L0.filter((p) => p.zona === z.zona) })).filter((x) => x.L.length || true);
+  return h('div', {},
+    h('div', { class: 'card kpis' }, kpi(n('En proceso'), 'En proceso', `${n('frio')} sin contacto en más de 30 días`), kpi(n('Catalogado'), 'Catalogados', 'ya nos compran o están por hacerlo'),
+      kpi(n('Por contactar'), 'Por contactar', 'identificados, sin primer contacto'), kpi(n('Rechazado'), 'Rechazados', `${L0.filter((p) => /dos b[uú]hos/i.test(p.motivo + ' ' + p.siguiente)).length} por decisión nuestra`)),
+    h('p', { class: 'note' }, 'La lista se lleva en la pestaña "Distribuidores" de la hoja del CRM: ahí se agrega un distribuidor nuevo y se cambia su estado (en proceso, catalogado, rechazado). Spark la lee tres veces al día. ',
+      'Un contacto registrado aquí, tocando el renglón, actualiza la fecha de inmediato. ', hoja ? h('a', { href: hoja, target: '_blank', rel: 'noopener' }, 'Abrir la hoja') : null, d.dist_fuente === 'archivo' ? ' · Mostrando el archivo de Carlos del 21 de noviembre; cambia a la hoja en la próxima sincronización.' : ''),
+    h('div', { class: 'toolbar' }, chips([['En proceso', `En proceso ${n('En proceso')}`], ['frio', `Fríos ${n('frio')}`], ['Catalogado', `Catalogados ${n('Catalogado')}`], ['Por contactar', `Por contactar ${n('Por contactar')}`], ['Rechazado', `Rechazados ${n('Rechazado')}`]], f, (v) => { S.distF = v; })),
+    h('div', { class: 'card' }, lista('dist', L, 12, (p) => h('li', toca(() => tocar(p)),
+      h('div', { class: 'l1' }, h('span', {}, p.nombre), pill(p.avance, K[p.avance])),
+      h('div', { class: 'l2' }, [p.plaza, zn.get(p.zona), p.tipo, p.responsable].filter(Boolean).join(' · ')),
+      p.status || p.paso ? h('div', { class: 'l2' }, [p.status, p.paso].filter(Boolean).join(' · ')) : null,
+      p.contacto || p.telefono || p.email ? h('div', { class: 'l2' }, [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ')) : null,
+      h('div', { class: 'l2' }, 'Último contacto: ' + cuando(p) + (p.contacto_por && p.ultimo_contacto ? ` · ${p.contacto_por}` : '') + (p.siguiente ? ` · Siguiente: ${p.siguiente}` : '') + (p.proximo ? ` · próximo ${dia(p.proximo)}` : ''))), 'Ninguno en este grupo.',
+      [{ t: 'Distribuidor', v: (p) => [p.nombre, h('div', { class: 'note' }, [p.plaza, p.tipo].filter(Boolean).join(' · '))], s: (p) => p.nombre.toLowerCase(), cls: 'b' }, { t: 'Zona', v: (p) => zn.get(p.zona), s: (p) => p.zona, cls: 'nw' },
+        { t: 'Estado', v: (p) => pill(p.avance, K[p.avance]), s: (p) => p.avance, cls: 'nw' }, { t: 'Último contacto', v: (p) => [cuando(p), p.contacto_por && p.ultimo_contacto ? h('div', { class: 'note' }, p.contacto_por) : null], s: (p) => p.ultimo_contacto || null, cls: 'nw' },
+        { t: f === 'Rechazado' ? 'Motivo' : 'Qué pasó', v: (p) => [p.status, p.paso].filter(Boolean).join(' · ') || '—', cls: 'mut' }, { t: 'Siguiente paso', v: (p) => [p.siguiente || '—', p.proximo ? h('div', { class: 'note' }, 'próximo ' + dia(p.proximo)) : null], cls: 'mut' },
+        { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—', cls: 'mut' }, { t: 'Línea', v: (p) => p.linea || '—', cls: 'nw' }], tocar)),
+    h('h2', {}, 'Cobertura por zona'),
+    h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, ['Zona', 'En proceso', 'Catalogados', 'Por contactar', 'Rechazados', 'Último contacto'].map((t, i) => h('th', { class: i && i < 5 ? 'r' : null }, t)))),
+      h('tbody', {}, porZona.map((x) => { const c = (g) => x.L.filter((p) => p.avance === g).length, u = x.L.reduce((m, p) => (p.ultimo_contacto && p.ultimo_contacto > m ? p.ultimo_contacto : m), '');
+        return h('tr', {}, h('td', { class: 'b' }, x.z), h('td', { class: 'r' }, c('En proceso')), h('td', { class: 'r' }, c('Catalogado')), h('td', { class: 'r' }, c('Por contactar')), h('td', { class: 'r' }, c('Rechazado')), h('td', {}, u ? dia(u) : x.L.length ? 'Nunca' : 'Sin distribuidores en lista')); }))))));
+}
+
+export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, comunicaciones, estrategia, distribuidores };

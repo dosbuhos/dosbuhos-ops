@@ -44,7 +44,12 @@ async function modelo(env, conActividad) {
   // No invoice copy (the Zoho token can't read invoices): an invoiced sales order stands in for its invoice, dated as the order.
   const inv = invoices.length ? invoices : orders.filter((o) => ['invoiced', 'partially_invoiced'].includes(o.facturacion))
     .map((o) => ({ id: o.id, fecha: o.fecha, cliente_id: o.cliente_id, cliente: o.cliente, vendedor: o.vendedor, total: o.total, estado: o.estado }));
-  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, distribuidores: prospCarlos, hoy: hoyEn(env.TZ) });
+  // Distributor scouting: the copy of the sheet's "Distribuidores" tab; until the first sync, the list imported from Carlos's file.
+  const zonaDe = (n) => { const k = norm(n); const z = zonasCfg.zonas.find((x) => k && (norm(x.nombre).startsWith(k) || k.startsWith(norm(x.nombre).split(' (')[0]))); return z ? z.zona : ''; };
+  const hoja = (await all('SELECT * FROM distribuidores')).map((d) => ({ ...d, zona: zonaDe(d.zona), comentarios: d.siguiente, status: /^rechaz/i.test(d.estado) ? d.motivo || d.status : d.status,
+    grupo: /^rechaz/i.test(d.estado) ? 'Rechazada' : /^catalog/i.test(d.estado) ? 'Catalogado' : /^por contactar/i.test(d.estado) || !d.estado ? 'Por contactar' : 'En proceso' })).filter((d) => d.zona);
+  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, distribuidores: hoja.length ? hoja : prospCarlos, hoy: hoyEn(env.TZ) });
+  m.dist_fuente = hoja.length ? 'hoja' : 'archivo'; m.crm_hoja = env.CRM_SHEET_ID;
   m.asignaciones = asig;
   return conActividad ? { m, activity } : m;
 }
