@@ -70,3 +70,10 @@ Google Workspace's launcher): one icon and one label per app, dense, grouped by 
   side, in an 800px column, so everything fits one screen.
 - Descriptions are in the tooltip and in search results, not on the tile. Typing anywhere searches; Enter opens the first hit.
 - Apps not built yet are one collapsed line at the bottom.
+
+## Home in the card's look (21 Nov 2026, replaces the icon launcher)
+
+Eric found the icon grid dated. The home now follows the Dos Búhos digital card: black page, script logo, each app a
+row with its name in Cormorant and one line under it in Lato, an arrow at the right. A row opens the app (no accordions).
+"Mis apps" (starred rows) comes first; areas follow, two columns on desktop. The page is dark on purpose and ignores the theme.
+Apps should offer a way back to the Hub at the top (Spark has "‹ Hub").

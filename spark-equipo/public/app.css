@@ -206,3 +206,9 @@ dialog .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4p
 .nueva { display: grid; gap: 10px; }
 .pick > div[hidden] { display: none; }
 .sug.nueva { display: block; }
+
+/* Way back to the Hub */
+.hub { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 2px 10px 10px; }
+.hub:hover { color: var(--accent); }
+.hub.mob { padding: 0 8px 0 0; white-space: nowrap; }
+@media (min-width: 960px) { .hub.mob { display: none; } }
