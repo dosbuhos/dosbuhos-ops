@@ -18,7 +18,8 @@ function editarCuenta(base, foco) {
     { k: 'fase', t: 'Etapa', tipo: 'select', ops: [['', 'La del último registro'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: e.fase || '', mitad: true },
     { k: 'copeo', t: 'Copeo (vino por copa)', tipo: 'select', ops: [['', 'No sabemos'], ['si', 'Sí, nos sirven por copa'], ['propuesto', 'Propuesto, sin respuesta'], ['no', 'No'] ], v: e.copeo || '', mitad: true },
     { k: 'copeo_vino', t: 'Qué vino por copa', v: e.copeo_vino || '', mitad: true },
-    { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', v: e.botellas_mes || '' },
+    { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', v: e.botellas_mes || '', mitad: true },
+    { k: 'pausa', t: 'Envíos pausados por cobranza', tipo: 'select', ops: [['no', 'No'], ['si', 'Sí, pausados hasta que paguen']], v: e.pausa ? 'si' : 'no', mitad: true },
     { k: 'notas', t: 'Notas', tipo: 'textarea', v: e.notas || '' },
   ], (f) => enviar('api/cuenta', { ...f, nombre: base.nombre }), foco || 'Lo que guardes aquí lo ve todo el equipo.');
 }

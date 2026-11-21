@@ -83,6 +83,11 @@ export default {
       // The client book: Zoho clients with what the notes say, then what people corrected, then the US accounts from the importer's report.
       const edit = new Map(cuentas.map((c) => [c.clave, c])), CAMPOS = ['contacto', 'puesto', 'email', 'telefono', 'ciudad', 'estado', 'tipo', 'notas'];
       for (const d of m.directorio) { const e = edit.get(d.clave); if (e) for (const k of CAMPOS) if (e[k]) d[k] = e[k]; }
+      // Shipments on hold for collections: shown wherever the account is listed as needing a contact.
+      const pausa = (n) => { const e = edit.get(norm(n)); return e && e.pausa ? e.pausa_desde || 'si' : ''; };
+      for (const r of m.seguimiento) r.pausa = pausa(r.cuenta);
+      for (const c of m.cobertura) c.pausa = pausa(c.cliente);
+      for (const d of m.directorio) d.pausa = pausa(d.nombre);
       for (const u of usa.cuentas) { const clave = norm(u.nombre), e = edit.get(clave) || {}; m.directorio.push({ clave, nombre: u.nombre, pais: 'Estados Unidos', zona: 'usa', zona_nombre: 'Estados Unidos · ' + u.estado, vendedor: 'Eric (La Competencia)', tipo: e.tipo || u.tipo,
         contacto: e.contacto || '', puesto: e.puesto || '', email: e.email || '', telefono: e.telefono || '', ciudad: e.ciudad || u.ciudad, estado: e.estado || u.estado, notas: e.notas || `${u.cajas} cajas en 2026 · ${u.vinos.join(', ')} · rep. ${u.rep}`, direccion: u.direccion, cajas: u.cajas, ultimo_mes: u.ultimo_mes }); }
       // Strategy and promotions: admins see everything, the team only what was marked visible.
@@ -107,6 +112,7 @@ export default {
       await env.DB.prepare("INSERT INTO activity (persona, fecha, zona, cuenta, tipo, actividad, medio, etapa, contacto, telefono, resultado, siguiente_paso, proximo, minutos, botellas_mes, origen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'app')")
         .bind(persona, fecha, txt(b.zona, 40), txt(b.cuenta, 120), txt(b.tipo, 40), txt(b.actividad, 40) || 'Seguimiento', txt(b.medio, 40), txt(b.etapa, 40), txt(b.contacto, 120), txt(b.telefono, 120), txt(b.resultado, 2000), txt(b.siguiente_paso, 500), prox,
           Number(b.minutos) > 0 ? Math.min(600, Math.round(Number(b.minutos))) : null, Number(b.botellas_mes) > 0 ? Math.round(Number(b.botellas_mes)) : null).run();
+      if (b.pausa === 'si' || b.pausa === 'no') await ponPausa(env, txt(b.cuenta, 120), b.pausa === 'si', HOY, yo.nombre || yo.email);
       return json({ ok: true });
     }
     // Time a contact really took (corrects the estimate).
@@ -128,6 +134,7 @@ export default {
           copeo=excluded.copeo, copeo_vino=excluded.copeo_vino, fase=excluded.fase, botellas_mes=excluded.botellas_mes, actualizado=excluded.actualizado, por=excluded.por`)
         .bind(norm(nombre), nombre, txt(b.contacto, 120), txt(b.puesto, 80), txt(b.email, 160), txt(b.telefono, 80), txt(b.ciudad, 80), txt(b.estado, 60), txt(b.tipo, 60), txt(b.notas, 1000), copeo, txt(b.copeo_vino, 120), txt(b.fase, 40),
           Number(b.botellas_mes) > 0 ? Math.round(Number(b.botellas_mes)) : null, HOY, yo.nombre || yo.email).run();
+      if (b.pausa === 'si' || b.pausa === 'no') await ponPausa(env, nombre, b.pausa === 'si', HOY, yo.nombre || yo.email);
       return json({ ok: true });
     }
     // A new survey link for a client. The rep sends it from their own phone.
@@ -208,3 +215,12 @@ export default {
     ctx.waitUntil(event.cron === '0 12 * * *' ? sync(env, null) : sync(env, 'zoho').then(() => sync(env, 'ia')));
   }
 };
+
+// Marks or clears "shipments on hold for collections" on an account without touching the rest of its record.
+// The date it was first put on hold is kept while it stays on hold.
+async function ponPausa(env, nombre, si, hoy, por) {
+  await env.DB.prepare(`INSERT INTO cuentas (clave, nombre, pausa, pausa_desde, actualizado, por) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(clave) DO UPDATE SET pausa_desde = CASE WHEN excluded.pausa = '' THEN '' WHEN cuentas.pausa = '' THEN excluded.pausa_desde ELSE cuentas.pausa_desde END,
+      pausa = excluded.pausa, actualizado = excluded.actualizado, por = excluded.por`)
+    .bind(norm(nombre), nombre, si ? 'cobranza' : '', si ? hoy : '', hoy, por).run();
+}

@@ -15,7 +15,7 @@ Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y 
 Mi trabajo: Hoy, Semanas y meses, Seguimiento, Preguntas pendientes. Ventas: Ventas del mes (with the 2026 budget), Cobranza, Clientes. Cuentas: Directorio, Copeo y embudo, Encuestas, Zonas y prospectos. Recursos: Estrategia y promociones (strategy documents, goals, the year's budget against actual, and promotions with who authorized them and when; each row is admin-only or visible to the team), Materiales de venta, Comunicaciones (coming). Dirección (admins): Efectividad, Ajustes. `public/app.js` holds the shell and the first group; `public/mas.js` the account-side screens.
 
 ## What people can write
-- A contact (`POST /api/actividad`): stored in `activity` with `origen = 'app'`, never touched by the sheet sync.
+- A contact (`POST /api/actividad`): stored in `activity` with `origen = 'app'`, never touched by the sheet sync. Tapping an account in Seguimiento (or in Clientes principales) opens this form with the account and its last note; `fecha` lets a rep back-date a contact they had not logged. `pausa` (`si`/`no`) marks or clears "shipments on hold for collections" on the account (`cuentas.pausa`, migration 0006); the account still counts as due for a contact.
 - The time a contact took (`POST /api/tiempo`), account details, copeo and stage (`POST /api/cuenta`), a collection follow-up (`POST /api/cobros`), a survey link (`POST /api/encuestas`).
 - The client answers a survey on `/e/<token>`, a public page on the Worker's own address (no Hub sign-in). The token is 128 random bits.
 

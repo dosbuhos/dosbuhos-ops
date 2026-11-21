@@ -81,9 +81,13 @@ function gauge(n, meta, label) {
 const mq = matchMedia('(min-width: 960px)');
 const ancho = () => mq.matches;
 mq.addEventListener('change', () => { if (D) { $('sheet').hidden = true; pintar(); } });
+// Makes a whole row open something. Buttons and links inside the row keep doing their own thing.
+const toca = (fn) => ({ class: 'toca', tabindex: 0, role: 'button', onclick: (ev) => { if (!ev.target.closest('button, a, input, select, textarea')) fn(); },
+  onkeydown: (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === ev.currentTarget) { ev.preventDefault(); fn(); } } });
+const pausado = (r) => (r.pausa ? pill('Envíos pausados por cobranza', 'warn') : null);
 // A list capped at n with a "show all" button. On a phone each item is a stacked row (fila); on desktop, when cols is given,
 // it is a table whose headers sort. cols: [{ t: header, v: row => cell, s: row => sort value, num: right-aligned }].
-function lista(key, items, n, fila, vacio, cols) {
+function lista(key, items, n, fila, vacio, cols, tocar) {
   if (!items.length) return h('p', { class: 'note' }, vacio);
   const open = S.abierto[key], mas = items.length > n ? h('button', { class: 'more', onclick: () => { S.abierto[key] = !open; pintar(); } }, open ? 'Ver menos' : `Ver los ${items.length}`) : null;
   if (!cols || !ancho()) return h('div', {}, h('ul', { class: 'rows' }, (open ? items : items.slice(0, n)).map(fila)), mas);
@@ -93,7 +97,7 @@ function lista(key, items, n, fila, vacio, cols) {
   const th = (c, i) => h('th', { class: c.num ? 'r' : null, 'aria-sort': o && o[0] === i ? (o[1] > 0 ? 'ascending' : 'descending') : null },
     c.s ? h('button', { onclick: () => { S.orden[key] = [i, o && o[0] === i ? -o[1] : (c.num ? -1 : 1)]; pintar(); } }, c.t, o && o[0] === i ? (o[1] > 0 ? ' ▲' : ' ▼') : '') : c.t);
   return h('div', {}, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, cols.map(th))),
-    h('tbody', {}, (open ? items : items.slice(0, n)).map((r) => h('tr', {}, cols.map((c) => h('td', { class: (c.num ? 'r ' : '') + (c.cls || '') }, c.v(r)))))))), mas);
+    h('tbody', {}, (open ? items : items.slice(0, n)).map((r) => h('tr', tocar ? toca(() => tocar(r)) : {}, cols.map((c) => h('td', { class: (c.num ? 'r ' : '') + (c.cls || '') }, c.v(r)))))))), mas);
 }
 // Weekly trend for one person: contacts as a line over the green/amber/red bands (30 and 15), that week's sales as bars behind.
 // Weeks still waiting to be logged are left out of the line.
@@ -281,30 +285,34 @@ const VISTAS = {
     const n = (e) => D.seguimiento.filter((r) => ps.includes(r.persona) && r.estado === e).length;
     const est = (r) => (r.estado === 'al día' ? pill('Al día', 'ok') : r.estado === 'vencida' ? pill(`Vencida · ${r.dias_vencido} d`, 'bad') : r.estado === 'cerrada' ? pill('Cerrada', 'mute') : pill('Sin fecha', 'warn'));
     const dot = { verde: 'ok', amarillo: 'warn', rojo: 'bad', 'sin registro': 'bad' };
+    const deCob = (c) => ({ cuenta: c.cliente, persona: c.vendedor, ultimo_contacto: c.ultimo_contacto, dias_sin_contacto: c.dias, ultima_nota: c.ultima_nota, pausa: c.pausa });
     return h('div', {},
       h('div', { class: 'toolbar' }, chips([['vencida', `Vencidas ${n('vencida')}`], ['al día', `Al día ${n('al día')}`], ['sin fecha', `Sin fecha ${n('sin fecha')}`], ['', 'Todas']], S.segFiltro, (v) => { S.segFiltro = v; }),
         ancho() ? null : h('select', { 'aria-label': 'Ordenar', onchange: (e) => { S.segOrden = e.target.value; pintar(); } },
         [['viejo', 'Más tiempo sin contacto'], ['reciente', 'Contacto más reciente'], ['proximo', 'Próximo contacto']].map(([v, t]) => h('option', { value: v, selected: S.segOrden === v }, t)))),
 
-      h('div', { class: 'card' }, lista('seg', seg, 10, (r) => h('li', {},
+      h('p', { class: 'note', style: 'margin-bottom:8px' }, 'Toca una cuenta para registrar el contacto. Si ya la contactaste y no lo anotaste, ponle la fecha en que fue.'),
+      h('div', { class: 'card' }, lista('seg', seg, 10, (r) => h('li', puede(r.persona) ? toca(() => registrar(r)) : {},
         h('div', { class: 'l1' }, h('span', {}, r.cuenta), est(r)),
+        r.pausa ? h('div', { class: 'l2' }, pausado(r)) : null,
         h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, `Último contacto ${dia(r.ultimo_contacto)} (${r.dias_sin_contacto} días)`, r.proximo ? `próximo ${dia(r.proximo)}` : null].filter(Boolean).join(' · ')),
         r.ultima_nota ? h('div', { class: 'l2' }, r.ultima_nota.slice(0, 160)) : null,
         r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso: '), r.sugerencia) : null,
-        puede(r.persona) ? h('div', { class: 'acc' }, h('button', { class: 'btn sm', onclick: () => registrar({ cuenta: r.cuenta, persona: r.persona }) }, 'Registrar contacto')) : null), 'No hay cuentas en esta lista.',
-        [{ t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' },
+        puede(r.persona) ? h('div', { class: 'acc' }, h('button', { class: 'btn sm', onclick: () => registrar(r) }, 'Registrar contacto')) : null), 'No hay cuentas en esta lista.',
+        [{ t: 'Cuenta', v: (r) => [r.cuenta, r.pausa ? h('div', {}, pausado(r)) : null], s: (r) => r.cuenta.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' },
           { t: 'Último contacto', v: (r) => dia(r.ultimo_contacto), s: (r) => r.ultimo_contacto, cls: 'nw' }, { t: 'Días sin contacto', v: (r) => r.dias_sin_contacto, s: (r) => r.dias_sin_contacto, num: true },
           { t: 'Estado', v: (r) => [est(r), r.proximo && r.estado !== 'vencida' ? h('div', { class: 'note' }, 'próximo ' + dia(r.proximo)) : null], s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => (r.ultima_nota || '').slice(0, 140), cls: 'mut' }, { t: 'Siguiente paso sugerido', v: (r) => r.sugerencia || '—', cls: 'sugc' },
-          { t: '', v: (r) => (puede(r.persona) ? h('button', { class: 'btn sm sec', onclick: () => registrar({ cuenta: r.cuenta, persona: r.persona }) }, 'Registrar') : ''), cls: 'nw' }])),
+          { t: '', v: (r) => (puede(r.persona) ? h('button', { class: 'btn sm sec', onclick: () => registrar(r) }, 'Registrar') : ''), cls: 'nw' }], (r) => { if (puede(r.persona)) registrar(r); })),
       vendedores().length ? [h('h2', {}, 'Clientes principales'),
         h('p', { class: 'note' }, 'Los 15 más grandes de cada vendedor, primero los que llevan más tiempo sin contacto.'),
-        h('div', { class: 'card' }, lista('cob', cob, 10, (c) => h('li', {},
+        h('div', { class: 'card' }, lista('cob', cob, 10, (c) => h('li', puede(c.vendedor) ? toca(() => registrar(deCob(c))) : {},
           h('div', { class: 'l1' }, h('span', {}, c.cliente), pill(c.dias == null ? 'Sin registro' : `${c.dias} días`, dot[c.estado])),
+          c.pausa ? h('div', { class: 'l2' }, pausado(c)) : null,
           h('div', { class: 'l2' }, [ps.length > 1 ? c.vendedor : null, `${peso(c.actual)} este año`, c.cambio_pct != null ? `${pct(c.cambio_pct)} vs. año pasado` : 'nuevo'].filter(Boolean).join(' · ')),
           c.ultima_nota ? h('div', { class: 'l2' }, (c.contacto_por && c.contacto_por !== c.vendedor ? `(${c.contacto_por}) ` : '') + c.ultima_nota.slice(0, 140)) : null), 'Sin clientes.',
-          [{ t: 'Cliente', v: (c) => c.cliente, s: (c) => c.cliente.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Vendedor', v: (c) => c.vendedor, s: (c) => c.vendedor, cls: 'nw' },
+          [{ t: 'Cliente', v: (c) => [c.cliente, c.pausa ? h('div', {}, pausado(c)) : null], s: (c) => c.cliente.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Vendedor', v: (c) => c.vendedor, s: (c) => c.vendedor, cls: 'nw' },
             { t: 'Este año', v: (c) => peso(c.actual), s: (c) => c.actual, num: true }, { t: 'vs. año pasado', v: (c) => (c.cambio_pct == null ? 'nuevo' : h('span', { class: c.cambio_pct >= 0 ? 'up' : 'down' }, pct(c.cambio_pct))), s: (c) => c.cambio_pct, num: true },
-            { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : `${c.dias} días`, dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), cls: 'mut' }]))] : null);
+            { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : `${c.dias} días`, dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), cls: 'mut' }], (c) => { if (puede(c.vendedor)) registrar(deCob(c)); }))] : null);
   },
 
   ventas() {
@@ -514,7 +522,7 @@ $('nuevo').addEventListener('click', () => registrar({}));
 // guardar(values) returns an error message, or nothing when it worked.
 function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
   const d = $('dlg'), err = h('span', { class: 'err', role: 'alert' });
-  const campo = (c) => { const a = { name: c.k, required: !!c.req, placeholder: c.ph || null };
+  const campo = (c) => { const a = { name: c.k, required: !!c.req, placeholder: c.ph || null, autofocus: c.foco ? '' : null };
     const el = c.tipo === 'textarea' ? h('textarea', a, c.v || '') : c.tipo === 'select' ? h('select', a, c.ops.map((o) => { const [v, t] = Array.isArray(o) ? o : [o, o]; return h('option', { value: v, selected: String(c.v ?? '') === String(v) }, t); }))
       : h('input', { ...a, type: c.tipo || 'text', value: c.v ?? null, min: c.tipo === 'number' ? 0 : null, inputmode: c.tipo === 'number' ? 'numeric' : null, max: c.max || null });
     if (c.lista) { el.setAttribute('list', 'dl-' + c.k); el.setAttribute('autocomplete', 'off'); return h('label', {}, c.t, el, h('datalist', { id: 'dl-' + c.k }, c.lista.map((x) => h('option', { value: x })))); }
@@ -528,19 +536,25 @@ function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
 }
 const enviar = async (url, body) => { const r = await api(url, body); if (r.error) return r.error; await cargar(); };
 // Log a contact from the app. It lands in the same table the CRM sheet feeds, so it shows up everywhere at once.
+// pre: { cuenta, persona, ultimo_contacto, dias_sin_contacto, ultima_nota, sugerencia, pausa } when opened from an account row.
 function registrar(pre) {
   const quien = pre.persona || S.persona || D.yo.persona || 'José Luis', cuentas = [...new Set(D.seguimiento.map((r) => r.cuenta))].sort((a, b) => a.localeCompare(b));
-  formulario(pre.cuenta ? `Registrar contacto: ${pre.cuenta}` : 'Registrar contacto', [
+  const hoy = D.hoy || new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
+  const antes = pre.ultimo_contacto ? `Último contacto registrado: ${dia(pre.ultimo_contacto)} (hace ${pre.dias_sin_contacto} días).` + (pre.ultima_nota ? ' "' + pre.ultima_nota.slice(0, 180) + '"' : '') : pre.cuenta ? 'Sin contacto registrado todavía.' : '';
+  formulario(pre.cuenta || 'Registrar contacto', [
     D.yo.admin ? { k: 'persona', t: 'A nombre de', tipo: 'select', ops: ['José Luis', 'Carlos', 'Daniel'], v: quien } : null,
     pre.cuenta ? null : { k: 'cuenta', t: 'Cuenta', req: true, ph: 'Nombre del cliente o prospecto', lista: cuentas },
-    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Cobranza', 'Entrega', 'Capacitación', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento', mitad: true },
+    { k: 'fecha', t: 'Cuándo fue', tipo: 'date', v: hoy, max: hoy, req: true, mitad: true },
     { k: 'medio', t: 'Cómo', tipo: 'select', ops: ['Presencial', 'Llamada', 'WhatsApp', 'Correo'], v: 'Presencial', mitad: true },
-    { k: 'resultado', t: 'Qué pasó', tipo: 'textarea', req: true, ph: 'Con quién hablaste, qué dijeron, qué quedó pendiente' },
-    { k: 'siguiente_paso', t: 'Siguiente paso', ph: 'Lo que vas a hacer después' },
-    { k: 'proximo', t: 'Próximo contacto', tipo: 'date', mitad: true }, { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true },
-    { k: 'etapa', t: 'Etapa de la cuenta', tipo: 'select', ops: [['', 'Sin cambio'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: '', mitad: true },
+    { k: 'resultado', t: 'Qué pasó', tipo: 'textarea', req: true, foco: !!pre.cuenta, ph: 'Con quién hablaste, qué dijeron, qué quedó pendiente' },
+    { k: 'siguiente_paso', t: 'Siguiente paso', ph: pre.sugerencia ? pre.sugerencia.slice(0, 90) : 'Lo que vas a hacer después', mitad: true },
+    { k: 'proximo', t: 'Próximo contacto', tipo: 'date', mitad: true },
+    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Cobranza', 'Entrega', 'Capacitación', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento', mitad: true },
+    { k: 'pausa', t: 'Envíos pausados por cobranza', tipo: 'select', ops: [['', pre.pausa ? 'Siguen pausados' : 'No'], pre.pausa ? ['no', 'Ya no, se reanudaron'] : ['si', 'Sí, pausados hasta que paguen']], v: '', mitad: true },
+    { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true },
     { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', ph: 'Tu estimado', mitad: true },
-  ].filter(Boolean), (v) => enviar('api/actividad', { ...v, cuenta: pre.cuenta || v.cuenta, persona: v.persona || quien }), 'Queda guardado en Spark con la fecha de hoy.');
+    { k: 'etapa', t: 'Etapa de la cuenta', tipo: 'select', ops: [['', 'Sin cambio'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: '' },
+  ].filter(Boolean), (v) => enviar('api/actividad', { ...v, cuenta: pre.cuenta || v.cuenta, persona: v.persona || quien }), [antes, pre.pausa ? 'Envíos pausados por cobranza: igual toca contactarlos, para cobrar y para que vuelvan a pedir.' : ''].filter(Boolean).join(' ') || 'Queda guardado en Spark.');
 }
 
 async function cargar() {
