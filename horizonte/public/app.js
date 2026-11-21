@@ -671,28 +671,32 @@ function layoutLanes(list) { // side-by-side lanes for overlapping timed tasks
   if (group.length) flush(); return out;
 }
 // Phone hours: land on the now line for today, on the start of the working day otherwise.
-function scrollPhoneHours() { const mm = $('.mm'), g = $('.m .grid'), nr = $('.m .nowrow'); if (!mm || !(g || nr)) return;
-  if (S.ui.mday !== todayK()) { mm.scrollTop = 0; return; } // other days open at the top: the list first, then the hours
-  const n = new Date(), y = g ? g.offsetTop - mm.offsetTop + (n.getHours() + n.getMinutes() / 60 - H0()) * MG : nr.offsetTop - mm.offsetTop; // now line, in list coordinates
+function scrollPhoneHours() { const mm = $('.mm'), g = $('.m .grid'); if (!mm || !g) return;
+  if (S.ui.mday !== todayK()) { mm.scrollTop = 0; return; } // other days open at the top: the fold rows first, then the hours
+  const n = new Date(), y = g.offsetTop - mm.offsetTop + (n.getHours() + n.getMinutes() / 60 - H0()) * MG; // now line, in list coordinates
   if (y > mm.scrollTop + 120 && y < mm.scrollTop + mm.clientHeight - 140) return; // already in view
-  mm.scrollTop = Math.max(0, y - mm.clientHeight * 0.4); }
+  mm.scrollTop = Math.max(0, y - mm.clientHeight * 0.35); }
 function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl'); if (!tl) return; const n = new Date(); tl.scrollTop = Math.max(0, (n.getHours() - 1 - H0()) * HPX); }); }
 
 // ── rendering: mobile ─────────────────────────────────────────
 // Overdue bar: tap to review, × hides it until tomorrow (Overdue stays in the menu / lists).
 function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
+// Phone overdue line: tap the text to review, or move everything to today.
+const odRow = (n) => n ? `<div class="foldrow od"><button class="lbl" data-act="review">${n} from earlier days ${I.chev}</button><button class="act" data-act="rollod">Move all to today</button></div>` : '';
 function signinBanner() {
   return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
 }
 const MBAR = [['inbox', 'Inbox'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['quarters', 'Quarters'], ['years', 'Years'], ['horizons', 'Horizons']];
-const MG = 60; // px per hour on the phone grid
+const MBAR_MAIN = 4; // the first four are on the bottom bar; the rest live under More
+const MG = 56; // px per hour on the phone grid
 function renderMobile() {
   const tab = S.ui.mtab, n = inboxTasks().length;
   if (['days', 'weeks', 'months', 'quarters', 'years', 'horizons'].includes(tab)) S.ui.mzoom = tab;
   let main = tab === 'inbox' ? mInbox() : tab === 'board' ? mBoards() : tab === 'hours' ? mHours() : mPlan();
   const sb = (runPill(true) || '') + (signinBanner() || (!navigator.onLine ? `<div class="banner off"><span>Offline · changes are saved here and sync when you’re back</span></div>` : ''));
   if (sb) main = main.replace('<main class="mm"', `<div style="padding:10px 16px 0">${sb}</div><main class="mm"`);
-  const bar = MBAR.map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('');
+  const more = MBAR.slice(MBAR_MAIN).find(x => x[0] === tab);
+  const bar = MBAR.slice(0, MBAR_MAIN).map(([k, l]) => `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}${k === 'inbox' && n ? `<span class="n">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('') + `<button data-act="moreviews" ${more ? 'aria-current="page"' : ''}>${more ? more[1] : 'More'}</button>`;
   return `<div class="m">${main}<button class="fab" aria-label="Add a task" data-act="capture">${I.plus(28, 2.4)}</button>
 <nav class="mbar" aria-label="Views">${bar}</nav></div>`;
 }
@@ -706,42 +710,29 @@ function weekStrip(k) {
   return `<div class="wstrip" data-swipe="week">${h}</div>`;
 }
 function mHours() {
-  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k), od = overdueTasks(), grid = !!S.ui.mgrid;
+  const k = S.ui.mday, t = todayK(), past = k < t, P = dayParts(k), d = parseD(k), od = overdueTasks();
   const late = past ? P.open.filter(x => x.kind !== 'meeting').sort(order) : []; // meetings that passed are not "not done"
+  const done = (past ? P.done : P.doneNonTarget).filter(x => !x.at || past);
   let body = '';
-  if (late.length) body += `<div class="latebar"><span>${late.length} not done</span><button data-act="rollall" data-k="${k}">Move all to today ${I.right}</button></div>`;
-  else if (k === t) body += odBanner(od.length);
-  body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
-  if (past) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
-  else { const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen);
-    if (untimed.length && (P.timed.length || grid)) body += `<div class="eyebrow">Anytime</div>`;
-    body += untimed.map(x => mcard(x)).join(''); }
-  const done = (past ? P.done : P.doneNonTarget).filter(x => !x.at || past); if (done.length) body += mDoneToggle('d' + k, done);
-  if (grid) { const h0 = H0(), h1 = H1(); let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${MG}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
-    body += `<div class="hgrid"><div class="gutter" aria-hidden="true">${gutter}</div>${gridHTML(k, MG, h0, h1, { mobile: true, edge: 3, skipOpen: past })}</div>`; }
-  else body += agendaHTML(k, past);
+  // Everything that is not on the grid folds into one line each, so the hours get the screen.
+  if (past) { const open = !S.ui.open.mlate; // past days open unfolded: you came here to pull things forward
+    if (late.length) body += `<div class="foldrow late"><button class="lbl" data-act="toggle" data-key="mlate" aria-expanded="${open}">${late.length} not done ${open ? I.down : I.chev}</button><button class="act" data-act="rollall" data-k="${k}">Move all to today</button></div>`;
+    if (open) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
+    if (done.length) body += mDoneToggle('d' + k, done);
+  } else {
+    if (k === t && od.length) body += odRow(od.length);
+    const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen), open = !!S.ui.open.mun;
+    body += `<div class="foldrow"><button class="lbl" data-act="toggle" data-key="mun" aria-expanded="${open}">${untimed.length ? `${untimed.length} unscheduled` : 'Add a task'} ${open ? I.down : I.chev}</button>${done.length ? `<button class="act muted" data-act="toggle" data-key="d${k}">Done · ${done.length}</button>` : ''}</div>`;
+    if (open) { body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
+      body += untimed.map(x => mcard(x)).join(''); }
+    if (done.length && S.ui.open['d' + k]) body += sortList(done).map(x => mcard(x)).join('');
+  }
+  const h0 = H0(), h1 = H1(); let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${MG}px">${h % 12 || 12}${h < 12 ? 'am' : 'pm'}</div>`;
+  body += `<div class="hgrid"><div class="gutter" aria-hidden="true">${gutter}</div>${gridHTML(k, MG, h0, h1, { mobile: true, edge: 3, skipOpen: past })}</div>`;
   const title = `<button class="tdy ${k === t ? 'cur' : ''}" data-act="mtoday" ${k === t ? 'aria-current="date"' : ''}>Today</button><span class="date">${MON[d.getMonth()]} ${d.getDate()}, ${DOW[d.getDay()]}</span>`;
-  const right = `<button class="plain" aria-label="${grid ? 'Show as list' : 'Show hour grid'}" aria-pressed="${grid}" data-act="mgrid">${I.clock}</button><button class="plain" aria-label="In review" data-act="summary" data-k="${k}">${I.chart}</button><button class="plain" data-sync aria-label="Sync status" data-act="settings"></button>`;
+  const right = `<button class="plain" aria-label="In review" data-act="summary" data-k="${k}">${I.chart}</button><button class="plain" data-sync aria-label="Sync status" data-act="settings"></button>`;
   return `<header class="mh hours">${mtop(title, right)}${weekStrip(k)}</header>
 <main class="mm" data-list="hours" data-swipe="day" data-k="${k}">${body}</main>`;
-}
-// The day as a time-ordered list: a time rail, the now line in its place, and free gaps named. Past days list what happened, dimmed.
-function agendaHTML(k, past) {
-  const t = todayK(), today = k === t, nowM = nowMin();
-  const items = placedOn(k).filter(x => x.at && !(past && isOpen(x) && x.kind !== 'meeting')).sort((a, b) => toMin(a.at) - toMin(b.at) || order(a, b));
-  if (!items.length) return today || k > t ? `<div class="empty">Nothing scheduled${today ? ' yet' : ''}. Hold a task and drop it on an hour, or tap the clock for the grid.</div>` : '';
-  let h = `<div class="eyebrow gap">Scheduled</div>`, nowDone = !today, lastEnd = null;
-  const row = (x) => { const end = toMin(x.at) + (x.dur || 30), over = today && end <= nowMin() && isOpen(x) && x.kind !== 'meeting';
-    const meta = x.kind === 'meeting' ? `to ${clock(fromMin(end))}` : isOpen(x) && today && toMin(x.at) > nowM && toMin(x.at) - nowM <= 120 ? `in ${fmtDur(toMin(x.at) - nowM)}` : !isOpen(x) && x.spent ? fmtDur(x.dur || 30) : '';
-    return `<div class="arow"><div class="tm"><b>${clock(x.at)}</b><span>${fmtDur(x.dur || 30)}</span></div>${mcard(x, { meta, style: past || (!isOpen(x)) ? 'opacity:.55' : over ? 'opacity:.8' : '' })}</div>`; };
-  for (const x of items) {
-    const st = toMin(x.at);
-    if (!nowDone && st > nowM) { h += `<div class="nowrow" aria-label="Now ${clock(fromMin(nowM))}"><span>${clock(fromMin(nowM))}</span><i></i></div>`; nowDone = true; }
-    if (lastEnd != null && st - lastEnd >= 30 && (k > t || (today && st > nowM))) h += `<div class="gaprow"><span></span><span>${fmtDur(st - lastEnd)} free</span></div>`;
-    h += row(x); lastEnd = Math.max(lastEnd ?? 0, st + (x.dur || 30));
-  }
-  if (!nowDone && nowM <= toMin(S.prefs.dayEnd)) h += `<div class="nowrow" aria-label="Now ${clock(fromMin(nowM))}"><span>${clock(fromMin(nowM))}</span><i></i></div>`;
-  return h;
 }
 function mDoneToggle(key, done) {
   const open = S.ui.open[key];
@@ -800,12 +791,13 @@ function menuSheet() {
   const od = overdueTasks().length;
   openSheet(`<div class="grab"></div><div class="sheettitle" style="display:flex;justify-content:space-between;align-items:center">Boards<button class="link" style="font-size:14px" data-act="newboard">New board</button></div>
 <div class="rows">${boardRows()}</div>
+<div class="rows" style="margin-top:14px">${MBAR.slice(MBAR_MAIN).map(([k, l]) => `<button class="rowlink" data-act="gotab" data-v="${k}"><span>${l}</span><span class="n"></span>${I.chev}</button>`).join('')}</div>
 <div class="rows" style="margin-top:14px"><button class="rowlink" data-act="summary" data-k="${todayK()}"><span>In review</span><span class="n"></span>${I.chev}</button>${od ? `<button class="rowlink" data-act="review"><span>Overdue</span><span class="n">${od}</span>${I.chev}</button>` : ''}<button class="rowlink" data-act="settings"><span>Settings</span><span class="n" data-sync></span>${I.chev}</button></div>`, { menu: true });
 }
 function mInbox() {
   const list = byTag(sortList(inboxTasks(), S.ui.sort)), od = overdueTasks();
   let body = '';
-  body += odBanner(od.length);
+  body += odRow(od.length);
   body += capped('minbox', list, t => mcard(t)) || `<div class="empty">${S.ui.tagFilter ? 'Nothing in Inbox with this tag.' : 'Inbox is empty. Tap + to capture what’s on your mind.'}</div>`;
   if (list.length && !(S.ui.hintSeen ??= store.get('hintSeen', false))) body += `<div class="empty" style="margin-top:12px">Swipe right to finish, left to schedule. Hold to drop it on an hour.</div>`;
   if (S.ui.q) body = searchResults(true);
@@ -1138,7 +1130,9 @@ document.addEventListener('click', async (e) => {
     case 'mday': S.ui.mday = el.dataset.k; S.ui.mjump = true; render(); return;
     case 'menu': menuSheet(); return;
     case 'odhide': S.ui.odHide = todayK(); render(); return;
-    case 'mgrid': S.ui.mgrid = !S.ui.mgrid; S.ui.mjump = true; render(); return;
+    case 'moreviews': openSheet(`<div class="grab"></div><div class="sheettitle">More views</div><div class="rows">${MBAR.slice(MBAR_MAIN).map(([k, l]) => `<button class="rowlink" data-act="gotab" data-v="${k}" aria-current="${S.ui.mtab === k ? 'page' : 'false'}"><span>${l}</span><span class="n"></span>${I.chev}</button>`).join('')}</div>`, { menu: true }); return;
+    case 'gotab': closeSheet(); S.ui.mtab = el.dataset.v; S.ui.board = null; render(); return;
+    case 'rollod': { const open = overdueTasks().filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'rollto': if (tid) { pushTask(tid, todayK()); render(); toast('Moved to today', true); } return;
     case 'rollall': { const open = dayParts(el.dataset.k).open.filter(x => x.kind !== 'meeting'); batch(g => open.forEach(t => put('task', t.id, { when: todayK(), at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); toast(`Moved ${open.length} to today`, true); return; }
     case 'panelnav': S.ui.panelView = 'nav'; render(); return;
@@ -1189,7 +1183,7 @@ document.addEventListener('click', async (e) => {
     case 'tagedit': S.ui.tagEdit = S.ui.tagEdit === el.dataset.t ? null : el.dataset.t; settingsSheet(); return;
     case 'tagcolor': { const list = tagsList().map(t => t.id === el.dataset.t ? { ...t, color: el.dataset.c } : t); put('pref', 'main', { tags: list }, { quiet: true }); render(); settingsSheet(); return; }
     case 'tagdel': { const id = el.dataset.t; batch(g => { put('pref', 'main', { tags: tagsList().filter(t => t.id !== id) }, { group: g }); for (const t of live()) if ((t.tags || []).includes(id)) put('task', t.id, { tags: t.tags.filter(x => x !== id) }, { group: g }); }); if (S.ui.tagFilter === id) S.ui.tagFilter = null; render(); settingsSheet(); toast('Tag removed', true); return; }
-    case 'toggle': S.ui.open[el.dataset.key] = !S.ui.open[el.dataset.key]; render(); return;
+    case 'toggle': { const key = el.dataset.key; S.ui.open[key] = !S.ui.open[key]; render(); if (key === 'mun' && S.ui.open.mun && !isDesk()) $(`#ia-${CSS.escape(S.ui.mday)}`)?.focus(); return; }
     case 'addto': S.ui.adding = el.dataset.k; render(); $(`#ia-${CSS.escape(el.dataset.k)}`)?.focus(); return;
     case 'qckind': S.ui.draft.kind = el.dataset.v === 'meeting' ? 'meeting' : ''; if (S.ui.draft.kind === 'meeting' && S.ui.draft.dur < 60 && !S.ui.draft.durSet) S.ui.draft.dur = 60; render(); $('#qc-title')?.focus(); return;
     case 'qcdur': S.ui.draft.dur = Math.max(15, Math.min(480, S.ui.draft.dur + Number(el.dataset.d))); S.ui.draft.durSet = true; render(); return;

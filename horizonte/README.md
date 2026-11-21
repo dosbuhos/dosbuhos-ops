@@ -42,12 +42,19 @@ Hours shows the day as an agenda (v44): "Anytime" tasks on deck, then the schedu
 Boards, In review, Overdue and Settings live under the grid icon top-left. Tapping an empty slot in the grid opens Capture at that time.
 Past days list what did not get done, each with a "Today ›" button, and a "Move all to today" bar; dropping an Inbox task on a day stays in Hours on that day.
 
+## Phone Hours (v48)
+The phone's Hours screen is the hour grid, full height, opened at the now line. Nothing sits above it but fold rows (one 36px line each):
+"N from earlier days · Move all to today" (today only), "N unscheduled ▸" (expands to the quick-add row and the day's untimed tasks; tap
+the row when empty to add), and on past days "N not done · Move all to today" (open by default, so you can pull things forward).
+Done tasks fold under the unscheduled row. Untimed work is meant to be dragged in from Inbox or a board, so there is no on-deck list.
+Bottom bar: Inbox · Hours · Days · Weeks · More; More opens a sheet with Months, Quarters, Years and Horizons (also in the menu).
+
 ## Phone density spec
 One set of numbers for every phone screen (CSS under `.m`), so nothing is sized per screen:
 - Grid 4px. Screen gutters 14px. List gap 0 (rows touch, hairline dividers). Section gap 12px.
 - Type: screen title 17/700 (secondary 17/500 muted); row text 15/500; meta 12; micro 11; bottom bar 16/500, active 700. Line height 1.25.
 - Rows (v47): flat, not boxed — 40px min, padding 5/2/5/4, hairline bottom border, no radius or shadow; title clamped to 2 lines; tags inline at the right of the title (10px chips, max 2 + "+N"); meta 11px; the default 30m duration is not shown. Meetings stay solid colour blocks (radius 8). Checkbox box 20px inside a 44px hit area.
 - Controls: icon buttons 40×40 (44 hit area), text buttons 36px, segmented 36px; sheet buttons/fields 44px.
-- Hours: week strip letters 11 / numbers 15 in a 32px circle; quick-add row 40px; grid 60px per hour, 44px gutter with 11px labels.
+- Hours: week strip letters 11 / numbers 15 in a 32px circle; quick-add row 40px; grid 56px per hour, 36px gutter with 11px labels; fold rows 36px.
 - Floating + 52px; bottom bar 44px rows + safe area.
 Audit = screenshot every screen at 360/390/430, light and dark, and check: nothing overflows, no text spills its card, every tap target ≥36px visual / 44px hit, and the numbers above are the only ones in use.
