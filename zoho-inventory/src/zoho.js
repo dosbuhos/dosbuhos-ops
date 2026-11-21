@@ -135,3 +135,15 @@ export async function zohoList(env, recurso, pagina = 1) {
   const get = api(env, tok.value);
   return get(LISTAS[recurso], { page: String(Math.max(1, Number(pagina) || 1)), per_page: '200' });
 }
+
+// One sales order, trimmed to what a review needs: who it went to, what was in it, and whether it was invoiced and paid.
+export async function zohoOrder(env, id) {
+  if (!/^\d+$/.test(String(id))) throw new Error('Bad order id');
+  if (!tok.value || Date.now() > tok.until) tok = { value: await accessToken(env), until: Date.now() + 50 * 60000 };
+  const o = (await api(env, tok.value)('/salesorders/' + id)).salesorder || {};
+  const dir = (a) => (a ? [a.address, a.city, a.state].filter(Boolean).join(', ').replace(/\s+/g, ' ').trim() : '');
+  return { numero: o.salesorder_number, fecha: o.date, cliente: o.customer_name, vendedor: o.salesperson_name, referencia: o.reference_number || '', notas: (o.notes || '').slice(0, 200), estado: o.status,
+    envio: dir(o.shipping_address), facturacion: dir(o.billing_address), metodo: o.delivery_method || '', neto: o.sub_total, botellas: o.total_quantity,
+    lineas: (o.line_items || []).map((l) => ({ vino: l.group_name || l.name, cantidad: l.quantity, precio: l.rate })),
+    facturas: (o.invoices || []).map((f) => ({ numero: f.invoice_number, estado: f.status, saldo: f.balance, total: f.total })) };
+}
