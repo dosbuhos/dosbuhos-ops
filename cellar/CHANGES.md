@@ -20,6 +20,10 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-21 — Lab uploads: CO₂ disuelto, full parameter catalog, safer matching · v1.23.0
+- CO₂ disuelto is its own parameter (g/L; mg/L reports converted). The matcher works on whole words, so «CO2 disuelto» can no longer land in «Oxígeno disuelto»; plurals and abbreviations are understood («Ácidos volátiles», «Ac. Málico»); the longest match wins and qualifiers (molecular, probable, en mosto…) block loose matches. Catalog grows from 22 to 50 parameters: glucosa, fructosa, sacarosa, azúcares totales, densidad, extracto seco, AT titulable pH 8.2, alcohol probable, SO₂ molecular, cítrico, sórbico, antocianos, taninos, color, NH4/NOPA, acetaldehído, acetato de etilo, metanol, 4-EP/4-EG, K/Ca/Fe/Cu · Eric: San Lucas CO₂ was offered as dissolved oxygen; audit found every Uva y Vino VA («Ácidos volátiles») and the San Lucas malic had gone to the note instead of their columns · src/params.js, src/entries.js (matchParam, convertUnit)
+- Confirmar resultados: every value has a parameter picker and shows the name the lab printed, so a wrong match can be fixed before saving. Samples with any unknown parameter are no longer auto-saved; they wait for review · app/entries.js, app/entries.css
+
 ## 2026-11-18 — Work orders: the goal line shows in bold above the steps · v1.22.0
 - When a work order's text starts with its goal on its own line («ESTIMULAR LA MALOLÁCTICA: CALENTAR LA BBL 45»), Órdenes shows that line in bold and the steps under it; editing the steps keeps the goal line. Orders written without a separate first line look as before · Eric: you had to read the whole order to know what it was for · app/cellar-targets.html (goalOf, asgRowHtml, .asg-goal)
 

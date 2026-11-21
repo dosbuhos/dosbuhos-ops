@@ -102,7 +102,7 @@
       <div class="field"><label for="enNote">Notas / cata <span class="ed-hint">olor, sabor, lo que se vio, decisiones</span></label><textarea id="enNote" rows="4" maxlength="1500" placeholder="Ej.: TAMBO 01 LIMPIO, CÍTRICO. TAMBO 02 LIGERA CEBOLLA → NO TRASEGAR"></textarea></div>
       <div class="rs-lbl">Mediciones <span class="ed-hint">solo lo que se midió</span></div>
       <div class="en-grid">${core.map(p => paramBox(p)).join('')}</div>
-      <details class="en-more"><summary>Laboratorio completo (Uva y Vino)</summary>
+      <details class="en-more"><summary>Laboratorio completo</summary>
         <div class="en-grid">${more.map(p => paramBox(p)).join('')}</div>
         <div class="en-others"></div>
         <button type="button" class="btn sm" data-oadd>+ otro parámetro</button>
@@ -503,8 +503,9 @@
     try { x = await post('/api/labs/extract', { hash: L.hash }); }
     catch (e) { ov.innerHTML = `<div class="sheet"><h2>Subir lab</h2><div class="err">${esc(e.message)}</div><div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cerrar</button></div></div></div>`; $('[data-lclose]', ov).onclick = closeLab; return; }
     // Automatic: every sample Claude matched to a lot is saved right away (the server skips ones already saved from this file).
-    // Only samples it could not place are shown for review.
-    const auto = x.samples.filter(s => s.tab && !s.dup), rest = x.samples.filter(s => !s.tab && !s.dup);
+    // Samples it could not place, or with a parameter we don't know, are shown for review.
+    const clean = s => s.tab && !s.dup && !(s.extras || []).length;
+    const auto = x.samples.filter(clean), rest = x.samples.filter(s => !s.dup && !clean(s));
     let autoN = 0, autoTabs = [];
     if (auto.length) {
       try {
@@ -521,28 +522,38 @@
     x.samples = rest;
     L.x = x;
     const tabOpts = sel => `<option value="">— no guardar —</option>` + (x.tabs || []).map(t => `<option${t === sel ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    // One row per value: matched ones show our parameter, unknown ones «otro»; the crew can change either before saving.
+    const unitOf = k => (E.params.find(p => p.k === k) || {}).unit || '';
+    const rows = s => Object.entries(s.values || {}).map(([k, v]) => ({ k, v, src: (s.src || {})[k] ? 'en el reporte: ' + s.src[k] : '', unit: '' }))
+      .concat((s.extras || []).map(o => ({ k: '', v: o.value, src: o.name + (o.unit ? ' (' + o.unit + ')' : ''), name: o.name, unit: o.unit })));
+    const pOpts = k => `<option value="">Otro (a la nota)</option>` + E.params.filter(p => p.k !== 'voli' && p.k !== 'volf').map(p => `<option value="${esc(p.k)}"${p.k === k ? ' selected' : ''}>${esc(p.label)}${p.unit ? ' · ' + esc(p.unit) : ''}</option>`).join('');
     const card = (s, i) => {
-      const vals = Object.entries(s.values || {});
       return `<article class="en-sample${s.dup ? ' dup' : ''}" data-i="${i}">
         <header><b>${esc(s.label)}</b>${s.dup ? '<span class="en-dup">ya guardada</span>' : ''}</header>
         <div class="en-row2"><label>Lote / pestaña<select data-f="tab">${tabOpts(s.tab)}</select></label><label>Vasija<input data-f="ubi" value="${esc(s.ubi)}"></label><label>Muestreo<input data-f="sampled" type="date" value="${esc(s.sampled)}"></label></div>
-        <table class="en-vals"><tbody>${vals.map(([k, v]) => `<tr><th>${esc(label(k))}</th><td><input data-v="${esc(k)}" value="${esc(v)}"></td><td class="u">${esc((E.params.find(p => p.k === k) || {}).unit || '')}</td></tr>`).join('')}
-        ${(s.extras || []).map((o, j) => `<tr class="ex"><th>${esc(o.name)} <small>otro</small></th><td><input data-x="${j}" value="${esc(o.value)}"></td><td class="u">${esc(o.unit)}</td></tr>`).join('')}</tbody></table>
+        <table class="en-vals"><tbody>${rows(s).map((r, j) => `<tr${r.k ? '' : ' class="ex"'}><th><select data-pk="${j}" aria-label="Parámetro">${pOpts(r.k)}</select><small>${esc(r.src)}</small></th><td><input data-pv="${j}" value="${esc(r.v)}" inputmode="decimal"></td><td class="u" data-pu="${j}">${esc(r.k ? unitOf(r.k) : r.unit)}</td></tr>`).join('')}</tbody></table>
       </article>`;
     };
     ov.innerHTML = `<form class="sheet en-lab en-form" data-dirty="1" novalidate><h2>Confirmar resultados</h2>${XBTN}
       <div class="en-row2"><label>Laboratorio<input id="labName" value="${esc(x.lab || 'Uva y Vino')}"></label><label>Fecha del reporte<input id="labDate" type="date" value="${esc(x.report_date || '')}"></label></div>
-      <p class="en-hint">${autoN ? '<b>Ya se guardaron ' + autoN + ' automáticamente</b> (' + esc(autoTabs.join(', ')) + '). ' : ''}${x.samples.length} muestra${x.samples.length === 1 ? '' : 's'} sin lote claro. Revisa el lote y la vasija de cada una; las que dejes en «no guardar» no se guardan. Los parámetros que no conocemos se guardan como «otro».</p>
+      <p class="en-hint">${autoN ? '<b>Ya se ' + (autoN === 1 ? 'guardó 1 muestra' : 'guardaron ' + autoN + ' muestras') + ' automáticamente</b> (' + esc(autoTabs.join(', ')) + '). ' : ''}${x.samples.length === 1 ? '1 muestra por revisar' : x.samples.length + ' muestras por revisar'}: lote, vasija y que cada valor esté en el parámetro correcto (debajo dice cómo lo escribió el laboratorio). Lo que quede en «Otro» se guarda en la nota; las muestras en «no guardar» no se guardan.</p>
       ${x.samples.map(card).join('')}
       <div class="err" id="labErr" role="alert"></div>
-      <div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cancelar</button><button type="submit" class="btn primary" id="labSave">Guardar ${x.samples.filter(s => !s.dup).length} muestras</button></div></div></form>`;
+      <div class="actions"><span></span><div class="right"><button type="button" class="btn" data-lclose>Cancelar</button><button type="submit" class="btn primary" id="labSave">${(n => 'Guardar ' + n + (n === 1 ? ' muestra' : ' muestras'))(x.samples.filter(s => !s.dup).length)}</button></div></div></form>`;
     $('[data-lclose]', ov).onclick = closeLab;
+    $$('[data-pk]', ov).forEach(sel => sel.addEventListener('change', () => {
+      const tr = sel.closest('tr'), u = $('[data-pu]', tr), r = rows(L.x.samples[+sel.closest('.en-sample').dataset.i])[+sel.dataset.pk];
+      tr.classList.toggle('ex', !sel.value); u.textContent = sel.value ? unitOf(sel.value) : r.unit;
+    }));
     $('form', ov).addEventListener('submit', async e => {
       e.preventDefault();
       const samples = $$('.en-sample', ov).map(a => {
-        const s = L.x.samples[+a.dataset.i], values = {}, extras = (s.extras || []).map(o => Object.assign({}, o));
-        $$('[data-v]', a).forEach(i => { if (i.value.trim()) values[i.dataset.v] = i.value.trim(); });
-        $$('[data-x]', a).forEach(i => { extras[+i.dataset.x].value = i.value.trim(); });
+        const s = L.x.samples[+a.dataset.i], values = {}, extras = [], rs = rows(s);
+        $$('[data-pk]', a).forEach(sel => {
+          const j = +sel.dataset.pk, r = rs[j], v = $('[data-pv="' + j + '"]', a).value.trim(); if (!v) return;
+          if (sel.value && values[sel.value] == null) values[sel.value] = v;
+          else extras.push({ name: r.name || (E.params.find(p => p.k === r.k) || {}).label || r.k, value: v, unit: r.k ? unitOf(r.k) : r.unit });
+        });
         return { label: s.label, tab: $('[data-f="tab"]', a).value, ubi: $('[data-f="ubi"]', a).value, sampled: $('[data-f="sampled"]', a).value, values, extras: extras.filter(o => o.value) };
       });
       const btn = $('#labSave'); btn.disabled = true; btn.textContent = 'Guardando…';

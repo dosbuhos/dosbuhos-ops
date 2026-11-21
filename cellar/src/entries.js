@@ -107,13 +107,36 @@ Return ONE JSON object only, no prose:
 Include EVERY sample and EVERY parameter in the report, including ones you don't recognise. Do not convert units. Do not invent values; skip empty cells.
 Dates in the report are day/month/year.`;
 
-function matchParam(name) {
-  const f = fold(name);
-  for (const p of PARAMS) {
-    if (fold(p.label) === f || fold(p.h) === f) return p.k;
-    for (const a of p.aka || []) if (f === fold(a) || f.startsWith(fold(a) + ' ') || f.includes(fold(a)) && fold(a).length > 5) return p.k;
+// Lab parameter name → our key. Whole-word matching (so "CO2 disuelto" can never hit "O2 disuelto"), plurals folded
+// ("ácidos volátiles" = "acidez volátil"), and the longest alias wins across ALL parameters (so "Alcohol probable" beats
+// "Alcohol"). A partial match is refused when the lab name carries a qualifier the alias doesn't (molecular, probable, en mosto…).
+const QUAL = new Set(['molecular', 'probable', 'potencial', 'combinado', 'mosto', 'inicial', 'libre', 'total']);
+const stem = (w) => w === 'ac' ? 'acido' : /(les|res|nes)$/.test(w) && w.length > 5 ? w.slice(0, -2) : /s$/.test(w) && w.length > 3 ? w.slice(0, -1) : w;
+const toks = (s) => fold(s).split(' ').filter(Boolean).map(stem);
+const ALIASES = PARAMS.flatMap(p => [p.label, p.h, ...(p.aka || [])].map(a => ({ k: p.k, t: toks(a) })).filter(a => a.t.length));
+export function matchParam(name) {
+  const t = toks(name); if (!t.length) return null;
+  let best = null, score = 0;
+  for (const a of ALIASES) {
+    let at = -1;
+    for (let i = 0; i + a.t.length <= t.length && at < 0; i++) if (a.t.every((w, j) => t[i + j] === w)) at = i;
+    if (at < 0) continue;
+    const exact = a.t.length === t.length;
+    if (!exact && a.t.length === 1 && a.t[0].length <= 3 && at > 0) continue;   // "pH" inside "Acidez titulable (pH 8.2)" is not pH
+    if (!exact && t.some((w, i) => (i < at || i >= at + a.t.length) && QUAL.has(w) && !a.t.includes(w))) continue;
+    const sc = (exact ? 1000 : 0) + a.t.length * 10 + a.t.join(' ').length / 100;
+    if (sc > score) { score = sc; best = a.k; }
   }
-  return null;
+  return best;
+}
+// The lab's unit vs ours: convert only the unambiguous g/L ↔ mg/L case (e.g. CO₂ printed in mg/L).
+export function convertUnit(k, value, unit) {
+  const p = BY_K[k], u = fold(unit).replace(/\s/g, ''), n = Number(String(value).replace(',', '.'));
+  if (!p || !u || !Number.isFinite(n) || !/^[\d.,\s-]+$/.test(String(value))) return value;
+  const want = fold(p.unit).replace(/\s/g, '');
+  if (want === 'gl' && (u === 'mgl' || u === 'ppm')) return String(+(n / 1000).toFixed(4));
+  if (want === 'mgl' && u === 'gl') return String(+(n * 1000).toFixed(2));
+  return value;
 }
 // "L 11 Chenin TK + BBL 21 Dos Buhos" → tab "L11 - CB", vessel "TK + BBL 21".
 function matchSample(label, tabs) {
@@ -232,13 +255,14 @@ export async function entriesRoute(request, env, p, url, user) {
         const tabs = results.map(r => r.tab);
         const saved = (await list(env, 'labs')).filter(x => x.hash === b.hash).map(x => x.id);
         const samples = (out.samples || []).map(s => {
-          const values = {}, extras = [];
+          const values = {}, extras = [], src = {};
           for (const pr of s.params || []) {
             const k = matchParam(pr.name);
-            if (k && values[k] == null) values[k] = cleanVal(k, pr.value); else extras.push({ name: cell(pr.name), value: cell(pr.value), unit: cell(pr.unit) });
+            if (k && values[k] == null) { values[k] = cleanVal(k, convertUnit(k, pr.value, pr.unit)); src[k] = cell(pr.name) + (pr.unit ? ' (' + cell(pr.unit) + ')' : ''); }
+            else extras.push({ name: cell(pr.name), value: cell(pr.value), unit: cell(pr.unit) });
           }
           const mt = matchSample(s.label, tabs);
-          return { label: cell(s.label), sampled: s.sampled_date || out.sampled_date || '', tab: mt.tab, ubi: mt.ubi, values, extras, dup: saved.includes(labId(b.hash, s.label, mt.tab)) };
+          return { label: cell(s.label), sampled: s.sampled_date || out.sampled_date || '', tab: mt.tab, ubi: mt.ubi, values, src, extras, dup: saved.includes(labId(b.hash, s.label, mt.tab)) };
         });
         f.extracted = { lab: out.lab || '', report_date: out.report_date || '', n: samples.length, at: new Date().toISOString() };
         await put(env, 'labfiles', b.hash, f);

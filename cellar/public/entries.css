@@ -93,6 +93,10 @@
 .en-vals td input { width: 100%; min-height: 34px; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; box-sizing: border-box; background: var(--paper); color: inherit; }
 .en-vals td.u { color: var(--muted); font-size: 12px; padding-left: 6px; white-space: nowrap; }
 .en-vals tr.ex th { color: #5a4a8c; }
+.en-vals th select { width: 100%; min-height: 34px; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; background: var(--paper); color: inherit; }
+.en-vals th small { display: block; margin-top: 2px; font-size: 11.5px; overflow-wrap: anywhere; }
+.en-vals tr.ex th select { border-color: #5a4a8c; }
+.en-vals th { width: 58%; }
 .en-reports { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--rule); background: var(--paper); }
 .en-rh { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .en-rh h3 { margin: 0; }
