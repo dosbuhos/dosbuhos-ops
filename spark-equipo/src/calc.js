@@ -3,6 +3,10 @@
 
 export const GENTE = ['José Luis', 'Carlos', 'Daniel'];
 export const VENDEDORES = ['José Luis', 'Carlos'];
+// The house account: sales and prospecting Eric and Diane do themselves, under one shared name. It logs contacts and owns
+// orders like a rep, but has no contact goal, no rating, and stays out of the team's totals.
+export const CASA = 'Tito';
+export const PERSONAS = [...GENTE, CASA];
 export const META_DIA = 6; // logged client touches per working day
 // Rough time a logged contact takes, to turn a count into hours of work: a visit in person about an hour with the trip,
 // a call ten minutes, a message five. An estimate, shown as such.
@@ -40,7 +44,7 @@ const r0 = Math.round;
 const sc = (x, lo, hi) => Math.max(0, Math.min(1, (x - lo) / (hi - lo)));
 const cut = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s || '');
 
-export const vendedorDe = (s) => { s = String(s || '').trim(); return s.startsWith('Carlos') ? 'Carlos' : /^Jos[eé] Luis/.test(s) ? 'José Luis' : null; };
+export const vendedorDe = (s) => { s = String(s || '').trim(); return s === CASA ? CASA : s.startsWith('Carlos') ? 'Carlos' : /^Jos[eé] Luis/.test(s) ? 'José Luis' : null; };
 // A client touch: any CRM row except internal work.
 export const esContacto = (r) => !['Otro', 'Administrativo', 'Junta interna'].includes(r.actividad) && r.tipo !== 'Interno' && !/^interno/i.test(r.cuenta || '');
 
@@ -57,7 +61,15 @@ export function matcher(alias) {
 // Invoiced totals per client and year. Owner = salesperson on the client's latest invoice since last year.
 export function clientesPorAno(invoices, hoy) {
   const y = Number(hoy.slice(0, 4)), md = hoy.slice(5);
-  const inv = invoices.filter((x) => !['void', 'draft'].includes(x.estado) && x.total >= 1 && esFecha(x.fecha) && propia(x.cliente)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+  const todas = invoices.filter((x) => !['void', 'draft'].includes(x.estado) && x.total >= 1 && esFecha(x.fecha) && propia(x.cliente)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+  // House sales are carved out order by order: they never decide whose client it is and never add to a rep's client totals.
+  // They are listed apart, as the house's own clients.
+  const inv = todas.filter((x) => vendedorDe(x.vendedor) !== CASA), casa = new Map();
+  for (const x of todas.filter((x) => vendedorDe(x.vendedor) === CASA)) {
+    const a = casa.get(x.cliente_id) || { cliente: x.cliente, vendedor: CASA, a2: 0, a1: 0, a0: 0, a1_mp: 0, ultima: '' }, yr = Number(x.fecha.slice(0, 4));
+    if (yr === y) a.a0 += x.total; else if (yr === y - 1) { a.a1 += x.total; if (x.fecha.slice(5) <= md) a.a1_mp += x.total; } else if (yr === y - 2) a.a2 += x.total;
+    if (x.fecha > a.ultima) a.ultima = x.fecha; casa.set(x.cliente_id, a);
+  }
   const owner = new Map();
   for (const x of inv) { const v = vendedorDe(x.vendedor); if (v && x.fecha >= (y - 1) + '-01-01') owner.set(x.cliente_id, v); }
   const g = new Map();
@@ -69,7 +81,7 @@ export function clientesPorAno(invoices, hoy) {
     a.cliente = x.cliente; if (x.fecha > a.ultima) a.ultima = x.fecha;
     g.set(x.cliente_id, a);
   }
-  return [...g.values()].map((a) => ({ cliente: a.cliente, vendedor: a.vendedor, antepasado: r0(a.a2), pasado: r0(a.a1), pasado_mp: r0(a.a1_mp), actual: r0(a.a0),
+  return [...g.values(), ...casa.values()].map((a) => ({ cliente: a.cliente, vendedor: a.vendedor, antepasado: r0(a.a2), pasado: r0(a.a1), pasado_mp: r0(a.a1_mp), actual: r0(a.a0),
     cambio_pct: a.a1_mp > 0 ? r0((a.a0 - a.a1_mp) / a.a1_mp * 1000) / 10 : null, ultima_factura: a.ultima }))
     .sort((a, b) => (b.pasado + b.actual) - (a.pasado + a.actual));
 }
@@ -82,7 +94,7 @@ export function metricasPedidos(ordenes, hoy) {
   const por = new Map();
   for (const o of ordenes.slice().sort((a, b) => (a.fecha < b.fecha ? -1 : 1))) {
     const c = por.get(o.cliente) || { cliente: o.cliente, vendedor: o.vendedor, fechas: [], total_12m: 0 };
-    c.vendedor = o.vendedor;                                                          // the latest order decides whose client it is
+    if (o.vendedor !== CASA || c.vendedor === CASA) c.vendedor = o.vendedor;           // the latest order decides whose client it is; a carved-out house sale does not take a rep's client
     if (c.fechas[c.fechas.length - 1] !== o.fecha) c.fechas.push(o.fecha);           // two orders the same day count as one purchase
     if (diff(o.fecha, hoy) <= 365) c.total_12m += o.total;
     por.set(o.cliente, c);
@@ -122,13 +134,13 @@ export function copeoEnNotas(contactos) {
   return [...out.values()];
 }
 
-export function build({ activity, orders, invoices, alias, zonasCfg, prospectos, hoy }) {
+export function build({ activity, orders, invoices, alias, zonasCfg, prospectos, distribuidores = [], hoy }) {
   const match = matcher(alias);
   const actual = lunes(hoy);
-  const act = activity.filter((r) => esFecha(r.fecha) && GENTE.includes(r.persona));
+  const act = activity.filter((r) => esFecha(r.fecha) && PERSONAS.includes(r.persona));
   const contactos = act.filter(esContacto).map((r) => ({ ...r, semana: lunes(r.fecha), min: minutosDe(r), min_real: Number(r.minutos) > 0 })).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
   const ordenes = orders.filter((o) => o.estado !== 'void' && o.total >= 1 && vendedorDe(o.vendedor) && esFecha(o.fecha) && propia(o.cliente))
-    .map((o) => ({ fecha: o.fecha, semana: lunes(o.fecha), orden: o.numero, cliente: o.cliente, vendedor: vendedorDe(o.vendedor), total: o.total, facturacion: o.facturacion, pago: o.pago }))
+    .map((o) => ({ fecha: o.fecha, semana: lunes(o.fecha), orden: o.numero, cliente: o.cliente, vendedor: vendedorDe(o.vendedor), total: o.total, facturacion: o.facturacion, pago: o.pago, ...(o.vendedor_zoho !== undefined ? { en_zoho: vendedorDe(o.vendedor_zoho) || 'sin vendedor' } : {}) }))
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
   // Eric's own accounts, from sales orders: this year, last year to the same date, and the last order.
   const y0 = hoy.slice(0, 4), y1 = String(Number(y0) - 1), md = hoy.slice(5);
@@ -151,10 +163,10 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   const semanas = [];
   for (let w = primera; w <= actual; w = masDias(w, 7)) {
     const habiles = w === actual ? Math.min(5, diff(w, hoy) + 1) : 5, meta = META_DIA * habiles;
-    for (const v of GENTE) {
+    for (const v of PERSONAS) {
       const c = contactos.filter((r) => r.semana === w && r.persona === v), o = ordenes.filter((r) => r.semana === w && r.vendedor === v), n = c.length;
-      semanas.push({ semana: w, persona: v, en_curso: w === actual, meta, contactos: n,
-        veredicto: w < (inicio[v] || '9999') ? 'Sin datos' : n === 0 ? (w > fin[v] ? 'Pendiente' : 'En cero') : n >= meta ? 'Productiva' : n >= meta / 2 ? 'A medias' : 'Floja',
+      semanas.push({ semana: w, persona: v, en_curso: w === actual, meta: v === CASA ? 0 : meta, contactos: n,
+        veredicto: v === CASA ? (n || o.length ? 'Casa' : 'Sin datos') : w < (inicio[v] || '9999') ? 'Sin datos' : n === 0 ? (w > fin[v] ? 'Pendiente' : 'En cero') : n >= meta ? 'Productiva' : n >= meta / 2 ? 'A medias' : 'Floja',
         cuentas: new Set(c.map((r) => norm(r.cuenta))).size, ...esfuerzo(c, habiles),
         prospeccion: c.filter((r) => r.actividad === 'Prospección').length, cobranza: c.filter((r) => r.actividad === 'Cobranza').length,
         catas: c.filter((r) => ['Cata / prueba de vino', 'Capacitación', 'Evento'].includes(r.actividad)).length,
@@ -164,7 +176,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
 
   // ---- Top clients: last contact vs sales ----
   const cobertura = [];
-  for (const v of VENDEDORES) {
+  for (const v of [...VENDEDORES, CASA]) {
     for (const c of clientes.filter((x) => x.vendedor === v).slice(0, 15)) {
       const hits = contactos.filter((r) => match(r.cuenta, c.cliente) || (norm(c.cliente).length >= 5 && norm(r.resultado).includes(norm(c.cliente))));
       const last = hits[0], d = last ? diff(last.fecha, hoy) : null;
@@ -185,7 +197,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
 
   // ---- This month's orders ----
   const ym = hoy.slice(0, 7), delMes = ordenes.filter((o) => o.fecha.slice(0, 7) === ym);
-  const mes = VENDEDORES.map((v) => {
+  const mes = [...VENDEDORES, CASA].map((v) => {
     const l = delMes.filter((o) => o.vendedor === v);
     return { vendedor: v, total: r0(sum(l, (o) => o.total)), ordenes: l.length, clientes: new Set(l.map((o) => o.cliente)).size,
       sin_facturar: r0(sum(l.filter((o) => o.facturacion !== 'invoiced'), (o) => o.total)),
@@ -224,7 +236,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   const meses = [];
   for (const m of [...new Set(semanas.map((w) => w.semana.slice(0, 7)))].sort()) {
     const enMes = contactos.filter((r) => r.fecha.slice(0, 7) === m);
-    for (const v of GENTE) {
+    for (const v of PERSONAS) {
       const ws = semanas.filter((w) => w.semana.slice(0, 7) === m && w.persona === v && w.veredicto !== 'Sin datos');
       const c = enMes.filter((r) => r.persona === v), o = ordenes.filter((r) => r.fecha.slice(0, 7) === m && r.vendedor === v);
       const descuidados = v === 'Daniel' ? [] : clientes.filter((x) => x.vendedor === v).slice(0, 15).filter((x) => x.cambio_pct !== null && x.cambio_pct < -20)
@@ -239,8 +251,8 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
       // Working days of the month so far, from the person's first logged week on.
       let habiles = 0;
       for (let d = m + '-01'; d.slice(0, 7) === m && d <= hoy; d = masDias(d, 1)) if (d >= (inicio[v] || '9999') && ![0, 6].includes(new Date(d + 'T00:00:00Z').getUTCDay())) habiles++;
-      const meta = META_DIA * habiles, nc = c.length;
-      const nivel = !ws.length ? 'Sin datos' : nc === 0 ? (m > (fin[v] || '').slice(0, 7) ? 'Pendiente' : 'En cero') : nc >= meta ? 'Productivo' : nc >= meta / 2 ? 'A medias' : 'Flojo';
+      const meta = v === CASA ? 0 : META_DIA * habiles, nc = c.length;
+      const nivel = v === CASA ? (ws.length ? 'Casa' : 'Sin datos') : !ws.length ? 'Sin datos' : nc === 0 ? (m > (fin[v] || '').slice(0, 7) ? 'Pendiente' : 'En cero') : nc >= meta ? 'Productivo' : nc >= meta / 2 ? 'A medias' : 'Flojo';
       meses.push({ mes: m, persona: v, en_curso: m === hoy.slice(0, 7), meta, veredicto: nivel, ...esfuerzo(c, habiles), catas: c.filter((r) => ['Cata / prueba de vino', 'Capacitación', 'Evento'].includes(r.actividad)).length, cobranza: c.filter((r) => r.actividad === 'Cobranza').length, semanas: ws.length, pendientes: n('Pendiente'), productivas: n('Productiva'), a_medias: n('A medias'), flojas: n('Floja'), en_cero: cero.length, semanas_en_cero: cero.map((w) => w.semana),
         contactos: c.length, cuentas: new Set(c.map((r) => norm(r.cuenta))).size, prospeccion: c.filter((r) => r.actividad === 'Prospección').length,
         ventas: v === 'Daniel' ? null : r0(sum(o, (r) => r.total)), ordenes: v === 'Daniel' ? null : o.length, descuidados, promesas: [...promesas.values()] });
@@ -262,11 +274,39 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
       estado: z.zona === 'bajio' || ratio >= 0.8 ? 'Fuerte' : (z.n_dist === 0 || ratio < 0.1) ? 'Sin presencia' : 'Presencia débil' };
   }).sort((a, b) => b.brecha - a.brecha);
   const tipoDe = (p) => (/cliente/i.test(p.tipo) ? 'cliente' : /distribu|br[oó]ker/i.test(p.tipo) ? 'dist' : /retail|tienda|autoservicio|vinater|departament/i.test(p.tipo) ? 'tienda' : 'horeca');
+  // Prospects: the researched list per zone, merged with the distributor list Carlos keeps (his file: who he reached, when,
+  // what they said, who turned us down). A contact logged in the CRM counts too; the most recent of the two wins.
+  const dist = distribuidores.map((d) => ({ ...d, k: norm(d.nombre).replace(/\(.*?\)/g, '').trim() })), usados = new Set();
+  const avanceDe = (d, ult) => (d.grupo === 'Rechazada' ? 'Rechazado' : d.grupo === 'En proceso' || ult ? 'En proceso' : 'Por contactar');
+  const unir = (p, d, last) => {
+    const crm = last ? last.fecha : '', arch = d ? d.ultimo || '' : '', ult = crm > arch ? crm : arch;
+    return { ...p, ultimo_contacto: ult || null, dias: ult ? diff(ult, hoy) : null, contacto_por: ult ? (crm >= arch && last ? last.persona : 'Carlos') : '',
+      avance: d ? avanceDe(d, ult) : ult ? 'En proceso' : 'Sin contactar', de_carlos: !!d,
+      contacto: d ? d.contacto : '', telefono: d ? d.telefono : '', email: d ? d.email : '', status: d ? d.status : '', paso: d ? d.avance : '', siguiente: d ? d.comentarios : (last ? last.siguiente_paso || '' : '') };
+  };
   const prospectosCRM = prospectos.map((p) => {
     const keys = String(p.claves || '').split('|').map(norm).filter((k) => k.length >= 3);
     const last = contactos.find((r) => keys.some((k) => norm(r.cuenta).includes(k)));
-    return { zona: p.zona, nombre: p.nombre, tipo: p.tipo, clase: tipoDe(p), ciudades: p.ciudades, razon: p.razon, estado: p.estado, fuente: p.fuente, ultimo_contacto: last ? last.fecha : null, contacto_por: last ? last.persona : '' };
+    const d = dist.find((x) => x.zona === p.zona && !usados.has(x) && keys.some((k) => x.k.includes(k) || (x.k.length >= 5 && k.includes(x.k))));
+    if (d) usados.add(d);
+    return unir({ zona: p.zona, nombre: p.nombre, tipo: p.tipo, clase: tipoDe(p), ciudades: p.ciudades, razon: p.razon, estado: p.estado, fuente: p.fuente }, d, last);
   });
+  for (const d of dist) {
+    if (usados.has(d)) continue;
+    const last = contactos.find((r) => d.k.length >= 4 && norm(r.cuenta).includes(d.k));
+    prospectosCRM.push(unir({ zona: d.zona, nombre: d.nombre, tipo: d.tipo || 'Distribuidor', clase: tipoDe({ tipo: d.tipo || 'Distribuidor' }), ciudades: d.plaza, razon: '', estado: 'Lista de Carlos', fuente: '' }, d, last));
+  }
+  // How much of each zone's list has actually been worked.
+  zonas = zonas.map((z) => { const L = prospectosCRM.filter((p) => p.zona === z.zona && p.clase !== 'cliente');
+    return { ...z, prospectos: L.length, en_proceso: L.filter((p) => p.avance === 'En proceso').length, rechazados: L.filter((p) => p.avance === 'Rechazado').length,
+      sin_contactar: L.filter((p) => !p.ultimo_contacto).length, ultimo_prospecto: L.reduce((m, p) => (p.ultimo_contacto && p.ultimo_contacto > m ? p.ultimo_contacto : m), '') }; });
+  // Carlos's open distributors join his follow-up list when the CRM has no contact for them, dated as in his file.
+  for (const d of dist) {
+    if (d.grupo !== 'En proceso' || !d.ultimo || seguimiento.some((r) => r.persona === 'Carlos' && d.k.length >= 4 && norm(r.cuenta).includes(d.k))) continue;
+    seguimiento.push({ cuenta: d.nombre, persona: 'Carlos', ultimo_contacto: d.ultimo, dias_sin_contacto: diff(d.ultimo, hoy), proximo: null, dias_vencido: 0, estado: 'sin fecha', etapa: '',
+      ultima_nota: [d.plaza, d.status, d.avance, d.comentarios].filter(Boolean).join(' · '), de_archivo: true });
+  }
+  seguimiento.sort((a, b) => b.dias_sin_contacto - a.dias_sin_contacto);
 
   // ---- Effectiveness ----
   const corte = masDias(hoy, -30);
@@ -341,7 +381,7 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
 
   // ---- Pipeline: where each account stands, from the stage on its latest CRM entry ----
   const FASES = ['Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'];
-  const embudo = GENTE.map((v) => ({ persona: v, fases: FASES.map((f) => { const L = seguimiento.filter((r) => r.persona === v && r.estado !== 'cerrada' && r.etapa === f); return { fase: f, n: L.length, cuentas: L.map((r) => r.cuenta) }; }),
+  const embudo = PERSONAS.map((v) => ({ persona: v, fases: FASES.map((f) => { const L = seguimiento.filter((r) => r.persona === v && r.estado !== 'cerrada' && r.etapa === f); return { fase: f, n: L.length, cuentas: L.map((r) => r.cuenta) }; }),
     sin_fase: seguimiento.filter((r) => r.persona === v && r.estado !== 'cerrada' && !FASES.includes(r.etapa)).length }));
 
   return { hoy, semana_actual: actual, directorio, embudo, semanas, contactos, ordenes, clientes, cobertura, seguimiento, mes, foco, meses, zonas, prospectos: prospectosCRM, efectividad, pedidos: pedidos.resumen, copeo: copeoEnNotas(contactos), eric };

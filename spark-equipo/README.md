@@ -63,3 +63,11 @@ npm test
 - `src/data/alias.json`: first load of the Zoho ↔ CRM name table (then it lives in D1 `alias`)
 - `HEREDADAS` and `DIST_DANIEL` in `src/calc.js`: inherited accounts and Daniel's distributors
 - `esInterno` and `DE_ERIC` in `src/calc.js`: house and sample accounts (nobody's sales) and Eric's own accounts (La Competencia Imports), reported apart
+
+## The house account and whose sale it is
+- `Tito` (`CASA` in `src/calc.js`) is the shared house account for sales and prospecting Eric and Diane do themselves. It logs contacts and owns orders like a rep, has no contact goal or rating, and is left out of the team totals. It is the fourth person chip; an admin with no rep identity logs contacts as Tito by default.
+- `asignaciones` (migration 0007) credits one order (`tipo = 'orden'`, by order number) or a whole account (`tipo = 'cuenta'`) to someone other than the salesperson on the Zoho order. Applied in `modelo()` before the calculations; Zoho is not changed. Admins set it with "Reasignar" in Semanas y meses → Qué vendieron (`POST /api/admin/asignar`). A carved-out house order leaves the client with its rep and is listed as a house client for that amount.
+
+## Carlos's distributor list
+- `src/data/prospeccion_carlos.json` is generated from his file "Prospeccion distribuidores 2026" (received 21 Nov 2026): name, plaza, zone, contact, status, last contact date, and group (En proceso / Rechazada / Por contactar). It does not update itself; regenerate it when he sends a new file.
+- `build()` merges it into the prospects of Zonas y prospectos (matched to the researched list by zone and name, the rest added), counts worked prospects per zone, and adds his open distributors to his Seguimiento list when the CRM has no contact for them. Those rows carry `de_archivo` and do not count as logged contacts.

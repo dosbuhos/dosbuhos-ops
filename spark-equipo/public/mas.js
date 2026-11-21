@@ -208,15 +208,4 @@ function estrategia() {
       h('span', { class: 'note' }, vis('estrategia', e), ' ', quitar('estrategia', e)))))) : h('p', { class: 'note' }, admin ? 'Sin documentos todavía. Por ahora se agregan como liga (Drive o PDF); nacen visibles solo para administradores.' : 'Dirección no ha compartido documentos aquí.'));
 }
 
-// Carlos's own distributor prospecting list (from his file), shown under the map.
-export function prospeccionCarlos() {
-  const P = D().prosp_carlos || [], f = S.pcF || 'En proceso', L = P.filter((p) => p.grupo === f), K = { 'En proceso': 'warn', 'Por contactar': 'mute', Rechazada: 'bad' };
-  if (!P.length) return null;
-  return [h('h2', {}, 'Distribuidores que Carlos está trabajando'), h('p', { class: 'note' }, 'De su archivo de avance al 13 de noviembre. Todavía no se actualiza solo.'),
-    chips(['En proceso', 'Por contactar', 'Rechazada'].map((g) => [g, `${g} (${P.filter((p) => p.grupo === g).length})`]), f, (v) => { S.pcF = v; }),
-    h('div', { class: 'card', style: 'margin-top:8px' }, lista('pc', L, 10, (p) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, p.nombre), pill(p.grupo, K[p.grupo])), h('div', { class: 'l2' }, [p.plaza, p.tipo, p.contacto, p.telefono, p.email].filter(Boolean).join(' · ')), h('div', { class: 'l2' }, [p.status, p.avance, p.comentarios].filter(Boolean).join(' · '))), 'Ninguno.',
-      [{ t: 'Prospecto', v: (p) => p.nombre, s: (p) => p.nombre.toLowerCase(), cls: 'b' }, { t: 'Plaza', v: (p) => p.plaza, s: (p) => p.plaza }, { t: 'Tipo', v: (p) => p.tipo, s: (p) => p.tipo }, { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—' },
-        { t: 'Estado', v: (p) => p.status || '—', cls: 'mut' }, { t: 'Avance', v: (p) => p.avance || '—', cls: 'mut' }, { t: 'Siguiente', v: (p) => p.comentarios || '—', cls: 'mut' }, { t: 'Último contacto', v: (p) => (p.ultimo ? dia(p.ultimo) : '?'), s: (p) => p.ultimo || null, cls: 'nw' }]))];
-}
-
 export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, comunicaciones, estrategia };

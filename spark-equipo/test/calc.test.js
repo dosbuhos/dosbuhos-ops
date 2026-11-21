@@ -147,3 +147,20 @@ test('client book: contact details come from the notes, and "NA" is not a contac
   const d = base({ orders: [o], invoices: [o], activity: act, alias: [{ cliente: 'Atrio', claves: 'atrio' }] }).directorio[0];
   assert.deepEqual([d.nombre, d.contacto, d.telefono, d.email, d.vendedor], ['Atrio', 'Luis', '415 688 1405', 'luis@atrio.mx', 'José Luis']);
 });
+
+test('a house sale is carved out of the rep, and Carlos\'s distributor file marks prospects as contacted', () => {
+  const o = (numero, fecha, cliente, vendedor, total) => ({ id: numero, numero, fecha, cliente_id: cliente, cliente, vendedor, total, estado: 'fulfilled', facturacion: 'invoiced', pago: 'paid' });
+  const orders = [o('A1', '2026-07-01', 'Cliente Uno', 'José Luis Zamora', 1000), o('A2', '2026-10-07', 'Cliente Uno', 'Tito', 5000)];
+  const distribuidores = [{ nombre: 'HEB', zona: 'noreste', plaza: 'Monterrey', tipo: 'Cadena Autoservicio', grupo: 'Rechazada', ultimo: '2026-10-14', status: 'No cataloga este año', avance: '', comentarios: '', contacto: '', telefono: '', email: '' },
+    { nombre: 'Distribuidor Nuevo', zona: 'golfo', plaza: 'Veracruz', tipo: 'Distribuidor', grupo: 'En proceso', ultimo: '2026-08-27', status: 'Buscando contacto', avance: '', comentarios: '', contacto: '', telefono: '', email: '' }];
+  const m = base({ orders, invoices: orders, distribuidores });
+  const uno = m.clientes.filter((c) => c.cliente === 'Cliente Uno');
+  assert.deepEqual(uno.map((c) => [c.vendedor, c.actual]).sort(), [['José Luis', 1000], ['Tito', 5000]]);
+  assert.equal(m.mes.some((r) => r.vendedor === 'Tito'), true);
+  assert.equal(m.semanas.filter((w) => w.persona === 'Tito').every((w) => w.meta === 0), true);
+  const heb = m.prospectos.find((p) => p.nombre === 'HEB');
+  assert.equal(heb.avance, 'Rechazado'); assert.equal(heb.ultimo_contacto, '2026-10-14'); assert.equal(heb.contacto_por, 'Carlos');
+  assert.equal(m.prospectos.length, prospectos.length + 1);
+  assert.equal(m.seguimiento.some((r) => r.cuenta === 'Distribuidor Nuevo' && r.persona === 'Carlos' && r.de_archivo), true);
+  assert.equal(m.zonas.find((z) => z.zona === 'golfo').en_proceso >= 1, true);
+});

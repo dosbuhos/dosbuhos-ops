@@ -1,4 +1,4 @@
-import { MAS_VISTAS, prospeccionCarlos } from './mas.js';
+import { MAS_VISTAS } from './mas.js';
 
 // Spark Equipo — phone-first UI. Every figure comes computed from /api/data; this file only lays it out.
 const $ = (id) => document.getElementById(id);
@@ -144,7 +144,7 @@ function preguntas() {
 // What a count means day to day: contacts per working day against the goal of 6, and roughly how many hours of work it is.
 // The hours are an estimate (a visit ≈ 1 h with the trip, a call ≈ 10 min, a message ≈ 5 min).
 function ritmo(r, detalle) {
-  if (!r.contactos || !r.habiles) return null;
+  if (!r.contactos || !r.habiles || !r.meta) return null;
   const k = r.por_dia >= 6 ? 'ok' : r.por_dia >= 3 ? 'warn' : 'bad', pd = r.por_dia === 1 ? '1 contacto' : `${r.por_dia} contactos`;
   const partes = [r.presencial && `${r.presencial} ${r.presencial === 1 ? 'visita' : 'visitas'} × 1 h`, r.llamadas && `${r.llamadas} ${r.llamadas === 1 ? 'llamada' : 'llamadas'} × 10 min`, r.mensajes && `${r.mensajes} ${r.mensajes === 1 ? 'mensaje' : 'mensajes'} × 5 min`].filter(Boolean).join(' · ');
   return h('div', { class: 'ritmo ' + k },
@@ -161,6 +161,11 @@ function equipo(filas, cuando) {
     hb ? ` · ${Math.round(c / hb / filas.length * 10) / 10} por persona al día` : '', ` · ${peso(v)} vendidos`);
 }
 const chips = (opts, cur, set) => h('div', { class: 'chips' }, opts.map(([v, t]) => h('button', { class: 'chip', 'aria-pressed': String(cur === v), onclick: () => { set(v); pintar(); } }, t)));
+// Admins: credit an order to someone other than the salesperson on the Zoho order (a house sale, a sale keyed under the wrong rep).
+const reasignar = (r) => h('button', { class: 'linkb', onclick: () => formulario(`${r.orden} · ${r.cliente}`, [
+  { k: 'vendedor', t: 'Esta venta es de', tipo: 'select', ops: ['José Luis', 'Carlos', ['Tito', 'Tito (casa: Eric y Diane)'], r.en_zoho ? ['', `Como está en Zoho (${r.en_zoho})`] : null].filter(Boolean), v: r.vendedor },
+  { k: 'nota', t: 'Por qué', ph: 'Quién la vendió en realidad' }],
+  (v) => enviar('api/admin/asignar', { tipo: 'orden', clave: r.orden, vendedor: v.vendedor, nota: v.nota }), `${peso(r.total)} · ${dia(r.fecha)}. Solo cambia Spark; la orden en Zoho queda igual.`) }, 'Reasignar');
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
 
 export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, pintar, cargar, ir };
@@ -175,8 +180,8 @@ const VISTAS = {
       const ul = (rows) => h('ul', { class: 'foco' }, rows.map((f) => h('li', { class: f.tipo }, h('button', { onclick: () => ir(f.vista, p) }, f.titulo), f.detalle ? h('span', {}, f.detalle) : null)));
       const todo = items.filter((f) => f.tipo !== 'bien'), bien = items.filter((f) => f.tipo === 'bien');
       return h('section', { class: 'card' },
-        h('div', { class: 'name' }, p, w ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : null),
-        w ? h('div', {}, h('span', { class: 'num' }, `${w.contactos} / ${w.meta}`), h('span', { class: 'note' }, ' contactos esta semana')) : null,
+        h('div', { class: 'name' }, p, w && w.meta ? pill(w.veredicto === 'Pendiente' ? 'Pendiente de registrar' : w.veredicto, KIND[w.veredicto]) : p === 'Tito' ? pill('Casa', 'mute') : null),
+        w ? h('div', {}, h('span', { class: 'num' }, w.meta ? `${w.contactos} / ${w.meta}` : String(w.contactos)), h('span', { class: 'note' }, w.meta ? ' contactos esta semana' : ' contactos esta semana · sin meta')) : p === 'Tito' ? h('p', { class: 'note' }, 'Cuenta de la casa: ventas y prospección de Eric y Diane. Sin meta de contactos.') : null,
         w ? ritmo(w) : null,
         (D.preguntas || []).some((q) => !q.respondida && q.para === p) ? h('p', { class: 'note' }, h('button', { class: 'linkb', onclick: () => ir('pendientes', p) }, ((n) => (n === 1 ? 'Tienes 1 pregunta pendiente de Eric' : `Tienes ${n} preguntas pendientes de Eric`))((D.preguntas || []).filter((q) => !q.respondida && q.para === p).length))) : null,
         h('h3', {}, 'Enfócate en'), todo.length ? ul(todo) : h('p', { class: 'note' }, 'Sin pendientes urgentes.'),
@@ -203,9 +208,9 @@ const VISTAS = {
         h('button', { 'aria-label': 'Semana siguiente', disabled: i >= todas.length - 1, onclick: () => set(todas[i + 1]) }, '›')));
     // One card per person for the period: gauge, what the count means per day, and the breakdown.
     const tarjeta = (r, p) => h('section', { class: 'card' },
-      h('div', { class: 'name' }, p, pill(vtxt(r), KIND[r.veredicto])),
-      gauge(r.contactos, r.meta, `${p}: ${r.contactos} de ${r.meta} contactos`),
-      h('div', { style: 'text-align:center' }, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, ` de ${r.meta} contactos`)),
+      h('div', { class: 'name' }, p, r.meta ? pill(vtxt(r), KIND[r.veredicto]) : pill('Casa · sin meta', 'mute')),
+      r.meta ? gauge(r.contactos, r.meta, `${p}: ${r.contactos} de ${r.meta} contactos`) : null,
+      h('div', { style: 'text-align:center' }, h('span', { class: 'num' }, r.contactos), h('span', { class: 'note' }, r.meta ? ` de ${r.meta} contactos` : ' contactos')),
       ritmo(r, true),
       h('div', { class: 'kv', style: 'margin-top:10px' },
         r.ventas != null ? [h('span', {}, esMes ? 'Ventas del mes' : 'Ventas de la semana'), h('b', {}, `${peso(r.ventas)} · ${r.ordenes} órd.`)] : null,
@@ -222,9 +227,10 @@ const VISTAS = {
         { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio },
         { t: 'Tiempo', v: tiempo, s: (r) => r.min, num: true }, { t: 'Resultado', v: (r) => r.resultado, cls: 'mut' }]));
     const tablaOrd = (ords, vacio) => (ps.some((p) => p !== 'Daniel') ? [h('h2', {}, 'Qué vendieron'),
-      h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null].filter(Boolean).join(' · '))), vacio,
+      h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null, r.en_zoho ? `en Zoho: ${r.en_zoho}` : null].filter(Boolean).join(' · '), D.yo.admin ? [' · ', reasignar(r)] : null)), vacio,
         [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, { t: 'Cliente', v: (r) => r.cliente, s: (r) => r.cliente.toLowerCase(), cls: 'b' }, { t: 'Orden', v: (r) => r.orden, cls: 'mut' },
-          ps.length > 1 && { t: 'Vendedor', v: (r) => r.vendedor, s: (r) => r.vendedor }, { t: 'Total', v: (r) => peso(r.total), s: (r) => r.total, num: true }]))] : null);
+          { t: 'Vendedor', v: (r) => [r.vendedor, r.en_zoho ? h('div', { class: 'note' }, `en Zoho: ${r.en_zoho}`) : null], s: (r) => r.vendedor }, { t: 'Total', v: (r) => peso(r.total), s: (r) => r.total, num: true },
+          D.yo.admin && { t: '', v: reasignar, cls: 'nw' }]))] : null);
     // Week blocks; `solo` limits them to a list of weeks (the month view shows that month's weeks).
     const semaforo = (ult) => {
       const heat = h('div', { class: 'heat', style: `grid-template-columns:auto repeat(${ult.length},minmax(0,1fr))` });
@@ -235,6 +241,7 @@ const VISTAS = {
         for (const x of ult) {
           const r = semDe(x, p);
           if (!r || r.veredicto === 'Sin datos') { heat.append(h('span', { class: 'h' }, '–')); continue; }
+          if (r.veredicto === 'Casa') { heat.append(h('button', { class: !esMes && x === w ? 'cur' : '', style: 'background:var(--rule);color:var(--text)', 'aria-label': `${p}, semana del ${dia(x)}: ${r.contactos} contactos`, onclick: () => set(x) }, r.contactos)); continue; }
           heat.append(h('button', { class: (r.contactos ? '' : r.veredicto === 'Pendiente' ? 'pend' : 'zero') + (!esMes && x === w ? ' cur' : ''), style: r.contactos ? `background:var(--${KIND[r.veredicto]})` : null,
             'aria-label': `${p}, semana del ${dia(x)}: ${r.contactos} contactos, ${r.veredicto}`, onclick: () => set(x) }, r.contactos));
         }
@@ -266,7 +273,7 @@ const VISTAS = {
       h('div', { class: 'grid3' }, filas.map((r) => tarjeta(r, r.persona))),
       h('h2', {}, 'Semáforo'), semaforo(todas.slice(-NW)),
       h('h2', {}, 'Tendencia'),
-      h('div', { class: 'grid3' }, ps.map((p) => tendencia(p, D.semanas.filter((r) => r.persona === p && r.veredicto !== 'Sin datos').slice(-NW)))),
+      h('div', { class: 'grid3' }, ps.filter((p) => p !== 'Tito').map((p) => tendencia(p, D.semanas.filter((r) => r.persona === p && r.veredicto !== 'Sin datos').slice(-NW)))),
       h('p', { class: 'note' }, 'Línea: contactos por semana sobre las franjas verde (30+), ámbar (15–29) y roja. Barras: ventas de esa semana.'),
       h('h2', {}, 'A quién contactaron'), tablaCont(D.contactos.filter((r) => r.semana === w && ps.includes(r.persona)).slice().reverse(), 'Sin contactos registrados esta semana.'),
       tablaOrd(D.ordenes.filter((r) => r.semana === w && ps.includes(r.vendedor)).slice().reverse(), 'Sin órdenes esta semana.'));
@@ -295,6 +302,7 @@ const VISTAS = {
       h('div', { class: 'card' }, lista('seg', seg, 10, (r) => h('li', puede(r.persona) ? toca(() => registrar(r)) : {},
         h('div', { class: 'l1' }, h('span', {}, r.cuenta), est(r)),
         r.pausa ? h('div', { class: 'l2' }, pausado(r)) : null,
+        r.de_archivo ? h('div', { class: 'l2' }, pill('Del archivo de Carlos, sin registro en el CRM', 'mute')) : null,
         h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, `Último contacto ${dia(r.ultimo_contacto)} (${r.dias_sin_contacto} días)`, r.proximo ? `próximo ${dia(r.proximo)}` : null].filter(Boolean).join(' · ')),
         r.ultima_nota ? h('div', { class: 'l2' }, r.ultima_nota.slice(0, 160)) : null,
         r.sugerencia ? h('div', { class: 'sug' }, h('b', {}, 'Siguiente paso: '), r.sugerencia) : null,
@@ -401,6 +409,7 @@ const VISTAS = {
   zonas() {
     const COL = { Fuerte: 'var(--ok)', 'Presencia débil': 'var(--warn)', 'Sin presencia': 'var(--bad)' }, K = { Fuerte: 'ok', 'Presencia débil': 'warn', 'Sin presencia': 'bad' };
     const byZ = new Map(D.zonas.map((z) => [z.zona, z])), cur = byZ.get(S.zona);
+    const prosZ = (z) => `Prospectos: ${z.prospectos - z.sin_contactar} de ${z.prospectos} contactados · ${z.en_proceso} en proceso · ${z.rechazados} rechazados` + (z.ultimo_prospecto ? ` · último contacto ${dia(z.ultimo_prospecto)}` : ' · ningún contacto');
     const map = h('div', { class: 'card' });
     estados().then((E) => {
       // Plain Mercator; good enough at Mexico's size.
@@ -419,38 +428,52 @@ const VISTAS = {
       map.replaceChildren(el, h('p', { class: 'note', style: 'margin:8px 0 0' }, S.zona ? h('button', { class: 'chip', onclick: () => { S.zona = ''; pintar(); } }, '← Ver todo México') : 'Toca una zona para acercarte y ver sus prospectos.'));
     }).catch(() => map.replaceChildren(h('p', { class: 'note' }, 'No se pudo cargar el mapa.')));
     const ord = new Map(D.zonas.map((z, i) => [z.zona, i])), kO = { dist: 0, tienda: 1, horeca: 2, cliente: 3 };
-    const pros = D.prospectos.filter((p) => (!S.zona || p.zona === S.zona) && (!S.clase || p.clase === S.clase || (S.clase === 'dist' && /distribu/i.test(p.tipo)) || (S.clase === 'tienda' && /retail|tienda/i.test(p.tipo))))
+    const base = D.prospectos.filter((p) => !S.zona || p.zona === S.zona), nA = (a) => base.filter((p) => p.avance === a).length;
+    const AV = { 'En proceso': 'warn', Rechazado: 'bad', 'Por contactar': 'mute', 'Sin contactar': 'mute' };
+    const av = (p) => pill(p.clase === 'cliente' && !p.de_carlos ? p.estado : p.avance, p.clase === 'cliente' && !p.de_carlos ? 'ok' : AV[p.avance]);
+    const cuando = (p) => (p.ultimo_contacto ? `${dia(p.ultimo_contacto)} (hace ${p.dias} días) · ${p.contacto_por}` : 'Nunca contactado');
+    const tocar = (p) => registrar({ cuenta: p.nombre, actividad: 'Prospección', ultimo_contacto: p.ultimo_contacto, dias_sin_contacto: p.dias, ultima_nota: [p.status, p.paso, p.siguiente].filter(Boolean).join(' · '), persona: S.persona || D.yo.persona || 'Tito' });
+    const okAv = (p) => (!S.avance || (S.avance === 'nunca' ? !p.ultimo_contacto : S.avance === 'frio' ? p.avance !== 'Rechazado' && p.dias > 30 : p.avance === S.avance));
+    const pros = D.prospectos.filter((p) => okAv(p) && (!S.zona || p.zona === S.zona) && (!S.clase || p.clase === S.clase || (S.clase === 'dist' && /distribu/i.test(p.tipo)) || (S.clase === 'tienda' && /retail|tienda/i.test(p.tipo))))
       .sort((a, b) => (ord.get(a.zona) - ord.get(b.zona)) || (kO[a.clase] - kO[b.clase]));
     return h('div', {},
       cur ? h('h2', {}, cur.nombre) : null,
       h('div', { class: 'mapwide' }, map),
       h('div', {},
-      cur ? h('div', { class: 'card' }, h('div', { class: 'name' }, cur.nombre, pill(cur.estado, K[cur.estado])), h('p', {}, `${cur.peso}% del mercado y ${cur.pct_ventas}% de nuestras ventas: ${peso(cur.ventas)} este año con ${cur.clientes_activos} clientes activos. ` + (cur.brecha ? `Al ritmo de Caribe vendería ${peso(cur.potencial)}; la brecha es ${peso(cur.brecha)}.` : 'Va al ritmo de nuestras mejores zonas.')), h('p', { class: 'note' }, cur.distribuidores || 'Sin distribuidor')) : null,
+      cur ? h('div', { class: 'card' }, h('div', { class: 'name' }, cur.nombre, pill(cur.estado, K[cur.estado])), h('p', {}, `${cur.peso}% del mercado y ${cur.pct_ventas}% de nuestras ventas: ${peso(cur.ventas)} este año con ${cur.clientes_activos} clientes activos. ` + (cur.brecha ? `Al ritmo de Caribe vendería ${peso(cur.potencial)}; la brecha es ${peso(cur.brecha)}.` : 'Va al ritmo de nuestras mejores zonas.')), h('p', { class: 'note' }, cur.distribuidores || 'Sin distribuidor'), h('p', { class: 'note' }, prosZ(cur))) : null,
       !cur ? [h('h2', {}, 'Ranking de oportunidad'),
         h('div', { class: 'card' }, lista('rank', D.zonas, 9, (z) => h('li', { onclick: () => { S.zona = z.zona; pintar(); window.scrollTo(0, 0); }, style: 'cursor:pointer' },
           h('div', { class: 'l1' }, h('span', {}, `${z.brecha ? D.zonas.indexOf(z) + 1 + '. ' : ''}${z.nombre}`), pill(z.estado, K[z.estado])),
           h('div', { class: 'l2' }, `${z.peso}% del mercado · ${peso(z.ventas)} vendidos · ` + (z.brecha ? `brecha ${peso(z.brecha)}` : 'sin brecha')),
-          h('div', { class: 'l2' }, z.distribuidores || 'Sin distribuidor')), 'Sin zonas.',
+          h('div', { class: 'l2' }, z.distribuidores || 'Sin distribuidor'), h('div', { class: 'l2' }, prosZ(z))), 'Sin zonas.',
           [{ t: 'Zona', v: (z) => h('button', { class: 'linkb', onclick: () => { S.zona = z.zona; pintar(); window.scrollTo(0, 0); } }, z.nombre), s: (z) => z.nombre, cls: 'b' },
             { t: 'Estado', v: (z) => pill(z.estado, K[z.estado]), s: (z) => z.estado, cls: 'nw' }, { t: '% del mercado', v: (z) => z.peso + '%', s: (z) => z.peso, num: true },
             { t: 'Vendido este año', v: (z) => peso(z.ventas), s: (z) => z.ventas, num: true }, { t: 'Potencial', v: (z) => peso(z.potencial), s: (z) => z.potencial, num: true },
             { t: 'Brecha', v: (z) => (z.brecha ? peso(z.brecha) : 'sin brecha'), s: (z) => z.brecha, num: true }, { t: 'Clientes activos', v: (z) => z.clientes_activos, s: (z) => z.clientes_activos, num: true },
+            { t: 'Prospectos trabajados', v: (z) => `${z.prospectos - z.sin_contactar} de ${z.prospectos}`, s: (z) => (z.prospectos ? (z.prospectos - z.sin_contactar) / z.prospectos : 0), num: true },
+            { t: 'Último contacto a un prospecto', v: (z) => (z.ultimo_prospecto ? dia(z.ultimo_prospecto) : 'Nunca'), s: (z) => z.ultimo_prospecto || null, cls: 'nw' },
             { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', cls: 'mut' }]))] : null),
       !cur && (D.eric || []).length ? [h('h2', {}, 'Fuera de México'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, D.eric.map((e) => h('li', {},
         h('div', { class: 'l1' }, h('span', {}, `${e.cliente} · ${e.lugar}`), h('span', {}, peso(e.actual))),
         h('div', { class: 'l2' }, `Cuenta de Eric, no de un vendedor. ${peso(e.pasado_mp)} a la misma fecha del año pasado · ${e.pedidos_12m} pedidos en 12 meses · último ${dia(e.ultima)}.`)))))] : null,
       h('h2', {}, 'Prospectos'),
-      chips([['', 'Todos'], ['dist', 'Distribuidores'], ['tienda', 'Tiendas'], ['horeca', 'Restaurantes y hoteles'], ['cliente', 'Clientes actuales']], S.clase, (v) => { S.clase = v; }),
-      h('div', { class: 'card', style: 'margin-top:8px' }, lista('pros', pros, 10, (p) => h('li', {},
-        h('div', { class: 'l1' }, h('span', {}, p.nombre), pill(p.estado, p.estado === 'Prospecto nuevo' ? 'mute' : p.estado === 'Reactivar' ? 'bad' : 'warn')),
+      h('p', { class: 'note' }, `${base.length} en la lista: ${nA('En proceso')} en proceso, ${nA('Sin contactar') + nA('Por contactar')} sin contactar, ${nA('Rechazado')} rechazados. Incluye la lista de distribuidores de Carlos (su archivo del 21 de noviembre) y lo registrado en Spark. Toca uno para registrar un contacto.`),
+      h('div', { class: 'toolbar' }, chips([['', 'Todos'], ['dist', 'Distribuidores'], ['tienda', 'Tiendas'], ['horeca', 'Restaurantes y hoteles'], ['cliente', 'Clientes actuales']], S.clase, (v) => { S.clase = v; }),
+        h('select', { 'aria-label': 'Avance', onchange: (e) => { S.avance = e.target.value; pintar(); } }, [['', 'Cualquier avance'], ['En proceso', 'En proceso'], ['nunca', 'Sin contactar'], ['frio', 'Contactados hace más de 30 días'], ['Rechazado', 'Rechazados']].map(([v, t]) => h('option', { value: v, selected: (S.avance || '') === v }, t)))),
+      h('div', { class: 'card', style: 'margin-top:8px' }, lista('pros', pros, 10, (p) => h('li', toca(() => tocar(p)),
+        h('div', { class: 'l1' }, h('span', {}, p.nombre), av(p)),
         h('div', { class: 'l2' }, [S.zona ? null : (byZ.get(p.zona) || {}).nombre, p.tipo, p.ciudades].filter(Boolean).join(' · ')),
-        h('div', { class: 'l2' }, p.razon),
-        h('div', { class: 'l2' }, p.ultimo_contacto ? `Último contacto ${dia(p.ultimo_contacto)} · ${p.contacto_por}` : 'Nunca contactado', p.fuente ? [' · ', h('a', { href: p.fuente, target: '_blank', rel: 'noopener' }, 'fuente')] : null)), 'Sin prospectos con este filtro.',
-        [{ t: 'Prospecto', v: (p) => (p.fuente ? h('a', { href: p.fuente, target: '_blank', rel: 'noopener' }, p.nombre) : p.nombre), s: (p) => p.nombre.toLowerCase(), cls: 'b' }, !S.zona && { t: 'Zona', v: (p) => (byZ.get(p.zona) || {}).nombre, s: (p) => p.zona },
-          { t: 'Tipo', v: (p) => p.tipo, s: (p) => p.tipo }, { t: 'Ciudades', v: (p) => p.ciudades, cls: 'mut' }, { t: 'Por qué', v: (p) => p.razon, cls: 'mut' },
-          { t: 'Estado', v: (p) => pill(p.estado, p.estado === 'Prospecto nuevo' ? 'mute' : p.estado === 'Reactivar' ? 'bad' : 'warn'), s: (p) => p.estado, cls: 'nw' },
-          { t: 'Último contacto', v: (p) => (p.ultimo_contacto ? `${dia(p.ultimo_contacto)} · ${p.contacto_por}` : 'Nunca'), s: (p) => p.ultimo_contacto || null, cls: 'nw' }])),
-      prospeccionCarlos(),
+        p.razon ? h('div', { class: 'l2' }, p.razon) : null,
+        p.status || p.paso ? h('div', { class: 'l2' }, [p.status, p.paso].filter(Boolean).join(' · ')) : null,
+        p.contacto || p.telefono || p.email ? h('div', { class: 'l2' }, [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ')) : null,
+        h('div', { class: 'l2' }, cuando(p), p.siguiente ? ` · Siguiente: ${p.siguiente}` : '', p.fuente ? [' · ', h('a', { href: p.fuente, target: '_blank', rel: 'noopener' }, 'fuente')] : null)), 'Sin prospectos con este filtro.',
+        [{ t: 'Prospecto', v: (p) => [p.fuente ? h('a', { href: p.fuente, target: '_blank', rel: 'noopener' }, p.nombre) : p.nombre, h('div', { class: 'note' }, [p.tipo, p.ciudades].filter(Boolean).join(' · '))], s: (p) => p.nombre.toLowerCase(), cls: 'b' },
+          !S.zona && { t: 'Zona', v: (p) => (byZ.get(p.zona) || {}).nombre, s: (p) => p.zona },
+          { t: 'Avance', v: av, s: (p) => p.avance, cls: 'nw' },
+          { t: 'Último contacto', v: cuando, s: (p) => p.ultimo_contacto || null, cls: 'nw' },
+          { t: 'Qué pasó', v: (p) => [p.status, p.paso].filter(Boolean).join(' · ') || p.razon || '—', cls: 'mut' },
+          { t: 'Siguiente', v: (p) => p.siguiente || '—', cls: 'mut' },
+          { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—', cls: 'mut' }], tocar)),
       h('p', { class: 'note' }, 'El peso de cada zona es una estimación: 65% economía (PIB estatal, INEGI) y 35% turismo (cuartos de hotel, DataTur). Ventas facturadas en Zoho a clientes de Carlos y José Luis.'));
   },
 
@@ -503,7 +526,7 @@ function pintar() {
     v === 'pendientes' && nPend ? h('span', { class: 'cnt', 'aria-label': `${nPend} sin responder` }, nPend) : prox ? h('span', { class: 'soon' }, 'Pronto') : null);
   $('titulo').textContent = yo[2];
   $('sub').textContent = new Date(D.hoy + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-  $('who').replaceChildren(...(!SIN_FILTRO.includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel']].map(([v, t]) =>
+  $('who').replaceChildren(...(!SIN_FILTRO.includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel'], ['Tito', 'Tito · casa']].map(([v, t]) =>
     h('button', { class: 'chip', 'aria-pressed': String(S.persona === v), onclick: () => { S.persona = v; pintar(); } }, t)) : []));
   $('nuevo').hidden = !(D.yo.persona || admin) || !['hoy', 'semanas', 'seguimiento'].includes(S.vista);
   $('nav').replaceChildren(...visibles.flatMap(([g, L]) => [h('h3', {}, g), ...L.map(boton)]));
@@ -538,11 +561,11 @@ const enviar = async (url, body) => { const r = await api(url, body); if (r.erro
 // Log a contact from the app. It lands in the same table the CRM sheet feeds, so it shows up everywhere at once.
 // pre: { cuenta, persona, ultimo_contacto, dias_sin_contacto, ultima_nota, sugerencia, pausa } when opened from an account row.
 function registrar(pre) {
-  const quien = pre.persona || S.persona || D.yo.persona || 'José Luis', cuentas = [...new Set(D.seguimiento.map((r) => r.cuenta))].sort((a, b) => a.localeCompare(b));
+  const quien = pre.persona || S.persona || D.yo.persona || 'Tito', cuentas = [...new Set(D.seguimiento.map((r) => r.cuenta))].sort((a, b) => a.localeCompare(b));
   const hoy = D.hoy || new Date(Date.now() - 6 * 3600e3).toISOString().slice(0, 10);
   const antes = pre.ultimo_contacto ? `Último contacto registrado: ${dia(pre.ultimo_contacto)} (hace ${pre.dias_sin_contacto} días).` + (pre.ultima_nota ? ' "' + pre.ultima_nota.slice(0, 180) + '"' : '') : pre.cuenta ? 'Sin contacto registrado todavía.' : '';
   formulario(pre.cuenta || 'Registrar contacto', [
-    D.yo.admin ? { k: 'persona', t: 'A nombre de', tipo: 'select', ops: ['José Luis', 'Carlos', 'Daniel'], v: quien } : null,
+    D.yo.admin ? { k: 'persona', t: 'A nombre de', tipo: 'select', ops: ['José Luis', 'Carlos', 'Daniel', ['Tito', 'Tito (casa: Eric y Diane)']], v: quien } : null,
     pre.cuenta ? null : { k: 'cuenta', t: 'Cuenta', req: true, ph: 'Nombre del cliente o prospecto', lista: cuentas },
     { k: 'fecha', t: 'Cuándo fue', tipo: 'date', v: hoy, max: hoy, req: true, mitad: true },
     { k: 'medio', t: 'Cómo', tipo: 'select', ops: ['Presencial', 'Llamada', 'WhatsApp', 'Correo'], v: 'Presencial', mitad: true },

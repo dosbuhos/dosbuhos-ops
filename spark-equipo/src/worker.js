@@ -2,7 +2,7 @@
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
-import { build, paraVer, hoyEn, GENTE, norm } from './calc.js';
+import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm } from './calc.js';
 import { sugerir } from './ai.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet, sheetEmail } from './sheets.js';
@@ -38,10 +38,14 @@ async function modelo(env, conActividad) {
   // Time the reps corrected on sheet rows (kept apart because the sheet copy is replaced on every sync).
   const tiempos = new Map((await all('SELECT * FROM tiempos')).map((t) => [`${t.persona}|${t.fecha}|${t.clave}|${t.actividad}`, t.minutos]));
   for (const r of activity) if (!r.minutos) { const t = tiempos.get(`${r.persona}|${r.fecha}|${norm(r.cuenta)}|${r.actividad || ''}`); if (t) r.minutos = t; }
+  // Sales credited to someone other than the salesperson on the Zoho order: a single order, or every order of an account.
+  const asig = await all('SELECT * FROM asignaciones'), porOrden = new Map(asig.filter((a) => a.tipo === 'orden').map((a) => [a.clave, a.vendedor])), porCuenta = new Map(asig.filter((a) => a.tipo === 'cuenta').map((a) => [norm(a.clave), a.vendedor]));
+  for (const o of orders) { const v = porOrden.get(o.numero) || porCuenta.get(norm(o.cliente)); if (v) { o.vendedor_zoho = o.vendedor; o.vendedor = v; } }
   // No invoice copy (the Zoho token can't read invoices): an invoiced sales order stands in for its invoice, dated as the order.
   const inv = invoices.length ? invoices : orders.filter((o) => ['invoiced', 'partially_invoiced'].includes(o.facturacion))
     .map((o) => ({ id: o.id, fecha: o.fecha, cliente_id: o.cliente_id, cliente: o.cliente, vendedor: o.vendedor, total: o.total, estado: o.estado }));
-  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, hoy: hoyEn(env.TZ) });
+  const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos, distribuidores: prospCarlos, hoy: hoyEn(env.TZ) });
+  m.asignaciones = asig;
   return conActividad ? { m, activity } : m;
 }
 
@@ -102,7 +106,7 @@ export default {
       return json({ ...m, sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
     }
     const cuerpo = async () => request.json().catch(() => ({})), txt = (v, n = 300) => String(v ?? '').trim().slice(0, n), HOY = hoyEn(env.TZ);
-    const quienEs = (b) => (yo.admin && GENTE.includes(b.persona) ? b.persona : yo.persona);
+    const quienEs = (b) => (yo.admin && PERSONAS.includes(b.persona) ? b.persona : yo.persona);
     // A contact logged in the app. Kept apart from the sheet copy (origen 'app'), so a sheet sync never removes it.
     if (p === '/api/actividad' && request.method === 'POST') {
       const b = await cuerpo(), persona = quienEs(b);
@@ -117,7 +121,7 @@ export default {
     }
     // Time a contact really took (corrects the estimate).
     if (p === '/api/tiempo' && request.method === 'POST') {
-      const b = await cuerpo(), persona = yo.admin && GENTE.includes(b.persona) ? b.persona : yo.persona, min = Math.round(Number(b.minutos));
+      const b = await cuerpo(), persona = yo.admin && PERSONAS.includes(b.persona) ? b.persona : yo.persona, min = Math.round(Number(b.minutos));
       if (!persona || (!yo.admin && b.persona && b.persona !== yo.persona)) return json({ error: 'Solo puedes corregir tus propios contactos' }, 403);
       if (!(min > 0 && min <= 600) || !/^\d{4}-\d\d-\d\d$/.test(b.fecha || '') || !txt(b.cuenta)) return json({ error: 'Pon los minutos (1 a 600)' }, 400);
       await env.DB.prepare('INSERT INTO tiempos (persona, fecha, clave, actividad, minutos) VALUES (?,?,?,?,?) ON CONFLICT(persona, fecha, clave, actividad) DO UPDATE SET minutos = excluded.minutos').bind(persona, b.fecha, norm(b.cuenta), txt(b.actividad, 40), min).run();
@@ -195,13 +199,23 @@ export default {
       return json({ ok: true });
     }
     if (p === '/api/admin/sync' && request.method === 'POST') return json(await sync(env, url.searchParams.get('solo')));
-    if (p === '/api/admin/people' && request.method === 'GET') return json({ people: (await env.DB.prepare('SELECT * FROM people ORDER BY persona, email').all()).results, gente: GENTE, correo_hoja: await sheetEmail(env).catch(() => '') });
+    // Credit an order (or a whole account) to someone else, or put it back the way Zoho has it.
+    if (p === '/api/admin/asignar' && request.method === 'POST') {
+      const b = await cuerpo(), tipo = b.tipo === 'cuenta' ? 'cuenta' : 'orden', clave = txt(b.clave, 160);
+      if (!clave) return json({ error: 'Falta la orden o la cuenta' }, 400);
+      if (!b.vendedor) await env.DB.prepare('DELETE FROM asignaciones WHERE tipo = ? AND clave = ?').bind(tipo, clave).run();
+      else if (![...VENDEDORES, CASA].includes(b.vendedor)) return json({ error: 'Elige a quién se le acredita' }, 400);
+      else await env.DB.prepare('INSERT INTO asignaciones (tipo, clave, vendedor, nota, por, creado) VALUES (?,?,?,?,?,?) ON CONFLICT(tipo, clave) DO UPDATE SET vendedor = excluded.vendedor, nota = excluded.nota, por = excluded.por, creado = excluded.creado')
+        .bind(tipo, clave, b.vendedor, txt(b.nota, 300), yo.nombre || yo.email, HOY).run();
+      return json({ ok: true });
+    }
+    if (p === '/api/admin/people' && request.method === 'GET') return json({ people: (await env.DB.prepare('SELECT * FROM people ORDER BY persona, email').all()).results, gente: PERSONAS, correo_hoja: await sheetEmail(env).catch(() => '') });
     if (p === '/api/admin/people' && request.method === 'POST') {
       const b = await request.json().catch(() => ({}));
       const email = String(b.email || '').trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'Correo inválido' }, 400);
       if (b.borrar) { await env.DB.prepare('DELETE FROM people WHERE email = ?').bind(email).run(); return json({ ok: true }); }
-      const rol = b.rol === 'admin' ? 'admin' : 'rep', persona = GENTE.includes(b.persona) ? b.persona : null;
+      const rol = b.rol === 'admin' ? 'admin' : 'rep', persona = PERSONAS.includes(b.persona) ? b.persona : null;
       if (rol === 'rep' && !persona) return json({ error: 'Elige a quién corresponde' }, 400);
       await env.DB.prepare('INSERT INTO people (email, persona, rol) VALUES (?,?,?) ON CONFLICT(email) DO UPDATE SET persona=excluded.persona, rol=excluded.rol').bind(email, persona, rol).run();
       return json({ ok: true });
