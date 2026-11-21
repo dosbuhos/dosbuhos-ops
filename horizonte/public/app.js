@@ -416,11 +416,11 @@ function cardHTML(t, opts = {}) {
   const hl = !done && t.color; // highlighted task: coloured left bar + faint wash (meetings are solid; targets show a star; independent signals)
   const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : '', run ? 'running' : '', opts.late && !done ? 'late' : ''].join(' ');
   const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
-  const meta = run ? '' : opts.meta ?? (done ? (t.spent ? fmtDur(t.dur || 30) : '') : pri === 'someday' && !t.when ? 'Someday' : fmtDur(t.dur || 30) + (t.spent ? ` · ${fmtDur(t.spent)} logged` : ''));
+  const meta = run ? '' : opts.meta ?? (done ? (t.spent ? fmtDur(t.dur || 30) : '') : pri === 'someday' && !t.when ? 'Someday' : (t.dur && t.dur !== 30 ? fmtDur(t.dur) : '') + (t.spent ? `${t.dur && t.dur !== 30 ? ' · ' : ''}${fmtDur(t.spent)} logged` : ''));
   const live_ = run ? `<span class="meta live"><i></i><span data-timer="${t.id}">${fmtClock(elapsedSec(t))}</span></span>` : '';
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
-<div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}</span>` : ''}</div>
+<div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}${taskTags(t).length > 2 ? `<span class="more">+${taskTags(t).length - 2}</span>` : ''}</span>` : ''}</div>
 ${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }

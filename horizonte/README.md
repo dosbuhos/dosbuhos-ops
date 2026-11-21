@@ -44,10 +44,10 @@ Past days list what did not get done, each with a "Today ›" button, and a "Mov
 
 ## Phone density spec
 One set of numbers for every phone screen (CSS under `.m`), so nothing is sized per screen:
-- Grid 4px. Screen gutters 14px. List gap 6px. Section gap 12px.
+- Grid 4px. Screen gutters 14px. List gap 0 (rows touch, hairline dividers). Section gap 12px.
 - Type: screen title 17/700 (secondary 17/500 muted); row text 15/500; meta 12; micro 11; bottom bar 16/500, active 700. Line height 1.25.
-- Rows: 44px min; card padding 7/10/7/12, radius 10; checkbox box 20px inside a 44px hit area.
+- Rows (v47): flat, not boxed — 40px min, padding 5/2/5/4, hairline bottom border, no radius or shadow; title clamped to 2 lines; tags inline at the right of the title (10px chips, max 2 + "+N"); meta 11px; the default 30m duration is not shown. Meetings stay solid colour blocks (radius 8). Checkbox box 20px inside a 44px hit area.
 - Controls: icon buttons 40×40 (44 hit area), text buttons 36px, segmented 36px; sheet buttons/fields 44px.
-- Hours: week strip letters 11 / numbers 15 in a 32px circle; quick-add row 44px; grid 60px per hour, 44px gutter with 11px labels.
+- Hours: week strip letters 11 / numbers 15 in a 32px circle; quick-add row 40px; grid 60px per hour, 44px gutter with 11px labels.
 - Floating + 52px; bottom bar 44px rows + safe area.
 Audit = screenshot every screen at 360/390/430, light and dark, and check: nothing overflows, no text spills its card, every tap target ≥36px visual / 44px hit, and the numbers above are the only ones in use.

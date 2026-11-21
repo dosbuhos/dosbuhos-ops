@@ -537,6 +537,7 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 :root[data-theme=dark] .tag.c-pink { --tc: #F472B6; }
 :root[data-theme=dark] .tag.c-grey { --tc: #9CA3AF; }
 .card .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.card .tags .more { display: none; } .m .mm .card .tags .more { display: inline; }
 .m .tag { font-size: 12px; line-height: 20px; }
 .tagpick, .tagstrip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tagpick .tag, .tagstrip .tag { cursor: pointer; line-height: 24px; padding: 0 10px; font-size: 12px; opacity: 0.6; }
@@ -613,3 +614,34 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .gaprow span:first-child { flex: 0 0 48px; }
 .m .gaprow span:last-child { flex: 1; text-align: center; font-size: 11px; color: var(--ink-3); border-top: 1px dashed var(--line-2); padding-top: 3px; }
 .m .mtop .plain[aria-pressed=true] { color: var(--sun-ink); }
+
+/* Phone lists are flat rows (v47): hairline dividers instead of boxed cards, tags inline on the title line,
+   titles clamped to two lines. A one-line row is 40px; a tagged one-line row is still 40px. */
+.m .mm { gap: 0; }
+.m .mm > * + *:not(.card):not(.arow):not(.gaprow):not(.nowrow) { margin-top: 6px; }
+.m .mm > .eyebrow.gap, .m .mm > .card + .eyebrow, .m .mm > .arow + .eyebrow { margin-top: 12px; }
+.m .mm > .eyebrow + .card, .m .mm > .eyebrow + .arow, .m .mm > .qadd + .card { margin-top: 2px; }
+.m .mm .card:not(.meeting) { min-height: 40px; gap: 8px; padding: 5px 2px 5px 4px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.m .mm .card:not(.meeting):hover { box-shadow: none; }
+.m .mm .card.someday { border-bottom-style: dashed; border-bottom-color: var(--line-2); }
+.m .mm .card.late { border-bottom-color: color-mix(in srgb, var(--warn) 45%, var(--line-2)); }
+.m .mm .card.running { box-shadow: none; }
+.m .mm .card.running .box { border-color: var(--sun); }
+.m .mm .card.hl { border-left: 4px solid var(--mt); padding-left: 8px; border-radius: 0; background: color-mix(in srgb, var(--mt) 7%, transparent); }
+.m .mm .card::before { left: -2px; top: 6px; bottom: 6px; }
+.m .mm .card .ck { margin: -10px -10px -10px -14px; }
+.m .mm .card .body { flex-direction: row; align-items: center; gap: 6px; }
+.m .mm .card .t { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.m .mm .card .sub { flex: none; max-width: 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.m .mm .card .tags { flex: none; display: flex; flex-wrap: nowrap; gap: 3px; margin-top: 0; max-width: 42%; overflow: hidden; align-items: center; }
+.m .mm .card .tags .tag { font-size: 10px; line-height: 16px; padding: 0 5px; max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
+.m .mm .card .tags .tag:nth-child(n+3) { display: none; }
+.m .mm .card .tags .more { font-size: 10px; line-height: 16px; color: var(--ink-3); flex: none; }
+.m .mm .card .meta { font-size: 11px; max-width: 30%; }
+.m .mm .card.meeting { margin: 2px 0; border-radius: 8px; min-height: 40px; padding: 5px 10px 5px 12px; }
+.m .mm .card.meeting + .card.meeting { margin-top: 2px; }
+.m .mm .arow + .arow .card.meeting { margin: 2px 0; }
+.m .mm .arow .card.meeting { margin: 2px 0; }
+.m .mm .card.done { opacity: 0.5; }
+.m .qadd { min-height: 40px; gap: 20px; }
+.m .mm .rowlink { margin-top: 0; }
