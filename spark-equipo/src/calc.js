@@ -30,7 +30,8 @@ export const deEric = (cliente) => DE_ERIC.find((e) => e.patron.test(cliente || 
 const propia = (cliente) => !esInterno(cliente);
 const vend = (x) => (deEric(x.cliente) ? CASA : vendedorDe(x.vendedor));
 // Accounts handed to each rep when they started (per Eric, 20 Nov 2026). Shown apart in Efectividad.
-export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', 'VIÑA DEL MAR CANCÚN'], 'Carlos': ['Cactus Wine', 'LIZA STIKER', 'VENTANAS AL PARAISO'] };
+// Accounts opened by Ángeles Sánchez (she sold them until February 2025) and handed over already buying.
+export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', 'VIÑA DEL MAR CANCÚN', 'VI&A DEL MAR', 'HIPERVINOS'], 'Carlos': ['Cactus Wine', 'LIZA STIKER', 'VENTANAS AL PARAISO'] };
 // Daniel's distributors as they appear in Zoho (LIZA STIKER = Acuyo).
 export const DIST_DANIEL = ['Vivid Distribución', 'Grandes Viñedos de Francia', 'LIZA STIKER'];
 

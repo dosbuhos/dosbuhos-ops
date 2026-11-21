@@ -34,7 +34,7 @@ const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: nul
 
 // Every screen, grouped the way the sidebar shows them. [slug, sidebar label, page title, admin only, coming soon]
 const GRUPOS = [
-  ['Mi trabajo', [['hoy', 'Inicio', 'Inicio'], ['buzon', 'Buzón', 'Buzón'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['semanas', 'Semanas y meses', 'Semanas y meses']]],
+  ['Mi trabajo', [['hoy', 'Inicio', 'Inicio'], ['buzon', 'Buzón', 'Buzón'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero']]],
   ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
   ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
   ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
@@ -518,7 +518,7 @@ const VISTAS = {
             { t: 'Suele pedir cada', v: (c) => c.cada_dias + ' días', s: (c) => c.cada_dias, num: true }, { t: 'Pedidos 12 meses', v: (c) => c.pedidos_12m, s: (c) => c.pedidos_12m, num: true }, { t: 'Vendido 12 meses', v: (c) => peso(c.total_12m), s: (c) => c.total_12m, num: true }])),
         h('h3', {}, 'Año contra año')] : [];
       return [h('h2', {}, v),
-        h('p', { class: 'note' }, `${peso(t('actual'))} este año contra ${peso(t('pasado_mp'))} a la misma fecha del año pasado (`, h('span', { class: ch >= 0 ? 'up' : 'down' }, pct(ch)), ').'),
+        h('p', { class: 'note' }, `${peso(t('actual'))} este año contra ${peso(t('pasado_mp'))} a la misma fecha del año pasado (`, h('span', { class: ch >= 0 ? 'up' : 'down' }, pct(ch)), ').') ((sf) => (sf.length ? h('p', { class: 'note' }, `Incluye ${peso(neto(sumar(sf, (o) => o.total)))} en ${sf.length} pedidos de este año todavía sin facturar: ` + sf.slice(0, 5).map((o) => o.cliente).join(' · ') + (sf.length > 5 ? '…' : '') + '.') : null))(D.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === String(Y) && !['invoiced', 'partially_invoiced'].includes(o.facturacion))),
         movimientos, corto ? h('p', {}, h('button', { class: 'more', onclick: () => ir('clientes', v) }, `Ver todo de ${v}`)) : null, corto ? null : metricas,
         corto ? null : h('div', { class: 'card' }, lista('yoy' + v, L, 15, (c) => {
           const mx = Math.max(c.antepasado, c.pasado, c.actual, 1);
@@ -631,6 +631,37 @@ const VISTAS = {
           { t: 'Siguiente', v: (p) => p.siguiente || '—', largo: true },
           { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—', cls: 'mut' }], tocar)),
       h('p', { class: 'note' }, 'El peso de cada zona es una estimación: 65% economía (PIB estatal, INEGI) y 35% turismo (cuartos de hotel, DataTur). Ventas facturadas en Zoho a clientes de Carlos y José Luis.'));
+  },
+
+  // KPIs: each person against the scoreboard of the June 2026 KPI documents. An estimate: what Spark can measure is
+  // scored, what it cannot (by-the-glass placements, key-account wins, brand events) is shown as not measured.
+  kpis() {
+    const Y = D.hoy.slice(0, 4), mH = Number(D.hoy.slice(5, 7)), dH = Number(D.hoy.slice(8)), dMes = new Date(Number(Y), mH, 0).getDate();
+    const venta = (p) => neto(sumar(D.ordenes.filter((o) => o.vendedor === p && o.fecha.slice(0, 4) === Y), (o) => o.total));
+    const meta = (p) => { const M = (D.presupuesto.meses || {})[p]; return M && M.length === 12 ? Math.round(sumar(M.slice(0, mH - 1), (x) => x) + M[mH - 1] * dH / dMes) : 0; };
+    const F = (D.cobranza || {}).facturas || [], saldo = (L) => sumar(L, (f) => f.saldo);
+    const cartera = (L) => { const t = saldo(L); return t ? Math.round(saldo(L.filter((f) => (f.dias || 0) <= 30)) / t * 100) : 100; };
+    const fila = (k, peso_, res, pts, nota) => h('div', { class: 'kp' }, h('div', {}, h('b', {}, k), nota ? h('span', {}, nota) : null), h('em', {}, peso_ + '%'), h('div', { class: 'kr' }, res), h('div', { class: 'kpt' }, pts == null ? pill('Sin dato', 'mute') : h('b', { class: pts / peso_ >= .9 ? 'up' : pts / peso_ >= .6 ? '' : 'down' }, pts.toFixed(0))));
+    const tarjeta = (p, rol, filas, filtros) => { const med = filas.filter((f) => f[3] != null), pts = sumar(med, (f) => f[3]), pesoMed = sumar(med, (f) => f[1]);
+      return h('section', { class: 'card' }, h('div', { class: 'name' }, p, pill(`${Math.round(pts)} de 100 · estimado`, pts >= 80 ? 'ok' : pts >= 60 ? 'warn' : 'bad')), h('p', { class: 'note' }, rol + (pesoMed < 100 ? ` · Spark mide ${pesoMed}% del tablero; lo demás cuenta cero hasta que haya dato.` : '')),
+        h('div', { class: 'kp kph' }, h('div', {}, 'Indicador'), h('em', {}, 'Peso'), h('div', { class: 'kr' }, 'Resultado'), h('div', { class: 'kpt' }, 'Puntos')), filas.map((f) => fila(...f)),
+        filtros ? [h('h3', {}, 'Filtros para cobrar el variable'), h('ul', { class: 'foco' }, filtros.map(([ok, t, d]) => h('li', { class: ok ? 'bien' : 'cliente' }, h('b', {}, (ok ? 'Cumple · ' : 'No cumple · ') + t), d ? h('span', {}, d) : null)))] : null); };
+    const cap = (x) => Math.max(0, Math.min(1, x));
+    const ejecutivo = (p) => { const v = venta(p), m = meta(p), pc = m ? v / m : 0, e = (D.crecimiento || []).find((x) => x.persona === p) || { nuevos: [] }, cal = e.nuevos.filter((c) => neto(c.monto) >= 3500).length;
+      const mios = F.filter((f) => f.vendedor === p), venc = mios.filter((f) => (f.dias || 0) > 30), g = regla48(p);
+      return tarjeta(p, 'Ejecutivo comercial', [['Ingresos contra presupuesto', 70, `${peso(v)} de ${peso(m)} a la fecha (${Math.round(pc * 100)}%)`, 70 * cap(pc)],
+        ['Cuentas nuevas calificadas', 15, `${cal} del año con $3,500 o más`, null, 'El documento no fija meta mensual; falta definirla.'], ['Copeos activos (VPC)', 15, 'El CRM todavía no registra copeos', null]],
+        [[!venc.length, 'Cartera al corriente', venc.length ? `${peso(saldo(venc))} con más de 30 días de vencido en ${new Set(venc.map((f) => f.cliente)).size} clientes` : ''], [g.cumple, 'Registro en CRM dentro de 48 horas', g.sin == null ? 'Sin ningún registro' : `Último registro hace ${g.sin} días`]]); };
+    const director = (p) => { const vs = vendedores(), v = sumar(vs, venta), m = sumar(vs, meta), pc = m ? v / m : 0, ct = cartera(F), dist = (D.distribuidores || []).filter((d) => /compr|activo|catalog/i.test(d.estado || d.status || '')).length;
+      return tarjeta(p + ' · Dirección comercial', 'Director comercial', [['Venta del equipo contra presupuesto', 35, `${peso(v)} de ${peso(m)} (${Math.round(pc * 100)}%)`, 35 * cap(pc)],
+        ['Distribuidores activados y recomprando', 25, `${dist} de ${(D.distribuidores || []).length} prospectados con compra`, 0, 'Solo cuenta con 2 pedidos o más y 5 cuentas activas. Ninguno llega todavía.'],
+        ['Cuentas clave ganadas', 20, 'Spark no las registra todavía', null], ['Cartera del equipo al corriente', 10, `${ct}% al corriente (meta 90%)`, 10 * cap(ct / 90)],
+        ['Productividad por ejecutivo', 5, `${Math.round(pc * 100)}% del presupuesto por persona`, 5 * cap(pc)], ['Apoyo en construcción de marca', 5, 'Spark no lo registra todavía', null]]); };
+    const embajador = (p) => tarjeta(p, 'Embajador de marca', [['Mantener catalogación y recompra', 50, 'Falta el reporte de venta por cuenta del distribuidor', null], ['Catalogaciones nuevas con pedido', 20, 'Sin dato', null], ['Colocaciones a copeo', 15, 'Sin dato', null], ['Mezcla premium', 5, 'Sin dato', null], ['Tasa de resurtido', 5, 'Sin dato', null], ['Apoyo en construcción de marca', 5, 'Sin dato', null]],
+      [[regla48(p).cumple, 'Registro en CRM dentro de 48 horas', '']]);
+    const ps = personas().filter((p) => p !== 'Tito');
+    return h('div', {}, h('p', { class: 'note' }, 'Estimado con los tableros de junio de 2026. Ventas del año a la fecha, antes de impuestos. No sustituye el cálculo de comisiones.'),
+      h('div', { class: 'grid3' }, ps.flatMap((p) => (p === 'Daniel' ? [embajador(p)] : p === 'Carlos' ? [director(p), ejecutivo(p)] : [ejecutivo(p)]))));
   },
 
   efectividad() {

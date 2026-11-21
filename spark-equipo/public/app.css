@@ -325,3 +325,9 @@ dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding:
 /* Phone: the logging badge on the team cards, and inline links tall enough to tap. */
 .mreg { margin: 2px 0 6px; }
 @media (max-width: 760px) { main a:not(.btn):not(.dt) { display: inline-block; padding: 7px 0; } main a.dt { padding: 8px 0; display: inline-block; } }
+
+/* KPIs */
+.kp { display: grid; grid-template-columns: minmax(0, 1.5fr) 44px minmax(0, 1.4fr) 62px; gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line, #e6e2da); font-size: .9rem; }
+.kp > div:first-child span { display: block; color: var(--muted); font-size: .8rem; } .kp em { font-style: normal; color: var(--muted); } .kp .kpt { text-align: right; font-size: 1.05rem; } .kp .kr { color: var(--muted); }
+.kp.kph { border-top: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding-bottom: 2px; } .kp.kph .kpt { font-size: .72rem; }
+@media (max-width: 760px) { .kp { grid-template-columns: minmax(0, 1fr) 40px 52px; } .kp .kr { grid-column: 1 / -1; grid-row: 2; margin-top: -6px; } .kp.kph .kr { display: none; } }
