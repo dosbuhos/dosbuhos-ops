@@ -424,7 +424,7 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .mbar .n.late { color: var(--warn); }
 /* Late tab: one head per original day, with a per-day "To today" */
 .m .dayhead.late b { color: var(--warn); }
-.m .dayhead .act { flex: none; margin-left: auto; min-height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: 12px; font-weight: 600; }
+.m .dayhead .act { flex: none; margin-left: auto; min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--warn); font-size: 13px; font-weight: 600; }
 .m .sheet .rows { display: flex; flex-direction: column; }
 .m .sheet .rows .rowlink { font-size: 15px; }
 .m .rowlink { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 12px; border: 1px solid var(--line-2); border-top-width: 0; background: var(--card); font-size: 15px; font-weight: 500; text-align: left; }
@@ -656,3 +656,5 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 /* Desktop Hours: holding a drag at the left/right edge turns the page a day at a time; the edge glows while it is armed. */
 .d .tl.edge-r { box-shadow: inset -6px 0 12px -6px var(--blue); }
 .d .tl.edge-l { box-shadow: inset 6px 0 12px -6px var(--blue); }
+/* Late tab rows: the group head already says how old a task is, so the "pushed N times" note stays out of the row */
+.m .mm[data-list=late] .card .sub { display: none; }

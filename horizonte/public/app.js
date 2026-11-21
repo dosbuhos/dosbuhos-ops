@@ -425,7 +425,7 @@ function cardHTML(t, opts = {}) {
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}${taskTags(t).length > 2 ? `<span class="more">+${taskTags(t).length - 2}</span>` : ''}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
+${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done && opts.roll !== false ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -694,11 +694,12 @@ function mLate() {
   const T = todayK(); let body = '';
   for (const k of keys) {
     const g = groups.get(k).sort(order), kind = kindOf(k);
-    let lbl, sub;
-    if (kind === 'day') { const d = parseD(k), ago = Math.round((parseD(T) - d) / 864e5); lbl = relDay(k) || `${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; sub = relDay(k) ? `${DOW[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}` : ago < 14 ? `${ago} days ago` : ''; }
-    else { lbl = periodLabel(k, true); sub = ''; }
-    body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${sub ? esc(sub) + ' · ' : ''}${g.length} task${g.length > 1 ? 's' : ''}</span><button class="act" data-act="rollgrp" data-k="${k}">To today</button></div>`;
-    body += g.map(t => mcard(t, { late: true, meta: t.at ? clock(t.at) : undefined })).join('');
+    let lbl, sub = `${g.length} task${g.length > 1 ? 's' : ''}`;
+    if (kind === 'day') { const d = parseD(k), ago = Math.round((parseD(T) - d) / 864e5); lbl = relDay(k) || `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; if (!relDay(k) && ago < 30) sub = `${ago} days ago · ${sub}`; }
+    else lbl = periodLabel(k, true);
+    // Each row is a plain card: tap to open and reschedule, swipe left for a date, hold to drag it onto a day or an hour.
+    body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${esc(sub)}</span><button class="act" data-act="rollgrp" data-k="${k}">To today</button></div>`;
+    body += g.map(t => mcard(t, { late: true, roll: false })).join('');
   }
   if (!list.length) body = `<div class="empty">Nothing late. Tasks whose day has passed show up here, grouped by the day they were planned for.</div>`;
   const right = list.length ? `<button class="tb" data-act="rollod">All to today</button>` : '';
