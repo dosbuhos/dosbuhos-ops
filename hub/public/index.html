@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Dos Búhos · Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Cormorant+Garamond:wght@500;600&family=Lato:wght@300;400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css?app=hub"><link rel="stylesheet" href="/kit/kit.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-180.png">
@@ -18,6 +18,46 @@
 @media (min-width:720px){.jumpsel{display:none}}
 .home-head{display:flex;flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .home-head h1{font-size:28px;margin:0}
+
+/* App cards drawn like the Dos Búhos business card: black stock, the name in spaced Cormorant capitals, small warm-gold
+   Lato labels, the monogram pressed into the corner. The card's own colours are fixed; they do not follow the theme. */
+.apps,.recents{--c-bg:#0a0a0a;--c-ink:#f5f0e8;--c-gold:#c8b090;--c-dim:#8f8778;--c-edge:#2b2620}
+.apps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:720px){.apps{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}}
+.app{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;aspect-ratio:7/5;min-height:0;padding:30px 12px 10px;
+  background:var(--c-bg);color:var(--c-ink);border:1px solid var(--c-edge);border-radius:10px;
+  box-shadow:0 10px 22px -14px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden;transition:transform .15s ease,border-color .15s ease}
+.app::before{display:none}
+.app::after{content:"";position:absolute;right:-12px;bottom:-20px;width:58px;height:74px;background:url(/logo-monogram-gold.png) no-repeat center/contain;opacity:.16;pointer-events:none}
+.app>*{position:relative;z-index:1}
+.app>a.open{position:absolute;z-index:2;border-radius:inherit}
+.app>a.open:focus-visible{outline:2px solid var(--c-gold);outline-offset:2px}
+.app:hover{border-color:var(--c-gold);transform:translateY(-2px)} .app:active{transform:scale(.98)}
+.app .sec{position:absolute;top:11px;left:12px;right:40px;text-align:left;font:400 9px/1.2 Lato,system-ui,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:var(--c-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app .body{flex:none;width:100%;align-items:center;gap:0}
+.app .name{font:500 16px/1.16 "Cormorant Garamond",Georgia,serif;letter-spacing:.13em;text-transform:uppercase;color:var(--c-ink);padding:0;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.app .name.long{font-size:13.5px;letter-spacing:.11em}
+.app .rule{width:26px;height:1px;background:var(--c-gold);opacity:.7;margin:8px auto 7px;flex:none}
+.app .desc{font:300 11px/1.35 Lato,system-ui,sans-serif;letter-spacing:.02em;color:var(--c-dim);-webkit-line-clamp:2}
+.app .meta{justify-content:center;margin-top:6px}
+.app .chip{background:none;border:0;padding:0;font:400 9px Lato,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--c-gold)}
+.app .stat .v{color:var(--c-ink)} .app .stat .l{color:var(--c-dim)} .app .stat svg path{stroke:var(--c-gold)} .app .stat svg circle{fill:var(--c-gold)}
+.app .fav{position:absolute;top:0;right:0;width:40px;height:40px;z-index:3;color:var(--c-dim)}
+.app .fav svg{width:16px;height:16px} .app .fav:hover{background:none;color:var(--c-ink)} .app .fav[aria-pressed="true"]{color:var(--c-gold)}
+@media (min-width:720px){.app{aspect-ratio:7/4;padding:30px 18px 14px}.app .name,.app .name.long{font-size:19px;padding:0;letter-spacing:.13em}.app .desc{font-size:12px}.app .sec{font-size:10px;top:14px;left:16px}}
+@media (max-width:350px){.apps{grid-template-columns:1fr}.app{aspect-ratio:7/3}}
+/* Favourites and recents: the same card, smaller, in a row you swipe. */
+.recents{display:flex;flex-direction:row;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 -16px;padding:2px 16px 10px;scrollbar-width:none}
+.recents::-webkit-scrollbar{display:none}
+.recents a{flex:none;width:156px;aspect-ratio:7/4;min-height:0;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:10px;
+  background:var(--c-bg);border:1px solid var(--c-edge);border-radius:9px;box-shadow:0 8px 18px -12px rgba(0,0,0,.6);text-decoration:none}
+.recents a::before{display:none}
+.recents a b{font:500 14px/1.15 "Cormorant Garamond",Georgia,serif;letter-spacing:.13em;text-transform:uppercase;color:var(--c-ink);text-wrap:balance}
+.recents a small{font:400 8.5px Lato,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--c-gold)}
+.recents a:hover{border-color:var(--c-gold)}
+@media (max-width:719px){.home-block.recent-after-favs{display:none}}
+@media (min-width:720px){.recents{flex-wrap:wrap;overflow:visible;margin:0;padding:0 0 4px}.recents a{width:190px}}
+@media (prefers-reduced-motion:reduce){.app{transition:none}.app:hover,.app:active{transform:none}}
 </style>
 </head>
 <body>
@@ -99,7 +139,7 @@ function render() {
     const showQuick = usable.length > 4;
     if (showQuick && !favs.length) html += `<p class="hint">Toca ☆ en una app para tenerla siempre arriba.</p>`;
     if (showQuick && favs.length) html += `<section class="home-block"><h2 class="block-title">Favoritas</h2><div class="recents">${favs.map(mini).join('')}</div></section>`;
-    if (showQuick && recents.length) html += `<section class="home-block"><h2 class="block-title">Recientes</h2><div class="recents">${recents.map(mini).join('')}</div></section>`;
+    if (showQuick && recents.length) html += `<section class="home-block${favs.length ? ' recent-after-favs' : ''}"><h2 class="block-title">Recientes</h2><div class="recents">${recents.map(mini).join('')}</div></section>`;
     for (const s of sections) {
       const apps = data.apps.filter(a => a.section === s.slug);
       const live = apps.filter(a => a.href), later = apps.filter(a => !a.href);
@@ -153,7 +193,8 @@ function row(a) {
   const meta = [a.stat ? stat(a.stat) : '', !me.admin && a.role ? `<span class="chip">${ROLE[a.role] || a.role}</span>` : ''].filter(Boolean).join('');
   return `<article class="app k-${esc(a.section)}">
     <a class="open" href="${esc(a.href)}" data-slug="${esc(a.slug)}" aria-label="Abrir ${esc(a.name)}"></a>
-    <div class="body"><div class="name">${esc(a.name)}</div><div class="desc">${esc(a.description)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
+    <div class="sec">${esc(sectionName(a.section))}</div>
+    <div class="body"><div class="name${a.name.length > 18 ? ' long' : ''}">${esc(a.name)}</div><div class="rule"></div><div class="desc">${esc(a.description)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
     <button class="fav" type="button" data-fav="${esc(a.slug)}" aria-pressed="${fav}" aria-label="${fav ? 'Quitar de favoritas' : 'Marcar como favorita'}" title="${fav ? 'Quitar de favoritas' : 'Favorita'}">${STAR.replace('FILL', fav ? 'currentColor' : 'none')}</button>
   </article>`;
 }
