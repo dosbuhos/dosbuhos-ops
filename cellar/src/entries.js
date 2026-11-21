@@ -67,7 +67,7 @@ export async function writeEntry(env, e, user) {
     const i = next++; byHead[n] = i; newCols.push([i, h]); return i;
   };
   const coreKey = { voli: 'voli', volf: 'volf', ph: 'ph', bx: 'bx', tp: 'tp', at: 'at', am: 'am', sl: 'sl', st: 'st', aa: 'aa' };
-  for (const k of Object.keys(values)) colOf[k] = coreKey[k] && m[coreKey[k]] != null ? m[coreKey[k]] : ensure(BY_K[k].h);
+  for (const k of Object.keys(values)) if (!BY_K[k].note) colOf[k] = coreKey[k] && m[coreKey[k]] != null ? m[coreKey[k]] : ensure(BY_K[k].h);
   const labCol = e.lab ? ensure('LAB') : null, pdfCol = e.pdf ? ensure('PDF') : null;
 
   const today = todayMX();
@@ -75,6 +75,8 @@ export async function writeEntry(env, e, user) {
   if (e.kind === 'result' && e.order) note = 'RESULTADO (ORDEN ' + cell(e.order.tab).toUpperCase() + ' FILA ' + (+e.order.row || '?') + ')' + (noteIn ? ': ' + noteIn : '');
   else if (e.kind === 'lab') note = 'RESULTADOS ' + (cell(e.lab).toUpperCase() || 'LABORATORIO') + ' ' + dm(e.reportDate && /^\d{4}-\d{2}-\d{2}$/.test(e.reportDate) ? e.reportDate : today) + (noteIn ? ': ' + noteIn : '');
   else note = 'NOTA' + (noteIn ? ': ' + noteIn : '');
+  const inNote = Object.entries(values).filter(([k]) => BY_K[k].note).map(([k, val]) => (BY_K[k].label + ' ' + val + (BY_K[k].unit ? ' ' + BY_K[k].unit : '')).toUpperCase());
+  if (inNote.length) note += ' · ' + inNote.join('; ');
   if (others.length) note += ' · OTROS: ' + others.map(o => o.name.toUpperCase() + ' ' + o.value + (o.unit ? ' ' + o.unit : '')).join('; ');
 
   const rowNum = Math.max(v.length, hm.row + 1) + 1;
@@ -83,7 +85,7 @@ export async function writeEntry(env, e, user) {
   if (m.ubi != null) cells.push([m.ubi, cell(e.ubi).toUpperCase().slice(0, 80)]);
   if (m.asig != null) cells.push([m.asig, ini]);
   if (m.ini != null) cells.push([m.ini, ini]);
-  for (const [k, val] of Object.entries(values)) cells.push([colOf[k], val]);
+  for (const [k, val] of Object.entries(values)) if (colOf[k] != null) cells.push([colOf[k], val]);
   if (labCol != null) cells.push([labCol, cell(e.lab).toUpperCase()]);
   if (pdfCol != null) cells.push([pdfCol, cell(e.pdf)]);
   const data = newCols.map(([i, h]) => ({ range: qt(tab) + '!' + colLetter(i) + (hm.row + 1), values: [[h]] }))

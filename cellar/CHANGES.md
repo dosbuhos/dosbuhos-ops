@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-21 — Lab uploads: new parameters go in the row's note, not new sheet columns · v1.23.1
+- The 27 parameters added in v1.23.0 (CO₂, glucosa, fructosa, densidad…) no longer append columns to the lot tabs: in the sheet they're written into the row's note («CO₂ DISUELTO 0.60 G/L; GLUCOSA 0.2 G/L»), in the app they stay proper values. Parameters that already had a column keep using it · Eric: the sheet is the record and must not get wider · src/params.js (note flag), src/entries.js (writeEntry)
+
 ## 2026-11-21 — Lab uploads: CO₂ disuelto, full parameter catalog, safer matching · v1.23.0
 - CO₂ disuelto is its own parameter (g/L; mg/L reports converted). The matcher works on whole words, so «CO2 disuelto» can no longer land in «Oxígeno disuelto»; plurals and abbreviations are understood («Ácidos volátiles», «Ac. Málico»); the longest match wins and qualifiers (molecular, probable, en mosto…) block loose matches. Catalog grows from 22 to 50 parameters: glucosa, fructosa, sacarosa, azúcares totales, densidad, extracto seco, AT titulable pH 8.2, alcohol probable, SO₂ molecular, cítrico, sórbico, antocianos, taninos, color, NH4/NOPA, acetaldehído, acetato de etilo, metanol, 4-EP/4-EG, K/Ca/Fe/Cu · Eric: San Lucas CO₂ was offered as dissolved oxygen; audit found every Uva y Vino VA («Ácidos volátiles») and the San Lucas malic had gone to the note instead of their columns · src/params.js, src/entries.js (matchParam, convertUnit)
 - Confirmar resultados: every value has a parameter picker and shows the name the lab printed, so a wrong match can be fixed before saving. Samples with any unknown parameter are no longer auto-saved; they wait for review · app/entries.js, app/entries.css
