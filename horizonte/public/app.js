@@ -686,7 +686,7 @@ function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl');
 // Overdue bar: tap to review, × hides it until tomorrow (Overdue stays in the menu / lists).
 function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
 // Phone Late tab: everything that slipped, grouped under the day (or week, month…) it was planned for, newest first.
-// Tap a task to reschedule it in its sheet, hold to drag it onto a day or hour, or move everything to today from the header.
+// Tap a task to reschedule it in its sheet, or hold to drag it onto a day or hour.
 function mLate() {
   const list = lateTasks(), groups = new Map();
   for (const t of list) { if (!groups.has(t.when)) groups.set(t.when, []); groups.get(t.when).push(t); }
@@ -702,8 +702,7 @@ function mLate() {
     body += g.map(t => mcard(t, { late: true, roll: false })).join('');
   }
   if (!list.length) body = `<div class="empty">Nothing late. Tasks whose day has passed show up here, grouped by the day they were planned for.</div>`;
-  const right = list.length ? `<button class="tb" data-act="rollod">All to today</button>` : '';
-  return `<header class="mh">${mtop(`<span class="date">Late${list.length ? ' · ' + list.length : ''}</span>`, right)}</header><main class="mm" data-list="late">${body}</main>`;
+  return `<header class="mh">${mtop(`<span class="date">Late${list.length ? ' · ' + list.length : ''}</span>`)}</header><main class="mm" data-list="late">${body}</main>`;
 }
 function signinBanner() {
   return !S.me && S.setup && navigator.onLine ? `<button class="banner signin" data-act="settings"><span>Sign in to load your boards and sync with your computer</span>Sign in</button>` : '';
