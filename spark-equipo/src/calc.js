@@ -30,7 +30,7 @@ export const deEric = (cliente) => DE_ERIC.find((e) => e.patron.test(cliente || 
 const propia = (cliente) => !esInterno(cliente);
 const vend = (x) => (deEric(x.cliente) ? CASA : vendedorDe(x.vendedor));
 // Accounts handed to each rep when they started (per Eric, 20 Nov 2026). Shown apart in Efectividad.
-export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', 'VIÑA DEL MAR CANCÚN'], 'Carlos': ['Cactus Wine', 'LIZA STIKER'] };
+export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', 'VIÑA DEL MAR CANCÚN'], 'Carlos': ['Cactus Wine', 'LIZA STIKER', 'VENTANAS AL PARAISO'] };
 // Daniel's distributors as they appear in Zoho (LIZA STIKER = Acuyo).
 export const DIST_DANIEL = ['Vivid Distribución', 'Grandes Viñedos de Francia', 'LIZA STIKER'];
 
@@ -318,8 +318,8 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   // ---- Effectiveness ----
   const corte = masDias(hoy, -30);
   const efectividad = VENDEDORES.map((v) => {
-    const L = clientes.filter((c) => c.vendedor === v), H = HEREDADAS[v] || [];
-    const her = L.filter((c) => H.includes(c.cliente)), sin = L.filter((c) => !H.includes(c.cliente));
+    const L = clientes.filter((c) => c.vendedor === v), H = (HEREDADAS[v] || []).map(norm);
+    const her = L.filter((c) => H.includes(norm(c.cliente))), sin = L.filter((c) => !H.includes(norm(c.cliente)));
     const sinA = sum(sin, (c) => c.actual), sinP = sum(sin, (c) => c.pasado_mp), crec = sinP ? (sinA - sinP) / sinP * 100 : null;
     const mine = contactos.filter((r) => r.persona === v), names = L.map((c) => c.cliente);
     const acct = new Map();

@@ -209,6 +209,16 @@ export default {
     if (!p.startsWith('/api/admin/')) return json({ error: 'No existe' }, 404);
     if (!yo.admin) return json({ error: 'Solo administradores' }, 403);
 
+    // Sales mailboxes, read-only, for the owner only (Hub admin or ADMIN_EMAILS), not for every Spark admin.
+    if (p === '/api/admin/correo' && request.method === 'GET') {
+      const dueno = (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).includes(yo.email);
+      if (!dueno) return json({ error: 'Solo Dirección' }, 403);
+      const u = new URL(request.url).searchParams;
+      try {
+        if (u.get('hilo')) return json({ hilo: await env.GMAIL.thread(u.get('buzon'), u.get('hilo')) });
+        return json(await env.GMAIL.list(u.get('buzon'), u.get('q') || '', u.get('pagina') || '', 40));
+      } catch (e) { return json({ error: String(e && e.message || e) }, 502); }
+    }
     if (p === '/api/admin/preguntas' && request.method === 'POST') {
       const b = await request.json().catch(() => ({}));
       if (b.borrar) { await env.DB.prepare('DELETE FROM preguntas WHERE id = ?').bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
