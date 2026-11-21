@@ -96,6 +96,19 @@ function lista(key, items, n, fila, vacio, cols, tocar) {
   if (o && cols[o[0]] && cols[o[0]].s) { const f = cols[o[0]].s; items = items.slice().sort((a, b) => { const x = f(a), y = f(b); return (x == null ? 1 : y == null ? -1 : x < y ? -1 : x > y ? 1 : 0) * o[1]; }); }
   const th = (c, i) => h('th', { class: c.num ? 'r' : null, 'aria-sort': o && o[0] === i ? (o[1] > 0 ? 'ascending' : 'descending') : null },
     c.s ? h('button', { onclick: () => { S.orden[key] = [i, o && o[0] === i ? -o[1] : (c.num ? -1 : 1)]; pintar(); } }, c.t, o && o[0] === i ? (o[1] > 0 ? ' ▲' : ' ▼') : '') : c.t);
+  // Columns that hold free text (notes, suggestions, comments) do not fit a table cell: the row would be a tall, narrow
+  // paragraph. Those lists become records instead: the short facts on one line, the text underneath at full width, striped.
+  const largas = cols.filter((c) => c.largo || /\b(wide|sugc)\b/.test(c.cls || '')), cortas = cols.filter((c) => !largas.includes(c));
+  if (largas.length) {
+    const gt = 'grid-template-columns:' + cortas.map((c, i) => (i === 0 ? 'minmax(0, 2.2fr)' : !c.t ? '120px' : 'minmax(0, 1fr)')).join(' ');
+    const vacia = (x) => x == null || x === '' || x === '—';
+    return h('div', {}, h('div', { class: 'recs' },
+      h('div', { class: 'rech', style: gt }, cortas.map((c) => { const i = cols.indexOf(c); return h('span', { 'aria-sort': o && o[0] === i ? (o[1] > 0 ? 'ascending' : 'descending') : null },
+        c.s ? h('button', { onclick: () => { S.orden[key] = [i, o && o[0] === i ? -o[1] : (c.num ? -1 : 1)]; pintar(); } }, c.t, o && o[0] === i ? (o[1] > 0 ? ' ▲' : ' ▼') : '') : c.t); })),
+      (open ? items : items.slice(0, n)).map((r) => { const L = largas.map((c) => [c.t, c.v(r)]).filter(([, x]) => !vacia(x));
+        return h('article', { ...(tocar ? toca(() => tocar(r)) : {}), class: 'rec' + (tocar ? ' toca' : '') }, h('div', { class: 'recf', style: gt }, cortas.map((c, i) => h('div', { class: (i === 0 ? 'b ' : '') + (c.cls || '') }, c.v(r)))),
+          L.length ? h('div', { class: 'recl', style: `grid-template-columns:repeat(${L.length}, minmax(0, 1fr))` }, L.map(([t, x]) => h('div', {}, h('b', {}, t), h('p', {}, x)))) : null); })), mas);
+  }
   return h('div', {}, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, cols.map(th))),
     h('tbody', {}, (open ? items : items.slice(0, n)).map((r) => h('tr', tocar ? toca(() => tocar(r)) : {}, cols.map((c) => h('td', { class: (c.num ? 'r ' : '') + (c.cls || '') }, c.v(r)))))))), mas);
 }
@@ -287,7 +300,7 @@ const VISTAS = {
     const tablaCont = (cont, vacio) => h('div', { class: 'card' }, lista('cont', cont, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cuenta), h('span', { class: 'note' }, dia(r.fecha))), h('div', { class: 'l2' }, [ps.length > 1 ? r.persona : null, r.actividad, r.medio].filter(Boolean).join(' · '), ' · ', tiempo(r)), r.resultado ? h('div', { class: 'l2' }, r.resultado) : null), vacio,
       [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' }, { t: 'Cuenta', v: (r) => r.cuenta, s: (r) => r.cuenta.toLowerCase(), cls: 'b' },
         { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio },
-        { t: 'Tiempo', v: tiempo, s: (r) => r.min, num: true }, { t: 'Resultado', v: (r) => r.resultado, cls: 'mut' }]));
+        { t: 'Tiempo', v: tiempo, s: (r) => r.min, num: true }, { t: 'Resultado', v: (r) => r.resultado, largo: true }]));
     const tablaOrd = (ords, vacio) => (ps.some((p) => p !== 'Daniel') ? [h('h2', {}, 'Qué vendieron'),
       h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null, r.en_zoho ? `en Zoho: ${r.en_zoho}` : null].filter(Boolean).join(' · '), D.yo.admin ? [' · ', reasignar(r)] : null)), vacio,
         [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, { t: 'Cliente', v: (r) => r.cliente, s: (r) => r.cliente.toLowerCase(), cls: 'b' }, { t: 'Orden', v: (r) => r.orden, cls: 'mut' },
@@ -371,7 +384,7 @@ const VISTAS = {
         puede(r.persona) ? h('div', { class: 'acc' }, h('button', { class: 'btn sm', onclick: () => registrar(r) }, 'Registrar contacto')) : null), 'No hay cuentas en esta lista.',
         [{ t: 'Cuenta', v: (r) => [r.cuenta, r.pausa ? h('div', {}, pausado(r)) : null], s: (r) => r.cuenta.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Quién', v: (r) => r.persona, s: (r) => r.persona, cls: 'nw' },
           { t: 'Último contacto', v: (r) => dia(r.ultimo_contacto), s: (r) => r.ultimo_contacto, cls: 'nw' }, { t: 'Días sin contacto', v: (r) => r.dias_sin_contacto, s: (r) => r.dias_sin_contacto, num: true },
-          { t: 'Estado', v: (r) => [est(r), r.proximo && r.estado !== 'vencida' ? h('div', { class: 'note' }, 'próximo ' + dia(r.proximo)) : null], s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => (r.ultima_nota || '').slice(0, 140), cls: 'mut' }, { t: 'Siguiente paso sugerido', v: (r) => r.sugerencia || '—', cls: 'sugc' },
+          { t: 'Estado', v: (r) => [est(r), r.proximo && r.estado !== 'vencida' ? h('div', { class: 'note' }, 'próximo ' + dia(r.proximo)) : null], s: (r) => (r.estado === 'vencida' ? -r.dias_vencido : 1), cls: 'nw' }, { t: 'Última nota', v: (r) => r.ultima_nota || '', largo: true }, { t: 'Siguiente paso sugerido', v: (r) => r.sugerencia || '—', cls: 'sugc' },
           { t: '', v: (r) => (puede(r.persona) ? h('button', { class: 'btn sm sec', onclick: () => registrar(r) }, 'Registrar') : ''), cls: 'nw' }], (r) => { if (puede(r.persona)) registrar(r); })),
       vendedores().length ? [h('h2', {}, 'Clientes principales'),
         h('p', { class: 'note' }, 'Los 15 más grandes de cada vendedor, primero los que llevan más tiempo sin contacto.'),
@@ -382,7 +395,7 @@ const VISTAS = {
           c.ultima_nota ? h('div', { class: 'l2' }, (c.contacto_por && c.contacto_por !== c.vendedor ? `(${c.contacto_por}) ` : '') + c.ultima_nota.slice(0, 140)) : null), 'Sin clientes.',
           [{ t: 'Cliente', v: (c) => [c.cliente, c.pausa ? h('div', {}, pausado(c)) : null], s: (c) => c.cliente.toLowerCase(), cls: 'b' }, ps.length > 1 && { t: 'Vendedor', v: (c) => c.vendedor, s: (c) => c.vendedor, cls: 'nw' },
             { t: 'Este año', v: (c) => peso(c.actual), s: (c) => c.actual, num: true }, { t: 'vs. año pasado', v: (c) => (c.cambio_pct == null ? 'nuevo' : h('span', { class: c.cambio_pct >= 0 ? 'up' : 'down' }, pct(c.cambio_pct))), s: (c) => c.cambio_pct, num: true },
-            { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : (c.dias === 1 ? '1 día' : `${c.dias} días`), dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), cls: 'mut' }], (c) => { if (puede(c.vendedor)) registrar(deCob(c)); }))] : null);
+            { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : (c.dias === 1 ? '1 día' : `${c.dias} días`), dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), largo: true }], (c) => { if (puede(c.vendedor)) registrar(deCob(c)); }))] : null);
   },
 
   ventas() {
@@ -560,7 +573,7 @@ const VISTAS = {
             { t: 'Brecha', v: (z) => (z.brecha ? peso(z.brecha) : 'sin brecha'), s: (z) => z.brecha, num: true }, { t: 'Clientes activos', v: (z) => z.clientes_activos, s: (z) => z.clientes_activos, num: true },
             { t: 'Prospectos trabajados', v: (z) => `${z.prospectos - z.sin_contactar} de ${z.prospectos}`, s: (z) => (z.prospectos ? (z.prospectos - z.sin_contactar) / z.prospectos : 0), num: true },
             { t: 'Último contacto a un prospecto', v: (z) => (z.ultimo_prospecto ? dia(z.ultimo_prospecto) : 'Nunca'), s: (z) => z.ultimo_prospecto || null, cls: 'nw' },
-            { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', cls: 'mut' }]))] : null),
+            { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', largo: true }]))] : null),
       !cur && (D.eric || []).length ? [h('h2', {}, 'Fuera de México'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, D.eric.map((e) => h('li', {},
         h('div', { class: 'l1' }, h('span', {}, `${e.cliente} · ${e.lugar}`), h('span', {}, peso(e.actual))),
         h('div', { class: 'l2' }, `Cuenta de la casa: sus ventas cuentan para Tito, no para un vendedor. ${peso(e.pasado_mp)} a la misma fecha del año pasado · ${e.pedidos_12m} pedidos en 12 meses · último ${dia(e.ultima)}.`)))))] : null,
@@ -579,8 +592,8 @@ const VISTAS = {
           !S.zona && { t: 'Zona', v: (p) => (byZ.get(p.zona) || {}).nombre, s: (p) => p.zona },
           { t: 'Avance', v: av, s: (p) => p.avance, cls: 'nw' },
           { t: 'Último contacto', v: cuando, s: (p) => p.ultimo_contacto || null, cls: 'nw' },
-          { t: 'Qué pasó', v: (p) => [p.status, p.paso].filter(Boolean).join(' · ') || p.razon || '—', cls: 'mut' },
-          { t: 'Siguiente', v: (p) => p.siguiente || '—', cls: 'mut' },
+          { t: 'Qué pasó', v: (p) => [p.status, p.paso].filter(Boolean).join(' · ') || p.razon || '—', largo: true },
+          { t: 'Siguiente', v: (p) => p.siguiente || '—', largo: true },
           { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—', cls: 'mut' }], tocar)),
       h('p', { class: 'note' }, 'El peso de cada zona es una estimación: 65% economía (PIB estatal, INEGI) y 35% turismo (cuartos de hotel, DataTur). Ventas facturadas en Zoho a clientes de Carlos y José Luis.'));
   },
