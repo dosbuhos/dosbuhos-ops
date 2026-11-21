@@ -358,9 +358,11 @@ export function memberPage({ env, user, ctx, member, benefits, uses, url, rs = n
   if (activeSub) {
     const club = subClub(ctx, activeSub);
     const year = membershipYear(activeSub.anchor_override || activeSub.start_date, today);
-    const mine = benefits.filter(b => b.club_id === club.id && b.active);
+    const delClub = benefits.filter(b => b.club_id === club.id && b.active);
+    const fijos = delClub.filter(b => b.kind === 'fijo'), mine = delClub.filter(b => b.kind !== 'fijo');
     const usedOf = (b) => uses.filter(u => u.benefit_id === b.id && (b.period === 'once' || (u.used_on >= year.start && u.used_on <= year.end))).reduce((t, u) => t + u.qty, 0);
     benefitsHtml = `<p class="small muted" style="margin-top:0">Año de socio: ${esc(fdate(year.start, today, { weekday: false }))} – ${esc(fdate(year.end, today, { weekday: false }))}</p>
+      ${fijos.length ? `<h3 style="margin:0 0 4px">Descuentos y beneficios de ${esc(club.name)}</h3>${standingList(fijos)}<h3 style="margin:14px 0 0">Beneficios con cupo</h3>` : ''}
       ${mine.map(b => { const used = usedOf(b); const pct = b.quantity ? Math.min(100, Math.round(used / b.quantity * 100)) : 0;
         return `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="ben"><span>${esc(b.name)}</span>
         <span class="num">${b.quantity != null ? `${fmtQty(used)} de ${fmtQty(b.quantity)} ${esc(b.unit)}` : `${fmtQty(used)} ${esc(b.unit)}`}${b.period === 'once' ? '' : ''}</span></div>
@@ -437,6 +439,8 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
       <span>${c.legacy ? chip('Cerrado', 'grey') : ''}${c.active ? '' : chip('Inactivo', 'grey')}</span></span>
       <span class="small muted">${plural(c.bottles, 'botella', 'botellas')} · ${cadenceLabel(c.cadence_months)} · ${plural(counts.get(c.id) || 0, 'socio activo', 'socios activos')}</span>
       <span class="small ${defined < slots ? 'warn-text' : 'ok-text'}">${defined} de ${slots} cajas definidas</span></summary>
+      <h3>Descuentos y beneficios</h3>${clubBenefits(bens.filter(b => b.active))}
+      ${m ? `<p class="small" style="margin:6px 0 0"><a href="/ajustes/beneficios#club${c.id}">Editar beneficios</a></p>` : ''}
       <h3>Cajas</h3><p class="small muted" style="margin-top:0">${c.allocation_mode === 'month' ? 'La caja depende del mes del envío.' : `El envío #1 lleva la caja 1, el #${slots + 1} vuelve a la caja 1.`} Los envíos ya trabajados guardan su propia copia.</p>${cases}
       ${m ? `<details class="more"><summary class="small">Configuración del club</summary><form method="post" action="/club/${c.id}">
         <label>Nombre</label><input name="name" value="${esc(c.name)}" required>
@@ -453,9 +457,20 @@ export function clubsPage({ env, user, ctx, benefits, products, counts }) {
   ${m ? '<p class="small"><a href="/conciliar">Productos de Stripe → Conciliar</a> · <a href="/ajustes/beneficios">Beneficios de cada club</a></p>' : ''}`;
   return page({ title: 'Clubes', body, user, env, tab: 'clubes' });
 }
+// Standing benefits as "name ... what they get" rows.
+const standingList = (L) => L.map(b => `<div class="ben" style="padding:7px 0;border-top:1px solid var(--line);align-items:baseline"><span>${esc(b.name)}</span><span class="small" style="text-align:right;font-weight:700;max-width:62%">${esc(b.detail || '')}</span></div>`).join('');
+const countedLabel = (b) => `${b.quantity != null ? fmtQty(b.quantity) + ' ' : ''}${esc(b.unit)} ${b.period === 'once' ? 'una vez' : 'al año'}`;
+// Everything a club gives: discounts and access first, then what is counted per member.
+function clubBenefits(L) {
+  const f = L.filter(b => b.kind === 'fijo'), u = L.filter(b => b.kind !== 'fijo');
+  if (!L.length) return '<p class="small muted" style="margin-top:0">Sin beneficios registrados.</p>';
+  return `${standingList(f)}${u.length ? `<p class="small muted" style="margin:10px 0 2px">Con cupo por socio (el uso se registra en su ficha)</p>${u.map(b => `<div class="ben" style="padding:7px 0;border-top:1px solid var(--line);align-items:baseline"><span>${esc(b.name)}${b.detail ? `<br><span class="small muted">${esc(b.detail)}</span>` : ''}</span><span class="num small">${countedLabel(b)}</span></div>`).join('')}` : ''}`;
+}
 function benefitFields(b) {
   return `<label>Nombre</label><input name="name" value="${esc(b.name || '')}" required>
-  <div class="grid2"><div><label>Cantidad (vacío = sin límite)</label><input type="number" step="any" min="0" name="quantity" value="${b.quantity ?? ''}"></div>
+  <label>Tipo</label><select name="kind"><option value="uso" ${b.kind !== 'fijo' ? 'selected' : ''}>Con cupo o registro por uso (catas, tours, botellas)</option><option value="fijo" ${b.kind === 'fijo' ? 'selected' : ''}>Fijo: descuento o acceso que aplica siempre</option></select>
+  <label>Qué recibe (descuento o detalle)</label><input name="detail" value="${esc(b.detail || '')}" maxlength="200" placeholder="20% de descuento en vinos">
+  <div class="grid2"><div><label>Cupo (solo con cupo; vacío = sin límite)</label><input type="number" step="any" min="0" name="quantity" value="${b.quantity ?? ''}"></div>
   <div><label>Unidad</label><input name="unit" value="${esc(b.unit || 'personas')}"></div></div>
   <div class="grid2"><div><label>Periodo</label><select name="period"><option value="year" ${b.period !== 'once' ? 'selected' : ''}>Por año de socio</option><option value="once" ${b.period === 'once' ? 'selected' : ''}>Una sola vez</option></select></div>
   <div><label>Estado</label><select name="active"><option value="1" ${b.active !== 0 ? 'selected' : ''}>Activo</option><option value="0" ${b.active === 0 ? 'selected' : ''}>Inactivo</option></select></div></div>`;
@@ -526,10 +541,10 @@ export function askPage({ env, user }) {
 export function benefitsPage({ env, user, ctx, benefits }) {
   const clubs = [...ctx.clubs.values()];
   const body = `<p><a href="/ajustes">← Ajustes</a></p><h1>Beneficios por club</h1>
-  <p class="small muted" style="margin-top:0">Lo que cada club incluye y se cuenta por socio. El uso se registra en la ficha de cada socio.</p>
+  <p class="small muted" style="margin-top:0">Lo que cada club incluye: descuentos y accesos fijos, y beneficios con cupo. El uso de los que tienen cupo se registra en la ficha de cada socio.</p>
   ${clubs.map(c => `<div class="card" id="club${c.id}"><div style="font-weight:800;font-size:17px">${esc(c.name)}</div>
     ${benefits.filter(b => b.club_id === c.id).map(b => `<div style="padding:6px 0;border-top:1px solid var(--line)"><div class="ben"><span>${esc(b.name)}${b.active ? '' : ' <span class="muted">(inactivo)</span>'}</span>
-      <span class="num small">${b.quantity != null ? fmtQty(b.quantity) + ' ' : ''}${esc(b.unit)} ${b.period === 'once' ? 'una vez' : 'al año'}</span></div>
+      <span class="num small" style="white-space:normal;text-align:right;max-width:62%">${b.kind === 'fijo' ? esc(b.detail || 'Fijo') : countedLabel(b)}</span></div>
       <details class="more" style="margin:2px 0"><summary class="small">Editar</summary><form method="post" action="/beneficio/${b.id}">${benefitFields(b)}<button class="btn sm" style="margin-top:8px">Guardar</button></form></details></div>`).join('') || '<p class="small muted">Ninguno.</p>'}
     <details class="more"><summary class="small">Agregar beneficio</summary><form method="post" action="/club/${c.id}/beneficio">${benefitFields({})}<button class="btn sm" style="margin-top:8px">Agregar</button></form></details></div>`).join('')}`;
   return page({ title: 'Beneficios', body, user, env, tab: 'ajustes' });

@@ -415,6 +415,8 @@ async function handle(request, env) {
       if(member.suspended_on)return new Response('Membresía suspendida: reactiva al socio antes de registrar beneficios.',{status:403});
       const fm = await form(request);
       const b = await env.DB.prepare('SELECT * FROM club_benefits WHERE id=?').bind(Number(fm.benefit_id)).first();
+      // Standing benefits (discounts, access) always apply; there is no use to log.
+      if(b?.kind==='fijo')return new Response('Este beneficio aplica siempre; no se registra por uso.',{status:400});
       if(fm.quick==='1') {
         const qty=Number(fm.qty),key=str(fm.request_key,50),today=todayLocal(env);
         if(!b?.active||!Number.isInteger(qty)||qty<1||qty>100||!key||!/^[a-f0-9-]{36}$/.test(key))return new Response('Cantidad o solicitud inválida.',{status:400});
@@ -522,8 +524,8 @@ async function handle(request, env) {
     } else if (r[2] === 'beneficio') {
       const name = str(fm.name, 100);
       if (name) {
-        const b = await env.DB.prepare(`INSERT INTO club_benefits (club_id, name, quantity, unit, period, active, sort) VALUES (?,?,?,?,?,?, (SELECT COALESCE(MAX(sort),0)+1 FROM club_benefits WHERE club_id=?)) RETURNING *`)
-          .bind(club.id, name, fm.quantity === '' || fm.quantity == null ? null : Number(fm.quantity), str(fm.unit, 30) || 'veces', fm.period === 'once' ? 'once' : 'year', fm.active === '0' ? 0 : 1, club.id).first();
+        const b = await env.DB.prepare(`INSERT INTO club_benefits (club_id, name, quantity, unit, period, active, kind, detail, sort) VALUES (?,?,?,?,?,?,?,?, (SELECT COALESCE(MAX(sort),0)+1 FROM club_benefits WHERE club_id=?)) RETURNING *`)
+          .bind(club.id, name, fijo(fm) || fm.quantity === '' || fm.quantity == null ? null : Number(fm.quantity), fijo(fm) ? '' : str(fm.unit, 30) || 'veces', fm.period === 'once' ? 'once' : 'year', fm.active === '0' ? 0 : 1, fijo(fm) ? 'fijo' : 'uso', str(fm.detail, 200) || null, club.id).first();
         await audit(env, user.email, 'nuevo beneficio', 'club', club.id, null, b);
       }
       return redirect(`/ajustes/beneficios#club${club.id}`);
@@ -535,8 +537,9 @@ async function handle(request, env) {
     const b = await env.DB.prepare('SELECT * FROM club_benefits WHERE id=?').bind(Number(r[1])).first();
     if (!b) return notFound(env, user);
     const fm = await form(request);
-    const after = { name: str(fm.name, 100) || b.name, quantity: fm.quantity === '' || fm.quantity == null ? null : Number(fm.quantity), unit: str(fm.unit, 30) || b.unit, period: fm.period === 'once' ? 'once' : 'year', active: fm.active === '0' ? 0 : 1 };
-    await env.DB.prepare('UPDATE club_benefits SET name=?, quantity=?, unit=?, period=?, active=? WHERE id=?').bind(after.name, after.quantity, after.unit, after.period, after.active, b.id).run();
+    const after = { name: str(fm.name, 100) || b.name, quantity: fijo(fm) || fm.quantity === '' || fm.quantity == null ? null : Number(fm.quantity), unit: fijo(fm) ? '' : str(fm.unit, 30) || b.unit || 'veces', period: fm.period === 'once' ? 'once' : 'year', active: fm.active === '0' ? 0 : 1,
+      kind: fijo(fm) ? 'fijo' : 'uso', detail: str(fm.detail, 200) || null };
+    await env.DB.prepare('UPDATE club_benefits SET name=?, quantity=?, unit=?, period=?, active=?, kind=?, detail=? WHERE id=?').bind(after.name, after.quantity, after.unit, after.period, after.active, after.kind, after.detail, b.id).run();
     await audit(env, user.email, 'beneficio', 'club', b.club_id, b, after);
     return redirect(`/ajustes/beneficios#club${b.club_id}`);
   }
@@ -604,3 +607,6 @@ export default {
     if (env.STRIPE_SECRET_KEY) ctx.waitUntil(syncStripe(env, 'cron'));
   },
 };
+
+// A benefit form marked as standing (a discount or access that always applies) rather than counted per use.
+const fijo = (fm) => fm.kind === 'fijo';
