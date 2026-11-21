@@ -170,7 +170,7 @@ function docCard(m, admin) {
 function materiales() {
   const M = D().materiales || [], admin = D().yo.admin, tab = S.mat || 'docs';
   const sub = chips([['docs', 'Documentos'], ['botellas', 'Botellas'], ['donde', 'Dónde nos venden']], tab, (v) => { S.mat = v; });
-  if (tab === 'botellas') return h('div', { class: 'matp' }, sub, h('p', { class: 'note' }, 'Fotos de botella con fondo transparente. Toca una para abrirla y guardarla o mandarla.'),
+  if (tab === 'botellas') return h('div', { class: 'matp' }, sub, h('p', { class: 'note' }, 'Toca una botella para abrir la foto y guardarla o mandarla.'),
     h('div', { class: 'bots' }, BOTELLAS.map((b) => h('a', { href: `${HOLA}/bottles/${b}.webp`, target: '_blank', rel: 'noopener' }, h('img', { src: `${HOLA}/bottles/${b}.webp`, alt: '', loading: 'lazy' }), h('span', {}, VINOS[b] || b)))));
   if (tab === 'donde') return h('div', { class: 'matp' }, sub, donde());
   const orden = ['Listas de precios', 'Presentaciones', 'Notas de cata', 'Prensa y premios', 'Fotos y logos'], cats = [...new Set([...orden, ...M.map((m) => m.categoria)])].filter((c) => M.some((m) => m.categoria === c));
