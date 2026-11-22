@@ -1,7 +1,7 @@
 // Spark CRM — the account-side screens: collections, client book, surveys, by-the-glass and pipeline, sales materials, and
 // what is coming for client communications. Helpers come from app.js; data from /api/data.
 import { PREMIOS, DONDE } from './marca.js';
-import { ancho, h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar, registrar, nuevaCuenta, toca } from './app.js';
+import { ancho, h, lista, pill, chips, peso, dia, S, personas, vendedores, formulario, enviar, pintar, datos, api, cargar, registrar, nuevaCuenta, toca, porConciliar } from './app.js';
 
 const D = () => datos();
 const kpi = (n, label, sub) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, label), sub ? h('div', { class: 'note' }, sub) : null);
@@ -27,7 +27,11 @@ function editarCuenta(base, foco) {
 
 // ---------------------------------------------------------------- Cobranza
 function cobranza() {
-  const ps = personas(), C = D().cobranza, F = C.facturas.filter((f) => !S.persona || f.vendedor === S.persona);
+  const ps = personas(), C = D().cobranza, F0 = C.facturas.filter((f) => !S.persona || f.vendedor === S.persona);
+  // Two sets: accounts with a name (debt to chase) and invoices the books still have to reconcile (sales to "Público en general"
+  // and the export account with no payment applied). The numbers and the list below are those of the set on screen.
+  const FC = F0.filter(porConciliar), hayC = FC.length > 0; if (!hayC) S.cobC = '';
+  const F = !hayC ? F0 : S.cobC ? FC : F0.filter((f) => !porConciliar(f));
   const grupos = new Map();
   for (const f of F) { const g = grupos.get(f.cliente) || { cliente: f.cliente, vendedor: f.vendedor, n: 0, saldo: 0, dias: 0, pronostico: 0, comentario: '' }; g.n++; g.saldo += f.saldo; g.dias = Math.max(g.dias, f.dias || 0); g.pronostico += f.pronostico; if (f.comentario) g.comentario = f.comentario; grupos.set(f.cliente, g); }
   const L = [...grupos.values()].sort((a, b) => b.saldo - a.saldo), total = suma(F, (f) => f.saldo);
@@ -37,6 +41,8 @@ function cobranza() {
     (v) => enviar('api/cobros', { ...v, cliente: g.cliente }), `Saldo ${peso(g.saldo)} en ${g.n} ${g.n === 1 ? 'factura' : 'facturas'}; la más antigua venció hace ${g.dias} días.`);
   const ultima = (g) => { const x = gest(g.cliente); return x ? `${dia(x.creado)}: ${x.nota.slice(0, 120)}` + (x.promesa ? ` · prometió pagar el ${dia(x.promesa)}` : '') : (g.comentario || ''); };
   return h('div', {},
+    hayC ? h('div', { class: 'cobc' }, chips([['', 'Cuentas con nombre'], ['c', `Por conciliar · ${peso(suma(FC, (f) => f.saldo))}`]], S.cobC || '', (v) => { S.cobC = v; })) : null,
+    hayC && S.cobC ? h('p', { class: 'note aviso' }, 'Facturas a “Público en general” y de exportación que en Zoho no tienen pago aplicado. No son deuda por cobrar: toca a Contabilidad conciliarlas, y por eso no cuentan en el vencido del equipo.') : null,
     h('div', { class: 'card kpis' }, kpi(peso(total), 'Por cobrar', `${F.length} facturas de ${L.length} clientes`), kpi(peso(T[3][1]), 'Vencido más de 90 días', total ? Math.round(T[3][1] / total * 100) + '% del saldo' : ''),
       C.fuente === 'zoho' ? kpi(L.filter((g) => g.dias > 90).length, 'Clientes con más de 90 días', 'de vencido') : kpi(peso(suma(F, (f) => f.pronostico)), 'Pronóstico de cobro del mes', 'según el archivo de Carlos'), kpi((C.gestiones || []).filter((g) => L.some((x) => x.cliente === g.cliente)).length, 'Gestiones registradas aquí', 'llamadas y promesas de pago')),
     h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Antigüedad del saldo'), h('div', { class: 'fases' }, T.map(([t, v, k]) => h('div', {}, h('span', {}, t), h('div', { class: 'barra', role: 'img', 'aria-label': `${t}: ${peso(v)}` }, h('i', { class: k, style: `width:${total ? Math.max(1, v / total * 100) : 0}%` })), h('b', {}, peso(v)))))),

@@ -446,3 +446,5 @@ details.nota { margin: 0 0 10px; } details.nota summary { cursor: pointer; color
   .plt .tit { padding: 8px 8px 9px; border-top-width: 3px; } .plt .tit .tt { font-size: .6rem; letter-spacing: .03em; line-height: 1.25; min-height: 2.5em; }
   .plt .tit b { font-size: 1.05rem; } .plt .tit .ts, .plt .tit i { display: none; }
 }
+/* Cobranza: the switch between named accounts and what the books still have to reconcile */
+.cobc { margin: 0 0 10px; } .cobc + .note.aviso { margin: 0 0 12px; }

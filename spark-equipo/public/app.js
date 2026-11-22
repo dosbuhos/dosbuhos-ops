@@ -192,7 +192,7 @@ const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p)
 // Net sales (before taxes) of some sellers between two dates.
 const ventaNeta = (desde, hasta, quienes) => neto(D.ordenes.filter((o) => quienes.includes(o.vendedor) && o.fecha >= desde && o.fecha <= hasta).reduce((t, o) => t + (o.total || 0), 0));
 
-export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, nuevaCuenta, pintar, cargar, ir, toca, regla48, puntualidad, ventaNeta };
+export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, nuevaCuenta, pintar, cargar, ir, toca, regla48, puntualidad, ventaNeta, porConciliar };
 export const datos = () => D;
 
 // ---- Inicio: where each person stands (sales and contacts against their goals), then the few things that cannot wait.
@@ -203,9 +203,16 @@ const abiertasDe = (p) => (D.preguntas || []).filter((q) => !q.respondida && q.p
 // contacts from the day the rule started; sheet rows are dated by the sync that first saw them.
 const REGLA_DESDE = '2026-11-21';
 const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
+// Working days from one date to another: Saturdays and Sundays do not count, so a Friday contact logged on Monday is one
+// day old, not three. The 48 hours of the rule are two working days.
+const dHab = (a, b) => { let n = 0; for (let t = new Date(a + 'T12:00:00'), f = new Date(b + 'T12:00:00'); t < f;) { t.setDate(t.getDate() + 1); if (t.getDay() % 6) n++; } return n; };
+// Invoices that are a bookkeeping gap, not debt to chase: sales to "Público en general" and the export account, where the
+// books show no payment applied. The pattern over the client name comes from the database.
+let _conc = null;
+const porConciliar = (f) => { const p = (D.cobranza || {}).conciliar; if (!p) return false; if (!_conc || _conc.p !== p) { try { _conc = { p, re: new RegExp(p, 'i') }; } catch { _conc = { p, re: null }; } } return !!_conc.re && _conc.re.test(f.cliente || ''); };
 function regla48(p) {
   const mes = D.hoy.slice(0, 7), L = D.contactos.filter((c) => c.persona === p && c.fecha >= REGLA_DESDE && c.fecha.slice(0, 7) === mes && c.registrado);
-  const tarde = L.filter((c) => dDias(c.fecha, c.registrado) > 2).length, ult = D.contactos.find((c) => c.persona === p), sin = ult ? dDias(ult.registrado && ult.registrado > ult.fecha ? ult.registrado : ult.fecha, D.hoy) : null;
+  const tarde = L.filter((c) => dHab(c.fecha, c.registrado) > 2).length, ult = D.contactos.find((c) => c.persona === p), sin = ult ? dHab(ult.registrado && ult.registrado > ult.fecha ? ult.registrado : ult.fecha, D.hoy) : null;
   const cumple = sin != null && sin <= 2 && tarde === 0;
   return { n: L.length, tarde, sin, cumple };
 }
@@ -244,7 +251,7 @@ function urgente(p) {
   const C = D.clientes.filter((c) => c.vendedor === p && c.actual > 0).sort((a, b) => b.actual - a.actual), tot = sumar(C, (c) => c.actual);
   if (C.length && tot && C[0].actual / tot > .25) { const debe = sumar(((D.cobranza || {}).facturas || []).filter((f) => f.cliente === C[0].cliente && (f.dias || 0) > 90), (f) => f.saldo);
     U.push({ k: debe ? 'bad' : 'warn', t: `${C[0].cliente} es el ${Math.round(C[0].actual / tot * 100)}% de la cartera`, d: debe ? `Y debe ${peso(debe)} con más de 90 días. Abre cuentas para depender menos.` : 'Una sola cuenta pesa demasiado. Abre cuentas para depender menos.', vista: 'clientes' }); }
-  const viejas = ((D.cobranza || {}).facturas || []).filter((f) => f.vendedor === p && (f.dias || 0) > 90);
+  const viejas = ((D.cobranza || {}).facturas || []).filter((f) => f.vendedor === p && (f.dias || 0) > 90 && !porConciliar(f));
   if (viejas.length) U.push({ k: 'bad', t: `${peso(sumar(viejas, (f) => f.saldo))} por cobrar con más de 90 días`, d: `${new Set(viejas.map((f) => f.cliente)).size} clientes`, vista: 'cobranza' });
   return U;
 }
@@ -288,7 +295,7 @@ function marcador(p, compacto) {
     h('h3', {}, 'Contactos'), h('button', { class: 'mbtn', onclick: () => ir('semanas', p) },
       fila('Semana', w ? w.contactos : 0, w ? w.meta : 0, n, true), fila('Mes', sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta), n), fila('Año', sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta), n), ws.length && ws[0].semana.slice(5, 7) !== '01' ? h('span', { class: 'mn' }, `El año cuenta desde el ${dia(ws[0].semana)} (primer registro).`) : null),
     p !== 'Tito' ? ((g) => h('div', { class: 'r48 ' + (g.cumple ? 'ok' : g.sin != null && g.sin < 5 && !g.tarde ? 'warn' : 'bad') }, h('b', {}, 'Regla de 48 horas: ' + (g.cumple ? 'al corriente' : g.sin != null && g.sin < 5 && !g.tarde ? 'atrasado' : 'fuera')),
-      h('span', {}, g.sin == null ? 'Sin ningún registro.' : `Último registro hace ${g.sin} ${g.sin === 1 ? 'día' : 'días'}` + (g.n ? ` · ${g.n - g.tarde} de ${g.n} a tiempo este mes` : '') + (g.tarde ? ` · ${g.tarde} fuera de plazo` : '') + '. El variable del mes se paga con el registro al corriente.')))(regla48(p)) : null,
+      h('span', {}, g.sin == null ? 'Sin ningún registro.' : (g.sin === 0 ? 'Último registro: hoy' : `Último registro hace ${g.sin} ${g.sin === 1 ? 'día hábil' : 'días hábiles'}`) + (g.n ? ` · ${g.n - g.tarde} de ${g.n} a tiempo este mes` : '') + (g.tarde ? ` · ${g.tarde} fuera de plazo` : '') + '. Sábados y domingos no cuentan. El variable del mes se paga con el registro al corriente.')))(regla48(p)) : null,
     h('h3', {}, 'Urgente'), U.length ? h('ul', { class: 'foco' }, U.map((u) => h('li', { class: u.k === 'bad' ? 'cliente' : 'meta' }, h('button', { onclick: () => ir(u.vista, p) }, u.t), u.d ? h('span', {}, u.d) : null))) : h('p', { class: 'note' }, 'Nada urgente.'),
     nb ? h('p', { class: 'note', style: 'margin-top:10px' }, h('button', { class: 'linkb', onclick: () => ir('buzon', p) }, nb === 1 ? '1 nota en el Buzón' : `${nb} notas en el Buzón`)) : null);
   card.querySelectorAll('.mn').forEach((e) => { e.textContent = quien(e.textContent); });

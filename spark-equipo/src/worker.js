@@ -128,6 +128,10 @@ export default {
       const nota = new Map(cobranzaArchivo.facturas.filter((f) => f.comentario).map((f) => [norm(f.cliente), f.comentario]));
       if (deZoho) m.cobranza = { fuente: 'zoho', corte: m.hoy, facturas: deZoho.map((f) => ({ ...f, comentario: nota.get(norm(f.cliente)) || '', dias: diff(f.vence, m.hoy) })), gestiones: cobros };
       else m.cobranza = { fuente: 'archivo', corte: cobranzaArchivo.corte, facturas: cobranzaArchivo.facturas.map((f) => ({ ...f, dias: /^\d{4}-\d\d-\d\d$/.test(f.vence) ? diff(f.vence, m.hoy) : null })), gestiones: cobros };
+      // Which invoices are a bookkeeping gap and not debt to chase (sales to "Público en general", the export account): a pattern
+      // over the client name, kept in the database because it names accounts. The screens count those apart.
+      const conc = await env.DB.prepare("SELECT v FROM meta WHERE k = 'cobranza_conciliar'").first();
+      if (conc && conc.v) m.cobranza.conciliar = conc.v;
       // The 90-day plan and event requests. Plan drafts are the owner's until he publishes them.
       m.plan = await todo('SELECT * FROM compromisos' + (yo.dueno ? '' : ' WHERE visible = 1') + ' ORDER BY fecha, orden, id');
       m.eventos = await todo('SELECT * FROM eventos ORDER BY fecha DESC, id DESC');

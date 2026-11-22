@@ -1,7 +1,7 @@
 // Spark CRM — the Monday review: the five numbers of the plan, the commitments that are due, and what gets reviewed with
 // each person. Which numbers, their targets and each person's review points come from the database (they name accounts);
 // nothing of that lives in this file. The team sees this screen once at least one commitment is shown to them.
-import { h, pill, peso, dia, S, datos, ir, formulario, enviar, regla48, puntualidad, ventaNeta } from './app.js';
+import { h, pill, peso, dia, S, datos, ir, formulario, enviar, regla48, puntualidad, ventaNeta, porConciliar } from './app.js';
 
 const D = () => datos();
 const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
@@ -14,7 +14,7 @@ function leer(n) {
   const d = D();
   if (n.tipo === 'venta') { const v = ventaNeta(n.desde, n.hasta, EQUIPO); return { txt: peso(v), meta: peso(n.meta), pc: n.meta ? Math.round(v / n.meta * 100) : null, ok: v >= n.meta }; }
   if (n.tipo === 'registro') { const v = EQUIPO.filter(alDia).length; return { txt: `${v} de ${EQUIPO.length}`, meta: `${n.meta} de ${EQUIPO.length}`, pc: Math.round(v / EQUIPO.length * 100), ok: v >= n.meta }; }
-  if (n.tipo === 'vencido') { const v = Math.round(((d.cobranza || {}).facturas || []).filter((f) => (f.dias || 0) > 90).reduce((t, f) => t + (f.saldo || 0), 0)); return { txt: peso(v), meta: 'menos de ' + peso(n.meta), pc: null, ok: v < n.meta }; }
+  if (n.tipo === 'vencido') { const v = Math.round(((d.cobranza || {}).facturas || []).filter((f) => (f.dias || 0) > 90 && !porConciliar(f)).reduce((t, f) => t + (f.saldo || 0), 0)); return { txt: peso(v), meta: 'menos de ' + peso(n.meta), pc: null, ok: v < n.meta }; }
   const v = Number(n.valor) || 0;
   return { txt: String(v), meta: String(n.meta), pc: n.meta ? Math.round(v / n.meta * 100) : null, ok: v >= n.meta, manual: true };
 }

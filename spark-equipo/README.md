@@ -133,3 +133,8 @@ lo de todos los días (cuenta, cuándo, cómo, qué fue, qué pasó, siguiente p
 
 Las rutas del equipo se atienden antes de la línea que contesta 404 a lo que no es `/api/admin/`. `test/rutas.test.js` lo
 verifica: una vez, `api/plan/hecho` y `api/eventos` quedaron después de esa línea y no respondían.
+
+## Reglas de conteo
+
+- **48 horas son dos días hábiles.** Sábados y domingos no cuentan: un contacto del viernes registrado el lunes va a tiempo. Aplica a la puntualidad del mes (la que ajusta la comisión) y a "registro al corriente".
+- **Vencido del equipo: cuentas con nombre.** Las facturas a "Público en general" y las de exportación que en Zoho no tienen pago aplicado se cuentan aparte, como "Por conciliar": son trabajo de Contabilidad, no deuda por cobrar. El patrón que las separa vive en D1 (`meta`, clave `cobranza_conciliar`), no en el repositorio.
