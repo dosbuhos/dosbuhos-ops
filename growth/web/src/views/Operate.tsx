@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, StateChip } from '../components';
-import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel, dayLabel } from '../format';
+import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel, dayLabel, pitchTitle, sentences } from '../format';
+
+const WHY_NOT = ['Quiero ver más datos', 'No estoy de acuerdo', 'Ya lo hice en Google Ads', 'Ahora no es momento'];
+/** What the suggestion expects, in words. A saving is shown as a range of pesos; anything else as the metric and its direction. */
+function expectText(e: any, currency: string): string {
+  if (e?.direction === 'decrease' && Array.isArray(e.range) && /gasto/i.test(e.metric)) return `Ahorro de ${money(e.range[0], currency)} a ${money(e.range[1], currency)} cada 28 días.`;
+  return `${e?.metric ?? ''} ${directionLabel(e?.direction)}.`;
+}
 
 function opText(o: any): string {
   switch (o.kind) {
@@ -17,6 +24,7 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
   const { data, error, reload } = useApi('activity', 90_000);
   const today = useApi('today', 300_000).data;
   const [msg, setMsg] = useState<string | null>(null);
+  const [declining, setDeclining] = useState<string | null>(null);
   const [focus] = useState(() => { try { const f = sessionStorage.getItem('growth-focus-action'); sessionStorage.removeItem('growth-focus-action'); return f; } catch { return null; } });
   useEffect(() => { if (focus && data) document.getElementById(`a-${focus}`)?.scrollIntoView({ block: 'center' }); }, [focus, data]);
   if (!data) return error ? <ErrorBox error={error} /> : <div className="section"><Loading /></div>;
@@ -32,6 +40,17 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
       <section className="section">
         <header><h1>Sugerencias</h1><span className="small muted">Lo que se propone, lo que decidiste y lo que pasó después</span></header>
         <ReviewCard review={today?.review} st={session?.coordinator} isAdmin={isAdmin} onAsk={() => void act('control/run-review', {}, 'Revisión iniciada: las sugerencias aparecen aquí en 1 a 3 minutos')} />
+        {(today?.advice as any[] | undefined)?.length ? <div className="list" style={{ marginBottom: 12 }}>{(today!.advice as any[]).map(f => (
+          <article key={f.key} className="item advice">
+            <div className="top"><b>{f.title}</b><span className="state s-info">{f.kind === 'landing_gap' ? 'Para revisar' : 'Hallazgo'}</span></div>
+            <div className="tiny muted">Campaña: {String(f.campaign).replace(/_/g, ' ')}</div>
+            <div className="pitch">
+              <div><span>Por qué</span><ul>{(f.why as string[]).map((w, i) => <li key={i}>{w}</li>)}</ul></div>
+              <div><span>Qué espero</span><p>{f.expect}</p></div>
+              <div><span>Cómo lo sabremos</span><p>{f.measure}</p></div>
+            </div>
+            {f.note && <div className="notice small">{f.note}</div>}
+          </article>))}</div> : null}
         <div className="list">
           {(data.actions as any[]).length === 0 && <div className="item muted">Todavía no hay sugerencias. Cada una llega con su razón, lo que se espera que pase y cómo se va a medir, y espera tu aprobación.</div>}
           {(data.actions as any[]).map(a => {
@@ -40,8 +59,13 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
             const lastReason = [...ledger].reverse().map(e => { try { return JSON.parse(e.detail_json).reason; } catch { return null; } }).find(Boolean);
             return (
               <article key={a.id} id={`a-${a.id}`} className="item" style={focus === a.id ? { borderColor: 'var(--accent)' } : undefined}>
-                <div className="top"><b>{intent.resourceLabel}</b><StateChip s={a.state} /></div>
-                <div className="small">{intent.proposal.hypothesis}</div>
+                <div className="top"><b>{pitchTitle(intent.proposal.actionType, intent.proposal.parameters, intent.resourceLabel)}</b><StateChip s={a.state} /></div>
+                <div className="tiny muted">Campaña: {String(intent.resourceLabel).replace(/_/g, ' ')}</div>
+                <div className="pitch">
+                  <div><span>Por qué</span><ul>{sentences(intent.proposal.hypothesis).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+                  <div><span>Qué espero</span><p>{expectText(intent.proposal.expectedEffect, session?.account?.currency ?? 'MXN')} {intent.proposal.risks?.[0] ? `Riesgo: ${intent.proposal.risks[0]}` : ''}</p></div>
+                  <div><span>Cómo lo sabremos</span><p>{intent.proposal.evaluationPlan}</p></div>
+                </div>
                 <div className="small mono">{intent.operations.map(opText).join(' · luego ')}</div>
                 <div className="tiny muted">{a.actor === 'model' ? 'Propuesta por el optimizador' : `Por ${a.actor}`} · {when(a.created_at)} · política v{a.policy_version}{a.approved_by ? ` · aprobada por ${a.approved_by}` : ''}</div>
                 {(dec.reasons?.length > 0 || lastReason) && <div className="notice" style={{ fontSize: 13 }}>{lastReason ? <div><b>Resultado:</b> {lastReason}</div> : null}{dec.reasons?.length > 0 && <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{dec.reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>}</div>}
@@ -59,6 +83,8 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
                 </details>
                 {isAdmin && <div className="row">
                   {a.state === 'APPROVAL_REQUIRED' && <button className="btn primary" onClick={() => { if (confirm(`¿Aprobar y ejecutar exactamente esto?\n\n${intent.operations.map(opText).join('\n')}`)) void act(`proposals/${a.id}/approve`, { approvalHash: a.approval_hash }, 'Aprobada'); }}>Aprobar este cambio exacto</button>}
+                  {a.state === 'APPROVAL_REQUIRED' && declining !== a.id && <button className="btn" onClick={() => setDeclining(a.id)}>Ahora no</button>}
+                  {a.state === 'APPROVAL_REQUIRED' && declining === a.id && <div className="whynot"><span className="small muted">¿Por qué no? Queda anotado y no se vuelve a proponer en 30 días.</span>{WHY_NOT.map(r => <button key={r} className="btn" onClick={() => { setDeclining(null); void act(`proposals/${a.id}/decline`, { reason: r }, 'Anotado'); }}>{r}</button>)}<button className="btn ghost" onClick={() => setDeclining(null)}>Cancelar</button></div>}
                   {a.state === 'UNKNOWN_OUTCOME' && <div className="small">Aprobado y en cola: el script de Google Ads lo aplica en su próxima corrida (cada hora) y la app lo verifica con el siguiente reporte de la cuenta.</div>}
                   {(a.state === 'UNKNOWN_OUTCOME' || a.state === 'APPLIED') && <button className="btn" onClick={() => void act(`actions/${a.id}/reconcile`, undefined, 'Conciliada')}>Conciliar con Google Ads</button>}
                   {(a.state === 'VERIFIED' || a.state === 'PARTIALLY_APPLIED') && a.action_type !== 'pause_campaign' && <button className="btn" onClick={() => { if (confirm('¿Restaurar el ajuste anterior? Solo se hace si nadie lo cambió desde entonces.')) void act(`actions/${a.id}/compensate`, undefined, 'Reversión'); }}>Restaurar ajuste anterior</button>}

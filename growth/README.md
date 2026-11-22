@@ -106,3 +106,25 @@ Parrot's first order is from 11 August 2026, so on its own every "against last y
   never rung up in Wansoft. Shown on Hoy ("Últimos 28 días") and on the sales card in Reportes → Tendencias.
 - **Open question:** whether experiences prepaid online were rung up in Wansoft the way they are in Parrot. If they were
   not, the comparison overstates growth in tours and tastings.
+
+## Suggestions from fixed rules (pass 2a)
+
+`src/read/detectors.ts` looks at the search terms of the last 28 complete days (`ga4_ads_queries`) and writes a pitch
+for each known situation: what to do, why (only numbers from the evidence), what to expect and how we will know.
+
+- **Rules today:** a search for another wine region (Querétaro, Valle de Guadalupe...) or for another winery by name,
+  with clicks and no online reservation, becomes a suggested exact negative keyword. A relevant search with many clicks
+  where under 5% open the reservation widget is reported as a landing-page problem, never as a negative. Our own name
+  and any search that reserved are left alone. Thresholds and word lists are constants at the top of the file.
+- **Path:** the daily review (`reviewAndPropose`) runs the rules before the model, with or without an API key. A
+  proposal from a rule goes through `submitProposal` like one from the model: validation, policy, owner approval.
+  Nothing a rule finds is ever applied without approval. The same term is not proposed again for 30 days.
+- **Why negatives are advice for now:** the validator only accepts a negative keyword when the snapshot holds the
+  campaign's active keywords (so it cannot block one by mistake), and the Google Ads Script feed does not send them
+  yet. Until it does, the finding is shown on Hoy and Sugerencias with the manual steps. Next step: the feed sends
+  enabled keywords per campaign, they are stored, and the snapshot fills `keywords`. Note for that step: the validator
+  strips accents from the negative text; check that the keyword sent to Google keeps the accent.
+- **"Ahora no":** `POST /api/proposals/:id/decline` with a reason moves a waiting proposal to REJECTED in the
+  coordinator and records who and why. Sugerencias shows the reasons as buttons.
+- Spend-increasing suggestions (add money) are still refused by policy until measurement is mature, capacity is known
+  and the mature return is above the floor. That is unchanged.

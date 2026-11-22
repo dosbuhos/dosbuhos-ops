@@ -15,6 +15,7 @@ import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
 import { loadToday } from '../read/today.ts';
 import { parseHistoryCsv, HISTORY_SOURCE } from '../read/sales.ts';
+import { detectTerms, loadTerms } from '../read/detectors.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { readSecret } from '../ai/key.ts';
@@ -162,9 +163,16 @@ app.get('/api/today', async c => {
   const st = a ? await a.stub.state().catch(() => null) : null;
   const view = await loadToday(c.env.DB, Date.now(), c.env.WINERY_TZ, a?.currency ?? 'MXN', st?.policy ?? null);
   // Decisions waiting for the owner, and what this morning's review said (it drops off the activity list by the afternoon).
-  type Act = { id: string; state: string; created_at: number; intent?: { resourceLabel?: string; proposal?: { hypothesis?: string } } };
+  type Act = { id: string; state: string; created_at: number; intent?: { resourceLabel?: string; proposal?: { hypothesis?: string; actionType?: string; parameters?: { text?: string; changePct?: number } } } };
   const acts = (a ? await a.stub.actions(60).catch(() => []) : []) as unknown as Act[];
-  const pending = acts.filter(x => x.state === 'APPROVAL_REQUIRED').map(x => ({ id: x.id, label: String(x.intent?.resourceLabel ?? ''), hypothesis: String(x.intent?.proposal?.hypothesis ?? ''), createdAt: x.created_at }));
+  const pending = acts.filter(x => x.state === 'APPROVAL_REQUIRED').map(x => ({ id: x.id, label: String(x.intent?.resourceLabel ?? ''), hypothesis: String(x.intent?.proposal?.hypothesis ?? ''), actionType: x.intent?.proposal?.actionType ?? null, text: x.intent?.proposal?.parameters?.text ?? null, changePct: x.intent?.proposal?.parameters?.changePct ?? null, createdAt: x.created_at }));
+  // Advice from the fixed rules that is not a change the app can make (for example a landing page that does not convert).
+  // A negative keyword appears here too, with the manual steps, while the app cannot send it (see proposeFromFindings).
+  const waiting = new Set(pending.map(x => `${x.label}|${String(x.text ?? '').toLowerCase()}`));
+  const advice = detectTerms(await loadTerms(c.env.DB, addDays(view.today, -28), addDays(view.today, -1)))
+    .filter(f => !f.action || !waiting.has(`${f.campaign}|${f.action.text.toLowerCase()}`)).slice(0, 4)
+    .map(f => ({ key: f.key, kind: f.kind, campaign: f.campaign, title: f.title, why: f.why, expect: f.expect, measure: f.measure,
+      note: f.note ?? (f.action ? `Por ahora se hace a mano en Google Ads: en la campaña, Palabras clave → Palabras clave negativas → agrega [${f.action.text}] con concordancia exacta. La app lo podrá mandar con un toque cuando reciba las palabras clave activas de la campaña.` : null) }));
   const job = await c.env.DB.prepare("SELECT run_key, status, detail, started_at FROM job_runs WHERE job = 'daily_review' ORDER BY started_at DESC LIMIT 1").first<{ run_key: string; status: string; detail: string | null; started_at: number }>().catch(() => null);
   let review: { date: string; status: string; text: string; submitted: number } | null = null;
   if (job) {
@@ -172,7 +180,7 @@ app.get('/api/today', async c => {
     try { d = JSON.parse(job.detail ?? '{}'); } catch { /* older rows hold plain text */ }
     review = { date: job.run_key.split(':')[1] ?? '', status: job.status, text: typeof d.review === 'string' ? d.review : '', submitted: Number(d.submitted ?? 0) || 0 };
   }
-  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, review });
+  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, advice, review });
 });
 
 app.get('/api/capacity', async c => {
@@ -324,6 +332,13 @@ app.post('/api/proposals/:id/approve', async c => {
     const ex = await a.stub.execute(c.req.param('id'));
     return json(c, ex);
   } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
+});
+app.post('/api/proposals/:id/decline', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const b = z.object({ reason: z.string().trim().min(2).max(200) }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_request', 'Falta la razón');
+  const a = await account(c); if (!a) return fail(c, 409, 'no_account', 'No hay cuenta de anuncios');
+  try { return json(c, await a.stub.decline(c.req.param('id'), c.get('user').email, b.data.reason)); } catch (e) { return fail(c, 409, 'refused', (e as Error).message); }
 });
 app.post('/api/actions/:id/reconcile', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;

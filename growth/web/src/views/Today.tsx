@@ -2,7 +2,7 @@
 // with a verdict in words. One number per card and no charts: the trends live in Reportes.
 import { useApi } from '../api';
 import { Loading, ErrorBox } from '../components';
-import { microsMoney, money, int, dayLabel, fullDate, signedPct } from '../format';
+import { microsMoney, money, int, dayLabel, fullDate, signedPct, pitchTitle, sentences } from '../format';
 
 const VERDICT_CLS: Record<string, string> = { rinde: 's-ok', vigilar: 's-warn', pierde: 's-bad', sin_datos: 's-mute', pausada: 's-mute' };
 const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -34,8 +34,8 @@ export function Today({ overview, session }: { overview: any; session: any }) {
           <div className="list">{(t.pending as any[]).map(p => (
             <a key={p.id} className="decision" href="#sugerencias">
               <span className="state s-warn">Espera tu decisión</span>
-              <b>{p.label}</b>
-              <span className="small">{p.hypothesis}</span>
+              <b>{pitchTitle(p.actionType, p, p.label)}</b>
+              <span className="small">{sentences(p.hypothesis).slice(0, 2).join(' ')}</span>
               <span className="go">Revisar y aprobar →</span>
             </a>))}</div>
         ) : (
@@ -113,6 +113,19 @@ export function Today({ overview, session }: { overview: any; session: any }) {
         </details>
       </section>
 
+      {(t.advice as any[] | undefined)?.length ? (
+        <section className="section" aria-labelledby="rev">
+          <header><h2 id="rev">Hallazgos</h2><span className="small muted">Lo que las reglas encontraron en las búsquedas de los últimos 28 días</span></header>
+          <div className="list">{(t.advice as any[]).map(f => (
+            <article key={f.key} className="item advice">
+              <b>{f.title}</b>
+              <div className="tiny muted">Campaña: {String(f.campaign).replace(/_/g, ' ')}</div>
+              <ul className="small">{(f.why as string[]).map((w, i) => <li key={i}>{w}</li>)}</ul>
+              <div className="small">{f.expect}</div>
+              {f.note && <div className="small muted">{f.note}</div>}
+            </article>))}</div>
+        </section>
+      ) : null}
       <section className="section" aria-labelledby="ayer">
         <header><h2 id="ayer">Ayer</h2><span className="small muted">{dayLabel(y.date)}</span></header>
         <div className="grid four">

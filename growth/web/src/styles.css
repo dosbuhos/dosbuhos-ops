@@ -210,3 +210,13 @@ a.brow:hover { border-color: var(--field); }
 .card.yoy b.down { color: var(--bad, #b3261e); }
 .delta[hidden] { display: none; }
 .delta.yoy { display: block; line-height: 1.35; } .delta.yoy > span:first-child { margin-right: 5px; }
+
+/* Suggestions as a pitch: why, what to expect, how we will know (2026-11-22) */
+.pitch { display: grid; gap: 10px; margin: 8px 0 4px; }
+.pitch > div > span { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.pitch ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.45; }
+.pitch p { margin: 0; font-size: 14px; line-height: 1.45; }
+.whynot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
+.whynot > span { flex-basis: 100%; }
+.item.advice ul { margin: 6px 0; padding-left: 18px; line-height: 1.45; }
+@media (min-width: 760px) { .pitch { grid-template-columns: 1.2fr 1fr 1fr; gap: 18px; } }

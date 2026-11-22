@@ -4,6 +4,7 @@
 import type { Snapshot, RegisteredResource, Evidence } from '../policy/validate.ts';
 import type { Product } from '../domain/measurement.ts';
 import { addDays, localDate } from '../domain/time.ts';
+import { detectTerms, loadTerms, termEvidenceIds } from './detectors.ts';
 
 export async function buildSnapshot(db: D1Database, accountKey: string, now: number, wineryTz: string, maxLagDays: number): Promise<{ snapshot: Snapshot; contributionRoasByRef: Record<string, number | null> }> {
   const acct = await db.prepare('SELECT id, external_id, currency FROM ad_accounts WHERE id = ?').bind(accountKey).first<{ id: string; external_id: string; currency: 'MXN' | 'USD' }>();
@@ -39,6 +40,16 @@ export async function buildSnapshot(db: D1Database, accountKey: string, now: num
     evidence[`ev_${slug}_spend_28d`] = { id: `ev_${slug}_spend_28d`, metric: 'ad_spend_minor', window: { from, to }, value: spendMinor, resourceRef: r.ref, provisional: false };
     evidence[`ev_${slug}_clicks_28d`] = { id: `ev_${slug}_clicks_28d`, metric: 'clicks', window: { from, to }, value: s?.clicks ?? null, resourceRef: r.ref, provisional: false };
     evidence[`ev_${slug}_croas_28d`] = { id: `ev_${slug}_croas_28d`, metric: 'contribution_roas_mature', window: { from, to }, value: croas, resourceRef: r.ref, provisional: false };
+  }
+  // Search terms the fixed rules flagged in the last 28 complete days, so a suggestion about a term cites its own numbers.
+  const termTo = addDays(today, -1), termFrom = addDays(today, -28);
+  for (const f of detectTerms(await loadTerms(db, termFrom, termTo))) {
+    const r = resources.find(x => x.kind === 'campaign' && x.label === f.campaign);
+    if (!r) continue;
+    const ids = termEvidenceIds(r.ref, f.query), window = { from: termFrom, to: termTo };
+    evidence[ids.cost] = { id: ids.cost, metric: 'search_term_cost_minor', window, value: Math.round(f.stats.costMicros / 10_000), resourceRef: r.ref, provisional: false };
+    evidence[ids.clicks] = { id: ids.clicks, metric: 'search_term_clicks', window, value: f.stats.clicks, resourceRef: r.ref, provisional: false };
+    evidence[ids.reservations] = { id: ids.reservations, metric: 'search_term_online_reservations', window, value: f.stats.reservations, resourceRef: r.ref, provisional: false };
   }
   const snapshot: Snapshot = { snapshotId: `snap_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`, accountId: acct.external_id, currency: acct.currency, createdAt: now, resources, budgets, keywords: {}, evidence };
   await db.prepare('INSERT INTO snapshots (id, account_id, created_at, json) VALUES (?, ?, ?, ?)').bind(snapshot.snapshotId, accountKey, now, JSON.stringify({ ...snapshot, contributionRoasByRef })).run();

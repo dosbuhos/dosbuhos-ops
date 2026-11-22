@@ -1,6 +1,8 @@
 // Scheduled work. The cron handler claims each logical run key once (job_runs.run_key is UNIQUE), runs the cheap
 // deterministic jobs inline, and starts a Workflow instance (instance id = run key) for daily/weekly reviews.
 // The watchdog never calls the model.
+import { detectTerms, loadTerms, proposalFor, DETECTOR_VERSION } from '../read/detectors.ts';
+import type { Snapshot } from '../policy/validate.ts';
 import type { Env } from '../env.ts';
 import { dueJobs, DEFAULT_SCHEDULE, DAILY_REVIEW_GRACE_MINUTES, type DueJob, type ScheduleSettings } from '../domain/scheduler.ts';
 import { localParts, zonedToUtc, addDays, localDate } from '../domain/time.ts';
@@ -236,10 +238,12 @@ export async function reviewAndPropose(env: Env, p: ReviewParams, now: number): 
   const stub = await readyCoordinator(env, acct.id);
   const st = await stub.state();
   if (!['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) || st.aiStopped || st.emergencyLock) return { summary: `Sin propuestas: modo ${st.mode}${st.aiStopped ? ', IA detenida' : ''}${st.emergencyLock ? ', bloqueo de emergencia' : ''}`, submitted: 0, executed: [], usage };
-  const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
-  if (!apiKey) return { summary: 'Sin propuestas: ANTHROPIC_API_KEY no está configurada', submitted: 0, executed: [], usage };
   const maxLag = Math.max(...(await env.DB.prepare("SELECT maturation_lag_days AS d FROM products WHERE id IN ('restaurant_visit','tour_tasting')").all<{ d: number }>()).results.map(r => r.d));
   const { snapshot } = await buildSnapshot(env.DB, acct.id, now, env.WINERY_TZ, maxLag);
+  // Fixed rules first: they find the known situations and write the pitch from the numbers, with or without the model.
+  const found = await proposeFromFindings(env, stub, acct.id, snapshot, p.runKey, now);
+  const apiKey = await readSecret(env.ANTHROPIC_API_KEY);
+  if (!apiKey) return { summary: `${found.summary} Sin revisión del modelo: ANTHROPIC_API_KEY no está configurada`, submitted: found.submitted, executed: [], usage };
   const raw = await loadRaw({ db: env.DB, now, wineryTz: env.WINERY_TZ, currency: acct.currency });
   const o = computeOverview(raw, now, env.WINERY_TZ, acct.currency);
   const experiments = (await env.DB.prepare('SELECT title, hypothesis, status, primary_metric, result, limitations, start_date, end_date FROM experiments ORDER BY created_at DESC LIMIT 20').all()).results;
@@ -257,5 +261,34 @@ export async function reviewAndPropose(env: Env, p: ReviewParams, now: number): 
     },
   });
   usage.in = result.usage.inputTokens; usage.out = result.usage.outputTokens; usage.cost = result.usage.costMicroUsd;
-  return { summary: result.summary, submitted: result.submitted, executed, usage };
+  return { summary: `${found.summary} ${result.summary}`.trim(), submitted: result.submitted + found.submitted, executed, usage };
+}
+
+const MAX_RULE_PROPOSALS_PER_RUN = 3, DO_NOT_REPEAT_DAYS = 30;
+/** Fixed rules look at the search terms of the last 28 days and submit what the app can do about them. Each one goes
+ *  through the same validation, policy and owner approval as a proposal from the model, and nothing is applied here:
+ *  an approved change is executed only by the owner's approval. A term proposed in the last 30 days is not repeated,
+ *  whatever the owner decided. */
+export async function proposeFromFindings(env: Env, stub: Awaited<ReturnType<typeof readyCoordinator>>, accountKey: string, snapshot: Snapshot, runKey: string, now: number): Promise<{ summary: string; submitted: number; found: number }> {
+  const today = localDate(now, env.WINERY_TZ);
+  const findings = detectTerms(await loadTerms(env.DB, addDays(today, -28), addDays(today, -1))).filter(f => f.action);
+  if (!findings.length) return { summary: 'Reglas fijas: nada nuevo que proponer.', submitted: 0, found: 0 };
+  type Seen = { created_at: number; intent?: { operations?: { kind: string; campaignId?: string; text?: string }[] } };
+  const seen = (await stub.actions(200).catch(() => [])) as unknown as Seen[];
+  let submitted = 0, noKeywords = 0;
+  for (const f of findings) {
+    if (submitted >= MAX_RULE_PROPOSALS_PER_RUN) break;
+    const res = snapshot.resources.find(r => r.kind === 'campaign' && r.label === f.campaign);
+    // A negative keyword is only validated against the campaign's active keywords, so it cannot block one by mistake.
+    // Until the account feed carries them, the finding is shown as advice with the manual steps instead of being submitted.
+    if (res && !snapshot.keywords[res.campaignId]) { noKeywords++; continue; }
+    const raw = res ? proposalFor(f, snapshot.snapshotId, res.ref) : null;
+    if (!res || !raw || !raw.evidenceRefs.every(e => snapshot.evidence[e])) continue;
+    if (seen.some(a => a.created_at >= now - DO_NOT_REPEAT_DAYS * 864e5 && a.intent?.operations?.some(o => o.kind === 'add_negative_exact' && o.campaignId === res.campaignId && o.text === raw.parameters.text))) continue;
+    const r = await stub.submitProposal(raw, snapshot.snapshotId, 'model');
+    await env.DB.prepare('INSERT INTO proposals (id, action_id, account_id, snapshot_id, run_key, raw_json, validation_errors_json, decision, reasons_json, model, prompt_version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(`prop_${crypto.randomUUID().slice(0, 18)}`, r.actionId ?? null, accountKey, snapshot.snapshotId, runKey, JSON.stringify(raw).slice(0, 20_000), JSON.stringify(r.errors ?? []), r.state ?? 'invalid', JSON.stringify(r.reasons ?? []), 'reglas-fijas', DETECTOR_VERSION, Date.now()).run();
+    if (r.accepted) submitted++;
+  }
+  return { summary: `Reglas fijas: ${findings.length} hallazgo(s), ${submitted} enviado(s) para aprobación.${noKeywords ? ` ${noKeywords} se muestran como consejo: la app todavía no recibe las palabras clave activas de la campaña.` : ''}`, submitted, found: findings.length };
 }

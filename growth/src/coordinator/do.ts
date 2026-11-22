@@ -123,6 +123,7 @@ export class AccountCoordinator extends DurableObject<Env> {
     return { accepted: action.state !== 'REJECTED', actionId: action.id, state: action.state, reasons: decision.reasons };
   }
 
+  decline(actionId: string, by: string, reason: string) { const a = this.core.decline(actionId, by, reason); void this.afterChange(); return { id: a.id, state: a.state }; }
   approve(actionId: string, hash: string, approver: string) { const a = this.core.approve(actionId, hash, approver); void this.afterChange(); return { id: a.id, state: a.state }; }
 
   async execute(actionId: string): Promise<{ id: string; state: string }> {

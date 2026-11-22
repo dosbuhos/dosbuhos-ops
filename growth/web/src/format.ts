@@ -88,3 +88,17 @@ export const fullDate = (d: string) => {
 };
 /** +26% / −4%, with a real minus sign. */
 export const signedPct = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(0)}%`;
+
+/** A suggestion's headline in plain words: what would change. */
+export function pitchTitle(actionType: string | null | undefined, params: { text?: string | null; changePct?: number | null } | null | undefined, fallback = ''): string {
+  switch (actionType) {
+    case 'add_negative_keyword_exact': return `Dejar de pagar por “${params?.text ?? ''}”`;
+    case 'campaign_budget_change': return `${(params?.changePct ?? 0) > 0 ? 'Subir' : 'Bajar'} ${Math.abs(params?.changePct ?? 0)}% el presupuesto diario`;
+    case 'budget_reallocation': return 'Mover presupuesto a otra campaña';
+    case 'pause_campaign': return 'Pausar la campaña';
+    case 'pause_ad': return 'Pausar un anuncio';
+    default: return fallback;
+  }
+}
+/** A paragraph as bullets, one per sentence. */
+export const sentences = (text: string): string[] => String(text ?? '').split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean);

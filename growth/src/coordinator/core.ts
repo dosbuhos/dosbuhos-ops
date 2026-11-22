@@ -259,6 +259,15 @@ export class CoordinatorCore {
     return this.action(id)!;
   }
 
+  /** The owner says "not now" to a proposal that is still waiting. It is recorded with the reason and never executed. */
+  decline(id: string, by: string, reason: string): ActionRow {
+    const a = this.action(id);
+    if (!a) throw new CoordinatorError('not_found', 'No existe esa acción');
+    if (a.state !== 'APPROVAL_REQUIRED') throw new CoordinatorError('bad_state', `La acción está en ${a.state}`);
+    this.sql.tx(() => this.transition(a, 'REJECTED', { reason: `Ahora no: ${reason}`, by }));
+    return this.action(id)!;
+  }
+
   expireStale(): number {
     const rows = this.sql.all<ActionRow>("SELECT * FROM actions WHERE state IN ('APPROVAL_REQUIRED','APPROVED') AND expires_at < ?", this.now());
     this.sql.tx(() => { for (const r of rows) this.transition(r, 'EXPIRED', {}); });
