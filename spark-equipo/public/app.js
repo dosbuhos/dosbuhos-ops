@@ -292,9 +292,29 @@ function marcador(p, compacto) {
   return card;
 }
 
+// Inicio, whole team: four numbers to read at a glance before each person's board.
+function titular(filas) {
+  const Y = D.hoy.slice(0, 4), mH = Number(D.hoy.slice(5, 7)), dH = Number(D.hoy.slice(8)), dMes = new Date(Number(Y), mH, 0).getDate();
+  const con = personas().filter((p) => String(D.presupuesto.anio) === Y && (D.presupuesto.meses[p] || []).length === 12);
+  const vDe = (p, m) => neto(sumar(D.ordenes.filter((o) => o.vendedor === p && o.fecha.slice(0, 4) === Y && Number(o.fecha.slice(5, 7)) === m), (o) => o.total));
+  const vMes = sumar(con, (p) => vDe(p, mH)), mMes = sumar(con, (p) => D.presupuesto.meses[p][mH - 1]);
+  const vAnio = sumar(con, (p) => sumar([...Array(mH).keys()], (i) => vDe(p, i + 1)));
+  const aFecha = sumar(con, (p) => Math.round(sumar(D.presupuesto.meses[p].slice(0, mH - 1), (x) => x) + D.presupuesto.meses[p][mH - 1] * dH / dMes));
+  const c = sumar(filas, (r) => r.contactos), meta = sumar(filas, (r) => r.meta), urg = sumar(personas(), (p) => urgente(p).length);
+  const pcM = mMes ? Math.round(vMes / mMes * 100) : null, pcA = aFecha ? Math.round(vAnio / aFecha * 100) : null, pcC = meta ? Math.round(c / meta * 100) : 0, paso = Math.round(dH / dMes * 100);
+  const tono = (pc, bien = 100, medio = 80) => (pc == null ? '' : pc >= bien ? 'ok' : pc >= medio ? 'warn' : 'bad');
+  const dato = (t, n, sub, pc, k) => h('div', { class: 'tit ' + k }, h('span', { class: 'tt' }, t), h('b', {}, n), h('span', { class: 'ts' }, sub), pc == null ? null : h('i', {}, h('u', { style: `width:${Math.max(2, Math.min(100, pc))}%` })));
+  return h('div', { class: 'titular' },
+    dato('Venta del mes', peso(vMes), mMes ? `${pcM}% de ${peso(mMes)} · va el ${paso}% del mes` : 'sin meta cargada', pcM, tono(pcM, paso, Math.round(paso * .8))),
+    dato('Venta del año', peso(vAnio), aFecha ? `${pcA}% de la meta a la fecha` : '', pcA, tono(pcA)),
+    dato('Contactos esta semana', `${c} de ${meta}`, `${pcC}% de la meta de la semana`, pcC, tono(pcC, 100, 50)),
+    dato('Por atender', String(urg), urg ? 'pendientes urgentes del equipo' : 'nada urgente', null, urg ? 'bad' : 'ok'));
+}
+
 const VISTAS = {
   hoy() {
-    return h('div', {}, equipo(personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean), 'esta semana'), h('div', { class: 'grid3' }, personas().map((p) => marcador(p, !ancho() && personas().length > 1))),
+    const filas = personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean);
+    return h('div', {}, S.persona ? equipo(filas, 'esta semana') : titular(filas), h('div', { class: 'grid3' }, personas().map((p) => marcador(p, !ancho() && personas().length > 1))),
       !ancho() && personas().length > 1 ? h('p', { class: 'note' }, 'Porcentajes contra la meta a la fecha. Toca a una persona para ver su tablero completo.') : null);
   },
 

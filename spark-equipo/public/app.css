@@ -385,3 +385,14 @@ dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding:
 .rows.bn li.mio { background: color-mix(in srgb, var(--accent) 6%, transparent); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 6px; }
 .rows.bn .venc { color: var(--bad); }
 @media (min-width: 900px) { .rows.bn { columns: 2; column-gap: 28px; } .rows.bn li { break-inside: avoid; } }
+
+/* Inicio: the four team numbers above the per-person boards. */
+.titular { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.tit { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--rule); border-radius: var(--radius); padding: 11px 13px 12px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow); min-width: 0; }
+.tit.ok { border-top-color: var(--ok); } .tit.warn { border-top-color: var(--warn); } .tit.bad { border-top-color: var(--bad); }
+.tit .tt { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 650; }
+.tit b { font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tit .ts { font-size: .8rem; color: var(--muted); }
+.tit i { display: block; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 9%, transparent); margin-top: 7px; overflow: hidden; }
+.tit i u { display: block; height: 100%; background: var(--muted); border-radius: 3px; } .tit.ok i u { background: var(--ok); } .tit.warn i u { background: var(--warn); } .tit.bad i u { background: var(--bad); }
+@media (min-width: 720px) { .titular { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; } .tit { padding: 14px 16px 15px; } .tit b { font-size: 1.85rem; } }
