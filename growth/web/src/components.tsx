@@ -40,7 +40,7 @@ export function TickerCard({ t, currency }: { t: any; currency: string }) {
     <div className="card ticker">
       <div className="label"><span>{t.label}</span>{m.provisional && <span className="chip prov" title="Las cohortes recientes todavía están madurando">provisional</span>}</div>
       <div className={`value ${m.value === null ? 'unknown' : ''}`}>{metricValue(m, currency)}</div>
-      {y && <div className={`delta ${y.percent > 0 ? 'up' : y.percent < 0 ? 'down' : 'flat'}`}><span aria-hidden>{y.percent > 0 ? '▲' : y.percent < 0 ? '▼' : '■'}</span><span>{signedPct(y.percent)} contra las mismas semanas de {y.lastYearTo.slice(0, 4)}</span></div>}
+      {y && <div className={`delta yoy ${y.percent > 0 ? 'up' : y.percent < 0 ? 'down' : 'flat'}`}><span aria-hidden>{y.percent > 0 ? '▲' : y.percent < 0 ? '▼' : '■'}</span><span>{signedPct(y.percent)} contra las mismas semanas de {y.lastYearTo.slice(0, 4)}</span></div>}
       {y && <div className="tiny muted">Contra el periodo anterior: {deltaText(d, m.unit, currency)}. Esa comparación la mueve la temporada.</div>}
       {y && <div className="tiny muted">Año pasado: {money(y.lastYearMinor, currency)}, del {fullDate(y.lastYearFrom)} al {fullDate(y.lastYearTo)}, en Wansoft.{y.eventsExcludedMinor > 0 ? ` Se dejan fuera ${money(y.eventsExcludedMinor, currency)} de eventos privados, que Wansoft no registraba.` : ''}</div>}
       <div className={`delta ${dir}`} hidden={!!y}><span aria-hidden>{arrow}</span><span>{deltaText(d, m.unit, currency)}</span><span className="sr-only" style={{ position: 'absolute', left: -9999 }}>{dir === 'up' ? 'aumento' : dir === 'down' ? 'disminución' : 'sin cambio'}</span></div>

@@ -209,3 +209,4 @@ a.brow:hover { border-color: var(--field); }
 .card.yoy b.up { color: var(--ok, #1f7a4d); }
 .card.yoy b.down { color: var(--bad, #b3261e); }
 .delta[hidden] { display: none; }
+.delta.yoy { display: block; line-height: 1.35; } .delta.yoy > span:first-child { margin-right: 5px; }
