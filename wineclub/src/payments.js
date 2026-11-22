@@ -2,7 +2,7 @@
 // This Worker holds the only Stripe key, so it is also the place where personal data stops: a charge leaves here as
 // amounts, dates and a few labels from an allowlist. Names, emails, phones, addresses, card numbers, descriptions and
 // raw metadata never do. Every OpenTable prepayment is a charge in this same Stripe account, so one reader covers the
-// club, the prepaid experiences, the web store and the old Rezdy tours.
+// club, the prepaid experiences, the web store, invoices paid online, payment links and the old Rezdy tours.
 
 import { stripeGet } from './stripe.js';
 
@@ -25,18 +25,24 @@ const label = (v) => { const t = String(v ?? '').trim(); return /^[\p{L}\p{N}][\
 const digits = (v) => { const t = String(v ?? '').trim(); return /^\d{1,12}$/.test(t) ? t : ''; };
 const int = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : 0);
 
+// Zoho writes "<company> - <invoice number>-<timestamp>" when a customer pays an invoice online by card.
+const ZOHO_INVOICE = /^.{1,80} - ([A-Z]{1,5}-\d{3,10})-\d{10,16}$/;
+
 /**
  * Where a charge came from, decided only from fields the platforms set:
- *   opentable  metadata written by OpenTable (prepaid experiences, deposits)
- *   rezdy      "Rezdy order XXXXXXX for ..." (tours until October 2026); only the order code is kept
- *   web_store  the website shop (WooCommerce writes site_url / "- Order 123")
- *   wine_club  the customer is a club member in this app's database
- *   other      anything else; no text is kept
+ *   opentable     metadata written by OpenTable (prepaid experiences, deposits)
+ *   rezdy         "Rezdy order XXXXXXX for ..." (tours until October 2026); only the order code is kept
+ *   invoice       an invoice paid online through Zoho; only the invoice number is kept
+ *   web_store     the website shop (WooCommerce writes site_url / "- Order 123")
+ *   wine_club     the customer is a club member in this app's database
+ *   payment_link  a Stripe Payment Link sent by staff (found by resolveLinks, below)
+ *   other         anything else; no text is kept
  */
 export function sourceOf(ch, clubCustomers) {
   const md = ch.metadata || {}, desc = String(ch.description || '');
   if (Object.keys(md).some(k => k.startsWith('OpenTable ')) || /^OpenTable\b/.test(desc)) return 'opentable';
   if (/^Rezdy order\b/.test(desc)) return 'rezdy';
+  if (ZOHO_INVOICE.test(desc)) return 'invoice';
   if (md.site_url || md.order_key || /-\s*(Order|Pedido)\s+#?\d+\s*$/i.test(desc)) return 'web_store';
   if (typeof ch.customer === 'string' && clubCustomers.has(ch.customer)) return 'wine_club';
   return 'other';
@@ -48,7 +54,7 @@ export function trimCharge(ch, clubCustomers = new Set()) {
   const source = sourceOf(ch, clubCustomers);
   const ot = source === 'opentable';
   const service = ot ? parseOpenTableDate(md['OpenTable Reservation Date']) : null;
-  const rezdy = source === 'rezdy' ? /^Rezdy order ([A-Z0-9]{4,12})\b/.exec(String(ch.description || '')) : null;
+  const ref = source === 'rezdy' ? /^Rezdy order ([A-Z0-9]{4,12})\b/.exec(String(ch.description || '')) : source === 'invoice' ? ZOHO_INVOICE.exec(String(ch.description || '')) : null;
   const app = typeof ch.application === 'string' ? ch.application : ch.application?.id;
   const country = String(ch.payment_method_details?.card?.country ?? '').toUpperCase();
   return {
@@ -67,10 +73,31 @@ export function trimCharge(ch, clubCustomers = new Set()) {
     platform: ot ? label(md['OpenTable Platform']) : '',       // Diner App, ...
     serviceDate: service?.date ?? '',                          // the reservation's day and time, restaurant local
     serviceTime: service?.time ?? '',
-    bookingRef: rezdy ? rezdy[1] : '',
+    bookingRef: ref ? ref[1] : '',                             // Rezdy order code or invoice number: a document, not a person
     cardCountry: /^[A-Z]{2}$/.test(country) ? country : '',    // where the card was issued; says tourist or local, not who
     application: /^ca_[A-Za-z0-9]{1,40}$/.test(String(app ?? '')) ? String(app) : '',
   };
+}
+
+const MAX_LINK_LOOKUPS = 10;
+/**
+ * A charge with no platform, no description and no member behind it is usually a Payment Link that staff sent (an
+ * event deposit, a large order). Stripe only says so on the Checkout Session, so those few are looked up, at most
+ * MAX_LINK_LOOKUPS a page. A lookup that fails leaves the charge as "other": never a guess.
+ */
+export async function resolveLinks(env, charges, rows) {
+  const open = [];
+  rows.forEach((row, i) => {
+    const ch = charges[i], pi = typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id;
+    if (row.source === 'other' && !row.application && !ch.description && /^pi_[A-Za-z0-9]{1,60}$/.test(String(pi ?? '')) && open.length < MAX_LINK_LOOKUPS) open.push({ row, pi });
+  });
+  await Promise.all(open.map(async ({ row, pi }) => {
+    try {
+      const j = await stripeGet(env, '/v1/checkout/sessions', [['payment_intent', pi], ['limit', '1']], { timeoutMs: 10000 });
+      if (j?.data?.[0]?.payment_link) row.source = 'payment_link';
+    } catch { /* stays "other" */ }
+  }));
+  return rows;
 }
 
 async function clubCustomerIds(env) {
@@ -91,7 +118,7 @@ export async function listCharges(env, args = {}) {
   if (!env.STRIPE_SECRET_KEY) throw new Error('Falta STRIPE_SECRET_KEY en wineclub');
   const [j, club] = await Promise.all([stripeGet(env, '/v1/charges', pageParams(args, 'ch'), { timeoutMs: 20000 }), clubCustomerIds(env)]);
   const data = Array.isArray(j?.data) ? j.data : [];
-  return { rows: data.map(ch => trimCharge(ch, club)), hasMore: !!j?.has_more, last: data.length ? String(data[data.length - 1].id) : null };
+  return { rows: await resolveLinks(env, data, data.map(ch => trimCharge(ch, club))), hasMore: !!j?.has_more, last: data.length ? String(data[data.length - 1].id) : null };
 }
 
 /**
@@ -103,11 +130,11 @@ export async function listRefundedCharges(env, args = {}) {
   if (!env.STRIPE_SECRET_KEY) throw new Error('Falta STRIPE_SECRET_KEY en wineclub');
   const [j, club] = await Promise.all([stripeGet(env, '/v1/refunds', [...pageParams(args, 're'), ['expand[]', 'data.charge']], { timeoutMs: 20000 }), clubCustomerIds(env)]);
   const data = Array.isArray(j?.data) ? j.data : [];
-  const seen = new Set(), rows = [];
+  const seen = new Set(), charges = [];
   for (const r of data) {
     const ch = r.charge;
     if (!ch || typeof ch !== 'object' || !ch.id || seen.has(ch.id)) continue;   // a refund with no charge attached has nothing to update
-    seen.add(ch.id); rows.push(trimCharge(ch, club));
+    seen.add(ch.id); charges.push(ch);
   }
-  return { rows, hasMore: !!j?.has_more, last: data.length ? String(data[data.length - 1].id) : null };
+  return { rows: await resolveLinks(env, charges, charges.map(ch => trimCharge(ch, club))), hasMore: !!j?.has_more, last: data.length ? String(data[data.length - 1].id) : null };
 }

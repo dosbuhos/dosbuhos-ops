@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseOpenTableDate, sourceOf, trimCharge, listCharges, listRefundedCharges } from '../src/payments.js';
+import { parseOpenTableDate, sourceOf, trimCharge, listCharges, listRefundedCharges, resolveLinks } from '../src/payments.js';
 
 // Fictional charges shaped like the real ones. The personal fields are here on purpose: the tests prove they do not leave.
 const openTable = {
@@ -102,4 +102,40 @@ test('refunded charges come back whole and trimmed, once each, with the refund t
     const u = new URL(f.calls[0].url);
     assert.equal(u.pathname, '/v1/refunds'); assert.equal(u.searchParams.get('expand[]'), 'data.charge'); assert.equal(u.searchParams.get('created[gte]'), '1793000000');
   } finally { f.restore(); }
+});
+
+test('an invoice paid online through Zoho keeps its invoice number and nothing else', () => {
+  const inv = { id: 'ch_inv1', created: 1794598277, currency: 'mxn', amount: 1600000, amount_captured: 1600000, amount_refunded: 0, status: 'succeeded', captured: true, customer: null, application: 'ca_FICTIONALZOHO',
+    description: 'EMPRESA DE PRUEBA SA DE CV - F-001234-1794598277163', billing_details: { name: 'Cliente Inventado' }, metadata: {} };
+  assert.equal(sourceOf(inv, members), 'invoice');
+  const t = trimCharge(inv, members);
+  assert.equal(t.source, 'invoice'); assert.equal(t.bookingRef, 'F-001234'); assert.equal(t.amountCaptured, 1600000);
+  const out = JSON.stringify(t);
+  for (const secret of ['EMPRESA', 'PRUEBA', 'Cliente', 'Inventado', '1794598277163']) assert.ok(!out.includes(secret), `leaked ${secret}`);
+  assert.equal(sourceOf({ ...inv, description: 'Cena para F-12 personas - 20' }, members), 'other', 'only the exact invoice shape counts');
+});
+
+test('a charge with nothing on it is looked up once: a payment link is named, anything else stays "other"', async () => {
+  const bare = (id, pi, over = {}) => ({ id, created: 1791400000, currency: 'mxn', amount: 2414900, amount_captured: 2414900, amount_refunded: 0, status: 'succeeded', captured: true, customer: null, description: null, metadata: {}, payment_intent: pi, ...over });
+  const charges = [bare('ch_l1', 'pi_LINK'), bare('ch_l2', 'pi_NOSESSION'), bare('ch_l3', 'pi_ERROR'), bare('ch_l4', 'pi_CHECKOUT'), bare('ch_l5', 'pi_DESCRIBED', { description: 'Algo escrito a mano' }), bare('ch_l6', { id: 'pi_OBJECT' }), openTable];
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = new URL(String(url)), pi = u.searchParams.get('payment_intent'); asked.push(`${u.pathname}?${pi}`);
+    if (pi === 'pi_ERROR') return new Response(JSON.stringify({ error: { message: 'no permission' } }), { status: 403 });
+    const data = pi === 'pi_LINK' || pi === 'pi_OBJECT' ? [{ id: 'cs_1', payment_link: 'plink_1', customer_details: { name: 'Persona Inventada' } }] : pi === 'pi_CHECKOUT' ? [{ id: 'cs_2', payment_link: null }] : [];
+    return new Response(JSON.stringify({ data }), { status: 200 });
+  };
+  try {
+    const env = { STRIPE_SECRET_KEY: 'sk_test_local_mock', STRIPE_API_BASE: 'http://stripe.test' };
+    const rows = await resolveLinks(env, charges, charges.map(ch => trimCharge(ch, members)));
+    assert.deepEqual(rows.map(r => r.source), ['payment_link', 'other', 'other', 'other', 'other', 'payment_link', 'opentable']);
+    assert.deepEqual(asked.sort(), ['/v1/checkout/sessions?pi_CHECKOUT', '/v1/checkout/sessions?pi_ERROR', '/v1/checkout/sessions?pi_LINK', '/v1/checkout/sessions?pi_NOSESSION', '/v1/checkout/sessions?pi_OBJECT'], 'described and platform charges are not looked up');
+    assert.ok(!JSON.stringify(rows).includes('Persona'));
+    // Never more than ten lookups for one page, however many bare charges it holds.
+    asked.length = 0;
+    const many = Array.from({ length: 25 }, (_, i) => bare(`ch_m${i}`, `pi_M${i}`));
+    await resolveLinks(env, many, many.map(ch => trimCharge(ch, members)));
+    assert.equal(asked.length, 10);
+  } finally { globalThis.fetch = realFetch; }
 });
