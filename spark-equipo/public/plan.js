@@ -26,34 +26,49 @@ export function urgentePlan(p) {
 function plan() {
   const d = D(), yo = d.yo, hoy = d.hoy, P = d.plan || [], todos = (d.reglas || {}).plan_gente || [], gente = todos.filter((g) => P.some((c) => c.persona === g));
   if (S.planP === undefined || (S.planP && !gente.includes(S.planP))) S.planP = yo.persona && gente.includes(yo.persona) ? yo.persona : '';
-  const borr = P.filter((c) => !c.visible);
+  // Only the owner receives commitments the team cannot see yet. They get a quiet tag, and only while some are shown and some are not.
+  const ocultos = P.filter((c) => !c.visible).length, mixto = ocultos > 0 && ocultos < P.length;
   const campos = (c) => [{ k: 'persona', t: 'De quién es', tipo: 'select', ops: todos, v: c.persona || S.planP || todos[0], mitad: true }, { k: 'fecha', t: 'Para cuándo', tipo: 'date', v: c.fecha || '', req: true, mitad: true },
     { k: 'titulo', t: 'Compromiso', tipo: 'textarea', v: c.titulo || '', req: true, ph: 'Qué va a quedar hecho' }, { k: 'medida', t: 'Cómo se mide', tipo: 'textarea', v: c.medida || '', ph: 'El dato o la evidencia que dirá que se cumplió' },
-    { k: 'etapa', t: 'Etapa', tipo: 'select', ops: ETAPAS, v: c.etapa || ETAPAS[0], mitad: true }, c.id ? null : { k: 'visible', t: 'Quién lo ve', tipo: 'select', ops: [['no', 'Borrador: solo yo'], ['si', 'Todo el equipo']], v: 'no', mitad: true }].filter(Boolean);
+    { k: 'etapa', t: 'Etapa', tipo: 'select', ops: ETAPAS, v: c.etapa || ETAPAS[0], mitad: true }, c.id ? null : { k: 'visible', t: 'Quién lo ve', tipo: 'select', ops: [['no', 'Solo yo'], ['si', 'Todo el equipo']], v: 'no', mitad: true }].filter(Boolean);
   const editar = (c) => formulario(c ? 'Cambiar compromiso' : 'Nuevo compromiso', campos(c || {}), (v) => enviar('api/admin/plan', { ...v, id: c ? c.id : undefined }));
   const cerrar = (c) => formulario('Marcar como hecho', [{ k: 'nota', t: 'Qué quedó hecho y dónde se ve', tipo: 'textarea', req: true, ph: 'Por ejemplo: acuerdo firmado; está en la carpeta de contratos' }], (v) => enviar('api/plan/hecho', { id: c.id, ...v }), c.titulo, 'Marcar hecho');
   const puede = (c) => yo.admin || c.persona === yo.persona;
+  // One row per commitment: date and state, what and how it is measured, whose it is, and the action.
   const fila = (c) => { const [t, k] = estadoPlan(c, hoy), abierto = c.estado !== 'hecho';
-    return h('li', { class: abierto ? '' : 'hecho' }, h('div', { class: 'l1' }, h('span', {}, c.titulo), h('span', { class: 'pl-e' }, c.visible ? null : pill('Borrador', 'mute'), pill(t, k))),
-      h('div', { class: 'l2' }, [abierto && c.fecha && k !== 'mute' ? 'Para el ' + fechaL(c.fecha) : '', c.medida ? 'Se mide: ' + c.medida : ''].filter(Boolean).join(' · ')),
-      abierto ? null : h('div', { class: 'l2' }, `Hecho el ${fechaL(c.hecho_fecha)} por ${c.hecho_por}: ${c.nota}`),
-      puede(c) || yo.dueno ? h('div', { class: 'acc' }, puede(c) ? (abierto ? h('button', { class: 'btn sm sec', onclick: () => cerrar(c) }, 'Marcar hecho') : h('button', { class: 'linkb note', onclick: () => enviar('api/plan/hecho', { id: c.id, deshacer: true }) }, 'Reabrir')) : null,
-        yo.dueno ? [h('button', { class: 'linkb note', onclick: () => editar(c) }, 'Cambiar'), h('button', { class: 'linkb note', onclick: () => enviar('api/admin/plan', { publicar: c.id, ocultar: !!c.visible }) }, c.visible ? 'Regresar a borrador' : 'Publicar'),
-          h('button', { class: 'linkb note', onclick: () => { if (confirm('¿Quitar este compromiso?')) enviar('api/admin/plan', { borrar: c.id }); } }, 'Quitar')] : null) : null); };
-  const orden = (L) => [...L.filter((c) => c.estado !== 'hecho'), ...L.filter((c) => c.estado === 'hecho')];
-  const resumen = (L) => { const he = L.filter((c) => c.estado === 'hecho').length, ve = L.filter((c) => c.estado !== 'hecho' && c.fecha && c.fecha < hoy).length, sig = L.find((c) => c.estado !== 'hecho' && c.fecha >= hoy);
-    return [`${he} de ${L.length} hechos`, ve ? plural(ve, 'vencido', 'vencidos') : '', sig ? `sigue el ${fechaL(sig.fecha)}` : ''].filter(Boolean).join(' · '); };
+    return h('li', { class: 'plr' + (abierto ? '' : ' hecho') },
+      h('div', { class: 'pl-f' }, h('b', {}, c.fecha ? fechaL(c.fecha) : 'Sin fecha'), k === 'mute' ? null : pill(t, k)),
+      h('div', { class: 'pl-t' }, h('span', { class: 't' }, c.titulo, yo.dueno && mixto && !c.visible ? pill('Solo tú', 'mute') : null),
+        c.medida ? h('span', { class: 'l2' }, 'Se mide: ' + c.medida) : null,
+        abierto ? null : h('span', { class: 'l2' }, `Hecho el ${fechaL(c.hecho_fecha)} por ${c.hecho_por}: ${c.nota}`)),
+      S.planP ? null : h('div', { class: 'pl-q' }, c.persona),
+      h('div', { class: 'acc' }, puede(c) ? (abierto ? h('button', { class: 'btn sm sec', onclick: () => cerrar(c) }, 'Marcar hecho') : h('button', { class: 'linkb note', onclick: () => enviar('api/plan/hecho', { id: c.id, deshacer: true }) }, 'Reabrir')) : null,
+        // The owner's controls stay folded, one commitment at a time: there is no way to show the whole plan to the team in one click.
+        yo.dueno ? h('details', { class: 'pl-ed' }, h('summary', {}, 'Editar'), h('div', { class: 'acc' }, h('button', { class: 'linkb note', onclick: () => editar(c) }, 'Cambiar'),
+          h('button', { class: 'linkb note', onclick: () => enviar('api/admin/plan', { publicar: c.id, ocultar: !!c.visible }) }, c.visible ? 'Ocultar al equipo' : 'Mostrar al equipo'),
+          h('button', { class: 'linkb note', onclick: () => { if (confirm('¿Quitar este compromiso?')) enviar('api/admin/plan', { borrar: c.id }); } }, 'Quitar'))) : null)); };
+  // What the screen answers: what is late, what is due this week, and what comes after, month by month.
+  const L = P.filter((c) => !S.planP || c.persona === S.planP), ab = L.filter((c) => c.estado !== 'hecho'), he = L.filter((c) => c.estado === 'hecho');
+  const venc = ab.filter((c) => c.fecha && c.fecha < hoy), sem = ab.filter((c) => c.fecha && c.fecha >= hoy && dDias(hoy, c.fecha) <= 7), resto = ab.filter((c) => !c.fecha || dDias(hoy, c.fecha) > 7);
+  const mesL = (iso) => { const m = new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', { month: 'long' }); return m[0].toUpperCase() + m.slice(1) + (iso.slice(0, 4) !== hoy.slice(0, 4) ? ' ' + iso.slice(0, 4) : ''); };
+  const meses = [...new Set(resto.filter((c) => c.fecha).map((c) => c.fecha.slice(0, 7)))].sort();
+  const lista = (G) => h('ul', { class: 'rows plan' + (S.planP ? ' sinq' : '') }, G.map(fila));
+  const grupo = (t, G, k) => (G.length ? h('section', { class: 'card plg' + (k ? ' ' + k : '') }, h('div', { class: 'name' }, t, h('span', { class: 'note' }, plural(G.length, 'compromiso', 'compromisos'))), lista(G)) : null);
+  const sig = ab.find((c) => c.fecha && c.fecha >= hoy), nsig = sig ? ab.filter((c) => c.fecha === sig.fecha).length : 0;
+  const cifra = (t, v, sub, k, pc) => h('div', { class: 'tit ' + k }, h('span', { class: 'tt' }, t), h('b', {}, v), h('span', { class: 'ts' }, sub), pc == null ? null : h('i', {}, h('u', { style: `width:${Math.max(2, Math.min(100, pc))}%` })));
   return h('div', {},
-    h('p', { class: 'note' }, 'Lo que cada quien se comprometió a entregar, con fecha y cómo se mide. Se revisa aquí cada lunes.' + (yo.persona ? ' Marca “hecho” los tuyos con una nota de qué quedó y dónde se ve.' : '')),
-    yo.dueno ? h('div', { class: 'toolbar' }, h('button', { class: 'btn sm', onclick: () => editar() }, 'Agregar compromiso'),
-      borr.length ? h('button', { class: 'btn sm sec', onclick: () => { if (confirm(`¿Publicar los ${borr.length} borradores a todo el equipo?`)) enviar('api/admin/plan', { publicar: 'todos' }); } }, `Publicar los ${borr.length} borradores`) : null) : null,
-    yo.dueno && borr.length ? h('p', { class: 'note aviso' }, `${plural(borr.length, 'compromiso está', 'compromisos están')} en borrador: solo tú los ves. Publícalos cuando hayas presentado el plan.`) : null,
-    gente.length > 1 ? chips([['', 'Todos'], ...gente.map((g) => [g, g])], S.planP, (v) => { S.planP = v; }) : null,
-    P.length ? null : h('p', { class: 'note' }, 'Todavía no hay compromisos publicados.'),
-    gente.filter((g) => !S.planP || g === S.planP).map((g) => { const L = orden(P.filter((c) => c.persona === g)), nb = L.filter((c) => !c.visible).length;
-      return h('section', { class: 'card' }, h('div', { class: 'name' }, g, h('span', { class: 'note' }, resumen(L))),
-        yo.dueno && nb ? h('p', { class: 'note' }, h('button', { class: 'linkb', onclick: () => enviar('api/admin/plan', { publicar: g }) }, `Publicar los ${nb} de ${g}`)) : null,
-        h('ul', { class: 'rows plan' }, L.map(fila))); }));
+    h('p', { class: 'note' }, 'Lo que cada quien se comprometió a entregar, con fecha y cómo se mide. Se revisa cada lunes.' + (yo.persona ? ' Marca “hecho” los tuyos con una nota de qué quedó y dónde se ve.' : '') + (yo.dueno && ocultos && !mixto ? ' Por ahora solo tú ves este plan.' : '')),
+    P.length ? h('div', { class: 'titular plt' },
+      cifra('Vencidos', String(venc.length), venc.length ? 'el más viejo, del ' + fechaL(venc[0].fecha) : 'nada vencido', venc.length ? 'bad' : 'ok'),
+      cifra('En siete días', String(sem.length), sem.length ? 'el primero, el ' + fechaL(sem[0].fecha) : 'nada esta semana', sem.length ? 'warn' : ''),
+      cifra('Hechos', `${he.length} de ${L.length}`, L.length ? Math.round(he.length / L.length * 100) + '% del plan' : '', he.length && he.length === L.length ? 'ok' : '', L.length ? he.length / L.length * 100 : null),
+      cifra('Siguiente fecha', sig ? fechaL(sig.fecha) : '—', sig ? plural(nsig, 'compromiso ese día', 'compromisos ese día') : 'sin pendientes con fecha', '')) : null,
+    h('div', { class: 'toolbar plb' }, gente.length > 1 ? chips([['', 'Todos'], ...gente.map((g) => [g, g])], S.planP, (v) => { S.planP = v; }) : null,
+      yo.dueno ? h('button', { class: 'btn sm sec', onclick: () => editar() }, 'Agregar', h('span', { class: 'dsk' }, ' compromiso')) : null),
+    P.length ? null : h('p', { class: 'note' }, 'Todavía no hay compromisos.'),
+    grupo('Vencidos', venc, 'bad'), grupo('Vencen en siete días', sem, 'warn'),
+    meses.map((m) => grupo(mesL(m + '-01'), resto.filter((c) => c.fecha && c.fecha.slice(0, 7) === m))), grupo('Sin fecha', resto.filter((c) => !c.fecha)),
+    he.length ? h('details', { class: 'card plg plh' }, h('summary', {}, `Hechos (${he.length})`), lista(he)) : null);
 }
 
 // ---------------------------------------------------------------- Eventos

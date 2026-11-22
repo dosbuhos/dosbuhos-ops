@@ -396,3 +396,53 @@ dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding:
 .tit i { display: block; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 9%, transparent); margin-top: 7px; overflow: hidden; }
 .tit i u { display: block; height: 100%; background: var(--muted); border-radius: 3px; } .tit.ok i u { background: var(--ok); } .tit.warn i u { background: var(--warn); } .tit.bad i u { background: var(--bad); }
 @media (min-width: 720px) { .titular { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; } .tit { padding: 14px 16px 15px; } .tit b { font-size: 1.85rem; } }
+
+/* Monday review: the plan's five numbers, then each person's card */
+.lun5 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.lun5 .tit:first-child { grid-column: 1 / -1; }
+.lun5 .tit .linkb { align-self: flex-start; margin-top: 6px; font-size: .8rem; }
+@media (min-width: 960px) { .lun5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; } .lun5 .tit:first-child { grid-column: auto; } .lun5 .tit b { font-size: 1.5rem; } }
+.lund { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 10px 0 6px; }
+.lund div { display: flex; flex-direction: column; min-width: 0; } .lund span { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 650; } .lund b { font-variant-numeric: tabular-nums; }
+.lunl { margin: 4px 0 8px; padding-left: 20px; } .lunl li { margin: 6px 0; }
+
+/* Forms: optional fields live under one collapsed block */
+.masf { border-top: 1px solid var(--rule); padding-top: 2px; } .masf summary { cursor: pointer; color: var(--muted); font-size: .9rem; font-weight: 600; padding: 10px 0; }
+.masf[open] { display: grid; gap: 12px; } .masf[open] summary { padding-bottom: 0; }
+/* A note that only matters once: folded by default */
+details.nota { margin: 0 0 10px; } details.nota summary { cursor: pointer; color: var(--muted); font-size: .875rem; padding: 6px 0; } details.nota .note { margin: 2px 0 0; }
+.al-l { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* On a phone the four counts above a list are one compact row, so the list starts higher */
+@media (max-width: 719px) {
+  .kpis.mini { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 10px 12px; }
+  .kpis.mini .num { font-size: 1.2rem; } .kpis.mini .kl { font-size: .68rem; font-weight: 600; line-height: 1.25; } .kpis.mini .note { display: none; }
+  .alert.fuerte { padding: 9px 12px; font-size: .9rem; }
+}
+.pl-ed summary { cursor: pointer; color: var(--muted); font-size: .85rem; padding: 7px 2px; list-style: none; text-decoration: underline; } .pl-ed summary::-webkit-details-marker { display: none; }
+.pl-ed[open] { flex-basis: 100%; } .pl-ed .acc { margin-top: 2px; }
+
+/* Plan: one row per commitment. Phone: what on the left, when on the right, actions below. Desktop: a table of date, what, whose and action. */
+.plt { margin-bottom: 14px; } .plb { justify-content: space-between; flex-wrap: nowrap; gap: 12px; } .plb .chips { min-width: 0; margin: 0; } .plb .btn { flex-shrink: 0; }
+.plg { padding-bottom: 6px; } .plg.bad { border-top: 3px solid var(--bad); } .plg.warn { border-top: 3px solid var(--warn); }
+.plh > summary { cursor: pointer; font-weight: 650; padding: 4px 0; } .plh:not([open]) { padding-bottom: 12px; }
+.rows.plan li.plr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: start; }
+.plr .pl-t { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.plr .pl-t .t { font-weight: 600; } .plr .pl-t .t .pill { margin-left: 8px; font-weight: 500; } .plr.hecho .pl-t .t { color: var(--muted); font-weight: 500; }
+.plr .pl-f { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: .875rem; white-space: nowrap; }
+.plr .pl-f b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.plr .pl-q { grid-column: 1 / -1; color: var(--muted); font-size: .875rem; }
+.plr .acc { grid-column: 1 / -1; margin-top: 6px; align-items: center; }
+@media (min-width: 900px) {
+  .rows.plan li.plr { grid-template-columns: 108px minmax(0, 1fr) 104px 176px; gap: 2px 20px; padding: 10px 0; }
+  .rows.plan.sinq li.plr { grid-template-columns: 108px minmax(0, 1fr) 176px; }
+  .plr .pl-f { grid-column: 1; align-items: flex-start; font-size: .9375rem; } .plr .pl-t { grid-column: 2; }
+  .plr .pl-q { grid-column: 3; grid-row: 1; font-size: .9375rem; color: var(--text); }
+  .plr .acc { grid-column: -2 / -1; grid-row: 1; margin-top: 0; justify-content: flex-end; }
+  .plr .pl-ed[open] .acc { flex-direction: column; align-items: flex-end; gap: 0; }
+}
+@media (max-width: 719px) {
+  .dsk { display: none; }
+  .plt { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+  .plt .tit { padding: 8px 8px 9px; border-top-width: 3px; } .plt .tit .tt { font-size: .6rem; letter-spacing: .03em; line-height: 1.25; min-height: 2.5em; }
+  .plt .tit b { font-size: 1.05rem; } .plt .tit .ts, .plt .tit i { display: none; }
+}

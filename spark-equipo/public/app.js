@@ -1,5 +1,6 @@
 import { MAS_VISTAS } from './mas.js';
 import { PLAN_VISTAS, urgentePlan, urgenteEventos } from './plan.js';
+import { LUNES_VISTAS } from './lunes.js';
 
 // Spark Equipo — phone-first UI. Every figure comes computed from /api/data; this file only lays it out.
 const $ = (id) => document.getElementById(id);
@@ -40,7 +41,7 @@ const SECC = [
   ['cuentas', 'Cuentas', 'M4 20v-1.500A4.500 4.500 0 0 1 8.500 14h3A4.500 4.500 0 0 1 16 18.500V20M10 10.500a3.250 3.250 0 1 0 0-6.500 3.250 3.250 0 0 0 0 6.500zM17 13.800a4 4 0 0 1 3 3.900V20M15.500 4.300a3.200 3.200 0 0 1 0 6', [['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['clientes', 'Cómo va cada una', 'Clientes: cómo va cada uno'], ['directorio', 'Directorio', 'Directorio de clientes'], ['cobranza', 'Cobranza', 'Cobranza'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes']]],
   ['prospectos', 'Prospectos', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.500a4.500 4.500 0 1 0 0-9 4.500 4.500 0 0 0 0 9zM12 12h.010', [['zonas', 'Zonas y prospectos', 'Zonas y prospectos'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores']]],
   ['ventas', 'Ventas', 'M4 20V10M10 20V4M16 20v-7M21 20H3', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero'], ['efectividad', 'Efectividad', 'Efectividad', true]]],
-  ['plan', 'Plan', 'M9 11.500l2.200 2.200L15.500 9.400M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', [['plan', 'Plan de 90 días', 'Plan de 90 días: compromisos con fecha'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['estrategia', 'Promociones y estrategia', 'Estrategia, metas y promociones']]],
+  ['plan', 'Plan', 'M9 11.500l2.200 2.200L15.500 9.400M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', [['lunes', 'Revisión del lunes', 'Revisión del lunes: los números del plan y cada persona'], ['plan', 'Plan de 90 días', 'Plan de 90 días: compromisos con fecha'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['estrategia', 'Promociones y estrategia', 'Estrategia, metas y promociones']]],
   ['recursos', 'Recursos', 'M5 4.500h9.500a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h9.500', [['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
 ];
 const FUERA = [['buzon', 'Buzón', 'Buzón'], ['ajustes', 'Ajustes', 'Ajustes', true]];
@@ -188,8 +189,10 @@ const reasignar = (r) => h('button', { class: 'linkb', onclick: () => formulario
 // Sales before taxes: Zoho order totals carry IEPS (26.5%) and IVA (16%) on wine; the reps' goals do not.
 const neto = (n) => Math.round(n / 1.4674);
 const semDe = (w, p) => D.semanas.find((r) => r.semana === w && r.persona === p);
+// Net sales (before taxes) of some sellers between two dates.
+const ventaNeta = (desde, hasta, quienes) => neto(D.ordenes.filter((o) => quienes.includes(o.vendedor) && o.fecha >= desde && o.fecha <= hasta).reduce((t, o) => t + (o.total || 0), 0));
 
-export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, nuevaCuenta, pintar, cargar, ir, toca };
+export { h, svg, lista, pill, chips, peso, dia, pct, api, S, MES, personas, vendedores, ancho, formulario, enviar, registrar, nuevaCuenta, pintar, cargar, ir, toca, regla48, puntualidad, ventaNeta };
 export const datos = () => D;
 
 // ---- Inicio: where each person stands (sales and contacts against their goals), then the few things that cannot wait.
@@ -314,7 +317,9 @@ function titular(filas) {
 const VISTAS = {
   hoy() {
     const filas = personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean);
-    return h('div', {}, S.persona ? equipo(filas, 'esta semana') : titular(filas), h('div', { class: 'grid3' }, personas().map((p) => marcador(p, !ancho() && personas().length > 1))),
+    return h('div', {}, S.persona ? equipo(filas, 'esta semana') : titular(filas),
+      D.lunes && !S.persona ? h('p', { class: 'note', style: 'margin:-4px 0 12px' }, h('button', { class: 'linkb', onclick: () => ir('lunes') }, 'Revisión del lunes: los cinco números del plan y los puntos de cada persona')) : null,
+      h('div', { class: 'grid3' }, personas().map((p) => marcador(p, !ancho() && personas().length > 1))),
       !ancho() && personas().length > 1 ? h('p', { class: 'note' }, 'Porcentajes contra la meta a la fecha. Toca a una persona para ver su tablero completo.') : null);
   },
 
@@ -446,7 +451,7 @@ const VISTAS = {
         ancho() ? null : h('select', { 'aria-label': 'Ordenar', onchange: (e) => { S.segOrden = e.target.value; pintar(); } },
         [['viejo', 'Más tiempo sin contacto'], ['reciente', 'Contacto más reciente'], ['proximo', 'Próximo contacto']].map(([v, t]) => h('option', { value: v, selected: S.segOrden === v }, t)))),
 
-      h('p', { class: 'note', style: 'margin-bottom:8px' }, 'Toca una cuenta para registrar el contacto. Si ya la contactaste y no lo anotaste, ponle la fecha en que fue.'),
+      h('p', { class: 'note', style: 'margin-bottom:8px' }, 'Toca una cuenta para registrar el contacto.'),
       h('div', { class: 'card' }, lista('seg', seg, 10, (r) => h('li', puede(r.persona) ? toca(() => registrar(r)) : {},
         h('div', { class: 'l1' }, h('span', {}, r.cuenta), est(r)),
         r.pausa ? h('div', { class: 'l2' }, pausado(r)) : null,
@@ -557,7 +562,7 @@ const VISTAS = {
             { t: 'Suele pedir cada', v: (c) => c.cada_dias + ' días', s: (c) => c.cada_dias, num: true }, { t: 'Pedidos 12 meses', v: (c) => c.pedidos_12m, s: (c) => c.pedidos_12m, num: true }, { t: 'Vendido 12 meses', v: (c) => peso(c.total_12m), s: (c) => c.total_12m, num: true }])),
         h('h3', {}, 'Año contra año')] : [];
       return [h('h2', {}, v),
-        h('p', { class: 'note' }, `${peso(t('actual'))} este año contra ${peso(t('pasado_mp'))} a la misma fecha del año pasado (`, h('span', { class: ch >= 0 ? 'up' : 'down' }, pct(ch)), ').'), ((sf) => (sf.length ? h('p', { class: 'note' }, `Incluye ${peso(neto(sumar(sf, (o) => o.total)))} en ${sf.length} pedidos de este año todavía sin facturar: ` + sf.slice(0, 5).map((o) => o.cliente).join(' · ') + (sf.length > 5 ? '…' : '') + '.') : null))(D.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === String(Y) && !['invoiced', 'partially_invoiced'].includes(o.facturacion))),
+        h('p', { class: 'note' }, `${peso(t('actual'))} este año contra ${peso(t('pasado_mp'))} a la misma fecha del año pasado (`, h('span', { class: ch >= 0 ? 'up' : 'down' }, pct(ch)), ').'), ((sf) => (sf.length ? h('p', { class: 'note' }, `Incluye ${peso(neto(sumar(sf, (o) => o.total)))} en ${sf.length} pedidos de este año todavía sin facturar: ` + ((N) => N.slice(0, 4).join(' · ') + (N.length > 4 ? ` y ${N.length - 4} más` : ''))([...new Set(sf.map((o) => o.cliente))]) + '.') : null))(D.ordenes.filter((o) => o.vendedor === v && o.fecha.slice(0, 4) === String(Y) && !['invoiced', 'partially_invoiced'].includes(o.facturacion))),
         movimientos, corto ? h('p', {}, h('button', { class: 'more', onclick: () => ir('clientes', v) }, `Ver todo de ${v}`)) : null, corto ? null : metricas,
         corto ? null : h('div', { class: 'card' }, lista('yoy' + v, L, 15, (c) => {
           const mx = Math.max(c.antepasado, c.pasado, c.actual, 1);
@@ -738,7 +743,7 @@ const VISTAS = {
   }
 };
 
-Object.assign(VISTAS, MAS_VISTAS, PLAN_VISTAS);
+Object.assign(VISTAS, MAS_VISTAS, PLAN_VISTAS, LUNES_VISTAS);
 
 let _estados = null;
 const estados = () => (_estados ||= fetch('estados.json').then((r) => r.json()).then((rows) => rows.map((s) => ({ ...s, g: JSON.parse(s.geom) }))));
@@ -749,7 +754,7 @@ async function api(path, body) {
 
 function pintar() {
   const admin = D.yo.admin, wide = ancho(), yo = PANT.get(S.vista) || PANT.get('hoy'), mia = seccionDe(S.vista);
-  const nPend = sinLeer(), puede = (x) => !x[3] || admin;
+  const nPend = sinLeer(), puede = (x) => (!x[3] || admin) && (x[0] !== 'lunes' || !!D.lunes);   // the Monday review shows once the plan is published
   if (mia) (S.ult = S.ult || {})[mia[0]] = S.vista;                       // each section reopens on the screen you left it on
   const entrar = ([k, , , L]) => ir((S.ult && S.ult[k] && PANT.has(S.ult[k]) && puede(PANT.get(S.ult[k])) && S.ult[k]) || L.find(puede)[0]);
   const boton = (sec) => h('button', { 'aria-current': mia && mia[0] === sec[0] ? 'page' : null, onclick: () => entrar(sec) }, icono(sec[2]), h('span', {}, sec[1]));
@@ -800,7 +805,9 @@ function formulario(titulo, campos, guardar, nota, boton = 'Guardar') {
       : h('input', { ...a, type: c.tipo || 'text', value: c.v ?? null, min: c.tipo === 'number' ? 0 : null, inputmode: c.tipo === 'number' ? 'numeric' : c.k === 'telefono' ? 'tel' : null, max: c.max || null });
     if (c.lista) { el.setAttribute('list', 'dl-' + c.k); el.setAttribute('autocomplete', 'off'); return h('label', {}, c.t, el, h('datalist', { id: 'dl-' + c.k }, c.lista.map((x) => h('option', { value: x })))); }
     return h('label', {}, c.t, el); };
-  const filas = []; for (let i = 0; i < campos.length; i++) { const c = campos[i]; if (c.mitad && campos[i + 1] && campos[i + 1].mitad) { filas.push(h('div', { class: 'dos' }, campo(c), campo(campos[++i]))); } else filas.push(campo(c)); }
+  const armar = (L) => { const F = []; for (let i = 0; i < L.length; i++) { const c = L[i]; if (c.mitad && L[i + 1] && L[i + 1].mitad) { F.push(h('div', { class: 'dos' }, campo(c), campo(L[++i]))); } else F.push(campo(c)); } return F; };
+  const extra = campos.filter((c) => c.mas), filas = armar(campos.filter((c) => !c.mas));
+  if (extra.length) filas.push(h('details', { class: 'masf' }, h('summary', {}, 'Más detalles (opcional)'), armar(extra)));
   const f = h('form', { method: 'dialog', onsubmit: async (ev) => { ev.preventDefault(); const b = f.querySelector('.btn:not(.sec)'); b.disabled = true; err.textContent = '';
       const e = await guardar(Object.fromEntries(new FormData(f))).catch((x) => String(x.message || x)); b.disabled = false; if (e) { err.textContent = e; return; } d.close(); } },
     h('h2', { id: 'dlg-t' }, titulo), nota ? h('p', { class: 'dnote' }, nota) : null, filas,
@@ -855,20 +862,20 @@ function registrar(pre) {
     pre.cuenta ? null : { el: pick.el },
     { k: 'fecha', t: 'Cuándo fue', tipo: 'date', v: hoy, max: hoy, req: true, mitad: true },
     { k: 'medio', t: 'Cómo', tipo: 'select', ops: ['Presencial', 'Llamada', 'WhatsApp', 'Correo'], v: 'Presencial', mitad: true },
+    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Capacitación', 'Visita del cliente a la bodega', 'Detalle o Magnum', 'Cobranza', 'Entrega', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento' },
     { k: 'resultado', t: 'Qué pasó', tipo: 'textarea', req: true, foco: !!pre.cuenta, ph: 'Con quién hablaste, qué dijeron, qué quedó pendiente' },
     { k: 'siguiente_paso', t: 'Siguiente paso', ph: pre.sugerencia ? pre.sugerencia.slice(0, 90) : 'Lo que vas a hacer después', mitad: true },
     { k: 'proximo', t: 'Próximo contacto', tipo: 'date', mitad: true },
-    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Capacitación', 'Visita del cliente a la bodega', 'Detalle o Magnum', 'Cobranza', 'Entrega', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento', mitad: true },
-    { k: 'pausa', t: 'Envíos pausados por cobranza', tipo: 'select', ops: [['', pre.pausa ? 'Siguen pausados' : 'No'], pre.pausa ? ['no', 'Ya no, se reanudaron'] : ['si', 'Sí, pausados hasta que paguen']], v: '', mitad: true },
-    { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true },
-    { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', ph: 'Tu estimado', mitad: true },
-    { k: 'etapa', t: 'Etapa de la cuenta', tipo: 'select', ops: [['', 'Sin cambio'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: '' },
+    { k: 'pausa', t: 'Envíos pausados por cobranza', tipo: 'select', ops: [['', pre.pausa ? 'Siguen pausados' : 'No'], pre.pausa ? ['no', 'Ya no, se reanudaron'] : ['si', 'Sí, pausados hasta que paguen']], v: '', mas: !pre.pausa },
+    { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true, mas: true },
+    { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', ph: 'Tu estimado', mitad: true, mas: true },
+    { k: 'etapa', t: 'Etapa de la cuenta', tipo: 'select', ops: [['', 'Sin cambio'], 'Contacto inicial', 'En proceso', 'Catalogado', 'Compra regular'], v: '', mas: true },
   ].filter(Boolean), async (v) => {
     // A new account is created first; then the contact is logged against it.
     if (pick && pick.nueva()) { const r = await api('api/cuenta/nueva', { nombre: v.cuenta, tipo: v.n_tipo, zona: v.n_zona, ciudad: v.n_ciudad, contacto: v.n_contacto, telefono: v.n_telefono, email: v.n_email, persona: v.persona || quien }); if (r.error) return r.error; }
     else if (pick && !pick.existe(v.cuenta)) return 'Elige una cuenta de la lista, o toca "Nueva cuenta" para darla de alta.';
     return enviar('api/actividad', { ...v, cuenta: pre.cuenta || v.cuenta, persona: v.persona || quien, contacto: v.n_contacto || '', telefono: v.n_telefono || '' });
-  }, [antes, pre.pausa ? 'Envíos pausados por cobranza: igual toca contactarlos, para cobrar y para que vuelvan a pedir.' : ''].filter(Boolean).join(' ') || 'Queda guardado en Spark.');
+  }, [antes, pre.pausa ? 'Envíos pausados por cobranza: igual toca contactarlos, para cobrar y para que vuelvan a pedir.' : ''].filter(Boolean).join(' ') || 'Si fue otro día, cambia la fecha. Dos minutos y queda guardado.');
 }
 
 async function cargar() {

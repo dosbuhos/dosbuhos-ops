@@ -76,11 +76,11 @@ function directorio() {
   const yo = D().yo.persona, mia = deuda.find((x) => x.v === yo), totalF = deuda.reduce((t, x) => t + x.n, 0);
   const ver = (v) => { S.dirV = v; S.dirF = 'falta'; pintar(); };
   const aviso = totalF ? h('div', { class: 'alert fuerte', role: 'status' }, h('b', {}, mia ? `Te faltan datos en ${mia.n} de tus ${mia.de} cuentas. ` : `Faltan datos de contacto en ${totalF} cuentas. `),
-    'Cada cuenta necesita persona de contacto, teléfono y correo. ', deuda.map((x, i) => [i ? ' · ' : '', h('button', { class: 'linkb', onclick: () => ver(x.v) }, `${x.v}: ${x.n} de ${x.de}`)]),
-    S.dirV ? [' · ', h('button', { class: 'linkb', onclick: () => { S.dirV = ''; S.dirF = ''; pintar(); } }, 'Ver todas')] : null)
+    'Cada una necesita persona de contacto, teléfono y correo.', h('div', { class: 'al-l' }, deuda.map((x) => h('button', { class: 'chip', onclick: () => ver(x.v) }, `${x.v}: ${x.n} de ${x.de}`)),
+      S.dirV ? h('button', { class: 'chip', onclick: () => { S.dirV = ''; S.dirF = ''; pintar(); } }, 'Ver todas') : null))
     : h('div', { class: 'alert ok' }, 'Todas las cuentas tienen persona de contacto, teléfono y correo.');
   return h('div', {}, aviso,
-    h('div', { class: 'card kpis' }, kpi(A.length, 'Cuentas en el libro', `${A.filter((d) => d.pais === 'México').length} en México · ${A.filter((d) => d.pais !== 'México').length} en Estados Unidos`),
+    h('div', { class: 'card kpis mini' }, kpi(A.length, 'Cuentas en el libro', `${A.filter((d) => d.pais === 'México').length} en México · ${A.filter((d) => d.pais !== 'México').length} en Estados Unidos`),
       kpi(`${comp} de ${A.length}`, 'Con datos completos', 'contacto, correo y teléfono'), kpi(A.filter((d) => !d.email).length, 'Sin correo'), kpi(A.filter((d) => !d.contacto).length, 'Sin persona de contacto')),
     h('div', { class: 'toolbar' }, busca, chips([['', 'Todas'], ['falta', 'Incompletas'], ['mx', 'México'], ['usa', 'Estados Unidos']], S.dirF || '', (v) => { S.dirF = v; }), h('button', { class: 'btn sm', onclick: () => nuevaCuenta() }, 'Nueva cuenta')),
     caja,
@@ -336,10 +336,10 @@ function distribuidores() {
   const hoja = d.crm_hoja ? `https://docs.google.com/spreadsheets/d/${d.crm_hoja}/edit#gid=120` : null;
   const porZona = d.zonas.map((z) => ({ z: z.nombre.split(' (')[0], L: L0.filter((p) => p.zona === z.zona) })).filter((x) => x.L.length || true);
   return h('div', {},
-    h('div', { class: 'card kpis' }, kpi(n('En proceso'), 'En proceso', `${n('frio')} sin contacto en más de 30 días`), kpi(n('Catalogado'), 'Catalogados', 'ya nos compran o están por hacerlo'),
+    h('div', { class: 'card kpis mini' }, kpi(n('En proceso'), 'En proceso', `${n('frio')} sin contacto en más de 30 días`), kpi(n('Catalogado'), 'Catalogados', 'ya nos compran o están por hacerlo'),
       kpi(n('Por contactar'), 'Por contactar', 'identificados, sin primer contacto'), kpi(n('Rechazado'), 'Rechazados', `${L0.filter((p) => /dos b[uú]hos/i.test(p.motivo + ' ' + p.siguiente)).length} por decisión nuestra`)),
-    h('p', { class: 'note' }, 'La lista vive en la pestaña "Distribuidores" de la hoja del CRM; Spark la lee tres veces al día. ',
-      'Un contacto registrado aquí, tocando el renglón, actualiza la fecha de inmediato. ', hoja ? h('a', { href: hoja, target: '_blank', rel: 'noopener' }, 'Abrir la hoja') : null, d.dist_fuente === 'archivo' ? ' · Mostrando el archivo de Carlos del 21 de noviembre; cambia a la hoja en la próxima sincronización.' : ''),
+    h('details', { class: 'nota' }, h('summary', {}, 'De dónde sale esta lista'), h('p', { class: 'note' }, 'La lista vive en la pestaña "Distribuidores" de la hoja del CRM; Spark la lee tres veces al día. ',
+      'Un contacto registrado aquí, tocando el renglón, actualiza la fecha de inmediato. ', hoja ? h('a', { href: hoja, target: '_blank', rel: 'noopener' }, 'Abrir la hoja') : null, d.dist_fuente === 'archivo' ? ' · Mostrando el archivo de Carlos del 21 de noviembre; cambia a la hoja en la próxima sincronización.' : '')),
     h('div', { class: 'toolbar' }, chips([['En proceso', `En proceso ${n('En proceso')}`], ['frio', `Fríos ${n('frio')}`], ['Catalogado', `Catalogados ${n('Catalogado')}`], ['Por contactar', `Por contactar ${n('Por contactar')}`], ['Rechazado', `Rechazados ${n('Rechazado')}`]], f, (v) => { S.distF = v; }), h('button', { class: 'btn sm', onclick: () => nuevaCuenta({ titulo: 'Nuevo distribuidor', tipo: 'Distribuidor' }) }, 'Nuevo distribuidor')),
     h('div', { class: 'card' }, lista('dist', L, 12, (p) => h('li', toca(() => tocar(p)),
       h('div', { class: 'l1' }, h('span', {}, p.nombre), pill(p.avance, K[p.avance])),

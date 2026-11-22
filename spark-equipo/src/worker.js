@@ -132,6 +132,11 @@ export default {
       m.plan = await todo('SELECT * FROM compromisos' + (yo.dueno ? '' : ' WHERE visible = 1') + ' ORDER BY fecha, orden, id');
       m.eventos = await todo('SELECT * FROM eventos ORDER BY fecha DESC, id DESC');
       m.reglas = { plan_gente: PLAN_GENTE, evento_tope: EVENTO_TOPE, botella_muestra: BOTELLA_MUESTRA };
+      // The Monday review: its numbers and each person's review points are kept in the database (they name accounts).
+      // The owner sees it as a draft; the team sees it once at least one commitment of the plan is published.
+      const lcfg = await env.DB.prepare("SELECT v FROM meta WHERE k = 'lunes_cfg'").first();
+      if (lcfg) { const pub = (await env.DB.prepare('SELECT COUNT(*) AS n FROM compromisos WHERE visible = 1').first()).n > 0;
+        if (yo.dueno || pub) { try { m.lunes = { ...JSON.parse(lcfg.v), publicado: pub }; } catch { /* a broken config hides the screen */ } } }
       // Promotions with per-account targets: what each account has ordered in the period and whether it owes past due.
       for (const pr of m.promociones) {
         let M = null; try { M = pr.metas ? JSON.parse(pr.metas) : null; } catch { M = null; }
@@ -235,7 +240,6 @@ export default {
       await env.DB.prepare('UPDATE preguntas SET respuesta = ?, respondio = ?, respondida = ? WHERE id = ?').bind(txt, yo.email, hoyEn(env.TZ), q.id).run();
       return json({ ok: true });
     }
-    if (!p.startsWith('/api/admin/')) return json({ error: 'No existe' }, 404);
     // The plan: whoever owns a commitment (or an admin) marks it done, with a note on what was delivered and where it shows.
     if (p === '/api/plan/hecho' && request.method === 'POST') {
       const b = await cuerpo(), c = await env.DB.prepare('SELECT * FROM compromisos WHERE id = ?').bind(Number(b.id) || 0).first();
@@ -266,7 +270,19 @@ export default {
         .bind(quienEs(b) || yo.nombre || yo.email, txt(b.nombre, 160), txt(b.tipo, 60), txt(b.lugar, 120), fecha, txt(b.objetivo, 1000), txt(b.cuentas_objetivo, 1000), txt(b.distribuidor, 120), n(b.costo), n(b.botellas), n(b.venta_esperada), 'solicitado', HOY, yo.nombre || yo.email).run();
       return json({ ok: true });
     }
+    // Everything below is for admins. The 404 comes after the team routes above: placed earlier, it made them unreachable.
+    if (!p.startsWith('/api/admin/')) return json({ error: 'No existe' }, 404);
     if (!yo.admin) return json({ error: 'Solo administradores' }, 403);
+    // Monday review: the numbers Spark cannot compute yet are typed in by an admin during the review.
+    if (p === '/api/admin/lunes' && request.method === 'POST') {
+      const b = await cuerpo(), row = await env.DB.prepare("SELECT v FROM meta WHERE k = 'lunes_cfg'").first();
+      let cfg = null; try { cfg = row ? JSON.parse(row.v) : null; } catch { cfg = null; }
+      const n = cfg && (cfg.numeros || []).find((x) => x.clave === b.clave && x.tipo === 'manual');
+      if (!n) return json({ error: 'Ese número no se captura a mano' }, 400);
+      n.valor = Math.max(0, Math.round(Number(b.valor) || 0)); n.actualizado = HOY; n.por = yo.nombre || yo.email;
+      await env.DB.prepare("UPDATE meta SET v = ? WHERE k = 'lunes_cfg'").bind(JSON.stringify(cfg)).run();
+      return json({ ok: true });
+    }
     // Deciding on an event. Up to EVENTO_TOPE (money plus wine) any admin decides; above it, only the owner.
     if (p === '/api/admin/eventos' && request.method === 'POST') {
       const b = await cuerpo(), e = await env.DB.prepare('SELECT * FROM eventos WHERE id = ?').bind(Number(b.id) || 0).first(), n = (v, d) => Math.max(0, Math.round(Number(v === '' || v == null ? d : v) || 0));
@@ -279,16 +295,15 @@ export default {
         .bind(si ? 'aprobado' : 'rechazado', yo.nombre || yo.email, HOY, txt(b.nota, 600), si ? n(b.botellas_aprobadas, e.botellas) : 0, si ? n(b.costo_aprobado, e.costo) : 0, e.id).run();
       return json({ ok: true });
     }
-    // The plan itself (add, change, publish, remove) belongs to the owner.
+    // The plan itself (add, change, show to the team, remove) belongs to the owner.
     if (p === '/api/admin/plan' && request.method === 'POST') {
       if (!yo.dueno) return json({ error: 'Solo Eric cambia el plan' }, 403);
       const b = await cuerpo(), fecha = /^\d{4}-\d\d-\d\d$/.test(b.fecha || '') ? b.fecha : '';
       if (b.borrar) { await env.DB.prepare('DELETE FROM compromisos WHERE id = ?').bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
+      // Showing a commitment to the team is done one at a time, by id: there is no bulk switch for the whole plan.
       if (b.publicar) {
-        const v = b.ocultar ? 0 : 1;
-        if (b.publicar === 'todos') await env.DB.prepare('UPDATE compromisos SET visible = ?').bind(v).run();
-        else if (typeof b.publicar === 'number') await env.DB.prepare('UPDATE compromisos SET visible = ? WHERE id = ?').bind(v, b.publicar).run();
-        else await env.DB.prepare('UPDATE compromisos SET visible = ? WHERE persona = ?').bind(v, txt(b.publicar, 40)).run();
+        if (typeof b.publicar !== 'number') return json({ error: 'Se muestra un compromiso a la vez' }, 400);
+        await env.DB.prepare('UPDATE compromisos SET visible = ? WHERE id = ?').bind(b.ocultar ? 0 : 1, b.publicar).run();
         return json({ ok: true });
       }
       if (!PLAN_GENTE.includes(b.persona) || !txt(b.titulo) || !fecha) return json({ error: 'Faltan la persona, el compromiso y la fecha' }, 400);

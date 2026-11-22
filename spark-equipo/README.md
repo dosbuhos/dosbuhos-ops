@@ -14,7 +14,7 @@ Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y 
 ## Screens
 Mi trabajo: Hoy, Semanas y meses, Seguimiento, Preguntas pendientes. Ventas: Ventas del mes (with the 2026 budget), Cobranza, Clientes. Cuentas: Directorio, Copeo y embudo, Encuestas, Zonas y prospectos. Recursos: Estrategia y promociones (strategy documents, goals, the year's budget against actual, and promotions with the offer in one line, the full terms, who authorized them and when, and the original document attached (stored in D1 table `archivos`, served at `/api/archivo/<id>` behind sign-in, up to 1.5 MB); each row is admin-only or visible to the team), Materiales de venta, Comunicaciones (coming). Dirección (admins): Efectividad, Ajustes. `public/app.js` holds the shell and the first group; `public/mas.js` the account-side screens.
 
-Plan and events (`public/plan.js`): **Plan** is the 90-day plan, commitments with an owner (a rep, Ily, Dirección or Contabilidad), a due date and how each is measured (D1 `compromisos`). Rows start as drafts only the Hub admin sees; he publishes them, and each owner marks theirs done with a note (`POST /api/plan/hecho`; `POST /api/admin/plan` to add, change, publish or remove, Hub admin only). Overdue ones show under Urgente on Inicio. **Eventos** is the request, approval and close-out of events (D1 `eventos`): asked for with cost, bottles and expected sales in 60 days (`POST /api/eventos`), approved by an admin up to `EVENTO_TOPE` and by the Hub admin above it (`POST /api/admin/eventos`), and closed with contacts, bottles used and sales so the return can be compared. KPIs also show the month's punctuality (contacts logged within 48 hours, the number that adjusts commission) and service moments (trainings, tastings, client visits to the winery, gifts). A promotion with `metas` (JSON targets per account) shows each account's progress under Estrategia.
+Plan and events (`public/plan.js`): **Plan** is the 90-day plan, commitments with an owner (a rep, Ily, Dirección or Contabilidad), a due date and how each is measured (D1 `compromisos`). A row is seen only by the Hub admin until he shows it to the team, one commitment at a time (there is no bulk switch, in the screen or in the route); each owner marks theirs done with a note (`POST /api/plan/hecho`; `POST /api/admin/plan` to add, change, show or hide one, or remove, Hub admin only). The screen opens with four numbers (overdue, due in seven days, done, next date) and lists commitments by when they are due: overdue, the next seven days, then month by month, done ones folded at the end. Overdue ones show under Urgente on Inicio. **Eventos** is the request, approval and close-out of events (D1 `eventos`): asked for with cost, bottles and expected sales in 60 days (`POST /api/eventos`), approved by an admin up to `EVENTO_TOPE` and by the Hub admin above it (`POST /api/admin/eventos`), and closed with contacts, bottles used and sales so the return can be compared. KPIs also show the month's punctuality (contacts logged within 48 hours, the number that adjusts commission) and service moments (trainings, tastings, client visits to the winery, gifts). A promotion with `metas` (JSON targets per account) shows each account's progress under Estrategia.
 
 ## What people can write
 - A contact (`POST /api/actividad`): stored in `activity` with `origen = 'app'`, never touched by the sheet sync. Tapping an account in Seguimiento (or in Clientes principales) opens this form with the account and its last note; `fecha` lets a rep back-date a contact they had not logged. `pausa` (`si`/`no`) marks or clears "shipments on hold for collections" on the account (`cuentas.pausa`, migration 0006); the account still counts as due for a contact.
@@ -110,3 +110,26 @@ Seis lugares, los mismos en el menú del escritorio y en la barra inferior del c
 Cada lugar agrupa sus pantallas como pestañas bajo el título (`SECC` en `public/app.js`). El **Buzón** es la campana de arriba, **Ajustes** el engrane,
 y **＋ Registrar** abre las tres altas: contacto con una cuenta, cliente o prospecto nuevo, y evento.
 Spark usa sus propios neutros (blanco frío y pizarra, menú oscuro); del tema del Hub solo toma el color de acento.
+
+## Revisión del lunes
+
+Pantalla `lunes` (en Plan). Es la media hora de cada lunes en una sola vista:
+
+- **Los cinco números del plan**, de hoy a la meta, con su fecha. Tres se calculan solos (venta del periodo, personas con el
+  registro al corriente, vencido de más de 90 días). Dos se capturan a mano en la revisión, con "Actualizar", hasta que Spark
+  pueda calcularlos (`POST /api/admin/lunes`, solo administradores).
+- **Compromisos vencidos y los que vencen en siete días**, tomados del Plan.
+- **Una tarjeta por persona**: venta del mes, contactos de la semana, puntualidad, compromisos y los puntos que se revisan con ella.
+
+Qué números son, sus metas y los puntos de cada persona viven en D1 (`meta`, llave `lunes_cfg`, un JSON), no en el repositorio,
+porque nombran cuentas. El dueño la ve siempre; el equipo la ve cuando hay al menos un compromiso que ya se le muestra.
+
+## Formularios
+
+Los campos marcados `mas: true` en `formulario()` se pliegan bajo "Más detalles (opcional)". El registro de un contacto pide
+lo de todos los días (cuenta, cuándo, cómo, qué fue, qué pasó, siguiente paso) y deja lo demás plegado.
+
+## Rutas
+
+Las rutas del equipo se atienden antes de la línea que contesta 404 a lo que no es `/api/admin/`. `test/rutas.test.js` lo
+verifica: una vez, `api/plan/hecho` y `api/eventos` quedaron después de esa línea y no respondían.
