@@ -341,7 +341,12 @@ function distribuidores() {
   const cuando = (p) => (p.ultimo_contacto ? `${dia(p.ultimo_contacto)} · hace ${p.dias} días` : 'Nunca');
   const tocar = (p) => registrar({ cuenta: p.nombre, actividad: 'Prospección', ultimo_contacto: p.ultimo_contacto, dias_sin_contacto: p.dias, ultima_nota: [p.status, p.paso, p.siguiente].filter(Boolean).join(' · '), persona: S.persona || d.yo.persona || (p.responsable === 'Carlos' && d.yo.admin ? 'Tito' : p.responsable) });
   const hoja = d.crm_hoja ? `https://docs.google.com/spreadsheets/d/${d.crm_hoja}/edit#gid=120` : null;
-  const porZona = d.zonas.map((z) => ({ z: z.nombre.split(' (')[0], L: L0.filter((p) => p.zona === z.zona) })).filter((x) => x.L.length || true);
+  // Coverage by zone: who distributes for us there today (from the zone table, fed by Zoho sales) next to the prospect list for that zone.
+  // The prospect list alone read as "no distributors" in zones where we already sell (Los Cabos has Cactus Wine and no prospects).
+  const KZ = { Fuerte: 'ok', 'Presencia débil': 'warn', 'Sin presencia': 'bad' };
+  const porZona = d.zonas.map((z) => { const Lz = L0.filter((p) => p.zona === z.zona), c = (g) => Lz.filter((p) => p.avance === g).length, u = Lz.reduce((m, p) => (p.ultimo_contacto && p.ultimo_contacto > m ? p.ultimo_contacto : m), '');
+    return { z: z.nombre.split(' (')[0], zo: z, L: Lz, c, u, hoy: z.distribuidores || 'Nadie',
+      pros: Lz.length ? `Prospectos: ${c('En proceso')} en proceso · ${c('Catalogado')} catalogados · ${c('Por contactar')} por contactar · ${c('Rechazado')} rechazados · último contacto ${u ? dia(u) : 'nunca'}` : 'Sin prospectos en la lista' }; });
   return h('div', {},
     h('div', { class: 'card kpis mini' }, kpi(n('En proceso'), 'En proceso', `${n('frio')} sin contacto en más de 30 días`), kpi(n('Catalogado'), 'Catalogados', 'ya nos compran o están por hacerlo'),
       kpi(n('Por contactar'), 'Por contactar', 'identificados, sin primer contacto'), kpi(n('Rechazado'), 'Rechazados', `${L0.filter((p) => /dos b[uú]hos/i.test(p.motivo + ' ' + p.siguiente)).length} por decisión nuestra`)),
@@ -359,9 +364,16 @@ function distribuidores() {
         { t: f === 'Rechazado' ? 'Motivo' : 'Qué pasó', v: (p) => [p.status, p.paso].filter(Boolean).join(' · ') || '—', largo: true }, { t: 'Siguiente paso', v: (p) => (p.siguiente || p.proximo ? [p.siguiente || '', p.proximo ? h('span', { class: 'note' }, (p.siguiente ? ' · ' : '') + 'próximo ' + dia(p.proximo)) : null] : '—'), largo: true },
         { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—', largo: true }, { t: 'Línea', v: (p) => p.linea || '—', cls: 'nw' }], tocar)),
     h('h2', {}, 'Cobertura por zona'),
-    h('div', { class: 'card' }, h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, (ancho() ? ['Zona', 'En proceso', 'Catalogados', 'Por contactar', 'Rechazados', 'Último contacto'] : ['Zona', 'Proceso', 'Catál.', 'Por cont.', 'Rech.', 'Último']).map((t, i) => h('th', { class: i && i < 5 ? 'r' : null }, t)))),
-      h('tbody', {}, porZona.map((x) => { const c = (g) => x.L.filter((p) => p.avance === g).length, u = x.L.reduce((m, p) => (p.ultimo_contacto && p.ultimo_contacto > m ? p.ultimo_contacto : m), '');
-        return h('tr', {}, h('td', { class: 'b' }, x.z), h('td', { class: 'r' }, c('En proceso')), h('td', { class: 'r' }, c('Catalogado')), h('td', { class: 'r' }, c('Por contactar')), h('td', { class: 'r' }, c('Rechazado')), h('td', {}, u ? dia(u) : x.L.length ? 'Nunca' : 'Sin distribuidores en lista')); }))))));
+    h('p', { class: 'note' }, 'Quién nos distribuye hoy en cada zona y cómo va la lista de prospectos de esa zona. Los distribuidores de hoy salen de las ventas; los prospectos, de la hoja.'),
+    h('div', { class: 'card' }, lista('cobz', porZona, 9, (x) => h('li', {},
+      h('div', { class: 'l1' }, h('span', {}, x.z), pill(x.zo.estado, KZ[x.zo.estado])),
+      h('div', { class: 'l2' }, 'Hoy nos distribuye: ' + x.hoy),
+      h('div', { class: 'l2' }, x.pros)), 'Sin zonas.',
+      [{ t: 'Zona', v: (x) => x.z, s: (x) => x.z, cls: 'b' }, { t: 'Presencia', v: (x) => pill(x.zo.estado, KZ[x.zo.estado]), s: (x) => x.zo.estado, cls: 'nw' },
+        { t: 'En proceso', v: (x) => x.c('En proceso'), s: (x) => x.c('En proceso'), num: true }, { t: 'Catalogados', v: (x) => x.c('Catalogado'), s: (x) => x.c('Catalogado'), num: true },
+        { t: 'Por contactar', v: (x) => x.c('Por contactar'), s: (x) => x.c('Por contactar'), num: true }, { t: 'Rechazados', v: (x) => x.c('Rechazado'), s: (x) => x.c('Rechazado'), num: true },
+        { t: 'Último contacto', v: (x) => (x.u ? dia(x.u) : x.L.length ? 'Nunca' : 'Sin prospectos'), s: (x) => x.u || null, cls: 'nw' },
+        { t: 'Hoy nos distribuye', v: (x) => x.hoy, largo: true }])));
 }
 
 export const MAS_VISTAS = { cobranza, directorio, encuestas, copeo, materiales, premios, comunicaciones, estrategia, distribuidores };
