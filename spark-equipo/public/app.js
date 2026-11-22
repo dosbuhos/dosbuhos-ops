@@ -204,10 +204,8 @@ const abiertasDe = (p) => (D.preguntas || []).filter((q) => !q.respondida && q.p
 // contacts from the day the rule started; sheet rows are dated by the sync that first saw them. The arithmetic is in regla.js.
 const REGLA_DESDE = '2026-11-21';
 const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
-// Invoices that are a bookkeeping gap, not debt to chase: sales to "Público en general" and the export account, where the
-// books show no payment applied. The pattern over the client name comes from the database.
-let _conc = null;
-const porConciliar = (f) => { const p = (D.cobranza || {}).conciliar; if (!p) return false; if (!_conc || _conc.p !== p) { try { _conc = { p, re: new RegExp(p, 'i') }; } catch { _conc = { p, re: null }; } } return !!_conc.re && _conc.re.test(f.cliente || ''); };
+// Invoices that are a bookkeeping gap, not debt to chase. The Worker marks each one (rule in src/calc.js, settings in the database).
+const porConciliar = (f) => !!f.conciliar;
 function regla48(p) { return regla48de(D.contactos, p, D.hoy, REGLA_DESDE); }
 // The month's punctuality: contacts logged within 48 hours out of all the month's contacts since the rule started. It is the
 // one number that adjusts the month's commission: 90% or more pays in full, 70 to 89% pays 15% less, under 70% pays 30% less.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { build, paraVer, lunes, matcher, vendedorDe, esContacto, clientesPorAno, metricasPedidos, copeoEnNotas } from '../src/calc.js';
+import { build, paraVer, lunes, matcher, vendedorDe, esContacto, clientesPorAno, metricasPedidos, copeoEnNotas, conciliador } from '../src/calc.js';
 import { rowsFromValues } from '../src/sheets.js';
 import zonasCfg from '../src/data/zonas.json' with { type: 'json' };
 import prospectos from '../src/data/prospectos.json' with { type: 'json' };
@@ -167,4 +167,20 @@ test('a house sale is carved out of the rep, and Carlos\'s distributor file mark
   assert.equal(m.prospectos.length, prospectos.length + 1);
   assert.equal(m.seguimiento.some((r) => r.cuenta === 'Distribuidor Nuevo' && r.persona === 'Carlos' && r.de_archivo), true);
   assert.equal(m.zonas.find((z) => z.zona === 'golfo').en_proceso >= 1, true);
+});
+
+// "Por conciliar": receivables the books still have to sort out, counted apart from the team's overdue debt.
+test('a receivable goes to "por conciliar" by client name or by the age of its order', () => {
+  const es = conciliador('p[uú]blico en general|competencia|^carlos tapia$', '2025-01-01');
+  assert.equal(es({ cliente: 'Público en general José Luis', fecha: '2026-09-01' }), true);
+  assert.equal(es({ cliente: 'La Competencia Imports', fecha: '2026-03-19' }), true);
+  assert.equal(es({ cliente: 'Carlos Tapia', fecha: '2026-03-19' }), true);
+  assert.equal(es({ cliente: 'Cactus Wine', fecha: '2024-12-31' }), true, 'an order from 2024 waits for the books');
+  assert.equal(es({ cliente: 'Cactus Wine', fecha: '2025-01-01' }), false, 'the cut-off day itself is debt to chase');
+  assert.equal(es({ cliente: 'Cactus Wine', fecha: '2026-08-10' }), false);
+  // no settings, a broken pattern or a malformed date: nothing is set apart
+  assert.equal(conciliador('', '')({ cliente: 'Público en general', fecha: '2024-01-01' }), false);
+  assert.equal(conciliador('(', 'ayer')({ cliente: 'Cactus Wine', fecha: '2024-01-01' }), false);
+  // a receivable without an order date (the file snapshot) is only judged by name
+  assert.equal(es({ cliente: 'Cactus Wine' }), false);
 });

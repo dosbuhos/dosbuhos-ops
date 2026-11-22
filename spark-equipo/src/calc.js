@@ -27,6 +27,14 @@ export function esfuerzo(c, habiles) {
 }
 // Zoho "clients" that are not client sales: the house's own accounts (Eric, Diane, events, kitchen, tasting room, online
 // store) and sample accounts. They stay out of every salesperson's numbers.
+// Receivables that are a bookkeeping gap and not debt to chase. Two rules, both kept in the database: a pattern over the client
+// name (sales to "Público en general", the export account), and a cut-off date (balances on orders older than it stay apart
+// until Contabilidad confirms whether they were paid). Returns the test for one receivable { cliente, fecha }.
+export function conciliador(patron, antes) {
+  let re = null; try { re = patron ? new RegExp(patron, 'i') : null; } catch { re = null; }
+  const corte = /^\d{4}-\d\d-\d\d$/.test(antes || '') ? antes : '';
+  return (f) => !!((re && re.test(f.cliente || '')) || (corte && f.fecha && f.fecha < corte));
+}
 export const esInterno = (cliente) => /^(dos b[uú]hos\b|tienda online)/i.test(String(cliente || '').trim()) || /\bmuestras\b/i.test(cliente || '');
 // Eric's own accounts, whoever keyed the order (per Eric, 20 Nov 2026: La Competencia Imports is his US importer; Carlos only
 // helps maintain it). Reported apart, never under a salesperson.

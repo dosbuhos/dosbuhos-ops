@@ -2,7 +2,7 @@
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
-import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias, PLAN_GENTE, EVENTO_TOPE, BOTELLA_MUESTRA } from './calc.js';
+import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias, conciliador, PLAN_GENTE, EVENTO_TOPE, BOTELLA_MUESTRA } from './calc.js';
 import { sugerir } from './ai.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet, sheetEmail } from './sheets.js';
@@ -65,7 +65,7 @@ async function modelo(env, conActividad) {
   // Receivables straight from Zoho: invoiced sales orders with a balance. Due date is taken as 30 days after the order
   // (the usual terms); the invoice's own due date needs invoice access the Zoho token does not have.
   if (orders.some((o) => o.saldo != null)) m.por_cobrar = orders.filter((o) => o.saldo > 0.5 && o.estado !== 'void' && ['invoiced', 'partially_invoiced'].includes(o.facturacion) && !esInterno(o.cliente))
-    .map((o) => ({ vence: masDias(o.fecha, 30), factura: o.numero, cliente: o.cliente, saldo: Math.round(o.saldo * 100) / 100, vendedor: deEric(o.cliente) ? CASA : vendedorDe(o.vendedor) || 'Sin vendedor', pronostico: 0, comentario: '' }));
+    .map((o) => ({ fecha: o.fecha, vence: masDias(o.fecha, 30), factura: o.numero, cliente: o.cliente, saldo: Math.round(o.saldo * 100) / 100, vendedor: deEric(o.cliente) ? CASA : vendedorDe(o.vendedor) || 'Sin vendedor', pronostico: 0, comentario: '' }));
   return conActividad ? { m, activity } : m;
 }
 
@@ -133,10 +133,14 @@ export default {
       const nota = new Map(cobranzaArchivo.facturas.filter((f) => f.comentario).map((f) => [norm(f.cliente), f.comentario]));
       if (deZoho) m.cobranza = { fuente: 'zoho', corte: m.hoy, facturas: deZoho.map((f) => ({ ...f, comentario: nota.get(norm(f.cliente)) || '', dias: diff(f.vence, m.hoy) })), gestiones: cobros };
       else m.cobranza = { fuente: 'archivo', corte: cobranzaArchivo.corte, facturas: cobranzaArchivo.facturas.map((f) => ({ ...f, dias: /^\d{4}-\d\d-\d\d$/.test(f.vence) ? diff(f.vence, m.hoy) : null })), gestiones: cobros };
-      // Which invoices are a bookkeeping gap and not debt to chase (sales to "Público en general", the export account): a pattern
-      // over the client name, kept in the database because it names accounts. The screens count those apart.
-      const conc = await env.DB.prepare("SELECT v FROM meta WHERE k = 'cobranza_conciliar'").first();
-      if (conc && conc.v) m.cobranza.conciliar = conc.v;
+      // Which invoices are a bookkeeping gap and not debt to chase: sales to "Público en general" and the export account (a
+      // pattern over the client name, kept in the database because it names accounts), and balances on orders older than a
+      // cut-off date (kept there too). Each receivable is marked here, once; the screens count the marked ones apart.
+      const cc = Object.fromEntries((await env.DB.prepare("SELECT k, v FROM meta WHERE k IN ('cobranza_conciliar', 'cobranza_conciliar_antes')").all()).results.map((r) => [r.k, r.v]));
+      const esConc = conciliador(cc.cobranza_conciliar, cc.cobranza_conciliar_antes);
+      for (const f of m.cobranza.facturas) f.conciliar = esConc(f);
+      if (cc.cobranza_conciliar) m.cobranza.conciliar = cc.cobranza_conciliar;   // older tabs still read the pattern
+      if (cc.cobranza_conciliar_antes) m.cobranza.conciliar_antes = cc.cobranza_conciliar_antes;
       // The 90-day plan and event requests. Plan drafts are the owner's until he publishes them.
       m.plan = await todo('SELECT * FROM compromisos' + (yo.dueno ? '' : ' WHERE visible = 1') + ' ORDER BY fecha, orden, id');
       m.eventos = await todo('SELECT * FROM eventos ORDER BY fecha DESC, id DESC');
@@ -154,7 +158,7 @@ export default {
         const ped = (await env.DB.prepare("SELECT cliente, SUM(total) t, COUNT(*) n FROM orders WHERE fecha BETWEEN ? AND ? AND estado NOT IN ('void','draft') GROUP BY cliente").bind(pr.inicio, pr.fin).all()).results;
         const lleva = new Map(ped.map((r) => [norm(r.cliente), r])), dueno = new Map(m.clientes.map((c) => [norm(c.cliente), c.vendedor]));
         pr.avance = M.map((x) => { const K = (x.clientes || [x.cuenta]).map(norm), de = (f) => K.reduce((t, k) => t + ((lleva.get(k) || {})[f] || 0), 0);
-          const venc = (m.cobranza.facturas || []).filter((f) => K.includes(norm(f.cliente)) && (f.dias || 0) > 0).reduce((t, f) => t + (f.saldo || 0), 0);
+          const venc = (m.cobranza.facturas || []).filter((f) => K.includes(norm(f.cliente)) && (f.dias || 0) > 0 && !f.conciliar).reduce((t, f) => t + (f.saldo || 0), 0);
           return { cuenta: x.cuenta, vendedor: K.map((k) => dueno.get(k)).find(Boolean) || '', base: x.base, objetivo: x.objetivo, lleva: Math.round(de('t')), pedidos: de('n'), vencido: Math.round(venc) }; });
       }
       m.preguntas = (await env.DB.prepare('SELECT * FROM preguntas ORDER BY respondida != \'\', id DESC').all()).results;
