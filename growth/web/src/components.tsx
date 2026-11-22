@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers, type IChartApi, type Time } from 'lightweight-charts';
-import { metricValue, deltaText, money, int, ratio, dayLabel, stateLabel, basisLabel, STATE_CLS } from './format';
+import { metricValue, deltaText, money, int, ratio, dayLabel, stateLabel, basisLabel, STATE_CLS, fullDate, signedPct } from './format';
 
 /** Canvas needs a plain color: '#rrggbb' + alpha → rgba(). */
 const hexA = (hex: string, a: number) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16); return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; };
@@ -33,14 +33,17 @@ export function Sparkline({ points, label }: { points: Point[]; label: string })
 }
 
 export function TickerCard({ t, currency }: { t: any; currency: string }) {
-  const m = t.metric, d = t.delta;
+  const m = t.metric, d = t.delta, y = t.yoy ?? null;
   const dir = d.absolute === null || d.absolute === 0 ? 'flat' : d.absolute > 0 ? 'up' : 'down';
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '■';
   return (
     <div className="card ticker">
       <div className="label"><span>{t.label}</span>{m.provisional && <span className="chip prov" title="Las cohortes recientes todavía están madurando">provisional</span>}</div>
       <div className={`value ${m.value === null ? 'unknown' : ''}`}>{metricValue(m, currency)}</div>
-      <div className={`delta ${dir}`}><span aria-hidden>{arrow}</span><span>{deltaText(d, m.unit, currency)}</span><span className="sr-only" style={{ position: 'absolute', left: -9999 }}>{dir === 'up' ? 'aumento' : dir === 'down' ? 'disminución' : 'sin cambio'}</span></div>
+      {y && <div className={`delta ${y.percent > 0 ? 'up' : y.percent < 0 ? 'down' : 'flat'}`}><span aria-hidden>{y.percent > 0 ? '▲' : y.percent < 0 ? '▼' : '■'}</span><span>{signedPct(y.percent)} contra las mismas semanas de {y.lastYearTo.slice(0, 4)}</span></div>}
+      {y && <div className="tiny muted">Contra el periodo anterior: {deltaText(d, m.unit, currency)}. Esa comparación la mueve la temporada.</div>}
+      {y && <div className="tiny muted">Año pasado: {money(y.lastYearMinor, currency)}, del {fullDate(y.lastYearFrom)} al {fullDate(y.lastYearTo)}, en Wansoft.{y.eventsExcludedMinor > 0 ? ` Se dejan fuera ${money(y.eventsExcludedMinor, currency)} de eventos privados, que Wansoft no registraba.` : ''}</div>}
+      <div className={`delta ${dir}`} hidden={!!y}><span aria-hidden>{arrow}</span><span>{deltaText(d, m.unit, currency)}</span><span className="sr-only" style={{ position: 'absolute', left: -9999 }}>{dir === 'up' ? 'aumento' : dir === 'down' ? 'disminución' : 'sin cambio'}</span></div>
       {t.spark?.length > 0 && <Sparkline points={t.spark} label={t.label} />}
       <div className="window">{t.window}</div>
       <details className="why">

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, Health } from '../components';
-import { microsMoney, money, int, when, ago, PRODUCT_LABEL, basisLabel, campaignStatusLabel, managedByLabel, importStatusLabel, bookingStatusLabel, purposeLabel } from '../format';
+import { fullDate, microsMoney, money, int, when, ago, PRODUCT_LABEL, basisLabel, campaignStatusLabel, managedByLabel, importStatusLabel, bookingStatusLabel, purposeLabel } from '../format';
 
 export function Campaigns() {
   const { data, error } = useApi('campaigns', 120_000);
@@ -192,6 +192,7 @@ export function Connections({ isAdmin }: { isAdmin: boolean }) {
       </section>
       <Ga4Setup ga4={data.ga4} isAdmin={isAdmin} onDone={m => { setMsg(m); void reload(); }} />
       <OpenTableImport onDone={m => { setMsg(m); void reload(); }} />
+      <PosHistoryImport isAdmin={isAdmin} onDone={setMsg} />
       <section className="section"><h3>Importaciones recientes</h3><div className="list" style={{ marginTop: 6 }}>{(data.imports as any[]).map(i => <div key={i.id} className="item small"><div className="top"><b>{i.file_name}</b><span className="chip">{importStatusLabel(i.status)}</span></div>{i.rows_ok} válidas · {i.rows_duplicate} duplicadas · {i.rows_error} errores · {when(i.created_at)} por {i.created_by}</div>)}{!(data.imports as any[]).length && <div className="item muted small">Todavía no hay importaciones.</div>}</div></section>
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </>
@@ -217,6 +218,33 @@ function Ga4Setup({ ga4, isAdmin, onDone }: { ga4: { propertyId: string | null; 
         <button className="btn primary" disabled={busy || !pid} onClick={() => void save()}>Guardar y sincronizar</button>
         <button className="btn" disabled={busy} onClick={() => void sync()}>Sincronizar ahora</button>
       </div>}
+    </section>
+  );
+}
+
+/** Sales from the point of sale used before Parrot, loaded once so a period can be compared with the same weeks last year. */
+function PosHistoryImport({ isAdmin, onDone }: { isAdmin: boolean; onDone: (m: string) => void }) {
+  const { data, reload } = useApi<any>('pos-history');
+  const [file, setFile] = useState<{ name: string; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const r = await api('control/pos-history', { method: 'POST', body: { fileName: file.name, csv: file.text } });
+      onDone(`Historial cargado: ${int(r.loaded)} días, del ${fullDate(r.first)} al ${fullDate(r.last)}.${r.skippedParrotDays ? ` Se omitieron ${r.skippedParrotDays} días que Parrot ya tiene.` : ''}`);
+      setFile(null); void reload();
+    } catch (e) { onDone((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <section className="section card stack">
+      <h3>Historial de ventas del punto de venta anterior (Wansoft)</h3>
+      <p className="small muted">Parrot tiene ventas desde {data?.parrotFrom ? `el ${fullDate(data.parrotFrom)}` : 'su primer día'}. Con el historial de Wansoft, las ventas se comparan contra las mismas semanas del año pasado y no contra el mes anterior, que casi siempre es otra temporada. El archivo es un CSV con una línea por día, preparado a partir del “Reporte de ventas por día” de Wansoft. Cargarlo otra vez reemplaza los mismos días; nunca los duplica.</p>
+      {data && (data.days > 0
+        ? <div className="kv"><div><span>Días cargados</span><b>{int(data.days)}</b></div><div><span>Desde</span><b>{fullDate(data.first)}</b></div><div><span>Hasta</span><b>{fullDate(data.last)}</b></div><div><span>Ventas sin IVA</span><b>{money(data.netMinor, 'MXN')}</b></div></div>
+        : <div className="notice small">Todavía no hay historial cargado.</div>)}
+      {isAdmin && <div className="form-grid"><label className="field">Archivo CSV<input type="file" accept=".csv,text/csv" onChange={async e => { const f = e.target.files?.[0]; if (f) setFile({ name: f.name, text: await f.text() }); }} /></label></div>}
+      {isAdmin && <div className="row"><button className="btn" disabled={!file || busy} onClick={() => void run()}>{busy ? 'Cargando…' : 'Cargar historial'}</button></div>}
     </section>
   );
 }

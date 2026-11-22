@@ -1,6 +1,7 @@
 // The owner's first screen ("Hoy"): this month's ad spend against the ceiling and where it lands at the current pace,
 // yesterday at a glance, and a plain verdict per campaign. Read-only: nothing here can change an ad account.
-import { addDays, localDate, type LocalDate } from '../domain/time.ts';
+import { addDays, dateRange, localDate, type LocalDate } from '../domain/time.ts';
+import { loadSales, yearOverYear, YEAR_BACK_DAYS, type YearOverYear } from './sales.ts';
 import { RESERVATION_EVENT } from '../connectors/ga4.ts';
 import { loadCampaigns, type CampaignRow } from './campaigns.ts';
 
@@ -53,8 +54,10 @@ export interface MonthPace {
   ceilingMicros: number | null; ceilingScope: 'whole_account' | 'managed_campaigns' | null;
 }
 export interface Yesterday { date: LocalDate; spendMicros: Split; onlineReservations: number | null; guests: number | null; posNetMinor: number | null }
+/** The last 28 complete days of point-of-sale sales, and the same weeks a year earlier when both are on record. */
+export interface Sales28 { from: LocalDate; to: LocalDate; netMinor: number | null; yoy: YearOverYear | null; historyFrom: LocalDate | null }
 export interface TodayView {
-  today: LocalDate; currency: string; month: MonthPace; yesterday: Yesterday; floor: number;
+  today: LocalDate; currency: string; month: MonthPace; yesterday: Yesterday; sales28: Sales28; floor: number;
   window: { from: LocalDate; to: LocalDate }; trackingSince: LocalDate | null;
   valuePerReservationMinor: number | null; contributionPerReservationMinor: number | null;
   campaigns: (CampaignRow & { verdict: Verdict })[];
@@ -102,13 +105,17 @@ export async function loadToday(db: D1Database, now: number, tz: string, currenc
       FROM pos_orders WHERE status = 'FINISHED' AND local_date = ?`).bind(yesterday).first<{ orders: number; net_minor: number | null; guests: number | null }>().catch(() => null),
   ]);
   const floor = policy?.minimumAcceptableContributionReturn ?? DEFAULT_RETURN_FLOOR;
+  const last28 = dateRange(addDays(yesterday, -27), yesterday);
+  const sales = await loadSales(db, addDays(last28[0]!, -YEAR_BACK_DAYS), yesterday);
+  const sold = last28.reduce((a, d) => a + (sales.days.get(d)?.netMinor ?? 0), 0);
+  const sales28: Sales28 = { from: last28[0]!, to: yesterday, netMinor: sales.parrotFrom && last28[0]! >= sales.parrotFrom ? sold : null, yoy: yearOverYear(sales, last28), historyFrom: sales.historyFrom };
   const contribution = view.estimate?.contributionMinor ?? null;
   const ySpend: Split = { google: 0, meta: 0, total: 0 };
   for (const r of spend.results) if (r.date === yesterday) { const c = Number(r.cost) || 0; if (r.provider === 'meta_ads') ySpend.meta += c; else ySpend.google += c; ySpend.total += c; }
   const campaigns = view.campaigns.map(c => ({ ...c, verdict: verdictFor(c, contribution, floor) }))
     .sort((a, b) => ORDER[a.verdict.key] - ORDER[b.verdict.key] || b.spendMicros - a.spendMicros);
   return {
-    today, currency, month: monthPace(spend.results, today, policy), floor, window: view.window, trackingSince: view.trackingSince,
+    today, currency, month: monthPace(spend.results, today, policy), sales28, floor, window: view.window, trackingSince: view.trackingSince,
     yesterday: { date: yesterday, spendMicros: ySpend, onlineReservations: res && res.filas > 0 ? Number(res.n ?? 0) : null, guests: pos && pos.orders > 0 ? Number(pos.guests ?? 0) : null, posNetMinor: pos && pos.orders > 0 ? Number(pos.net_minor ?? 0) : null },
     valuePerReservationMinor: view.estimate?.valueMinor ?? null, contributionPerReservationMinor: contribution, campaigns,
   };

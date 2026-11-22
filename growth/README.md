@@ -88,3 +88,21 @@ secrets). Preview: `GET /api/weekly-email-preview`; test send: `POST /api/contro
 payments from `https://api.parrot.rest/external`, then backfills older 48-hour windows (to 2025-11-01) within a small
 request budget (Parrot allows 15 requests/minute). Guests = `customersCount` of dine-in orders, trusted from 2026-11-04.
 Shown on Resumen: Comensales (restaurante), Personas en tours, Ventas sin IVA, and guests by weekday.
+
+## Sales history from the previous point of sale (Wansoft)
+
+Parrot's first order is from 11 August 2026, so on its own every "against last year" comparison would be empty and every
+"against the previous period" comparison would mostly show the season. The daily sales of the point of sale used before
+(Wansoft, 1 September 2022 to 9 August 2026) are loaded once into `pos_daily_history` (migration 0011).
+
+- **Loading it:** Ajustes → Conexiones → "Historial de ventas del punto de venta anterior", admin only. The file is a CSV
+  with one line per business day and this header: `fecha,ordenes,comensales,venta_sin_iva,venta_con_iva,restaurante_sin_iva,propinas,descuentos`
+  (pesos with decimals). It is prepared from Wansoft's "Reporte de ventas por día". Loading it again replaces the same
+  days; days on or after Parrot's first day are skipped. Routes: `GET /api/pos-history`, `POST /api/control/pos-history`.
+- **The numbers stay out of this repository.** The table is created by the migration; the rows go straight into D1.
+- **How it is used (`src/read/sales.ts`):** one series per business day, Wansoft before Parrot's first day and Parrot from
+  then on. A period is compared with the same days 52 weeks earlier (364 days, so weekdays line up), and only when both
+  periods are fully on record. Parrot's "Eventos" category is left out of that comparison, because private events were
+  never rung up in Wansoft. Shown on Hoy ("Últimos 28 días") and on the sales card in Reportes → Tendencias.
+- **Open question:** whether experiences prepaid online were rung up in Wansoft the way they are in Parrot. If they were
+  not, the comparison overstates growth in tours and tastings.

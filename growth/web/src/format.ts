@@ -80,3 +80,11 @@ const PURPOSE_ES: Record<string, string> = {
   'Wine sales': 'Ventas de vino', 'Restaurant checks': 'Cuentas del restaurante',
 };
 export const purposeLabel = (purpose: string) => PURPOSE_ES[purpose] ?? purpose;
+
+/** 9 ago 2026: a day with its year, for periods that are not this year. */
+export const fullDate = (d: string) => {
+  const [y, m, dd] = d.split('-').map(Number);
+  return `${dd} ${['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][m! - 1]} ${y}`;
+};
+/** +26% / −4%, with a real minus sign. */
+export const signedPct = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(0)}%`;

@@ -3,6 +3,7 @@
 // source field says Google Ads paid search. Without that, channel is "unknown" — never inferred from timestamps.
 import { addDays, dateRange, localDate, weekdayOf, type LocalDate } from '../domain/time.ts';
 import { minor, micros, microsToMinor } from '../domain/money.ts';
+import { loadSales, yearOverYear, YEAR_BACK_DAYS } from './sales.ts';
 import { revenueRoas, contributionAfterAds, contributionRoas, costPerCompletedVisit, costPerConfirmedBooking, delta, occupancy, type AttributedTotals, type Metric, type Delta } from '../domain/metrics.ts';
 import { assumptionFor, bookingValue, type CostAssumption, type Product, PRODUCTS } from '../domain/measurement.ts';
 import { isGoogleAds, isMetaAds, isAiAssistant, RESERVATION_EVENT, FUNNEL } from '../connectors/ga4.ts';
@@ -14,7 +15,8 @@ export const ATTRIBUTION_METHOD = 'Campo de origen del sistema de reservaciones 
 const PAID = /google.*(cpc|paid|ads)|adwords|gclid/i;
 
 export interface DayPoint { date: LocalDate; value: number | null; provisional: boolean }
-export interface Ticker { key: string; label: string; metric: Metric; delta: Delta; spark: DayPoint[]; window: string }
+export interface TickerYoy { percent: number; absoluteMinor: number; lastYearMinor: number; currentMinor: number; lastYearFrom: LocalDate; lastYearTo: LocalDate; eventsExcludedMinor: number }
+export interface Ticker { key: string; label: string; metric: Metric; delta: Delta; spark: DayPoint[]; window: string; yoy?: TickerYoy | null }
 export interface Series { key: string; label: string; unit: 'money' | 'count' | 'ratio' | 'percent'; view: 'acquisition' | 'service' | 'forward'; points: DayPoint[]; trend7: (number | null)[]; trend28: (number | null)[]; available: boolean; missing?: string }
 export interface ActionMarker { actionId: string; date: LocalDate; label: string; state: string; actor: string }
 
@@ -54,7 +56,9 @@ export async function loadRaw(i: FactsInput) {
   const posTours = (await i.db.prepare(`SELECT i.local_date AS date, SUM(i.quantity) AS guests FROM pos_items i JOIN pos_orders o ON o.uuid = i.order_uuid
       WHERE o.status = 'FINISHED' AND i.category = 'Enoturismo' AND i.local_date >= ? GROUP BY i.local_date`).bind(from).all<{ date: string; guests: number }>().catch(() => ({ results: [] as { date: string; guests: number }[] }))).results;
   const posFrom = (await i.db.prepare('SELECT MIN(local_date) AS d FROM pos_orders').first<{ d: string | null }>().catch(() => null))?.d ?? null;
-  return { today, from, ga4, pos, posTours, posFrom, otAvailability, estimates, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
+  // Both points of sale, reaching 52 weeks further back, for the comparison with the same weeks last year.
+  const sales = await loadSales(i.db, addDays(from, -YEAR_BACK_DAYS), today);
+  return { today, from, ga4, pos, posTours, posFrom, sales, otAvailability, estimates, bookings: bookings.results, daily: daily.results, campaigns: campaigns.results, costs: costs.results, products: products.results, settings, spend, slots: slots.results, windows: windows.results, resources: resources.results, connections: connections.results, alerts: alerts.results, jobs: jobs.results, actions: actions.results };
 }
 export type Raw = Awaited<ReturnType<typeof loadRaw>>;
 
@@ -248,7 +252,7 @@ export function computeOverview(raw: Raw, now: number, wineryTz: string, currenc
     return [
       { key: 'completed_guests', label: 'Comensales (restaurante, Parrot)', metric: { ...countMetric('completed_guests', 'Comensales en cuentas de “comer aquí” cerradas en Parrot', gc.value ?? 0, 'observed', false), value: gc.value, reason: gc.partial ? `Solo ${gc.days} día(s): Parrot registra comensales de forma confiable desde el ${POS_GUESTS_RELIABLE_FROM}.` : undefined }, delta: gp.partial || gc.partial ? noCmpPos(`Sin comparación hasta tener 56 días con comensales confiables (desde el ${POS_GUESTS_RELIABLE_FROM})`) : delta(gc.value, gp.value, w, false), spark: sparkPos(g, POS_GUESTS_RELIABLE_FROM), window: w },
       { key: 'tour_guests', label: 'Personas en tours (Parrot)', metric: { ...countMetric('tour_guests', 'Tours vendidos en Parrot (categoría Enoturismo)', tc.value ?? 0, 'observed', false), value: tc.value, reason: tc.partial ? `Parrot tiene datos desde el ${raw.posFrom}; el historial se sigue cargando.` : undefined }, delta: tp.partial || tc.partial ? noCmpPos('Sin comparación todavía (se carga el historial)') : delta(tc.value, tp.value, w, false), spark: sparkPos(tg), window: w },
-      { key: 'pos_sales', label: 'Ventas (Parrot, sin IVA)', metric: { key: 'pos_sales', value: sc.value, unit: 'money', currency, numerator: { label: 'Total de cuentas cerradas menos IVA, todo el punto de venta (restaurante, tours, vino para llevar, tienda)', value: sc.value }, basis: 'observed', provisional: false, ...(sc.partial ? { reason: `Parrot tiene datos desde el ${raw.posFrom}; el historial se sigue cargando.` } : {}) }, delta: sp.partial || sc.partial ? noCmpPos('Sin comparación todavía (se carga el historial)') : delta(sc.value, sp.value, w, false), spark: sparkPos(net), window: w },
+      { key: 'pos_sales', label: 'Ventas (Parrot, sin IVA)', metric: { key: 'pos_sales', value: sc.value, unit: 'money', currency, numerator: { label: 'Total de cuentas cerradas menos IVA, todo el punto de venta (restaurante, tours, vino para llevar, tienda)', value: sc.value }, basis: 'observed', provisional: false, ...(sc.partial ? { reason: `Parrot tiene datos desde el ${raw.posFrom}; el historial se sigue cargando.` } : {}) }, delta: sp.partial || sc.partial ? noCmpPos('Sin comparación todavía (se carga el historial)') : delta(sc.value, sp.value, w, false), spark: sparkPos(net), window: w, yoy: yearOverYear(raw.sales, cur) },
     ] as Ticker[];
   })() : null;
   // Guests by weekday (Wed–Sun): last value vs. the average of the previous 4 same weekdays, reliable days only.

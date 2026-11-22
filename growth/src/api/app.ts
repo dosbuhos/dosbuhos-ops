@@ -14,6 +14,7 @@ import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
 import { loadToday } from '../read/today.ts';
+import { parseHistoryCsv, HISTORY_SOURCE } from '../read/sales.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { readSecret } from '../ai/key.ts';
@@ -516,6 +517,34 @@ app.get('/api/export/coordinator', async c => {
 });
 
 // ---------- demo only ----------
+
+// ---------- Sales history from the point of sale used before Parrot (Wansoft) ----------
+// Loaded once so a period can be compared with the same weeks a year earlier. Days on or after Parrot's first day are
+// refused: Parrot already has them. Loading the same file again replaces the same days; it never adds them twice.
+
+app.get('/api/pos-history', async c => {
+  const h = await c.env.DB.prepare('SELECT MIN(local_date) AS first, MAX(local_date) AS last, COUNT(*) AS days, SUM(net_minor) AS net_minor, MAX(loaded_at) AS loaded_at FROM pos_daily_history')
+    .first<{ first: string | null; last: string | null; days: number; net_minor: number | null; loaded_at: number | null }>().catch(() => null);
+  const p = await c.env.DB.prepare('SELECT MIN(local_date) AS d FROM pos_orders').first<{ d: string | null }>().catch(() => null);
+  return json(c, { source: HISTORY_SOURCE, first: h?.first ?? null, last: h?.last ?? null, days: Number(h?.days ?? 0), netMinor: Number(h?.net_minor ?? 0), loadedAt: h?.loaded_at ?? null, parrotFrom: p?.d ?? null });
+});
+
+app.post('/api/control/pos-history', async c => {
+  const denied = need(c, 'admin'); if (denied) return denied;
+  const b = z.object({ fileName: z.string().max(200), csv: z.string().min(1).max(400_000) }).safeParse(await c.req.json().catch(() => ({})));
+  if (!b.success) return fail(c, 400, 'bad_request', 'Falta el archivo, o pesa más de 400 KB');
+  const { rows, errors } = parseHistoryCsv(b.data.csv);
+  if (errors.length) return fail(c, 400, 'bad_csv', errors.slice(0, 5).map(e => `Fila ${e.row}: ${e.message}`).join(' · ') + (errors.length > 5 ? ` · y ${errors.length - 5} más` : ''));
+  if (!rows.length) return fail(c, 400, 'bad_csv', 'El archivo no trae ningún día');
+  const parrotFrom = (await c.env.DB.prepare('SELECT MIN(local_date) AS d FROM pos_orders').first<{ d: string | null }>().catch(() => null))?.d ?? null;
+  const keep = rows.filter(r => !parrotFrom || r.date < parrotFrom), now = Date.now();
+  const stmt = c.env.DB.prepare(`INSERT INTO pos_daily_history (local_date, source, orders, guests, net_minor, total_minor, dine_in_net_minor, tips_minor, discounts_minor, loaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(local_date) DO UPDATE SET source = excluded.source, orders = excluded.orders, guests = excluded.guests, net_minor = excluded.net_minor, total_minor = excluded.total_minor,
+      dine_in_net_minor = excluded.dine_in_net_minor, tips_minor = excluded.tips_minor, discounts_minor = excluded.discounts_minor, loaded_at = excluded.loaded_at`);
+  for (let i = 0; i < keep.length; i += 80) await c.env.DB.batch(keep.slice(i, i + 80).map(r => stmt.bind(r.date, HISTORY_SOURCE, r.orders, r.guests, r.netMinor, r.totalMinor, r.dineInNetMinor, r.tipsMinor, r.discountsMinor, now)));
+  const sorted = keep.map(r => r.date).sort();
+  return json(c, { loaded: keep.length, skippedParrotDays: rows.length - keep.length, first: sorted[0] ?? null, last: sorted[sorted.length - 1] ?? null, by: c.get('user').email });
+});
 
 app.post('/api/demo/simulate-external-edit', async c => {
   if (c.env.DATA_KIND !== 'demo') return fail(c, 404, 'not_found', 'No encontrado');

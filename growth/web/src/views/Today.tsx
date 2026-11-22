@@ -2,7 +2,7 @@
 // with a verdict in words. One number per card and no charts: the trends live in Reportes.
 import { useApi } from '../api';
 import { Loading, ErrorBox } from '../components';
-import { microsMoney, money, int, dayLabel } from '../format';
+import { microsMoney, money, int, dayLabel, fullDate, signedPct } from '../format';
 
 const VERDICT_CLS: Record<string, string> = { rinde: 's-ok', vigilar: 's-warn', pierde: 's-bad', sin_datos: 's-mute', pausada: 's-mute' };
 const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -16,7 +16,7 @@ const firstParagraph = (t: string) => t.replace(/\*\*/g, '').split(/\n\s*\n/)[0]
 export function Today({ overview, session }: { overview: any; session: any }) {
   const { data: t, error } = useApi('today', 120_000);
   if (!t) return error ? <ErrorBox error={error} /> : <div className="section"><Loading /></div>;
-  const cur = t.currency, m = t.month, y = t.yesterday;
+  const cur = t.currency, m = t.month, y = t.yesterday, s28 = t.sales28 ?? null;
   const alerts = (overview?.alerts ?? []).filter((a: any) => a.severity !== 'info');
   const mes = MES[Number(m.month.slice(5)) - 1];
   const governed = m.ceilingScope === 'whole_account' ? m.spentMicros.google : null;      // the ceiling belongs to the Google account
@@ -121,6 +121,14 @@ export function Today({ overview, session }: { overview: any; session: any }) {
           <div className="card stat"><span>Comensales en el restaurante</span><b>{y.guests === null ? '—' : int(y.guests)}</b></div>
           <div className="card stat"><span>Ventas en Parrot, sin IVA</span><b>{y.posNetMinor === null ? '—' : money(y.posNetMinor, cur)}</b></div>
         </div>
+        {s28 && s28.netMinor !== null && (
+          <p className="small card yoy">
+            <b>Últimos 28 días:</b> {money(s28.netMinor, cur)} vendidos en el punto de venta, sin IVA.{' '}
+            {s28.yoy
+              ? <><b className={s28.yoy.percent >= 0 ? 'up' : 'down'}>{signedPct(s28.yoy.percent)}</b> contra las mismas semanas de {s28.yoy.lastYearTo.slice(0, 4)} ({money(s28.yoy.lastYearMinor, cur)}, del {fullDate(s28.yoy.lastYearFrom)} al {fullDate(s28.yoy.lastYearTo)}).{s28.yoy.eventsExcludedMinor > 0 ? ` La comparación deja fuera ${money(s28.yoy.eventsExcludedMinor, cur)} de eventos privados.` : ''}</>
+              : <span className="muted">Sin comparación con el año pasado: falta cargar el historial de Wansoft en Ajustes → Conexiones.</span>}
+          </p>
+        )}
       </section>
       {session?.user?.role === 'viewer' && <p className="tiny muted section">Tu acceso es de lectura.</p>}
     </>
