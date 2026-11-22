@@ -72,14 +72,39 @@ export const bookingStatusLabel = label({ confirmed: 'confirmada', cancelled: 'c
 export const managedByLabel = label({ app: 'esta app', owner: 'el dueño', agency: 'la agencia', unknown: 'desconocido' });
 export const directionLabel = label({ increase: 'sube', decrease: 'baja', no_change: 'sin cambio' });
 export const slotStatusLabel = label({ open: 'libre', sold_out: 'agotado', blocked: 'bloqueado', closed: 'cerrado', unknown: 'desconocido' });
-/** Connection purposes are seeded in English in D1; show the known ones in Spanish (anything else as stored). */
+/** Connection purposes and the first status texts were stored in English in D1; show the known ones in Spanish
+ *  (anything else as stored: what the jobs write later is already in Spanish). Apostrophes are compared straight. */
 const PURPOSE_ES: Record<string, string> = {
   'Google Ads reads (hourly script feed)': 'Lectura de Google Ads (feed del script, cada hora)', 'Google Ads changes (API)': 'Cambios en Google Ads (API)',
-  'Restaurant + experience bookings (CSV export)': 'Reservaciones del restaurante y experiencias (exportación CSV)', 'Website analytics': 'Analítica del sitio web',
+  "Google Ads reads (Growth's own richer script feed)": 'Google Ads: lectura y cambios aprobados (script de Growth, cada hora)',
+  "Google Ads reads (via the Hub's hourly Google Ads Script)": 'Google Ads por medio del Hub (feed anterior)',
+  "Meta Ads reads (via the Hub's hourly Meta sync)": 'Lectura de Meta Ads (copia del Hub, cada hora)', 'Meta Ads': 'Meta Ads',
+  'Restaurant + experience bookings (CSV export)': 'Reservaciones del restaurante y experiencias (exportación CSV)', 'Restaurant + experience bookings': 'Reservaciones del restaurante y experiencias (datos de OpenTable)',
+  'OpenTable online reservations (via GA4 event ot-reservation-made)': 'Reservaciones en línea de OpenTable (vía GA4)',
+  'Capacity: bookable times on OpenTable (restaurant + Experiences)': 'Capacidad: horarios disponibles en OpenTable (restaurante y experiencias)',
+  'Website analytics': 'Analítica del sitio web',
   'Analysis and report narrative': 'Análisis y narrativa de los reportes', 'Offline conversions back to Google Ads': 'Conversiones offline de vuelta a Google Ads',
   'Wine sales': 'Ventas de vino', 'Restaurant checks': 'Cuentas del restaurante',
 };
-export const purposeLabel = (purpose: string) => PURPOSE_ES[purpose] ?? purpose;
+const REASON_ES: Record<string, string> = {
+  'Shared ANTHROPIC_API_KEY from the account Secrets Store: report narrative now; analysis proposals only in Shadow mode': 'Usa la clave compartida de la cuenta (ANTHROPIC_API_KEY): escribe los reportes y hace la revisión de cada mañana.',
+  "Needs approved Google Ads API access for the owner's Cloud project and owner OAuth": 'Falta que Google apruebe el acceso a su API. Mientras tanto, los cambios que apruebas los aplica el script.',
+  'Reading the Hub feed: daily spend, clicks and platform conversions per campaign by name; no campaign IDs or search terms yet': 'Feed anterior, por medio del Hub. Ya no se usa: lo reemplazó el script de Growth, que lee más datos.',
+  'Mirrored hourly from the Hub: daily spend and results per campaign (by name), converted to MXN; no changes possible': 'Copiado cada hora desde el Hub: gasto y resultados diarios por campaña, en pesos. Desde aquí no se puede cambiar nada en Meta.',
+  'OpenTable reservation data is partner-only; requested through the OpenTable account manager': 'OpenTable solo entrega los datos de reservaciones a socios; se piden por medio del ejecutivo de cuenta de OpenTable.',
+  'Create a feed token and install scripts/google-ads-feed.js in Google Ads': 'Copia el script desde esta tarjeta y pégalo en Google Ads.',
+  'Import a GuestCenter reservation export': 'Importa un archivo de reservaciones de GuestCenter.',
+  'Tag audit pending': 'Falta revisar las etiquetas.', 'Tag audit pending (owner approval before any change)': 'Falta revisar las etiquetas (se pide tu aprobación antes de cualquier cambio).',
+  'Optional secret ANTHROPIC_API_KEY': 'Opcional: secreto ANTHROPIC_API_KEY.',
+  'Optional: without a key, reports use the factual template and no proposals are drafted': 'Opcional: sin la clave, los reportes usan la plantilla con los datos y no se redactan propuestas.',
+  'Phase 2': 'Fase 2', 'Phase 3': 'Fase 3', 'Phase 4': 'Fase 4', 'Phase 2: needs a reliable completed-visit signal first': 'Fase 2: primero hace falta una señal confiable de visita completada.',
+  'No public API found; export-based import in Phase 3': 'No se encontró una API pública; importación por archivo en la fase 3.',
+  "Phase 4 (read today in the Hub's Anuncios)": 'Fase 4 (hoy se lee en Anuncios, en el Hub).',
+  'Demo: synthetic feed': 'Demo: feed sintético.', 'Demo: synthetic bookings. OpenTable offers no reservation API to restaurants': 'Demo: reservaciones sintéticas. OpenTable no ofrece una API de reservaciones a los restaurantes.',
+};
+const straight = (t: string) => t.replace(/[\u2018\u2019]/g, "'");
+export const purposeLabel = (purpose: string) => PURPOSE_ES[straight(purpose)] ?? purpose;
+export const reasonLabel = (reason: string | null | undefined) => (reason ? REASON_ES[straight(reason)] ?? reason : '');
 
 /** 9 ago 2026: a day with its year, for periods that are not this year. */
 export const fullDate = (d: string) => {
@@ -93,6 +118,7 @@ export const signedPct = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${
 export function pitchTitle(actionType: string | null | undefined, params: { text?: string | null; changePct?: number | null } | null | undefined, fallback = ''): string {
   switch (actionType) {
     case 'add_negative_keyword_exact': return `Dejar de pagar por “${params?.text ?? ''}”`;
+    case 'block_search_theme': return `Dejar de pagar por búsquedas con “${params?.text ?? ''}”`;
     case 'campaign_budget_change': return `${(params?.changePct ?? 0) > 0 ? 'Subir' : 'Bajar'} ${Math.abs(params?.changePct ?? 0)}% el presupuesto diario`;
     case 'budget_reallocation': return 'Mover presupuesto a otra campaña';
     case 'pause_campaign': return 'Pausar la campaña';
@@ -102,3 +128,5 @@ export function pitchTitle(actionType: string | null | undefined, params: { text
 }
 /** A paragraph as bullets, one per sentence. */
 export const sentences = (text: string): string[] => String(text ?? '').split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean);
+/** 12 clics, 1 clic: a count with its word. */
+export const count = (n: number, one: string, many: string) => `${int(n)} ${n === 1 ? one : many}`;

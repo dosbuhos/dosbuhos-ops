@@ -15,6 +15,7 @@ import { ProviderError, type AdsProvider } from '../connectors/ads-provider.ts';
 import { PolicyConfig, DEFAULT_POLICY, type Mode } from '../domain/schemas.ts';
 import { evaluatePolicy, type Actor, type BudgetChangeRecord, type PolicyContext, type PolicyDecision } from '../policy/evaluate.ts';
 import type { ActionIntent, Operation, Snapshot } from '../policy/validate.ts';
+import { fold } from '../domain/keywords.ts';
 
 export type ExternalContext = Pick<PolicyContext, 'snapshot' | 'spend' | 'measurementMature' | 'capacity' | 'contributionRoasByRef' | 'daysRemainingInMonth'> & { behavior?: PolicyContext['behavior'] };
 export type ContextSource = (intent: ActionIntent) => Promise<ExternalContext>;
@@ -31,6 +32,8 @@ export interface CoordinatorState {
   accountId: string; mode: Mode; emergencyLock: boolean; aiStopped: boolean; restoredLocked: boolean;
   policyVersion: number; policy: PolicyConfig; baselineAggregateMicros: number | null; providerKind: AdsProvider['kind'];
   activeReservations: number; unknownOutcomes: number; suspensions: { resourceKey: string; reason: string; at: number }[];
+  mutationsLast24h: number;          // optimization changes sent in the last 24 h, against policy.maxOptimizationMutationsPerDay
+  oldestUnknownAt: number | null;    // when the oldest change still waiting for its outcome was sent
 }
 
 export class CoordinatorError extends Error { constructor(public readonly code: string, message: string) { super(message); } }
@@ -52,9 +55,14 @@ const resourceKeys = (ops: readonly Operation[]): string[] => [...new Set(ops.fl
     case 'set_budget': return [`budget:${o.budgetId}`];
     case 'pause_campaign': return [`campaign:${o.campaignId}`];
     case 'pause_ad': return [`ad:${o.adId}`, `campaign:${o.campaignId}:ads`];
-    case 'add_negative_exact': return [`campaign:${o.campaignId}:negatives`];
+    // One key per negative, not per campaign: two different negatives do not get in each other's way.
+    case 'add_negative_exact': return [`negative:${o.campaignId}:exact:${fold(o.text)}`];
+    case 'add_negative_phrase': return [`negative:${o.campaignId}:phrase:${fold(o.text)}`];
+    case 'pause_keyword': return [`keyword:${o.adGroupId}~${o.criterionId}`];
   }
 }))];
+/** Changes that do not depend on each other or on their order, and never add spend. */
+const independent = (ops: readonly Operation[]) => ops.every(o => o.kind === 'pause_keyword' || o.kind === 'add_negative_exact' || o.kind === 'add_negative_phrase');
 
 export interface CoreOptions { provider: AdsProvider; now?: () => number; environment: 'dev' | 'demo' | 'staging' | 'production' }
 
@@ -108,6 +116,8 @@ export class CoordinatorCore {
       activeReservations: Number(one(this.sql.all<{ n: number }>('SELECT COUNT(*) AS n FROM reservations'))?.n ?? 0),
       unknownOutcomes: Number(one(this.sql.all<{ n: number }>("SELECT COUNT(*) AS n FROM actions WHERE state IN ('UNKNOWN_OUTCOME','RECONCILING')"))?.n ?? 0),
       suspensions: this.sql.all<{ resource_key: string; reason: string; at: number }>('SELECT resource_key, reason, at FROM suspensions').map(s => ({ resourceKey: s.resource_key, reason: s.reason, at: s.at })),
+      mutationsLast24h: this.appMutationsLast24h(),
+      oldestUnknownAt: one(this.sql.all<{ t: number | null }>("SELECT MIN(e.at) AS t FROM action_events e JOIN actions a ON a.id = e.action_id WHERE a.state IN ('UNKNOWN_OUTCOME','RECONCILING') AND e.to_state = 'EXECUTING'"))?.t ?? null,
     };
   }
 
@@ -252,6 +262,9 @@ export class CoordinatorCore {
     if (a.approval_hash !== approvalHash) throw new CoordinatorError('approval_mismatch', 'La aprobación no coincide con esta acción');
     if (a.policy_version !== this.policyVersion()) throw new CoordinatorError('policy_changed', 'La política cambió desde que se propuso; vuelve a proponer');
     if (this.now() > a.expires_at) { this.sql.tx(() => this.transition(a, 'EXPIRED', {})); throw new CoordinatorError('expired', 'La propuesta venció'); }
+    // Out of changes for today: say so and leave the proposal waiting, instead of approving it into a refusal.
+    const limit = this.policy().maxOptimizationMutationsPerDay;
+    if (a.action_type !== 'pause_campaign' && this.appMutationsLast24h() >= limit) throw new CoordinatorError('daily_limit', `Ya se hicieron ${limit} cambios en las últimas 24 horas, que es tu límite diario. Esta sugerencia sigue esperando; se puede aprobar cuando pase ese plazo.`);
     this.sql.tx(() => {
       this.sql.run('UPDATE actions SET approved_by = ?, approved_at = ? WHERE id = ?', approver, this.now(), id);
       this.transition({ ...a, approved_by: approver }, 'APPROVED', { approver });
@@ -285,15 +298,19 @@ export class CoordinatorCore {
     if (camps.length) for (const [k, v] of Object.entries(await this.provider.readCampaignStatus(acct, camps))) live[`campaign:${k}`] = v;
     const ads = ops.flatMap(o => (o.kind === 'pause_ad' ? [o.adId] : []));
     if (ads.length) for (const [k, v] of Object.entries(await this.provider.readAdStatus(acct, ads))) live[`ad:${k}`] = v;
-    for (const o of ops) if (o.kind === 'add_negative_exact') live[`neg:${o.campaignId}:${o.text}`] = (await this.provider.readNegatives(acct, o.campaignId)).includes(o.text);
+    for (const o of ops) if (o.kind === 'add_negative_exact' || o.kind === 'add_negative_phrase') live[CoordinatorCore.negKey(o)] = await this.provider.hasNegative(acct, o.campaignId, o.text, o.kind === 'add_negative_exact' ? 'EXACT' : 'PHRASE');
+    const kws = ops.flatMap(o => (o.kind === 'pause_keyword' ? [{ adGroupId: o.adGroupId, criterionId: o.criterionId }] : []));
+    if (kws.length) for (const [k, v] of Object.entries(await this.provider.readKeywordStatus(acct, kws))) live[`kw:${k}`] = v;
     return live;
   }
+  private static negKey(o: { kind: 'add_negative_exact' | 'add_negative_phrase'; campaignId: string; text: string }): string { return `neg:${o.campaignId}:${o.kind === 'add_negative_exact' ? 'exact' : 'phrase'}:${o.text}`; }
   private static expectedBefore(o: Operation): [string, unknown] {
     switch (o.kind) {
       case 'set_budget': return [`budget:${o.budgetId}`, o.fromMicros];
       case 'pause_campaign': return [`campaign:${o.campaignId}`, 'ENABLED'];
       case 'pause_ad': return [`ad:${o.adId}`, 'ENABLED'];
-      case 'add_negative_exact': return [`neg:${o.campaignId}:${o.text}`, false];
+      case 'add_negative_exact': case 'add_negative_phrase': return [CoordinatorCore.negKey(o), false];
+      case 'pause_keyword': return [`kw:${o.adGroupId}~${o.criterionId}`, 'ENABLED'];
     }
   }
   private static expectedAfter(o: Operation): [string, unknown] {
@@ -301,7 +318,8 @@ export class CoordinatorCore {
       case 'set_budget': return [`budget:${o.budgetId}`, o.toMicros];
       case 'pause_campaign': return [`campaign:${o.campaignId}`, 'PAUSED'];
       case 'pause_ad': return [`ad:${o.adId}`, 'PAUSED'];
-      case 'add_negative_exact': return [`neg:${o.campaignId}:${o.text}`, true];
+      case 'add_negative_exact': case 'add_negative_phrase': return [CoordinatorCore.negKey(o), true];
+      case 'pause_keyword': return [`kw:${o.adGroupId}~${o.criterionId}`, 'PAUSED'];
     }
   }
 
@@ -365,6 +383,10 @@ export class CoordinatorCore {
     });
     const results: OpResult[] = intent.operations.map((_, i) => ({ index: i, status: 'not_attempted' }));
     const acct = this.accountId();
+    // A provider that queues its writes (the Google Ads Script) cannot be read back right away. Changes that do not
+    // depend on each other are all queued and settled together by the next account report; anything ordered (a
+    // budget transfer) still stops after its first step until that step is verified.
+    const queueAll = this.provider.deferred && independent(intent.operations);
     for (let i = 0; i < intent.operations.length; i++) {
       const o = intent.operations[i]!;
       try { this.guardWrite(this.action(id)!); }
@@ -375,7 +397,14 @@ export class CoordinatorCore {
           case 'set_budget': await this.provider.setBudget(acct, o.budgetId, o.toMicros, key); break;
           case 'pause_campaign': await this.provider.setCampaignStatus(acct, o.campaignId, 'PAUSED', key); break;
           case 'pause_ad': await this.provider.setAdStatus(acct, o.adId, 'PAUSED', key); break;
-          case 'add_negative_exact': await this.provider.addNegativeExact(acct, o.campaignId, o.text, key); break;
+          case 'add_negative_exact': await this.provider.addNegative(acct, o.campaignId, o.text, 'EXACT', key); break;
+          case 'add_negative_phrase': await this.provider.addNegative(acct, o.campaignId, o.text, 'PHRASE', key); break;
+          case 'pause_keyword': await this.provider.setKeywordStatus(acct, { campaignId: o.campaignId, adGroupId: o.adGroupId, criterionId: o.criterionId, text: o.text }, 'PAUSED', key); break;
+        }
+        if (this.provider.deferred) {
+          results[i] = { index: i, status: 'unknown', detail: 'En cola: el script de Google Ads lo aplica en su próxima corrida' };
+          if (queueAll) continue;
+          break;
         }
         // Verify each step before the next (a transfer reduces first, verifies, then increases).
         const [k, want] = CoordinatorCore.expectedAfter(o);
@@ -387,6 +416,7 @@ export class CoordinatorCore {
         const kind = e instanceof ProviderError ? e.kind : 'ambiguous';
         results[i] = { index: i, status: kind === 'ambiguous' ? 'unknown' : 'failed', detail: (e as Error).message };
         if (kind === 'auth') this.sql.tx(() => { this.put('emergency_lock', '1'); this.audit('credentials_invalid', 'coordinator', { message: (e as Error).message }); });
+        if (queueAll && kind !== 'auth') continue;   // the other changes of the set are still worth queuing
         break;
       }
     }
@@ -424,12 +454,25 @@ export class CoordinatorCore {
     let live: Record<string, unknown>;
     try { live = await this.readLive(intent.operations); }
     catch (e) { this.sql.tx(() => this.transition(a!, 'UNKNOWN_OUTCOME', { reason: `Falló la lectura para conciliar: ${(e as Error).message}` })); return this.action(id)!; }
+    // What the provider itself recorded about each operation, when it keeps that (the script reports applied/skipped).
+    const said = await Promise.all(intent.operations.map((_, i) => this.provider.opState?.(`${a!.idem_key.slice(0, 32)}:${i}`).catch(() => null) ?? null));
+    let waiting = false;
     const results: OpResult[] = intent.operations.map((o, i) => {
       const [k, after] = CoordinatorCore.expectedAfter(o), [, before] = CoordinatorCore.expectedBefore(o);
       if (live[k] === after) return { index: i, status: 'applied' };
-      if (live[k] === before) return { index: i, status: 'failed', detail: 'No se aplicó' };
+      if (live[k] === before) {
+        // The script says it applied the change and the only account report since then came from that same run: wait
+        // for the next run's report instead of calling it a failure.
+        if (said[i]?.status === 'applied' && !said[i]!.reportedSince) { waiting = true; return { index: i, status: 'unknown', detail: 'El script lo aplicó; falta verlo en el siguiente reporte de la cuenta' }; }
+        if (said[i]?.status === 'applied') return { index: i, status: 'failed', detail: 'El script dijo que lo aplicó, pero la cuenta no lo muestra en el reporte siguiente' };
+        return { index: i, status: 'failed', detail: said[i]?.detail ? `No se aplicó: ${said[i]!.detail}` : 'No se aplicó' };
+      }
       return { index: i, status: 'unknown', detail: `El proveedor muestra ${String(live[k])}: se cambió fuera de esta app` };
     });
+    if (waiting) {
+      this.sql.tx(() => { this.sql.run('UPDATE actions SET op_results = ? WHERE id = ?', JSON.stringify(results), id); this.transition(a!, 'UNKNOWN_OUTCOME', { reason: 'El script reportó el cambio; falta verlo en la cuenta' }); });
+      return this.action(id)!;
+    }
     const external = results.some(r => r.status === 'unknown');
     this.sql.tx(() => {
       this.sql.run('UPDATE actions SET op_results = ? WHERE id = ?', JSON.stringify(results), id);
@@ -460,7 +503,7 @@ export class CoordinatorCore {
     const intent = JSON.parse(a.intent) as ActionIntent;
     const prev = JSON.parse(a.op_results) as OpResult[];
     const applied = intent.operations.map((o, i) => ({ o, i })).filter(({ i }) => prev[i]?.status === 'applied');
-    if (applied.some(({ o }) => o.kind === 'add_negative_exact')) return { action: a, refused: 'Quitar una palabra clave negativa no se puede hacer en automático; quítala en Google Ads' };
+    if (applied.some(({ o }) => o.kind === 'add_negative_exact' || o.kind === 'add_negative_phrase' || o.kind === 'pause_keyword')) return { action: a, refused: 'Esto se deshace en Google Ads: en la campaña, reactiva las palabras clave que se pausaron y quita la palabra clave negativa. La app todavía no lo hace sola.' };
     if (applied.some(({ o }) => o.kind === 'pause_campaign')) return { action: a, refused: 'Reanudar una campaña pausada es una decisión de gasto: usa Reanudar en Controles, que vuelve a revisar la autorización y el presupuesto' };
     if (a.state !== 'COMPENSATION_REQUIRED') this.sql.tx(() => this.transition(a, 'COMPENSATION_REQUIRED', { actor }));
     const live = await this.readLive(applied.map(x => x.o));
@@ -585,7 +628,8 @@ export class CoordinatorCore {
       const r = await this.reconcile(id);
       if (r.state === 'UNKNOWN_OUTCOME') still++;
     }
-    if (!still) this.sql.tx(() => { this.put('restored_locked', '0'); this.audit('reconciled_after_restore', actor, { reconciled: open.length }); });
+    // Runs after every account report. It only leaves a line in the audit log when it lifted a restore lock.
+    if (!still && this.get('restored_locked') === '1') this.sql.tx(() => { this.put('restored_locked', '0'); this.audit('reconciled_after_restore', actor, { reconciled: open.length }); });
     return { reconciled: open.length, stillUnknown: still };
   }
 }

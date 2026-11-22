@@ -3,18 +3,20 @@
  *
  * Paste into Google Ads → Tools → Bulk actions → Scripts → New script, authorize, and schedule "Hourly".
  * Each run:
- *   1. Asks the Growth Terminal for changes the owner APPROVED there (budget, pause campaign/ad, exact negative).
- *      Each one is applied only if the account still shows the value the approval was based on; otherwise it is
- *      skipped and reported. Nothing else is ever changed. In "Preview" runs nothing is applied or reported.
- *   2. READS the account (reports, campaigns, ads, negatives, change history) and POSTs it, so the Growth Terminal
- *      can verify each change against the real account.
+ *   1. Asks the Growth Terminal for changes the owner APPROVED there (budget, pause a campaign, an ad or a keyword,
+ *      add a negative keyword). Each one is applied only if the account still shows what the approval was based on;
+ *      otherwise it is skipped and reported. Nothing else is ever changed. In "Preview" runs nothing is applied or
+ *      reported.
+ *   2. READS the account (reports, campaigns, ads, keywords, negatives, search terms, change history) and POSTs it, so
+ *      the Growth Terminal can verify each change against the real account.
  *
- * Set the two constants below. FEED_TOKEN comes from Growth Terminal → Connections → Google Ads Script → "Create feed
- * token" (shown once). Do not commit the token anywhere; it lives only in this script inside Google Ads.
+ * Set the two constants below. FEED_TOKEN comes from Growth Terminal → Ajustes → Conexiones → Google Ads Script
+ * (shown once). Do not commit the token anywhere; it lives only in this script inside Google Ads.
  */
 var ENDPOINT = 'https://growth.dos-buhos.workers.dev/api/feed/google-ads'; // direct (not through the Hub's sign-in)
 var APPLY_CHANGES = true; // set to false to keep this script read-only
 var FEED_TOKEN = 'PASTE_TOKEN_HERE';
+var SCRIPT_VERSION = '2026-11-22.2'; // the Growth Terminal shows this, so it is clear which copy is running
 var DAYS = 90;          // backfill window; overlap re-fetch captures Google's late conversion revisions
 var TERMS_DAYS = 28;
 
@@ -87,9 +89,78 @@ function main() {
   var ads = [];
   rows = AdsApp.search('SELECT ad_group_ad.ad.id, campaign.id, ad_group_ad.status FROM ad_group_ad WHERE campaign.status = "ENABLED" AND ad_group_ad.status != "REMOVED"');
   while (rows.hasNext() && ads.length < 20000) { var a = rows.next(); ads.push({ id: String(a.adGroupAd.ad.id), campaignId: String(a.campaign.id), status: a.adGroupAd.status }); }
-  var negatives = [];
-  rows = AdsApp.search('SELECT campaign.id, campaign_criterion.keyword.text FROM campaign_criterion WHERE campaign.status = "ENABLED" AND campaign_criterion.negative = TRUE AND campaign_criterion.type = "KEYWORD" AND campaign_criterion.keyword.match_type = "EXACT"');
-  while (rows.hasNext() && negatives.length < 20000) { var n = rows.next(); negatives.push({ campaignId: String(n.campaign.id), text: n.campaignCriterion.keyword.text }); }
+  // Negative keywords of the campaign itself, every match type.
+  var negatives = [], negativesComplete = true, warnings = [];
+  rows = AdsApp.search('SELECT campaign.id, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion WHERE campaign.status = "ENABLED" AND campaign_criterion.negative = TRUE AND campaign_criterion.type = "KEYWORD"');
+  while (rows.hasNext() && negatives.length < 20000) { var n = rows.next(); negatives.push({ campaignId: String(n.campaign.id), text: n.campaignCriterion.keyword.text, matchType: n.campaignCriterion.keyword.matchType || 'EXACT', level: 'campaign', scopeId: '' }); }
+
+  // Keywords of enabled campaigns with their own numbers for the search-term window. The same query returns the
+  // negative keywords set on an ad group. Each new section has its own try/catch: if Google refuses one query, the
+  // spend numbers still go out and the Growth Terminal shows what could not be read.
+  var keywords = null;
+  try {
+    var byKey = {}; keywords = [];
+    rows = AdsApp.search('SELECT campaign.id, ad_group.id, ad_group.name, ad_group.status, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ' +
+      'ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.negative FROM ad_group_criterion ' +
+      'WHERE ad_group_criterion.type = "KEYWORD" AND ad_group_criterion.status != "REMOVED" AND ad_group.status != "REMOVED" AND campaign.status = "ENABLED"');
+    while (rows.hasNext() && keywords.length < 20000) {
+      var k = rows.next(), crit = k.adGroupCriterion;
+      if (!crit || !crit.keyword || !crit.keyword.text) continue;
+      if (crit.negative === true) { negatives.push({ campaignId: String(k.campaign.id), text: crit.keyword.text, matchType: crit.keyword.matchType || 'EXACT', level: 'ad_group', scopeId: String(k.adGroup.id) }); continue; }
+      var item = { campaignId: String(k.campaign.id), adGroupId: String(k.adGroup.id), adGroupName: k.adGroup.name || '', criterionId: String(crit.criterionId), text: crit.keyword.text,
+        matchType: crit.keyword.matchType, status: crit.status, adGroupStatus: k.adGroup.status, clicks: 0, costMicros: 0, impressions: 0, conversions: 0 };
+      byKey[item.adGroupId + '~' + item.criterionId] = item; keywords.push(item);
+    }
+    try {
+      rows = AdsApp.search('SELECT ad_group.id, ad_group_criterion.criterion_id, metrics.clicks, metrics.cost_micros, metrics.impressions, metrics.conversions FROM keyword_view ' +
+        'WHERE segments.date BETWEEN "' + termsFrom + '" AND "' + today + '" AND campaign.status = "ENABLED"');
+      while (rows.hasNext()) {
+        var ks = rows.next(), hit = byKey[String(ks.adGroup.id) + '~' + String(ks.adGroupCriterion.criterionId)];
+        if (!hit) continue;
+        hit.clicks += Number(ks.metrics.clicks) || 0; hit.costMicros += Number(ks.metrics.costMicros) || 0;
+        hit.impressions += Number(ks.metrics.impressions) || 0; hit.conversions += Number(ks.metrics.conversions) || 0;
+      }
+    } catch (e) { warnings.push('números de las palabras clave: ' + String(e).slice(0, 200)); }
+  } catch (e) { warnings.push('palabras clave: ' + String(e).slice(0, 200)); keywords = null; negativesComplete = false; }
+
+  // Which keyword brought each search. Asked apart from the search terms above because adding the keyword to that
+  // query can leave out searches that have none.
+  var termKeywords = null;
+  try {
+    termKeywords = [];
+    rows = AdsApp.search('SELECT campaign.id, ad_group.id, search_term_view.search_term, segments.keyword.info.text, segments.keyword.info.match_type, segments.keyword.ad_group_criterion, ' +
+      'metrics.clicks, metrics.cost_micros FROM search_term_view WHERE segments.date BETWEEN "' + termsFrom + '" AND "' + today + '" AND metrics.clicks > 0');
+    while (rows.hasNext() && termKeywords.length < 20000) {
+      var tk = rows.next(), kw = tk.segments && tk.segments.keyword;
+      if (!kw || !kw.info || !kw.info.text) continue;
+      var critId = kw.adGroupCriterion ? String(kw.adGroupCriterion).split('~').pop() : '';
+      termKeywords.push({ campaignId: String(tk.campaign.id), adGroupId: String(tk.adGroup.id), criterionId: /^\d+$/.test(critId) ? critId : '', term: tk.searchTermView.searchTerm,
+        keyword: kw.info.text, keywordMatchType: kw.info.matchType || '', clicks: Number(tk.metrics.clicks) || 0, costMicros: Number(tk.metrics.costMicros) || 0 });
+    }
+  } catch (e) { warnings.push('palabra clave de cada búsqueda: ' + String(e).slice(0, 200)); termKeywords = null; }
+
+  // Negative keyword lists shared by several campaigns, and the account-wide list.
+  try {
+    var listCampaigns = {}, anyList = false;
+    rows = AdsApp.search('SELECT campaign.id, shared_set.id FROM campaign_shared_set WHERE campaign_shared_set.status = "ENABLED" AND campaign.status = "ENABLED" AND shared_set.type = "NEGATIVE_KEYWORDS"');
+    while (rows.hasNext()) { var cs = rows.next(), sid = String(cs.sharedSet.id); (listCampaigns[sid] = listCampaigns[sid] || []).push(String(cs.campaign.id)); anyList = true; }
+    if (anyList) {
+      rows = AdsApp.search('SELECT shared_set.id, shared_criterion.keyword.text, shared_criterion.keyword.match_type FROM shared_criterion WHERE shared_set.type = "NEGATIVE_KEYWORDS" AND shared_criterion.type = "KEYWORD"');
+      while (rows.hasNext() && negatives.length < 20000) {
+        var sc = rows.next(), cids = listCampaigns[String(sc.sharedSet.id)] || [];
+        if (!sc.sharedCriterion || !sc.sharedCriterion.keyword || !sc.sharedCriterion.keyword.text) continue;
+        for (var ci = 0; ci < cids.length; ci++) negatives.push({ campaignId: cids[ci], text: sc.sharedCriterion.keyword.text, matchType: sc.sharedCriterion.keyword.matchType || 'BROAD', level: 'list', scopeId: String(sc.sharedSet.id) });
+      }
+    }
+  } catch (e) { warnings.push('listas de negativas: ' + String(e).slice(0, 200)); negativesComplete = false; }
+  try {
+    rows = AdsApp.search('SELECT shared_set.id, shared_criterion.keyword.text, shared_criterion.keyword.match_type FROM shared_criterion WHERE shared_set.type = "ACCOUNT_LEVEL_NEGATIVE_KEYWORDS" AND shared_criterion.type = "KEYWORD"');
+    while (rows.hasNext() && negatives.length < 20000) {
+      var ac = rows.next();
+      if (!ac.sharedCriterion || !ac.sharedCriterion.keyword || !ac.sharedCriterion.keyword.text) continue;
+      for (var ai = 0; ai < campaigns.length; ai++) if (campaigns[ai].status === 'ENABLED') negatives.push({ campaignId: campaigns[ai].id, text: ac.sharedCriterion.keyword.text, matchType: ac.sharedCriterion.keyword.matchType || 'BROAD', level: 'list', scopeId: String(ac.sharedSet.id) });
+    }
+  } catch (e) { warnings.push('negativas de toda la cuenta: ' + String(e).slice(0, 200)); }
 
   var acct = AdsApp.currentAccount();
   var payload = {
@@ -97,7 +168,11 @@ function main() {
     account: { customerId: acct.getCustomerId().replace(/-/g, ''), currency: acct.getCurrencyCode(), timeZone: tz, name: acct.getName() },
     campaigns: campaigns, daily: daily,
     today: { date: today, costMicros: todayCost, maxHourlyMicros: maxHourly, dataAsOf: new Date().toISOString() },
-    monthToDateMicros: mtd, searchTerms: terms, changes: changes, ads: ads, negatives: negatives
+    monthToDateMicros: mtd, searchTerms: terms, changes: changes, ads: ads,
+    scriptVersion: SCRIPT_VERSION, negatives: negatives, negativesComplete: negativesComplete,
+    keywords: keywords === null ? undefined : keywords, keywordStats: { from: termsFrom, to: today },
+    termKeywords: termKeywords === null ? undefined : termKeywords, termsWindow: { from: termsFrom, to: today },
+    warnings: warnings
   };
   var res = UrlFetchApp.fetch(ENDPOINT, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload),
     headers: { Authorization: 'Bearer ' + FEED_TOKEN }, muteHttpExceptions: true });
@@ -157,13 +232,39 @@ function applyOne(o) {
     if (!ad.isEnabled()) return { status: 'skipped', detail: 'El anuncio ya no estaba activo' };
     ad.pause(); return { status: 'applied', detail: 'Anuncio pausado' };
   }
-  if (o.kind === 'add_negative_exact') {
+  if (o.kind === 'add_negative_exact' || o.kind === 'add_negative_phrase') {
     var cc = AdsApp.campaigns().withIds([Number(o.campaign_id)]).get();
     if (!cc.hasNext()) return { status: 'failed', detail: 'No existe la campaña ' + o.campaign_id };
-    var text = String(o.text).replace(/[\[\]"]/g, '').trim();
+    var text = cleanKeyword(o.text);
     if (!text) return { status: 'failed', detail: 'Texto vacío' };
-    cc.next().createNegativeKeyword('[' + text + ']');
-    return { status: 'applied', detail: 'Negativa exacta [' + text + '] agregada' };
+    var shown = o.kind === 'add_negative_exact' ? '[' + text + ']' : '"' + text + '"';
+    cc.next().createNegativeKeyword(shown);
+    return { status: 'applied', detail: 'Negativa ' + shown + ' agregada' };
+  }
+  if (o.kind === 'pause_keyword' || o.kind === 'enable_keyword') {
+    var ki = AdsApp.keywords().withIds([[Number(o.ad_group_id), Number(o.criterion_id)]]).get();
+    if (!ki.hasNext()) return { status: 'failed', detail: 'No existe la palabra clave ' + o.criterion_id };
+    var key = ki.next();
+    if (o.text && cleanKeyword(key.getText()).toLowerCase() !== cleanKeyword(o.text).toLowerCase()) return { status: 'skipped', detail: 'La palabra clave ya no es la que se aprobó (' + key.getText() + ')' };
+    if (o.kind === 'pause_keyword') {
+      if (!key.isEnabled()) return { status: 'skipped', detail: 'La palabra clave ya no estaba activa' };
+      key.pause(); return { status: 'applied', detail: 'Palabra clave pausada: ' + key.getText() };
+    }
+    if (!key.isPaused()) return { status: 'skipped', detail: 'La palabra clave no estaba en pausa' };
+    key.enable(); return { status: 'applied', detail: 'Palabra clave reactivada: ' + key.getText() };
+  }
+  if (o.kind === 'remove_negative') {
+    var rc = AdsApp.campaigns().withIds([Number(o.campaign_id)]).get();
+    if (!rc.hasNext()) return { status: 'failed', detail: 'No existe la campaña ' + o.campaign_id };
+    var ni = rc.next().negativeKeywords().get(), removed = 0, want = cleanKeyword(o.text).toLowerCase();
+    while (ni.hasNext()) {
+      var nk = ni.next();
+      if (cleanKeyword(nk.getText()).toLowerCase() === want && (!o.match_type || nk.getMatchType() === o.match_type)) { nk.remove(); removed++; }
+    }
+    return removed ? { status: 'applied', detail: 'Negativa quitada: ' + want } : { status: 'skipped', detail: 'Esa negativa ya no estaba en la campaña' };
   }
   return { status: 'failed', detail: 'Tipo de cambio desconocido: ' + o.kind };
 }
+
+// Keyword text without the match-type punctuation Google Ads adds around it ([exact], "phrase", +modifier).
+function cleanKeyword(t) { return String(t === null || t === undefined ? '' : t).replace(/[\[\]"+]/g, ' ').replace(/\s+/g, ' ').trim(); }

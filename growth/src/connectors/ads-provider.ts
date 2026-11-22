@@ -14,14 +14,33 @@ export class ProviderError extends Error {
 
 export type EntityStatus = 'ENABLED' | 'PAUSED' | 'REMOVED';
 
+export type NegativeMatch = 'EXACT' | 'PHRASE';
+export interface KeywordRef { adGroupId: string; criterionId: string }
+
 export interface AdsProvider {
   readonly kind: 'mock' | 'google_ads_api' | 'google_ads_script';
+  /** True when writes are queued and applied later (the Google Ads Script runs hourly), so they cannot be read back at once. */
+  readonly deferred: boolean;
   readBudgets(accountId: string, budgetIds: string[]): Promise<Record<string, number>>;       // micros
   readCampaignStatus(accountId: string, campaignIds: string[]): Promise<Record<string, EntityStatus>>;
   readAdStatus(accountId: string, adIds: string[]): Promise<Record<string, EntityStatus>>;
-  readNegatives(accountId: string, campaignId: string): Promise<string[]>;
+  /** Whether the campaign itself has this negative keyword with this match type. */
+  hasNegative(accountId: string, campaignId: string, text: string, match: NegativeMatch): Promise<boolean>;
+  /** Status of each keyword, keyed "adGroupId~criterionId". A keyword the account no longer shows is left out. */
+  readKeywordStatus(accountId: string, keywords: KeywordRef[]): Promise<Record<string, EntityStatus>>;
   setBudget(accountId: string, budgetId: string, amountMicros: number, idempotencyKey: string): Promise<void>;
   setCampaignStatus(accountId: string, campaignId: string, status: 'ENABLED' | 'PAUSED', idempotencyKey: string): Promise<void>;
   setAdStatus(accountId: string, adId: string, status: 'ENABLED' | 'PAUSED', idempotencyKey: string): Promise<void>;
-  addNegativeExact(accountId: string, campaignId: string, text: string, idempotencyKey: string): Promise<void>;
+  addNegative(accountId: string, campaignId: string, text: string, match: NegativeMatch, idempotencyKey: string): Promise<void>;
+  setKeywordStatus(accountId: string, keyword: KeywordRef & { campaignId: string; text: string }, status: 'ENABLED' | 'PAUSED', idempotencyKey: string): Promise<void>;
+  /** What the provider itself recorded about one operation (the script reports applied, skipped or failed, and why), if
+   *  it keeps that. `reportedSince` says whether the account has been read again, in a later run, since the operation
+   *  was done: only then can "the account does not show it" be believed. */
+  opState?(idempotencyKey: string): Promise<{ status: string; detail: string; doneAt: number | null; reportedSince: boolean } | null>;
 }
+
+/** Two keyword texts are the same keyword for Google: case, spacing and stray punctuation aside, accents included. */
+export const sameKeywordText = (a: string, b: string) => {
+  const c = (s: string) => s.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
+  return c(a) === c(b);
+};

@@ -220,3 +220,20 @@ a.brow:hover { border-color: var(--field); }
 .whynot > span { flex-basis: 100%; }
 .item.advice ul { margin: 6px 0; padding-left: 18px; line-height: 1.45; }
 @media (min-width: 760px) { .pitch { grid-template-columns: 1.2fr 1fr 1fr; gap: 18px; } }
+
+/* Findings on Hoy, the exact impact of a change and what happened after it (2026-11-22, pass 2b) */
+a.finding { display: grid; gap: 4px; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; text-decoration: none; color: var(--ink); min-width: 0; }
+a.finding:hover { border-color: var(--field); }
+.finding-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.finding-top b { overflow-wrap: anywhere; min-width: 0; }
+.finding-top .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+a.more { display: inline-flex; align-items: center; min-height: 36px; margin-top: 4px; }
+.impact { display: grid; gap: 10px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.impact > div > span { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.impact ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.impact p { margin: 0; font-size: 14px; line-height: 1.45; }
+@media (min-width: 760px) { .impact { grid-template-columns: 1fr 1fr; gap: 18px; } }
+.result { display: grid; gap: 4px; border-left: 3px solid var(--info); background: var(--info-soft); padding: 8px 12px; border-radius: 6px; }
+.script-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; line-height: 1.45; }
+h2.sub { font-size: 15px; font-weight: 600; margin: 18px 0 8px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+h2.sub .small { font-weight: 400; }

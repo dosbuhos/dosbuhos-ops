@@ -149,6 +149,33 @@ export function demoStatements(now: number): Stmt[] {
   out.push(exp('exp_demo_broad', 'Broad match on “wine tasting” (demo)', 'Broad match finds more qualified tour bookers at similar cost per completed guest', 'failed', -60, -45, 'cost per completed guest', 'Cost per completed guest rose 52%; more cancellations. Stopped by stop-loss.', 'Observational before/after on one campaign; seasonality not controlled.', 4100e6, null));
   out.push(exp('exp_demo_neg', 'Exact negatives for job-seeker and “free” searches (demo)', 'Removing non-buyer searches lowers cost per confirmed booking without fewer completed guests', 'active', -9, null, 'cost per confirmed booking', '', 'Before/after comparison: matched weekdays only, still maturing.', 900e6, addDays(today, 12)));
 
+  // ---- what people searched, the campaigns' keywords and one negative: the base for the search-theme findings ----
+  // [campaign, search, clicks a day, pesos a click, share that becomes a visit, share of visits that open the reservation, a reservation every N days]
+  const SEARCHES: [string, string, number, number, number, number, number][] = [
+    [CAMPAIGNS[1]!.name, 'restaurante dos buhos', 6, 2.2, 0.85, 0.2, 3], [CAMPAIGNS[1]!.name, 'bodega dos búhos menú', 3, 2.0, 0.85, 0.18, 6],
+    [CAMPAIGNS[1]!.name, 'restaurantes en san miguel de allende', 9, 2.5, 0.7, 0.03, 0], [CAMPAIGNS[1]!.name, 'donde comer en san miguel', 4, 2.4, 0.7, 0.04, 0],
+    [CAMPAIGNS[1]!.name, 'viñedos en queretaro', 3, 3.0, 0.4, 0, 0], [CAMPAIGNS[1]!.name, 'viñedos querétaro precios', 1, 2.8, 0.3, 0, 0], [CAMPAIGNS[1]!.name, 'restaurantes en queretaro', 1, 2.6, 0.3, 0, 0],
+    [CAMPAIGNS[0]!.name, 'dos buhos winery tour', 4, 6, 0.9, 0.25, 4], [CAMPAIGNS[0]!.name, 'wine tasting san miguel de allende', 7, 7, 0.6, 0.08, 9],
+    [CAMPAIGNS[0]!.name, 'viñedo tres raices', 1, 8, 0.4, 0, 0], [CAMPAIGNS[0]!.name, 'tres raíces winery tour', 1, 8, 0.4, 0, 0],
+  ];
+  for (let k = 40; k >= 1; k--) {
+    const d = addDays(today, -k);
+    for (const [campaign, query, perDay, cpc, visit, open, every] of SEARCHES) {
+      const clicks = Math.max(0, Math.round(perDay * (0.7 + r() * 0.6))), sessions = Math.round(clicks * visit);
+      if (!clicks) continue;
+      out.push(S(`INSERT OR IGNORE INTO ga4_ads_queries (date, campaign, query, sessions, opened, reservations, ad_clicks, ad_cost_micros, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        d, campaign, query, sessions, Math.round(sessions * open), every && k % every === 0 ? 1 : 0, clicks, Math.round(clicks * cpc * 100) * 10_000, now));
+    }
+  }
+  const KEYWORDS: [string, string, string, string, 'EXACT' | 'PHRASE' | 'BROAD'][] = [
+    ['222', '30', '501', 'restaurante dos buhos', 'EXACT'], ['222', '30', '502', 'restaurantes en san miguel de allende', 'PHRASE'], ['222', '30', '503', 'viñedos en queretaro', 'PHRASE'], ['222', '30', '504', 'donde comer', 'BROAD'],
+    ['111', '31', '511', 'dos buhos winery', 'PHRASE'], ['111', '31', '512', 'wine tasting san miguel de allende', 'PHRASE'], ['111', '31', '513', 'winery tour', 'BROAD'],
+  ];
+  for (const [campaignId, adGroupId, criterionId, text, match] of KEYWORDS) out.push(S(`INSERT OR IGNORE INTO keywords_live (account_id, campaign_id, ad_group_id, criterion_id, ad_group_name, text, match_type, status, ad_group_status, clicks, cost_micros, impressions, conversions_milli, stats_from, stats_to, seen_at)
+    VALUES (?, ?, ?, ?, 'Demo', ?, ?, 'ENABLED', 'ENABLED', 0, 0, 0, 0, ?, ?, ?)`, DEMO_ACCOUNT.id, campaignId, adGroupId, criterionId, text, match, addDays(today, -28), today, now));
+  out.push(S(`INSERT OR IGNORE INTO negatives_live (account_id, campaign_id, text, match_type, level, scope_id, seen_at) VALUES (?, '222', 'empleo', 'BROAD', 'campaign', '', ?)`, DEMO_ACCOUNT.id, now));
+  out.push(S(`INSERT OR IGNORE INTO feed_state (account_id, script_version, keywords_at, term_keywords_at, negatives_full_at, warnings_json, updated_at) VALUES (?, 'demo', ?, ?, ?, '[]', ?)`, DEMO_ACCOUNT.id, now, now, now, now));
+
   out.push(S(`UPDATE connections SET freshness_at = ? WHERE provider = 'opentable_csv'`, now - 2 * 3_600_000));
   return out;
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import feedScript from '../../../scripts/google-ads-feed.js?raw';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, Health } from '../components';
-import { fullDate, microsMoney, money, int, when, ago, PRODUCT_LABEL, basisLabel, campaignStatusLabel, managedByLabel, importStatusLabel, bookingStatusLabel, purposeLabel } from '../format';
+import { fullDate, microsMoney, money, int, when, ago, PRODUCT_LABEL, basisLabel, campaignStatusLabel, managedByLabel, importStatusLabel, bookingStatusLabel, purposeLabel, reasonLabel } from '../format';
 
 export function Campaigns() {
   const { data, error } = useApi('campaigns', 120_000);
@@ -176,14 +177,9 @@ export function Connections({ isAdmin }: { isAdmin: boolean }) {
         <div className="list">{(data.connections as any[]).map(c => (
           <article key={c.id} className="item">
             <div className="top"><b>{purposeLabel(c.purpose)}</b><Health h={c.health} /></div>
-            <div className="small">{c.health_reason}</div>
+            {c.health_reason && <div className="small">{reasonLabel(c.health_reason)}</div>}
             <div className="tiny muted">{c.provider} · último éxito: {ago(c.last_success_at)}{c.freshness_at ? ` · datos al ${when(c.freshness_at)}` : ''}{c.last_error ? ` · último error: ${c.last_error}` : ''}</div>
-            {c.provider === 'google_ads_script' && isAdmin && (
-              <div className="stack">
-                <button className="btn" onClick={async () => { if (!confirm('¿Crear un token nuevo para el feed? El actual deja de funcionar.')) return; try { const r = await api('connections/google-ads-script/token', { method: 'POST' }); setToken(r.token); void reload(); } catch (e) { setMsg((e as Error).message); } }}>Crear token del feed</button>
-                {token && <div className="notice small"><b>Se muestra una sola vez.</b> Pégalo en el Google Ads Script (Herramientas → Acciones masivas → Secuencias de comandos) y prográmalo cada hora:<div className="mono" style={{ overflowWrap: 'anywhere', marginTop: 6 }}>{token}</div></div>}
-              </div>
-            )}
+            {c.provider === 'google_ads_script' && data.script && <ScriptCard script={data.script} isAdmin={isAdmin} onMsg={setMsg} reload={() => void reload()} token={token} setToken={setToken} />}
           </article>))}</div>
       </section>
       <section className="section card stack">
@@ -196,6 +192,68 @@ export function Connections({ isAdmin }: { isAdmin: boolean }) {
       <section className="section"><h3>Importaciones recientes</h3><div className="list" style={{ marginTop: 6 }}>{(data.imports as any[]).map(i => <div key={i.id} className="item small"><div className="top"><b>{i.file_name}</b><span className="chip">{importStatusLabel(i.status)}</span></div>{i.rows_ok} válidas · {i.rows_duplicate} duplicadas · {i.rows_error} errores · {when(i.created_at)} por {i.created_by}</div>)}{!(data.imports as any[]).length && <div className="item muted small">Todavía no hay importaciones.</div>}</div></section>
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </>
+  );
+}
+
+/** The Google Ads script: which copy is running, what it sends, and one button that hands over the current copy ready to paste. */
+function ScriptCard({ script, isAdmin, onMsg, reload, token, setToken }: { script: any; isAdmin: boolean; onMsg: (m: string) => void; reload: () => void; token: string | null; setToken: (t: string | null) => void }) {
+  const [text, setText] = useState<string | null>(null);   // the script with its token, shown only when the clipboard refused it
+  const [busy, setBusy] = useState(false);
+  // No confirmation dialog: making a token changes nothing until the new script uses it. The clipboard is asked for the
+  // text while the token is still being made, which is what Safari requires of a copy that needs a request first.
+  const copy = async () => {
+    setBusy(true);
+    const ready = (async () => {
+      const r = await api('connections/google-ads-script/token', { method: 'POST' });
+      const full = feedScript.replace("var FEED_TOKEN = 'PASTE_TOKEN_HERE';", `var FEED_TOKEN = '${r.token}';`);
+      if (!r.token || !full.includes(r.token)) throw new Error('No se pudo preparar el script');
+      return full as string;
+    })();
+    ready.catch(() => { /* reported below */ });
+    try {
+      let copied = false;
+      try {
+        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) { await navigator.clipboard.write([new ClipboardItem({ 'text/plain': ready.then(t => new Blob([t], { type: 'text/plain' })) })]); copied = true; }
+      } catch { /* an older browser, or one that wants the text itself: try the plain call next */ }
+      const full = await ready;                              // a failure to make the token is reported as such, not as a copy problem
+      if (!copied) { try { await navigator.clipboard.writeText(full); copied = true; } catch { /* shown in a box to copy by hand */ } }
+      setText(copied ? null : full);
+      onMsg(copied ? 'Script copiado, con su token. Sigue los cuatro pasos de esta tarjeta.' : 'No se pudo copiar solo. Toca el cuadro para seleccionarlo todo y cópialo.');
+      reload();
+    } catch (e) { onMsg((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="stack">
+      <div className="kv">
+        <div><span>Versión que corre en Google Ads</span><b>{script.running ?? 'anterior, sin número'}</b></div>
+        <div><span>Versión actual</span><b>{script.current}</b></div>
+        <div><span>Manda las palabras clave</span><b>{script.keywordsAt ? `sí, ${script.keywords} activas` : 'todavía no'}</b></div>
+        <div><span>Dice qué palabra clave trajo cada búsqueda</span><b>{script.termKeywordsAt ? 'sí' : 'todavía no'}</b></div>
+        <div><span>Manda todas las negativas</span><b>{script.negativesFullAt ? `sí, ${script.negatives}` : 'solo las exactas de campaña'}</b></div>
+      </div>
+      {script.warnings.length > 0 && <div className="notice small"><b>En su última corrida el script no pudo leer algo:</b><ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{(script.warnings as string[]).map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
+      {!script.upToDate && <div className="notice info small"><b>Hay una versión nueva del script.</b> Con ella la app ve las palabras clave de cada campaña y puede proponerte, para aprobar con un toque, pausar una palabra clave o bloquear una búsqueda.</div>}
+      {script.pendingToken && <div className="small muted">Hay un token nuevo que todavía no se usa: el script nuevo aún no manda su primer reporte.</div>}
+      {isAdmin && (
+        <>
+          <div className="row"><button className={`btn ${script.upToDate ? '' : 'primary'}`} disabled={busy} onClick={() => void copy()}>{script.upToDate ? 'Copiar el script otra vez' : 'Copiar el script nuevo'}</button>
+            <span className="small muted">Se copia con un token nuevo. El script que ya corre sigue funcionando hasta que el nuevo mande su primer reporte.</span></div>
+          <ol className="script-steps">
+            <li>En Google Ads: Herramientas → Acciones masivas → Secuencias de comandos, y abre el script del Growth Terminal.</li>
+            <li>Selecciona todo el texto, bórralo y pega lo que copiaste. Ya trae su token: no hay que editar nada.</li>
+            <li>Guarda y ejecútalo una vez. Si pide autorización, acéptala. La programación de cada hora no cambia.</li>
+            <li>Vuelve aquí en un par de minutos: “Versión que corre” debe decir {script.current}.</li>
+          </ol>
+          {text && <textarea className="mono" rows={8} readOnly value={text} onFocus={e => e.currentTarget.select()} aria-label="Script de Google Ads con su token" />}
+          <details className="why"><summary>Solo crear un token, para pegarlo a mano</summary>
+            <div className="stack" style={{ marginTop: 6 }}>
+              <button className="btn" onClick={async () => { try { const r = await api('connections/google-ads-script/token', { method: 'POST' }); setToken(r.token); reload(); } catch (e) { onMsg((e as Error).message); } }}>Crear token del feed</button>
+              {token && <div className="notice small"><b>Se muestra una sola vez.</b> Va en la línea FEED_TOKEN del script:<div className="mono" style={{ overflowWrap: 'anywhere', marginTop: 6 }}>{token}</div></div>}
+            </div>
+          </details>
+        </>
+      )}
+    </div>
   );
 }
 

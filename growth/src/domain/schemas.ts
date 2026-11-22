@@ -11,6 +11,8 @@ export const ACTION_TYPES = [
   'budget_reallocation',        // move budget between approved campaigns without raising the aggregate
   'pause_ad',                   // pause one clearly failing approved ad/creative
   'add_negative_keyword_exact', // add one exact-match negative keyword after conflict checks
+  'block_search_theme',         // stop paying for one word or name (another region, another winery): pause the campaign's
+                                // keywords that contain it and add it as a phrase negative, after impact checks
   'pause_campaign',             // protective pause (also used by "Pause managed ads")
 ] as const;
 export const ActionType = z.enum(ACTION_TYPES);
@@ -90,6 +92,7 @@ export const ActionParameters = {
   budget_reallocation: z.object({ toResourceRef: ResourceRef, amountPctOfSource: z.number().min(1).max(50) }).strict(),
   pause_ad: z.object({}).strict(),
   add_negative_keyword_exact: z.object({ text: z.string().min(1).max(80).regex(/^[\p{L}\p{N} '&.-]+$/u, 'plain words only') }).strict(),
+  block_search_theme: z.object({ text: z.string().min(4).max(40).regex(/^[\p{L}\p{N} '-]+$/u, 'plain words only') }).strict(),
   pause_campaign: z.object({}).strict(),
 } as const satisfies Record<ActionType, z.ZodTypeAny>;
 

@@ -17,12 +17,15 @@ const blocked = (what: string): never => {
 
 export class GoogleAdsApiProvider implements AdsProvider {
   readonly kind = 'google_ads_api' as const;
+  readonly deferred = false;
   async readBudgets(): Promise<Record<string, number>> { return blocked('read'); }
   async readCampaignStatus(): Promise<Record<string, 'ENABLED' | 'PAUSED' | 'REMOVED'>> { return blocked('read'); }
   async readAdStatus(): Promise<Record<string, 'ENABLED' | 'PAUSED' | 'REMOVED'>> { return blocked('read'); }
-  async readNegatives(): Promise<string[]> { return blocked('read'); }
+  async hasNegative(): Promise<boolean> { return blocked('read'); }
+  async readKeywordStatus(): Promise<Record<string, 'ENABLED' | 'PAUSED' | 'REMOVED'>> { return blocked('read'); }
   async setBudget(): Promise<void> { return blocked('budget mutation'); }
   async setCampaignStatus(): Promise<void> { return blocked('campaign status mutation'); }
   async setAdStatus(): Promise<void> { return blocked('ad status mutation'); }
-  async addNegativeExact(): Promise<void> { return blocked('negative keyword mutation'); }
+  async addNegative(): Promise<void> { return blocked('negative keyword mutation'); }
+  async setKeywordStatus(): Promise<void> { return blocked('keyword status mutation'); }
 }

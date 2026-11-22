@@ -5,7 +5,7 @@ import type { Env } from '../src/env.ts';
 import { demoStatements, DEMO_ACCOUNT } from './demo-data.ts';
 import { coordinatorFor } from '../src/coordinator/do.ts';
 import { buildSnapshot } from '../src/read/snapshot.ts';
-import { writeReport, watchdog } from '../src/workflows/jobs.ts';
+import { writeReport, watchdog, proposeFromFindings } from '../src/workflows/jobs.ts';
 import { DEFAULT_POLICY, type ModelProposal } from '../src/domain/schemas.ts';
 
 export async function runDemoBootstrap(env: Env, accountKey: string): Promise<void> {
@@ -18,7 +18,7 @@ export async function runDemoBootstrap(env: Env, accountKey: string): Promise<vo
     await stub.init(accountKey, 'DEMO', 'demo');
     await stub.setPolicy({
       ...DEFAULT_POLICY, mode: 'DEMO', monthlyAdSpendCeilingNative: 60_000, ceilingCoversWholeAccount: false, minimumAcceptableContributionReturn: 1.5,
-      approvedCampaignIds: ['111', '222'], allowedAutomaticActions: ['budget_reallocation', 'pause_ad'], protectiveStopPctOfCeiling: 95, warningPctOfCeiling: 80, maxTotalBudgetBaselineIncreasePct: 0,
+      approvedCampaignIds: ['111', '222'], allowedAutomaticActions: ['budget_reallocation', 'pause_ad'], protectiveStopPctOfCeiling: 95, warningPctOfCeiling: 80, maxTotalBudgetBaselineIncreasePct: 0, maxOptimizationMutationsPerDay: 6,
     }, 'demo');
     await stub.setBaseline((600 + 450) * 1e6, 'demo');
     const now = Date.now();
@@ -41,6 +41,8 @@ export async function runDemoBootstrap(env: Env, accountKey: string): Promise<vo
         .bind(`prop_${crypto.randomUUID().slice(0, 18)}`, r.actionId ?? null, accountKey, snapshot.snapshotId, 'demo_bootstrap', JSON.stringify(p), JSON.stringify(r.errors ?? []), r.state ?? 'invalid', JSON.stringify(r.reasons ?? []), 'demo-script', 'demo', Date.now()).run();
       if (r.state === 'APPROVED' && r.actionId) await stub.execute(r.actionId);
     }
+    // The fixed rules, run for real on the demo searches: their findings wait for approval like any other suggestion.
+    await proposeFromFindings(env, stub as unknown as Parameters<typeof proposeFromFindings>[1], accountKey, snapshot, 'demo_bootstrap', now);
     await writeReport(env, { runKey: 'demo_bootstrap', kind: 'daily' }, now);
     await writeReport(env, { runKey: 'demo_bootstrap', kind: 'weekly' }, now);
     await watchdog(env, now);

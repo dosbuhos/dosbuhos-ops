@@ -1,32 +1,18 @@
 // Approved change → queued for the Google Ads Script → applied there → verified only against the next live report.
 import { describe, it, expect } from 'vitest';
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
 import { validateProposal } from '../src/policy/validate.ts';
 import { CoordinatorCore } from '../src/coordinator/core.ts';
 import { ScriptAdsProvider } from '../src/connectors/google-ads-script.ts';
-import { goodContext, proposal, memorySql, ACCOUNT, M, snapshot, LIVE_POLICY } from './helpers.ts';
-
-function fakeD1(db: DatabaseSync): D1Database {
-  const stmt = (sql: string, binds: unknown[] = []) => ({
-    bind: (...b: unknown[]) => stmt(sql, b),
-    all: async () => ({ results: db.prepare(sql).all(...(binds as never[])) }),
-    first: async () => db.prepare(sql).get(...(binds as never[])) ?? null,
-    run: async () => { const r = db.prepare(sql).run(...(binds as never[])); return { meta: { changes: Number(r.changes) } }; },
-  });
-  return { prepare: (sql: string) => stmt(sql) } as unknown as D1Database;
-}
+import { goodContext, proposal, memorySql, sqliteD1, ACCOUNT, M, snapshot, LIVE_POLICY } from './helpers.ts';
 
 function setup() {
   let t = Date.UTC(2026, 10, 14, 15, 0);
   const now = () => t;
-  const db = new DatabaseSync(':memory:');
-  for (const f of ['0001_init.sql', '0009_script_ops.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+  const { db, d1 } = sqliteD1();
   db.exec(`INSERT INTO ad_accounts (id, provider, external_id, name, currency, account_tz, created_at) VALUES ('g', 'google_ads', '${ACCOUNT}', 'g', 'MXN', 'America/Mexico_City', 0);
     INSERT INTO campaign_registry (ref, account_id, kind, external_id, name, status, budget_id, budget_micros, updated_at) VALUES
       ('res_c111', 'g', 'campaign', '111', 'Tours EN', 'ENABLED', 'b1', ${M(500)}, 0), ('res_c222', 'g', 'campaign', '222', 'Restaurante', 'ENABLED', 'b2', ${M(300)}, 0);
     INSERT OR REPLACE INTO connections (id, provider, purpose, health, last_success_at, updated_at) VALUES ('conn_google_ads_script', 'google_ads_script', 'x', 'connected', ${t}, 0);`);
-  const d1 = fakeD1(db);
   const core = new CoordinatorCore(memorySql(), { provider: new ScriptAdsProvider(d1, now), now, environment: 'production' });
   core.initialize(ACCOUNT, 'OBSERVE', 'owner');
   core.setBaseline(M(800), 'owner');

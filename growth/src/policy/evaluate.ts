@@ -130,7 +130,7 @@ export function evaluatePolicy(intent: ActionIntent, ctx: PolicyContext): Policy
   }
 
   // ---- automation scope (failing this means "ask the owner", not "refuse") ----
-  add('automatic_action_allowed', p.allowedAutomaticActions.includes(intent.actionType), p.allowedAutomaticActions.includes(intent.actionType) ? `${intent.actionType} se permite en automático` : `${intent.actionType} necesita la aprobación del dueño`, true);
+  add('automatic_action_allowed', p.allowedAutomaticActions.includes(intent.actionType), p.allowedAutomaticActions.includes(intent.actionType) ? 'Este tipo de cambio se permite en automático' : 'Este tipo de cambio espera tu aprobación', true);
   return finish(checks, intent, ctx, false);
 }
 

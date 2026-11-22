@@ -9,7 +9,7 @@ A private, market-style dashboard and bounded optimization agent for Dos Búhos 
 | Real | Google Ads spend/clicks/conversions via the Hub (D1 `growth` and R2 `growth-archive` created; schema applied). Domain, policy and coordinator logic; dashboard; watchdog; reports |
 | Mocked | The ad account in dev/demo (`MockAdsProvider`); every demo number (`fixtures/demo-data.ts`) |
 | Blocked | Google Ads API reads and writes (needs approved API access + owner OAuth); offline conversions; Claude review against the live API (no key here) |
-| Tested | 65 tests mapped to the spec's acceptance criteria: `docs/acceptance.md` |
+| Tested | 173 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
 | Deployable | Yes, via Workers Builds once the `growth` Worker is created in the dashboard and `HUB_SECRET` is set (`docs/setup.md`). Ad changes stay impossible until the API adapter exists and the owner goes live |
 
 ## Layout
@@ -107,24 +107,69 @@ Parrot's first order is from 11 August 2026, so on its own every "against last y
 - **Open question:** whether experiences prepaid online were rung up in Wansoft the way they are in Parrot. If they were
   not, the comparison overstates growth in tours and tastings.
 
-## Suggestions from fixed rules (pass 2a)
+## Suggestions from fixed rules (passes 2a and 2b)
 
-`src/read/detectors.ts` looks at the search terms of the last 28 complete days (`ga4_ads_queries`) and writes a pitch
-for each known situation: what to do, why (only numbers from the evidence), what to expect and how we will know.
+`src/read/detectors.ts` reads the search terms of the last 28 complete days (`ga4_ads_queries`) and writes a pitch for
+each known situation: what to do, why (only numbers from the evidence), what to expect and how we will know.
 
-- **Rules today:** a search for another wine region (Querétaro, Valle de Guadalupe...) or for another winery by name,
-  with clicks and no online reservation, becomes a suggested exact negative keyword. A relevant search with many clicks
-  where under 5% open the reservation widget is reported as a landing-page problem, never as a negative. Our own name
-  and any search that reserved are left alone. Thresholds and word lists are constants at the top of the file.
-- **Path:** the daily review (`reviewAndPropose`) runs the rules before the model, with or without an API key. A
-  proposal from a rule goes through `submitProposal` like one from the model: validation, policy, owner approval.
-  Nothing a rule finds is ever applied without approval. The same term is not proposed again for 30 days.
-- **Why negatives are advice for now:** the validator only accepts a negative keyword when the snapshot holds the
-  campaign's active keywords (so it cannot block one by mistake), and the Google Ads Script feed does not send them
-  yet. Until it does, the finding is shown on Hoy and Sugerencias with the manual steps. Next step: the feed sends
-  enabled keywords per campaign, they are stored, and the snapshot fills `keywords`. Note for that step: the validator
-  strips accents from the negative text; check that the keyword sent to Google keeps the accent.
+- **The unit is a theme, not a search.** A theme is one word that marks another wine region (Querétaro, Valle de
+  Guadalupe...) or another winery (Trinidad, Raíces, San Lucas...). Every search that carries the word is added up, so
+  twenty small searches that each look harmless show as one line with its total. The word list and the thresholds are
+  constants at the top of the file.
+- **What the rules report:** a theme with clicks and no online reservation (`theme_place`, `theme_competitor`); a
+  campaign that only reserves on searches for our name (`brand_split`, advice only); a relevant search with many clicks
+  where almost nobody opens the reservation widget (`landing_gap`, advice only, never a negative). Our name, our town
+  and any search that reserved are left alone. A theme that is already blocked, or that stopped coming in, drops off.
+- **One decision per theme:** the action class `block_search_theme {text}` (`src/policy/validate.ts`). The server, not
+  the model, builds the operations from one word: pause the campaign's active keywords that contain it
+  (`pause_keyword`) and add it as a phrase negative in the forms people typed, accents kept (`add_negative_phrase`).
+  It refuses a word under 4 letters, our name or town, a theme with a reservation, more than 25% of the campaign's
+  clicks, more than 20 keywords, or a keyword with Google conversions. The owner sees the exact operations and what
+  they would have stopped in 28 days before approving. Always waits for approval.
+- **Why the feed matters:** the app can only tell a stray search (block it) from a keyword somebody put in the campaign
+  (pause it) when the Google Ads Script sends the keywords. Until the newer script is pasted, a theme is shown as a
+  finding with a note, never as a manual to-do. `feed_state` records the script's version, when each section last
+  arrived and anything it could not read; Ajustes → Conexiones shows it.
+- **Path:** the daily review (`reviewAndPropose`) runs the rules before the model, with or without an API key
+  (`src/read/suggestions.ts`). A proposal from a rule goes through `submitProposal` like one from the model:
+  validation, policy, owner approval. At most 3 per run. A finding is not sent again while it waits, for 30 days after
+  it was applied or declined, or for 7 days after the server refused to build it; one that expired unseen comes back.
+- **The model's part:** it reads `get_current_month` first (this month against the ceiling, the last 28 days per
+  campaign with its verdict, the rules' findings and what became of each) and writes a short summary for the owner. It
+  does not resubmit what the rules sent. The rules' line and the model's summary are kept in full in `review_notes`.
+- **After a change:** `loadResults` compares equal whole days before and after (stages `en_cola`, `midiendo`, 7 and 14
+  days) and says whether the theme stopped coming in. Shown on Hoy ("Lo que pasó después") and in Sugerencias.
 - **"Ahora no":** `POST /api/proposals/:id/decline` with a reason moves a waiting proposal to REJECTED in the
   coordinator and records who and why. Sugerencias shows the reasons as buttons.
+- **Daily limit:** `maxOptimizationMutationsPerDay` counts approved changes in 24 hours. When it is used up, approving
+  is refused and the suggestion keeps waiting, instead of being approved into a refusal.
 - Spend-increasing suggestions (add money) are still refused by policy until measurement is mature, capacity is known
   and the mature return is above the floor. That is unchanged.
+
+## Google Ads Script (version 2026-11-22.2)
+
+`scripts/google-ads-feed.js` runs every hour inside Google Ads. It applies the changes approved in the app, then reads
+the account and posts it to `/api/feed/google-ads`.
+
+- **Sends:** campaigns, 90 days of daily numbers, today's spend, search terms, budget changes, ads, and since version 2
+  the keywords of enabled campaigns with their 28-day numbers, the keyword behind each search, and negative keywords of
+  every match type and level (campaign, ad group, shared list, account list). Each newer section has its own try/catch:
+  if Google refuses one query the spend numbers still go out and the app shows what could not be read.
+- **Applies:** `set_budget`, `pause_campaign`, `pause_ad`, `add_negative_exact`, `add_negative_phrase`,
+  `pause_keyword`, and the two undo operations `enable_keyword` and `remove_negative` (the app does not queue those
+  yet: undoing a block is done by hand in Google Ads). Each is applied only if the account still shows what the
+  approval was based on; otherwise it is skipped and reported.
+- **Installing a new version:** Ajustes → Conexiones → "Copiar el script nuevo" creates a feed token, fills it into the
+  script and copies it. A new token takes over the first time it is used and only then revokes the older ones, so the
+  copy that is running keeps working until the new one reports. `SCRIPT_VERSION` must match the constant of the same
+  name in `src/connectors/google-ads-feed.ts` (a test checks it).
+- **Queued changes:** a provider that queues (`deferred`) gets every independent operation of a change at once; the
+  change is verified against a later report of the account, not the one from the same run. A change in the queue is an
+  information notice for two hours and a warning after that.
+
+## Migration 0012
+
+`0012_keywords_and_themes.sql` adds `keywords_live`, `search_term_keywords`, `feed_state` and `review_notes`, rebuilds
+`negatives_live` (match type, level, scope) and `script_ops` (new kinds and columns), and adds
+`feed_tokens.first_used_at`. It is compatible with the code from before it, so it is applied to the remote database
+before the code that needs it is pushed.

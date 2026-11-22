@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, StateChip } from '../components';
-import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel, dayLabel, pitchTitle, sentences } from '../format';
+import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel, dayLabel, pitchTitle, sentences, count } from '../format';
 
 const WHY_NOT = ['Quiero ver más datos', 'No estoy de acuerdo', 'Ya lo hice en Google Ads', 'Ahora no es momento'];
 /** What the suggestion expects, in words. A saving is shown as a range of pesos; anything else as the metric and its direction. */
@@ -15,9 +15,46 @@ function opText(o: any): string {
     case 'set_budget': return `Presupuesto ${o.budgetId}: ${microsMoney(o.fromMicros)} → ${microsMoney(o.toMicros)} por día`;
     case 'pause_ad': return `Pausar anuncio ${o.adId}`;
     case 'pause_campaign': return `Pausar campaña ${o.campaignId}`;
-    case 'add_negative_exact': return `Agregar negativa exacta “${o.text}” a la campaña ${o.campaignId}`;
+    case 'add_negative_exact': return `Bloquear la búsqueda exacta “${o.text}”`;
+    case 'add_negative_phrase': return `Bloquear las búsquedas que digan “${o.text}”`;
+    case 'pause_keyword': return `Pausar la palabra clave “${o.text}”`;
     default: return JSON.stringify(o);
   }
+}
+
+const MATCH: Record<string, string> = { EXACT: 'exacta', PHRASE: 'de frase', BROAD: 'amplia' };
+const STAGE: Record<string, [string, string]> = { en_cola: ['En cola', 's-info'], midiendo: ['Midiendo', 's-info'], a7: ['A 7 días', 's-ok'], a14: ['A 14 días', 's-ok'] };
+const UNDO_BY_HAND = new Set(['block_search_theme', 'add_negative_keyword_exact']);
+
+/** What a theme block would do and what it would have stopped, computed by the server from the last 28 days. */
+function Impact({ i, cur }: { i: any; cur: string }) {
+  if (!i) return null;
+  return (
+    <div className="impact">
+      <div><span>Qué haría exactamente</span>
+        <ul>
+          {i.keywords.length > 0 && <li>Pausar {count(i.keywords.length, 'palabra clave', 'palabras clave')}: {(i.keywords as any[]).map(k => `“${k.text}” (${MATCH[k.matchType] ?? k.matchType})`).join(', ')}.</li>}
+          {i.negatives.length > 0 && <li>Bloquear las búsquedas que digan {(i.negatives as string[]).map(n => `“${n}”`).join(' o ')}.</li>}
+        </ul>
+      </div>
+      <div><span>Qué habría detenido en 28 días</span>
+        <p>{count(i.searches, 'búsqueda', 'búsquedas')}, {count(i.clicks, 'clic', 'clics')} y {microsMoney(i.costMicros, cur)}; ninguna reservó en línea. Es {i.clickSharePct}% de los clics de la campaña.</p>
+        <details className="why"><summary>Ver las búsquedas</summary><ul className="small">{(i.top as any[]).map(t => <li key={t.text}>“{t.text}”: {count(t.clicks, 'clic', 'clics')}, {microsMoney(t.costMicros, cur)}</li>)}{i.searches > i.top.length && <li>y {i.searches - i.top.length} más</li>}</ul></details>
+      </div>
+    </div>
+  );
+}
+
+/** What happened after a change: the searches it was meant to stop, before and after. */
+export function ResultLine({ r }: { r: any }) {
+  const [label, cls] = STAGE[r.stage] ?? ['', 's-mute'];
+  const verdict = r.verdict === 'funciona' ? ['Funcionó', 's-ok'] : r.verdict === 'sigue_entrando' ? ['Sigue entrando', 's-warn'] : null;
+  return (
+    <div className="result">
+      <div className="row"><b>Resultado</b><span className={`state ${cls}`}>{label}</span>{verdict && <span className={`state ${verdict[1]}`}>{verdict[0]}</span>}</div>
+      {(r.lines as string[]).map((l, k) => <div key={k} className="small">{l}</div>)}
+    </div>
+  );
 }
 
 export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any }) {
@@ -34,64 +71,105 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
     catch (e) { setMsg((e as Error).message); }
   };
   const invalid = (data.proposals as any[]).filter(p => !p.action_id);
+  const cur = session?.account?.currency ?? 'MXN';
+  const resultOf = (id: string) => (today?.results as any[] | undefined)?.find(r => r.actionId === id);
+  const outOfChanges = !!today?.limit && today.limit.used >= today.limit.perDay;
+  const needsScript = !!today?.script && !today.script.sendsKeywords && (today?.advice as any[] | undefined)?.some(f => f.kind === 'theme_place' || f.kind === 'theme_competitor');
+
+  const all = data.actions as any[], waiting = all.filter(a => a.state === 'APPROVAL_REQUIRED'), decided = all.filter(a => a.state !== 'APPROVAL_REQUIRED');
+  const findings = (today?.advice as any[] | undefined) ?? [];
+  const card = (a: any) => {
+    const intent = a.intent, dec = a.decision, waits = a.state === 'APPROVAL_REQUIRED';
+    const ledger = ledgerFor(a.id);
+    const lastReason = [...ledger].reverse().map(e => { try { return JSON.parse(e.detail_json).reason; } catch { return null; } }).find(Boolean);
+    // A suggestion that only waits for approval needs no box saying so: the chip already does.
+    const reasons = ((dec.reasons ?? []) as string[]).filter(r => !/espera tu aprobación|necesita la aprobación/.test(r));
+    const result = resultOf(a.id);
+    const pitch = (
+      <>
+        <div className="pitch">
+          <div><span>Por qué</span><ul>{sentences(intent.proposal.hypothesis).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+          <div><span>Qué espero</span><p>{expectText(intent.proposal.expectedEffect, cur)} {intent.proposal.risks?.[0] ? `Riesgo: ${intent.proposal.risks[0]}` : ''}</p></div>
+          <div><span>Cómo lo sabremos</span><p>{intent.proposal.evaluationPlan}</p></div>
+        </div>
+        {intent.impact ? <Impact i={intent.impact} cur={cur} /> : <div className="small mono">{intent.operations.map(opText).join(' · luego ')}</div>}
+      </>
+    );
+    const technical = (
+      <details className="why"><summary>Evidencia, riesgos, evaluación y cada revisión de la política</summary>
+        <div className="small stack" style={{ marginTop: 6 }}>
+          <div><b>Esperado:</b> {intent.proposal.expectedEffect.metric} {directionLabel(intent.proposal.expectedEffect.direction)} (las predicciones no autorizan gasto)</div>
+          <div><b>Evidencia:</b> {intent.evidenceRefs.join(', ')} de la instantánea {intent.snapshotId}</div>
+          <div><b>Riesgos:</b> {intent.proposal.risks.join('; ')}</div>
+          <div><b>Si no se cambia:</b> {intent.proposal.alternative}</div>
+          <div><b>Evaluación:</b> {intent.proposal.evaluationPlan}</div>
+          <div><b>Reversión:</b> {intent.proposal.rollbackPlan}. Una reversión no puede deshacer el dinero ya gastado, los anuncios ya mostrados ni un reinicio del aprendizaje.</div>
+          <div className="small mono">{intent.operations.map(opText).join(' · ')}</div>
+          <div className="table-scroll"><table className="data"><tbody>{(dec.checks ?? []).map((c: any) => <tr key={c.name}><td>{c.ok ? '✓' : c.blocksAutomationOnly ? '◐' : '×'}</td><td className="mono tiny">{c.name}</td><td>{c.detail}</td></tr>)}</tbody></table></div>
+          <div className="timeline">{ledger.map(e => <div key={e.event_id}><span className="mono tiny">{when(e.at)}</span> {e.from_state ? `${stateLabel(e.from_state)} → ` : ''}<b>{stateLabel(e.to_state)}</b></div>)}</div>
+        </div>
+      </details>
+    );
+    const head = (
+      <>
+        <div className="top"><b>{a.title || pitchTitle(intent.proposal.actionType, intent.proposal.parameters, intent.resourceLabel)}</b><StateChip s={a.state} /></div>
+        <div className="tiny muted">Campaña: {String(intent.resourceLabel).replace(/_/g, ' ')} · {a.actor === 'model' ? 'propuesta por el optimizador' : `por ${a.actor}`} · {when(a.created_at)}{a.approved_by ? ` · aprobada por ${a.approved_by}` : ''}</div>
+      </>
+    );
+    if (waits) return (
+      <article key={a.id} id={`a-${a.id}`} className="item" style={focus === a.id ? { borderColor: 'var(--accent)' } : undefined}>
+        {head}{pitch}
+        {reasons.length > 0 && <div className="notice" style={{ fontSize: 13 }}><ul style={{ margin: 0, paddingLeft: 18 }}>{reasons.map((r, i) => <li key={i}>{r}</li>)}</ul></div>}
+        {technical}
+        {isAdmin && <div className="row">
+          <button className="btn primary" disabled={outOfChanges} onClick={() => { if (confirm(`¿Aprobar y ejecutar exactamente esto?\n\n${intent.operations.map(opText).join('\n')}`)) void act(`proposals/${a.id}/approve`, { approvalHash: a.approval_hash }, 'Aprobada'); }}>Aprobar este cambio exacto</button>
+          {declining !== a.id && <button className="btn" onClick={() => setDeclining(a.id)}>Ahora no</button>}
+          {declining === a.id && <div className="whynot"><span className="small muted">¿Por qué no? Queda anotado y no se vuelve a proponer en 30 días.</span>{WHY_NOT.map(r => <button key={r} className="btn" onClick={() => { setDeclining(null); void act(`proposals/${a.id}/decline`, { reason: r }, 'Anotado'); }}>{r}</button>)}<button className="btn ghost" onClick={() => setDeclining(null)}>Cancelar</button></div>}
+          {outOfChanges && <div className="small muted">Ya se hicieron {today.limit.used} cambios en las últimas 24 horas y tu límite es {today.limit.perDay} por día. Se puede aprobar cuando pase ese plazo.</div>}
+        </div>}
+      </article>
+    );
+    // Already decided: one compact card. What happened comes first; the proposal itself opens on demand.
+    const done = a.state === 'VERIFIED' || a.state === 'PARTIALLY_APPLIED';
+    return (
+      <article key={a.id} id={`a-${a.id}`} className="item" style={focus === a.id ? { borderColor: 'var(--accent)' } : undefined}>
+        {head}
+        {result && <ResultLine r={result} />}
+        {a.state === 'UNKNOWN_OUTCOME' && !result && <div className="small">Aprobado y en cola: el script de Google Ads lo aplica en su próxima corrida (cada hora) y la app lo verifica con el siguiente reporte de la cuenta.</div>}
+        {(lastReason || reasons.length > 0) && !done && <div className="small"><b>Por qué quedó así:</b> {[lastReason, ...reasons].filter(Boolean).join(' · ')}</div>}
+        <details className="why" open={focus === a.id}><summary>Ver la propuesta completa</summary><div style={{ marginTop: 6 }}>{pitch}{technical}</div></details>
+        {isAdmin && (a.state === 'UNKNOWN_OUTCOME' || a.state === 'APPLIED' || done) && <div className="row">
+          {(a.state === 'UNKNOWN_OUTCOME' || a.state === 'APPLIED') && <button className="btn" onClick={() => void act(`actions/${a.id}/reconcile`, undefined, 'Conciliada')}>Conciliar con Google Ads</button>}
+          {done && a.action_type !== 'pause_campaign' && !UNDO_BY_HAND.has(a.action_type) && <button className="btn" onClick={() => { if (confirm('¿Restaurar el ajuste anterior? Solo se hace si nadie lo cambió desde entonces.')) void act(`actions/${a.id}/compensate`, undefined, 'Reversión'); }}>Restaurar ajuste anterior</button>}
+          {done && UNDO_BY_HAND.has(a.action_type) && <div className="small muted">Para deshacerlo: en Google Ads, en la campaña, reactiva las palabras clave que se pausaron y quita la palabra clave negativa.</div>}
+        </div>}
+      </article>
+    );
+  };
 
   return (
     <>
       <section className="section">
         <header><h1>Sugerencias</h1><span className="small muted">Lo que se propone, lo que decidiste y lo que pasó después</span></header>
         <ReviewCard review={today?.review} st={session?.coordinator} isAdmin={isAdmin} onAsk={() => void act('control/run-review', {}, 'Revisión iniciada: las sugerencias aparecen aquí en 1 a 3 minutos')} />
-        {(today?.advice as any[] | undefined)?.length ? <div className="list" style={{ marginBottom: 12 }}>{(today!.advice as any[]).map(f => (
+        {needsScript && <div className="notice info" style={{ marginBottom: 10 }}><b>Falta un paso para aprobar estos cambios con un toque.</b> La app necesita ver las palabras clave de cada campaña, y eso llega con el script nuevo de Google Ads. <a href="#ajustes/conexiones">Copiarlo en Ajustes → Conexiones →</a></div>}
+        {waiting.length > 0 && <><h2 className="sub">Esperan tu decisión</h2><div className="list">{waiting.map(card)}</div></>}
+        {findings.length > 0 && <><h2 className="sub">Hallazgos <span className="small muted">en las búsquedas de los últimos 28 días</span></h2><div className="list">{findings.map(f => (
           <article key={f.key} className="item advice">
-            <div className="top"><b>{f.title}</b><span className="state s-info">{f.kind === 'landing_gap' ? 'Para revisar' : 'Hallazgo'}</span></div>
+            <div className="top"><b>{f.title}</b><span className="state s-info">{f.kind === 'landing_gap' || f.kind === 'brand_split' ? 'Para revisar' : 'Hallazgo'}</span></div>
             <div className="tiny muted">Campaña: {String(f.campaign).replace(/_/g, ' ')}</div>
             <div className="pitch">
               <div><span>Por qué</span><ul>{(f.why as string[]).map((w, i) => <li key={i}>{w}</li>)}</ul></div>
               <div><span>Qué espero</span><p>{f.expect}</p></div>
               <div><span>Cómo lo sabremos</span><p>{f.measure}</p></div>
             </div>
+            {(f.searches as any[])?.length > 0 && <details className="why"><summary>Ver las búsquedas</summary><ul className="small">{(f.searches as any[]).map(q => <li key={q.query}>“{q.query}”: {count(q.clicks, 'clic', 'clics')}, {microsMoney(q.costMicros, cur)}</li>)}{f.moreSearches > 0 && <li>y {f.moreSearches} más</li>}</ul></details>}
             {f.note && <div className="notice small">{f.note}</div>}
-          </article>))}</div> : null}
+          </article>))}</div></>}
+        {(decided.length > 0 || all.length === 0) && <h2 className="sub">Lo que ya se decidió</h2>}
         <div className="list">
-          {(data.actions as any[]).length === 0 && <div className="item muted">Todavía no hay sugerencias. Cada una llega con su razón, lo que se espera que pase y cómo se va a medir, y espera tu aprobación.</div>}
-          {(data.actions as any[]).map(a => {
-            const intent = a.intent, dec = a.decision;
-            const ledger = ledgerFor(a.id);
-            const lastReason = [...ledger].reverse().map(e => { try { return JSON.parse(e.detail_json).reason; } catch { return null; } }).find(Boolean);
-            return (
-              <article key={a.id} id={`a-${a.id}`} className="item" style={focus === a.id ? { borderColor: 'var(--accent)' } : undefined}>
-                <div className="top"><b>{pitchTitle(intent.proposal.actionType, intent.proposal.parameters, intent.resourceLabel)}</b><StateChip s={a.state} /></div>
-                <div className="tiny muted">Campaña: {String(intent.resourceLabel).replace(/_/g, ' ')}</div>
-                <div className="pitch">
-                  <div><span>Por qué</span><ul>{sentences(intent.proposal.hypothesis).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
-                  <div><span>Qué espero</span><p>{expectText(intent.proposal.expectedEffect, session?.account?.currency ?? 'MXN')} {intent.proposal.risks?.[0] ? `Riesgo: ${intent.proposal.risks[0]}` : ''}</p></div>
-                  <div><span>Cómo lo sabremos</span><p>{intent.proposal.evaluationPlan}</p></div>
-                </div>
-                <div className="small mono">{intent.operations.map(opText).join(' · luego ')}</div>
-                <div className="tiny muted">{a.actor === 'model' ? 'Propuesta por el optimizador' : `Por ${a.actor}`} · {when(a.created_at)} · política v{a.policy_version}{a.approved_by ? ` · aprobada por ${a.approved_by}` : ''}</div>
-                {(dec.reasons?.length > 0 || lastReason) && <div className="notice" style={{ fontSize: 13 }}>{lastReason ? <div><b>Resultado:</b> {lastReason}</div> : null}{dec.reasons?.length > 0 && <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{dec.reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>}</div>}
-                <details className="why"><summary>Evidencia, riesgos, evaluación y cada revisión de la política</summary>
-                  <div className="small stack" style={{ marginTop: 6 }}>
-                    <div><b>Esperado:</b> {intent.proposal.expectedEffect.metric} {directionLabel(intent.proposal.expectedEffect.direction)} (las predicciones no autorizan gasto)</div>
-                    <div><b>Evidencia:</b> {intent.evidenceRefs.join(', ')} de la instantánea {intent.snapshotId}</div>
-                    <div><b>Riesgos:</b> {intent.proposal.risks.join('; ')}</div>
-                    <div><b>Si no se cambia:</b> {intent.proposal.alternative}</div>
-                    <div><b>Evaluación:</b> {intent.proposal.evaluationPlan}</div>
-                    <div><b>Reversión:</b> {intent.proposal.rollbackPlan}. Una reversión no puede deshacer el dinero ya gastado, los anuncios ya mostrados ni un reinicio del aprendizaje.</div>
-                    <div className="table-scroll"><table className="data"><tbody>{(dec.checks ?? []).map((c: any) => <tr key={c.name}><td>{c.ok ? '✓' : c.blocksAutomationOnly ? '◐' : '×'}</td><td className="mono tiny">{c.name}</td><td>{c.detail}</td></tr>)}</tbody></table></div>
-                    <div className="timeline">{ledger.map(e => <div key={e.event_id}><span className="mono tiny">{when(e.at)}</span> {e.from_state ? `${stateLabel(e.from_state)} → ` : ''}<b>{stateLabel(e.to_state)}</b></div>)}</div>
-                  </div>
-                </details>
-                {isAdmin && <div className="row">
-                  {a.state === 'APPROVAL_REQUIRED' && <button className="btn primary" onClick={() => { if (confirm(`¿Aprobar y ejecutar exactamente esto?\n\n${intent.operations.map(opText).join('\n')}`)) void act(`proposals/${a.id}/approve`, { approvalHash: a.approval_hash }, 'Aprobada'); }}>Aprobar este cambio exacto</button>}
-                  {a.state === 'APPROVAL_REQUIRED' && declining !== a.id && <button className="btn" onClick={() => setDeclining(a.id)}>Ahora no</button>}
-                  {a.state === 'APPROVAL_REQUIRED' && declining === a.id && <div className="whynot"><span className="small muted">¿Por qué no? Queda anotado y no se vuelve a proponer en 30 días.</span>{WHY_NOT.map(r => <button key={r} className="btn" onClick={() => { setDeclining(null); void act(`proposals/${a.id}/decline`, { reason: r }, 'Anotado'); }}>{r}</button>)}<button className="btn ghost" onClick={() => setDeclining(null)}>Cancelar</button></div>}
-                  {a.state === 'UNKNOWN_OUTCOME' && <div className="small">Aprobado y en cola: el script de Google Ads lo aplica en su próxima corrida (cada hora) y la app lo verifica con el siguiente reporte de la cuenta.</div>}
-                  {(a.state === 'UNKNOWN_OUTCOME' || a.state === 'APPLIED') && <button className="btn" onClick={() => void act(`actions/${a.id}/reconcile`, undefined, 'Conciliada')}>Conciliar con Google Ads</button>}
-                  {(a.state === 'VERIFIED' || a.state === 'PARTIALLY_APPLIED') && a.action_type !== 'pause_campaign' && <button className="btn" onClick={() => { if (confirm('¿Restaurar el ajuste anterior? Solo se hace si nadie lo cambió desde entonces.')) void act(`actions/${a.id}/compensate`, undefined, 'Reversión'); }}>Restaurar ajuste anterior</button>}
-                </div>}
-              </article>
-            );
-          })}
+          {all.length === 0 && <div className="item muted">Todavía no hay sugerencias. Cada una llega con su razón, lo que se espera que pase y cómo se va a medir, y espera tu aprobación.</div>}
+          {decided.map(card)}
         </div>
       </section>
       {invalid.length > 0 && <section className="section"><header><h3>Propuestas que no pasaron la validación</h3></header><div className="list">{invalid.map(p => <div key={p.id} className="item small"><div className="mono tiny">{when(p.created_at)} · {p.model}</div>{JSON.parse(p.validation_errors_json).join('; ')}</div>)}</div></section>}
@@ -108,14 +186,16 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
 function ReviewCard({ review, st, isAdmin, onAsk }: { review: any; st: any; isAdmin: boolean; onAsk: () => void }) {
   const canAsk = isAdmin && st && ['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) && !st.aiStopped && !st.emergencyLock;
   const raw = String(review?.text ?? '').replace(/\*\*/g, '').trim();
-  const text = raw.length >= 295 && !/[.!?)]$/.test(raw) ? `${raw.replace(/\s+\S*$/, '')}…` : raw;   // the stored summary is capped; do not end mid-word
+  // Reviews from before 22 Nov only kept a capped copy: do not end those in the middle of a word.
+  const text = !review?.rules && raw.length >= 295 && !/[.!?)]$/.test(raw) ? `${raw.replace(/\s+\S*$/, '')}…` : raw;
   return (
     <div className="card stack" style={{ marginBottom: 10 }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <b>{review ? `Revisión del ${dayLabel(review.date)}` : 'Revisión diaria'}</b>
         <button className="btn" disabled={!canAsk} onClick={onAsk} title={canAsk ? '' : 'Disponible para administradores, con la IA permitida y sin bloqueo'}>Pedir sugerencias ahora</button>
       </div>
-      {text ? <><pre className="narr">{text}</pre><a className="small" href="#reportes/reportes">Ver el reporte completo del día →</a></> : <div className="small muted">La revisión corre cada mañana a las 8:00. Máximo 3 al día.</div>}
+      {review?.rules && <div className="small muted">{review.rules}</div>}
+      {text ? <><pre className="narr">{text}</pre><a className="small" href="#reportes/reportes">Ver el reporte completo del día →</a></> : !review?.rules && <div className="small muted">La revisión corre cada mañana a las 8:00. Máximo 3 al día.</div>}
     </div>
   );
 }

@@ -61,6 +61,8 @@ export class AccountCoordinator extends DurableObject<Env> {
         else state.ads[r.external_id] = 'ENABLED';
         if (r.budget_id && r.budget_micros !== null) state.budgets[r.budget_id] = r.budget_micros;
       }
+      const kws = (await this.env.DB.prepare('SELECT ad_group_id, criterion_id, status FROM keywords_live WHERE account_id = ?').bind(accountKey).all<{ ad_group_id: string; criterion_id: string; status: 'ENABLED' | 'PAUSED' }>().catch(() => ({ results: [] }))).results;
+      state.keywords = Object.fromEntries(kws.map(k => [`${k.ad_group_id}~${k.criterion_id}`, k.status]));
       this.mock = new MockAdsProvider(state, acct.external_id);
       this.core = new CoordinatorCore(storageSql(this.ctx), { provider: this.mock, environment: this.env.ENVIRONMENT });
       this.persistMock();

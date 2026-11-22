@@ -14,7 +14,7 @@ export const MIN_RESERVATIONS_TO_JUDGE = 5;
 /** Return floor used when the policy has none yet (contribution of its reservations ÷ what it spent). */
 export const DEFAULT_RETURN_FLOOR = 1.5;
 
-const peso = (minor: number) => `$${Math.round(minor / 100).toLocaleString('en-US')}`;
+const peso = (minor: number) => `MX$${Math.round(minor / 100).toLocaleString('en-US')}`;
 const veces = (n: number) => `${n.toFixed(1)}×`;
 
 /**

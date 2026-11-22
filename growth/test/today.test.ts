@@ -34,7 +34,7 @@ describe('campaign verdict', () => {
     expect(verdictFor(camp('ENABLED', 1178, 0), CONTRIB, FLOOR).key).toBe('vigilar');
     const lost = verdictFor(camp('ENABLED', 3000, 0), CONTRIB, FLOOR);
     expect(lost.key).toBe('pierde');
-    expect(lost.reason).toBe('Gastó $3,000 y no trajo ninguna reservación en línea.');
+    expect(lost.reason).toBe('Gastó MX$3,000 y no trajo ninguna reservación en línea.');
   });
   it('calls a loss when reservations do not cover the spend', () => {
     expect(verdictFor(camp('ENABLED', 9000, 6), CONTRIB, FLOOR).key).toBe('pierde');       // 0.79×

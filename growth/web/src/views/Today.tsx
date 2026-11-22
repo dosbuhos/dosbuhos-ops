@@ -2,7 +2,8 @@
 // with a verdict in words. One number per card and no charts: the trends live in Reportes.
 import { useApi } from '../api';
 import { Loading, ErrorBox } from '../components';
-import { microsMoney, money, int, dayLabel, fullDate, signedPct, pitchTitle, sentences } from '../format';
+import { microsMoney, money, int, dayLabel, fullDate, signedPct, pitchTitle, sentences, count } from '../format';
+import { ResultLine } from './Operate';
 
 const VERDICT_CLS: Record<string, string> = { rinde: 's-ok', vigilar: 's-warn', pierde: 's-bad', sin_datos: 's-mute', pausada: 's-mute' };
 const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -23,6 +24,8 @@ export function Today({ overview, session }: { overview: any; session: any }) {
   const pctOf = (x: number) => (m.ceilingMicros ? Math.min(100, Math.round((x / m.ceilingMicros) * 100)) : 0);
   const over = m.ceilingMicros !== null && m.projectedMicros.google > m.ceilingMicros;
   const judged = (t.campaigns as any[]).filter(c => c.verdict.key !== 'pausada');
+  const findings = (t.advice as any[] | undefined) ?? [], results = (t.results as any[] | undefined) ?? [];
+  const focus = (id: string) => { try { sessionStorage.setItem('growth-focus-action', id); } catch { /* the link still opens Sugerencias */ } };
   const paused = (t.campaigns as any[]).filter(c => c.verdict.key === 'pausada');
 
   return (
@@ -32,18 +35,21 @@ export function Today({ overview, session }: { overview: any; session: any }) {
         <header><h1 id="dec">Hoy</h1><span className="small muted">{dayLabel(t.today)}</span></header>
         {t.pending.length ? (
           <div className="list">{(t.pending as any[]).map(p => (
-            <a key={p.id} className="decision" href="#sugerencias">
+            <a key={p.id} className="decision" href="#sugerencias" onClick={() => focus(p.id)}>
               <span className="state s-warn">Espera tu decisión</span>
-              <b>{pitchTitle(p.actionType, p, p.label)}</b>
-              <span className="small">{sentences(p.hypothesis).slice(0, 2).join(' ')}</span>
+              <b>{p.title || pitchTitle(p.actionType, p, p.label)}</b>
+              <span className="tiny muted">Campaña: {campaignName(p.label)}</span>
+              <span className="small">{p.impact ? `${count(p.impact.searches, 'búsqueda', 'búsquedas')}, ${count(p.impact.clicks, 'clic', 'clics')} y ${microsMoney(p.impact.costMicros, cur)} en 28 días, sin una sola reservación en línea.` : sentences(p.hypothesis).slice(0, 2).join(' ')}</span>
               <span className="go">Revisar y aprobar →</span>
             </a>))}</div>
         ) : (
           <div className="card quiet">
             <b>Sin decisiones pendientes.</b>
-            {t.review?.text ? (
-              <details className="why"><summary>{t.review.submitted ? 'Qué propuso la revisión de hoy' : `La revisión del ${dayLabel(t.review.date)} no propuso cambios. Ver por qué`}</summary>
-                <p className="small">{firstParagraph(t.review.text)}</p><a className="small" href="#sugerencias">Abrir Sugerencias →</a></details>
+            {t.review?.text || t.review?.rules ? (
+              <details className="why"><summary>{t.review.submitted ? `Qué propuso la revisión del ${dayLabel(t.review.date)}` : `La revisión del ${dayLabel(t.review.date)} no propuso cambios. Ver por qué`}</summary>
+                {t.review.rules && <p className="small muted">{t.review.rules}</p>}
+                {t.review.text && <p className="small">{firstParagraph(t.review.text)}</p>}
+                <a className="small" href="#sugerencias">Abrir Sugerencias →</a></details>
             ) : <span className="small muted"> La revisión diaria corre a las 8:00.</span>}
           </div>
         )}
@@ -54,6 +60,18 @@ export function Today({ overview, session }: { overview: any; session: any }) {
           <div className="list">{alerts.map((a: any) => (
             <a key={a.dedupe_key} href={a.link || '#ajustes/conexiones'} className={`notice ${a.severity === 'critical' ? 'bad' : ''}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
               <b>{alertTitle(a.title)}</b><div className="small">{a.detail}</div>
+            </a>))}</div>
+        </section>
+      )}
+
+      {results.length > 0 && (
+        <section className="section" aria-labelledby="res">
+          <header><h2 id="res">Lo que pasó después</h2><span className="small muted">Los cambios que aprobaste, antes y después</span></header>
+          <div className="list">{results.map(r => (
+            <a key={r.actionId} className="finding" href="#sugerencias" onClick={() => focus(r.actionId)}>
+              <b>{r.title}</b>
+              <span className="tiny muted">Campaña: {campaignName(r.campaign)}</span>
+              <ResultLine r={r} />
             </a>))}</div>
         </section>
       )}
@@ -113,19 +131,23 @@ export function Today({ overview, session }: { overview: any; session: any }) {
         </details>
       </section>
 
-      {(t.advice as any[] | undefined)?.length ? (
+      {findings.length > 0 && (
         <section className="section" aria-labelledby="rev">
-          <header><h2 id="rev">Hallazgos</h2><span className="small muted">Lo que las reglas encontraron en las búsquedas de los últimos 28 días</span></header>
-          <div className="list">{(t.advice as any[]).map(f => (
-            <article key={f.key} className="item advice">
-              <b>{f.title}</b>
-              <div className="tiny muted">Campaña: {String(f.campaign).replace(/_/g, ' ')}</div>
-              <ul className="small">{(f.why as string[]).map((w, i) => <li key={i}>{w}</li>)}</ul>
-              <div className="small">{f.expect}</div>
-              {f.note && <div className="small muted">{f.note}</div>}
-            </article>))}</div>
+          <header><h2 id="rev">Hallazgos</h2><span className="small muted">En las búsquedas de los últimos 28 días</span></header>
+          {t.script && !t.script.sendsKeywords && findings.some(f => f.kind === 'theme_place' || f.kind === 'theme_competitor') && (
+            <a className="notice info small" href="#ajustes/conexiones" style={{ display: 'block', textDecoration: 'none', color: 'inherit', marginBottom: 8 }}>
+              <b>Para aprobar estos cambios con un toque falta un paso:</b> pegar el script nuevo de Google Ads. Está listo para copiar en Ajustes → Conexiones →
+            </a>
+          )}
+          <div className="list">{findings.slice(0, 4).map(f => (
+            <a key={f.key} className="finding" href="#sugerencias">
+              <div className="finding-top"><b>{f.title}</b><span className="mono">{microsMoney(f.money, cur)}</span></div>
+              <span className="tiny muted">Campaña: {campaignName(f.campaign)}</span>
+              <span className="small">{(f.why as string[]).slice(0, 2).join(' ')}</span>
+            </a>))}</div>
+          <a className="small more" href="#sugerencias">{findings.length > 4 ? `Y ${findings.length - 4} más, con el detalle de cada uno, en Sugerencias →` : 'El detalle de cada uno está en Sugerencias →'}</a>
         </section>
-      ) : null}
+      )}
       <section className="section" aria-labelledby="ayer">
         <header><h2 id="ayer">Ayer</h2><span className="small muted">{dayLabel(y.date)}</span></header>
         <div className="grid four">

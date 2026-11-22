@@ -7,7 +7,7 @@ import { loadRaw, computeOverview } from '../read/facts.ts';
 import { buildSnapshot } from '../read/snapshot.ts';
 import { assertDataKind, defaultAccount, writeReport, watchdog, syncGa4IfConfigured } from '../workflows/jobs.ts';
 import { SCRIPT_OP_TTL_MS } from '../connectors/google-ads-script.ts';
-import { FeedPayload, MAX_FEED_BYTES, feedStatements, budgetChanges } from '../connectors/google-ads-feed.ts';
+import { FeedPayload, MAX_FEED_BYTES, SCRIPT_VERSION, feedStatements, budgetChanges } from '../connectors/google-ads-feed.ts';
 import { previewOpenTable, DEFAULT_OPENTABLE_MAPPING, type OpenTableMapping } from '../connectors/opentable-csv.ts';
 import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
@@ -15,7 +15,7 @@ import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
 import { loadToday } from '../read/today.ts';
 import { parseHistoryCsv, HISTORY_SOURCE } from '../read/sales.ts';
-import { detectTerms, loadTerms } from '../read/detectors.ts';
+import { findingsView, loadResults, actionTitle, type ActionLite } from '../read/suggestions.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { readSecret } from '../ai/key.ts';
@@ -46,8 +46,16 @@ async function feedAuth(c: Context<H>): Promise<Response | null> {
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return fail(c, 401, 'bad_token', 'Bad token');
   const hash = await sha256Hex(`${env.FEED_TOKEN_PEPPER}:${token}`);
-  const row = await env.DB.prepare('SELECT token_hash FROM feed_tokens WHERE token_hash = ? AND revoked_at IS NULL').bind(hash).first<{ token_hash: string }>();
+  const row = await env.DB.prepare('SELECT token_hash, connection_id, first_used_at FROM feed_tokens WHERE token_hash = ? AND revoked_at IS NULL').bind(hash).first<{ token_hash: string; connection_id: string; first_used_at: number | null }>();
   if (!row || !safeEqual(row.token_hash, hash)) return fail(c, 401, 'bad_token', 'Bad token');
+  // First request with a new token: the script that carries it is now the one running, so the older tokens stop working.
+  if (row.first_used_at === null) {
+    const now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare('UPDATE feed_tokens SET first_used_at = ? WHERE token_hash = ? AND first_used_at IS NULL').bind(now, hash),
+      env.DB.prepare('UPDATE feed_tokens SET revoked_at = ? WHERE connection_id = ? AND token_hash != ? AND revoked_at IS NULL').bind(now, row.connection_id, hash),
+    ]);
+  }
   return null;
 }
 const scriptAccount = (env: Env, customerId: string) => env.DB.prepare("SELECT id, currency FROM ad_accounts WHERE provider = 'google_ads' AND external_id = ?").bind(customerId.replace(/-/g, '')).first<{ id: string; currency: string }>();
@@ -59,7 +67,7 @@ app.get('/api/feed/google-ads/ops', async c => {
   if (!acct) return fail(c, 403, 'unregistered_account', 'This Google Ads account is not registered');
   const now = Date.now();
   await c.env.DB.prepare("UPDATE script_ops SET status = 'expired', detail = 'El script no lo recogió a tiempo; no se aplicó', done_at = ? WHERE account_id = ? AND status IN ('queued', 'sent') AND created_at < ?").bind(now, acct.id, now - SCRIPT_OP_TTL_MS).run();
-  const ops = (await c.env.DB.prepare("SELECT id, kind, campaign_id, budget_id, ad_id, text, from_micros, to_micros FROM script_ops WHERE account_id = ? AND status IN ('queued', 'sent') ORDER BY created_at, id LIMIT 20").bind(acct.id).all()).results;
+  const ops = (await c.env.DB.prepare("SELECT id, kind, campaign_id, budget_id, ad_id, text, from_micros, to_micros, ad_group_id, criterion_id, match_type FROM script_ops WHERE account_id = ? AND status IN ('queued', 'sent') ORDER BY created_at, id LIMIT 40").bind(acct.id).all()).results;
   if (ops.length) await c.env.DB.prepare(`UPDATE script_ops SET status = 'sent', sent_at = ? WHERE status = 'queued' AND id IN (${ops.map(() => '?').join(',')})`).bind(now, ...ops.map(o => String(o.id))).run();
   return json(c, { ops });
 });
@@ -163,25 +171,25 @@ app.get('/api/today', async c => {
   const st = a ? await a.stub.state().catch(() => null) : null;
   const view = await loadToday(c.env.DB, Date.now(), c.env.WINERY_TZ, a?.currency ?? 'MXN', st?.policy ?? null);
   // Decisions waiting for the owner, and what this morning's review said (it drops off the activity list by the afternoon).
-  type Act = { id: string; state: string; created_at: number; intent?: { resourceLabel?: string; proposal?: { hypothesis?: string; actionType?: string; parameters?: { text?: string; changePct?: number } } } };
-  const acts = (a ? await a.stub.actions(60).catch(() => []) : []) as unknown as Act[];
-  const pending = acts.filter(x => x.state === 'APPROVAL_REQUIRED').map(x => ({ id: x.id, label: String(x.intent?.resourceLabel ?? ''), hypothesis: String(x.intent?.proposal?.hypothesis ?? ''), actionType: x.intent?.proposal?.actionType ?? null, text: x.intent?.proposal?.parameters?.text ?? null, changePct: x.intent?.proposal?.parameters?.changePct ?? null, createdAt: x.created_at }));
-  // Advice from the fixed rules that is not a change the app can make (for example a landing page that does not convert).
-  // A negative keyword appears here too while the app cannot send it (see proposeFromFindings). No manual steps: a search
-  // that matches one of the campaign's own keywords should be fixed by pausing that keyword, and the app cannot tell yet.
-  const waiting = new Set(pending.map(x => `${x.label}|${String(x.text ?? '').toLowerCase()}`));
-  const advice = detectTerms(await loadTerms(c.env.DB, addDays(view.today, -28), addDays(view.today, -1)))
-    .filter(f => !f.action || !waiting.has(`${f.campaign}|${f.action.text.toLowerCase()}`)).slice(0, 4)
-    .map(f => ({ key: f.key, kind: f.kind, campaign: f.campaign, title: f.title, why: f.why, expect: f.expect, measure: f.measure,
-      note: f.note ?? (f.action ? 'No la bloquees a mano todavía. Primero hay que ver si esta búsqueda es una palabra clave que alguien puso en la campaña: en ese caso lo correcto es pausar la palabra clave, no agregar una negativa. La app lo va a saber, y lo podrá hacer con un toque, cuando reciba las palabras clave de la campaña.' : null) }));
-  const job = await c.env.DB.prepare("SELECT run_key, status, detail, started_at FROM job_runs WHERE job = 'daily_review' ORDER BY started_at DESC LIMIT 1").first<{ run_key: string; status: string; detail: string | null; started_at: number }>().catch(() => null);
-  let review: { date: string; status: string; text: string; submitted: number } | null = null;
+  const now = Date.now();
+  const acts = (a ? await a.stub.actions(120).catch(() => []) : []) as unknown as ActionLite[];
+  const { pending, advice } = await findingsView(c.env.DB, { actions: acts, approved: st?.policy.approvedCampaignIds ?? [], today: view.today, now });
+  const results = await loadResults(c.env.DB, acts, now, c.env.WINERY_TZ).catch(() => []);
+  // Whether the copy of the script running in Google Ads is the current one (it decides what the rules can act on).
+  const feed = a ? await c.env.DB.prepare('SELECT script_version, keywords_at FROM feed_state WHERE account_id = ?').bind(a.id).first<{ script_version: string; keywords_at: number | null }>().catch(() => null) : null;
+  const script = { running: feed?.script_version || null, current: SCRIPT_VERSION, upToDate: feed?.script_version === SCRIPT_VERSION, sendsKeywords: !!feed?.keywords_at };
+  // The newest review, the morning one or one asked for by hand. The full text lives in review_notes; reviews from
+  // before that table only left a short copy in the job log.
+  const job = await c.env.DB.prepare("SELECT run_key, status, detail, started_at FROM job_runs WHERE job IN ('daily_review', 'manual_review') AND status IN ('succeeded', 'failed') ORDER BY started_at DESC LIMIT 1").first<{ run_key: string; status: string; detail: string | null; started_at: number }>().catch(() => null);
+  let review: { date: string; status: string; rules: string; text: string; submitted: number } | null = null;
   if (job) {
+    const note = await c.env.DB.prepare('SELECT rules_summary, model_summary, submitted FROM review_notes WHERE run_key = ?').bind(job.run_key).first<{ rules_summary: string; model_summary: string; submitted: number }>().catch(() => null);
     let d: { review?: unknown; submitted?: unknown } = {};
     try { d = JSON.parse(job.detail ?? '{}'); } catch { /* older rows hold plain text */ }
-    review = { date: job.run_key.split(':')[1] ?? '', status: job.status, text: typeof d.review === 'string' ? d.review : '', submitted: Number(d.submitted ?? 0) || 0 };
+    review = { date: localDate(job.started_at, c.env.WINERY_TZ), status: job.status, rules: note?.rules_summary ?? '', text: note ? note.model_summary : typeof d.review === 'string' ? d.review : '', submitted: Number(note?.submitted ?? d.submitted ?? 0) || 0 };
   }
-  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, advice, review });
+  const limit = st ? { perDay: st.policy.maxOptimizationMutationsPerDay, used: st.mutationsLast24h } : null;
+  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, advice, results, script, limit, review });
 });
 
 app.get('/api/capacity', async c => {
@@ -280,7 +288,7 @@ app.get('/api/experiments', async c => json(c, { experiments: (await c.env.DB.pr
 app.get('/api/activity', async c => {
   const a = await account(c);
   const ledger = (await c.env.DB.prepare('SELECT * FROM action_ledger_projection ORDER BY at DESC LIMIT 400').all()).results;
-  const actions = a ? await a.stub.actions(100) : [];
+  const actions = ((a ? await a.stub.actions(100) : []) as unknown as (ActionLite & Record<string, unknown>)[]).map(x => ({ ...x, title: actionTitle(x.intent?.proposal?.actionType, x.intent?.proposal?.parameters, String(x.intent?.resourceLabel ?? '')) }));
   const proposals = (await c.env.DB.prepare('SELECT id, action_id, snapshot_id, run_key, validation_errors_json, decision, reasons_json, model, prompt_version, created_at FROM proposals ORDER BY created_at DESC LIMIT 50').all()).results;
   const jobs = (await c.env.DB.prepare('SELECT run_key, job, status, detail, started_at, finished_at, ai_cost_micro_usd FROM job_runs WHERE job IN (\'daily_review\', \'weekly_review\', \'watchdog\') ORDER BY started_at DESC LIMIT 30').all()).results;
   return json(c, { actions, ledger, proposals, jobs });
@@ -299,11 +307,18 @@ app.get('/api/reports/:id', async c => {
 
 app.get('/api/connections', async c => {
   const rows = (await c.env.DB.prepare('SELECT id, provider, purpose, health, health_reason, scopes_json, last_success_at, last_error, freshness_at, updated_at FROM connections ORDER BY provider').all()).results;
-  const tokens = (await c.env.DB.prepare('SELECT id, connection_id, created_by, created_at, revoked_at FROM feed_tokens ORDER BY created_at DESC').all()).results;
+  const tokens = (await c.env.DB.prepare('SELECT id, connection_id, created_by, created_at, revoked_at, first_used_at FROM feed_tokens ORDER BY created_at DESC LIMIT 20').all<{ id: string; connection_id: string; created_by: string; created_at: number; revoked_at: number | null; first_used_at: number | null }>()).results;
   const imports = (await c.env.DB.prepare('SELECT id, kind, file_name, rows_total, rows_ok, rows_duplicate, rows_error, status, created_by, created_at FROM imports ORDER BY created_at DESC LIMIT 20').all()).results;
   const sa = parseServiceAccount(c.env.GA4_SA_KEY);
   const ga4 = await c.env.DB.prepare("SELECT account_ref FROM connections WHERE id = 'conn_ga4'").first<{ account_ref: string | null }>();
-  return json(c, { connections: rows, feedTokens: tokens, imports, ga4: { propertyId: ga4?.account_ref ?? null, serviceAccountEmail: sa?.client_email ?? null }, secrets: { GA4_SA_KEY: !!sa, HUB_SECRET: !!c.env.HUB_SECRET || c.env.ENVIRONMENT === 'dev', ANTHROPIC_API_KEY: !!c.env.ANTHROPIC_API_KEY, FEED_TOKEN_PEPPER: !!c.env.FEED_TOKEN_PEPPER, TOKEN_ENCRYPTION_KEY_V1: !!c.env.TOKEN_ENCRYPTION_KEY_V1 } });
+  const feed = await c.env.DB.prepare('SELECT script_version, keywords_at, term_keywords_at, negatives_full_at, warnings_json, updated_at FROM feed_state ORDER BY updated_at DESC LIMIT 1')
+    .first<{ script_version: string; keywords_at: number | null; term_keywords_at: number | null; negatives_full_at: number | null; warnings_json: string; updated_at: number }>().catch(() => null);
+  const counts = await c.env.DB.prepare("SELECT (SELECT COUNT(*) FROM keywords_live WHERE status = 'ENABLED' AND ad_group_status = 'ENABLED') AS keywords, (SELECT COUNT(*) FROM negatives_live) AS negatives").first<{ keywords: number; negatives: number }>().catch(() => null);
+  let warnings: string[] = [];
+  try { warnings = JSON.parse(feed?.warnings_json ?? '[]') as string[]; } catch { /* shown as none */ }
+  const script = { running: feed?.script_version || null, current: SCRIPT_VERSION, upToDate: feed?.script_version === SCRIPT_VERSION, keywordsAt: feed?.keywords_at ?? null, termKeywordsAt: feed?.term_keywords_at ?? null,
+    negativesFullAt: feed?.negatives_full_at ?? null, warnings, keywords: Number(counts?.keywords ?? 0), negatives: Number(counts?.negatives ?? 0), pendingToken: tokens.some(t => !t.revoked_at && !t.first_used_at) };
+  return json(c, { connections: rows, script, feedTokens: tokens, imports, ga4: { propertyId: ga4?.account_ref ?? null, serviceAccountEmail: sa?.client_email ?? null }, secrets: { GA4_SA_KEY: !!sa, HUB_SECRET: !!c.env.HUB_SECRET || c.env.ENVIRONMENT === 'dev', ANTHROPIC_API_KEY: !!c.env.ANTHROPIC_API_KEY, FEED_TOKEN_PEPPER: !!c.env.FEED_TOKEN_PEPPER, TOKEN_ENCRYPTION_KEY_V1: !!c.env.TOKEN_ENCRYPTION_KEY_V1 } });
 });
 
 app.post('/api/connections/google-ads-script/token', async c => {
@@ -312,12 +327,14 @@ app.post('/api/connections/google-ads-script/token', async c => {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const token = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const now = Date.now();
+  // The token in use keeps working until the new one makes its first request (see feedAuth). A token that was created
+  // and never used is replaced by this one.
   await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE feed_tokens SET revoked_at = ? WHERE connection_id = 'conn_google_ads_script' AND revoked_at IS NULL").bind(now),
+    c.env.DB.prepare("UPDATE feed_tokens SET revoked_at = ? WHERE connection_id = 'conn_google_ads_script' AND revoked_at IS NULL AND first_used_at IS NULL").bind(now),
     c.env.DB.prepare('INSERT INTO feed_tokens (id, connection_id, token_hash, created_by, created_at) VALUES (?, ?, ?, ?, ?)').bind(`ft_${crypto.randomUUID().slice(0, 12)}`, 'conn_google_ads_script', await sha256Hex(`${c.env.FEED_TOKEN_PEPPER}:${token}`), c.get('user').email, now),
     c.env.DB.prepare('INSERT INTO audit_events (id, at, actor, action, resource) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), now, c.get('user').email, 'feed_token_created', 'conn_google_ads_script'),
   ]);
-  return json(c, { token, note: 'Se muestra una sola vez. Pégalo en el Google Ads Script; el token anterior deja de funcionar desde ahora.' });
+  return json(c, { token, note: 'Se muestra una sola vez. El script que ya corre sigue funcionando hasta que el nuevo mande su primer reporte; desde ese momento el token anterior deja de servir.' });
 });
 
 // ---------- proposals and actions (IDs only — no free-form execution input) ----------
@@ -521,7 +538,7 @@ app.post('/api/control/run-review', async c => {
   const runKey = `manual_review:${today}:${now}`;
   await c.env.DB.prepare("INSERT INTO job_runs (run_key, job, status, attempts, started_at) VALUES (?, 'manual_review', 'claimed', 1, ?)").bind(runKey, now).run();
   await c.env.DAILY_REVIEW.create({ id: runKey.replace(/:/g, '-'), params: { runKey, kind: 'daily' } });
-  return json(c, { runKey, note: 'Revisión iniciada. Las sugerencias aparecen en Acciones en 1–3 minutos.' });
+  return json(c, { runKey, note: 'Revisión iniciada. Lo que encuentre aparece en Sugerencias en 1 a 3 minutos.' });
 });
 app.get('/api/export/coordinator', async c => {
   const denied = need(c, 'admin'); if (denied) return denied;

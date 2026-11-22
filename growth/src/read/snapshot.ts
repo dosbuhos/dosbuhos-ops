@@ -1,10 +1,11 @@
 // Evidence snapshots: the only view of the account the optimizer and the model get. Server-issued resource and
 // evidence references; budgets from the registry (shared budgets once); per-campaign contribution only where
 // bookings are linked to a campaign by a disclosed attribution method.
-import type { Snapshot, RegisteredResource, Evidence } from '../policy/validate.ts';
+import type { Snapshot, RegisteredResource, Evidence, SnapshotKeyword, SnapshotTerm, SnapshotNegative } from '../policy/validate.ts';
 import type { Product } from '../domain/measurement.ts';
+import type { MatchType } from '../domain/keywords.ts';
 import { addDays, localDate } from '../domain/time.ts';
-import { detectTerms, loadTerms, termEvidenceIds } from './detectors.ts';
+import { detect, loadDetectInput, termEvidenceIds } from './detectors.ts';
 
 export async function buildSnapshot(db: D1Database, accountKey: string, now: number, wineryTz: string, maxLagDays: number): Promise<{ snapshot: Snapshot; contributionRoasByRef: Record<string, number | null> }> {
   const acct = await db.prepare('SELECT id, external_id, currency FROM ad_accounts WHERE id = ?').bind(accountKey).first<{ id: string; external_id: string; currency: 'MXN' | 'USD' }>();
@@ -41,17 +42,42 @@ export async function buildSnapshot(db: D1Database, accountKey: string, now: num
     evidence[`ev_${slug}_clicks_28d`] = { id: `ev_${slug}_clicks_28d`, metric: 'clicks', window: { from, to }, value: s?.clicks ?? null, resourceRef: r.ref, provisional: false };
     evidence[`ev_${slug}_croas_28d`] = { id: `ev_${slug}_croas_28d`, metric: 'contribution_roas_mature', window: { from, to }, value: croas, resourceRef: r.ref, provisional: false };
   }
-  // Search terms the fixed rules flagged in the last 28 complete days, so a suggestion about a term cites its own numbers.
+
+  // What people searched in the last 28 complete days, per campaign: the base for measuring what a negative keyword
+  // or a keyword pause would stop. Search numbers come from GA4 by campaign name, so they attach by name.
   const termTo = addDays(today, -1), termFrom = addDays(today, -28);
-  for (const f of detectTerms(await loadTerms(db, termFrom, termTo))) {
-    const r = resources.find(x => x.kind === 'campaign' && x.label === f.campaign);
-    if (!r) continue;
-    const ids = termEvidenceIds(r.ref, f.query), window = { from: termFrom, to: termTo };
-    evidence[ids.cost] = { id: ids.cost, metric: 'search_term_cost_minor', window, value: Math.round(f.stats.costMicros / 10_000), resourceRef: r.ref, provisional: false };
-    evidence[ids.clicks] = { id: ids.clicks, metric: 'search_term_clicks', window, value: f.stats.clicks, resourceRef: r.ref, provisional: false };
-    evidence[ids.reservations] = { id: ids.reservations, metric: 'search_term_online_reservations', window, value: f.stats.reservations, resourceRef: r.ref, provisional: false };
+  const input = await loadDetectInput(db, today);
+  const byName = new Map(resources.filter(x => x.kind === 'campaign').map(r => [r.label, r]));
+  const terms: Record<string, SnapshotTerm[]> = {};
+  for (const t of input.terms) { const r = byName.get(t.campaign); if (r) (terms[r.campaignId] ??= []).push({ text: t.query, clicks: t.clicks, costMicros: t.costMicros, opened: t.opened, reservations: t.reservations }); }
+
+  // Keywords and negatives as the account last reported them. `keywords` stays empty until the feed carries them, and
+  // then every campaign the app may change gets an entry (an empty one if it has no keywords), so "none" and
+  // "unknown" are never confused.
+  const q = async <T>(sql: string): Promise<T[]> => (await db.prepare(sql).bind(accountKey).all<T>().catch(() => ({ results: [] as T[] }))).results;
+  const fed = (await q<{ t: number | null }>('SELECT keywords_at AS t FROM feed_state WHERE account_id = ?'))[0]?.t ?? null;
+  const keywords: Snapshot['keywords'] = {}, keywordList: Record<string, SnapshotKeyword[]> = {}, negatives: Record<string, SnapshotNegative[]> = {};
+  if (fed !== null) {
+    for (const r of resources) if (r.kind === 'campaign' && /^\d+$/.test(r.externalId)) { keywords[r.campaignId] = []; keywordList[r.campaignId] = []; }
+    for (const k of await q<{ campaign_id: string; ad_group_id: string; criterion_id: string; ad_group_name: string; text: string; match_type: MatchType; clicks: number; cost_micros: number; conversions_milli: number }>(
+      "SELECT campaign_id, ad_group_id, criterion_id, ad_group_name, text, match_type, clicks, cost_micros, conversions_milli FROM keywords_live WHERE account_id = ? AND status = 'ENABLED' AND ad_group_status = 'ENABLED' ORDER BY cost_micros DESC")) {
+      (keywords[k.campaign_id] ??= []).push(k.text);
+      (keywordList[k.campaign_id] ??= []).push({ text: k.text, matchType: k.match_type, adGroupId: k.ad_group_id, criterionId: k.criterion_id, adGroupName: k.ad_group_name, clicks: Number(k.clicks) || 0, costMicros: Number(k.cost_micros) || 0, conversionsMilli: Number(k.conversions_milli) || 0 });
+    }
   }
-  const snapshot: Snapshot = { snapshotId: `snap_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`, accountId: acct.external_id, currency: acct.currency, createdAt: now, resources, budgets, keywords: {}, evidence };
+  for (const n of await q<{ campaign_id: string; text: string; match_type: MatchType; level: SnapshotNegative['level'] }>('SELECT campaign_id, text, match_type, level FROM negatives_live WHERE account_id = ?'))
+    (negatives[n.campaign_id] ??= []).push({ text: n.text, matchType: n.match_type, level: n.level });
+
+  // Each thing the fixed rules flagged cites its own numbers.
+  for (const f of detect(input)) {
+    const r = byName.get(f.campaign);
+    if (!r || !f.query) continue;
+    const ids = termEvidenceIds(r.ref, f.query), window = { from: termFrom, to: termTo };
+    evidence[ids.cost] = { id: ids.cost, metric: 'search_cost_minor', window, value: Math.round(f.stats.costMicros / 10_000), resourceRef: r.ref, provisional: false };
+    evidence[ids.clicks] = { id: ids.clicks, metric: 'search_clicks', window, value: f.stats.clicks, resourceRef: r.ref, provisional: false };
+    evidence[ids.reservations] = { id: ids.reservations, metric: 'search_online_reservations', window, value: f.stats.reservations, resourceRef: r.ref, provisional: false };
+  }
+  const snapshot: Snapshot = { snapshotId: `snap_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`, accountId: acct.external_id, currency: acct.currency, createdAt: now, resources, budgets, keywords, ...(fed !== null ? { keywordList } : {}), terms, negatives, termsWindow: { from: termFrom, to: termTo }, evidence };
   await db.prepare('INSERT INTO snapshots (id, account_id, created_at, json) VALUES (?, ?, ?, ?)').bind(snapshot.snapshotId, accountKey, now, JSON.stringify({ ...snapshot, contributionRoasByRef })).run();
   return { snapshot, contributionRoasByRef };
 }
