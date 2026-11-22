@@ -410,5 +410,5 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
 export function paraVer(m, quien) {
   // Everyone sees the growth facts (against last year without inherited accounts, accounts opened and lost); the full score stays with admins.
   const crecimiento = (m.efectividad || []).map((e) => ({ persona: e.persona, total: e.total, crecimiento_pct: e.crecimiento_pct, nuevos: e.nuevos, perdidos: e.perdidos }));
-  return { ...m, crecimiento, efectividad: quien.admin ? m.efectividad : [], yo: { admin: !!quien.admin, persona: quien.persona || null, nombre: quien.nombre || '' } };
+  return { ...m, crecimiento, efectividad: quien.admin ? m.efectividad : [], yo: { admin: !!quien.admin, dueno: !!quien.dueno, persona: quien.persona || null, nombre: quien.nombre || '' } };
 }
