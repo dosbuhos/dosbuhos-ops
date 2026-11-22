@@ -167,12 +167,13 @@ app.get('/api/today', async c => {
   const acts = (a ? await a.stub.actions(60).catch(() => []) : []) as unknown as Act[];
   const pending = acts.filter(x => x.state === 'APPROVAL_REQUIRED').map(x => ({ id: x.id, label: String(x.intent?.resourceLabel ?? ''), hypothesis: String(x.intent?.proposal?.hypothesis ?? ''), actionType: x.intent?.proposal?.actionType ?? null, text: x.intent?.proposal?.parameters?.text ?? null, changePct: x.intent?.proposal?.parameters?.changePct ?? null, createdAt: x.created_at }));
   // Advice from the fixed rules that is not a change the app can make (for example a landing page that does not convert).
-  // A negative keyword appears here too, with the manual steps, while the app cannot send it (see proposeFromFindings).
+  // A negative keyword appears here too while the app cannot send it (see proposeFromFindings). No manual steps: a search
+  // that matches one of the campaign's own keywords should be fixed by pausing that keyword, and the app cannot tell yet.
   const waiting = new Set(pending.map(x => `${x.label}|${String(x.text ?? '').toLowerCase()}`));
   const advice = detectTerms(await loadTerms(c.env.DB, addDays(view.today, -28), addDays(view.today, -1)))
     .filter(f => !f.action || !waiting.has(`${f.campaign}|${f.action.text.toLowerCase()}`)).slice(0, 4)
     .map(f => ({ key: f.key, kind: f.kind, campaign: f.campaign, title: f.title, why: f.why, expect: f.expect, measure: f.measure,
-      note: f.note ?? (f.action ? `Por ahora se hace a mano en Google Ads: en la campaña, Palabras clave → Palabras clave negativas → agrega [${f.action.text}] con concordancia exacta. La app lo podrá mandar con un toque cuando reciba las palabras clave activas de la campaña.` : null) }));
+      note: f.note ?? (f.action ? 'No la bloquees a mano todavía. Primero hay que ver si esta búsqueda es una palabra clave que alguien puso en la campaña: en ese caso lo correcto es pausar la palabra clave, no agregar una negativa. La app lo va a saber, y lo podrá hacer con un toque, cuando reciba las palabras clave de la campaña.' : null) }));
   const job = await c.env.DB.prepare("SELECT run_key, status, detail, started_at FROM job_runs WHERE job = 'daily_review' ORDER BY started_at DESC LIMIT 1").first<{ run_key: string; status: string; detail: string | null; started_at: number }>().catch(() => null);
   let review: { date: string; status: string; text: string; submitted: number } | null = null;
   if (job) {
