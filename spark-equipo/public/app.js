@@ -249,7 +249,7 @@ function urgente(p) {
   if (toca.length) U.push({ k: 'warn', t: toca.length === 1 ? '1 cliente ya debía pedir' : `${toca.length} clientes ya debían pedir`, d: toca.slice(0, 3).map((c) => c.cliente).join(' · '), vista: 'clientes' });
   // Dependence: one account carrying more than a quarter of the book, worse when that same account owes past 90 days.
   const C = D.clientes.filter((c) => c.vendedor === p && c.actual > 0).sort((a, b) => b.actual - a.actual), tot = sumar(C, (c) => c.actual);
-  if (C.length && tot && C[0].actual / tot > .25) { const debe = sumar(((D.cobranza || {}).facturas || []).filter((f) => f.cliente === C[0].cliente && (f.dias || 0) > 90), (f) => f.saldo);
+  if (C.length && tot && C[0].actual / tot > .25) { const debe = sumar(((D.cobranza || {}).facturas || []).filter((f) => f.cliente === C[0].cliente && (f.dias || 0) > 90 && !porConciliar(f)), (f) => f.saldo);
     U.push({ k: debe ? 'bad' : 'warn', t: `${C[0].cliente} es el ${Math.round(C[0].actual / tot * 100)}% de la cartera`, d: debe ? `Y debe ${peso(debe)} con más de 90 días. Abre cuentas para depender menos.` : 'Una sola cuenta pesa demasiado. Abre cuentas para depender menos.', vista: 'clientes' }); }
   const viejas = ((D.cobranza || {}).facturas || []).filter((f) => f.vendedor === p && (f.dias || 0) > 90 && !porConciliar(f));
   if (viejas.length) U.push({ k: 'bad', t: `${peso(sumar(viejas, (f) => f.saldo))} por cobrar con más de 90 días`, d: `${new Set(viejas.map((f) => f.cliente)).size} clientes`, vista: 'cobranza' });
@@ -692,7 +692,8 @@ const VISTAS = {
     const Y = D.hoy.slice(0, 4), mH = Number(D.hoy.slice(5, 7)), dH = Number(D.hoy.slice(8)), dMes = new Date(Number(Y), mH, 0).getDate();
     const venta = (p) => neto(sumar(D.ordenes.filter((o) => o.vendedor === p && o.fecha.slice(0, 4) === Y), (o) => o.total));
     const meta = (p) => { const M = (D.presupuesto.meses || {})[p]; return M && M.length === 12 ? Math.round(sumar(M.slice(0, mH - 1), (x) => x) + M[mH - 1] * dH / dMes) : 0; };
-    const F = (D.cobranza || {}).facturas || [], saldo = (L) => sumar(L, (f) => f.saldo);
+    // the portfolio a rep answers for: named accounts, without the invoices the books still have to reconcile
+    const F = ((D.cobranza || {}).facturas || []).filter((f) => !porConciliar(f)), saldo = (L) => sumar(L, (f) => f.saldo);
     const cartera = (L) => { const t = saldo(L); return t ? Math.round(saldo(L.filter((f) => (f.dias || 0) <= 30)) / t * 100) : 100; };
     const fila = (k, peso_, res, pts, nota) => h('div', { class: 'kp' }, h('div', {}, h('b', {}, k), nota ? h('span', {}, nota) : null), h('em', {}, peso_ + '%'), h('div', { class: 'kr' }, res), h('div', { class: 'kpt' }, pts == null ? pill('Sin dato', 'mute') : h('b', { class: pts / peso_ >= .9 ? 'up' : pts / peso_ >= .6 ? '' : 'down' }, pts.toFixed(0))));
     const tarjeta = (p, rol, filas, filtros, serv) => { const med = filas.filter((f) => f[3] != null), pts = sumar(med, (f) => f[3]), pesoMed = sumar(med, (f) => f[1]);
