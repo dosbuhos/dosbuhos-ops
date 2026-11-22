@@ -33,16 +33,20 @@ const pill = (text, kind) => h('span', { class: 'pill ' + kind }, text);
 let D = null;
 const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: null, segFiltro: 'vencida', segOrden: 'viejo', zona: '', clase: '', abierto: {}, orden: {} };
 
-// Every screen, grouped the way the sidebar shows them. [slug, sidebar label, page title, admin only, coming soon]
-const GRUPOS = [
-  ['Mi trabajo', [['hoy', 'Inicio', 'Inicio'], ['buzon', 'Buzón', 'Buzón'], ['plan', 'Plan', 'Plan de 90 días: compromisos con fecha'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero']]],
-  ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
-  ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
-  ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
-  ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
+// The six places of the app. Each one holds a few screens that show as tabs under the title: [slug, tab label, page title, admin only, coming soon].
+// Buzón (the bell) and Ajustes (the gear) live in the top bar, not in the menu.
+const SECC = [
+  ['inicio', 'Inicio', 'M4 11l8-7 8 7v8.500a1 1 0 0 1-1 1h-4.500v-6h-5v6H5a1 1 0 0 1-1-1z', [['hoy', 'Inicio', 'Inicio']]],
+  ['cuentas', 'Cuentas', 'M4 20v-1.500A4.500 4.500 0 0 1 8.500 14h3A4.500 4.500 0 0 1 16 18.500V20M10 10.500a3.250 3.250 0 1 0 0-6.500 3.250 3.250 0 0 0 0 6.500zM17 13.800a4 4 0 0 1 3 3.900V20M15.500 4.300a3.200 3.200 0 0 1 0 6', [['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['clientes', 'Cómo va cada una', 'Clientes: cómo va cada uno'], ['directorio', 'Directorio', 'Directorio de clientes'], ['cobranza', 'Cobranza', 'Cobranza'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes']]],
+  ['prospectos', 'Prospectos', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.500a4.500 4.500 0 1 0 0-9 4.500 4.500 0 0 0 0 9zM12 12h.010', [['zonas', 'Zonas y prospectos', 'Zonas y prospectos'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores']]],
+  ['ventas', 'Ventas', 'M4 20V10M10 20V4M16 20v-7M21 20H3', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero'], ['efectividad', 'Efectividad', 'Efectividad', true]]],
+  ['plan', 'Plan', 'M9 11.500l2.200 2.200L15.500 9.400M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', [['plan', 'Plan de 90 días', 'Plan de 90 días: compromisos con fecha'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['estrategia', 'Promociones y estrategia', 'Estrategia, metas y promociones']]],
+  ['recursos', 'Recursos', 'M5 4.500h9.500a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h9.500', [['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
 ];
-const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
-const ABAJO = ['hoy', 'buzon', 'plan', 'seguimiento', 'semanas', 'clientes'];           // first on the phone ribbon; the rest follow in menu order
+const FUERA = [['buzon', 'Buzón', 'Buzón'], ['ajustes', 'Ajustes', 'Ajustes', true]];
+const PANT = new Map([...SECC.flatMap(([, , , L]) => L), ...FUERA].map((x) => [x[0], x]));
+const seccionDe = (v) => SECC.find(([, , , L]) => L.some((x) => x[0] === v));
+const icono = (d) => svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', class: 'ic' }, svg('path', { d }));
 const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores', 'plan', 'eventos'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
@@ -724,27 +728,48 @@ async function api(path, body) {
 }
 
 function pintar() {
-  const admin = D.yo.admin, wide = ancho(), yo = PANT.get(S.vista) || PANT.get('hoy');
-  const nPend = sinLeer();
-  const visibles = GRUPOS.map(([g, L]) => [g, L.filter((x) => !x[3] || admin)]).filter(([, L]) => L.length);
-  const boton = ([v, t, , , prox]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, h('span', {}, t),
-    v === 'buzon' && nPend ? h('span', { class: 'cnt', 'aria-label': `${nPend} sin responder` }, nPend) : prox ? h('span', { class: 'soon' }, 'Pronto') : null);
-  $('titulo').textContent = yo[2];
+  const admin = D.yo.admin, wide = ancho(), yo = PANT.get(S.vista) || PANT.get('hoy'), mia = seccionDe(S.vista);
+  const nPend = sinLeer(), puede = (x) => !x[3] || admin;
+  if (mia) (S.ult = S.ult || {})[mia[0]] = S.vista;                       // each section reopens on the screen you left it on
+  const entrar = ([k, , , L]) => ir((S.ult && S.ult[k] && PANT.has(S.ult[k]) && puede(PANT.get(S.ult[k])) && S.ult[k]) || L.find(puede)[0]);
+  const boton = (sec) => h('button', { 'aria-current': mia && mia[0] === sec[0] ? 'page' : null, onclick: () => entrar(sec) }, icono(sec[2]), h('span', {}, sec[1]));
+  $('titulo').textContent = wide ? yo[2] : mia && mia[3].filter(puede).length > 1 ? mia[1] : yo[1];   // on a phone the tabs already name the screen
   $('sub').textContent = new Date(D.hoy + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-  $('who').replaceChildren(...(!SIN_FILTRO.includes(S.vista) ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel'], ['Tito', 'Tito · casa']].map(([v, t]) =>
+  // Tabs of the current section; a section with one screen shows none.
+  const hermanas = mia ? mia[3].filter(puede) : [];
+  $('subs').hidden = hermanas.length < 2;
+  $('subs').replaceChildren(...(hermanas.length < 2 ? [] : hermanas.map(([v, t, , , prox]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, t, prox ? h('span', { class: 'soon' }, 'Pronto') : null))));
+  $('who').replaceChildren(...(!SIN_FILTRO.includes(S.vista) && S.vista !== 'buzon' ? [['', 'Equipo'], ['José Luis', 'José Luis'], ['Carlos', 'Carlos'], ['Daniel', 'Daniel'], ['Tito', 'Tito · casa']].map(([v, t]) =>
     h('button', { class: 'chip', 'aria-pressed': String(S.persona === v), onclick: () => { S.persona = v; pintar(); } }, t)) : []));
-  $('nuevo').hidden = !(D.yo.persona || admin) || !['hoy', 'semanas', 'seguimiento'].includes(S.vista);
-  $('nav').replaceChildren(...visibles.flatMap(([g, L]) => [h('h3', {}, g), ...L.map(boton)]));
+  $('who').hidden = !$('who').childElementCount;
+  $('nuevo').hidden = !(D.yo.persona || admin);
+  $('engrane').hidden = !admin; $('engrane').setAttribute('aria-current', S.vista === 'ajustes' ? 'page' : 'false');
+  $('campana').setAttribute('aria-current', S.vista === 'buzon' ? 'page' : 'false');
+  $('campana').setAttribute('aria-label', nPend ? `Buzón: ${nPend} sin atender` : 'Buzón');
+  $('campana-n').hidden = !nPend; $('campana-n').textContent = nPend > 99 ? '99+' : String(nPend);
+  $('nav').replaceChildren(...SECC.map(boton));
   $('me').textContent = (D.yo.nombre || '') + (admin ? ' · administrador' : D.yo.persona ? ' · ' + D.yo.persona : '');
-  // Phone: one ribbon with every screen, most used first; it scrolls sideways and keeps the current one in view.
-  const CORTO = { semanas: 'Semanas', ventas: 'Ventas', copeo: 'Copeo', zonas: 'Zonas', estrategia: 'Estrategia', materiales: 'Materiales' };
-  const todas = visibles.flatMap(([, L]) => L), cinta = [...ABAJO.map((v) => PANT.get(v)), ...todas.filter((x) => !ABAJO.includes(x[0]))];
-  $('tabs').replaceChildren(...cinta.map(([v, t]) => h('button', { 'aria-current': v === S.vista ? 'page' : null, onclick: () => ir(v) }, CORTO[v] || t, v === 'buzon' && nPend ? h('span', { class: 'cnt' }, nPend) : null)));
-  if (!wide) { const act = $('tabs').querySelector('[aria-current]'); if (act) $('tabs').scrollLeft = Math.max(0, act.offsetLeft - ($('tabs').clientWidth - act.offsetWidth) / 2); }
+  $('tabs').replaceChildren(...SECC.map(boton));                           // phone: the same six places, as a bottom bar
+  if (!wide) { const act = $('subs').querySelector('[aria-current]'); if (act) $('subs').scrollLeft = Math.max(0, act.offsetLeft - ($('subs').clientWidth - act.offsetWidth) / 2); }
+  $('pop').hidden = true;
   $('main').replaceChildren((VISTAS[S.vista] || VISTAS.hoy)());
 }
+// The one place to add something: a contact with an account, a new account, or an event request.
+function menuRegistrar() {
+  const pop = $('pop'); if (!pop.hidden) { pop.hidden = true; return; }
+  const op = (t, d, fn) => h('button', { role: 'menuitem', onclick: () => { pop.hidden = true; fn(); } }, h('b', {}, t), h('span', {}, d));
+  pop.replaceChildren(h('div', {}, h('h3', {}, 'Registrar'),
+    op('Contacto con una cuenta', 'Visita, llamada, mensaje, cata o entrega. Lo de todos los días.', () => registrar({})),
+    op('Cliente o prospecto nuevo', 'Darlo de alta con su contacto y su teléfono, aunque todavía no compre.', () => nuevaCuenta({})),
+    op('Evento', 'Pedir autorización para una feria, cata o cena, con su costo y su meta.', () => ir('eventos'))));
+  pop.hidden = false;
+}
+$('nuevo').addEventListener('click', (ev) => { ev.stopPropagation(); menuRegistrar(); });
+$('campana').addEventListener('click', () => ir('buzon'));
+$('engrane').addEventListener('click', () => ir('ajustes'));
+addEventListener('click', (ev) => { const pop = $('pop'); if (!pop.hidden && (ev.target === pop || !pop.contains(ev.target))) pop.hidden = true; });
+addEventListener('keydown', (ev) => { if (ev.key === 'Escape') $('pop').hidden = true; });
 $('sheet').addEventListener('click', (ev) => { if (ev.target === $('sheet')) $('sheet').hidden = true; });
-$('nuevo').addEventListener('click', () => registrar({}));
 
 // One dialog for every form in the app. campos: [{ k, t, tipo: text|textarea|select|date|number|email, ops, v, req, ph, mitad }].
 // guardar(values) returns an error message, or nothing when it worked.

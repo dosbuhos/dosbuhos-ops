@@ -37,7 +37,7 @@ function plan() {
     return h('li', { class: abierto ? '' : 'hecho' }, h('div', { class: 'l1' }, h('span', {}, c.titulo), h('span', { class: 'pl-e' }, c.visible ? null : pill('Borrador', 'mute'), pill(t, k))),
       h('div', { class: 'l2' }, [abierto && c.fecha && k !== 'mute' ? 'Para el ' + fechaL(c.fecha) : '', c.medida ? 'Se mide: ' + c.medida : ''].filter(Boolean).join(' · ')),
       abierto ? null : h('div', { class: 'l2' }, `Hecho el ${fechaL(c.hecho_fecha)} por ${c.hecho_por}: ${c.nota}`),
-      puede(c) || yo.dueno ? h('div', { class: 'acc' }, puede(c) ? (abierto ? h('button', { class: 'btn sm', onclick: () => cerrar(c) }, 'Marcar hecho') : h('button', { class: 'linkb note', onclick: () => enviar('api/plan/hecho', { id: c.id, deshacer: true }) }, 'Reabrir')) : null,
+      puede(c) || yo.dueno ? h('div', { class: 'acc' }, puede(c) ? (abierto ? h('button', { class: 'btn sm sec', onclick: () => cerrar(c) }, 'Marcar hecho') : h('button', { class: 'linkb note', onclick: () => enviar('api/plan/hecho', { id: c.id, deshacer: true }) }, 'Reabrir')) : null,
         yo.dueno ? [h('button', { class: 'linkb note', onclick: () => editar(c) }, 'Cambiar'), h('button', { class: 'linkb note', onclick: () => enviar('api/admin/plan', { publicar: c.id, ocultar: !!c.visible }) }, c.visible ? 'Regresar a borrador' : 'Publicar'),
           h('button', { class: 'linkb note', onclick: () => { if (confirm('¿Quitar este compromiso?')) enviar('api/admin/plan', { borrar: c.id }); } }, 'Quitar')] : null) : null); };
   const orden = (L) => [...L.filter((c) => c.estado !== 'hecho'), ...L.filter((c) => c.estado === 'hecho')];

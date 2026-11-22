@@ -103,3 +103,10 @@ npm test
   clients past their reorder date, balances over 90 days). On phones the team view is one compact card per person.
 - **Buzón** (`#buzon`): Eric's questions, the "por atender" and "va bien" notes, and promotions in force. "Hecho" hides a
   note for that user (`buzon_hechos`, `POST /api/buzon/hecho`). `#pendientes` still opens Buzón.
+
+## Navegación
+
+Seis lugares, los mismos en el menú del escritorio y en la barra inferior del celular: **Inicio, Cuentas, Prospectos, Ventas, Plan y Recursos**.
+Cada lugar agrupa sus pantallas como pestañas bajo el título (`SECC` en `public/app.js`). El **Buzón** es la campana de arriba, **Ajustes** el engrane,
+y **＋ Registrar** abre las tres altas: contacto con una cuenta, cliente o prospecto nuevo, y evento.
+Spark usa sus propios neutros (blanco frío y pizarra, menú oscuro); del tema del Hub solo toma el color de acento.

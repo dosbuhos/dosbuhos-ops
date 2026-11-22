@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#5c1e33">
+<meta name="theme-color" content="#15171a">
 <title>Spark CRM · Dos Búhos</title>
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <script>/* Relative asset and API paths need the trailing slash (/spark/ behind the Hub). */ if (!location.pathname.endsWith('/')) location.replace(location.pathname + '/' + location.search + location.hash);</script>
@@ -18,15 +18,21 @@
 </aside>
 <div class="app">
   <header class="top">
-    <div class="brand mob"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M14 2c.9 6.6 3.4 9.1 10 10-6.6.9-9.1 3.400-10 10-.9-6.6-3.4-9.1-10-10 6.600-.9 9.100-3.400 10-10z"/></svg><span>Spark</span></div>
+    <div class="brand mob"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M14 2c.9 6.6 3.4 9.1 10 10-6.6.9-9.1 3.400-10 10-.9-6.6-3.4-9.1-10-10 6.600-.9 9.100-3.400 10-10z"/><path d="M25 19c.45 3.300 1.700 4.550 5 5-3.300.45-4.550 1.700-5 5-.45-3.300-1.700-4.550-5-5 3.300-.45 4.550-1.700 5-5z" opacity=".55"/></svg></div>
     <div class="ttl"><h1 id="titulo">Spark</h1><p id="sub"></p></div>
-    <div class="who" id="who" role="group" aria-label="Ver a"></div>
-    <button class="btn" id="nuevo" hidden><span class="pc">Registrar contacto</span><span class="tel" aria-hidden="true">+ Contacto</span></button>
+    <div class="acc">
+      <button class="ico" id="campana" aria-label="Buzón"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.500 7.500 2.500 7.500h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="cnt" id="campana-n" hidden></span></button>
+      <button class="ico" id="engrane" aria-label="Ajustes" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.200"/><path d="M12 2.800v2.400M12 18.800v2.400M2.800 12h2.400M18.800 12h2.400M5.500 5.500l1.700 1.700M16.800 16.800l1.700 1.700M5.500 18.500l1.700-1.700M16.800 7.200l1.700-1.700"/></svg></button>
+      <button class="btn" id="nuevo" hidden aria-haspopup="menu" aria-label="Registrar"><span class="mas" aria-hidden="true">+</span><span class="lbl">Registrar</span></button>
+    </div>
+    <nav class="subs" id="subs" aria-label="Vistas de esta sección"></nav>
   </header>
+  <div class="who" id="who" role="group" aria-label="Ver a"></div>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
 <nav class="tabs" id="tabs" aria-label="Secciones"></nav>
 <div class="sheet" id="sheet" hidden></div>
+<div class="pop" id="pop" role="menu" hidden></div>
 <dialog id="dlg" aria-labelledby="dlg-t"></dialog>
 <script type="module" src="app.js"></script>
 </body>
