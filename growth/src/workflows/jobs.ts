@@ -16,6 +16,7 @@ import { syncAvailability, availabilityOnHold } from '../connectors/opentable-av
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { syncParrot, ParrotError } from '../connectors/parrot.ts';
 import { syncStripePayments } from '../connectors/stripe-payments.ts';
+import { syncKlaviyoReservations, KlaviyoError } from '../connectors/klaviyo-reservations.ts';
 import { buildWeeklyEmail, sendViaResend } from '../report/weekly-email.ts';
 export const APP_URL = 'https://apps.dosbuhos.com/growth/';
 // Resend's shared sender works without verifying dosbuhos.com (no DNS change), but only delivers to the Resend account's own address.
@@ -132,12 +133,29 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
           const held = await env.DB.prepare("SELECT health, last_error, updated_at FROM connections WHERE id = 'conn_ot_availability'").first<{ health: string; last_error: string | null; updated_at: number }>();
           if (availabilityOnHold(held, now)) { await finishJob(env.DB, job.runKey, 'skipped', 'OpenTable rechaza estas lecturas; se vuelve a probar una vez al día'); break; }
           const r = await syncAvailability(env.DB, Number(env.OPENTABLE_RID), now, env.WINERY_TZ);
-          await finishJob(env.DB, job.runKey, r.failed && !r.read ? 'failed' : 'succeeded', `Disponibilidad de OpenTable: ${r.read} leídas, ${r.failed} fallidas${r.firstError ? ` (${r.firstError})` : ''}`);
+          // A refusal is OpenTable's known limit, not a failure of the run: it is logged as skipped, and the connection says why.
+          const refusedAll = !r.read && /respondió (403|429)/.test(r.firstError ?? '');
+          await finishJob(env.DB, job.runKey, refusedAll ? 'skipped' : r.failed && !r.read ? 'failed' : 'succeeded', refusedAll ? `OpenTable rechazó la lectura (${r.firstError}); se vuelve a probar una vez al día` : `Disponibilidad de OpenTable: ${r.read} leídas, ${r.failed} fallidas${r.firstError ? ` (${r.firstError})` : ''}`);
           break;
         }
         case 'spend_poll':
           await finishJob(env.DB, job.runKey, 'skipped', env.ADS_PROVIDER === 'mock' ? 'Proveedor simulado: los datos de demo no cambian' : 'El gasto llega cada hora con el feed de Google Ads; consultar cada 15 minutos necesita acceso a la API de Google Ads'); break;
-        case 'booking_sync': await finishJob(env.DB, job.runKey, 'skipped', 'No hay fuente de reservaciones conectada: los datos de reservaciones de OpenTable son solo para socios (se pidieron a través del gerente de cuenta)'); break;
+        case 'booking_sync': {
+          if (!env.KLAVIYO_API_KEY || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'Falta KLAVIYO_API_KEY: las reservaciones de OpenTable llegan por Klaviyo'); break; }
+          try {
+            const r = await syncKlaviyoReservations(env.DB, env.KLAVIYO_API_KEY, now, env.WINERY_TZ, { restaurantId: env.OPENTABLE_RID });
+            const waiting = r.missing.length ? ` Klaviyo todavía no tiene: ${r.missing.join(', ')}.` : '';
+            await env.DB.prepare("UPDATE connections SET health = 'connected', health_reason = ?, last_success_at = ?, freshness_at = COALESCE(?, freshness_at), last_error = NULL, updated_at = ? WHERE id = 'conn_klaviyo'")
+              .bind(r.complete ? `Reservaciones de OpenTable por Klaviyo, cada 30 minutos.${waiting}` : `Cargando historial de reservaciones (se completa solo).${waiting}`, now, r.newestAt, now).run();
+            await finishJob(env.DB, job.runKey, 'succeeded', `Klaviyo: ${r.events} eventos leídos, ${r.reservations} reservaciones en total${r.complete ? '' : ' (cargando historial)'}`);
+          } catch (e) {
+            const status = e instanceof KlaviyoError ? e.status : 0, msg = (e as Error).message.slice(0, 300);
+            const refused = status === 401 || status === 403;
+            await env.DB.prepare('UPDATE connections SET health = ?, health_reason = ?, last_error = ?, updated_at = ? WHERE id = ?').bind(refused ? 'reconnect' : 'limited', refused ? 'Klaviyo rechazó la llave: debe ser privada y poder leer Events y Metrics' : 'La última lectura de Klaviyo falló; se reintenta sola', msg, now, 'conn_klaviyo').run();
+            await finishJob(env.DB, job.runKey, status === 429 ? 'skipped' : 'failed', msg);
+          }
+          break;
+        }
         case 'daily_review': await env.DAILY_REVIEW.create({ id: job.runKey.replace(/:/g, '-'), params: { runKey: job.runKey, kind: 'daily', logicalDate: job.logicalDate } }); break;
         case 'weekly_review': await env.WEEKLY_REVIEW.create({ id: job.runKey.replace(/:/g, '-'), params: { runKey: job.runKey, kind: 'weekly', logicalDate: job.logicalDate } }); break;
         case 'notify_daily': case 'notify_weekly': await finishJob(env.DB, job.runKey, 'skipped', 'No hay proveedor de notificaciones configurado; los reportes están en la app'); break;

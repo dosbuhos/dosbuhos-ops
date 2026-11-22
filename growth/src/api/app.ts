@@ -16,6 +16,7 @@ import { loadCampaigns } from '../read/campaigns.ts';
 import { loadToday } from '../read/today.ts';
 import { parseHistoryCsv, HISTORY_SOURCE } from '../read/sales.ts';
 import { loadPayments, prepaidLine } from '../read/payments.ts';
+import { loadReservations } from '../read/reservations.ts';
 import { findingsView, loadResults, actionTitle, type ActionLite } from '../read/suggestions.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
@@ -560,6 +561,9 @@ app.get('/api/export/coordinator', async c => {
 
 // Card payments charged online (Stripe, through the wine club Worker): prepaid experiences, club, web store. Read-only.
 app.get('/api/payments', async c => json(c, { ...(await loadPayments(c.env.DB, Date.now(), c.env.WINERY_TZ)), currency: 'MXN' }));
+
+// Every OpenTable reservation (through Klaviyo): made, how, how the visits ended, and the next two weeks. Counts only.
+app.get('/api/reservations', async c => json(c, await loadReservations(c.env.DB, Date.now(), c.env.WINERY_TZ)));
 
 app.get('/api/pos-history', async c => {
   const h = await c.env.DB.prepare('SELECT MIN(local_date) AS first, MAX(local_date) AS last, COUNT(*) AS days, SUM(net_minor) AS net_minor, MAX(loaded_at) AS loaded_at FROM pos_daily_history')

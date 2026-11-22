@@ -9,7 +9,7 @@ A private, market-style dashboard and bounded optimization agent for Dos Búhos 
 | Real | Google Ads spend/clicks/conversions via the Hub (D1 `growth` and R2 `growth-archive` created; schema applied). Domain, policy and coordinator logic; dashboard; watchdog; reports |
 | Mocked | The ad account in dev/demo (`MockAdsProvider`); every demo number (`fixtures/demo-data.ts`) |
 | Blocked | Google Ads API reads and writes (needs approved API access + owner OAuth); offline conversions; Claude review against the live API (no key here) |
-| Tested | 184 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
+| Tested | 193 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
 | Deployable | Yes, via Workers Builds once the `growth` Worker is created in the dashboard and `HUB_SECRET` is set (`docs/setup.md`). Ad changes stay impossible until the API adapter exists and the owner goes live |
 
 ## Layout
@@ -109,6 +109,28 @@ is a charge in that same Stripe account, so this is also the source for prepaid 
   a transfer, and would count twice. Nothing here is attributed to a campaign.
 - Experience names come from `EXPERIENCES` in `src/connectors/opentable-availability.ts`.
 
+## OpenTable reservations (through Klaviyo)
+OpenTable gives restaurants no reservation API, but its Klaviyo integration (connected 2026-11-22) sends Klaviyo every
+reservation event in real time, with two years of history. `KLAVIYO_API_KEY` is a read-only Klaviyo private key
+(scopes `events:read` and `metrics:read`).
+
+- `booking_sync` (every 30 minutes, `src/connectors/klaviyo-reservations.ts`) finds the five OpenTable metrics by name
+  (Created, Confirmed, Completed, Cancelled and No Showed Reservation; Klaviyo creates a metric with its first event,
+  so a missing one is asked for again once a day), reads their events oldest first, a few pages a run, and resumes
+  from `klaviyo_sync_state`. Once caught up it re-reads the last two days each run.
+- One row per reservation in `ot_reservations` (OpenTable's confirmation number). Events can arrive in any order: the
+  newest decides the status and the details that can change (time, party, table), and a detail an event does not
+  carry never erases a known one.
+- Kept: confirmation number, when it was made, the reserved time, party size, how it was booked (web, phone,
+  walk-in), table, the times it was seated and finished, status, and the check total if OpenTable ever matches one.
+  Never read: the guest's profile. Dropped on arrival: guest request, visit tags, the server's name.
+- `GET /api/reservations` (`src/read/reservations.ts`) feeds the first card of **Reservaciones → De dónde vienen**:
+  reservations made in the last 28 days and how, next to what GA4 saw of the web ones; how the visits ended
+  (came, cancelled, no-show, never closed); visits closed less than five minutes after being seated (OpenTable
+  cannot attach a check to those); and what is booked for the next 14 days. The card is absent until the key is in.
+- Not yet: these rows do not feed `bookings`, attribution or the verdicts. That waits until they have been checked
+  against real data and matched to Parrot's checks by table and time.
+
 ## OpenTable availability when OpenTable refuses
 Since 2026-11-14 OpenTable answers 403 to the public availability queries from this Worker. A refusal is stored as
 `limited` with the reason in plain words (the owner cannot fix it, so it is not a warning on Hoy), and the read is
@@ -205,3 +227,9 @@ before the code that needs it is pushed.
 `0013_stripe_payments.sql` adds `stripe_payments`, `stripe_sync_state` and the `conn_stripe` connection. Nothing older
 reads them, so it is applied to the remote database before the code is pushed. The `wineclub` Worker has to be
 deployed first: the `STRIPE` binding names its `StripeRead` entrypoint.
+
+## Migration 0014
+
+`0014_ot_reservations.sql` adds `ot_reservations`, `klaviyo_sync_state` and the `conn_klaviyo` connection. Nothing
+older reads them; applied to the remote database before the code is pushed.
+

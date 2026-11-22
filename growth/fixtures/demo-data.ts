@@ -197,6 +197,28 @@ export function demoStatements(now: number): Stmt[] {
   out.push(S(`UPDATE stripe_sync_state SET history_done = 1, refunds_read_at = ?, updated_at = ? WHERE id = 1`, now, now));
   out.push(S(`UPDATE connections SET health = 'connected', health_reason = 'Demo: pagos sintéticos', last_success_at = ?, freshness_at = ?, updated_at = ? WHERE id = 'conn_stripe'`, now, now, now));
 
+  // ---- every reservation, as Klaviyo would deliver it (synthetic): made by web or phone, ended or still to come ----
+  const TABLES = ['M1', 'M2', 'M4', 'ARC1', 'ARC3', 'PIR2', 'PIC1', 'REC1', 'REC2', 'SAL3'];
+  let conf = 500;
+  for (let k = 45; k >= -13; k--) {                      // visits from 45 days ago to 13 days ahead
+    const day = addDays(today, -k), wd = weekdayOf(day);
+    if (wd <= 2) continue;                               // closed Monday and Tuesday
+    const n = (wd >= 5 ? 7 : 3) + Math.floor(r() * 4);
+    for (let i = 0; i < n; i++) {
+      const scheduled = zonedToUtc(day, 12 + Math.floor(r() * 5), r() < 0.5 ? 0 : 30, tz), ahead = Math.floor(r() * r() * 12 * 86_400_000) + 3_600_000;
+      const created = Math.min(scheduled - ahead, now - 600_000), party = 2 + Math.floor(r() * r() * 7), origin = r() < 0.62 ? 'web' : 'phone', roll = r();
+      const past = scheduled < now;
+      const status = !past ? (r() < 0.5 ? 'confirmed' : 'created') : roll < 0.78 ? 'completed' : roll < 0.9 ? 'cancelled' : roll < 0.96 ? 'no_show' : 'confirmed';
+      const seated = status === 'completed' ? scheduled + Math.floor(r() * 900_000) : null, done = seated === null ? null : seated + (r() < 0.2 ? 20_000 : 5_400_000 + Math.floor(r() * 2_400_000));
+      const statusAt = status === 'completed' ? done! : status === 'cancelled' ? Math.max(created, scheduled - 86_400_000) : status === 'no_show' ? scheduled + 1_800_000 : created;
+      out.push(S(`INSERT OR IGNORE INTO ot_reservations (confirmation_id, created_at, created_date, scheduled_at, service_date, party_size, origin, status, status_rank, status_at, table_name, arrived_at, seated_at, done_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, String(++conf), created, localDate(created, tz), scheduled, day, party, origin, status, status === 'created' ? 1 : status === 'confirmed' ? 2 : 3, statusAt,
+        TABLES[Math.floor(r() * TABLES.length)]!, seated, seated, done, now));
+    }
+  }
+  for (const m of ['Created Reservation', 'Confirmed Reservation', 'Completed Reservation', 'Cancelled Reservation', 'No Showed Reservation']) out.push(S(`INSERT OR IGNORE INTO klaviyo_sync_state (metric, metric_id, cursor, done, updated_at) VALUES (?, ?, ?, 1, ?)`, m, `demo_${m.split(' ')[0]}`, new Date(now).toISOString(), now));
+  out.push(S(`UPDATE connections SET health = 'connected', health_reason = 'Demo: reservaciones sintéticas', last_success_at = ?, freshness_at = ?, updated_at = ? WHERE id = 'conn_klaviyo'`, now, now, now));
+
   out.push(S(`UPDATE connections SET freshness_at = ? WHERE provider = 'opentable_csv'`, now - 2 * 3_600_000));
   return out;
 }

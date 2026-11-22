@@ -24,6 +24,7 @@ export interface Env {
   FEED_TOKEN_PEPPER?: string;       // required to create/verify feed tokens
   TOKEN_ENCRYPTION_KEY_V1?: string;
   PARROT_API_KEY?: string;          // Parrot POS external API private key (Bearer); read-only use
+  KLAVIYO_API_KEY?: string;         // Klaviyo private key, read-only (events:read, metrics:read): OpenTable reservations
   RESEND_API_KEY?: string;          // weekly summary email (optional; same provider as spark/)
   REPORT_EMAIL_TO?: string;         // comma-separated recipients of the weekly summary (secret: keeps addresses out of the repo)
   GA4_SA_KEY?: string;              // service account JSON key, Viewer on the GA4 property (read-only) // required before storing OAuth refresh tokens

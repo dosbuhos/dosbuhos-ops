@@ -10,7 +10,7 @@ const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'ag
 /** Campaign names come from the ad platforms with underscores; spaces let them wrap on a phone. */
 export const campaignName = (n: string) => n.replace(/_/g, ' ');
 /** Alerts name the connection by its internal id; say it the way the owner would. */
-const CONN: Record<string, string> = { opentable_availability: 'Disponibilidad de OpenTable', google_ads_script: 'Google Ads', hub_mirror: 'Gasto de Google y Meta', ga4: 'GA4 (reservaciones en línea)', parrot: 'Parrot', meta_ads: 'Meta', stripe: 'Stripe (pagos en línea)' };
+const CONN: Record<string, string> = { opentable_availability: 'Disponibilidad de OpenTable', google_ads_script: 'Google Ads', hub_mirror: 'Gasto de Google y Meta', ga4: 'GA4 (reservaciones en línea)', parrot: 'Parrot', meta_ads: 'Meta', stripe: 'Stripe (pagos en línea)', klaviyo: 'Klaviyo (reservaciones de OpenTable)' };
 const alertTitle = (t: string) => t.replace(/^([a-z0-9_]+):/, (m, id: string) => (CONN[id] ? `${CONN[id]}:` : m));
 const firstParagraph = (t: string) => t.replace(/\*\*/g, '').split(/\n\s*\n/)[0]!.trim();
 

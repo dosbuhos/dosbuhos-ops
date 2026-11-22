@@ -10,6 +10,7 @@ import { YEAR_BACK_DAYS } from './sales.ts';
 export interface Bucket { count: number; netMinor: number }
 export interface PaymentsView {
   connected: boolean; health: string; healthReason: string; historyComplete: boolean; firstDate: LocalDate | null; lastChargeAt: number | null;
+  today: LocalDate;
   window: { from: LocalDate; to: LocalDate; prevFrom: LocalDate; prevTo: LocalDate; lastYearFrom: LocalDate; lastYearTo: LocalDate };
   /** Experiences paid online in the window, whichever system took the booking (OpenTable now, Rezdy before November 2026). */
   experiencesPaid: Bucket & { previous: Bucket; lastYear: Bucket | null };
@@ -82,7 +83,7 @@ export async function loadPayments(db: D1Database, now: number, tz: string): Pro
 
   return {
     connected: conn?.health === 'connected', health: conn?.health ?? 'not_configured', healthReason: conn?.health_reason ?? '', historyComplete, firstDate: span?.first ?? null, lastChargeAt: span?.last ?? null,
-    window: { from, to, prevFrom, prevTo, lastYearFrom, lastYearTo },
+    today, window: { from, to, prevFrom, prevTo, lastYearFrom, lastYearTo },
     experiencesPaid: { ...paid, previous: paidPrev, lastYear: lastYearKnown ? paidLastYear : null },
     sources: PAYMENT_SOURCES.map(source => ({ source, current: cur.get(source) ?? zero(), previous: prev.get(source) ?? zero() })),
     experiences: fold(r => (r.source === 'rezdy' ? REZDY : r.id)).map(([id, b]) => ({ id, name: id === REZDY ? 'Tours reservados por Rezdy' : experienceName(id), ...b })),

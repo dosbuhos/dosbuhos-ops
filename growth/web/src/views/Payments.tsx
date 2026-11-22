@@ -84,7 +84,7 @@ export function Payments() {
           <div className="card stack">
             <div><span className="midnum">{money(p.upcoming.netMinor)}</span> <span className="small muted">en {count(p.upcoming.count, 'reservación pagada', 'reservaciones pagadas')}</span></div>
             <div className="kv weeks">{(p.upcoming.weeks as any[]).map(x => (
-              <div key={x.weekStart}><span>Semana del {dayMonth(x.weekStart)}</span><b>{money(x.netMinor)}</b><span>{count(x.count, 'reservación', 'reservaciones')}</span></div>))}</div>
+              <div key={x.weekStart}><span>{x.weekStart <= p.today ? 'Esta semana' : `Semana del ${dayMonth(x.weekStart)}`}</span><b>{money(x.netMinor)}</b><span>{count(x.count, 'reservación', 'reservaciones')}</span></div>))}</div>
           </div>
         ) : <div className="card small muted">No hay experiencias pagadas para los próximos días.</div>}
       </section>
