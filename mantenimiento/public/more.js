@@ -21,38 +21,50 @@ async function viewPM(query = {}, keep = false) {
   UI.view = 'pm';
   const thisYear = Number(todayStr().slice(0, 4));
   const y = Number(query.y) || thisYear;
+  // From July on, this year's page continues into the next one (January … last month), so there is always
+  // about a year ahead in view: in November nearly everything that is coming falls in the following year.
+  const ahead = y === thisYear && Number(todayStr().slice(5, 7)) >= 7;
   if (!keep) loading({ tab: 'preventivo' });
   let r;
-  try { r = await api('GET', '/pm/year?y=' + y); } catch (e) { return errorView(e.message, { tab: 'preventivo' }); }
+  let nx = null;
+  try {
+    [r, nx] = await Promise.all([api('GET', '/pm/year?y=' + y), ahead ? api('GET', '/pm/year?y=' + (y + 1)).catch(() => null) : null]);
+  } catch (e) { return errorView(e.message, { tab: 'preventivo' }); }
   S.today = r.today;
   const cnt = (st) => r.items.filter((i) => i.status === st).length;
   const curM = r.today.slice(0, 7);
+  const lastM = Number(curM.slice(5)) - 1;
+  const nextItems = nx ? nx.items.filter((it) => Number(it.date.slice(5, 7)) <= lastM) : [];
+  const all = r.items.concat(nextItems);
   const pmRow = (it) => {
     const st = PM_ST[it.status];
     const d = ymdDate(it.date);
     const when = it.status === 'done' && it.done_at ? `Hecho ${fmtDay(localYmd(it.done_at), { rel: false })}` : st.label;
-    return `<button type="button" class="pmrow ${st.cls}" data-it="${r.items.indexOf(it)}">
+    return `<button type="button" class="pmrow ${st.cls}" data-it="${all.indexOf(it)}">
       <span class="pmday"><b>${d.getDate()}</b><span>${DIAS[d.getDay()].slice(0, 3)}</span></span>
       <span class="grow"><b class="pmt">${esc(it.title)}</b><span class="ls">${esc([it.equipment_name || it.area_name, it.provider_name ? first(it.provider_name) : ''].filter(Boolean).join(' · ') || 'Sin equipo')}</span>
         <span class="pmst ${st.cls}">${ic(st.icon)}${esc(when)}</span></span>${ic('chev')}</button>`;
   };
-  const months = MESES_L.map((name, i) => {
-    const key = `${y}-${pad2(i + 1)}`;
-    const items = r.items.filter((it) => it.date.slice(0, 7) === key);
+  const monthSec = (yy, list) => (name, i) => {
+    const key = `${yy}-${pad2(i + 1)}`;
+    const items = list.filter((it) => it.date.slice(0, 7) === key);
     const late = items.filter((it) => it.status === 'late').length;
     const past = key < curM;
     // What comes up every month is folded into one line unless it needs attention, so the yearly services stand out.
     const routine = items.filter((it) => it.per_year >= 12 && (it.status === 'future' || it.status === 'done'));
     const main = items.filter((it) => !routine.includes(it));
     const rdone = routine.filter((it) => it.status === 'done').length;
-    return `<section class="month ${key === curM ? 'cur' : ''} ${past ? 'past' : ''} ${items.length ? '' : 'none'}" id="m-${i + 1}">
+    return `<section class="month ${key === curM ? 'cur' : ''} ${past ? 'past' : ''} ${items.length ? '' : 'none'}" id="${yy === y ? 'm' : 'n'}-${i + 1}">
       <h2 class="mhead">${cap(name)}${key === curM ? '<span class="now">Este mes</span>' : ''}${items.length ? `<span class="n">${items.length}</span>` : ''}${late ? `<span class="mlate">${ic('alert')}${plural(late, 'atrasado', 'atrasados')}</span>` : ''}</h2>
       ${main.length ? `<div class="list">${main.map(pmRow).join('')}</div>` : ''}
       ${routine.length ? `<details class="routine"><summary>${ic('repeat')}<span class="grow"><b>Lo de cada mes</b><span>${esc([...new Set(routine.map((it) => it.title))].join(' · '))}</span></span><span class="rn ${rdone === routine.length ? 'ok' : ''}">${rdone ? `${rdone} de ${routine.length} ${rdone === 1 ? 'hecho' : 'hechos'}` : routine.length}</span>${ic('down')}</summary>
         <div class="list">${routine.map(pmRow).join('')}</div></details>` : ''}
       ${items.length ? '' : '<p class="mnone">Nada programado</p>'}
     </section>`;
-  }).join('');
+  };
+  const months = MESES_L.map(monthSec(y, r.items)).join('');
+  const following = nx ? `<div class="yearnext"><h2>${y + 1}</h2><a href="#/preventivo?y=${y + 1}">Ver todo ${y + 1}${ic('chev')}</a></div>
+      ${MESES_L.slice(0, lastM).map(monthSec(y + 1, nextItems)).join('')}` : '';
   const empty = !r.items.length && !r.plans;
   render(header('Preventivo', { right: newPlanBtn }) + `<div class="wrap">
     ${pmTabs('year')}
@@ -62,11 +74,11 @@ async function viewPM(query = {}, keep = false) {
       <h2 class="sec">Ideas para empezar</h2>
       <div class="ideas">${PM_IDEAS.map(([t, n]) => `<a class="idea" href="#/plan/nuevo?t=${encodeURIComponent(t)}&n=${n}"><b>${esc(t)}</b><span>${n === 12 ? 'Cada mes' : plural(n, 'vez al año', 'veces al año')}</span></a>`).join('')}</div>`
       : `<div class="yearbar"><a class="ib line" href="#/preventivo?y=${y - 1}" aria-label="Año anterior">${ic('back')}</a><h2>${y}</h2><a class="ib line" href="#/preventivo?y=${y + 1}" aria-label="Año siguiente">${ic('chev')}</a></div>
-      <p class="ysum">${r.items.length ? `${cnt('done') ? `<span class="ok">${ic('check')}${plural(cnt('done'), 'hecho', 'hechos')}</span>` : ''}${cnt('late') ? `<span class="bad">${ic('alert')}${plural(cnt('late'), 'atrasado', 'atrasados')}</span>` : ''}${cnt('future') + cnt('open') ? `<span>${ic('cal')}${cnt('future') + cnt('open')} por venir</span>` : ''}` : 'Nada programado este año.'}</p>
-      ${months}`}
+      <p class="ysum">${r.items.length ? `${cnt('done') ? `<span class="ok">${ic('check')}${plural(cnt('done'), 'hecho', 'hechos')}</span>` : ''}${cnt('late') ? `<span class="bad">${ic('alert')}${plural(cnt('late'), 'atrasado', 'atrasados')}</span>` : ''}${cnt('future') + cnt('open') ? `<span>${ic('cal')}${cnt('future') + cnt('open')} por venir</span>` : ''}` : nextItems.length ? `Nada en ${y}. Lo que sigue cae en ${y + 1}.` : 'Nada programado este año.'}</p>
+      ${months}${following}`}
   </div>`, { tab: 'preventivo', keepScroll: keep });
   $$('[data-it]', APP).forEach((b) => (b.onclick = async () => {
-    const it = r.items[Number(b.dataset.it)];
+    const it = all[Number(b.dataset.it)];
     if (it.task_id) { location.hash = '#/p/' + it.task_id; return; }
     const v = await sheet({
       title: it.title, sub: `${it.status === 'late' ? 'Tocaba' : 'Toca'} ${fmtDay(it.date, { weekday: true })}${it.equipment_name ? ' · ' + it.equipment_name : ''}`,
@@ -693,7 +705,7 @@ async function viewResumen() {
     <h2 class="sec">Reportados y hechos por semana</h2>
     <div class="chart" role="img" aria-label="En 8 semanas se reportaron ${tc} y se hicieron ${td}">${bars}</div>
     <p class="legend"><span><i class="c"></i>Reportados (${tc})</span><span><i class="d"></i>Hechos (${td})</span></p>
-    <p class="small">${tc + td === 0 ? 'Todavía no hay movimiento que mostrar.' : td >= tc ? 'En 8 semanas se hizo tanto o más de lo que se reportó: vamos al corriente.' : `En 8 semanas se reportaron ${tc - td} más de los que se hicieron: se está acumulando.`}${r.avg_days !== null ? ` Un reporte tarda en promedio ${String(r.avg_days).replace('.', ',')} días en resolverse.` : ''}${r.cost_month ? ` Este mes se han gastado ${money(r.cost_month)}.` : ''}</p>
+    <p class="small">${tc + td === 0 ? 'Todavía no hay movimiento que mostrar.' : td >= tc ? 'En 8 semanas se hizo tanto o más de lo que se reportó: vamos al corriente.' : tc - td === 1 ? 'En 8 semanas se reportó 1 más de lo que se hizo: se está acumulando.' : `En 8 semanas se reportaron ${tc - td} más de los que se hicieron: se está acumulando.`}${r.avg_days !== null ? ` Un reporte tarda en promedio ${r.avg_days === 1 ? '1 día' : r.avg_days + ' días'} en resolverse.` : ''}${r.cost_month ? ` Este mes se han gastado ${money(r.cost_month)}.` : ''}</p>
     <h2 class="sec">Por persona</h2>
     ${ppl.length ? `<div class="list">${ppl.map((p) => `<button type="button" class="lrow" data-who="${p.id}">${p.id ? avatar(p.name) : `<span class="av un" aria-hidden="true">${ic('user')}</span>`}<span class="grow"><b>${esc(p.name)}</b><span class="ls ${p.late ? 'bad' : ''}">${p.late ? ic('alert') : ''}${plural(p.n, 'abierto', 'abiertos')}${p.late ? `, ${plural(p.late, 'atrasado', 'atrasados')}` : ''}</span></span>${ic('chev')}</button>`).join('')}</div>` : '<p class="small">Nada abierto.</p>'}
     <h2 class="sec">Por área</h2>

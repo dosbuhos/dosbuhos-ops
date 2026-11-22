@@ -1,5 +1,5 @@
 """Every main flow through the real UI on a phone viewport. Needs a freshly seeded local server (see seed.py)."""
-import os, re, tempfile
+import os, re, tempfile, datetime as dt
 from PIL import Image
 from playwright.sync_api import sync_playwright, expect
 from _env import BASE, HERE, state, launch, route_theme, cookie
@@ -131,7 +131,10 @@ with sync_playwright() as p:
     # ---------- 6. Adrián (admin): preventive plan, equipment, service, contact, areas, people ----------
     c = ctx(SIDS[1]); pg = c.new_page(); watch(pg)
     pg.goto(BASE + '/#/preventivo'); expect(pg.locator('.top h1')).to_have_text('Preventivo')
-    expect(pg.locator('.month')).to_have_count(12)
+    expect(pg.locator('.month[id^="m-"]')).to_have_count(12)
+    # from July on the page continues into next year, up to the month before this one: always a year ahead in view
+    mx_month = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=6)).month
+    expect(pg.locator('.month[id^="n-"]')).to_have_count(mx_month - 1 if mx_month >= 7 else 0)
     pg.click('.hbtn'); expect(pg.locator('.top.sub h1')).to_have_text('Programar')
     pg.click('#pf-save'); expect(pg.locator('.ferr')).to_have_text('Escribe qué hay que hacer')
     pg.fill('#pf-title', 'Lavar cisterna y tinacos')

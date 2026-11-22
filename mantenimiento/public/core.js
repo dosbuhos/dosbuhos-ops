@@ -121,7 +121,11 @@ const telHref = (phone) => 'tel:' + String(phone || '').replace(/[^\d+]/g, '');
 const waHref = (phone, text = '') => `https://wa.me/${waNumber(phone)}${text ? '?text=' + encodeURIComponent(text) : ''}`;
 function fmtPhone(phone) {
   const d = String(phone || '').replace(/\D/g, '');
-  if (d.length === 10) return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+  const g = (x) => `${x.slice(0, 3)} ${x.slice(3, 6)} ${x.slice(6)}`;
+  if (d.length === 10) return g(d);
+  if (d.length === 12 && d.startsWith('52')) return '+52 ' + g(d.slice(2));
+  if (d.length === 13 && d.startsWith('521')) return '+52 ' + g(d.slice(3));
+  if (d.length === 11 && d.startsWith('1')) return '+1 ' + g(d.slice(1));
   return String(phone || '');
 }
 

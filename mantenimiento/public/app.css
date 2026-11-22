@@ -478,6 +478,10 @@ body.lock .toast.show { transform: none; }
 .ysum span { display: inline-flex; align-items: center; gap: 5px; }
 .ysum svg { width: 15px; height: 15px; }
 .ysum .ok { color: var(--ok); font-weight: 600; } .ysum .bad { color: var(--bad); font-weight: 700; }
+.yearnext { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 34px 0 0; }
+.yearnext h2 { font: 600 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+.yearnext a { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap); padding: 0 2px 0 10px; font-weight: 600; font-size: 15px; color: var(--accent); }
+.yearnext a svg { width: 16px; height: 16px; }
 .month { margin-top: 6px; scroll-margin-top: 120px; }
 .mhead { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; font: 600 20px/1.2 var(--display); }
 .mhead .n { font: 600 13px/1 var(--font); color: var(--muted); background: var(--off-soft); border-radius: 999px; padding: 4px 9px; }
