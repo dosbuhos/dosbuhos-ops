@@ -331,3 +331,11 @@ dialog .pie { position: sticky; bottom: -18px; background: var(--card); padding:
 .kp > div:first-child span { display: block; color: var(--muted); font-size: .8rem; } .kp em { font-style: normal; color: var(--muted); } .kp .kpt { text-align: right; font-size: 1.05rem; } .kp .kr { color: var(--muted); }
 .kp.kph { border-top: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding-bottom: 2px; } .kp.kph .kpt { font-size: .72rem; }
 @media (max-width: 760px) { .kp { grid-template-columns: minmax(0, 1fr) 40px 52px; } .kp .kr { grid-column: 1 / -1; grid-row: 2; margin-top: -6px; } .kp.kph .kr { display: none; } }
+
+/* Promotions: one card each, the offer in a line, full terms folded, and the original document */
+.promos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); margin-bottom: 8px; }
+.promo .l2 { color: var(--muted); font-size: .875rem; margin-top: 4px; }
+.promo .pres { font-weight: 600; margin: 10px 0 6px; }
+.promo .pdet { white-space: pre-line; margin: 8px 0 4px; font-size: .92rem; line-height: 1.5; }
+.promo details { margin: 6px 0; } .promo summary { cursor: pointer; color: var(--accent); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.promo p { margin: 10px 0 6px; }

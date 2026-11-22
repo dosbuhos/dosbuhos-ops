@@ -231,7 +231,7 @@ function notasDe(p) {
   const N = D.foco.filter((f) => f.persona === p && f.tipo !== 'registrar').sort((a, b) => a.orden - b.orden).map((f) => ({ clave: `${p}|${f.titulo}`, persona: p, bien: f.tipo === 'bien', t: f.titulo, d: f.detalle, vista: f.vista }));
   return N.map((n) => ({ ...n, hecho: (D.hechos || []).includes(n.clave) }));
 }
-const promosHoy = () => (D.promociones || []).filter((p) => p.visible && (!p.inicio || p.inicio <= D.hoy) && (!p.fin || p.fin >= D.hoy)).map((p) => ({ clave: 'promo|' + p.id, promo: true, t: 'Promoción vigente: ' + p.nombre, d: [p.detalle, p.aplica, p.fin ? `hasta el ${dia(p.fin)}` : ''].filter(Boolean).join(' · '), vista: 'estrategia', hecho: (D.hechos || []).includes('promo|' + p.id) }));
+const promosHoy = () => (D.promociones || []).filter((p) => p.visible && (!p.inicio || p.inicio <= D.hoy) && (!p.fin || p.fin >= D.hoy)).map((p) => ({ clave: 'promo|' + p.id, promo: true, t: 'Promoción vigente: ' + p.nombre, d: [p.resumen || String(p.detalle || '').split('\n')[0], p.aplica, p.fin ? `hasta el ${dia(p.fin)}` : ''].filter(Boolean).join(' · '), vista: 'estrategia', hecho: (D.hechos || []).includes('promo|' + p.id) }));
 // What shows as unread: for a rep, their open questions and notes to act on; for an admin, the questions still unanswered.
 const sinLeer = () => (D.yo.persona && !D.yo.admin ? abiertasDe(D.yo.persona).length + notasDe(D.yo.persona).filter((n) => !n.bien && !n.hecho).length + promosHoy().filter((n) => !n.hecho).length : (D.preguntas || []).filter((q) => !q.respondida).length);
 function marcador(p, compacto) {

@@ -128,6 +128,13 @@ export default {
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
       return json({ ...m, sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
     }
+    // Original document of a promotion. The team only reaches files of promotions marked visible.
+    if (p.startsWith('/api/archivo/') && request.method === 'GET') {
+      const id = Number(p.split('/')[3]) || 0;
+      const f = await env.DB.prepare('SELECT a.nombre, a.mime, a.datos, (SELECT MAX(visible) FROM promociones WHERE archivo_id = a.id) AS visible FROM archivos a WHERE a.id = ?').bind(id).first();
+      if (!f || (!yo.admin && !f.visible)) return json({ error: 'No existe ese documento' }, 404);
+      return new Response(new Uint8Array(f.datos), { headers: { 'content-type': f.mime, 'content-disposition': `inline; filename="${f.nombre.replace(/[^\w. -]/g, '_')}"`, 'cache-control': 'private, max-age=300' } });
+    }
     const cuerpo = async () => request.json().catch(() => ({})), txt = (v, n = 300) => String(v ?? '').trim().slice(0, n), HOY = hoyEn(env.TZ);
     const quienEs = (b) => (yo.admin && PERSONAS.includes(b.persona) ? b.persona : yo.persona);
     // A contact logged in the app. Kept apart from the sheet copy (origen 'app'), so a sheet sync never removes it.
@@ -239,14 +246,33 @@ export default {
     }
     if ((p === '/api/admin/estrategia' || p === '/api/admin/promociones') && request.method === 'POST') {
       const b = await cuerpo(), T = p.endsWith('estrategia') ? 'estrategia' : 'promociones', fecha = (v) => (/^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '');
-      if (b.borrar) { await env.DB.prepare(`DELETE FROM ${T} WHERE id = ?`).bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
+      if (b.borrar) { if (T === 'promociones') await env.DB.prepare('DELETE FROM archivos WHERE id = (SELECT archivo_id FROM promociones WHERE id = ?)').bind(Number(b.borrar) || 0).run();
+        await env.DB.prepare(`DELETE FROM ${T} WHERE id = ?`).bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
       if (b.visible_id) { await env.DB.prepare(`UPDATE ${T} SET visible = ? WHERE id = ?`).bind(b.visible ? 1 : 0, Number(b.visible_id) || 0).run(); return json({ ok: true }); }
+      // An attached original: base64 from the form, stored as a blob. D1 holds up to 2 MB per value.
+      const guardaArchivo = async (f) => {
+        if (!f || !f.b64) return null;
+        if (!['application/pdf', 'image/png', 'image/jpeg'].includes(f.mime)) throw new Error('El documento debe ser PDF, PNG o JPG');
+        const bin = Uint8Array.from(atob(f.b64), (ch) => ch.charCodeAt(0));
+        if (bin.length > 1500000) throw new Error('El documento pesa más de 1.5 MB; redúcelo y vuelve a subirlo');
+        const r = await env.DB.prepare('INSERT INTO archivos (nombre, mime, datos, bytes, creado, por) VALUES (?,?,?,?,?,?)').bind(txt(f.nombre, 160) || 'documento', f.mime, bin, bin.length, HOY, yo.nombre || yo.email).run();
+        return { id: r.meta.last_row_id, nombre: txt(f.nombre, 160) || 'documento' };
+      };
+      if (T === 'promociones' && b.archivo_para) {
+        let a; try { a = await guardaArchivo(b.archivo); } catch (e) { return json({ error: e.message }, 400); }
+        if (!a) return json({ error: 'Elige el documento' }, 400);
+        const antes = await env.DB.prepare('SELECT archivo_id FROM promociones WHERE id = ?').bind(Number(b.archivo_para) || 0).first();
+        await env.DB.prepare('UPDATE promociones SET archivo_id = ?, archivo_nombre = ? WHERE id = ?').bind(a.id, a.nombre, Number(b.archivo_para) || 0).run();
+        if (antes && antes.archivo_id) await env.DB.prepare('DELETE FROM archivos WHERE id = ?').bind(antes.archivo_id).run();
+        return json({ ok: true });
+      }
       if (T === 'estrategia') {
         if (!txt(b.titulo) || (b.url && !/^https:\/\//.test(b.url))) return json({ error: 'Pon un título; la liga, si hay, debe empezar con https://' }, 400);
         await env.DB.prepare('INSERT INTO estrategia (tipo, titulo, url, nota, anio, visible, creado, por) VALUES (?,?,?,?,?,?,?,?)').bind(b.tipo === 'meta' ? 'meta' : 'documento', txt(b.titulo, 200), txt(b.url, 600), txt(b.nota, 2000), Number(b.anio) || Number(HOY.slice(0, 4)), b.visible === 'si' ? 1 : 0, HOY, yo.nombre || yo.email).run();
       } else {
         if (!txt(b.nombre)) return json({ error: 'Falta el nombre de la promoción' }, 400);
-        await env.DB.prepare('INSERT INTO promociones (nombre, detalle, aplica, inicio, fin, autorizo, autorizada, visible, creado, por) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(txt(b.nombre, 200), txt(b.detalle, 2000), txt(b.aplica, 200), fecha(b.inicio), fecha(b.fin), txt(b.autorizo, 80), fecha(b.autorizada), b.visible === 'no' ? 0 : 1, HOY, yo.nombre || yo.email).run();
+        let a; try { a = await guardaArchivo(b.archivo); } catch (e) { return json({ error: e.message }, 400); }
+        await env.DB.prepare('INSERT INTO promociones (nombre, resumen, detalle, aplica, inicio, fin, autorizo, autorizada, visible, creado, por, archivo_id, archivo_nombre) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(txt(b.nombre, 200), txt(b.resumen, 400), txt(b.detalle, 5000), txt(b.aplica, 200), fecha(b.inicio), fecha(b.fin), txt(b.autorizo, 80), fecha(b.autorizada), b.visible === 'no' ? 0 : 1, HOY, yo.nombre || yo.email, a ? a.id : null, a ? a.nombre : '').run();
       }
       return json({ ok: true });
     }
