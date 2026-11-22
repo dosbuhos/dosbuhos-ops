@@ -8,6 +8,9 @@ const VERDICT_CLS: Record<string, string> = { rinde: 's-ok', vigilar: 's-warn', 
 const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 /** Campaign names come from the ad platforms with underscores; spaces let them wrap on a phone. */
 export const campaignName = (n: string) => n.replace(/_/g, ' ');
+/** Alerts name the connection by its internal id; say it the way the owner would. */
+const CONN: Record<string, string> = { opentable_availability: 'Disponibilidad de OpenTable', google_ads_script: 'Google Ads', hub_mirror: 'Gasto de Google y Meta', ga4: 'GA4 (reservaciones en línea)', parrot: 'Parrot', meta_ads: 'Meta' };
+const alertTitle = (t: string) => t.replace(/^([a-z0-9_]+):/, (m, id: string) => (CONN[id] ? `${CONN[id]}:` : m));
 const firstParagraph = (t: string) => t.replace(/\*\*/g, '').split(/\n\s*\n/)[0]!.trim();
 
 export function Today({ overview, session }: { overview: any; session: any }) {
@@ -50,7 +53,7 @@ export function Today({ overview, session }: { overview: any; session: any }) {
         <section className="section" aria-label="Necesita atención">
           <div className="list">{alerts.map((a: any) => (
             <a key={a.dedupe_key} href={a.link || '#ajustes/conexiones'} className={`notice ${a.severity === 'critical' ? 'bad' : ''}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-              <b>{a.title}</b><div className="small">{a.detail}</div>
+              <b>{alertTitle(a.title)}</b><div className="small">{a.detail}</div>
             </a>))}</div>
         </section>
       )}
@@ -87,6 +90,7 @@ export function Today({ overview, session }: { overview: any; session: any }) {
               <div className="brow-top">
                 <span className={`verdict ${VERDICT_CLS[c.verdict.key]}`}>{c.verdict.label}</span>
                 <b className="bname">{campaignName(c.name)}</b>
+                {c.status !== 'ENABLED' && c.status !== 'ACTIVE' && <span className="chip">pausada</span>}
                 <span className="chip">{c.provider === 'meta_ads' ? 'Meta' : 'Google'}</span>
               </div>
               <div className="bnums">
