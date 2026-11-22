@@ -1,6 +1,7 @@
 // "Reservaciones → Pagos": what was charged online by card (Stripe). Experiences paid ahead on OpenTable, what is
 // already charged for visits still to come, and the club and the web store month by month. Read-only. It is never
-// added to the point-of-sale sales: part of the prepaid visits is also rung up in Parrot on the day, as a transfer.
+// added to the point-of-sale sales: a prepaid visit is also rung up in Parrot, as a transfer, on the day or the next
+// morning.
 import { useApi } from '../api';
 import { Loading, ErrorBox } from '../components';
 import { money, int, count, dayLabel, fullDate, signedPct, when } from '../format';
@@ -53,6 +54,15 @@ export function Payments() {
   const vsPrev = change(e.netMinor, e.previous.netMinor), vsYear = e.lastYear ? change(e.netMinor, e.lastYear.netMinor) : null;
   const paidCount = (p.cards as any[]).reduce((a, x) => a + x.count, 0);
   const foreign = (p.cards as any[]).filter(x => x.country && x.country !== 'MX').reduce((a, x) => a + x.count, 0);
+  // The five largest countries by name and the rest folded into one line, so the list always adds up to the headline.
+  const cardRest = (p.cards as any[]).slice(5), restNamed = cardRest.filter(x => x.country).length;
+  const cardRows = (p.cards as any[]).slice(0, cardRest.length > 1 ? 5 : 6).map(x => ({ key: x.country || 'sin', label: country(x.country), count: x.count, netMinor: x.netMinor }));
+  if (cardRest.length > 1) {
+    cardRows.push({
+      key: 'resto', label: restNamed === 0 ? 'Sin dato' : `${restNamed === 1 ? 'Otro país' : `Otros ${restNamed} países`}${restNamed < cardRest.length ? ' y sin dato' : ''}`,
+      count: cardRest.reduce((a, x) => a + x.count, 0), netMinor: cardRest.reduce((a, x) => a + x.netMinor, 0),
+    });
+  }
   const shown = ORDER.filter(s => (p.months as any[]).some(m => m.sources[s] > 0));
   const months = [...(p.months as any[])].reverse();
   const others = (p.sources as any[]).filter(s => s.source !== 'opentable' && s.source !== 'rezdy' && (s.current.count > 0 || s.previous.count > 0));
@@ -102,7 +112,7 @@ export function Payments() {
           </section>
           <section className="card stack" aria-labelledby="pay-card">
             <h3 id="pay-card">De dónde es la tarjeta</h3>
-            <Rows total={e.netMinor} rows={(p.cards as any[]).slice(0, 6).map(x => ({ key: x.country || 'sin', label: country(x.country), count: x.count, netMinor: x.netMinor }))} />
+            <Rows total={e.netMinor} rows={cardRows} />
             {paidCount >= 5 && <p className="small">{int(foreign)} de {count(paidCount, 'pago', 'pagos')} ({Math.round((foreign / paidCount) * 100)}%) se hicieron con una tarjeta de fuera de México.</p>}
             <p className="tiny muted">País del banco que emitió la tarjeta. No dice quién es la persona, solo de dónde viene.</p>
           </section>
@@ -138,7 +148,7 @@ export function Payments() {
       </section>
 
       <p className="tiny muted section">
-        Esto es dinero cobrado en línea, no ventas del punto de venta. No se suma a las ventas de Parrot: una parte de las experiencias pagadas por adelantado también se registra en Parrot el día de la visita, como transferencia, y se contaría dos veces. Tampoco dice qué anuncio trajo cada pago.
+        Esto es dinero cobrado en línea, no ventas del punto de venta. No se suma a las ventas de Parrot: una experiencia pagada por adelantado también se registra en Parrot como transferencia, el día de la visita o al siguiente, y se contaría dos veces. Tampoco dice qué anuncio trajo cada pago.
         {p.lastChargeAt ? ` Último pago registrado: ${when(p.lastChargeAt).replace(/\.$/, '')}.` : ''} Aquí no llegan nombres, correos ni tarjetas.
       </p>
     </>

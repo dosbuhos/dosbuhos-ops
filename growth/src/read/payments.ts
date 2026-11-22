@@ -1,7 +1,8 @@
 // What was charged online by card (Stripe), in the owner's words: experiences paid ahead on OpenTable, what is already
 // paid for visits still to come, the club and the web store, and the old Rezdy tours for last year's comparison.
 // "Net" is captured minus refunded, IVA included, pesos only. Nothing here is attributed to a campaign, and none of it
-// is added to the point-of-sale totals: part of the prepaid visits is also rung up in Parrot on the day, as a transfer.
+// is added to the point-of-sale totals: a prepaid visit is also rung up in Parrot, as a transfer, on the day or the
+// next morning.
 import { addDays, localDate, weekStart, type LocalDate } from '../domain/time.ts';
 import { EXPERIENCES } from '../connectors/opentable-availability.ts';
 import { PAYMENT_SOURCES, type PaymentSource } from '../connectors/stripe-payments.ts';

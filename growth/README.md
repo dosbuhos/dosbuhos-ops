@@ -105,8 +105,9 @@ is a charge in that same Stripe account, so this is also the source for prepaid 
   28 complete days against the 28 before and the same weeks a year earlier (those were Rezdy), what is already
   charged for visits from today on, by experience, by where the guest booked, by card country, and thirteen months
   by source. Net of refunds, IVA included, pesos only. `GET /api/today` carries one line of it (`prepaid`).
-- It is never added to the point-of-sale sales: part of the prepaid visits is also rung up in Parrot on the day, as
-  a transfer, and would count twice. Nothing here is attributed to a campaign.
+- It is never added to the point-of-sale sales: a prepaid visit is also rung up in Parrot as a transfer (on the
+  day or the next morning; checked against three months of checks), and would count twice. Nothing here is
+  attributed to a campaign.
 - Experience names come from `EXPERIENCES` in `src/connectors/opentable-availability.ts`.
 
 ## OpenTable reservations (through Klaviyo)
