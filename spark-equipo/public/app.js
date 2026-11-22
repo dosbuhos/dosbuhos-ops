@@ -611,6 +611,7 @@ const VISTAS = {
             { t: 'Distribuidores', v: (z) => z.distribuidores || 'Sin distribuidor', largo: true }]))] : null),
       !cur && (D.eric || []).length ? [h('h2', {}, 'Fuera de México'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, D.eric.map((e) => h('li', {},
         h('div', { class: 'l1' }, h('span', {}, `${e.cliente} · ${e.lugar}`), h('span', {}, peso(e.actual))),
+        e.usd ? h('div', { class: 'l2' }, `US$${Math.round(e.usd).toLocaleString('en-US')} en pedidos de exportación este año, convertidos a pesos. Zoho los guarda en dólares.`) : null,
         h('div', { class: 'l2' }, `Cuenta de la casa: sus ventas cuentan para Tito, no para un vendedor. ${peso(e.pasado_mp)} a la misma fecha del año pasado · ${e.pedidos_12m} pedidos en 12 meses · último ${dia(e.ultima)}.`)))))] : null,
       h('h2', {}, 'Prospectos'),
       h('p', { class: 'note' }, `${base.length} en la lista: ${nA('En proceso')} en proceso, ${nA('Sin contactar') + nA('Por contactar')} sin contactar, ${nA('Rechazado')} rechazados. Incluye la lista de distribuidores de Carlos (su archivo del 21 de noviembre) y lo registrado en Spark. Toca uno para registrar un contacto.`),

@@ -29,7 +29,9 @@
     // Google Sheet "CRM Ventas Dos Búhos" (the reps' activity tabs).
     "CRM_SHEET_ID": "1dDoE0tRzGAEjnFv4ng2E4oLOk6a2h_ySepwUNrb7yd8",
     // Always admins here, besides Hub admins (comma separated).
-    "ADMIN_EMAILS": "cabosari@dosbuhos.com"
+    "ADMIN_EMAILS": "cabosari@dosbuhos.com",
+    // Pesos per US dollar for export orders (La Competencia Imports), which Zoho holds in dollars. Update when it moves.
+    "USD_MXN": "17.5"
   }
   // Secrets (Worker → Settings → Variables and Secrets):
   //   (HUB_SECRET is not pasted here: it comes from HUB_SESSION_SECRET in the Secrets Store.)

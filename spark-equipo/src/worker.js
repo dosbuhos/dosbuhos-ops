@@ -38,6 +38,11 @@ async function modelo(env, conActividad) {
   // Time the reps corrected on sheet rows (kept apart because the sheet copy is replaced on every sync).
   const tiempos = new Map((await all('SELECT * FROM tiempos')).map((t) => [`${t.persona}|${t.fecha}|${t.clave}|${t.actividad}`, t.minutos]));
   for (const r of activity) if (!r.minutos) { const t = tiempos.get(`${r.persona}|${r.fecha}|${norm(r.cuenta)}|${r.actividad || ''}`); if (t) r.minutos = t; }
+  // Export orders are keyed in Zoho in US dollars with 0% tax, but the Zoho record says MXN at rate 1 (their terms read
+  // "Precios expresados en dólares americanos"). Turn them into pesos here. Every screen divides totals by 1.4674 to drop
+  // IEPS and IVA, so the peso amount is grossed up by the same factor to come out right after that division.
+  const usd = Number(env.USD_MXN) || 17.5;
+  for (const o of orders) if (deEric(o.cliente)) { o.usd = o.total; o.total = o.total * usd * 1.4674; if (o.saldo) o.saldo = o.saldo * usd * 1.4674; }
   // Sales credited to someone other than the salesperson on the Zoho order: a single order, or every order of an account.
   const asig = await all('SELECT * FROM asignaciones'), porOrden = new Map(asig.filter((a) => a.tipo === 'orden').map((a) => [a.clave, a.vendedor])), porCuenta = new Map(asig.filter((a) => a.tipo === 'cuenta').map((a) => [norm(a.clave), a.vendedor]));
   for (const o of orders) { const v = porOrden.get(o.numero) || porCuenta.get(norm(o.cliente)); if (v) { o.vendedor_zoho = o.vendedor; o.vendedor = v; } }

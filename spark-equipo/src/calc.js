@@ -148,8 +148,10 @@ export function build({ activity, orders, invoices, alias, zonasCfg, prospectos,
   // Eric's own accounts, from sales orders: this year, last year to the same date, and the last order.
   const y0 = hoy.slice(0, 4), y1 = String(Number(y0) - 1), md = hoy.slice(5);
   const eric = DE_ERIC.map((e) => {
-    const o = orders.filter((x) => x.estado !== 'void' && x.total >= 1 && esFecha(x.fecha) && e.patron.test(x.cliente || ''));
-    return { cliente: e.nombre, lugar: e.lugar, actual: r0(sum(o.filter((x) => x.fecha.slice(0, 4) === y0), (x) => x.total)), pasado_mp: r0(sum(o.filter((x) => x.fecha.slice(0, 4) === y1 && x.fecha.slice(5) <= md), (x) => x.total)),
+    const o = orders.filter((x) => x.estado !== 'void' && (x.usd != null ? x.usd : x.total) >= 1 && esFecha(x.fecha) && e.patron.test(x.cliente || ''));
+    // Export orders arrive converted to pesos and grossed up by 1.4674 (see worker.js); undo the gross-up, they carry no tax.
+    const mx = (x) => (x.usd != null ? x.total / 1.4674 : x.total), deAno = o.filter((x) => x.fecha.slice(0, 4) === y0);
+    return { cliente: e.nombre, lugar: e.lugar, actual: r0(sum(deAno, mx)), usd: r0(sum(deAno, (x) => x.usd || 0)), pasado_mp: r0(sum(o.filter((x) => x.fecha.slice(0, 4) === y1 && x.fecha.slice(5) <= md), mx)),
       pedidos_12m: o.filter((x) => diff(x.fecha, hoy) <= 365).length, ultima: o.reduce((m, x) => (x.fecha > m ? x.fecha : m), '') };
   });
   const pedidos = metricasPedidos(ordenes, hoy), pedidoDe = new Map(pedidos.clientes.map((c) => [c.cliente, c]));
