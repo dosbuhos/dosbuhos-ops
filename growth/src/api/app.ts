@@ -13,6 +13,7 @@ import { sha256Hex, safeEqual } from '../connectors/crypto.ts';
 import { toCsv } from '../connectors/csv.ts';
 import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
+import { loadToday } from '../read/today.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { readSecret } from '../ai/key.ts';
@@ -151,6 +152,26 @@ app.get('/api/campaigns', async c => {
   const view = await loadCampaigns(c.env.DB, Date.now(), c.env.WINERY_TZ, a?.currency ?? 'MXN');
   const st = a ? await (await readyCoordinator(c.env, a.id)).state().catch(() => null) : null;
   return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [] });
+});
+
+// The owner's first screen: month pace against the ceiling, yesterday, and a verdict per campaign. Read-only.
+app.get('/api/today', async c => {
+  await assertDataKind(c.env);
+  const a = await account(c);
+  const st = a ? await a.stub.state().catch(() => null) : null;
+  const view = await loadToday(c.env.DB, Date.now(), c.env.WINERY_TZ, a?.currency ?? 'MXN', st?.policy ?? null);
+  // Decisions waiting for the owner, and what this morning's review said (it drops off the activity list by the afternoon).
+  type Act = { id: string; state: string; created_at: number; intent?: { resourceLabel?: string; proposal?: { hypothesis?: string } } };
+  const acts = (a ? await a.stub.actions(60).catch(() => []) : []) as unknown as Act[];
+  const pending = acts.filter(x => x.state === 'APPROVAL_REQUIRED').map(x => ({ id: x.id, label: String(x.intent?.resourceLabel ?? ''), hypothesis: String(x.intent?.proposal?.hypothesis ?? ''), createdAt: x.created_at }));
+  const job = await c.env.DB.prepare("SELECT run_key, status, detail, started_at FROM job_runs WHERE job = 'daily_review' ORDER BY started_at DESC LIMIT 1").first<{ run_key: string; status: string; detail: string | null; started_at: number }>().catch(() => null);
+  let review: { date: string; status: string; text: string; submitted: number } | null = null;
+  if (job) {
+    let d: { review?: unknown; submitted?: unknown } = {};
+    try { d = JSON.parse(job.detail ?? '{}'); } catch { /* older rows hold plain text */ }
+    review = { date: job.run_key.split(':')[1] ?? '', status: job.status, text: typeof d.review === 'string' ? d.review : '', submitted: Number(d.submitted ?? 0) || 0 };
+  }
+  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, review });
 });
 
 app.get('/api/capacity', async c => {

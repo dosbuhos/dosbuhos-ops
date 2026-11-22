@@ -10,7 +10,7 @@ Updated 2026-11-14 (evening). "Built" means code exists and tests pass; section 
 - [x] Account coordinator (Durable Object): ledger and outbox, reservations, idempotency, unknown-outcome reconciliation, conditional compensation, protective pause, restore lock
 - [x] Scheduler (one cron, logical run keys), LLM-free watchdog, daily and weekly review Workflows, template reports
 - [x] Claude adapter: bounded tools, `submit_proposal` only, number-checked narrative (not yet run against the live API: no key in this environment)
-- [x] Dashboard: 8 views, Android layout checked at Pixel 7 size, dark and light themes
+- [x] Dashboard: six places since 2026-11-22 (Hoy, Campañas, Sugerencias, Reservaciones, Reportes, Ajustes), checked at 390 px and 1280 px, dark and light themes
 - [x] Google Ads Script feed (script + endpoint), OpenTable CSV import, manual capacity
 - [ ] Google Ads API adapter (contract only; blocked on access)
 - [ ] Google Data Manager offline conversions (Phase 2)

@@ -13,8 +13,9 @@ function opText(o: any): string {
   }
 }
 
-export function Activity({ isAdmin }: { isAdmin: boolean }) {
+export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any }) {
   const { data, error, reload } = useApi('activity', 90_000);
+  const today = useApi('today', 300_000).data;
   const [msg, setMsg] = useState<string | null>(null);
   const [focus] = useState(() => { try { const f = sessionStorage.getItem('growth-focus-action'); sessionStorage.removeItem('growth-focus-action'); return f; } catch { return null; } });
   useEffect(() => { if (focus && data) document.getElementById(`a-${focus}`)?.scrollIntoView({ block: 'center' }); }, [focus, data]);
@@ -29,10 +30,10 @@ export function Activity({ isAdmin }: { isAdmin: boolean }) {
   return (
     <>
       <section className="section">
-        <header><h2>Actividad del agente</h2><span className="small muted">Propuestas, decisiones de la política, cambios reales y verificación con el proveedor</span></header>
-        <p className="small muted">El modelo solo propone. El código de la app revisa cada propuesta contra tu política y solo el coordinador puede cambiar la cuenta de anuncios. “Verificada” significa que se volvió a leer el proveedor después del cambio.</p>
+        <header><h1>Sugerencias</h1><span className="small muted">Lo que se propone, lo que decidiste y lo que pasó después</span></header>
+        <ReviewCard review={today?.review} st={session?.coordinator} isAdmin={isAdmin} onAsk={() => void act('control/run-review', {}, 'Revisión iniciada: las sugerencias aparecen aquí en 1 a 3 minutos')} />
         <div className="list">
-          {(data.actions as any[]).length === 0 && <div className="item muted">Todavía no hay propuestas.</div>}
+          {(data.actions as any[]).length === 0 && <div className="item muted">Todavía no hay sugerencias. Cada una llega con su razón, lo que se espera que pase y cómo se va a medir, y espera tu aprobación.</div>}
           {(data.actions as any[]).map(a => {
             const intent = a.intent, dec = a.decision;
             const ledger = ledgerFor(a.id);
@@ -71,8 +72,24 @@ export function Activity({ isAdmin }: { isAdmin: boolean }) {
       <section className="section"><header><h3>Ejecuciones programadas</h3></header>
         <div className="list">{(data.jobs as any[]).slice(0, 12).map(j => <div key={j.run_key} className="item small"><div className="top"><span className="mono">{j.run_key}</span><span className={`state ${j.status === 'succeeded' ? 's-ok' : j.status === 'failed' ? 's-bad' : 's-mute'}`}>{jobStatusLabel(j.status)}</span></div><div className="muted tiny">{j.detail?.slice(0, 240)}</div></div>)}</div>
       </section>
+      <p className="tiny muted section">La IA solo propone. La app revisa cada propuesta contra tu política y solo el coordinador puede cambiar la cuenta de anuncios. “Verificada” significa que se volvió a leer la cuenta después del cambio.</p>
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </>
+  );
+}
+
+/** What this morning's review said, and a way to ask for another one without waiting until tomorrow. */
+function ReviewCard({ review, st, isAdmin, onAsk }: { review: any; st: any; isAdmin: boolean; onAsk: () => void }) {
+  const canAsk = isAdmin && st && ['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) && !st.aiStopped && !st.emergencyLock;
+  const text = String(review?.text ?? '').replace(/\*\*/g, '');
+  return (
+    <div className="card stack" style={{ marginBottom: 10 }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <b>{review ? `Revisión del ${review.date}` : 'Revisión diaria'}</b>
+        <button className="btn" disabled={!canAsk} onClick={onAsk} title={canAsk ? '' : 'Disponible para administradores, con la IA permitida y sin bloqueo'}>Pedir sugerencias ahora</button>
+      </div>
+      {text ? <pre className="narr">{text}</pre> : <div className="small muted">La revisión corre cada mañana a las 8:00. Máximo 3 al día.</div>}
+    </div>
   );
 }
 

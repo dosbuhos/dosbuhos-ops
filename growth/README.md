@@ -48,6 +48,29 @@ npm run check
 
 Start with `docs/readiness.md`: what is built, what is connected, and the owner questions.
 
+## Screens: six places (since 2026-11-22)
+The same on a desktop (tabs under the top strip) and on a phone (bar at the bottom). Addresses from before (`#overview`, `#activity`, `#connections`…) still resolve.
+
+| Place | What it answers | Screens |
+|---|---|---|
+| **Hoy** `#hoy` | What needs a decision, where the month lands, which campaign works | one |
+| **Campañas** `#campanas` | Spend, reservations, cost and return per campaign; brand vs other searches | one |
+| **Sugerencias** `#sugerencias` | What was proposed, what was decided, what happened after (was "Actividad del agente") | one |
+| **Reservaciones** `#reservaciones` | Where online reservations come from; the next days | De dónde vienen · Próximos días |
+| **Reportes** `#reportes` | Trends, the written reports, experiments, AI assistant visibility | Tendencias · Reportes · Experimentos |
+| **Ajustes** (the gear) `#ajustes` | Emergency controls, policy, estimates, connections | Controles · Conexiones |
+
+- `GET /api/today` (read-only): month to date by platform, the projection at the last seven complete days, the policy ceiling,
+  yesterday (spend, online reservations, guests, POS sales), pending approvals, this morning's review text, and one verdict per
+  campaign. Code: `src/read/today.ts`, tests in `test/today.test.ts`.
+- **Verdict rule** (`verdictFor`): return = contribution of the campaign's online reservations ÷ its spend on tracked days.
+  *Rinde*: at or above the policy floor (1.5 if unset) with at least 5 reservations. *Vigilar*: covers its cost but is under the
+  floor, or has fewer than 5 reservations, or has spent less than twice one reservation's contribution with none yet.
+  *Pierde dinero*: under 1×, or twice a reservation's contribution spent with none. *Sin datos*: reservations cannot be seen.
+- Roadmap (design and functionality): project doc `claude/growth-terminal-roadmap.md`.
+- To go back to the eight-tab layout: revert the commit titled "growth: six places…" (the one before it is `adaf297`), or use
+  Cloudflare → Workers → growth → Deployments → Rollback. No migration and no change to how ad changes are applied.
+
 ## Estimates (owner-editable, Controles)
 - `GET /api/estimates`: value per reservation (restaurant, tours), variable costs, contribution per reservation, history.
 - `POST /api/estimates` (admin): new value per reservation. `POST /api/costs` (admin): new cost (`restaurant_cost_pct`,

@@ -137,3 +137,69 @@ table.data td.n, table.data th.n { text-align: right; font-family: var(--f-mono)
 @keyframes sk { to { background-position: -200% 0; } }
 .toast { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 560px; margin: 0 auto; z-index: 50; background: var(--surface-2); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; box-shadow: 0 10px 30px -12px rgba(0,0,0,.7); }
 pre.narr { white-space: pre-wrap; font-family: var(--f-body); font-size: 14.5px; margin: 0; }
+
+/* ================= six places (2026-11-22) ================= */
+h1 { font-size: 26px; }
+a.brand { color: var(--ink); text-decoration: none; }
+.strip-in { flex-wrap: nowrap; }
+.fresh { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.iconbtn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink); flex: none; }
+.iconbtn svg, nav.places svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.iconbtn.gear[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
+a.brand { white-space: nowrap; }
+/* Phone: brand and the two buttons on the first line; status pills drop to a second line only when they do not fit. */
+@media (max-width: 520px) {
+  .brand small, .fresh { display: none; }
+  .strip-in { flex-wrap: wrap; row-gap: 6px; }
+  .strip-in .state, .strip-in .badge { order: 3; }
+}
+
+/* Places: a row of tabs on a desktop, a bar at the bottom of a phone (thumb reach), the same five either way. */
+nav.places { max-width: 1180px; margin: 0 auto; padding: 10px 16px 0; display: flex; gap: 4px; }
+nav.places a { min-height: var(--tap); display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 9px; color: var(--muted); text-decoration: none; font-size: 15px; border: 1px solid transparent; position: relative; }
+nav.places a[aria-current="page"] { color: var(--ink); background: var(--surface); border-color: var(--rule); font-weight: 600; }
+nav.places a[aria-current="page"] svg { stroke: var(--accent); }
+nav.places .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex: none; }
+@media (max-width: 759px) {
+  nav.places { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: none; margin: 0; padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--rule); }
+  nav.places a { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; padding: 6px 0 4px; font-size: 10px; letter-spacing: -.01em; border: 0; border-radius: 8px; line-height: 1.1; }
+  nav.places a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  nav.places a[aria-current="page"] { background: none; color: var(--accent); }
+  nav.places .dot { position: absolute; top: 4px; left: calc(50% + 8px); }
+  .wrap { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+.subhead { display: grid; gap: 8px; }
+.subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
+.subtabs::-webkit-scrollbar { display: none; }
+.subtabs a { min-height: 40px; display: inline-flex; align-items: center; padding: 6px 12px; color: var(--muted); text-decoration: none; font-size: 14.5px; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.subtabs a[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.foot { margin-top: 26px; }
+
+/* Hoy */
+.card.quiet { display: grid; gap: 4px; }
+a.decision { display: grid; gap: 6px; justify-items: start; background: var(--surface); border: 1px solid var(--warn); border-radius: var(--r); padding: 14px; text-decoration: none; color: var(--ink); }
+a.decision .go { color: var(--accent); font-weight: 600; font-size: 14px; }
+.bignum { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 500; line-height: 1.1; }
+.midnum { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 500; line-height: 1.2; }
+.warn { color: var(--warn); }
+.pace { display: grid; gap: 12px; }
+.pace-top { display: flex; flex-wrap: wrap; gap: 10px 36px; align-items: flex-end; justify-content: space-between; }
+.pace-proj { text-align: right; } @media (max-width: 520px) { .pace-proj { text-align: left; } }
+.pacebar { position: relative; height: 12px; border-radius: 6px; background: var(--grid); }
+.pacebar > span { display: block; height: 100%; border-radius: 6px; background: var(--s2); }
+.pacebar > i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 1px; }
+.board { display: grid; gap: 8px; }
+a.brow { display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; text-decoration: none; color: var(--ink); min-width: 0; }
+a.brow:hover { border-color: var(--field); }
+.brow-top { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
+.bname { font-weight: 600; font-size: 15.5px; overflow-wrap: anywhere; flex: 1 1 200px; min-width: 0; }
+.verdict { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; border-radius: 999px; padding: 3px 11px; white-space: nowrap; }
+.bnums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 14px; }
+@media (max-width: 560px) { .bnums { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.bnums span, .stat span { display: block; color: var(--muted); font-size: 12px; }
+.bnums b { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-weight: 500; font-size: 17px; }
+.grid.four { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+.stat { display: grid; gap: 2px; }
+.stat b { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-weight: 500; font-size: 24px; line-height: 1.15; }
+.stat i { font-style: normal; font-size: 11.5px; color: var(--muted); }

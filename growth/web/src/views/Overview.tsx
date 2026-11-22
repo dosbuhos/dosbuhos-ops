@@ -4,7 +4,7 @@ import { MODE_INFO, PRODUCT_LABEL, dayLabel, ago, stateLabel, jobStatusLabel } f
 
 const VIEW_KEYS: [string, string][] = [['contribution_after_ads', 'Contribución después de anuncios'], ['online_reservations', 'Reservaciones en línea'], ['online_reservations_google_ads', 'Reservaciones de Google Ads'], ['confirmed_bookings', 'Reservaciones'], ['completed_guests', 'Comensales atendidos'], ['revenue', 'Ingresos'], ['ad_spend', 'Gasto en anuncios (Google)'], ['meta_spend', 'Gasto en anuncios (Meta)'], ['platform_conversions', 'Conversiones de Google'], ['contribution_roas', 'ROAS de contribución']];
 
-export function Overview({ o, error, session }: { o: any; error: string | null; session: any }) {
+export function Overview({ o, error, session, needs = true }: { o: any; error: string | null; session: any; needs?: boolean }) {
   const [key, setKey] = useState<string | null>(null);
   const [trend, setTrend] = useState<0 | 7 | 28>(7);
   const [table, setTable] = useState(false);
@@ -20,13 +20,13 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
   return (
     <>
       {error && <ErrorBox error={error} stale />}
-      <section className="section" aria-labelledby="needs">
+      {needs && <section className="section" aria-labelledby="needs">
         <header><h2 id="needs">¿Qué necesita de mí?</h2><span className="small muted">{alerts.length ? `${alerts.length} pendiente(s)` : 'Nada por ahora'}</span></header>
         {alerts.length ? <div className="list">{alerts.map((a: any) => (
-          <a key={a.dedupe_key} href={a.link || '#overview'} className={`notice ${a.severity === 'critical' ? 'bad' : ''}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+          <a key={a.dedupe_key} href={a.link || '#hoy'} className={`notice ${a.severity === 'critical' ? 'bad' : ''}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
             <b>{a.severity === 'critical' ? '⛔ ' : '⚠ '}{a.title}</b><div className="small">{a.detail}</div>
           </a>))}</div> : <div className="small muted">Sin alertas. Cada 15 minutos, y sin usar la IA, el vigilante revisa que el gasto esté al día, que no falten revisiones, los resultados desconocidos y la capacidad.</div>}
-      </section>
+      </section>}
 
       <section className="section" aria-labelledby="tick">
         <header><h2 id="tick">Últimos 28 días</h2><span className="small muted">{o.window.from} – {o.window.to} vs. {o.window.prevFrom} – {o.window.prevTo}</span></header>
@@ -95,7 +95,7 @@ export function Overview({ o, error, session }: { o: any; error: string | null; 
 
 const WD = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 /** Guests by weekday from Parrot: the latest of each weekday vs. the average of the 4 before it. */
-function Weekdays({ w }: { w: { weekday: number; last: { date: string; guests: number } | null; avg: number | null; weeks: number }[] }) {
+export function Weekdays({ w }: { w: { weekday: number; last: { date: string; guests: number } | null; avg: number | null; weeks: number }[] }) {
   return (
     <section className="section card stack">
       <h3>Comensales por día (restaurante, Parrot)</h3>
@@ -107,7 +107,7 @@ function Weekdays({ w }: { w: { weekday: number; last: { date: string; guests: n
   );
 }
 
-function Funnel({ f }: { f: { window: string; gaps: string[]; steps: { event: string; label: string; count: number }[] } }) {
+export function Funnel({ f }: { f: { window: string; gaps: string[]; steps: { event: string; label: string; count: number }[] } }) {
   const top = Math.max(1, ...f.steps.map(s => s.count));
   return (
     <section className="section card" aria-labelledby="funnel">

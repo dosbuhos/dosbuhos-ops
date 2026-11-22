@@ -6,25 +6,11 @@ import { microsMoney, money, int, when, ago, PRODUCT_LABEL, basisLabel, campaign
 export function Campaigns() {
   const { data, error } = useApi('campaigns', 120_000);
   if (!data) return error ? <ErrorBox error={error} /> : <div className="section"><Loading /></div>;
-  const total = (data.sources as any[]).reduce((a, x) => a + x.reservations, 0);
-  const lost = (data.sources as any[]).filter(x => /Fuente perdida|Sin definir/.test(x.group)).reduce((a, x) => a + x.reservations, 0);
   const cur = data.currency;
   return (
     <>
       <section className="section">
-        <header><h2>Campañas</h2><span className="small muted">{data.window.from} – {data.window.to}{data.trackingSince && data.trackingSince > data.window.from ? ` · reservaciones desde el ${data.trackingSince}` : ''}</span></header>
-        {total > 0 && (
-          <div className="card stack">
-            <h3>De dónde vienen las reservaciones en línea</h3>
-            <div className="stack">{(data.sources as any[]).map(x => (
-              <div key={x.group} className="row" style={{ flexWrap: 'nowrap', gap: 10 }}>
-                <div className="small" style={{ flex: '0 1 50%', minWidth: 0 }}>{x.group}</div>
-                <div style={{ flex: 1, minWidth: 0 }}><div className="bar" style={{ width: '100%', height: 10 }}><span style={{ width: `${(x.reservations / total) * 100}%` }} /></div></div>
-                <b className="mono" style={{ minWidth: 30, textAlign: 'right' }}>{x.reservations}</b>
-              </div>))}</div>
-            <p className="tiny muted">{total} reservaciones en línea (widget de OpenTable, GA4). {lost ? `${lost} (${Math.round((lost / total) * 100)}%) perdieron su fuente original cuando la persona pasó de dosbuhos.com a OpenTable, así que los resultados de los anuncios probablemente se quedan cortos. ` : ''}No se incluyen las reservaciones por teléfono ni los clientes que llegan sin reservar.</p>
-          </div>
-        )}
+        <header><h1>Campañas</h1><span className="small muted">{data.window.from} – {data.window.to}{data.trackingSince && data.trackingSince > data.window.from ? ` · reservaciones desde el ${data.trackingSince}` : ''}</span></header>
       </section>
       <section className="section">
         <div className="notice small" role="note">{data.estimate
@@ -32,13 +18,12 @@ export function Campaigns() {
           : <>Sin valor por reservación aprobado; el ingreso estimado no se calcula. Defínelo en <a href="#controls">Controles</a>.</>}</div>
       </section>
       {data.searchTerms && <SearchTerms t={data.searchTerms} cur={cur} />}
-      <AiVisibility />
       <section className="section">
         <div className="list">{(data.campaigns as any[]).map(c => {
           const approved = data.approved.includes(c.ref);
           return (
             <article key={c.ref} className="item">
-              <div className="top"><b>{c.name}</b><span className="row"><span className="chip">{c.provider === 'meta_ads' ? 'Meta' : 'Google'}</span><span className={`state ${c.status === 'ENABLED' || c.status === 'ACTIVE' ? 's-ok' : 's-mute'}`}>{campaignStatusLabel(c.status)}</span></span></div>
+              <div className="top"><b>{c.name.replace(/_/g, ' ')}</b><span className="row"><span className="chip">{c.provider === 'meta_ads' ? 'Meta' : 'Google'}</span><span className={`state ${c.status === 'ENABLED' || c.status === 'ACTIVE' ? 's-ok' : 's-mute'}`}>{campaignStatusLabel(c.status)}</span></span></div>
               <div className="kv">
                 <div><span>Gasto, 28 días</span><b>{microsMoney(c.spendMicros, cur)}</b></div>
                 <div><span>Clics</span><b>{int(c.clicks)}</b></div>
@@ -61,6 +46,25 @@ export function Campaigns() {
         {data.unmatchedGoogleAds > 0 && <p className="tiny muted">{data.unmatchedGoogleAds} reservación(es) vinieron de campañas de Google Ads que no están en la lista actual (renombradas o eliminadas).</p>}
       </section>
     </>
+  );
+}
+
+/** Where the online reservations came from (GA4, OpenTable widget). Shown in Reservaciones. */
+export function Sources({ data }: { data: any }) {
+  const total = (data.sources as any[]).reduce((a, x) => a + x.reservations, 0);
+  const lost = (data.sources as any[]).filter(x => /Fuente perdida|Sin definir/.test(x.group)).reduce((a, x) => a + x.reservations, 0);
+  if (!total) return <div className="card small muted">Todavía no hay reservaciones en línea registradas en este periodo.</div>;
+  return (
+    <div className="card stack">
+      <h3>De dónde vienen las reservaciones en línea</h3>
+      <div className="stack">{(data.sources as any[]).map(x => (
+        <div key={x.group} className="row" style={{ flexWrap: 'nowrap', gap: 10 }}>
+          <div className="small" style={{ flex: '0 1 50%', minWidth: 0 }}>{x.group}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><div className="bar" style={{ width: '100%', height: 10 }}><span style={{ width: `${(x.reservations / total) * 100}%` }} /></div></div>
+          <b className="mono" style={{ minWidth: 30, textAlign: 'right' }}>{x.reservations}</b>
+        </div>))}</div>
+      <p className="tiny muted">{total} reservaciones en línea del {data.window.from} al {data.window.to} (widget de OpenTable, GA4). {lost ? `${lost} (${Math.round((lost / total) * 100)}%) perdieron su fuente original cuando la persona pasó de dosbuhos.com a OpenTable, así que los resultados de los anuncios probablemente se quedan cortos. ` : ''}No se incluyen las reservaciones por teléfono ni los clientes que llegan sin reservar.</p>
+    </div>
   );
 }
 
@@ -87,7 +91,7 @@ function SearchTerms({ t, cur }: { t: any; cur: string }) {
   );
 }
 
-function AiVisibility() {
+export function AiVisibility() {
   const { data } = useApi('ai-visibility', 600_000);
   if (!data) return null;
   const last = data.runs[0];
