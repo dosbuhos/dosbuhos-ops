@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, useApi } from '../api';
 import { Loading, ErrorBox, StateChip } from '../components';
-import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel } from '../format';
+import { MODE_INFO, microsMoney, money, PRODUCT_LABEL, when, stateLabel, jobStatusLabel, directionLabel, dayLabel } from '../format';
 
 function opText(o: any): string {
   switch (o.kind) {
@@ -69,9 +69,9 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
         </div>
       </section>
       {invalid.length > 0 && <section className="section"><header><h3>Propuestas que no pasaron la validación</h3></header><div className="list">{invalid.map(p => <div key={p.id} className="item small"><div className="mono tiny">{when(p.created_at)} · {p.model}</div>{JSON.parse(p.validation_errors_json).join('; ')}</div>)}</div></section>}
-      <section className="section"><header><h3>Ejecuciones programadas</h3></header>
+      <details className="why section"><summary>Registro técnico: ejecuciones programadas</summary>
         <div className="list">{(data.jobs as any[]).slice(0, 12).map(j => <div key={j.run_key} className="item small"><div className="top"><span className="mono">{j.run_key}</span><span className={`state ${j.status === 'succeeded' ? 's-ok' : j.status === 'failed' ? 's-bad' : 's-mute'}`}>{jobStatusLabel(j.status)}</span></div><div className="muted tiny">{j.detail?.slice(0, 240)}</div></div>)}</div>
-      </section>
+      </details>
       <p className="tiny muted section">La IA solo propone. La app revisa cada propuesta contra tu política y solo el coordinador puede cambiar la cuenta de anuncios. “Verificada” significa que se volvió a leer la cuenta después del cambio.</p>
       {msg && <div className="toast" role="status" onClick={() => setMsg(null)}>{msg}</div>}
     </>
@@ -81,14 +81,15 @@ export function Activity({ isAdmin, session }: { isAdmin: boolean; session?: any
 /** What this morning's review said, and a way to ask for another one without waiting until tomorrow. */
 function ReviewCard({ review, st, isAdmin, onAsk }: { review: any; st: any; isAdmin: boolean; onAsk: () => void }) {
   const canAsk = isAdmin && st && ['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) && !st.aiStopped && !st.emergencyLock;
-  const text = String(review?.text ?? '').replace(/\*\*/g, '');
+  const raw = String(review?.text ?? '').replace(/\*\*/g, '').trim();
+  const text = raw.length >= 295 && !/[.!?)]$/.test(raw) ? `${raw.replace(/\s+\S*$/, '')}…` : raw;   // the stored summary is capped; do not end mid-word
   return (
     <div className="card stack" style={{ marginBottom: 10 }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <b>{review ? `Revisión del ${review.date}` : 'Revisión diaria'}</b>
+        <b>{review ? `Revisión del ${dayLabel(review.date)}` : 'Revisión diaria'}</b>
         <button className="btn" disabled={!canAsk} onClick={onAsk} title={canAsk ? '' : 'Disponible para administradores, con la IA permitida y sin bloqueo'}>Pedir sugerencias ahora</button>
       </div>
-      {text ? <pre className="narr">{text}</pre> : <div className="small muted">La revisión corre cada mañana a las 8:00. Máximo 3 al día.</div>}
+      {text ? <><pre className="narr">{text}</pre><a className="small" href="#reportes/reportes">Ver el reporte completo del día →</a></> : <div className="small muted">La revisión corre cada mañana a las 8:00. Máximo 3 al día.</div>}
     </div>
   );
 }
