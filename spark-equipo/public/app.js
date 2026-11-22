@@ -1,6 +1,7 @@
 import { MAS_VISTAS } from './mas.js';
 import { PLAN_VISTAS, urgentePlan, urgenteEventos } from './plan.js';
 import { LUNES_VISTAS } from './lunes.js';
+import { regla48de } from './regla.js';
 
 // Spark Equipo — phone-first UI. Every figure comes computed from /api/data; this file only lays it out.
 const $ = (id) => document.getElementById(id);
@@ -199,23 +200,15 @@ export const datos = () => D;
 // Notes, nudges and Eric's questions live in Buzón.
 const sumar = (L, f) => L.reduce((t, x) => t + (f(x) || 0), 0);
 const abiertasDe = (p) => (D.preguntas || []).filter((q) => !q.respondida && q.para === p);
-// The 48-hour rule: a contact counts as on time when it was logged within two days of the day it happened. Applies to
-// contacts from the day the rule started; sheet rows are dated by the sync that first saw them.
+// The 48-hour rule: a contact counts as on time when it was logged within two working days of the day it happened. Applies to
+// contacts from the day the rule started; sheet rows are dated by the sync that first saw them. The arithmetic is in regla.js.
 const REGLA_DESDE = '2026-11-21';
 const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
-// Working days from one date to another: Saturdays and Sundays do not count, so a Friday contact logged on Monday is one
-// day old, not three. The 48 hours of the rule are two working days.
-const dHab = (a, b) => { let n = 0; for (let t = new Date(a + 'T12:00:00'), f = new Date(b + 'T12:00:00'); t < f;) { t.setDate(t.getDate() + 1); if (t.getDay() % 6) n++; } return n; };
 // Invoices that are a bookkeeping gap, not debt to chase: sales to "Público en general" and the export account, where the
 // books show no payment applied. The pattern over the client name comes from the database.
 let _conc = null;
 const porConciliar = (f) => { const p = (D.cobranza || {}).conciliar; if (!p) return false; if (!_conc || _conc.p !== p) { try { _conc = { p, re: new RegExp(p, 'i') }; } catch { _conc = { p, re: null }; } } return !!_conc.re && _conc.re.test(f.cliente || ''); };
-function regla48(p) {
-  const mes = D.hoy.slice(0, 7), L = D.contactos.filter((c) => c.persona === p && c.fecha >= REGLA_DESDE && c.fecha.slice(0, 7) === mes && c.registrado);
-  const tarde = L.filter((c) => dHab(c.fecha, c.registrado) > 2).length, ult = D.contactos.find((c) => c.persona === p), sin = ult ? dHab(ult.registrado && ult.registrado > ult.fecha ? ult.registrado : ult.fecha, D.hoy) : null;
-  const cumple = sin != null && sin <= 2 && tarde === 0;
-  return { n: L.length, tarde, sin, cumple };
-}
+function regla48(p) { return regla48de(D.contactos, p, D.hoy, REGLA_DESDE); }
 // The month's punctuality: contacts logged within 48 hours out of all the month's contacts since the rule started. It is the
 // one number that adjusts the month's commission: 90% or more pays in full, 70 to 89% pays 15% less, under 70% pays 30% less.
 function puntualidad(p) {
@@ -295,7 +288,7 @@ function marcador(p, compacto) {
     h('h3', {}, 'Contactos'), h('button', { class: 'mbtn', onclick: () => ir('semanas', p) },
       fila('Semana', w ? w.contactos : 0, w ? w.meta : 0, n, true), fila('Mes', sumar(wm, (r) => r.contactos), sumar(wm, (r) => r.meta), n), fila('Año', sumar(ws, (r) => r.contactos), sumar(ws, (r) => r.meta), n), ws.length && ws[0].semana.slice(5, 7) !== '01' ? h('span', { class: 'mn' }, `El año cuenta desde el ${dia(ws[0].semana)} (primer registro).`) : null),
     p !== 'Tito' ? ((g) => h('div', { class: 'r48 ' + (g.cumple ? 'ok' : g.sin != null && g.sin < 5 && !g.tarde ? 'warn' : 'bad') }, h('b', {}, 'Regla de 48 horas: ' + (g.cumple ? 'al corriente' : g.sin != null && g.sin < 5 && !g.tarde ? 'atrasado' : 'fuera')),
-      h('span', {}, g.sin == null ? 'Sin ningún registro.' : (g.sin === 0 ? 'Último registro: hoy' : `Último registro hace ${g.sin} ${g.sin === 1 ? 'día hábil' : 'días hábiles'}`) + (g.n ? ` · ${g.n - g.tarde} de ${g.n} a tiempo este mes` : '') + (g.tarde ? ` · ${g.tarde} fuera de plazo` : '') + '. Sábados y domingos no cuentan. El variable del mes se paga con el registro al corriente.')))(regla48(p)) : null,
+      h('span', {}, g.sin == null ? 'Sin ningún registro.' : (g.sin === 0 ? 'El último contacto registrado es de hoy' : `El último contacto registrado es de hace ${g.sin} ${g.sin === 1 ? 'día hábil' : 'días hábiles'}`) + (g.n ? ` · ${g.n - g.tarde} de ${g.n} a tiempo este mes` : '') + (g.tarde ? ` · ${g.tarde} fuera de plazo` : '') + '. Sábados y domingos no cuentan. El variable del mes se paga con el registro al corriente.')))(regla48(p)) : null,
     h('h3', {}, 'Urgente'), U.length ? h('ul', { class: 'foco' }, U.map((u) => h('li', { class: u.k === 'bad' ? 'cliente' : 'meta' }, h('button', { onclick: () => ir(u.vista, p) }, u.t), u.d ? h('span', {}, u.d) : null))) : h('p', { class: 'note' }, 'Nada urgente.'),
     nb ? h('p', { class: 'note', style: 'margin-top:10px' }, h('button', { class: 'linkb', onclick: () => ir('buzon', p) }, nb === 1 ? '1 nota en el Buzón' : `${nb} notas en el Buzón`)) : null);
   card.querySelectorAll('.mn').forEach((e) => { e.textContent = quien(e.textContent); });

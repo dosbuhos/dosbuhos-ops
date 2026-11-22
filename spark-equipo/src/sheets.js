@@ -59,7 +59,10 @@ export async function syncSheet(env) {
   if (!rows.length) throw new Error('La hoja no devolvió renglones; no se reemplazó nada');
   // The sheet is the source of truth for now: replace the copy in one batch.
   // The sheet has no timestamp, so the first sync that sees a row dates it: that is the "logged on" date for the 48-hour rule.
-  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'America/Mexico_City' }).format(new Date());
+  // The very first run (nothing seen yet) is different: every row already in the sheet is a backlog nobody logged today, so
+  // those rows get no date at all. Dating them would make three weeks of silence read as "logged today".
+  const yaHay = await env.DB.prepare('SELECT 1 AS x FROM vistos LIMIT 1').first();
+  const hoy = yaHay ? new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'America/Mexico_City' }).format(new Date()) : '';
   const clave = (x) => [x.persona, x.fecha, x.cuenta, (x.resultado || '').slice(0, 80)].join('|');
   const visto = env.DB.prepare('INSERT OR IGNORE INTO vistos (clave, visto) VALUES (?, ?)');
   const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}, registrado) VALUES (${Array(COLS.length + 1).fill('?').join(',')}, COALESCE((SELECT visto FROM vistos WHERE clave = ?), ''))`);
