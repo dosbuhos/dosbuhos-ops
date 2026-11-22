@@ -7,6 +7,12 @@ export const VENDEDORES = ['José Luis', 'Carlos'];
 // orders like a rep, but has no contact goal, no rating, and stays out of the team's totals.
 export const CASA = 'Tito';
 export const PERSONAS = [...GENTE, CASA];
+// Who can own a commitment in the 90-day plan: the reps, the commercial lead, Dirección and the accountants.
+export const PLAN_GENTE = ['José Luis', 'Carlos', 'Daniel', 'Ily', 'Dirección', 'Contabilidad'];
+// Events: any admin decides up to this total cost (money plus wine); above it, the owner. A sample bottle is valued at
+// about its distributor price to compare what an event costs with what it is expected to sell.
+export const EVENTO_TOPE = 10000;
+export const BOTELLA_MUESTRA = 200;
 export const META_DIA = 6; // logged client touches per working day
 // Rough time a logged contact takes, to turn a count into hours of work: a visit in person about an hour with the trip,
 // a call ten minutes, a message five. An estimate, shown as such.

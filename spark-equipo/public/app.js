@@ -1,4 +1,5 @@
 import { MAS_VISTAS } from './mas.js';
+import { PLAN_VISTAS, urgentePlan, urgenteEventos } from './plan.js';
 
 // Spark Equipo — phone-first UI. Every figure comes computed from /api/data; this file only lays it out.
 const $ = (id) => document.getElementById(id);
@@ -34,15 +35,15 @@ const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: nul
 
 // Every screen, grouped the way the sidebar shows them. [slug, sidebar label, page title, admin only, coming soon]
 const GRUPOS = [
-  ['Mi trabajo', [['hoy', 'Inicio', 'Inicio'], ['buzon', 'Buzón', 'Buzón'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero']]],
+  ['Mi trabajo', [['hoy', 'Inicio', 'Inicio'], ['buzon', 'Buzón', 'Buzón'], ['plan', 'Plan', 'Plan de 90 días: compromisos con fecha'], ['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero']]],
   ['Ventas', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['cobranza', 'Cobranza', 'Cobranza'], ['clientes', 'Clientes', 'Clientes: cómo va cada uno']]],
   ['Cuentas', [['directorio', 'Directorio', 'Directorio de clientes'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores'], ['zonas', 'Zonas y prospectos', 'Zonas y prospectos']]],
   ['Recursos', [['estrategia', 'Estrategia y promociones', 'Estrategia, metas y promociones'], ['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
   ['Dirección', [['efectividad', 'Efectividad', 'Efectividad', true], ['ajustes', 'Ajustes', 'Ajustes', true]]],
 ];
 const PANT = new Map(GRUPOS.flatMap(([, L]) => L.map((x) => [x[0], x])));
-const ABAJO = ['hoy', 'buzon', 'seguimiento', 'semanas', 'clientes'];           // first on the phone ribbon; the rest follow in menu order
-const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores'];   // screens the person filter does not apply to
+const ABAJO = ['hoy', 'buzon', 'plan', 'seguimiento', 'semanas', 'clientes'];           // first on the phone ribbon; the rest follow in menu order
+const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores', 'plan', 'eventos'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
   if (persona !== undefined) S.persona = persona;
@@ -201,6 +202,19 @@ function regla48(p) {
   const cumple = sin != null && sin <= 2 && tarde === 0;
   return { n: L.length, tarde, sin, cumple };
 }
+// The month's punctuality: contacts logged within 48 hours out of all the month's contacts since the rule started. It is the
+// one number that adjusts the month's commission: 90% or more pays in full, 70 to 89% pays 15% less, under 70% pays 30% less.
+function puntualidad(p) {
+  const g = regla48(p), pc = g.n ? Math.round((g.n - g.tarde) / g.n * 100) : null;
+  const pago = pc == null ? 'sin registros en el mes: se retiene y se paga con 30% menos' : pc >= 90 ? 'comisión completa' : pc >= 70 ? 'comisión con 15% menos' : 'comisión con 30% menos';
+  return { ...g, pc, ok: pc != null && pc >= 90, texto: (pc == null ? 'Sin contactos registrados este mes desde que aplica la regla' : `${g.n - g.tarde} de ${g.n} contactos a tiempo (${pc}%)`) + ' · así, ' + pago };
+}
+// Service moments this month: the contacts that make a client feel looked after, beyond taking the order.
+const SERVICIO = ['Capacitación', 'Cata / prueba de vino', 'Visita del cliente a la bodega', 'Detalle o Magnum'];
+function servicio(p) {
+  const mes = D.hoy.slice(0, 7), L = D.contactos.filter((c) => c.persona === p && c.fecha.slice(0, 7) === mes && SERVICIO.includes(c.actividad)), n = (a) => L.filter((c) => c.actividad === a).length;
+  return { n: L.length, texto: `Capacitaciones ${n('Capacitación')} · catas ${n('Cata / prueba de vino')} · visitas a la bodega ${n('Visita del cliente a la bodega')} · detalles o Magnums ${n('Detalle o Magnum')}` };
+}
 // Badge for how late the log is: fine up to 2 days, yellow at 3 and 4, red from 5 on (or with nothing logged at all).
 function regPill(p, w) {
   const g = regla48(p), v = w && w.veredicto;
@@ -212,6 +226,7 @@ function regPill(p, w) {
 function urgente(p) {
   const U = [], nq = abiertasDe(p).length;
   if (nq) U.push({ k: 'bad', t: nq === 1 ? '1 pregunta de Eric sin responder' : `${nq} preguntas de Eric sin responder`, vista: 'buzon' });
+  for (const u of [urgentePlan(p), urgenteEventos(p)]) if (u) U.push(u);   // commitments about to be due or overdue, and events never closed
   const reg = D.foco.find((f) => f.persona === p && f.tipo === 'registrar');
   if (reg) U.push({ k: 'warn', t: reg.titulo, d: reg.detalle, vista: 'semanas' });
   const venc = D.seguimiento.filter((r) => r.persona === p && r.estado === 'vencida' && r.dias_vencido > 14).sort((a, b) => b.dias_vencido - a.dias_vencido);
@@ -643,23 +658,25 @@ const VISTAS = {
     const F = (D.cobranza || {}).facturas || [], saldo = (L) => sumar(L, (f) => f.saldo);
     const cartera = (L) => { const t = saldo(L); return t ? Math.round(saldo(L.filter((f) => (f.dias || 0) <= 30)) / t * 100) : 100; };
     const fila = (k, peso_, res, pts, nota) => h('div', { class: 'kp' }, h('div', {}, h('b', {}, k), nota ? h('span', {}, nota) : null), h('em', {}, peso_ + '%'), h('div', { class: 'kr' }, res), h('div', { class: 'kpt' }, pts == null ? pill('Sin dato', 'mute') : h('b', { class: pts / peso_ >= .9 ? 'up' : pts / peso_ >= .6 ? '' : 'down' }, pts.toFixed(0))));
-    const tarjeta = (p, rol, filas, filtros) => { const med = filas.filter((f) => f[3] != null), pts = sumar(med, (f) => f[3]), pesoMed = sumar(med, (f) => f[1]);
+    const tarjeta = (p, rol, filas, filtros, serv) => { const med = filas.filter((f) => f[3] != null), pts = sumar(med, (f) => f[3]), pesoMed = sumar(med, (f) => f[1]);
       return h('section', { class: 'card' }, h('div', { class: 'name' }, p, pill(`${Math.round(pts)} de 100 · estimado`, pts >= 80 ? 'ok' : pts >= 60 ? 'warn' : 'bad')), h('p', { class: 'note' }, rol + (pesoMed < 100 ? ` · Spark mide ${pesoMed}% del tablero; lo demás cuenta cero hasta que haya dato.` : '')),
         h('div', { class: 'kp kph' }, h('div', {}, 'Indicador'), h('em', {}, 'Peso'), h('div', { class: 'kr' }, 'Resultado'), h('div', { class: 'kpt' }, 'Puntos')), filas.map((f) => fila(...f)),
-        filtros ? [h('h3', {}, 'Filtros para cobrar el variable'), h('ul', { class: 'foco' }, filtros.map(([ok, t, d]) => h('li', { class: ok ? 'bien' : 'cliente' }, h('b', {}, (ok ? 'Cumple · ' : 'No cumple · ') + t), d ? h('span', {}, d) : null)))] : null); };
+        filtros ? [h('h3', {}, 'Filtros para cobrar el variable'), h('ul', { class: 'foco' }, filtros.map(([ok, t, d]) => h('li', { class: ok ? 'bien' : 'cliente' }, h('b', {}, (ok ? 'Cumple · ' : 'No cumple · ') + t), d ? h('span', {}, d) : null)))] : null,
+        serv ? [h('h3', {}, serv[0]), h('p', { class: 'note' }, serv[1])] : null); };
     const cap = (x) => Math.max(0, Math.min(1, x));
+    const pun = (p) => { const u = puntualidad(p); return [u.ok, 'Puntualidad del mes', u.texto]; }, ser = (p) => { const v = servicio(p); return [`Servicio al cliente este mes: ${v.n} de 4`, v.texto + '. Cuenta lo registrado con esas actividades.']; };
     const ejecutivo = (p) => { const v = venta(p), m = meta(p), pc = m ? v / m : 0, e = (D.crecimiento || []).find((x) => x.persona === p) || { nuevos: [] }, cal = e.nuevos.filter((c) => neto(c.monto) >= 3500).length;
       const mios = F.filter((f) => f.vendedor === p), venc = mios.filter((f) => (f.dias || 0) > 30), g = regla48(p);
       return tarjeta(p, 'Ejecutivo comercial', [['Ingresos contra presupuesto', 70, `${peso(v)} de ${peso(m)} a la fecha (${Math.round(pc * 100)}%)`, 70 * cap(pc)],
         ['Cuentas nuevas calificadas', 15, `${cal} del año con $3,500 o más`, null, 'El documento no fija meta mensual; falta definirla.'], ['Copeos activos (VPC)', 15, 'El CRM todavía no registra copeos', null]],
-        [[!venc.length, 'Cartera al corriente', venc.length ? `${peso(saldo(venc))} con más de 30 días de vencido en ${new Set(venc.map((f) => f.cliente)).size} clientes` : ''], [g.cumple, 'Registro en CRM dentro de 48 horas', g.sin == null ? 'Sin ningún registro' : `Último registro hace ${g.sin} días`]]); };
-    const director = (p) => { const vs = vendedores(), v = sumar(vs, venta), m = sumar(vs, meta), pc = m ? v / m : 0, ct = cartera(F), dist = (D.distribuidores || []).filter((d) => /compr|activo|catalog/i.test(d.estado || d.status || '')).length;
+        [[!venc.length, 'Cartera al corriente', venc.length ? `${peso(saldo(venc))} con más de 30 días de vencido en ${new Set(venc.map((f) => f.cliente)).size} clientes` : ''], [g.cumple, 'Registro en CRM dentro de 48 horas', g.sin == null ? 'Sin ningún registro' : `Último registro hace ${g.sin} días`], pun(p)], ser(p)); };
+    const director = (p) => { const vs = vendedores(), v = sumar(vs, venta), m = sumar(vs, meta), pc = m ? v / m : 0, ct = cartera(F), DP = D.prospectos.filter((x) => x.de_carlos), dist = DP.filter((x) => x.avance === 'Catalogado').length;
       return tarjeta(p + ' · Dirección comercial', 'Director comercial', [['Venta del equipo contra presupuesto', 35, `${peso(v)} de ${peso(m)} (${Math.round(pc * 100)}%)`, 35 * cap(pc)],
-        ['Distribuidores activados y recomprando', 25, `${dist} de ${(D.distribuidores || []).length} prospectados con compra`, 0, 'Solo cuenta con 2 pedidos o más y 5 cuentas activas. Ninguno llega todavía.'],
+        ['Distribuidores activados y recomprando', 25, `${dist} de ${DP.length} prospectados ya catalogados`, 0, 'Solo cuenta con 2 pedidos o más y 5 cuentas activas. Ninguno llega todavía.'],
         ['Cuentas clave ganadas', 20, 'Spark no las registra todavía', null], ['Cartera del equipo al corriente', 10, `${ct}% al corriente (meta 90%)`, 10 * cap(ct / 90)],
         ['Productividad por ejecutivo', 5, `${Math.round(pc * 100)}% del presupuesto por persona`, 5 * cap(pc)], ['Apoyo en construcción de marca', 5, 'Spark no lo registra todavía', null]]); };
     const embajador = (p) => tarjeta(p, 'Embajador de marca', [['Mantener catalogación y recompra', 50, 'Falta el reporte de venta por cuenta del distribuidor', null], ['Catalogaciones nuevas con pedido', 20, 'Sin dato', null], ['Colocaciones a copeo', 15, 'Sin dato', null], ['Mezcla premium', 5, 'Sin dato', null], ['Tasa de resurtido', 5, 'Sin dato', null], ['Apoyo en construcción de marca', 5, 'Sin dato', null]],
-      [[regla48(p).cumple, 'Registro en CRM dentro de 48 horas', '']]);
+      [[regla48(p).cumple, 'Registro en CRM dentro de 48 horas', ''], pun(p)], ser(p));
     const ps = personas().filter((p) => p !== 'Tito');
     return h('div', {}, h('p', { class: 'note' }, 'Estimado con los tableros de junio de 2026. Ventas del año a la fecha, antes de impuestos. No sustituye el cálculo de comisiones.'),
       h('div', { class: 'grid3' }, ps.flatMap((p) => (p === 'Daniel' ? [embajador(p)] : p === 'Carlos' ? [director(p), ejecutivo(p)] : [ejecutivo(p)]))));
@@ -697,7 +714,7 @@ const VISTAS = {
   }
 };
 
-Object.assign(VISTAS, MAS_VISTAS);
+Object.assign(VISTAS, MAS_VISTAS, PLAN_VISTAS);
 
 let _estados = null;
 const estados = () => (_estados ||= fetch('estados.json').then((r) => r.json()).then((rows) => rows.map((s) => ({ ...s, g: JSON.parse(s.geom) }))));
@@ -796,7 +813,7 @@ function registrar(pre) {
     { k: 'resultado', t: 'Qué pasó', tipo: 'textarea', req: true, foco: !!pre.cuenta, ph: 'Con quién hablaste, qué dijeron, qué quedó pendiente' },
     { k: 'siguiente_paso', t: 'Siguiente paso', ph: pre.sugerencia ? pre.sugerencia.slice(0, 90) : 'Lo que vas a hacer después', mitad: true },
     { k: 'proximo', t: 'Próximo contacto', tipo: 'date', mitad: true },
-    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Cobranza', 'Entrega', 'Capacitación', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento', mitad: true },
+    { k: 'actividad', t: 'Qué fue', tipo: 'select', ops: ['Seguimiento', 'Prospección', 'Cata / prueba de vino', 'Capacitación', 'Visita del cliente a la bodega', 'Detalle o Magnum', 'Cobranza', 'Entrega', 'Evento', 'Presencia de marca'], v: pre.actividad || 'Seguimiento', mitad: true },
     { k: 'pausa', t: 'Envíos pausados por cobranza', tipo: 'select', ops: [['', pre.pausa ? 'Siguen pausados' : 'No'], pre.pausa ? ['no', 'Ya no, se reanudaron'] : ['si', 'Sí, pausados hasta que paguen']], v: '', mitad: true },
     { k: 'minutos', t: 'Tiempo que te tomó (minutos)', tipo: 'number', ph: 'Con el traslado', max: 600, mitad: true },
     { k: 'botellas_mes', t: 'Botellas al mes que podría comprar', tipo: 'number', ph: 'Tu estimado', mitad: true },

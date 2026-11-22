@@ -2,7 +2,7 @@
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
-import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias } from './calc.js';
+import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias, PLAN_GENTE, EVENTO_TOPE, BOTELLA_MUESTRA } from './calc.js';
 import { sugerir } from './ai.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet, sheetEmail } from './sheets.js';
@@ -128,6 +128,21 @@ export default {
       const nota = new Map(cobranzaArchivo.facturas.filter((f) => f.comentario).map((f) => [norm(f.cliente), f.comentario]));
       if (deZoho) m.cobranza = { fuente: 'zoho', corte: m.hoy, facturas: deZoho.map((f) => ({ ...f, comentario: nota.get(norm(f.cliente)) || '', dias: diff(f.vence, m.hoy) })), gestiones: cobros };
       else m.cobranza = { fuente: 'archivo', corte: cobranzaArchivo.corte, facturas: cobranzaArchivo.facturas.map((f) => ({ ...f, dias: /^\d{4}-\d\d-\d\d$/.test(f.vence) ? diff(f.vence, m.hoy) : null })), gestiones: cobros };
+      // The 90-day plan and event requests. Plan drafts are the owner's until he publishes them.
+      m.plan = await todo('SELECT * FROM compromisos' + (yo.dueno ? '' : ' WHERE visible = 1') + ' ORDER BY fecha, orden, id');
+      m.eventos = await todo('SELECT * FROM eventos ORDER BY fecha DESC, id DESC');
+      m.reglas = { plan_gente: PLAN_GENTE, evento_tope: EVENTO_TOPE, botella_muestra: BOTELLA_MUESTRA };
+      // Promotions with per-account targets: what each account has ordered in the period and whether it owes past due.
+      for (const pr of m.promociones) {
+        let M = null; try { M = pr.metas ? JSON.parse(pr.metas) : null; } catch { M = null; }
+        delete pr.metas;
+        if (!Array.isArray(M) || !pr.inicio || !pr.fin) continue;
+        const ped = (await env.DB.prepare("SELECT cliente, SUM(total) t, COUNT(*) n FROM orders WHERE fecha BETWEEN ? AND ? AND estado NOT IN ('void','draft') GROUP BY cliente").bind(pr.inicio, pr.fin).all()).results;
+        const lleva = new Map(ped.map((r) => [norm(r.cliente), r])), dueno = new Map(m.clientes.map((c) => [norm(c.cliente), c.vendedor]));
+        pr.avance = M.map((x) => { const K = (x.clientes || [x.cuenta]).map(norm), de = (f) => K.reduce((t, k) => t + ((lleva.get(k) || {})[f] || 0), 0);
+          const venc = (m.cobranza.facturas || []).filter((f) => K.includes(norm(f.cliente)) && (f.dias || 0) > 0).reduce((t, f) => t + (f.saldo || 0), 0);
+          return { cuenta: x.cuenta, vendedor: K.map((k) => dueno.get(k)).find(Boolean) || '', base: x.base, objetivo: x.objetivo, lleva: Math.round(de('t')), pedidos: de('n'), vencido: Math.round(venc) }; });
+      }
       m.preguntas = (await env.DB.prepare('SELECT * FROM preguntas ORDER BY respondida != \'\', id DESC').all()).results;
       m.hechos = (await env.DB.prepare('SELECT clave FROM buzon_hechos WHERE email = ?').bind(yo.email).all()).results.map((r) => r.clave);   // inbox notes this person marked done
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
@@ -221,7 +236,66 @@ export default {
       return json({ ok: true });
     }
     if (!p.startsWith('/api/admin/')) return json({ error: 'No existe' }, 404);
+    // The plan: whoever owns a commitment (or an admin) marks it done, with a note on what was delivered and where it shows.
+    if (p === '/api/plan/hecho' && request.method === 'POST') {
+      const b = await cuerpo(), c = await env.DB.prepare('SELECT * FROM compromisos WHERE id = ?').bind(Number(b.id) || 0).first();
+      if (!c || (!c.visible && !yo.dueno)) return json({ error: 'No existe ese compromiso' }, 404);
+      if (!yo.admin && c.persona !== yo.persona) return json({ error: 'Este compromiso es de ' + c.persona }, 403);
+      if (b.deshacer) await env.DB.prepare("UPDATE compromisos SET estado = 'pendiente', hecho_fecha = '', hecho_por = '' WHERE id = ?").bind(c.id).run();
+      else {
+        if (!txt(b.nota, 1000)) return json({ error: 'Escribe qué quedó hecho y dónde se ve' }, 400);
+        await env.DB.prepare("UPDATE compromisos SET estado = 'hecho', hecho_fecha = ?, hecho_por = ?, nota = ? WHERE id = ?").bind(HOY, yo.nombre || yo.email, txt(b.nota, 1000), c.id).run();
+      }
+      return json({ ok: true });
+    }
+    // Events: anyone on the team asks for one with its numbers; whoever asked (or an admin) closes it with what came out of it.
+    if (p === '/api/eventos' && request.method === 'POST') {
+      const b = await cuerpo(), n = (v) => Math.max(0, Math.round(Number(v) || 0)), fecha = /^\d{4}-\d\d-\d\d$/.test(b.fecha || '') ? b.fecha : '';
+      if (b.cerrar) {
+        const e = await env.DB.prepare('SELECT * FROM eventos WHERE id = ?').bind(Number(b.cerrar) || 0).first();
+        if (!e) return json({ error: 'No existe ese evento' }, 404);
+        if (!yo.admin && e.persona !== yo.persona) return json({ error: 'Este evento lo pidió ' + e.persona }, 403);
+        if (!['aprobado', 'cerrado'].includes(e.estado)) return json({ error: 'Solo se cierra un evento autorizado' }, 400);
+        if (!txt(b.reporte, 2000)) return json({ error: 'Escribe qué pasó y qué sigue' }, 400);
+        await env.DB.prepare("UPDATE eventos SET estado = 'cerrado', contactos = ?, cuentas_nuevas = ?, botellas_usadas = ?, venta_real = ?, reporte = ?, cerrado = ? WHERE id = ?")
+          .bind(n(b.contactos), n(b.cuentas_nuevas), n(b.botellas_usadas), n(b.venta_real), txt(b.reporte, 2000), e.cerrado || HOY, e.id).run();
+        return json({ ok: true });
+      }
+      if (!txt(b.nombre) || !fecha || !txt(b.objetivo, 1000)) return json({ error: 'Faltan el nombre, la fecha y para qué vamos' }, 400);
+      await env.DB.prepare('INSERT INTO eventos (persona, nombre, tipo, lugar, fecha, objetivo, cuentas_objetivo, distribuidor, costo, botellas, venta_esperada, estado, creado, por) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(quienEs(b) || yo.nombre || yo.email, txt(b.nombre, 160), txt(b.tipo, 60), txt(b.lugar, 120), fecha, txt(b.objetivo, 1000), txt(b.cuentas_objetivo, 1000), txt(b.distribuidor, 120), n(b.costo), n(b.botellas), n(b.venta_esperada), 'solicitado', HOY, yo.nombre || yo.email).run();
+      return json({ ok: true });
+    }
     if (!yo.admin) return json({ error: 'Solo administradores' }, 403);
+    // Deciding on an event. Up to EVENTO_TOPE (money plus wine) any admin decides; above it, only the owner.
+    if (p === '/api/admin/eventos' && request.method === 'POST') {
+      const b = await cuerpo(), e = await env.DB.prepare('SELECT * FROM eventos WHERE id = ?').bind(Number(b.id) || 0).first(), n = (v, d) => Math.max(0, Math.round(Number(v === '' || v == null ? d : v) || 0));
+      if (!e) return json({ error: 'No existe ese evento' }, 404);
+      if (b.borrar) { await env.DB.prepare('DELETE FROM eventos WHERE id = ?').bind(e.id).run(); return json({ ok: true }); }
+      if (e.costo + e.botellas * BOTELLA_MUESTRA > EVENTO_TOPE && !yo.dueno) return json({ error: 'Con el vino pasa de $' + EVENTO_TOPE.toLocaleString('en-US') + ': lo decide Dirección' }, 403);
+      const si = b.decision === 'aprobado';
+      if (!si && !txt(b.nota, 600)) return json({ error: 'Escribe por qué no' }, 400);
+      await env.DB.prepare('UPDATE eventos SET estado = ?, decidio = ?, decidido = ?, nota_decision = ?, botellas_aprobadas = ?, costo_aprobado = ? WHERE id = ?')
+        .bind(si ? 'aprobado' : 'rechazado', yo.nombre || yo.email, HOY, txt(b.nota, 600), si ? n(b.botellas_aprobadas, e.botellas) : 0, si ? n(b.costo_aprobado, e.costo) : 0, e.id).run();
+      return json({ ok: true });
+    }
+    // The plan itself (add, change, publish, remove) belongs to the owner.
+    if (p === '/api/admin/plan' && request.method === 'POST') {
+      if (!yo.dueno) return json({ error: 'Solo Eric cambia el plan' }, 403);
+      const b = await cuerpo(), fecha = /^\d{4}-\d\d-\d\d$/.test(b.fecha || '') ? b.fecha : '';
+      if (b.borrar) { await env.DB.prepare('DELETE FROM compromisos WHERE id = ?').bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
+      if (b.publicar) {
+        const v = b.ocultar ? 0 : 1;
+        if (b.publicar === 'todos') await env.DB.prepare('UPDATE compromisos SET visible = ?').bind(v).run();
+        else if (typeof b.publicar === 'number') await env.DB.prepare('UPDATE compromisos SET visible = ? WHERE id = ?').bind(v, b.publicar).run();
+        else await env.DB.prepare('UPDATE compromisos SET visible = ? WHERE persona = ?').bind(v, txt(b.publicar, 40)).run();
+        return json({ ok: true });
+      }
+      if (!PLAN_GENTE.includes(b.persona) || !txt(b.titulo) || !fecha) return json({ error: 'Faltan la persona, el compromiso y la fecha' }, 400);
+      if (b.id) await env.DB.prepare('UPDATE compromisos SET persona = ?, titulo = ?, medida = ?, fecha = ?, etapa = ? WHERE id = ?').bind(b.persona, txt(b.titulo, 300), txt(b.medida, 400), fecha, txt(b.etapa, 40), Number(b.id)).run();
+      else await env.DB.prepare('INSERT INTO compromisos (persona, titulo, medida, fecha, etapa, visible, origen, creado, por) VALUES (?,?,?,?,?,?,?,?,?)').bind(b.persona, txt(b.titulo, 300), txt(b.medida, 400), fecha, txt(b.etapa, 40), b.visible === 'si' ? 1 : 0, 'Spark', HOY, yo.nombre || yo.email).run();
+      return json({ ok: true });
+    }
 
     // Order detail from Zoho (lines, reference, addresses, invoice status), for the owner's reviews. Up to 15 orders per call.
     if (p === '/api/admin/pedidos' && request.method === 'GET') {

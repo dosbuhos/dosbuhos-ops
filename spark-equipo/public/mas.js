@@ -260,6 +260,20 @@ function comunicaciones() {
 }
 
 // ---------------------------------------------------------------- Estrategia, metas y promociones
+// A promotion with a target per account: who already earned it, who is one order away, and who has not bought in the period.
+// Amounts are Zoho order totals, with taxes, like the targets in the letter that went to the clients.
+function avancePromo(p, hoy) {
+  const A = p.avance.map((a) => ({ ...a, falta: Math.max(0, Math.round(a.objetivo - a.lleva)), pc: a.objetivo ? Math.round(a.lleva / a.objetivo * 100) : 0 }));
+  const gano = A.filter((a) => !a.falta), cerca = A.filter((a) => a.falta && a.pc >= 90), nada = A.filter((a) => !a.lleva), lleva = suma(A, (a) => a.lleva), obj = suma(A, (a) => a.objetivo);
+  const dias = Math.max(0, Math.round((new Date(p.fin + 'T12:00:00') - new Date(hoy + 'T12:00:00')) / 864e5)), mio = (a) => S.persona && a.vendedor === S.persona;
+  const orden = [...A.filter((a) => a.falta && a.lleva).sort((x, y) => x.falta - y.falta), ...nada.sort((x, y) => y.objetivo - x.objetivo), ...gano];
+  const estado = (a) => (!a.falta ? pill('Ya lo ganó', 'ok') : !a.lleva ? pill('Sin compras', 'bad') : a.pc >= 90 ? pill('A un pedido', 'warn') : pill(a.pc + '%', 'mute'));
+  return h('section', { class: 'card bono' }, h('div', { class: 'name' }, 'Avance por cuenta · ' + p.nombre, pill(dias ? `Quedan ${dias} días` : 'Terminó', dias > 14 ? 'mute' : 'warn')),
+    h('p', { class: 'note' }, `${gano.length} ya lo ganaron, ${cerca.length} están a un pedido y ${nada.length} no han comprado en el periodo. Entre todas llevan ${peso(lleva)} de ${peso(obj)} (${obj ? Math.round(lleva / obj * 100) : 0}%). Pedidos de Zoho con impuestos, como los objetivos de la carta; quien tenga saldo vencido al cierre lo pierde.`),
+    h('ul', { class: 'rows bn' }, orden.map((a) => h('li', { class: mio(a) ? 'mio' : '' }, h('div', { class: 'l1' }, h('span', {}, a.cuenta), estado(a)),
+      h('div', { class: 'l2' }, [a.vendedor, `lleva ${peso(a.lleva)} de ${peso(a.objetivo)}`, a.falta ? `le faltan ${peso(a.falta)}` : `pasó el objetivo por ${peso(a.lleva - a.objetivo)}`].filter(Boolean).join(' · ')),
+      a.vencido ? h('div', { class: 'l2 venc' }, `Tiene ${peso(a.vencido)} vencido: si no lo paga antes del cierre, pierde el bono.`) : null))));
+}
 const MESN = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const promoEstado = (p, hoy) => (p.fin && p.fin < hoy ? ['Terminó', 'mute'] : p.inicio && p.inicio > hoy ? ['Próxima', 'warn'] : ['Vigente', 'ok']);
 function estrategia() {
@@ -294,6 +308,7 @@ function estrategia() {
       h('div', { class: 'l2' }, p.autorizo || p.autorizada ? `Autorizó ${p.autorizo || '?'}` + (p.autorizada ? ` el ${dia(p.autorizada)} ${p.autorizada.slice(0, 4)}` : '') : 'Sin registro de quién la autorizó',
         admin ? [' · ', h('button', { class: 'linkb note', onclick: () => adjuntar(p) }, p.archivo_id ? 'Cambiar documento' : 'Adjuntar documento'), ' · ', vis('promociones', p), ' · ', quitar('promociones', p)] : null))))
       : h('p', { class: 'note' }, admin ? 'Todavía no hay promociones registradas. Agrega las vigentes y las pasadas, con quién las autorizó y cuándo.' : 'No hay promociones vigentes.'),
+    P.filter((p) => p.avance && p.avance.length).map((p) => avancePromo(p, hoy)),
     h('h2', {}, `Metas ${Y}`), admin ? h('div', { class: 'toolbar' }, h('button', { class: 'btn sm', onclick: () => nuevoDoc('meta') }, 'Agregar meta')) : null,
     metas.length ? h('div', { class: 'cols2' }, metas.map((e) => h('section', { class: 'card' }, h('div', { class: 'name' }, e.titulo, e.anio ? pill(String(e.anio), 'mute') : null), e.nota ? h('p', { style: 'margin-top:6px' }, e.nota) : null,
       e.url ? h('p', { style: 'margin-top:6px' }, h('a', { href: e.url, target: '_blank', rel: 'noopener' }, 'Abrir documento')) : null, h('p', { class: 'note', style: 'margin-top:8px' }, vis('estrategia', e), ' ', quitar('estrategia', e))))) : h('p', { class: 'note' }, admin ? 'Sin metas escritas todavía, fuera del presupuesto de abajo.' : 'Dirección no ha compartido metas aquí, fuera del presupuesto de abajo.'),
