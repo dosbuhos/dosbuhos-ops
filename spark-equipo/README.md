@@ -138,6 +138,8 @@ verifica: una vez, `api/plan/hecho` y `api/eventos` quedaron después de esa lí
 ## Reglas de conteo
 
 - **48 horas son dos días hábiles.** Sábados y domingos no cuentan: un contacto del viernes registrado el lunes va a tiempo. Aplica a la puntualidad del mes (la que ajusta la comisión) y a "registro al corriente".
+- **"Registro al corriente" va por la fecha del contacto.** Cuenta los días hábiles desde el día del último contacto registrado, no desde el día en que se capturó. Ponerse al día con contactos viejos no hace que el registro se vea al corriente. La cuenta vive en `public/regla.js`, con sus pruebas.
+- **Cuándo se registró un renglón de la hoja.** La hoja no trae hora de captura: la fecha de registro es la del primer sync que vio el renglón (tabla `vistos`). El primer sync de todos no fecha nada, porque lo que ya estaba en la hoja es rezago de fecha desconocida. El 22 de noviembre de 2026 ese primer sync fechó 499 renglones viejos como registrados ese día y la pantalla dijo "al corriente" para los tres; se corrigió y esos renglones quedaron sin fecha de registro.
 - **Vencido del equipo: cuentas con nombre.** Las facturas a "Público en general" y las de exportación que en Zoho no tienen pago aplicado se cuentan aparte, como "Por conciliar": son trabajo de Contabilidad, no deuda por cobrar. El patrón que las separa vive en D1 (`meta`, clave `cobranza_conciliar`), no en el repositorio.
 
 ## Versión en uso
