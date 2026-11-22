@@ -344,6 +344,10 @@ function distribuidores() {
   // Coverage by zone: who distributes for us there today (from the zone table, fed by Zoho sales) next to the prospect list for that zone.
   // The prospect list alone read as "no distributors" in zones where we already sell (Los Cabos has Cactus Wine and no prospects).
   const KZ = { Fuerte: 'ok', 'Presencia débil': 'warn', 'Sin presencia': 'bad' };
+  const filaZ = (x) => h('li', {},
+    h('div', { class: 'l1' }, h('span', {}, x.z), pill(x.zo.estado, KZ[x.zo.estado])),
+    h('div', { class: 'l2' }, 'Hoy nos distribuye: ' + x.hoy),
+    h('div', { class: 'l2' }, x.pros));
   const porZona = d.zonas.map((z) => { const Lz = L0.filter((p) => p.zona === z.zona), c = (g) => Lz.filter((p) => p.avance === g).length, u = Lz.reduce((m, p) => (p.ultimo_contacto && p.ultimo_contacto > m ? p.ultimo_contacto : m), '');
     return { z: z.nombre.split(' (')[0], zo: z, L: Lz, c, u, hoy: z.distribuidores || 'Nadie',
       pros: Lz.length ? `Prospectos: ${c('En proceso')} en proceso · ${c('Catalogado')} catalogados · ${c('Por contactar')} por contactar · ${c('Rechazado')} rechazados · último contacto ${u ? dia(u) : 'nunca'}` : 'Sin prospectos en la lista' }; });
@@ -365,10 +369,8 @@ function distribuidores() {
         { t: 'Contacto', v: (p) => [p.contacto, p.telefono, p.email].filter(Boolean).join(' · ') || '—', largo: true }, { t: 'Línea', v: (p) => p.linea || '—', cls: 'nw' }], tocar)),
     h('h2', {}, 'Cobertura por zona'),
     h('p', { class: 'note' }, 'Quién nos distribuye hoy en cada zona y cómo va la lista de prospectos de esa zona. Los distribuidores de hoy salen de las ventas; los prospectos, de la hoja.'),
-    h('div', { class: 'card' }, lista('cobz', porZona, 9, (x) => h('li', {},
-      h('div', { class: 'l1' }, h('span', {}, x.z), pill(x.zo.estado, KZ[x.zo.estado])),
-      h('div', { class: 'l2' }, 'Hoy nos distribuye: ' + x.hoy),
-      h('div', { class: 'l2' }, x.pros)), 'Sin zonas.',
+    // Nine zones: on a phone all of them show (lista() would fold the ninth behind "Ver los 9", and that one is Los Cabos).
+    h('div', { class: 'card' }, !ancho() ? h('ul', { class: 'rows' }, porZona.map(filaZ)) : lista('cobz', porZona, 9, filaZ, 'Sin zonas.',
       [{ t: 'Zona', v: (x) => x.z, s: (x) => x.z, cls: 'b' }, { t: 'Presencia', v: (x) => pill(x.zo.estado, KZ[x.zo.estado]), s: (x) => x.zo.estado, cls: 'nw' },
         { t: 'En proceso', v: (x) => x.c('En proceso'), s: (x) => x.c('En proceso'), num: true }, { t: 'Catalogados', v: (x) => x.c('Catalogado'), s: (x) => x.c('Catalogado'), num: true },
         { t: 'Por contactar', v: (x) => x.c('Por contactar'), s: (x) => x.c('Por contactar'), num: true }, { t: 'Rechazados', v: (x) => x.c('Rechazado'), s: (x) => x.c('Rechazado'), num: true },
