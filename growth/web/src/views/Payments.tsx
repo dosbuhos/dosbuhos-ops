@@ -16,6 +16,9 @@ const ORDER = ['opentable', 'rezdy', 'wine_club', 'web_store', 'invoice', 'payme
 // OpenTable's own names for where the guest booked: its app, or a browser (opentable.com and the button on dosbuhos.com
 // both count as web; OpenTable does not tell them apart in the payment). Unknown ones are shown as they arrive.
 const PLATFORM: Record<string, string> = { 'Diner App': 'En la app de OpenTable', 'Diner Web': 'En la web (opentable.com o el botón de dosbuhos.com)', Rezdy: 'Rezdy', '': 'Sin dato' };
+// Parrot's own names for how a check was paid ("Pay" is its card terminal). Unknown ones are shown as they arrive.
+const POS_TYPE: Record<string, string> = { 'Pay TDC': 'Tarjeta de crédito', 'Pay TDD': 'Tarjeta de débito', Cash: 'Efectivo', Transferencia: 'Transferencia', '': 'Sin dato' };
+const POS_SHORT: Record<string, string> = { 'Pay TDC': 'crédito', 'Pay TDD': 'débito', Cash: 'efectivo', Transferencia: 'transferencia' };
 const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const monthLabel = (m: string) => `${MES[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
 const dayMonth = (d: string) => dayLabel(d).split(' ').slice(1).join(' ');
@@ -26,12 +29,12 @@ function country(code: string): string {
 }
 const change = (now: number, before: number) => (before > 0 ? ((now - before) / before) * 100 : null);
 
-function Rows({ rows, total }: { rows: { key: string; label: string; count: number; netMinor: number }[]; total: number }) {
+function Rows({ rows, total, unit = ['pago', 'pagos'] }: { rows: { key: string; label: string; count: number; netMinor: number }[]; total: number; unit?: [string, string] }) {
   return (
     <div className="stack">{rows.map(x => (
       <div key={x.key} className="payrow">
         <div className="payrow-top"><span className="small">{x.label}</span><b className="mono">{money(x.netMinor)}</b></div>
-        <div className="payrow-bar"><div className="bar" style={{ width: '100%', height: 8 }}><span style={{ width: `${total > 0 ? Math.max(2, (x.netMinor / total) * 100) : 0}%` }} /></div><span className="tiny muted">{count(x.count, 'pago', 'pagos')}</span></div>
+        <div className="payrow-bar"><div className="bar" style={{ width: '100%', height: 8 }}><span style={{ width: `${total > 0 ? Math.max(2, (x.netMinor / total) * 100) : 0}%` }} /></div><span className="tiny muted">{count(x.count, unit[0], unit[1])}</span></div>
       </div>))}</div>
   );
 }
@@ -65,6 +68,8 @@ export function Payments() {
   }
   const shown = ORDER.filter(s => (p.months as any[]).some(m => m.sources[s] > 0));
   const months = [...(p.months as any[])].reverse();
+  const tipped = p.pos ? (p.pos.types as any[]).filter(x => x.tipMinor > 0) : [];
+  const transfers = p.pos ? (p.pos.types as any[]).find(x => x.type === 'Transferencia') : null;
   const others = (p.sources as any[]).filter(s => s.source !== 'opentable' && s.source !== 'rezdy' && (s.current.count > 0 || s.previous.count > 0));
 
   return (
@@ -148,9 +153,33 @@ export function Payments() {
       </section>
 
       <p className="tiny muted section">
-        Esto es dinero cobrado en línea, no ventas del punto de venta. No se suma a las ventas de Parrot: una experiencia pagada por adelantado también se registra en Parrot como transferencia, el día de la visita o al siguiente, y se contaría dos veces. Tampoco dice qué anuncio trajo cada pago.
+        Todo lo de arriba es dinero cobrado en línea, no ventas del punto de venta. No se suma a las ventas de Parrot: una experiencia pagada por adelantado también se registra en Parrot como transferencia, el día de la visita o al siguiente, y se contaría dos veces. Tampoco dice qué anuncio trajo cada pago.
         {p.lastChargeAt ? ` Último pago registrado: ${when(p.lastChargeAt).replace(/\.$/, '')}.` : ''} Aquí no llegan nombres, correos ni tarjetas.
       </p>
+
+      {p.pos && (
+        <section className="section" aria-labelledby="pay-pos">
+          <header><h2 id="pay-pos">Cómo se cobró en el punto de venta</h2><span className="small muted">Parrot · los mismos 28 días</span></header>
+          <div className="grid cols-2 even">
+            <div className="card stack">
+              <div><span className="midnum">{money(p.pos.total.amountMinor)}</span> <span className="small muted">en {count(p.pos.total.count, 'cobro', 'cobros')}, con IVA y sin propinas</span></div>
+              <Rows total={p.pos.total.amountMinor} unit={['cobro', 'cobros']} rows={(p.pos.types as any[]).map(x => ({ key: x.type || 'sin', label: POS_TYPE[x.type] ?? x.type, count: x.count, netMinor: x.amountMinor }))} />
+            </div>
+            <div className="card stack">
+              <h3>Transferencias y propinas</h3>
+              <div className="kv">
+                {transfers && <div><span>Transferencias en Parrot</span><b>{money(transfers.amountMinor)}</b><span>{count(transfers.count, 'cobro', 'cobros')}</span></div>}
+                <div><span>Experiencias pagadas en línea</span><b>{money(e.netMinor)}</b><span>{count(e.count, 'pago', 'pagos')}, los mismos días</span></div>
+                {p.pos.total.tipMinor > 0 && <div><span>Propinas en Parrot</span><b>{money(p.pos.total.tipMinor)}</b><span>{tipped.map((x: any) => `${POS_SHORT[x.type] ?? x.type} ${money(x.tipMinor)}`).join(' · ')}</span></div>}
+              </div>
+              <p className="tiny muted">
+                “Transferencia” es como se registra en Parrot lo que no pasa por la terminal: sobre todo las experiencias pagadas en línea, y también las transferencias bancarias.
+                Las dos cifras no coinciden peso por peso: la gente paga días o semanas antes de venir, y los recorridos se capturan al cierre o al día siguiente.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
     </>
   );
 }

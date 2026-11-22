@@ -9,7 +9,7 @@ A private, market-style dashboard and bounded optimization agent for Dos Búhos 
 | Real | Google Ads spend/clicks/conversions via the Hub (D1 `growth` and R2 `growth-archive` created; schema applied). Domain, policy and coordinator logic; dashboard; watchdog; reports |
 | Mocked | The ad account in dev/demo (`MockAdsProvider`); every demo number (`fixtures/demo-data.ts`) |
 | Blocked | Google Ads API reads and writes (needs approved API access + owner OAuth); offline conversions; Claude review against the live API (no key here) |
-| Tested | 193 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
+| Tested | 194 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
 | Deployable | Yes, via Workers Builds once the `growth` Worker is created in the dashboard and `HUB_SECRET` is set (`docs/setup.md`). Ad changes stay impossible until the API adapter exists and the owner goes live |
 
 ## Layout
@@ -108,6 +108,10 @@ is a charge in that same Stripe account, so this is also the source for prepaid 
 - It is never added to the point-of-sale sales: a prepaid visit is also rung up in Parrot as a transfer (on the
   day or the next morning; checked against three months of checks), and would count twice. Nothing here is
   attributed to a campaign.
+- The screen ends with how the point of sale was paid in those same 28 days (`pos` in `GET /api/payments`): Parrot's
+  charged payments on finished checks by type (credit card, debit card, cash, transfer), IVA included, tips apart.
+  "Transferencia" is whatever did not go through Parrot's terminal, which is mostly the prepaid visits, so it sits
+  beside the online money and is never added to it.
 - Experience names come from `EXPERIENCES` in `src/connectors/opentable-availability.ts`.
 
 ## OpenTable reservations (through Klaviyo)

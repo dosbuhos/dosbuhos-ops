@@ -220,5 +220,23 @@ export function demoStatements(now: number): Stmt[] {
   out.push(S(`UPDATE connections SET health = 'connected', health_reason = 'Demo: reservaciones sintéticas', last_success_at = ?, freshness_at = ?, updated_at = ? WHERE id = 'conn_klaviyo'`, now, now, now));
 
   out.push(S(`UPDATE connections SET freshness_at = ? WHERE provider = 'opentable_csv'`, now - 2 * 3_600_000));
+
+  // ---- point-of-sale checks and how each was paid (synthetic), so the payments screen can show the mix ----
+  const POS_TYPES: [string, number][] = [['Pay TDC', 0.55], ['Transferencia', 0.2], ['Cash', 0.13], ['Pay TDD', 0.12]];
+  for (let k = 62; k >= 1; k--) {
+    const day = addDays(today, -k), wd = weekdayOf(day);
+    if (wd <= 2) continue;                               // closed Monday and Tuesday
+    const n = (wd >= 5 ? 9 : 4) + Math.floor(r() * 4);
+    for (let i = 0; i < n; i++) {
+      const base = (4 + Math.floor(r() * r() * 60)) * 10000, roll = r(), id = `demo_${k}_${i}`;
+      let acc = 0;
+      const type = POS_TYPES.find(([, w]) => (acc += w) >= roll)?.[0] ?? 'Pay TDC';
+      const total = type === 'Transferencia' ? base * 3 : base;      // prepaid groups and tours: fewer, larger
+      out.push(S(`INSERT OR IGNORE INTO pos_orders (uuid, store_uuid, created_at, local_date, status, order_type_name, table_name, customers, total_minor, taxes_minor, fetched_at)
+        VALUES (?, 'demo', ?, ?, 'FINISHED', 'Comer aquí', ?, ?, ?, ?, ?)`, `o_${id}`, zonedToUtc(day, 12 + Math.floor(r() * 5), Math.floor(r() * 60), tz), day, TABLES[Math.floor(r() * TABLES.length)]!, 2 + Math.floor(r() * 4), total, Math.round(total * 16 / 116), now));
+      out.push(S(`INSERT OR IGNORE INTO pos_payments (uuid, order_uuid, local_date, status, payment_type, amount_minor, tip_minor, fetched_at) VALUES (?, ?, ?, 'CHARGED', ?, ?, ?, ?)`,
+        `p_${id}`, `o_${id}`, day, type, total, type.startsWith('Pay') ? Math.round(total * (0.08 + r() * 0.07) / 100) * 100 : 0, now));
+    }
+  }
   return out;
 }

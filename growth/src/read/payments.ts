@@ -9,6 +9,8 @@ import { PAYMENT_SOURCES, type PaymentSource } from '../connectors/stripe-paymen
 import { YEAR_BACK_DAYS } from './sales.ts';
 
 export interface Bucket { count: number; netMinor: number }
+/** One way of paying at the point of sale. Amounts carry IVA; the tip is apart, as Parrot keeps it. */
+export interface PosType { type: string; count: number; amountMinor: number; tipMinor: number }
 export interface PaymentsView {
   connected: boolean; health: string; healthReason: string; historyComplete: boolean; firstDate: LocalDate | null; lastChargeAt: number | null;
   today: LocalDate;
@@ -24,6 +26,11 @@ export interface PaymentsView {
   upcoming: Bucket & { through: LocalDate | null; weeks: ({ weekStart: LocalDate } & Bucket)[] };
   months: { month: string; total: number; sources: Record<PaymentSource, number> }[];
   otherCurrencies: ({ currency: string } & Bucket)[];
+  /** How the point of sale (Parrot) was paid in the same 28 days, by Parrot's own payment type: "Pay TDC" and "Pay TDD" are
+   *  its card terminal (credit, debit), "Cash", and "Transferencia", which is whatever did not go through the terminal and is
+   *  mostly the prepaid visits above. The same money as the experiences paid online, so the two are never added. Null until
+   *  Parrot has a charged payment in the window. */
+  pos: { types: PosType[]; total: Omit<PosType, 'type'> } | null;
 }
 
 const PAID = "status = 'succeeded' AND amount_minor > refunded_minor";
@@ -40,7 +47,7 @@ export async function loadPayments(db: D1Database, now: number, tz: string): Pro
   const prevTo = addDays(from, -1), prevFrom = addDays(prevTo, -27);
   const lastYearFrom = addDays(from, -YEAR_BACK_DAYS), lastYearTo = addDays(to, -YEAR_BACK_DAYS);
   const firstMonth = monthsBack(today, 12);
-  const [conn, state, span, daily, detail, coming, monthly, foreign] = await Promise.all([
+  const [conn, state, span, daily, detail, coming, monthly, foreign, posRows] = await Promise.all([
     db.prepare("SELECT health, health_reason FROM connections WHERE id = 'conn_stripe'").first<{ health: string; health_reason: string }>(),
     db.prepare('SELECT history_done FROM stripe_sync_state WHERE id = 1').first<{ history_done: number }>(),
     db.prepare('SELECT MIN(local_date) AS first, MAX(created_at) AS last FROM stripe_payments').first<{ first: string | null; last: number | null }>(),
@@ -53,6 +60,10 @@ export async function loadPayments(db: D1Database, now: number, tz: string): Pro
     db.prepare(`SELECT substr(local_date, 1, 7) AS month, source, SUM(amount_minor - refunded_minor) AS net FROM stripe_payments
       WHERE ${PAID} AND currency = 'MXN' AND local_date >= ? GROUP BY month, source`).bind(`${firstMonth}-01`).all<{ month: string; source: string; net: number }>(),
     db.prepare(`SELECT currency, COUNT(*) AS n, SUM(amount_minor - refunded_minor) AS net FROM stripe_payments WHERE ${PAID} AND currency <> 'MXN' AND local_date BETWEEN ? AND ? GROUP BY currency`).bind(from, to).all<{ currency: string; n: number; net: number }>(),
+    // Charged payments on finished checks only: a voided payment or an open check is not money in yet.
+    db.prepare(`SELECT p.payment_type AS type, COUNT(*) AS n, SUM(p.amount_minor) AS amount, SUM(p.tip_minor) AS tip FROM pos_payments p JOIN pos_orders o ON o.uuid = p.order_uuid
+      WHERE p.status = 'CHARGED' AND o.status = 'FINISHED' AND p.local_date BETWEEN ? AND ? GROUP BY p.payment_type`).bind(from, to).all<{ type: string; n: number; amount: number; tip: number }>()
+      .catch(() => ({ results: [] as { type: string; n: number; amount: number; tip: number }[] })),
   ]);
 
   const cur = new Map<string, Bucket>(), prev = new Map<string, Bucket>();
@@ -82,6 +93,10 @@ export async function loadPayments(db: D1Database, now: number, tz: string): Pro
   for (let i = 12; i >= 0; i--) months.set(monthsBack(today, i), Object.fromEntries(PAYMENT_SOURCES.map(s => [s, 0])) as Record<PaymentSource, number>);
   for (const r of monthly.results) { const m = months.get(r.month); if (m && r.source in m) m[r.source as PaymentSource] += Number(r.net) || 0; }
 
+  const posTypes: PosType[] = posRows.results.map(r => ({ type: r.type || '', count: Number(r.n) || 0, amountMinor: Number(r.amount) || 0, tipMinor: Number(r.tip) || 0 }))
+    .filter(t => t.count > 0).sort((a, b) => b.amountMinor - a.amountMinor);
+  const posTotal = posTypes.reduce((a, t) => ({ count: a.count + t.count, amountMinor: a.amountMinor + t.amountMinor, tipMinor: a.tipMinor + t.tipMinor }), { count: 0, amountMinor: 0, tipMinor: 0 });
+
   return {
     connected: conn?.health === 'connected', health: conn?.health ?? 'not_configured', healthReason: conn?.health_reason ?? '', historyComplete, firstDate: span?.first ?? null, lastChargeAt: span?.last ?? null,
     today, window: { from, to, prevFrom, prevTo, lastYearFrom, lastYearTo },
@@ -93,6 +108,7 @@ export async function loadPayments(db: D1Database, now: number, tz: string): Pro
     upcoming: { ...upcoming, through, weeks: [...weeks.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([w, b]) => ({ weekStart: w, ...b })) },
     months: [...months.entries()].map(([month, sources]) => ({ month, sources, total: PAYMENT_SOURCES.reduce((a, s) => a + sources[s], 0) })),
     otherCurrencies: foreign.results.map(r => ({ currency: r.currency, count: Number(r.n) || 0, netMinor: Number(r.net) || 0 })),
+    pos: posTotal.count > 0 ? { types: posTypes, total: posTotal } : null,
   };
 }
 

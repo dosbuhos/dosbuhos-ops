@@ -195,4 +195,23 @@ describe('what the payments screen reads', () => {
     const empty = await loadPayments(sqliteD1().d1, NOW, TZ);
     expect(empty.connected).toBe(false); expect(empty.experiencesPaid.count).toBe(0); expect(empty.upcoming.weeks).toEqual([]); expect(empty.firstDate).toBeNull();
   });
+
+  it('says how the point of sale was paid in the same days, without voided payments or checks still open', async () => {
+    const { db, d1 } = await seeded();
+    const check = (id: string, date: string, status = 'FINISHED') => db.exec(`INSERT INTO pos_orders (uuid, store_uuid, created_at, local_date, status, total_minor, fetched_at) VALUES ('${id}', 's', 0, '${date}', '${status}', 0, 0)`);
+    const paid = (id: string, checkId: string, date: string, type: string, amount: number, tip = 0, status = 'CHARGED') =>
+      db.exec(`INSERT INTO pos_payments (uuid, order_uuid, local_date, status, payment_type, amount_minor, tip_minor, fetched_at) VALUES ('${id}', '${checkId}', '${date}', '${status}', '${type}', ${amount}, ${tip}, 0)`);
+    check('o1', '2026-11-20'); paid('p1', 'o1', '2026-11-20', 'Pay TDC', 100000, 15000); paid('p2', 'o1', '2026-11-20', 'Transferencia', 44000);   // one check, two ways of paying
+    check('o2', '2026-10-25'); paid('p3', 'o2', '2026-10-25', 'Cash', 30000);                                                                    // first day of the window
+    check('o3', '2026-11-21'); paid('p4', 'o3', '2026-11-21', 'Pay TDC', 20000, 2000); paid('p5', 'o3', '2026-11-21', 'Cash', 99900, 0, 'VOIDED');
+    check('o4', '2026-11-21', 'OPEN'); paid('p6', 'o4', '2026-11-21', 'Pay TDD', 50000);                                                         // the check is still open
+    check('o5', '2026-10-24'); paid('p7', 'o5', '2026-10-24', 'Cash', 77700);                                                                    // the day before the window
+    check('o6', '2026-11-22'); paid('p8', 'o6', '2026-11-22', 'Cash', 88800);                                                                    // today is not a complete day
+    const v = await loadPayments(d1, NOW, TZ);
+    expect(v.pos).toEqual({
+      types: [{ type: 'Pay TDC', count: 2, amountMinor: 120000, tipMinor: 17000 }, { type: 'Transferencia', count: 1, amountMinor: 44000, tipMinor: 0 }, { type: 'Cash', count: 1, amountMinor: 30000, tipMinor: 0 }],
+      total: { count: 4, amountMinor: 194000, tipMinor: 17000 },
+    });
+    expect((await loadPayments(sqliteD1().d1, NOW, TZ)).pos).toBeNull();
+  });
 });
