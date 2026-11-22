@@ -28,10 +28,16 @@ export function useApi<T = any>(path: string | null, everyMs = 0) {
     try { const d = await api<T>(path); if (alive.current) { setData(d); setError(null); setLoadedAt(Date.now()); } }
     catch (e) { if (alive.current) setError((e as Error).message); }
   }, [path]);
+  const last = useRef(0);
   useEffect(() => {
-    alive.current = true; void load();
-    const t = everyMs ? setInterval(() => { if (document.visibilityState === 'visible') void load(); }, everyMs) : undefined;
-    return () => { alive.current = false; if (t) clearInterval(t); };
+    alive.current = true;
+    const run = () => { last.current = Date.now(); void load(); };
+    run();
+    const t = everyMs ? setInterval(() => { if (document.visibilityState === 'visible') run(); }, everyMs) : undefined;
+    // Coming back to a tab that was in the background: refresh right away instead of showing what was true when it was left.
+    const back = () => { if (everyMs && document.visibilityState === 'visible' && Date.now() - last.current > 30_000) run(); };
+    document.addEventListener('visibilitychange', back);
+    return () => { alive.current = false; if (t) clearInterval(t); document.removeEventListener('visibilitychange', back); };
   }, [load, everyMs]);
   return { data, error, loadedAt, reload: load };
 }

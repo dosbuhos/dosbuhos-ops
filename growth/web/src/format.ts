@@ -91,7 +91,7 @@ const REASON_ES: Record<string, string> = {
   "Needs approved Google Ads API access for the owner's Cloud project and owner OAuth": 'Falta que Google apruebe el acceso a su API. Mientras tanto, los cambios que apruebas los aplica el script.',
   'Reading the Hub feed: daily spend, clicks and platform conversions per campaign by name; no campaign IDs or search terms yet': 'Feed anterior, por medio del Hub. Ya no se usa: lo reemplazó el script de Growth, que lee más datos.',
   'Mirrored hourly from the Hub: daily spend and results per campaign (by name), converted to MXN; no changes possible': 'Copiado cada hora desde el Hub: gasto y resultados diarios por campaña, en pesos. Desde aquí no se puede cambiar nada en Meta.',
-  'OpenTable reservation data is partner-only; requested through the OpenTable account manager': 'OpenTable solo entrega los datos de reservaciones a socios; se piden por medio del ejecutivo de cuenta de OpenTable.',
+  'OpenTable reservation data is partner-only; requested through the OpenTable account manager': 'OpenTable solo entrega estos datos directamente a socios. Ya no hace falta pedirlos: las reservaciones llegan por Klaviyo.',
   'Create a feed token and install scripts/google-ads-feed.js in Google Ads': 'Copia el script desde esta tarjeta y pégalo en Google Ads.',
   'Import a GuestCenter reservation export': 'Importa un archivo de reservaciones de GuestCenter.',
   'Tag audit pending': 'Falta revisar las etiquetas.', 'Tag audit pending (owner approval before any change)': 'Falta revisar las etiquetas (se pide tu aprobación antes de cualquier cambio).',
