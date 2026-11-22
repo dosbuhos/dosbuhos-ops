@@ -17,6 +17,8 @@ import {receiptPage,receiptSubmit} from './receipt.js';
 import {billingPage} from './billing.js';
 import {reactivationPage,reactivate} from './reactivation.js';
 import {returnState,planContext} from './returning.js';
+import { WorkerEntrypoint } from 'cloudflare:workers';
+import { listCharges, listRefundedCharges } from './payments.js';
 
 const redirect = (to) => new Response(null, { status: 303, headers: { location: to } });
 const str = (v, max = 300) => { const s = String(v ?? '').trim(); return s ? s.slice(0, max) : null; };
@@ -607,6 +609,14 @@ export default {
     if (env.STRIPE_SECRET_KEY) ctx.waitUntil(syncStripe(env, 'cron'));
   },
 };
+
+// Service-binding entrypoint ({ "service": "wineclub", "entrypoint": "StripeRead" }). Read-only and not reachable from
+// the internet: only another Worker in this account that declares the binding can call it. It returns card payments
+// with every personal field removed (src/payments.js), so the Stripe key and the guests' data both stay in this Worker.
+export class StripeRead extends WorkerEntrypoint {
+  async charges(args) { return listCharges(this.env, args); }
+  async refundedCharges(args) { return listRefundedCharges(this.env, args); }
+}
 
 // A benefit form marked as standing (a discount or access that always applies) rather than counted per use.
 const fijo = (fm) => fm.kind === 'fijo';
