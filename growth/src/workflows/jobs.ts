@@ -12,9 +12,10 @@ import { buildFacts, templateNarrative, allowedNumbers } from './reports.ts';
 import { narrate, runReview, PROMPT_VERSION } from '../ai/claude.ts';
 import { readyCoordinator } from '../coordinator/do.ts';
 import { readSecret } from '../ai/key.ts';
-import { syncAvailability } from '../connectors/opentable-availability.ts';
+import { syncAvailability, availabilityOnHold } from '../connectors/opentable-availability.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
 import { syncParrot, ParrotError } from '../connectors/parrot.ts';
+import { syncStripePayments } from '../connectors/stripe-payments.ts';
 import { buildWeeklyEmail, sendViaResend } from '../report/weekly-email.ts';
 export const APP_URL = 'https://apps.dosbuhos.com/growth/';
 // Resend's shared sender works without verifying dosbuhos.com (no DNS change), but only delivers to the Resend account's own address.
@@ -97,6 +98,21 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
           }
           break;
         }
+        case 'payments_sync': {
+          if (!env.STRIPE || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'Sin enlace con la app del club de vinos (Stripe)'); break; }
+          try {
+            const r = await syncStripePayments(env.DB, env.STRIPE, now, env.WINERY_TZ);
+            await env.DB.prepare("UPDATE connections SET health = 'connected', health_reason = ?, last_success_at = ?, freshness_at = COALESCE(?, freshness_at), last_error = NULL, updated_at = ? WHERE id = 'conn_stripe'")
+              .bind(r.complete ? 'Pagos con tarjeta de Stripe, cada 15 minutos, a través de la app del club de vinos' : `Cargando historial: hasta ${r.oldest ?? '—'} (se completa solo)`, now, r.newestAt, now).run();
+            await finishJob(env.DB, job.runKey, 'succeeded', `Stripe: ${r.recent} pagos recientes, ${r.refunded} con reembolso, ${r.history} de historial; datos desde ${r.oldest ?? '—'}${r.complete ? '' : ' (cargando)'}`);
+          } catch (e) {
+            const msg = (e as Error).message.slice(0, 300);
+            // A refused key means someone has to act; anything else (a timeout, Stripe busy) is retried at the next tick.
+            await env.DB.prepare('UPDATE connections SET health = ?, health_reason = ?, last_error = ?, updated_at = ? WHERE id = ?').bind(/Stripe 40[13]/.test(msg) ? 'reconnect' : 'limited', /Stripe 40[13]/.test(msg) ? 'Stripe rechazó la llave de la app del club de vinos' : 'La última lectura de Stripe falló; se reintenta sola', msg, now, 'conn_stripe').run();
+            await finishJob(env.DB, job.runKey, 'failed', msg);
+          }
+          break;
+        }
         case 'weekly_email': {
           if (!env.RESEND_API_KEY || !env.REPORT_EMAIL_TO) { await finishJob(env.DB, job.runKey, 'skipped', 'Falta RESEND_API_KEY o REPORT_EMAIL_TO'); break; }
           const mail = await buildWeeklyEmail(env.DB, now, env.WINERY_TZ, APP_URL);
@@ -113,6 +129,8 @@ export async function runSchedule(env: Env, now: number): Promise<{ ran: string[
         }
         case 'ot_availability': {
           if (!env.OPENTABLE_RID || env.DATA_KIND !== 'real') { await finishJob(env.DB, job.runKey, 'skipped', 'No hay ID de restaurante de OpenTable configurado'); break; }
+          const held = await env.DB.prepare("SELECT health, last_error, updated_at FROM connections WHERE id = 'conn_ot_availability'").first<{ health: string; last_error: string | null; updated_at: number }>();
+          if (availabilityOnHold(held, now)) { await finishJob(env.DB, job.runKey, 'skipped', 'OpenTable rechaza estas lecturas; se vuelve a probar una vez al día'); break; }
           const r = await syncAvailability(env.DB, Number(env.OPENTABLE_RID), now, env.WINERY_TZ);
           await finishJob(env.DB, job.runKey, r.failed && !r.read ? 'failed' : 'succeeded', `Disponibilidad de OpenTable: ${r.read} leídas, ${r.failed} fallidas${r.firstError ? ` (${r.firstError})` : ''}`);
           break;
@@ -175,7 +193,7 @@ export async function watchdog(env: Env, now: number): Promise<{ open: number }>
     const r = await env.DB.prepare('SELECT status, started_at FROM job_runs WHERE run_key = ?').bind(`daily_review:${lp.date}`).first<{ status: string }>();
     const startedAt = r ? Number((r as { started_at?: number }).started_at ?? 0) : 0;
     const stuck = r && (r.status === 'claimed' || r.status === 'running') && now - startedAt > 2 * 3_600_000;
-    if (!r || r.status === 'failed' || stuck) alerts.push({ key: `missed_daily:${lp.date}`, severity: 'warning', title: 'La revisión diaria no se ha completado hoy', detail: !r ? 'Nunca empezó.' : r.status === 'failed' ? 'Falló: ve Actividad del agente → Ejecuciones programadas.' : 'Empezó hace más de 2 h y no ha terminado.', link: '#activity' });
+    if (!r || r.status === 'failed' || stuck) alerts.push({ key: `missed_daily:${lp.date}`, severity: 'warning', title: 'La revisión diaria no se ha completado hoy', detail: !r ? 'Nunca empezó.' : r.status === 'failed' ? 'Falló: ve Sugerencias → Ejecuciones programadas.' : 'Empezó hace más de 2 h y no ha terminado.', link: '#activity' });
   }
   for (const c of (await env.DB.prepare("SELECT provider, health, health_reason FROM connections WHERE health IN ('reconnect', 'limited')").all<{ provider: string; health: string; health_reason: string }>()).results)
     alerts.push({ key: `connection:${c.provider}`, severity: c.health === 'reconnect' ? 'warning' : 'info', title: `${c.provider}: ${c.health === 'reconnect' ? 'hay que volver a conectar' : 'limitada'}`, detail: c.health_reason, link: '#connections' });

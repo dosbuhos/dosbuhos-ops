@@ -1,4 +1,5 @@
 import type { AccountCoordinator } from './coordinator/do.ts';
+import type { StripeReader } from './connectors/stripe-payments.ts';
 
 export interface Env {
   DB: D1Database;
@@ -6,6 +7,7 @@ export interface Env {
   ARCHIVE: R2Bucket;
   ASSETS: Fetcher;
   COORDINATOR: DurableObjectNamespace<AccountCoordinator>;
+  STRIPE?: StripeReader;          // the wine club Worker's StripeRead entrypoint: card payments, read-only, no personal data
   DAILY_REVIEW: Workflow;
   WEEKLY_REVIEW: Workflow;
   ENVIRONMENT: 'dev' | 'demo' | 'staging' | 'production';

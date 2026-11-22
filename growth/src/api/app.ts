@@ -15,6 +15,7 @@ import { mirrorFromHub } from '../connectors/hub-mirror.ts';
 import { loadCampaigns } from '../read/campaigns.ts';
 import { loadToday } from '../read/today.ts';
 import { parseHistoryCsv, HISTORY_SOURCE } from '../read/sales.ts';
+import { loadPayments, prepaidLine } from '../read/payments.ts';
 import { findingsView, loadResults, actionTitle, type ActionLite } from '../read/suggestions.ts';
 import { loadEstimates, saveEstimate, saveCost } from '../read/estimates.ts';
 import { runVisibilityCheck } from '../ai/visibility.ts';
@@ -189,7 +190,9 @@ app.get('/api/today', async c => {
     review = { date: localDate(job.started_at, c.env.WINERY_TZ), status: job.status, rules: note?.rules_summary ?? '', text: note ? note.model_summary : typeof d.review === 'string' ? d.review : '', submitted: Number(note?.submitted ?? d.submitted ?? 0) || 0 };
   }
   const limit = st ? { perDay: st.policy.maxOptimizationMutationsPerDay, used: st.mutationsLast24h } : null;
-  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, advice, results, script, limit, review });
+  // Experiences paid online by card (Stripe). Shown next to the point-of-sale line; never added to it.
+  const prepaid = await prepaidLine(c.env.DB, now, c.env.WINERY_TZ).catch(() => null);
+  return json(c, { ...view, approved: st?.policy.approvedCampaignIds ?? [], mode: st?.mode ?? null, pending, advice, results, script, limit, review, prepaid });
 });
 
 app.get('/api/capacity', async c => {
@@ -554,6 +557,9 @@ app.get('/api/export/coordinator', async c => {
 // ---------- Sales history from the point of sale used before Parrot (Wansoft) ----------
 // Loaded once so a period can be compared with the same weeks a year earlier. Days on or after Parrot's first day are
 // refused: Parrot already has them. Loading the same file again replaces the same days; it never adds them twice.
+
+// Card payments charged online (Stripe, through the wine club Worker): prepaid experiences, club, web store. Read-only.
+app.get('/api/payments', async c => json(c, { ...(await loadPayments(c.env.DB, Date.now(), c.env.WINERY_TZ)), currency: 'MXN' }));
 
 app.get('/api/pos-history', async c => {
   const h = await c.env.DB.prepare('SELECT MIN(local_date) AS first, MAX(local_date) AS last, COUNT(*) AS days, SUM(net_minor) AS net_minor, MAX(loaded_at) AS loaded_at FROM pos_daily_history')

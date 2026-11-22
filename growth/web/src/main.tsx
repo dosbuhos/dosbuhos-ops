@@ -5,6 +5,7 @@ import { useApi } from './api';
 import { MODE_INFO, ago } from './format';
 import { Today } from './views/Today';
 import { Bookings } from './views/Bookings';
+import { Payments } from './views/Payments';
 import { Overview } from './views/Overview';
 import { Capacity } from './views/Capacity';
 import { Activity, Controls } from './views/Operate';
@@ -21,7 +22,7 @@ const PLACES: { k: Place; label: string; icon: ReactNode }[] = [
   { k: 'reportes', label: 'Reportes', icon: <path d="M5 20V10M10 20V4M15 20v-7M20 20V8" /> },
 ];
 const SUBS: Partial<Record<Place, [string, string][]>> = {
-  reservaciones: [['origen', 'De dónde vienen'], ['capacidad', 'Próximos días']],
+  reservaciones: [['origen', 'De dónde vienen'], ['pagos', 'Pagos'], ['capacidad', 'Próximos días']],
   reportes: [['tendencias', 'Tendencias'], ['reportes', 'Reportes'], ['experimentos', 'Experimentos']],
   ajustes: [['controles', 'Controles'], ['conexiones', 'Conexiones']],
 };
@@ -91,6 +92,7 @@ function App() {
         {r.place === 'campanas' && <Campaigns />}
         {r.place === 'sugerencias' && <Activity isAdmin={isAdmin} session={s} />}
         {r.place === 'reservaciones' && r.sub === 'origen' && <Bookings overview={o} />}
+        {r.place === 'reservaciones' && r.sub === 'pagos' && <Payments />}
         {r.place === 'reservaciones' && r.sub === 'capacidad' && <Capacity canEdit={s?.user?.role !== 'viewer'} />}
         {r.place === 'reportes' && r.sub === 'tendencias' && <Overview o={o} error={overview.error} session={s} needs={false} />}
         {r.place === 'reportes' && r.sub === 'reportes' && <><Reports /><AiVisibility /></>}

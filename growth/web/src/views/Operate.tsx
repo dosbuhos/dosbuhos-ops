@@ -250,7 +250,7 @@ export function Controls({ session, reload }: { session: any; reload: () => void
           {['SHADOW', 'LIMITED_AUTO', 'DEMO'].includes(st.mode) && (
             <div className="item">
               <b>Sugerencias de la IA</b>
-              <div className="small">La revisión diaria corre a las 8:00. Para no esperar, pide una ahora: aparecen en Actividad del agente en 1–3 minutos y cada una espera tu aprobación. Máximo 3 al día.</div>
+              <div className="small">La revisión diaria corre a las 8:00. Para no esperar, pide una ahora: lo que encuentre aparece en Sugerencias en 1 a 3 minutos y cada cambio espera tu aprobación. Máximo 3 al día.</div>
               <button className="btn" disabled={!isAdmin || st.aiStopped || st.emergencyLock} onClick={() => void call('control/run-review', {}, 'Revisión iniciada')}>Pedir sugerencias ahora</button>
             </div>
           )}
@@ -287,11 +287,19 @@ export function Controls({ session, reload }: { session: any; reload: () => void
           <div><span>Base del presupuesto / día</span><b>{microsMoney(st.baselineAggregateMicros)}</b></div>
           <div><span>Retorno mínimo</span><b>{p.minimumAcceptableContributionReturn ?? 'sin definir'}</b></div>
           <div><span>Campañas aprobadas</span><b>{p.approvedCampaignIds.length || 'ninguna'}</b></div>
+          <div><span>Cambio máximo por campaña</span><b>{p.maxCampaignBudgetChangePctPer7Days}% cada 7 días</b></div>
+          <div><span>Cambios aprobados al día</span><b>{p.maxOptimizationMutationsPerDay}</b></div>
           <div><span>Resultados desconocidos</span><b>{st.unknownOutcomes}</b></div>
           <div><span>Proveedor de anuncios</span><b>{st.providerKind === 'mock' ? 'Simulado (demo)' : st.providerKind === 'google_ads_script' ? 'Script de Google Ads (cada hora)' : 'API de Google Ads'}</b></div>
         </div>
         <div className="small muted">Siempre apagados a menos que los cambies aquí: campañas nuevas, estrategia de puja, objetivos de conversión, precios/descuentos, publicación en el sitio web, carga de audiencias.</div>
         {isAdmin && <>
+          <div className="item">
+            <b>Cambios aprobados al día</b>
+            <div className="small">Cuántos de los cambios que tú apruebas puede aplicar la app en 24 horas. Hoy son {p.maxOptimizationMutationsPerDay}. {p.allowedAutomaticActions.length ? 'El límite cuenta también los cambios automáticos que permitiste.' : 'Los cambios automáticos están apagados, así que cada cambio sigue esperando tu aprobación.'}</div>
+            <div className="seg" role="group" aria-label="Cambios aprobados al día">{[2, 4, 6].map(n => (
+              <button key={n} aria-pressed={p.maxOptimizationMutationsPerDay === n} disabled={p.maxOptimizationMutationsPerDay === n} onClick={() => void call('control/policy', { ...p, maxOptimizationMutationsPerDay: n }, `Guardado: ${n} cambios al día`)}>{n} al día</button>))}</div>
+          </div>
           <BaselineForm onSave={n => void call('control/baseline', { dailyBudgetNative: n }, 'Base guardada')} />
           <details><summary className="small" style={{ cursor: 'pointer', minHeight: 36, display: 'flex', alignItems: 'center' }}>Editar la política completa (admin)</summary>
             <label className="field">JSON de la política (el modo se cambia arriba, no aquí)<textarea rows={16} className="mono" value={policyText} onChange={e => setPolicyText(e.target.value)} /></label>

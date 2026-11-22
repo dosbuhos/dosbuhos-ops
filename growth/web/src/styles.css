@@ -237,3 +237,24 @@ a.more { display: inline-flex; align-items: center; min-height: 36px; margin-top
 .script-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; line-height: 1.45; }
 h2.sub { font-size: 15px; font-weight: 600; margin: 18px 0 8px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
 h2.sub .small { font-weight: 400; }
+
+/* Reservaciones → Pagos en línea (2026-11-22) */
+.payrow { display: grid; gap: 4px; }
+.payrow-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.payrow-top .small { min-width: 0; overflow-wrap: anywhere; }
+.payrow-bar { display: flex; align-items: center; gap: 10px; }
+.payrow-bar .bar { flex: 1; min-width: 0; }
+.payrow-bar .tiny { white-space: nowrap; min-width: 62px; text-align: right; }
+.midnum.up, .card b.up { color: var(--ok, #1f7a4d); }
+.midnum.down, .card b.down { color: var(--bad, #b3261e); }
+a.card.yoy.paid { display: block; text-decoration: none; color: var(--ink); }
+a.card.yoy.paid:hover { border-color: var(--field); }
+a.card.yoy.paid .go { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.kv div span + b + span { margin-top: 1px; }
+@media (min-width: 760px) { .cols-2.even { grid-template-columns: 1fr 1fr; align-items: start; } }
+.kv.weeks { grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 10px 16px; }
+.kv.weeks div b { font-size: 16px; }
+.months-list { display: none; }
+.monthrow { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.monthrow:last-child { border-bottom: 0; }
+@media (max-width: 620px) { .months-table { display: none; } .months-list { display: block; margin-bottom: 8px; } }

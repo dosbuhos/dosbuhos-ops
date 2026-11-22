@@ -176,6 +176,27 @@ export function demoStatements(now: number): Stmt[] {
   out.push(S(`INSERT OR IGNORE INTO negatives_live (account_id, campaign_id, text, match_type, level, scope_id, seen_at) VALUES (?, '222', 'empleo', 'BROAD', 'campaign', '', ?)`, DEMO_ACCOUNT.id, now));
   out.push(S(`INSERT OR IGNORE INTO feed_state (account_id, script_version, keywords_at, term_keywords_at, negatives_full_at, warnings_json, updated_at) VALUES (?, 'demo', ?, ?, ?, '[]', ?)`, DEMO_ACCOUNT.id, now, now, now, now));
 
+  // ---- card payments charged online (synthetic): prepaid experiences, the club, the web store, and tours a year ago ----
+  const EXP: [string, number][] = [['796500', 140000], ['842882', 90000], ['793495', 185000], ['793530', 170000], ['796410', 120000]];
+  const PLATFORMS = ['Diner App', 'Restaurant Website', 'Restaurant Website', 'OpenTable Web'], CARDS = ['MX', 'MX', 'US', 'US', 'US', 'CA'];
+  const pay = (id: string, daysAgo: number, amount: number, source: string, x: { exp?: string; platform?: string; service?: string; card?: string; refunded?: number } = {}) => {
+    const at = zonedToUtc(addDays(today, -daysAgo), 12, 30, tz);
+    out.push(S(`INSERT OR IGNORE INTO stripe_payments (id, created_at, local_date, currency, amount_minor, refunded_minor, status, source, kind, experience_id, platform, service_date, service_time, card_country, fetched_at)
+      VALUES (?, ?, ?, 'MXN', ?, ?, 'succeeded', ?, ?, ?, ?, ?, ?, ?, ?)`, id, at, addDays(today, -daysAgo), amount, x.refunded ?? 0, source, x.exp ? 'experiences' : '', x.exp ?? '', x.platform ?? '', x.service ?? null, x.service ? '13:00' : null, x.card ?? '', now));
+  };
+  for (let k = 58; k >= 0; k--) {
+    const n = weekdayOf(addDays(today, -k)) >= 5 ? 3 : r() < 0.6 ? 1 : 0;
+    for (let i = 0; i < n; i++) {
+      const [exp, price] = EXP[Math.floor(r() * EXP.length)]!, guests = 1 + Math.floor(r() * 3), ahead = Math.floor(r() * 21);
+      pay(`ch_demo_ot_${k}_${i}`, k, price * guests, 'opentable', { exp, platform: PLATFORMS[Math.floor(r() * PLATFORMS.length)]!, service: addDays(today, ahead - k), card: CARDS[Math.floor(r() * CARDS.length)]!, refunded: r() < 0.06 ? price * guests : 0 });
+    }
+    if (k % 9 === 0) pay(`ch_demo_wc_${k}`, k, 360000, 'wine_club', { card: 'MX' });
+    if (k % 6 === 0) pay(`ch_demo_ws_${k}`, k, 95000 + Math.round(r() * 20) * 5000, 'web_store', { card: 'MX' });
+  }
+  for (let k = 364 + 55; k >= 364 - 30; k--) if (r() < 0.7) pay(`ch_demo_rz_${k}`, k, 120000 * (1 + Math.floor(r() * 3)), 'rezdy', { card: r() < 0.5 ? 'US' : 'MX' });
+  out.push(S(`UPDATE stripe_sync_state SET history_done = 1, refunds_read_at = ?, updated_at = ? WHERE id = 1`, now, now));
+  out.push(S(`UPDATE connections SET health = 'connected', health_reason = 'Demo: pagos sintéticos', last_success_at = ?, freshness_at = ?, updated_at = ? WHERE id = 'conn_stripe'`, now, now, now));
+
   out.push(S(`UPDATE connections SET freshness_at = ? WHERE provider = 'opentable_csv'`, now - 2 * 3_600_000));
   return out;
 }

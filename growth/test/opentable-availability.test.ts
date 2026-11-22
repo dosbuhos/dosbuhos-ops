@@ -75,6 +75,7 @@ describe('OpenTable refusal', () => {
     const { syncAvailability } = await import('../src/connectors/opentable-availability.ts');
     const db = new DatabaseSync(':memory:');
     for (const f of ['0001_init.sql', '0003_opentable_availability.sql']) db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+    db.exec("INSERT INTO connections (id, provider, purpose, updated_at) VALUES ('conn_ot_availability', 'opentable_availability', 'x', 0)");
     const stmt = (sql: string, binds: unknown[] = []): any => ({ bind: (...b: unknown[]) => stmt(sql, b), run: async () => db.prepare(sql).run(...(binds as never[])), all: async () => ({ results: db.prepare(sql).all(...(binds as never[])) }) });
     const d1 = { prepare: (sql: string) => stmt(sql), batch: async (s: any[]) => { for (const x of s) await x.run(); return []; } } as unknown as D1Database;
     let calls = 0;
@@ -82,5 +83,18 @@ describe('OpenTable refusal', () => {
     expect(calls).toBe(1);
     expect(r.read).toBe(0);
     expect((db.prepare('SELECT COUNT(*) AS n FROM ot_availability WHERE slots IS NOT NULL').get() as { n: number }).n).toBe(0);
+    // A refusal is not the owner's to fix: it is a limit said in plain words, not a call to reconnect.
+    const conn = db.prepare("SELECT health, health_reason, last_error, updated_at FROM connections WHERE id = 'conn_ot_availability'").get() as { health: string; health_reason: string; last_error: string; updated_at: number };
+    expect(conn.health).toBe('limited');
+    expect(conn.health_reason).toBe('OpenTable no deja que esta app lea sus horarios disponibles (respondió 403). No afecta las reservaciones ni los anuncios. Se vuelve a probar una vez al día');
+    // ...and it is asked again once a day, not every three hours.
+    const { availabilityOnHold } = await import('../src/connectors/opentable-availability.ts');
+    const t = Date.UTC(2026, 10, 14, 18);
+    expect(availabilityOnHold(conn, t + 3 * 3_600_000)).toBe(true);
+    expect(availabilityOnHold(conn, t + 21 * 3_600_000)).toBe(true);
+    expect(availabilityOnHold(conn, t + 24 * 3_600_000)).toBe(false);
+    expect(availabilityOnHold({ ...conn, health: 'reconnect' }, t + 3_600_000)).toBe(false);
+    expect(availabilityOnHold({ ...conn, last_error: 'PersistedQueryNotFound' }, t + 3_600_000)).toBe(false);
+    expect(availabilityOnHold(null, t)).toBe(false);
   });
 });

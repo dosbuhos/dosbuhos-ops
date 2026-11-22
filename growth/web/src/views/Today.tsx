@@ -10,7 +10,7 @@ const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'ag
 /** Campaign names come from the ad platforms with underscores; spaces let them wrap on a phone. */
 export const campaignName = (n: string) => n.replace(/_/g, ' ');
 /** Alerts name the connection by its internal id; say it the way the owner would. */
-const CONN: Record<string, string> = { opentable_availability: 'Disponibilidad de OpenTable', google_ads_script: 'Google Ads', hub_mirror: 'Gasto de Google y Meta', ga4: 'GA4 (reservaciones en línea)', parrot: 'Parrot', meta_ads: 'Meta' };
+const CONN: Record<string, string> = { opentable_availability: 'Disponibilidad de OpenTable', google_ads_script: 'Google Ads', hub_mirror: 'Gasto de Google y Meta', ga4: 'GA4 (reservaciones en línea)', parrot: 'Parrot', meta_ads: 'Meta', stripe: 'Stripe (pagos en línea)' };
 const alertTitle = (t: string) => t.replace(/^([a-z0-9_]+):/, (m, id: string) => (CONN[id] ? `${CONN[id]}:` : m));
 const firstParagraph = (t: string) => t.replace(/\*\*/g, '').split(/\n\s*\n/)[0]!.trim();
 
@@ -163,6 +163,13 @@ export function Today({ overview, session }: { overview: any; session: any }) {
               ? <><b className={s28.yoy.percent >= 0 ? 'up' : 'down'}>{signedPct(s28.yoy.percent)}</b> contra las mismas semanas de {s28.yoy.lastYearTo.slice(0, 4)} ({money(s28.yoy.lastYearMinor, cur)}, del {fullDate(s28.yoy.lastYearFrom)} al {fullDate(s28.yoy.lastYearTo)}).{s28.yoy.eventsExcludedMinor > 0 ? ` La comparación deja fuera ${money(s28.yoy.eventsExcludedMinor, cur)} de eventos privados.` : ''}</>
               : <span className="muted">Sin comparación con el año pasado: falta cargar el historial de Wansoft en Ajustes → Conexiones.</span>}
           </p>
+        )}
+        {t.prepaid && (
+          <a className="small card yoy paid" href="#reservaciones/pagos">
+            <b>Experiencias pagadas en línea:</b> {money(t.prepaid.paid.netMinor, cur)} en {count(t.prepaid.paid.count, 'pago', 'pagos')} con tarjeta en los últimos 28 días.
+            {t.prepaid.upcoming.count > 0 && <> Ya cobrado para visitas que vienen: {money(t.prepaid.upcoming.netMinor, cur)} en {count(t.prepaid.upcoming.count, 'reservación', 'reservaciones')}.</>}
+            {' '}<span className="go">Ver pagos →</span>
+          </a>
         )}
       </section>
       {session?.user?.role === 'viewer' && <p className="tiny muted section">Tu acceso es de lectura.</p>}

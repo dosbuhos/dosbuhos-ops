@@ -9,7 +9,7 @@ A private, market-style dashboard and bounded optimization agent for Dos Búhos 
 | Real | Google Ads spend/clicks/conversions via the Hub (D1 `growth` and R2 `growth-archive` created; schema applied). Domain, policy and coordinator logic; dashboard; watchdog; reports |
 | Mocked | The ad account in dev/demo (`MockAdsProvider`); every demo number (`fixtures/demo-data.ts`) |
 | Blocked | Google Ads API reads and writes (needs approved API access + owner OAuth); offline conversions; Claude review against the live API (no key here) |
-| Tested | 173 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
+| Tested | 183 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
 | Deployable | Yes, via Workers Builds once the `growth` Worker is created in the dashboard and `HUB_SECRET` is set (`docs/setup.md`). Ad changes stay impossible until the API adapter exists and the owner goes live |
 
 ## Layout
@@ -56,7 +56,7 @@ The same on a desktop (tabs under the top strip) and on a phone (bar at the bott
 | **Hoy** `#hoy` | What needs a decision, where the month lands, which campaign works | one |
 | **Campañas** `#campanas` | Spend, reservations, cost and return per campaign; brand vs other searches | one |
 | **Sugerencias** `#sugerencias` | What was proposed, what was decided, what happened after (was "Actividad del agente") | one |
-| **Reservaciones** `#reservaciones` | Where online reservations come from; the next days | De dónde vienen · Próximos días |
+| **Reservaciones** `#reservaciones` | Where online reservations come from; what was paid online by card; the next days | De dónde vienen · Pagos · Próximos días |
 | **Reportes** `#reportes` | Trends, the written reports, experiments, AI assistant visibility | Tendencias · Reportes · Experimentos |
 | **Ajustes** (the gear) `#ajustes` | Emergency controls, policy, estimates, connections | Controles · Conexiones |
 
@@ -88,6 +88,31 @@ secrets). Preview: `GET /api/weekly-email-preview`; test send: `POST /api/contro
 payments from `https://api.parrot.rest/external`, then backfills older 48-hour windows (to 2025-11-01) within a small
 request budget (Parrot allows 15 requests/minute). Guests = `customersCount` of dine-in orders, trusted from 2026-11-04.
 Shown on Resumen: Comensales (restaurante), Personas en tours, Ventas sin IVA, and guests by weekday.
+
+## Card payments (Stripe, through the wine club Worker)
+No Stripe key here. The service binding `STRIPE` reaches the `StripeRead` entrypoint of the `wineclub` Worker
+(`wineclub/src/payments.js`), which holds the key and removes every personal field before answering: a charge arrives
+as amounts, dates, where it came from (`opentable`, `rezdy`, `web_store`, `wine_club`, `other`), the OpenTable
+experience id, platform and reservation time, the Rezdy order code and the card's country. Every OpenTable prepayment
+is a charge in that same Stripe account, so this is also the source for prepaid experiences.
+
+- `payments_sync` (every 15 minutes, `src/connectors/stripe-payments.ts`): the charges of the last three days, the
+  charges refunded since the last run (a guest can cancel weeks after paying), then older pages of history, newest
+  first, within 14 calls a run, until Stripe has no more. It resumes from `stripe_sync_state`. Failed attempts are not
+  kept. Connection `conn_stripe`.
+- `GET /api/payments` (`src/read/payments.ts`) feeds **Reservaciones → Pagos**: experiences paid online in the last
+  28 complete days against the 28 before and the same weeks a year earlier (those were Rezdy), what is already
+  charged for visits from today on, by experience, by where the guest booked, by card country, and thirteen months
+  by source. Net of refunds, IVA included, pesos only. `GET /api/today` carries one line of it (`prepaid`).
+- It is never added to the point-of-sale sales: whether a prepaid visit is also rung up in Parrot is not known from
+  this data. Nothing here is attributed to a campaign.
+- Experience names come from `EXPERIENCES` in `src/connectors/opentable-availability.ts`.
+
+## OpenTable availability when OpenTable refuses
+Since 2026-11-14 OpenTable answers 403 to the public availability queries from this Worker. A refusal is stored as
+`limited` with the reason in plain words (the owner cannot fix it, so it is not a warning on Hoy), and the read is
+tried once a day instead of every three hours (`availabilityOnHold`). A changed page (new query hashes) still shows
+as `reconnect`.
 
 ## Sales history from the previous point of sale (Wansoft)
 
@@ -173,3 +198,9 @@ the account and posts it to `/api/feed/google-ads`.
 `negatives_live` (match type, level, scope) and `script_ops` (new kinds and columns), and adds
 `feed_tokens.first_used_at`. It is compatible with the code from before it, so it is applied to the remote database
 before the code that needs it is pushed.
+
+## Migration 0013
+
+`0013_stripe_payments.sql` adds `stripe_payments`, `stripe_sync_state` and the `conn_stripe` connection. Nothing older
+reads them, so it is applied to the remote database before the code is pushed. The `wineclub` Worker has to be
+deployed first: the `STRIPE` binding names its `StripeRead` entrypoint.

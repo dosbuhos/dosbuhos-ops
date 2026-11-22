@@ -88,9 +88,17 @@ export async function syncAvailability(db: D1Database, rid: number, now: number,
   for (const r of rows) stmts.push(db.prepare('INSERT OR REPLACE INTO ot_availability (date, product, item, party_size, slots, error, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(r.date, r.product, r.item, r.party, r.slots, r.error, now));
   const failed = rows.filter(r => r.slots === null).length, firstError = rows.find(r => r.error)?.error ?? null;
   stmts.push(db.prepare('UPDATE connections SET health = ?, health_reason = ?, last_success_at = CASE WHEN ? THEN ? ELSE last_success_at END, freshness_at = ?, last_error = ?, updated_at = ? WHERE id = ?')
-    .bind(failed === 0 ? 'connected' : failed < rows.length ? 'limited' : 'reconnect',
-      failed === 0 ? 'Horarios disponibles leídos de la página pública de reservaciones de OpenTable cada 3 horas (próximos 14 días)' : failed < rows.length ? `${failed} de ${rows.length} lecturas fallaron` : (refused ? `OpenTable rechazó las consultas (${refused}); se deja de preguntar hasta la siguiente ronda` : 'OpenTable no respondió (puede que su página de reservaciones haya cambiado: actualiza los hashes, como en canario)'),
+    // A refusal is OpenTable's decision, not something the owner can fix: it is shown as a limit, in plain words, and
+    // asked again once a day (availabilityOnHold). A changed page still needs someone, so that one stays "reconnect".
+    .bind(failed === 0 ? 'connected' : failed < rows.length || refused ? 'limited' : 'reconnect',
+      failed === 0 ? 'Horarios disponibles leídos de la página pública de reservaciones de OpenTable cada 3 horas (próximos 14 días)' : failed < rows.length ? `${failed} de ${rows.length} lecturas fallaron` : (refused ? `OpenTable no deja que esta app lea sus horarios disponibles (${refused.replace(/^OpenTable /, '')}). No afecta las reservaciones ni los anuncios. Se vuelve a probar una vez al día` : 'OpenTable no respondió (puede que su página de reservaciones haya cambiado: actualiza los hashes, como en canario)'),
       failed < rows.length ? 1 : 0, now, now, firstError, now, 'conn_ot_availability'));
   await db.batch(stmts);
   return { read: rows.length - failed, failed, firstError };
+}
+
+/** While OpenTable refuses these reads, one try a day is enough to notice when it stops. */
+export const AVAILABILITY_RETRY_MS = 22 * 3_600_000;
+export function availabilityOnHold(conn: { health: string; last_error: string | null; updated_at: number } | null, now: number): boolean {
+  return !!conn && conn.health === 'limited' && /respondió (403|429)/.test(conn.last_error ?? '') && now - conn.updated_at < AVAILABILITY_RETRY_MS;
 }

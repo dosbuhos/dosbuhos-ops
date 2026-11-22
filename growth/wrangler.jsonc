@@ -34,6 +34,9 @@
     // The Hub's session secret: fills HUB_SECRET (src/api/hub-secret.ts).
     { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
   ],
+  // Stripe through the wine club Worker (wineclub/src/payments.js): it holds the only Stripe key and returns card
+  // payments with every personal field removed. Every OpenTable prepayment is a charge in that same Stripe account.
+  "services": [{ "binding": "STRIPE", "service": "wineclub", "entrypoint": "StripeRead" }],
   // Raw feed payloads, import files and coordinator backups.
   "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "growth-archive" }],
   // One coordinator per ad account: the only code that may change the ad account.
@@ -66,6 +69,7 @@
     //   GA4_SA_KEY          GA4 service account JSON key (Viewer on the GA4 property): OpenTable online reservations.
   //   FEED_TOKEN_PEPPER   optional: only for Growth's own richer Google Ads Script feed (scripts/google-ads-feed.js).
   //   PARROT_API_KEY      Parrot POS private key (tools.parrotsoftware.io → External API). Sales, guests, payments; read only.
+  //   (Stripe)            none here: card payments come through the wineclub Worker's StripeRead entrypoint (services, above).
   //   RESEND_API_KEY      optional: weekly summary email (Resend, same as spark/). Without it the email is skipped.
   //   REPORT_EMAIL_TO     optional: comma-separated recipients of the weekly summary.
 }
