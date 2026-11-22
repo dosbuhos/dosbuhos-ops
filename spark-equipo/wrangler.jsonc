@@ -22,6 +22,8 @@
     { "binding": "GMAIL", "service": "cellar", "entrypoint": "GmailRead" }
   ],
   // UTC. 12:00 = 6:00 in San Miguel (sheet + Zoho); 18:00 and 00:00 = noon and 6 pm (Zoho only).
+  // The id of the deployed version, so an open tab can tell that a newer one is live and offer to reload.
+  "version_metadata": { "binding": "VERSION" },
   "triggers": { "crons": ["0 12 * * *", "0 18 * * *", "0 0 * * *"] },
   "vars": {
     // San Miguel de Allende, UTC-6 all year: "today" and week boundaries.

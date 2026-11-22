@@ -119,6 +119,7 @@ Pantalla `lunes` (en Plan). Es la media hora de cada lunes en una sola vista:
   registro al corriente, vencido de más de 90 días). Dos se capturan a mano en la revisión, con "Actualizar", hasta que Spark
   pueda calcularlos (`POST /api/admin/lunes`, solo administradores).
 - **Compromisos vencidos y los que vencen en siete días**, tomados del Plan.
+- Cada número abre la pantalla que lo explica: venta, seguimiento, cobranza, distribuidores o zonas.
 - **Una tarjeta por persona**: venta del mes, contactos de la semana, puntualidad, compromisos y los puntos que se revisan con ella.
 
 Qué números son, sus metas y los puntos de cada persona viven en D1 (`meta`, llave `lunes_cfg`, un JSON), no en el repositorio,
@@ -138,3 +139,12 @@ verifica: una vez, `api/plan/hecho` y `api/eventos` quedaron después de esa lí
 
 - **48 horas son dos días hábiles.** Sábados y domingos no cuentan: un contacto del viernes registrado el lunes va a tiempo. Aplica a la puntualidad del mes (la que ajusta la comisión) y a "registro al corriente".
 - **Vencido del equipo: cuentas con nombre.** Las facturas a "Público en general" y las de exportación que en Zoho no tienen pago aplicado se cuentan aparte, como "Por conciliar": son trabajo de Contabilidad, no deuda por cobrar. El patrón que las separa vive en D1 (`meta`, clave `cobranza_conciliar`), no en el repositorio.
+
+## Versión en uso
+
+`GET /api/version` y `/api/data` devuelven el id de la versión desplegada (binding `VERSION`, version metadata). Una pestaña que quedó abierta lo compara con el que cargó, al volver a verse y con cada carga de datos, y si cambió muestra "Hay una versión nueva de Spark" con un botón para recargar. Así nadie sigue trabajando horas con la pantalla vieja después de un despliegue.
+
+## Regresar a una versión anterior
+
+- **Código:** cada push a `main` es un despliegue. Para regresar la carpeta a como estaba en un commit: `git restore --source=<commit> --staged --worktree -- spark-equipo && git commit -m "Spark: back to <commit>" && git push`. La versión anterior a la noche del 21 de noviembre de 2026 es `95e4545`. En el panel de Cloudflare también se puede: Workers & Pages, spark-equipo, Deployments, Rollback (el siguiente push a `main` lo reemplaza).
+- **Datos:** esa noche no hubo migraciones. Se agregaron dos filas a `meta` (`lunes_cfg` y `cobranza_conciliar`), que el código anterior ignora; se quitan con `DELETE FROM meta WHERE k IN ('lunes_cfg', 'cobranza_conciliar')`.

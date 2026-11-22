@@ -1,7 +1,7 @@
 // Spark CRM — the Monday review: the five numbers of the plan, the commitments that are due, and what gets reviewed with
 // each person. Which numbers, their targets and each person's review points come from the database (they name accounts);
 // nothing of that lives in this file. The team sees this screen once at least one commitment is shown to them.
-import { h, pill, peso, dia, S, datos, ir, formulario, enviar, regla48, puntualidad, ventaNeta, porConciliar } from './app.js';
+import { h, pill, peso, dia, S, datos, ir, toca, formulario, enviar, regla48, puntualidad, ventaNeta, porConciliar } from './app.js';
 
 const D = () => datos();
 const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
@@ -27,7 +27,9 @@ function lunes() {
   const cambiar = (n) => formulario('Actualizar: ' + n.titulo, [{ k: 'valor', t: 'Valor de hoy', tipo: 'number', v: n.valor, req: true }], (v) => enviar('api/admin/lunes', { clave: n.clave, valor: v.valor }),
     'Este número se captura a mano en la revisión, hasta que Spark lo pueda calcular.', 'Guardar');
   const cifra = (n) => { const r = leer(n), tarde = n.fecha && n.fecha < hoy, k = r.ok ? 'ok' : tarde || r.pc == null || r.pc < 60 ? 'bad' : 'warn';
-    return h('div', { class: 'tit ' + k }, h('span', { class: 'tt' }, n.titulo), h('b', {}, r.txt), h('span', { class: 'ts' }, `Meta: ${r.meta}` + (n.fecha ? ` · ${dia(n.fecha)}` : '')),
+    // each number opens the screen that explains it
+    const va = { venta: 'ventas', registro: 'seguimiento', vencido: 'cobranza', distribuidores: 'distribuidores', sanmiguel: 'zonas' }[n.clave] || { venta: 'ventas', registro: 'seguimiento', vencido: 'cobranza' }[n.tipo];
+    return h('div', { ...(va ? toca(() => ir(va)) : {}), class: 'tit ' + k + (va ? ' toca' : ''), title: va ? 'Abrir el detalle' : null }, h('span', { class: 'tt' }, n.titulo), h('b', {}, r.txt), h('span', { class: 'ts' }, `Meta: ${r.meta}` + (n.fecha ? ` · ${dia(n.fecha)}` : '')),
       r.pc == null ? null : h('i', {}, h('u', { style: `width:${Math.max(2, Math.min(100, r.pc))}%` })),
       r.manual && yo.admin ? h('button', { class: 'linkb', onclick: () => cambiar(n) }, n.actualizado ? `Actualizar · ${dia(n.actualizado)}` : 'Actualizar') : null); };
   // Open commitments: overdue first, then what is due within seven days.

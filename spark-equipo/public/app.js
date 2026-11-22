@@ -325,7 +325,8 @@ const VISTAS = {
   hoy() {
     const filas = personas().map((p) => semDe(D.semana_actual, p)).filter(Boolean);
     return h('div', {}, S.persona ? equipo(filas, 'esta semana') : titular(filas),
-      D.lunes && !S.persona ? h('p', { class: 'note', style: 'margin:-4px 0 12px' }, h('button', { class: 'linkb', onclick: () => ir('lunes') }, 'Revisión del lunes: los cinco números del plan y los puntos de cada persona')) : null,
+      D.lunes && !S.persona ? (() => { const P = (D.plan || []).filter((c) => c.estado !== 'hecho' && c.fecha), v = P.filter((c) => c.fecha < D.hoy).length, s = P.filter((c) => c.fecha >= D.hoy && dDias(D.hoy, c.fecha) <= 7).length;
+        return h('button', { class: 'lunb', onclick: () => ir('lunes') }, h('b', {}, 'Revisión del lunes'), h('span', {}, [v ? (v === 1 ? '1 compromiso vencido' : `${v} compromisos vencidos`) : 'nada vencido en el plan', s === 1 ? '1 vence en siete días' : `${s} vencen en siete días`].join(' · ')), h('i', {}, 'Abrir')); })() : null,
       h('div', { class: 'grid3' }, personas().map((p) => marcador(p, !ancho() && personas().length > 1))),
       !ancho() && personas().length > 1 ? h('p', { class: 'note' }, 'Porcentajes contra la meta a la fecha. Toca a una persona para ver su tablero completo.') : null);
   },
@@ -885,9 +886,20 @@ function registrar(pre) {
   }, [antes, pre.pausa ? 'Envíos pausados por cobranza: igual toca contactarlos, para cobrar y para que vuelvan a pedir.' : ''].filter(Boolean).join(' ') || 'Si fue otro día, cambia la fecha. Dos minutos y queda guardado.');
 }
 
+// A tab left open keeps running the code it loaded. The server says which version it is; when that changes, a small
+// notice offers to reload. Checked with every data load and when the tab comes back into view.
+let V0 = null, vVisto = 0;
+function version(v) {
+  if (!v) return;
+  if (V0 == null) { V0 = v; return; }
+  if (v === V0 || document.getElementById('nuevav')) return;
+  document.body.append(h('div', { id: 'nuevav', class: 'nuevav', role: 'status' }, h('span', {}, 'Hay una versión nueva de Spark.'), h('button', { class: 'btn sm', onclick: () => location.reload() }, 'Actualizar')));
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible' || Date.now() - vVisto < 6e5) return; vVisto = Date.now(); fetch('api/version').then((r) => (r.ok ? r.json() : null)).then((j) => j && version(j.v)).catch(() => {}); });
 async function cargar() {
   const r = await fetch('api/data'), j = await r.json().catch(() => ({ error: 'No se pudo leer la respuesta' }));
   if (!r.ok) { $('main').replaceChildren(h('div', { class: 'alert' }, j.error || 'No se pudo cargar.')); return; }
+  version(j.v); vVisto = Date.now();
   if (!D && j.yo.persona && !j.yo.admin) S.persona = j.yo.persona;   // a rep opens on their own numbers; Equipo is one tap away
   D = j; deHash(); pintar();
 }

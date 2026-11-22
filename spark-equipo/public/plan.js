@@ -63,7 +63,7 @@ function plan() {
       cifra('En siete días', String(sem.length), sem.length ? 'el primero, el ' + fechaL(sem[0].fecha) : 'nada esta semana', sem.length ? 'warn' : ''),
       cifra('Hechos', `${he.length} de ${L.length}`, L.length ? Math.round(he.length / L.length * 100) + '% del plan' : '', he.length && he.length === L.length ? 'ok' : '', L.length ? he.length / L.length * 100 : null),
       cifra('Siguiente fecha', sig ? fechaL(sig.fecha) : '—', sig ? plural(nsig, 'compromiso ese día', 'compromisos ese día') : 'sin pendientes con fecha', '')) : null,
-    h('div', { class: 'toolbar plb' }, gente.length > 1 ? chips([['', 'Todos'], ...gente.map((g) => [g, g])], S.planP, (v) => { S.planP = v; }) : null,
+    h('div', { class: 'toolbar plb' }, gente.length > 1 ? chips([['', 'Todos'], ...gente.map((g) => { const G = P.filter((c) => c.persona === g); return [g, `${g} · ${G.filter((c) => c.estado === 'hecho').length}/${G.length}`]; })], S.planP, (v) => { S.planP = v; }) : null,
       yo.dueno ? h('button', { class: 'btn sm sec', onclick: () => editar() }, 'Agregar', h('span', { class: 'dsk' }, ' compromiso')) : null),
     P.length ? null : h('p', { class: 'note' }, 'Todavía no hay compromisos.'),
     grupo('Vencidos', venc, 'bad'), grupo('Vencen en siete días', sem, 'warn'),

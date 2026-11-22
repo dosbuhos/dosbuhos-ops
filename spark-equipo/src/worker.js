@@ -87,6 +87,9 @@ async function sync(env, what) {
   return out;
 }
 
+// The id of the deployed version (version metadata binding). Empty in a setup without the binding: the app then shows no notice.
+const version = (env) => (env.VERSION && env.VERSION.id) || '';
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url), p = url.pathname;
@@ -98,6 +101,8 @@ export default {
     if (!yo) return json({ error: 'Entra por el Hub: apps.dosbuhos.com' }, 401);
     if (!yo.admin && !yo.persona) return json({ error: 'Tu correo todavía no está ligado a un vendedor. Pídele a Eric que te dé de alta en Ajustes.', yo }, 403);
 
+    // Which deployment is answering: an open tab compares it with the one it loaded and offers to reload.
+    if (p === '/api/version' && request.method === 'GET') return json({ v: version(env) });
     if (p === '/api/data' && request.method === 'GET') {
       const m = paraVer(await modelo(env), yo);
       const sug = new Map((await env.DB.prepare('SELECT persona, clave, texto FROM sugerencias').all()).results.map((r) => [r.persona + '|' + r.clave, r.texto]));
@@ -155,7 +160,7 @@ export default {
       m.preguntas = (await env.DB.prepare('SELECT * FROM preguntas ORDER BY respondida != \'\', id DESC').all()).results;
       m.hechos = (await env.DB.prepare('SELECT clave FROM buzon_hechos WHERE email = ?').bind(yo.email).all()).results.map((r) => r.clave);   // inbox notes this person marked done
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
-      return json({ ...m, sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
+      return json({ ...m, v: version(env), sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
     }
     // Original document of a promotion. The team only reaches files of promotions marked visible.
     if (p.startsWith('/api/archivo/') && request.method === 'GET') {
