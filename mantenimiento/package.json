@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "test": "node --test test/*.test.mjs",
     "db:local": "wrangler d1 migrations apply mantenimiento --local",
-    "db:remote": "wrangler d1 migrations apply mantenimiento --remote",
-    "deploy": "wrangler d1 migrations apply mantenimiento --remote && wrangler deploy"
+    "db:remote": "wrangler d1 migrations apply mantenimiento --remote"
   },
   "devDependencies": {
     "wrangler": "^4.40.0"

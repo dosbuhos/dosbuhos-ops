@@ -1,67 +1,78 @@
 # Mantenimiento Dos Búhos
 
-Mobile maintenance tracker ("MaintainX light") for Adrián and the team. Cloudflare Worker + D1, no build step.
+What is broken, who has it, what is late, and what comes up through the year. Phone first, Spanish, for the whole
+team: anyone reports with a photo; Adrián assigns, postpones or hands work to an outside provider; equipment keeps
+its service record. Cloudflare Worker + D1, plain JS, no build step.
 
-## Deploy (GitHub → Cloudflare Workers Builds)
+- Worker `dosbuhos-mantenimiento`, D1 `mantenimiento`, live at https://dosbuhos-mantenimiento.dos-buhos.workers.dev
+- Not behind the Hub: it has its own open sign-up. The Hub lists it as a link.
 
-1. Copy this folder into the `dosbuhos-ops` repo as `mantenimiento/` and push.
-2. Cloudflare dashboard → Workers & Pages → Create → Import a repository → pick `dosbuhos-ops`.
-3. Settings:
-   - Project name: `dosbuhos-mantenimiento` (must match `name` in wrangler.jsonc)
-   - Root directory: `mantenimiento`
-   - Build command: *(leave empty)*
-   - Deploy command: `npx wrangler deploy`
-4. Deploy. URL: `https://dosbuhos-mantenimiento.<your-subdomain>.workers.dev`
+## Access: open sign-up (Eric, Nov 2026)
 
-The D1 database `mantenimiento` already exists and has its schema applied (ID is in wrangler.jsonc). Every push to the repo redeploys.
+No PIN, no links, no approval. A person opens the address, types **name + WhatsApp (+ email, optional)** once per
+phone and is in; the session lasts a year and renews on every visit.
 
-## Access (no passwords)
-- Más → Usuarios → Agregar usuario (name, WhatsApp, optional email) → **Crear y enviar acceso** → send the link by WhatsApp or copy it.
-- The link opens the app and keeps that phone logged in (sessions renew every time the app is opened; 1 year idle).
-- Links last 7 days and work up to 5 times (phone browser + home-screen app).
-- **Quitar acceso** logs the person out everywhere and kills their links.
-- PIN is only a backup (Más → PIN de respaldo, and "Entrar con PIN" on the login screen).
+- The last 10 digits of the phone identify the person (`users.phone_key`), so `415 123 4567`, `+52 415…` and
+  `521415…` are the same account. Typing a registered phone signs that person back in.
+- An administrator with an email on file also has to type it (they can delete things and remove people). There is
+  no code or password: knowing someone's phone is enough to enter as them, which is the trade-off of having no gates.
+- Everyone can report, assign, set priority and dates, postpone, add notes and photos, add equipment, contacts and
+  plans. Only administrators delete, manage people and edit the areas.
+- Cuenta → Personas: close or reopen sign-up (`settings.signup_open`), make someone an administrator, remove access.
+- Safety nets: 40 sign-ups a day at most, `noindex` everywhere, `robots.txt` disallows all.
+- A person who signs up gets a card in Contactos (or takes over the card someone already made with their phone), so
+  work can be assigned to them.
 
-## Email login (optional)
-1. Cloudflare → Workers Plans → Workers Paid ($5/mo; required to email arbitrary addresses).
-2. Compute → Email Service → Email Sending → Onboard Domain → dosbuhos.com. Check the DMARC record against the existing Google Workspace one before accepting.
-3. In `wrangler.jsonc`, uncomment `"send_email": [{ "name": "EMAIL" }]` and push.
-Then the login screen offers "Enviarme el acceso" (link + 6-digit code, valid 30 min) and admins get "Enviar por correo".
+## Screens
 
-## What's in the app
-- **Hoy** (people who do maintenance): overdue → today → in progress → waiting → next 7 days; quick "Marcar como…" on every row.
-- **Inicio / Reportar** (everyone): report a problem in < 20 s (area, what's wrong, photo, urgency, optional equipment) and follow its progress.
-- **Órdenes**: phone list with filters; desktop table (sortable), board (drag or "Mover a"), calendar; order detail opens in a side panel.
-- Statuses: Por hacer · En curso · Esperando material / proveedor · Hecho · No aplica (DB values unchanged: pendiente, en_proceso, en_espera, hecha, cancelada).
-- **Preventivo**: plans per equipment/area (every N days/weeks/months or once) that create their own work order N days ahead.
-- **Equipos**: history, next service, failures in 90 days, yearly cost, warranty, manual link, supplier call/WhatsApp.
-- **Proveedores**: one-tap call / WhatsApp. **Compras**: material requests (pedido → comprado → recibido) with cost.
-- Desktop keyboard: `/` search, `n` report, `Esc` closes panels.
+| Tab | What |
+|---|---|
+| **Pendientes** | Everything open, late first. Tiles filter (Atrasados, Para hoy, Sin asignar). *Filtrar*: whose, area tags, group by date / area / person. Tick the circle → *Hecho* with an optional note, photo and cost |
+| **Un pendiente** | Estado, Lo hace (with Llamar / WhatsApp), Fecha, Prioridad, Área, Equipo, Costo: each opens a sheet. *Posponer* asks for the new date and why, and counts how many times it was pushed. Late ones show a banner with *Pasar a otro*. Notes and the automatic history below |
+| **Reportar** (+) | Photo, what is wrong, where, how urgent. Without a date: urgent = today, normal = a week, "puede esperar" = none |
+| **Preventivo** | *El año*: the twelve months with every scheduled service (hecho / en Pendientes / atrasado / programado); what comes up every month folds into one line. *Planes*: N times a year by tapping months, every N days/weeks/months, or once. A plan puts its job in Pendientes N days before |
+| **Equipos** | Photo, make and model, who looks after it, last service, next service, faults in 90 days, history. *Anotar servicio*, *Reportar falla* |
+| **Contactos** | Outside providers by trade and the house team, each with call / WhatsApp and what they have open |
+| **Cuenta** | Resumen (8-week chart, by person, by area, oldest open), Lo que ya se hizo, Invitar por WhatsApp, Personas and Áreas (administrators) |
 
-## Database migrations (apply in order)
-`0005_preventivo_compras.sql` adds preventive plans, purchases, wait reason, warranty/manual and converts the old
-"servicio cada N días" on equipment into plans. The Worker keeps working (hides Preventivo/Compras) until it is applied:
+Areas are coloured tags (the 12 colour names Horizonte uses), set in Cuenta → Áreas.
+WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is sent automatically.
+
+## Files
+
+- `src/worker.js` — the API (`/api/*`). `src/plan.js` — when a plan comes up next and the phone rule (unit-tested).
+- `public/core.js` (shared pieces), `public/app.js` (entering, Pendientes, one pendiente, reporting),
+  `public/more.js` (Preventivo, Equipos, Contactos, Cuenta, router), `public/app.css`.
+- Colours and fonts come from the Hub's shared theme (`hub/THEME.md`); every token has a local fallback.
+- `migrations/` — D1 schema. 0001–0006 are applied to the remote database. The tables `login_links` and `purchases`
+  are left from the PIN / link version and are not used.
+
+## Deploy
+
+Push to `main`; Workers Builds deploys this folder (root directory `mantenimiento`, deploy command
+`npx wrangler deploy`). A schema change is a new file in `migrations/`, applied to the remote database (from Claude
+through the D1 tool, or `npm run db:remote`) **before** the code that needs it is pushed, and recorded in
+`d1_migrations`. Bump `?v=` in `public/index.html` when the scripts or the stylesheet change.
+
+Bindings: `DB` (D1), `ASSETS`; optional `PHOTOS` (R2). Secrets: none. Cron `0 12 * * *` (06:00 San Miguel) creates
+the preventive jobs that are due; they are also created whenever someone opens the app.
+
+Photos are shrunk on the phone to about 250 KB plus a 10 KB preview and stored in D1 (`photos.data`, `photos.thumb`).
+
+## Tests
+
 ```
-npx wrangler d1 migrations apply mantenimiento --remote
+npm test                      # plan dates and the phone rule (node:test)
+npm run db:local && npm run dev -- --port 8787
+python3 test/seed.py          # made-up people and jobs in the local database (needs: requests, Pillow)
+python3 test/e2e.py           # every main flow through the phone UI (needs: playwright for Python, Chrome)
+python3 test/shots.py /tmp/shots 390 light   # a screenshot of every screen + overflow and tap-target checks
 ```
+`e2e.py` and `shots.py` expect a freshly seeded database (`rm -rf .wrangler/state`, `npm run db:local`, seed).
+The audit for any visual change: `shots.py` at 360, 390 and 430 px, light and dark, and 1280 for the desktop layout.
 
-## Cron
-`wrangler.jsonc` has `triggers.crons = ["0 12 * * *"]` (06:00 San Miguel): creates the preventive work orders that are due.
-Orders are also created when someone opens the app, so the cron is a safety net.
+## Not built yet
 
-## Roles
-- **Usuario**: report problems, notes, photos. If linked to a responsable card ("¿Se le asignan trabajos?"), also sees Hoy and changes status.
-- **Administrador**: everything above + delete orders, manage users and areas.
-
-## Photos
-Compressed on the phone (~200 KB) and stored in D1. To move them to R2 later: enable R2 in the dashboard, create bucket `mantenimiento-fotos`, uncomment the `r2_buckets` block in wrangler.jsonc. New photos go to R2; old ones keep working.
-
-## Schema changes
-Add a new file in `migrations/` and run `npm run db:remote` (or change the deploy command to `npm run deploy`).
-
-## Local dev
-```
-npm install
-npm run db:local
-npm run dev
-```
+- Automatic notifications (WhatsApp Business API or web push). Phones are collected at sign-up for this.
+- Working with no signal (reports are kept on screen and can be resent, not queued).
+- QR tags on equipment that open its page.

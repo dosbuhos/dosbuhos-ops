@@ -4,11 +4,13 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Static files (the app itself); the Worker only runs for /api/*.
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
+  // Everything the app stores: people, pendientes, notes, photos, equipment, contacts, preventive plans.
   "d1_databases": [
     {
       "binding": "DB",
@@ -16,13 +18,11 @@
       "database_id": "56b0a16d-2344-4cf9-970a-db3e7c9d9558",
       "migrations_dir": "migrations"
     }
-  ]
-  ,"vars": { "MAIL_FROM": "mantenimiento@dosbuhos.com" }
+  ],
   // Daily at 06:00 San Miguel (12:00 UTC): creates the work orders due from the preventive plans.
   // (They are also created whenever someone opens the app, so the cron is a safety net.)
-  ,"triggers": { "crons": ["0 12 * * *"] }
-  // Email login: after onboarding dosbuhos.com in Cloudflare Email Service (Workers Paid), uncomment:
-  // ,"send_email": [{ "name": "EMAIL" }]
-  // Optional, once R2 is enabled in the Cloudflare dashboard (photos move there automatically):
+  "triggers": { "crons": ["0 12 * * *"] }
+  // Optional: photos in R2 instead of D1. Create bucket `mantenimiento-fotos`, then uncomment (new photos go there; old ones keep working):
   // ,"r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "mantenimiento-fotos" }]
+  // Secrets: none. Sign-up is open (name + WhatsApp + email); administrators close it in Cuenta → Personas.
 }
