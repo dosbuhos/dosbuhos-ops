@@ -16,7 +16,7 @@ export interface StripeReader {
   refundedCharges(args: { createdGte?: number; startingAfter?: string; limit?: number }): Promise<StripePage>;
 }
 
-export const PAYMENT_SOURCES = ['opentable', 'rezdy', 'web_store', 'wine_club', 'other'] as const;
+export const PAYMENT_SOURCES = ['opentable', 'rezdy', 'wine_club', 'web_store', 'invoice', 'payment_link', 'other'] as const;
 export type PaymentSource = (typeof PAYMENT_SOURCES)[number];
 const RECENT_MS = 3 * 86_400_000;
 const DAY_MS = 86_400_000;

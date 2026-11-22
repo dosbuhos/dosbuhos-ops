@@ -1,16 +1,20 @@
 // "Reservaciones → Pagos": what was charged online by card (Stripe). Experiences paid ahead on OpenTable, what is
 // already charged for visits still to come, and the club and the web store month by month. Read-only. It is never
-// added to the point-of-sale sales: whether a prepaid visit is also rung up in Parrot is not known from this data.
+// added to the point-of-sale sales: part of the prepaid visits is also rung up in Parrot on the day, as a transfer.
 import { useApi } from '../api';
 import { Loading, ErrorBox } from '../components';
 import { money, int, count, dayLabel, fullDate, signedPct, when } from '../format';
 
-const SOURCE: Record<string, string> = { opentable: 'Experiencias en OpenTable', rezdy: 'Tours en Rezdy', wine_club: 'Club de vinos', web_store: 'Tienda en línea', other: 'Otros cobros' };
-const SOURCE_SHORT: Record<string, string> = { opentable: 'Experiencias', rezdy: 'Rezdy', wine_club: 'Club', web_store: 'Tienda', other: 'Otros' };
-const LEGEND: Record<string, string> = { opentable: 'Experiencias: pagadas al reservar en OpenTable', rezdy: 'Rezdy: tours pagados al reservar, hasta octubre de 2026', wine_club: 'Club: cuotas del club de vinos', web_store: 'Tienda: pedidos de la tienda en línea', other: 'Otros: cobros que no vienen de ninguno de los anteriores' };
-const ORDER = ['opentable', 'rezdy', 'wine_club', 'web_store', 'other'];
-// OpenTable's own names for where the guest booked. Unknown ones are shown as they arrive.
-const PLATFORM: Record<string, string> = { 'Diner App': 'App de OpenTable', '': 'Sin dato' };
+const SOURCE: Record<string, string> = { opentable: 'Experiencias en OpenTable', rezdy: 'Tours en Rezdy', wine_club: 'Club de vinos', web_store: 'Tienda en línea', invoice: 'Facturas pagadas con tarjeta', payment_link: 'Ligas de pago', other: 'Otros cobros' };
+const SOURCE_SHORT: Record<string, string> = { opentable: 'Experiencias', rezdy: 'Rezdy', wine_club: 'Club', web_store: 'Tienda', invoice: 'Facturas', payment_link: 'Ligas', other: 'Otros' };
+const LEGEND: Record<string, string> = {
+  opentable: 'Experiencias: pagadas al reservar en OpenTable', rezdy: 'Rezdy: tours pagados al reservar, hasta octubre de 2026', wine_club: 'Club: cuotas del club de vinos', web_store: 'Tienda: pedidos de la tienda en línea',
+  invoice: 'Facturas: facturas de Zoho que el cliente pagó en línea con tarjeta', payment_link: 'Ligas: ligas de pago de Stripe enviadas por el equipo', other: 'Otros: cobros que no vienen de ninguno de los anteriores',
+};
+const ORDER = ['opentable', 'rezdy', 'wine_club', 'web_store', 'invoice', 'payment_link', 'other'];
+// OpenTable's own names for where the guest booked: its app, or a browser (opentable.com and the button on dosbuhos.com
+// both count as web; OpenTable does not tell them apart in the payment). Unknown ones are shown as they arrive.
+const PLATFORM: Record<string, string> = { 'Diner App': 'En la app de OpenTable', 'Diner Web': 'En la web (opentable.com o el botón de dosbuhos.com)', Rezdy: 'Rezdy', '': 'Sin dato' };
 const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const monthLabel = (m: string) => `${MES[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
 const dayMonth = (d: string) => dayLabel(d).split(' ').slice(1).join(' ');
@@ -94,7 +98,7 @@ export function Payments() {
           <section className="card stack" aria-labelledby="pay-where">
             <h3 id="pay-where">Dónde reservaron</h3>
             <Rows total={e.netMinor} rows={(p.platforms as any[]).map(x => ({ key: x.platform || 'sin', label: PLATFORM[x.platform] ?? x.platform, count: x.count, netMinor: x.netMinor }))} />
-            <p className="tiny muted">Con el nombre que OpenTable le pone en cada pago.</p>
+            <p className="tiny muted">Así lo marca OpenTable en cada pago. No distingue entre su página y el botón de reservar de dosbuhos.com.</p>
           </section>
           <section className="card stack" aria-labelledby="pay-card">
             <h3 id="pay-card">De dónde es la tarjeta</h3>
@@ -134,7 +138,7 @@ export function Payments() {
       </section>
 
       <p className="tiny muted section">
-        Esto es dinero cobrado en línea, no ventas del punto de venta. No se suma a las ventas de Parrot porque todavía no se sabe cuánto de esto también se registra en Parrot el día de la visita. Tampoco dice qué anuncio trajo cada pago.
+        Esto es dinero cobrado en línea, no ventas del punto de venta. No se suma a las ventas de Parrot: una parte de las experiencias pagadas por adelantado también se registra en Parrot el día de la visita, como transferencia, y se contaría dos veces. Tampoco dice qué anuncio trajo cada pago.
         {p.lastChargeAt ? ` Último pago registrado: ${when(p.lastChargeAt).replace(/\.$/, '')}.` : ''} Aquí no llegan nombres, correos ni tarjetas.
       </p>
     </>

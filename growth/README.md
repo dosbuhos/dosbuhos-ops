@@ -9,7 +9,7 @@ A private, market-style dashboard and bounded optimization agent for Dos Búhos 
 | Real | Google Ads spend/clicks/conversions via the Hub (D1 `growth` and R2 `growth-archive` created; schema applied). Domain, policy and coordinator logic; dashboard; watchdog; reports |
 | Mocked | The ad account in dev/demo (`MockAdsProvider`); every demo number (`fixtures/demo-data.ts`) |
 | Blocked | Google Ads API reads and writes (needs approved API access + owner OAuth); offline conversions; Claude review against the live API (no key here) |
-| Tested | 183 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
+| Tested | 184 tests (2026-11-22); the first 65 map to the spec's acceptance criteria: `docs/acceptance.md` |
 | Deployable | Yes, via Workers Builds once the `growth` Worker is created in the dashboard and `HUB_SECRET` is set (`docs/setup.md`). Ad changes stay impossible until the API adapter exists and the owner goes live |
 
 ## Layout
@@ -92,8 +92,9 @@ Shown on Resumen: Comensales (restaurante), Personas en tours, Ventas sin IVA, a
 ## Card payments (Stripe, through the wine club Worker)
 No Stripe key here. The service binding `STRIPE` reaches the `StripeRead` entrypoint of the `wineclub` Worker
 (`wineclub/src/payments.js`), which holds the key and removes every personal field before answering: a charge arrives
-as amounts, dates, where it came from (`opentable`, `rezdy`, `web_store`, `wine_club`, `other`), the OpenTable
-experience id, platform and reservation time, the Rezdy order code and the card's country. Every OpenTable prepayment
+as amounts, dates, where it came from (`opentable`, `rezdy`, `wine_club`, `web_store`, `invoice`, `payment_link`,
+`other`), the OpenTable experience id, platform and reservation time, the Rezdy order code or Zoho invoice number, and
+the card's country. Every OpenTable prepayment
 is a charge in that same Stripe account, so this is also the source for prepaid experiences.
 
 - `payments_sync` (every 15 minutes, `src/connectors/stripe-payments.ts`): the charges of the last three days, the
@@ -104,8 +105,8 @@ is a charge in that same Stripe account, so this is also the source for prepaid 
   28 complete days against the 28 before and the same weeks a year earlier (those were Rezdy), what is already
   charged for visits from today on, by experience, by where the guest booked, by card country, and thirteen months
   by source. Net of refunds, IVA included, pesos only. `GET /api/today` carries one line of it (`prepaid`).
-- It is never added to the point-of-sale sales: whether a prepaid visit is also rung up in Parrot is not known from
-  this data. Nothing here is attributed to a campaign.
+- It is never added to the point-of-sale sales: part of the prepaid visits is also rung up in Parrot on the day, as
+  a transfer, and would count twice. Nothing here is attributed to a campaign.
 - Experience names come from `EXPERIENCES` in `src/connectors/opentable-availability.ts`.
 
 ## OpenTable availability when OpenTable refuses

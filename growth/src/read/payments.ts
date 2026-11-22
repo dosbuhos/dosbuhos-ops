@@ -1,7 +1,7 @@
 // What was charged online by card (Stripe), in the owner's words: experiences paid ahead on OpenTable, what is already
 // paid for visits still to come, the club and the web store, and the old Rezdy tours for last year's comparison.
 // "Net" is captured minus refunded, IVA included, pesos only. Nothing here is attributed to a campaign, and none of it
-// is added to the point-of-sale totals: whether a prepaid visit is also rung up in Parrot is not known from this data.
+// is added to the point-of-sale totals: part of the prepaid visits is also rung up in Parrot on the day, as a transfer.
 import { addDays, localDate, weekStart, type LocalDate } from '../domain/time.ts';
 import { EXPERIENCES } from '../connectors/opentable-availability.ts';
 import { PAYMENT_SOURCES, type PaymentSource } from '../connectors/stripe-payments.ts';
@@ -28,7 +28,7 @@ const PAID = "status = 'succeeded' AND amount_minor > refunded_minor";
 const zero = (): Bucket => ({ count: 0, netMinor: 0 });
 const add = (b: Bucket, n: number, net: number) => { b.count += Number(n) || 0; b.netMinor += Number(net) || 0; };
 const EXPERIENCE_NAME = new Map(EXPERIENCES.map(x => [String(x.id), x.name]));
-export const experienceName = (id: string) => (id ? EXPERIENCE_NAME.get(id) ?? `Experiencia ${id}` : 'Otro cargo de OpenTable');
+export const experienceName = (id: string) => (id ? EXPERIENCE_NAME.get(id) ?? `Otra experiencia de OpenTable (núm. ${id})` : 'Otro cargo de OpenTable');
 const ONLINE_EXPERIENCES: readonly string[] = ['opentable', 'rezdy'];
 const REZDY = 'rezdy';
 const monthsBack = (today: LocalDate, n: number): string => { const [y, m] = today.split('-').map(Number) as [number, number]; const d = new Date(Date.UTC(y, m - 1 - n, 1)); return d.toISOString().slice(0, 7); };

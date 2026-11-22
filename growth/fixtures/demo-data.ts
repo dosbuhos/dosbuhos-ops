@@ -178,7 +178,7 @@ export function demoStatements(now: number): Stmt[] {
 
   // ---- card payments charged online (synthetic): prepaid experiences, the club, the web store, and tours a year ago ----
   const EXP: [string, number][] = [['796500', 140000], ['842882', 90000], ['793495', 185000], ['793530', 170000], ['796410', 120000]];
-  const PLATFORMS = ['Diner App', 'Restaurant Website', 'Restaurant Website', 'OpenTable Web'], CARDS = ['MX', 'MX', 'US', 'US', 'US', 'CA'];
+  const PLATFORMS = ['Diner App', 'Diner Web', 'Diner Web'], CARDS = ['MX', 'MX', 'US', 'US', 'US', 'CA'];
   const pay = (id: string, daysAgo: number, amount: number, source: string, x: { exp?: string; platform?: string; service?: string; card?: string; refunded?: number } = {}) => {
     const at = zonedToUtc(addDays(today, -daysAgo), 12, 30, tz);
     out.push(S(`INSERT OR IGNORE INTO stripe_payments (id, created_at, local_date, currency, amount_minor, refunded_minor, status, source, kind, experience_id, platform, service_date, service_time, card_country, fetched_at)

@@ -95,6 +95,21 @@ describe('Stripe payments sync', () => {
     expect(db.prepare('SELECT id, source, service_date, service_time, experience_id, card_country, currency FROM stripe_payments').all()).toEqual([{ id: 'ch_odd1', source: 'other', service_date: null, service_time: null, experience_id: '', card_country: '', currency: 'MXN' }]);
   });
 
+  it('keeps invoices paid online and payment links as their own sources', async () => {
+    const { db, d1 } = sqliteD1();
+    const rows = [
+      charge({ id: 'ch_inv1', source: 'invoice', kind: '', experienceId: '', platform: '', serviceDate: '', serviceTime: '', bookingRef: 'F-001234', amountCaptured: 1600000, cardCountry: 'MX' }),
+      charge({ id: 'ch_link1', source: 'payment_link', kind: '', experienceId: '', platform: '', serviceDate: '', serviceTime: '', amountCaptured: 2414900, application: '' }),
+    ];
+    await syncStripePayments(d1, reader(rows, [], 10).r, NOW, TZ);
+    expect(db.prepare('SELECT id, source, booking_ref, amount_minor FROM stripe_payments ORDER BY id').all()).toEqual([
+      { id: 'ch_inv1', source: 'invoice', booking_ref: 'F-001234', amount_minor: 1600000 }, { id: 'ch_link1', source: 'payment_link', booking_ref: '', amount_minor: 2414900 }]);
+    const v = await loadPayments(d1, NOW, TZ);
+    expect(v.sources.find(s => s.source === 'invoice')!.current).toEqual({ count: 1, netMinor: 1600000 });
+    expect(v.sources.find(s => s.source === 'payment_link')!.current).toEqual({ count: 1, netMinor: 2414900 });
+    expect(v.experiencesPaid.count).toBe(0);   // neither is an experience
+  });
+
   it('an error from the other Worker stops the run without marking refunds as read', async () => {
     const { db, d1 } = sqliteD1();
     const r: StripeReader = { charges: async () => ({ rows: [], hasMore: false, last: null }), refundedCharges: async () => { throw new Error('Stripe 401: Invalid API Key'); } };
@@ -152,7 +167,7 @@ describe('what the payments screen reads', () => {
     expect(v.cards).toEqual([{ country: 'MX', count: 2, netMinor: 260000 }, { country: 'US', count: 2, netMinor: 150000 }]);
     // Each breakdown adds up to the headline.
     for (const rows of [v.experiences, v.platforms, v.cards]) expect(rows.reduce((a, x) => a + x.netMinor, 0)).toBe(v.experiencesPaid.netMinor);
-    expect(experienceName('123456')).toBe('Experiencia 123456'); expect(experienceName('')).toBe('Otro cargo de OpenTable');
+    expect(experienceName('123456')).toBe('Otra experiencia de OpenTable (núm. 123456)'); expect(experienceName('')).toBe('Otro cargo de OpenTable');
   });
 
   it('shows what is already charged for visits from today on, week by week', async () => {
@@ -168,7 +183,7 @@ describe('what the payments screen reads', () => {
     expect(v.months).toHaveLength(13);
     expect(v.months[0]!.month).toBe('2025-11'); expect(v.months[12]!.month).toBe('2026-11');
     expect(v.months[0]!.sources.rezdy).toBe(250000);
-    expect(v.months[12]!.sources).toEqual({ opentable: 90000 + 140000 + 60000 + 90000, rezdy: 0, web_store: 0, wine_club: 360000, other: 0 });
+    expect(v.months[12]!.sources).toEqual({ opentable: 90000 + 140000 + 60000 + 90000, rezdy: 0, wine_club: 360000, web_store: 0, invoice: 0, payment_link: 0, other: 0 });
     expect(v.months[12]!.total).toBe(380000 + 360000);
     expect(v.experiencesPaid.lastYear).toBeNull();
   });
