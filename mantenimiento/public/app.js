@@ -48,7 +48,8 @@ function showEnter() {
 // ---------- the open pendientes ----------
 // What the Todo list shows: who ('all' | 'mine' | 'none' | 'reported' | a contact id), area ids (any of), priorities
 // (any of), and how it is grouped ('prio' | 'date' | 'area' | 'who'). It opens by priority: the point is to triage.
-const F = Object.assign({ who: 'all', areas: [], prios: [], group: 'prio' }, store('mt_f2') || {});
+const F = Object.assign({ who: 'all', areas: [], prios: [], sort: 'auto' }, store('mt_f2') || {});
+if (F.group) { if (F.sort === 'auto' && F.group !== 'prio') F.sort = F.group; delete F.group; }   // the old "agrupar por"
 const saveF = () => store('mt_f2', F);
 
 async function fetchOpen() {
@@ -84,32 +85,32 @@ function filterSheet() {
   const draw = () => {
     const whoBtn = (v, label, n) => `<button type="button" class="ch ${String(F.who) === String(v) ? 'on' : ''}" data-who="${v}" aria-pressed="${String(F.who) === String(v)}"><span class="cl">${esc(label)}</span>${n !== null ? `<span class="cn">${n}</span>` : ''}</button>`;
     return `<div class="pad">
-      <h3 class="flabel">¿De quién?</h3>
+      <h3 class="flabel">Ordenar por</h3>
+      <div class="choice wrapc" role="radiogroup" aria-label="Ordenar por">${SORTS.map(([v, l]) => `<button type="button" role="radio" aria-checked="${F.sort === v}" class="ch ${F.sort === v ? 'on' : ''}" data-group="${v}"><span class="cl">${l}</span></button>`).join('')}</div>
+      <h3 class="flabel">Mostrar solo: ¿de quién?</h3>
       <div class="choice wrapc">${whoBtn('all', 'Todos', all.length)}${me ? whoBtn('mine', 'Los que me tocan', cntWho(me)) : ''}${whoBtn('none', 'Sin asignar', all.filter((t) => !t.provider_id).length)}${whoBtn('reported', 'Los que reporté', all.filter((t) => t.created_by === S.user.id).length)}
         ${people.map((id) => whoBtn(id, first(provOf(id).name), cntWho(id))).join('')}</div>
       <h3 class="flabel">Prioridad</h3>
       <div class="choice wrapc">${[1, 2, 3, 4].map((p) => `<button type="button" class="ch ${F.prios.includes(p) ? 'on' : ''}" data-prio="${p}" aria-pressed="${F.prios.includes(p)}"><span class="pdot p${p}"></span><span class="cl">${PRIO[p]}</span><span class="cn">${all.filter((t) => t.priority === p).length}</span></button>`).join('')}</div>
       <h3 class="flabel">Área</h3>
       <div class="choice wrapc tags">${activeAreas().map((a) => `<button type="button" class="ch tagc c-${a.color} ${F.areas.includes(a.id) ? 'on' : ''}" data-area="${a.id}" aria-pressed="${F.areas.includes(a.id)}"><span class="cl">${esc(a.name)}</span><span class="cn">${all.filter((t) => t.area_id === a.id).length}</span></button>`).join('')}</div>
-      <h3 class="flabel">Agrupar por</h3>
-      <div class="seg" role="radiogroup" aria-label="Agrupar por">${[['prio', 'Prioridad'], ['date', 'Fecha'], ['area', 'Área'], ['who', 'Persona']].map(([v, l]) => `<button type="button" role="radio" aria-checked="${F.group === v}" class="${F.group === v ? 'on' : ''}" data-group="${v}">${l}</button>`).join('')}</div>
     </div>`;
   };
   sheet({
-    title: 'Filtrar y agrupar',
+    title: 'Filtrar y ordenar',
     body: `<div id="f-body">${draw()}</div>`,
-    acts: [{ label: 'Quitar filtros', cls: 'plain', value: 'clear' }, { label: 'Listo', value: 'ok' }],
+    acts: [{ label: 'Quitar todo', cls: 'plain', value: 'clear' }, { label: 'Listo', value: 'ok' }],
     onOpen: (w) => {
       const bind = () => {
         $$('[data-who]', w).forEach((b) => (b.onclick = () => { F.who = /^\d+$/.test(b.dataset.who) ? Number(b.dataset.who) : b.dataset.who; apply(); }));
         $$('[data-area]', w).forEach((b) => (b.onclick = () => { const id = Number(b.dataset.area); F.areas = F.areas.includes(id) ? F.areas.filter((x) => x !== id) : [...F.areas, id]; apply(); }));
         $$('[data-prio]', w).forEach((b) => (b.onclick = () => { const p = Number(b.dataset.prio); F.prios = F.prios.includes(p) ? F.prios.filter((x) => x !== p) : [...F.prios, p].sort(); apply(); }));
-        $$('[data-group]', w).forEach((b) => (b.onclick = () => { F.group = b.dataset.group; apply(); }));
+        $$('[data-group]', w).forEach((b) => (b.onclick = () => { F.sort = b.dataset.group; apply(); }));
       };
       const apply = () => { saveF(); $('#f-body', w).innerHTML = draw(); bind(); drawPlanner(true); };
       bind();
     },
-  }).then((v) => { if (v === 'clear') { F.who = 'all'; F.areas = []; F.prios = []; F.group = 'prio'; saveF(); if (UI.plan) drawPlanner(true); } });
+  }).then((v) => { if (v === 'clear') { F.who = 'all'; F.areas = []; F.prios = []; F.sort = 'auto'; saveF(); if (UI.plan) drawPlanner(true); } });
 }
 
 // ---------- what you can do to a pendiente ----------

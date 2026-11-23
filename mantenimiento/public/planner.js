@@ -57,46 +57,60 @@ const EMPTY = {
 // the filter sheet (Todo): whose, which areas, which priorities
 const passF = (t) => (F.who === 'all' || (F.who === 'mine' ? t.provider_id === myCard() : F.who === 'none' ? !t.provider_id : F.who === 'reported' ? t.created_by === S.user.id : t.provider_id === F.who))
   && (!F.areas.length || F.areas.includes(t.area_id)) && (!F.prios.length || F.prios.includes(t.priority));
-const filterCount = () => (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.group !== 'prio' ? 1 : 0);
-function srcTasks(k) {
+const filterCount = () => (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.sort !== 'auto' ? 1 : 0);
+// What a list holds. The filter of "Filtrar y ordenar" narrows whichever list is open; `raw` is the list whole, for the counts.
+function srcTasks(k, raw = false) {
   const src = srcOf(k);
   const list = (C.open || []).filter((t) => src.has(t) && inWhoList(t));
-  return k === 'all' ? list.filter(passF) : list;
+  return raw ? list : list.filter(passF);
 }
 function srcGroups(k, list) {
   const today = todayStr();
+  const used = new Set();
+  const take = (fn) => list.filter((t) => !used.has(t.id) && fn(t)).map((t) => (used.add(t.id), t));
   const byPrio = () => [1, 2, 3, 4].map((p) => ({ head: PRIO[p], cls: p === 1 ? 'bad' : p === 2 ? 'warn' : '', items: list.filter((t) => t.priority === p).sort(byLate) }));
-  if (k === 'inbox' || srcOf(k).area !== undefined) return byPrio();
-  if (k === 'late' || k === 'week') {
-    const days = [...new Set(list.map((t) => t.due_date))].sort();
-    if (k === 'late') days.reverse();
-    return days.map((d) => ({ head: esc(cap(fmtDay(d, { weekday: true }))), cls: d < today ? 'bad' : d === today ? 'warn' : '', items: list.filter((t) => t.due_date === d).sort(byPlan) }));
+  const so = F.sort;
+  // an order someone chose in "Filtrar y ordenar" applies to whichever list is open
+  if (so === 'prio') return byPrio();
+  if (so === 'old' || so === 'new') {   // by the day it was reported: what has been sitting longest, or what just came in
+    const age = (t) => daysBetween(localYmd(t.created_at), today);
+    const ord = (x, y) => (so === 'old' ? 1 : -1) * (x.created_at < y.created_at ? -1 : x.created_at > y.created_at ? 1 : x.id - y.id);
+    const g = [
+      { head: 'Hace más de un mes', cls: 'bad', items: take((t) => age(t) > 30).sort(ord) },
+      { head: 'Hace más de una semana', cls: 'warn', items: take((t) => age(t) > 7).sort(ord) },
+      { head: 'Esta semana', items: take((t) => age(t) > 0).sort(ord) },
+      { head: 'Hoy', items: take(() => true).sort(ord) },
+    ];
+    return so === 'old' ? g : g.reverse();
   }
-  if (srcOf(k).prio) {
-    const used = new Set();
-    const take = (fn) => list.filter((t) => !used.has(t.id) && fn(t)).map((t) => (used.add(t.id), t));
+  if (so === 'by') {   // who reported it
+    const names = [...new Set(list.map((t) => t.created_by_name || ''))];
+    const cnt = (n) => list.filter((t) => (t.created_by_name || '') === n).length;
+    names.sort((x, y) => (x === '' ? 1 : y === '' ? -1 : cnt(y) - cnt(x) || x.localeCompare(y)));
+    return names.map((n) => ({ head: esc(n ? 'Reportó ' + n : 'Del plan preventivo'), items: list.filter((t) => (t.created_by_name || '') === n).sort(byLate) }));
+  }
+  if (so === 'short') {   // what takes least first: the quick ones for a free moment
+    const ord = (x, y) => (x.est_min || 0) - (y.est_min || 0) || bySort(x, y);
     return [
-      { head: 'Atrasados', cls: 'bad', items: take(isLate).sort(byLate) },
-      { head: 'Para hoy', cls: 'warn', items: take((t) => t.due_date === today).sort(byPlan) },
-      { head: 'Con día', items: take((t) => !!t.due_date).sort(byLate) },
-      { head: 'En la Bandeja', items: take(() => true).sort(byLate) },
+      { head: 'Hasta media hora', items: take((t) => t.est_min && t.est_min <= 30).sort(ord) },
+      { head: 'Hasta una hora', items: take((t) => t.est_min && t.est_min <= 60).sort(ord) },
+      { head: 'Más de una hora', items: take((t) => !!t.est_min).sort(ord) },
+      { head: 'Sin estimar', items: take(() => true).sort(bySort) },
     ];
   }
-  if (F.group === 'area') {
+  if (so === 'area') {
     const ids = [...new Set(list.map((t) => t.area_id || 0))];
     ids.sort((a, b) => (areaOf(a) ? areaOf(a).sort : 999) - (areaOf(b) ? areaOf(b).sort : 999));
     return ids.map((id) => ({ head: id && areaOf(id) ? tag(areaOf(id).name, areaOf(id).color) : 'Sin área', items: list.filter((t) => (t.area_id || 0) === id).sort(byLate) }));
   }
-  if (F.group === 'who') {
+  if (so === 'who') {
     const ids = [...new Set(list.map((t) => t.provider_id || 0))];
     const cnt = (id) => list.filter((t) => (t.provider_id || 0) === id).length;
     ids.sort((a, b) => (a === 0 ? -1 : b === 0 ? 1 : cnt(b) - cnt(a)));
     return ids.map((id) => ({ head: esc(id ? (provOf(id) || {}).name || 'Alguien' : 'Sin asignar'), cls: id ? '' : 'warn', items: list.filter((t) => (t.provider_id || 0) === id).sort(byLate) }));
   }
-  if (F.group === 'date') {
+  if (so === 'date') {
     const week = addDays(today, 7);
-    const used = new Set();
-    const take = (fn) => list.filter((t) => !used.has(t.id) && fn(t)).map((t) => (used.add(t.id), t));
     return [
       { head: 'Atrasados', cls: 'bad', items: take(isLate).sort(byLate) },
       { head: 'Para hoy', cls: 'warn', items: take((t) => t.due_date === today).sort(byPlan) },
@@ -105,8 +119,26 @@ function srcGroups(k, list) {
       { head: 'Sin fecha', items: take(() => true).sort(bySort) },
     ];
   }
+  // otherwise each list in its own order
+  if (k === 'late' || k === 'week') {
+    const days = [...new Set(list.map((t) => t.due_date))].sort();
+    if (k === 'late') days.reverse();
+    return days.map((d) => ({ head: esc(cap(fmtDay(d, { weekday: true }))), cls: d < today ? 'bad' : d === today ? 'warn' : '', items: list.filter((t) => t.due_date === d).sort(byPlan) }));
+  }
+  if (srcOf(k).prio) {
+    return [
+      { head: 'Atrasados', cls: 'bad', items: take(isLate).sort(byLate) },
+      { head: 'Para hoy', cls: 'warn', items: take((t) => t.due_date === today).sort(byPlan) },
+      { head: 'Con día', items: take((t) => !!t.due_date).sort(byLate) },
+      { head: 'En la Bandeja', items: take(() => true).sort(byLate) },
+    ];
+  }
   return byPrio();
 }
+const SORTS = [['auto', 'Como viene'], ['prio', 'Prioridad'], ['old', 'Más antiguos'], ['new', 'Más nuevos'], ['date', 'Fecha'], ['area', 'Área'], ['who', 'Quién lo hace'], ['by', 'Quién lo reportó'], ['short', 'Más cortos']];
+// The line that drops a pendiente straight into the list you are in, as in Horizonte: the Bandeja, an area, a priority.
+const canAdd = (k) => k === 'inbox' || (srcOf(k) && (srcOf(k).prio || srcOf(k).area !== undefined));
+const addRow = (k) => (canAdd(k) ? `<form class="qadd" data-qadd="${k}"><label class="sr" for="pl-add">Agregar a ${esc(srcOf(k).label)}</label><input class="input" id="pl-add" type="text" maxlength="200" placeholder="Escribe un pendiente y presiona Enter" autocomplete="off" enterkeyhint="done"></form>` : '');
 
 // ---------- one pendiente as a card ----------
 // ctx: 'list' (in a list: the second line says where, when and who), 'day' (under its day: the day is not said again),
@@ -163,19 +195,21 @@ function listHTML(k) {
   const total = srcTasks(k);
   const list = s ? total.filter((t) => fold([t.title, t.area_name, t.place, t.provider_name, t.equipment_name, '#' + t.id].join(' ')).includes(s)) : total;
   const groups = srcGroups(k, list).filter((g) => g.items.length);
-  const o = k === 'inbox' ? { prio: false, due: false, age: true }
+  const o = F.sort === 'old' || F.sort === 'new' ? { age: true, due: k !== 'inbox' }
+    : F.sort !== 'auto' ? { prio: F.sort !== 'prio', area: F.sort !== 'area' && srcOf(k).area === undefined }
+    : k === 'inbox' ? { prio: false, due: false, age: true }
     : k === 'late' ? { due: false }
       : k === 'week' ? { ctx: 'day' }
         : srcOf(k).prio ? { prio: false }
           : srcOf(k).area !== undefined ? { prio: false, area: false }
-            : { prio: F.group !== 'prio', area: F.group !== 'area' };
+            : { prio: F.sort !== 'prio' && F.sort !== 'auto', area: F.sort !== 'area' };
   let html;
   if (groups.length) {
     html = groups.map((g) => `<h2 class="eyebrow ${g.cls || ''}">${g.head}<span class="n">${g.items.length}</span></h2>${g.items.map((t) => cardHTML(t, o)).join('')}`).join('');
   } else if (s) {
     html = `<div class="empty"><h2>Nada con «${esc(P.q.trim())}»</h2><p>Aquí se busca en ${esc(srcOf(k).label)}.</p></div>`;
-  } else if (k === 'all' && (C.open || []).length) {
-    html = `<div class="empty"><h2>Nada con este filtro</h2><p>Hay ${plural(C.open.length, 'pendiente', 'pendientes')} en total.</p><button type="button" class="b tonal" data-go="nofilter">Ver todos</button></div>`;
+  } else if (total.length < srcTasks(k, true).length) {
+    html = `<div class="empty"><h2>Nada con este filtro</h2><p>Hay ${plural(srcTasks(k, true).length, 'pendiente', 'pendientes')} en ${esc(srcOf(k).label)}.</p><button type="button" class="b tonal" data-go="nofilter">Ver todos</button></div>`;
   } else {
     const e = EMPTY[k] || [srcOf(k).area !== undefined ? `Nada abierto en ${srcOf(k).label}` : `Nada con prioridad ${srcOf(k).label.toLowerCase()}`, ''];
     html = `<div class="empty"><h2>${e[0]}</h2>${e[1] ? `<p>${e[1]}</p>` : ''}${k === 'all' || k === 'inbox' ? `<a class="b" href="#/nuevo">${ic('camera')}Reportar un problema</a>` : ''}</div>`;
@@ -189,10 +223,11 @@ function filterChips() {
   if (F.who !== 'all') chips.push(`<button type="button" class="fchip" data-clear="who" aria-label="Quitar filtro">${esc(WHO[F.who] || 'De ' + first((provOf(F.who) || {}).name))}${ic('x')}</button>`);
   for (const p of F.prios) chips.push(`<button type="button" class="fchip" data-clear="p${p}" aria-label="Quitar filtro ${PRIO[p]}">${PRIO[p]}${ic('x')}</button>`);
   for (const id of F.areas) chips.push(`<button type="button" class="fchip tagc c-${areaOf(id).color}" data-clear="${id}" aria-label="Quitar filtro ${esc(areaOf(id).name)}">${esc(areaOf(id).name)}${ic('x')}</button>`);
+  if (F.sort !== 'auto') chips.push(`<button type="button" class="fchip" data-clear="sort" aria-label="Quitar el orden">${esc((SORTS.find((x) => x[0] === F.sort) || [])[1] || '')}${ic('x')}</button>`);
   return chips.length ? `<div class="fchips">${chips.join('')}</div>` : '';
 }
 const searchRow = (k, ph = 'Buscar pendientes') => `<div class="searchrow"><div class="search">${ic('search')}<label class="sr" for="pl-q">Buscar</label><input id="pl-q" type="search" placeholder="${ph}" value="${esc(P.q)}" autocomplete="off" enterkeyhint="search"></div>
-  ${k === 'all' ? `<button type="button" class="fbtn" data-go="filter" aria-pressed="${filterCount() > 0}" aria-label="Filtrar y agrupar" title="Filtrar y agrupar">${ic('filter')}</button>` : ''}</div>`;
+  ${k ? `<button type="button" class="fbtn" data-go="filter" aria-pressed="${filterCount() > 0}" aria-label="Filtrar y ordenar" title="Filtrar y ordenar">${ic('filter')}</button>` : ''}</div>`;
 const showStarter = () => isAdmin() && !store('mt_starter') && (S.equipment.length === 0 || !S.providers.some((p) => p.kind === 'externo' && p.active) || S.users.length < 3);
 function whoSelect() {
   const ids = [...new Set((C.open || []).map((t) => t.provider_id).filter(Boolean))];
@@ -303,7 +338,7 @@ function phoneWeek() {
 function phoneList(k) {
   const L = listHTML(k);
   return `<header class="mh">${mtop(`<h1 class="date">${esc(srcOf(k).label)}<span class="cnt" id="pl-n">${L.n || ''}</span></h1>`, phoneBtn())}${searchRow(k)}</header>
-    <div class="mm lists">${k === 'all' ? filterChips() : ''}${k === 'inbox' && showStarter() ? starterCard() : ''}<div id="pl-items">${L.html}</div></div>`;
+    <div class="mm lists">${addRow(k)}${filterChips()}${k === 'inbox' && showStarter() ? starterCard() : ''}<div id="pl-items">${L.html}</div></div>`;
 }
 
 // ---------- the month ----------
@@ -426,10 +461,10 @@ function panelHTML() {
       <div class="listtitle">${srcOf(k).area !== undefined ? `<i class="pdot tagc c-${esc(srcOf(k).color)}"></i>` : ''}<b>${esc(srcOf(k).label)}</b><span class="muted" id="pl-n">${L.n || ''}</span></div>
       ${searchRow(k)}
       <p class="phint">Arrastra un pendiente a un día y a una hora.</p>
-      ${k === 'all' ? filterChips() : ''}
+      ${addRow(k)}${filterChips()}
       <div class="stack" id="pl-items">${L.html}</div>`;
   }
-  const n = (k) => srcTasks(k).length;
+  const n = (k) => srcTasks(k, true).length;
   const urgentIn = (C.open || []).some((t) => !t.due_date && t.priority === 1 && inWhoList(t));   // something urgent waits in the Bandeja: its count goes red
   const row = (k) => { const x = srcOf(k); return `<button type="button" class="navrow ${(k === 'late' && n(k)) || (k === 'inbox' && urgentIn) ? 'late' : ''}" data-src="${k}"><span class="ni">${x.prio ? `<i class="pdot p${x.prio}"></i>` : x.area !== undefined ? `<i class="pdot tagc c-${esc(x.color)}"></i>` : ic(x.icon)}</span><span class="lbl">${esc(x.label)}</span><span class="n">${n(k) || ''}</span></button>`; };
   const areaKeys = [...activeAreas().map((a) => 'a' + a.id), ...(n('a0') ? ['a0'] : [])];
@@ -492,9 +527,23 @@ function bindPlanner() {
   }, 180);
   $$('[data-clear]', APP).forEach((b) => (b.onclick = () => {
     const c = b.dataset.clear;
-    if (c === 'who') F.who = 'all'; else if (c[0] === 'p') F.prios = F.prios.filter((x) => x !== Number(c.slice(1))); else F.areas = F.areas.filter((x) => x !== Number(c));
+    if (c === 'sort') F.sort = 'auto'; else if (c === 'who') F.who = 'all'; else if (c[0] === 'p') F.prios = F.prios.filter((x) => x !== Number(c.slice(1))); else F.areas = F.areas.filter((x) => x !== Number(c));
     saveF(); drawPlanner(true);
   }));
+  const qa = $('[data-qadd]', APP);
+  if (qa) qa.onsubmit = async (e) => {   // Enter: it is in the list, and the line is ready for the next one
+    e.preventDefault();
+    const inp = $('#pl-add', qa), title = inp.value.trim(), x = srcOf(qa.dataset.qadd);
+    if (!title || qa.dataset.busy) return;
+    qa.dataset.busy = 1;
+    try {
+      const r = await api('POST', '/tasks', { title, priority: x.prio || 3, area_id: x.area || null });
+      if (C.open) C.open.push(r.task);
+      touch(); drawPlanner(true);
+      const again = $('#pl-add'); if (again) again.focus();
+      planAfter();
+    } catch (err) { delete qa.dataset.busy; toast(err.message, { bad: true }); }
+  };
   const hs = $('[data-hidestarter]', APP);
   if (hs) hs.onclick = () => { store('mt_starter', 1); drawPlanner(true); };
 }
@@ -751,7 +800,7 @@ function contactsSheet() {
 
 // ---------- the menu (phones): tableros, prioridades, and what is not a view ----------
 function menuSheet() {
-  const n = (k) => (C.open ? srcTasks(k).length : 0) || '';
+  const n = (k) => (C.open ? srcTasks(k, true).length : 0) || '';
   const row = (href, left, label, count = '') => `<a class="rowlink" href="${href}">${left}<span>${label}</span><span class="n">${count}</span>${ic('chev')}</a>`;
   sheet({
     title: 'Tableros', cls: 'msheet',

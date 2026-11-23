@@ -44,7 +44,7 @@ SCREENS = [
   ('09b-todo-por-area', '#/todo', 1, ['[data-go=filter]', '[data-group=area]', '.sheet [data-act="1"]', 'full']),
   ('09c-todo-por-persona', '#/todo', 1, ['[data-go=filter]', '[data-group=who]', '.sheet [data-act="1"]', 'full']),
   ('09d-todo-por-fecha', '#/todo', 1, ['[data-go=filter]', '[data-group=date]', '.sheet [data-act="1"]', 'full']),
-  ('09e-todo-prioridad', '#/todo', 1, ['[data-go=filter]', '[data-group=prio]', '.sheet [data-act="1"]']),
+  ('09e-todo-prioridad', '#/todo', 1, ['[data-go=filter]', '[data-group=auto]', '.sheet [data-act="1"]']),
   ('09f-menu', '#/', 1, ['[data-go=menu]']),
   ('09g-contactos-hoja', '#/', 1, ['[data-go=contacts]']),
   ('09h-prioridad', '#/prioridad/2', 1, []),

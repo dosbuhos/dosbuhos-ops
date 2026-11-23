@@ -229,6 +229,9 @@ body.authed:not(.has-bar) .toast { right: 78px; }
 .tile.on::before, .tile.on + .tile::before { display: none; }
 .tile:not(.static):not(:disabled):active { background: var(--wash-2); }
 .tile.static { cursor: default; }
+/* type it and press Enter: a pendiente straight into the list that is open */
+.qadd { margin: 8px 0 2px; }
+.qadd .input { min-height: 44px; font-size: 15px; }
 .fchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 2px; }
 .fchip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 9px 0 13px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--ink); background: var(--wash); }
 .fchip.tagc { color: var(--tc); background: color-mix(in srgb, var(--tc) 12%, var(--surface)); }

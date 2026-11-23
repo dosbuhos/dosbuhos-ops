@@ -146,9 +146,9 @@ with sync_playwright() as p:
     expect(pg.locator('.fchip')).to_have_text('Urgente'); assert cards.count() == n_urg; expect(pg.locator('[data-go=filter]')).to_have_attribute('aria-pressed', 'true')
     pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0); assert cards.count() == n_all
     pg.click('[data-go=filter]'); pg.click('.sheet [data-area]:has-text("Restaurante")'); pg.click('.sheet [data-group=area]'); pg.click('.sheet [data-act="1"]')
-    expect(pg.locator('.fchip')).to_have_count(1); assert pg.locator('#pl-items h2.eyebrow .tag').count() == 1
-    pg.reload(); expect(pg.locator('.fchip')).to_have_count(1)          # the filter is remembered
-    pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0)
+    expect(pg.locator('.fchip')).to_have_count(2); assert pg.locator('#pl-items h2.eyebrow .tag').count() == 1
+    pg.reload(); expect(pg.locator('.fchip')).to_have_count(2)          # the filter and the order are remembered
+    pg.click('.fchip.tagc'); expect(pg.locator('.fchip')).to_have_count(1)
     pg.click('[data-go=filter]'); pg.click('.sheet [data-who=mine]'); expect(pg.locator('.sheet [data-who=mine]')).to_have_attribute('aria-pressed', 'true'); pg.click('.sheet [data-act="0"]')
     expect(pg.locator('.fchip')).to_have_count(0); expect(pg.locator('#pl-items h2.eyebrow').first).to_contain_text('Urgente')
     pg.fill('#pl-q', 'canaleta'); expect(cards).to_have_count(1); expect(pg.locator('.mtop .cnt')).to_have_text('1'); expect(pg.locator('#pl-q')).to_be_focused()
@@ -211,6 +211,19 @@ with sync_playwright() as p:
     assert pg.locator('#pl-items .card .tag').count() == 0 and pg.locator('#pl-items .eyebrow').count() >= 1          # by priority, without repeating the area on each card
     pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.click('[data-go=menu]'); expect(pg.locator('.sheet .mfold')).to_have_attribute('open', ''); pg.click('.sheet [data-x]')   # it stays open
     step('menu → Áreas opens to show each area with its count; an area lists its open pendientes by priority')
+    # the Horizonte-style panel: type it and press Enter, and filter and sort on any list
+    pg.goto(BASE + '/#/bandeja'); pg.wait_for_timeout(600); n0 = pg.locator('#pl-items .card').count()
+    pg.fill('#pl-add', 'Revisar la chapa del portón'); pg.keyboard.press('Enter'); expect(pg.locator('#pl-items .card')).to_have_count(n0 + 1); expect(pg.locator('#pl-add')).to_have_value(''); expect(pg.locator('#pl-add')).to_be_focused()
+    qid = pg.locator('#pl-items .card:has-text("Revisar la chapa del portón")').get_attribute('data-tid'); t = api_task(pg, qid); assert t['due_date'] is None and t['priority'] == 3 and t['area_id'] is None, t
+    pg.click('[data-go=filter]'); expect(pg.locator('.sheet h2')).to_have_text('Filtrar y ordenar'); pg.click('.sheet [data-group=old]'); pg.click('.sheet [data-act="1"]')
+    heads = pg.locator('#pl-items .eyebrow').all_inner_texts(); assert heads and heads[-1].startswith('Hoy') and any('semana' in h or 'mes' in h for h in heads), heads   # oldest first, by the day it was reported
+    expect(pg.locator('.fchips .fchip')).to_have_count(1); pg.click('[data-go=filter]'); pg.click('.sheet [data-group=by]'); pg.click('.sheet [data-act="1"]')
+    assert all(h.startswith('Reportó') or h.startswith('Del plan') for h in pg.locator('#pl-items .eyebrow').all_inner_texts())
+    pg.click('.mbar a:has-text("Atrasados")'); expect(pg.locator('.fchips .fchip')).to_have_count(1)     # the order goes with you to the next list
+    pg.click('.fchips [data-clear=sort]'); expect(pg.locator('.fchips')).to_have_count(0)
+    pg.click('[data-go=menu]'); pg.click('.sheet .mfold .rowlink:has-text("Viñedo")'); n1 = pg.locator('#pl-items .card').count(); pg.fill('#pl-add', 'Poste 7 inclinado'); pg.keyboard.press('Enter')
+    expect(pg.locator('#pl-items .card')).to_have_count(n1 + 1); t = api_task(pg, pg.locator('#pl-items .card:has-text("Poste 7")').get_attribute('data-tid')); assert t['area_name'] == 'Viñedo', t
+    step('type and Enter adds to the Bandeja or to an area; filter and sort on every list: oldest first, who reported; the order follows from list to list')
     # the + beside a day reports something for that day
     pg.goto(BASE + '/#/semana'); pg.wait_for_timeout(600); plus = pg.locator('.mday .dayhead a.pb').last; day = re.search(r'fecha=(\d{4}-\d\d-\d\d)', plus.get_attribute('href')).group(1)
     plus.click(); expect(pg.locator('.top.sub h1')).to_have_text('Reportar'); expect(pg.locator('#r-due')).to_have_value(day); expect(pg.locator('.fixed')).to_be_visible()
