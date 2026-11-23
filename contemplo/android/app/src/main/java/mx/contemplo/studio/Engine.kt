@@ -285,7 +285,7 @@ class Engine(private val ctx: Context, private val store: MediaStore, private va
     }
     private fun targetVolume() = if (muted || blackout) 0f else volume
     private fun applyVolume(fadeMs: Long = 0) {
-        val p = livePlayer(); val to = targetVolume(), from = p.volume
+        val p = livePlayer(); val to = targetVolume(); val from = p.volume
         if (fadeMs <= 0) { p.volume = to; return }
         ValueAnimator.ofFloat(from, to).setDuration(fadeMs).apply { addUpdateListener { p.volume = it.animatedValue as Float }; start() }
     }

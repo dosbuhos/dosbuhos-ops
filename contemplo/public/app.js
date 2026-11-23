@@ -102,14 +102,14 @@ function nowPanel() {
         <span><span class="dot ${d.online ? 'ok' : 'bad'}" style="display:inline-block"></span> ${esc(d.name)} · ${d.online ? 'en línea' : 'sin conexión, ' + ago(d.last_seen)}</span></div></div>
       <div><div class="bar live"><i style="width:${dur ? Math.min(100, (pos / dur) * 100) : 0}%"></i></div><div class="row small mono muted" style="justify-content:space-between;margin-top:4px"><span>${tc(pos)}</span><span>${dur ? tc(dur) : ''}</span></div></div>
       <div class="ctl">
-        <button class="btn" data-c="${st.mode === 'playing' ? 'pause' : 'resume'}">${st.mode === 'playing' ? 'Pausa' : 'Reproducir'}</button>
+        <button class="btn" data-c="${st.mode === 'playing' ? 'pause' : 'resume'}" ${pg.video_id ? '' : 'disabled'}>${st.mode === 'playing' ? 'Pausa' : 'Continuar'}</button>
         <button class="btn ${st.blackout ? 'on' : ''}" data-c="blackout">${st.blackout ? 'Quitar negro' : 'Negro'}</button>
-        <button class="btn" data-c="restart">Reiniciar</button>
-        <button class="btn" data-c="skip">Siguiente</button>
-        <button class="btn ${pg.loop ? 'on' : ''}" data-c="loop">Repetir ${pg.loop ? 'sí' : 'no'}</button>
+        <button class="btn" data-c="restart" ${pg.video_id ? '' : 'disabled'}>Reiniciar</button>
+        <button class="btn" data-c="skip" ${pg.video_id ? '' : 'disabled'}>Siguiente</button>
+        <button class="btn ${pg.loop ? 'on' : ''}" data-c="loop" ${pg.video_id ? '' : 'disabled'}>Repetir ${pg.loop ? 'sí' : 'no'}</button>
         <button class="btn ${st.muted ? 'on' : ''}" data-c="mute">${st.muted ? 'Con sonido' : 'Silencio'}</button>
       </div>
-      <div class="status-line" id="cmdline"></div>
+      <div class="status-line" id="cmdline">${pg.video_id || S.cmd ? '' : '<span class="muted">Para proyectar: en un video listo en el TV, toca <strong>Reproducir</strong>.</span>'}</div>
       <div class="row small">${d.lan_url ? `<a class="btn sm" href="${esc(d.lan_url)}" target="_blank" rel="noopener">Control en vivo por Wi-Fi ↗</a>` : ''}<a class="btn sm ghost" href="#vivo">Control en vivo vía nube</a>
       ${st.cued?.title ? `<span class="badge cue">En espera: ${esc(st.cued.title)}</span>` : ''}${st.transition_mode ? `<span class="muted tiny">Transición: ${st.transition_mode === 'dual' ? 'doble decodificador (sin negro)' : 'corte simple'}</span>` : ''}</div>
     </div></div>`;
