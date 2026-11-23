@@ -3,10 +3,14 @@
 The week's reservations as a manifest, with the guest behind each one, and Parrot's sales beside them. Phone first,
 Spanish UI. Worker `reservaciones`, behind the Hub at `apps.dosbuhos.com/reservaciones/` (short address: `manifest.dosbuhos.com`). No build step.
 
-- **Reservaciones**: ‹ semana › stepper, days stacked. A row is the hour, the guest, party, table and status; it opens to
-  the service details, with a second accordion for the guest (name, phone, email). Each day carries its Parrot numbers
-  side by side, never joined to a reservation (OpenTable matches no checks yet; `pos_total_minor` shows by itself the
-  day it does).
+- **Reservaciones**: ‹ semana › stepper, days stacked. On the current week a **Hoy** panel (covers, expected, arrived,
+  past their time and unmarked, next arrival, arrivals by half hour with a "now" line) and **Pendientes** (confirm
+  today/tomorrow, no-show history, no table, tables of 6+, prepayments with no reservation, past days left open in
+  OpenTable). The week strip splits covers into served, confirmed and to confirm. A row is status rail, hour, party,
+  guest, tags (table, prepaid, nth visit, earlier no-shows, channel); it opens a sheet with call / WhatsApp / email,
+  lead time, the visit timeline, the prepayment (with card country) and history. Repeat guests match on email or
+  phone among the guests kept here. Each day carries its Parrot numbers side by side, never joined to a reservation.
+- Look: Archivo (self-hosted, OFL), wine-dark bar, owl-eye logo; installable (`manifest.webmanifest`, icons).
 - **Ventas** (Hub roles editor and admin): ‹ › by day, week or month. Net sales, guests, tickets and tips against the
   previous period and the same weekdays a year earlier; sales by day, by hour, by line of business, top products,
   payments by type, twelve weeks of trend. Every chart has its table.

@@ -3,18 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#15171a">
+<meta name="theme-color" content="#4a1424" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#2a0b14" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex, nofollow">
 <meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Reservaciones">
 <title>Reservaciones · Dos Búhos</title>
-<link rel="icon" type="image/svg+xml" href="logo.svg">
 <script>/* Relative asset and API paths need the trailing slash (/reservaciones/ behind the Hub). */ if (!location.pathname.endsWith('/')) location.replace(location.pathname + '/' + location.search + location.hash);</script>
-<link rel="stylesheet" href="/theme.css?app=reservaciones">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<link rel="preload" href="archivo.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <aside class="lado">
-  <div class="marca"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 22a10 10 0 0 1 20 0z"/><path d="M3.500 25.500h25M16 12v-2.500M13.500 8h5"/></svg><span>Reservaciones</span></div>
+  <div class="marca"><img class="logo" src="logo.svg" alt="" width="28" height="28"><span>Reservaciones</span></div>
   <nav id="nav-lado" aria-label="Secciones"></nav>
   <a class="al-hub" href="/">‹ Hub</a>
   <div class="yo" id="yo"></div>
@@ -22,7 +30,7 @@
 <div class="app">
   <header class="arriba">
     <a class="al-hub" href="/" aria-label="Volver al Hub">‹ Hub</a>
-    <div class="marca"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 22a10 10 0 0 1 20 0z"/><path d="M3.500 25.500h25M16 12v-2.500M13.500 8h5"/></svg><h1 id="titulo">Reservaciones</h1></div>
+    <div class="marca"><img class="logo" src="logo.svg" alt="" width="28" height="28"><h1 id="titulo">Reservaciones</h1></div>
     <button class="ico" id="recargar" type="button" aria-label="Actualizar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.600-5.900"/><path d="M20 4.500v4.200h-4.200"/></svg></button>
   </header>
   <div class="paso" id="paso" hidden>
@@ -30,10 +38,12 @@
     <div class="donde" id="donde" aria-live="polite"></div>
     <button class="ico" id="despues" type="button" aria-label="Siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
     <button class="hoy" id="hoy" type="button" hidden>Hoy</button>
+    <button class="ico recargar-ancho" id="recargar2" type="button" aria-label="Actualizar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.600-5.900"/><path d="M20 4.500v4.200h-4.200"/></svg></button>
   </div>
   <main id="main" tabindex="-1"><p class="nota relleno">Cargando…</p></main>
 </div>
 <nav class="pestanas" id="pestanas" aria-label="Secciones" hidden></nav>
+<dialog class="hoja" id="hoja" aria-labelledby="hoja-nombre"></dialog>
 <div class="globo" id="globo" role="tooltip" hidden></div>
 <script type="module" src="app.js"></script>
 </body>

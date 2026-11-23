@@ -76,11 +76,16 @@ export function tendencia({ ancho, puntos, alto = 176, formato = pesosCorto }) {
   return `${s}</svg>`;
 }
 
-/** People arriving per half hour on one day: a strip of small columns over the opening hours. franjas: [{ media, personas }] */
-export function ritmo({ ancho, franjas, desde = 20, hasta = 37 }) {
+/**
+ * People arriving per half hour on one day: a strip of small columns over the opening hours, each labelled when there
+ * is room (otherwise only the busiest). ya: the current time in half hours (14:15 = 28.5) draws a "now" line.
+ * franjas: [{ media, personas }]
+ */
+export function ritmo({ ancho, franjas, desde = 20, hasta = 37, ya = null }) {
   const a = Math.min(desde, ...franjas.map((f) => f.media)), b = Math.max(hasta, ...franjas.map((f) => f.media));
-  const n = b - a + 1, alto = 58, mt = 13, mb = 15, h = alto - mt - mb, banda = ancho / n, bw = Math.max(4, Math.min(16, banda - 3));
+  const n = b - a + 1, alto = 64, mt = 15, mb = 15, h = alto - mt - mb, banda = ancho / n, bw = Math.max(4, Math.min(18, banda - 3));
   const max = Math.max(1, ...franjas.map((f) => f.personas)), tope = franjas.reduce((m, f) => (f.personas > (m?.personas ?? 0) ? f : m), null);
+  const todas = banda >= 13;
   const hhmm = (k) => `${Math.floor(k / 2)}:${k % 2 ? '30' : '00'}`;
   let s = `<svg viewBox="0 0 ${ancho} ${alto}" width="${ancho}" height="${alto}" role="img" aria-label="${esc(`Personas por media hora: ${franjas.map((f) => `${hhmm(f.media)}, ${f.personas}`).join('; ')}`)}">`;
   s += `<line class="eje" x1="0" x2="${ancho}" y1="${mt + h + 0.5}" y2="${mt + h + 0.5}"/>`;
@@ -88,7 +93,11 @@ export function ritmo({ ancho, franjas, desde = 20, hasta = 37 }) {
   for (const f of franjas) {
     const cx = banda * (f.media - a + 0.5), alt = Math.max(3, (f.personas / max) * h);
     s += columna(cx - bw / 2, mt + h - alt, bw, alt, 'bar');
-    if (f === tope) s += `<text class="tope" x="${r1(Math.min(Math.max(cx, 8), ancho - 8))}" y="${r1(mt + h - alt - 3)}" text-anchor="middle">${f.personas}</text>`;
+    if (todas || f === tope) s += `<text class="tope" x="${r1(Math.min(Math.max(cx, 8), ancho - 8))}" y="${r1(mt + h - alt - 3)}" text-anchor="middle">${f.personas}</text>`;
+  }
+  if (ya !== null && ya >= a - 0.5 && ya <= b + 0.5) {
+    const x = r1(banda * (ya - a + 0.5));
+    s += `<line class="ya" x1="${x}" x2="${x}" y1="${mt - 4}" y2="${mt + h + 3}"/><text class="ya-t" x="${x}" y="${mt - 6}" text-anchor="${x < 30 ? 'start' : x > ancho - 30 ? 'end' : 'middle'}">ahora</text>`;
   }
   return `${s}</svg>`;
 }

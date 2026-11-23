@@ -33,6 +33,43 @@ async function preciosConocidos(db, hoy, ahora) {
 }
 export function olvidar() { precios = { at: 0, mapa: null }; }
 
+/** Phones compare on their last ten digits, so +52 415 … and 415 … are the same guest. */
+const telClave = (t) => { const d = String(t || '').replace(/\D/g, ''); return d.length >= 8 ? d.slice(-10) : ''; };
+const correoClave = (c) => String(c || '').trim().toLowerCase();
+const enPartes = async (lista, n, fn) => { const out = []; for (let i = 0; i < lista.length; i += n) out.push(...(await fn(lista.slice(i, i + n)))); return out; };
+
+/**
+ * Earlier visits of this week's guests, matched by email or phone across the guests kept here (the feed starts on
+ * FEED_DESDE, so history is short at first). Returns Map(confirmation_id -> { visitas, faltas, ultima }).
+ */
+async function historial(env, reservas, huespedes) {
+  const correos = [...new Set([...huespedes.values()].map((h) => correoClave(h.email)).filter(Boolean))];
+  const tels = [...new Set([...huespedes.values()].map((h) => telClave(h.phone)).filter(Boolean))];
+  const out = new Map();
+  if (!correos.length && !tels.length) return out;
+  const otros = [
+    ...(await enPartes(correos, 80, (p) => todos(env.DB, `SELECT confirmation_id, email, phone FROM guests WHERE lower(email) IN (${p.map(() => '?').join(',')})`, ...p))),
+    ...(await enPartes(tels, 80, (p) => todos(env.DB, `SELECT confirmation_id, email, phone FROM guests WHERE substr(replace(replace(replace(replace(phone, ' ', ''), '-', ''), '+', ''), '.', ''), -10) IN (${p.map(() => '?').join(',')})`, ...p))),
+  ];
+  const ids = [...new Set(otros.map((o) => o.confirmation_id))];
+  const estados = new Map((await enPartes(ids, 80, (p) => todos(env.GROWTH, `SELECT confirmation_id, status, service_date FROM ot_reservations WHERE confirmation_id IN (${p.map(() => '?').join(',')})`, ...p))).map((r) => [r.confirmation_id, r]));
+  for (const r of reservas) {
+    const h = huespedes.get(r.confirmation_id); if (!h) continue;
+    const ce = correoClave(h.email), ct = telClave(h.phone), vistos = new Set();
+    let visitas = 0, faltas = 0, ultima = null;
+    for (const o of otros) {
+      if (o.confirmation_id === r.confirmation_id || vistos.has(o.confirmation_id)) continue;
+      if (!((ce && correoClave(o.email) === ce) || (ct && telClave(o.phone) === ct))) continue;
+      vistos.add(o.confirmation_id);
+      const e = estados.get(o.confirmation_id); if (!e || !(e.service_date < r.service_date)) continue;
+      if (e.status === 'completed') { visitas++; if (!ultima || e.service_date > ultima) ultima = e.service_date; }
+      else if (e.status === 'no_show') faltas++;
+    }
+    if (visitas || faltas) out.set(r.confirmation_id, { visitas, faltas, ultima });
+  }
+  return out;
+}
+
 async function huespedesDe(db, ids) {
   const out = new Map();
   for (let i = 0; i < ids.length; i += 80) {
@@ -48,7 +85,7 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
   const [reservas, cargos, mapaPrecios, abiertos, ventas, frescura, sync] = await Promise.all([
     todos(g, `SELECT confirmation_id, created_at, scheduled_at, service_date, party_size, origin, status, table_name, arrived_at, seated_at, done_at, pos_total_minor
       FROM ot_reservations WHERE service_date BETWEEN ? AND ? ORDER BY scheduled_at, confirmation_id`, desde, hasta),
-    todos(g, `SELECT id, service_date, service_time, amount_minor - refunded_minor AS monto, experience_id FROM stripe_payments
+    todos(g, `SELECT id, service_date, service_time, amount_minor - refunded_minor AS monto, experience_id, card_country FROM stripe_payments
       WHERE source = 'opentable' AND status = 'succeeded' AND amount_minor > refunded_minor AND service_time IS NOT NULL AND service_date BETWEEN ? AND ?`, desde, hasta),
     preciosConocidos(g, hoy, ahora),
     diasAbiertos(g, hoy, ahora),
@@ -57,6 +94,7 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
     estadoSync(env.DB),
   ]);
   const huespedes = await huespedesDe(env.DB, reservas.map((r) => r.confirmation_id));
+  const antes = await historial(env, reservas, huespedes);
   const borradoAntesDe = sumarDias(hoy, -RETENCION_DIAS);
   const avisoHasta = sumarDias(FEED_DESDE, AVISO_DIAS);
 
@@ -64,7 +102,7 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
   const dias = rango(desde, hasta).map((fecha) => {
     const delDia = reservas.filter((r) => r.service_date === fecha);
     const filas = delDia.map((r) => ({ id: r.confirmation_id, hora: r.scheduled_at === null ? null : horaLocal(r.scheduled_at), personas: r.party_size, estado: r.status }));
-    const { porReserva, sueltos } = casar(filas, cargos.filter((c) => c.service_date === fecha).map((c) => ({ id: c.id, hora: c.service_time, monto: Number(c.monto) || 0, experiencia: c.experience_id })), mapaPrecios);
+    const { porReserva, sueltos } = casar(filas, cargos.filter((c) => c.service_date === fecha).map((c) => ({ id: c.id, hora: c.service_time, monto: Number(c.monto) || 0, experiencia: c.experience_id, pais: c.card_country || '' })), mapaPrecios);
     const lista = delDia.map((r, i) => {
       const h = huespedes.get(r.confirmation_id), exp = porReserva.get(r.confirmation_id);
       const nombre = h ? `${h.first_name} ${h.last_name}`.trim() : '';
@@ -74,7 +112,8 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
         reservada: r.created_at, llego: r.arrived_at, sentado: r.seated_at, salio: r.done_at, cuenta: r.pos_total_minor,
         huesped: h ? { nombre: nombre || null, telefono: h.phone || null, correo: h.email || null } : null,
         huespedBorrado: !h && fecha < borradoAntesDe,
-        experiencia: exp ? { nombre: nombreExperiencia(exp.experiencia), monto: exp.monto, seguridad: exp.seguridad } : null,
+        experiencia: exp ? { nombre: nombreExperiencia(exp.experiencia), monto: exp.monto, seguridad: exp.seguridad, ...(exp.pais ? { pais: exp.pais } : {}) } : null,
+        historial: antes.get(r.confirmation_id) || null,
       };
     });
     const vivas = lista.filter((r) => r.estado !== 'cancelled' && r.estado !== 'no_show');

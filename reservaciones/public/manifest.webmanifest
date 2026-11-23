@@ -1,0 +1,17 @@
+{
+  "name": "Reservaciones · Dos Búhos",
+  "short_name": "Reservaciones",
+  "description": "Las reservaciones de la semana, con sus huéspedes, y las ventas de Parrot.",
+  "lang": "es-MX",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f1f1f3",
+  "theme_color": "#4a1424",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

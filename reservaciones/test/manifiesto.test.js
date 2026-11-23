@@ -89,3 +89,20 @@ test('sales sit beside each day only for those who may see them, and guests olde
   const r = ago.dias[2].reservas.find((x) => x.id === viejo);
   assert.equal(r.huesped, null); assert.equal(r.huespedBorrado, true); assert.equal(ago.sinHuesped, 0);
 });
+
+test('a returning guest is recognised by email or phone: earlier visits and no-shows, never later ones', async () => {
+  const { G, P, env } = datos();
+  const hoyR = reserva(G.db, { fecha: '2026-11-28', hora: '13:00', personas: 2, estado: 'confirmed' });
+  const antes1 = reserva(G.db, { fecha: '2026-11-14', hora: '13:00', personas: 2, estado: 'completed' });
+  const antes2 = reserva(G.db, { fecha: '2026-11-07', hora: '14:00', personas: 4, estado: 'no_show' });
+  const despues = reserva(G.db, { fecha: '2026-12-05', hora: '14:00', personas: 4, estado: 'completed' });
+  const otro = reserva(G.db, { fecha: '2026-11-15', hora: '14:00', personas: 4, estado: 'completed' });
+  huesped(P.db, hoyR, { correo: 'Ana@Example.com', telefono: '+52 415 555 0199', fecha: '2026-11-28' });
+  huesped(P.db, antes1, { correo: 'ana@example.com', telefono: '', fecha: '2026-11-14' });
+  huesped(P.db, antes2, { correo: 'otra@example.com', telefono: '415 555 0199', fecha: '2026-11-07' });
+  huesped(P.db, despues, { correo: 'ana@example.com', fecha: '2026-12-05' });
+  huesped(P.db, otro, { correo: 'nadie@example.com', telefono: '+52 415 555 0000', fecha: '2026-11-15' });
+  const s = await semana(env, { nombre: 'A', ventas: false }, LUNES, HOY, AHORA);
+  const r = s.dias.find((d) => d.fecha === '2026-11-28').reservas.find((x) => x.id === hoyR);
+  assert.deepEqual(r.historial, { visitas: 1, faltas: 1, ultima: '2026-11-14' });
+});

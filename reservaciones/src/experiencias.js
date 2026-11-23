@@ -44,14 +44,14 @@ export function personasEstimadas(cargo, precios) {
 
 /**
  * One day's reservations against its prepayments.
- * reservas: [{ id, hora: 'HH:MM', personas, estado }]   cargos: [{ id, hora: 'HH:MM', monto, experiencia }] (monto net of refunds, > 0)
+ * reservas: [{ id, hora: 'HH:MM', personas, estado }]   cargos: [{ id, hora: 'HH:MM', monto, experiencia, pais? }] (monto net of refunds, > 0)
  * Returns { porReserva: Map(id -> { cargos, monto, experiencia, seguridad: 'unica' | 'personas' }), sueltos: [{ ...cargo, personas, motivo: 'varias' | 'sin_reserva' }] }
  */
 export function casar(reservas, cargos, precios) {
   const porReserva = new Map(), sueltos = [];
   const asignar = (r, c, seguridad) => {
     const m = porReserva.get(r.id) || { cargos: 0, monto: 0, experiencia: String(c.experiencia), seguridad };
-    m.cargos++; m.monto += c.monto;
+    m.cargos++; m.monto += c.monto; if (c.pais && !m.pais) m.pais = c.pais;
     porReserva.set(r.id, m);
   };
   const horas = new Map();
