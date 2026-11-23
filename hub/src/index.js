@@ -16,7 +16,7 @@ import { bibliotecaRoute } from './biblioteca.js';
 const OPEN = /^\/(kit\/|logo-[\w-]+\.png$|icon-[\w-]+\.png$|manifest\.webmanifest$|favicon\.ico$|robots\.txt$)/;
 // <name>.dosbuhos.com → the app's slug under the Hub.
 // A full URL is an app outside the Hub (Horizonte has its own Google sign-in, tied to its workers.dev address).
-const SHORT_HOSTS = { 'spark.dosbuhos.com': 'spark', 'growth.dosbuhos.com': 'growth', 'horizonte.dosbuhos.com': 'https://horizonte.dos-buhos.workers.dev', 'crianza.dosbuhos.com': 'https://cellar.dos-buhos.workers.dev' };
+const SHORT_HOSTS = { 'spark.dosbuhos.com': 'spark', 'growth.dosbuhos.com': 'growth', 'horizonte.dosbuhos.com': 'https://horizonte.dos-buhos.workers.dev', 'crianza.dosbuhos.com': 'https://cellar.dos-buhos.workers.dev', 'manifest.dosbuhos.com': 'reservaciones' };
 const RESERVED = new Set(['api', 'auth', 'admin', 'kit', 'theme', 'ads', 'club', 'c', 'biblioteca']);
 
 export default {

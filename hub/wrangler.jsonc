@@ -14,7 +14,9 @@
     { "pattern": "growth.dosbuhos.com", "custom_domain": true },
     { "pattern": "horizonte.dosbuhos.com", "custom_domain": true },
     // Crianza (the cellar app) lives on its own Worker; this short host sends people there.
-    { "pattern": "crianza.dosbuhos.com", "custom_domain": true }
+    { "pattern": "crianza.dosbuhos.com", "custom_domain": true },
+    // Reservaciones' manifest: sends people to apps.dosbuhos.com/reservaciones/ (Hub sign-in).
+    { "pattern": "manifest.dosbuhos.com", "custom_domain": true }
   ],
   // Every request goes through the Worker first: pages and the kit sit behind Google sign-in.
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none", "not_found_handling": "none" },

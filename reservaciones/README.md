@@ -1,7 +1,7 @@
 # Reservaciones
 
 The week's reservations as a manifest, with the guest behind each one, and Parrot's sales beside them. Phone first,
-Spanish UI. Worker `reservaciones`, behind the Hub at `apps.dosbuhos.com/reservaciones/`. No build step.
+Spanish UI. Worker `reservaciones`, behind the Hub at `apps.dosbuhos.com/reservaciones/` (short address: `manifest.dosbuhos.com`). No build step.
 
 - **Reservaciones**: ‹ semana › stepper, days stacked. A row is the hour, the guest, party, table and status; it opens to
   the service details, with a second accordion for the guest (name, phone, email). Each day carries its Parrot numbers
