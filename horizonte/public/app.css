@@ -528,10 +528,6 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .sw { width: 36px; height: 36px; } .m .sw[aria-pressed=true]::after { left: 13px; top: 8px; width: 7px; height: 13px; }
 .d .grid .qc .swatches { gap: 6px; } .d .grid .qc .sw { width: 22px; height: 22px; } .d .grid .qc .sw[aria-pressed=true]::after { left: 7px; top: 3px; width: 5px; height: 9px; border-width: 0 2px 2px 0; }
 
-/* reflow */
-.pinicon { display: flex; flex: none; color: var(--ink-2); }
-.reflowsw { font-size: 12px; } .reflowsw[aria-pressed=false] { color: var(--ink-2); text-decoration-style: dotted; }
-.pinbtn[aria-pressed=true] { background: var(--ink); color: #fff; border-color: var(--ink); }
 
 /* tags */
 .tag { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; line-height: 18px; padding: 0 7px; border-radius: 999px; border: 0; white-space: nowrap; background: color-mix(in srgb, var(--tc) 16%, transparent); color: var(--tc); font-family: inherit; }

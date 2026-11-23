@@ -299,16 +299,10 @@ function flash(ids) { ids.forEach(i => flashed.add(i)); clearTimeout(flashTimer)
 function toggleDone(id) {
   const t = S.tasks.get(id); if (!t) return;
   const done = t.status !== 'done';
-  let moved = 0;
   batch(g => {
     const f = { status: done ? 'done' : 'open', doneAt: done ? new Date().toISOString() : null };
     if (done && t.timer) { const mins = Math.max(1, Math.round(elapsedSec(t) / 60)); f.timer = null; f.spent = (t.spent || 0) + mins; }
     if (done && (f.spent ?? t.spent)) f.dur = Math.max(5, round5(f.spent ?? t.spent)); // what it took, not what was planned
-    // Reflow: a timeboxed task on today, finished before its end, shrinks to the time it took and the rest slide up.
-    if (done && canReflow(t)) { const start = toMin(t.at), now = nowMin();
-      if (start <= now) { const took = Math.max(5, round5(now - start)), planned = t.dur || 30;
-        if (took !== planned && !(f.spent ?? t.spent)) f.dur = took;
-        if (took < planned) { put('task', id, f, { group: g }); moved = reflowDay(t.when, start + 1, 'up', now, g, now - (start + planned)); return; } } }
     put('task', id, f, { group: g });
   });
   S.ui.flip = true; render();
@@ -332,55 +326,9 @@ function addTime(id, mins) { const t = S.tasks.get(id); if (!t) return; put('tas
 // Live counters tick without a full re-render.
 setInterval(() => { for (const el of $$('[data-timer]')) { const t = S.tasks.get(el.dataset.timer); if (t?.timer) el.textContent = fmtClock(elapsedSec(t)); } }, 1000);
 function runPill(mobile) { const t = runningTask(); if (!t) return ''; return `<button class="runpill" data-act="open" data-tid="${t.id}" title="Timer running"><i></i><span class="rt">${esc(t.title)}</span><b data-timer="${t.id}">${fmtClock(elapsedSec(t))}</b><span class="stop" data-act="tstop" data-tid="${t.id}" role="button" aria-label="Stop timer">${I.stopsq}</span></button>`; }
-// ── reflow (today, timeboxed tasks only) ──────────────────────
-// Meetings and pinned tasks never move. Finish early → following tasks slide up to now; run over → the block slides down under the now line (never grows).
+// Planned times stay where you put them: nothing on the calendar moves on its own (reflow was removed in v65).
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
 const round5 = (m) => Math.round(m / 5) * 5;
-const reflowOn = (k) => !(S.prefs.reflowOff || {})[k];
-const isFixed = (t) => t.kind === 'meeting' || !!t.pin;
-const canReflow = (t) => t.when === todayK() && !!t.at && !isFixed(t) && reflowOn(t.when);
-// Earliest start at or after `start` where a block of `dur` misses every fixed block; null if it would end after `limit`.
-function firstFit(start, dur, blocks, limit) {
-  let s = start;
-  for (let i = 0; i < 60; i++) { const hit = blocks.find(([a, b]) => s < b && s + dur > a); if (!hit) break; s = hit[1]; }
-  return s + dur <= limit ? s : null;
-}
-// mode 'up': tasks starting at/after `from` come up by `shift` (never before `cursor` = now), keeping their spacing.
-// mode 'down': tasks starting at/after `from` are pushed only as far as needed to clear `cursor` (the stretched task's new end).
-function reflowDay(k, from, mode, cursor, g, shift = 0, skip = null) {
-  const limit = toMin(S.prefs.dayEnd), now = nowMin();
-  const movers = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && t.id !== skip && toMin(t.at) >= from).sort((a, b) => toMin(a.at) - toMin(b.at));
-  const blocks = placedOn(k).filter(t => t.at && isFixed(t) && (isOpen(t) || t.kind === 'meeting')).map(t => [toMin(t.at), toMin(t.at) + (t.dur || 30)]);
-  let moved = 0; // 'up': shift < 0 is how far every mover may come up (now minus the finished task's planned end)
-  for (const t of movers) {
-    const old = toMin(t.at), dur = t.dur || 30;
-    const want = mode === 'up' ? Math.max(old + shift, cursor, now) : Math.max(old, cursor);
-    let s = firstFit(round5(want), dur, blocks, limit);
-    if (mode === 'up' && s != null && s >= old) s = old; // sliding up never sends a task later
-    if (s == null) { if (!t.nofit) put('task', t.id, { nofit: true }, { group: g }); blocks.push([old, old + dur]); cursor = old + dur; continue; } // stays put, flagged
-    if (s !== old || t.nofit) { put('task', t.id, { at: fromMin(s), nofit: false }, { group: g }); if (s !== old) moved++; }
-    blocks.push([s, s + dur]); cursor = s + dur;
-  }
-  return moved;
-}
-// Every minute: the task that is running over stretches to now (up to 2 h over) and pushes what follows.
-function reflowTick() {
-  const k = todayK(); if (!reflowOn(k)) return;
-  const now = nowMin();
-  const running = placedOn(k).filter(t => isOpen(t) && t.at && !isFixed(t) && toMin(t.at) <= now && toMin(t.at) + (t.dur || 30) < now).sort((a, b) => toMin(b.at) - toMin(a.at))[0];
-  if (!running) return;
-  // The block keeps its length and slides down to sit under the now line; what follows is pushed. Nothing ever grows on its own.
-  const start = toMin(running.at), dur = running.dur || 30, over = now - (start + dur);
-  if (over < 5 || over > 180) return;
-  if (running.timer) { // the timer proves it is being worked on: the block grows to now so it records what it is taking
-    const nd = round5(now - start) + 5; if (nd <= dur) return;
-    batch(g => { put('task', running.id, { dur: nd }, { group: g }); reflowDay(k, start + 1, 'down', start + nd, g, 0, running.id); });
-  } else { // not being timed: keep its length and slide it under the now line
-    const at = round5(now) - dur + 5; if (at <= start) return;
-    batch(g => { reflowDay(k, start + 1, 'down', at + dur, g, 0, running.id); put('task', running.id, { at: fromMin(at) }, { group: g }); });
-  }
-  S.ui.flip = true; render();
-}
 function place(id, when, at, label) {
   const t = S.tasks.get(id); if (!t) return;
   const f = { when: when || null, at: at || '', nofit: false };
@@ -419,13 +367,13 @@ function cardHTML(t, opts = {}) {
   const run = !done && !!t.timer;
   const hl = !done && t.color; // highlighted task: coloured left bar + faint wash (meetings are solid; targets show a star; independent signals)
   const cls = ['card', pri, done ? 'done' : '', opts.sched ? 'sched' : '', hl ? 'hl' : '', flashed.has(t.id) ? 'new' : '', run ? 'running' : '', opts.late && !done ? 'late' : ''].join(' ');
-  const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : !done && t.nofit && t.at ? `<span class="sub">Won't fit today</span>` : '';
+  const stuck = !done && (t.rolls || 0) >= 3 ? `<span class="sub">Pushed ${t.rolls} times · stuck</span>` : '';
   const meta = run ? '' : opts.meta ?? (done ? (t.spent ? fmtDur(t.dur || 30) : '') : pri === 'someday' && !t.when ? 'Someday' : (t.dur && t.dur !== 30 ? fmtDur(t.dur) : '') + (t.spent ? `${t.dur && t.dur !== 30 ? ' · ' : ''}${fmtDur(t.spent)} logged` : ''));
   const live_ = run ? `<span class="meta live"><i></i><span data-timer="${t.id}">${fmtClock(elapsedSec(t))}</span></span>` : '';
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}${taskTags(t).length > 2 ? `<span class="more">+${taskTags(t).length - 2}</span>` : ''}</span>` : ''}</div>
-${t.pin && t.at && !done ? `<span class="pinicon" title="Pinned: does not move">${I.pin(opts.mobile ? 14 : 12)}</span>` : ''}${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
+${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -671,12 +619,12 @@ const HPX = 56; const H0 = () => Math.max(0, Math.min(toMin(S.prefs.dayStart) / 
 function renderHours() {
   const days = [S.ui.hday, addDays(S.ui.hday, 1)], h0 = H0(), h1 = H1();
   const heads = days.map(k => { const P = dayParts(k), untimed = [...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen);
-    return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:flex-end"><div class="date"><span class="num ${k === todayK() ? 'today' : ''}">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${k === todayK() ? ' · Today' : ''}</span></div><span class="small" style="font-size:12px;color:var(--ink-2);display:flex;gap:10px;align-items:center">${k === todayK() ? `<button class="link reflowsw" data-act="reflowtoggle" data-k="${k}" aria-pressed="${reflowOn(k)}" title="Finish a task early and the rest slide up; run over and they slide down. Meetings and pinned tasks stay put.">Reflow ${reflowOn(k) ? 'on' : 'off'}</button>` : ''}${loadText(k)}</span></div>
+    return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:flex-end"><div class="date"><span class="num ${k === todayK() ? 'today' : ''}">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${k === todayK() ? ' · Today' : ''}</span></div><span class="small" style="font-size:12px;color:var(--ink-2);display:flex;gap:10px;align-items:center">${loadText(k)}</span></div>
 <div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>`}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
   const grids = days.map(k => gridHTML(k, HPX, h0, h1)).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
-<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move (hold at the left or right edge to turn the page a day), drag the bottom edge to change length. Today reflows: finish early and the next tasks slide up; meetings and pinned tasks stay.</div></div>`;
+<div class="legend">Outlined cards are tasks, solid blocks are meetings. Click or drag on empty space to add one. Drag to move (hold at the left or right edge to turn the page a day), drag the bottom edge to change length.</div></div>`;
 }
 // One day's hour grid: timed blocks in lanes, the now line, and (desktop) the block being drawn. Shared by the desktop Hours zoom and the phone.
 function gridHTML(k, hpx, h0, h1, opts = {}) {
@@ -917,7 +865,6 @@ ${isDesk()
   ? `<div class="timefield" style="flex:1"><input class="timein" type="text" inputmode="numeric" autocomplete="off" placeholder="Add a start time" value="${t.at ? clockAP(t.at) : ''}" aria-label="Start time, e.g. 2pm or 14:30" data-act="timein">${t.at ? `<button class="tclear" data-act="timeclear" aria-label="Remove start time">✕</button>` : ''}</div>`
   : `<button class="bigbtn" style="flex:1">${t.at ? `Starts ${clockAP(t.at)}` : 'Add a start time'}<input class="overlay-input" type="time" step="900" data-act="picktime" value="${t.at || ''}" aria-label="Start time"></button>`}
 ${t.at ? `<button class="bigbtn" style="padding:0 12px" data-act="cleartime" aria-label="Remove time">✕</button>` : ''}
-${t.at && t.kind !== 'meeting' ? `<button class="bigbtn pinbtn" style="padding:0 12px;display:flex;align-items:center;gap:6px" data-act="pin" aria-pressed="${!!t.pin}" title="Pinned tasks keep their time when the day reflows">${I.pin(16)}${t.pin ? 'Pinned' : 'Pin'}</button>` : ''}
 <div class="stepper"><button aria-label="Shorter" data-act="dur" data-d="-15">${I.minus}</button><div>${t.dur || 30} min</div><button aria-label="Longer" data-act="dur" data-d="15">${I.plus(18, 2.5)}</button></div></div>
 ${t.kind === 'meeting' || t.status === 'done' ? '' : `<div class="timerrow">${t.timer
     ? `<button class="bigbtn tstop" data-act="tstop" data-tid="${t.id}">${I.stopsq} Stop · <span data-timer="${t.id}">${fmtClock(elapsedSec(t))}</span></button>`
@@ -1264,8 +1211,6 @@ document.addEventListener('click', async (e) => {
     case 'rvrest': batch(g => overdueTasks().filter(t => t.pri !== 'target').forEach(t => put('task', t.id, { when: null, at: '', rolls: (t.rolls || 0) + 1 }, { group: g }))); render(); reviewSheet(); return;
     case 'when': put('task', st.id, { when: el.dataset.k }); closeSheet(); render(); toast(`Moved to ${periodLabel(el.dataset.k)}`, true); return;
     case 'cleartime': put('task', st.id, { at: '' }); render(); taskSheet(st.id); return;
-    case 'pin': { const t = S.tasks.get(st.id); put('task', st.id, { pin: !t.pin }); render(); taskSheet(st.id); return; }
-    case 'reflowtoggle': { const off = { ...(S.prefs.reflowOff || {}) }; const k = el.dataset.k; if (off[k]) delete off[k]; else off[k] = true; put('pref', 'main', { reflowOff: off }); render(); toast(off[k] ? 'Reflow off for today' : 'Reflow on'); return; }
     case 'dur': { const t = S.tasks.get(st.id); put('task', st.id, { dur: Math.max(15, Math.min(480, (t.dur || 30) + Number(el.dataset.d))) }); render(); taskSheet(st.id); return; }
     case 'pri': put('task', st.id, { pri: el.dataset.p }); render(); taskSheet(st.id); return;
     case 'color': put('task', st.id, { color: el.dataset.c }); render(); taskSheet(st.id); return;
@@ -1662,8 +1607,8 @@ async function start() {
   if (visualViewport) { const kb = () => { const h = Math.max(0, Math.round(innerHeight - visualViewport.height - visualViewport.offsetTop)); document.documentElement.style.setProperty('--kb', (h > 60 ? h : 0) + 'px'); };
     visualViewport.addEventListener('resize', kb); visualViewport.addEventListener('scroll', kb); }
   addEventListener('online', () => { render(); syncNow(); }); addEventListener('offline', render);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!sheetState && !drag && !S.ui.draft) reflowTick(); if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
-  setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) { reflowTick(); render(); } }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
+  setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) render(); }, 60000);
   setInterval(syncNow, 60000);
   // New releases take over by themselves: the worker is re-checked whenever the app comes back to the front, and when a new one
   // takes control the page reloads (unless something is mid-edit; then on the next return). A phone that was left open on an

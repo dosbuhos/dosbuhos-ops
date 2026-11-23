@@ -59,7 +59,7 @@ function view(t, ctx) {
   if (t.at) o.ends = fromMin(toMin(t.at) + (t.dur || 30));
   if (board) o.board = board.name; if (t.section) o.section = t.section;
   if (t.tags?.length) o.tags = t.tags.map(id => ctx.tagName(id));
-  if (t.notes) o.notes = t.notes; if (t.emoji) o.icon = t.emoji; if (t.color) o.highlight = t.color; if (t.pin) o.pinned = true;
+  if (t.notes) o.notes = t.notes; if (t.emoji) o.icon = t.emoji; if (t.color) o.highlight = t.color;
   if (t.spent) o.logged_minutes = t.spent; if (t.timer) o.timer_running_since = t.timer;
   if (t.rolls) o.times_pushed = t.rolls; if (t.doneAt) o.done_at = t.doneAt; if (t.created) o.created = t.created;
   return o;
@@ -74,8 +74,8 @@ const TOOLS = [
   { name: 'list_boards', description: 'Boards (projects/areas) with their sections and open-task counts, plus the tag list and the workday settings.', inputSchema: { type: 'object', properties: {} } },
   { name: 'add_task', description: 'Create a task or meeting. "when" is a day (YYYY-MM-DD) or a horizon key: week YYYY-Www, month YYYY-MM, quarter YYYY-Qn, year YYYY; omit to leave it in the inbox. Meetings need a day and a time and sync to Google Calendar. Tags and boards are matched by name (tags are created if new). priority: target (one of the day\'s few must-dos), normal, someday.',
     inputSchema: { type: 'object', properties: { title: { type: 'string' }, when: { type: 'string' }, time: { type: 'string', description: 'HH:MM 24h' }, duration_minutes: { type: 'integer', minimum: 5 }, priority: { type: 'string', enum: ['target', 'normal', 'someday'] }, tags: { type: 'array', items: { type: 'string' } }, board: { type: 'string' }, section: { type: 'string' }, kind: { type: 'string', enum: ['task', 'meeting'] }, notes: { type: 'string' }, icon: { type: 'string', description: 'one emoji' }, highlight: { type: 'string', description: 'colour 1-11 (Google Calendar palette) or "" for none' } }, required: ['title'] } },
-  { name: 'update_task', description: 'Change any fields of a task: reschedule (when/time), duration, title, notes, priority, tags (replaces the list), board/section, status (open|done|dropped), pin, icon, highlight. Set when to "" to send it back to the inbox, time to "" to drop the start time.',
-    inputSchema: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, when: { type: 'string' }, time: { type: 'string' }, duration_minutes: { type: 'integer', minimum: 5 }, priority: { type: 'string', enum: ['target', 'normal', 'someday'] }, tags: { type: 'array', items: { type: 'string' } }, board: { type: 'string' }, section: { type: 'string' }, status: { type: 'string', enum: ['open', 'done', 'dropped'] }, notes: { type: 'string' }, pinned: { type: 'boolean' }, icon: { type: 'string' }, highlight: { type: 'string' } }, required: ['id'] } },
+  { name: 'update_task', description: 'Change any fields of a task: reschedule (when/time), duration, title, notes, priority, tags (replaces the list), board/section, status (open|done|dropped), icon, highlight. Set when to "" to send it back to the inbox, time to "" to drop the start time.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, when: { type: 'string' }, time: { type: 'string' }, duration_minutes: { type: 'integer', minimum: 5 }, priority: { type: 'string', enum: ['target', 'normal', 'someday'] }, tags: { type: 'array', items: { type: 'string' } }, board: { type: 'string' }, section: { type: 'string' }, status: { type: 'string', enum: ['open', 'done', 'dropped'] }, notes: { type: 'string' }, icon: { type: 'string' }, highlight: { type: 'string' } }, required: ['id'] } },
   { name: 'complete_task', description: 'Mark a task done (optionally recording how long it actually took).', inputSchema: { type: 'object', properties: { id: { type: 'string' }, took_minutes: { type: 'integer', minimum: 5 } }, required: ['id'] } },
   { name: 'delete_task', description: 'Delete a task (soft delete; recoverable only from the database).', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
   { name: 'day_summary', description: 'Where the time went on a day or in a week: minutes planned in meetings vs tasks, by board and by tag, targets hit, tasks done, tasks pushed. Defaults to today. Give a week key (YYYY-Www) for a weekly summary.',
@@ -140,7 +140,6 @@ async function run(name, a, env, ctx, commit) {
       if (a.priority) f.pri = a.priority;
       if (a.kind) { f.kind = a.kind === 'meeting' ? 'meeting' : ''; if (f.kind && (f.dur ?? t?.dur ?? 30) < 60 && a.duration_minutes == null) f.dur = 60; }
       if (a.status) { f.status = a.status; f.doneAt = a.status === 'done' ? new Date().toISOString() : null; }
-      if (a.pinned != null) f.pin = !!a.pinned;
       if (a.icon != null) f.emoji = String(a.icon).trim();
       if (a.highlight != null) f.color = String(a.highlight);
       if (a.board != null) { if (a.board === '') { f.board = ''; f.section = ''; } else { const id = ctx.boardId(a.board); if (!id) throw new Error(`No board named "${a.board}"`); f.board = id; f.section = a.section || ''; } }
