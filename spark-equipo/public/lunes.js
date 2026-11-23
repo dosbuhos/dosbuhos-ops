@@ -47,7 +47,8 @@ function lunes() {
     const mios = P.filter((c) => c.persona === p), mv = mios.filter((c) => c.fecha < hoy).length, ms = mios.filter((c) => c.fecha >= hoy && dDias(hoy, c.fecha) <= 7).length;
     return h('section', { class: 'card' }, h('div', { class: 'name' }, p, eq ? pill(alDia(p) ? 'Registro al corriente' : 'Registro atrasado', alDia(p) ? 'ok' : 'bad') : null),
       h('div', { class: 'lund' }, M ? dato('Venta del mes', `${peso(ventaNeta(ym + '-01', ym + '-31', [p]))} de ${peso(M)}`) : null, w ? dato('Contactos de la semana', `${w.contactos} de ${w.meta}`) : null,
-        g && g.pc != null ? dato('A tiempo este mes', g.pc + '%') : null, dato('Compromisos', mv ? plural(mv, 'vencido', 'vencidos') : ms ? `${ms} esta semana` : mios.length ? 'al corriente' : 'sin pendientes')),
+        g && g.pc != null ? dato('A tiempo este mes', g.pc + '%') : null, dato('Compromisos', mv ? plural(mv, 'vencido', 'vencidos') : ms ? `${ms} esta semana` : mios.length ? 'al corriente' : 'sin pendientes'),
+        (() => { const Q = (d.preguntas || []).filter((q) => !q.respondida && q.para === p), v = Q.filter((q) => q.fecha && q.fecha < hoy).length; return Q.length ? dato('Preguntas de Eric', v ? plural(v, 'vencida', 'vencidas') : `${Q.length} sin responder`) : null; })()),
       h('h3', {}, 'Se revisa'), h('ol', { class: 'lunl' }, (cfg.personas[p] || []).map((t) => h('li', {}, t))),
       eq ? h('p', {}, h('button', { class: 'linkb', onclick: () => ir('hoy', p) }, 'Ver su tablero')) : null); };
   return h('div', {},

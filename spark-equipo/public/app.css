@@ -458,3 +458,7 @@ details.nota { margin: 0 0 10px; } details.nota summary { cursor: pointer; color
 /* A new version was deployed while this tab was open */
 .nuevav { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; background: var(--text); color: var(--bg); border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .28); font-size: .9rem; }
 @media (max-width: 719px) { .nuevav { left: 12px; right: 12px; bottom: 76px; justify-content: space-between; } }
+
+/* Month-end close of the 48-hour rule */
+.cierre { margin-bottom: 16px; } .cierre h3 { margin: 14px 0 4px; } .cierre details { margin-top: 6px; } .cierre summary { cursor: pointer; color: var(--muted); font-size: .875rem; padding: 6px 0; }
+.cierre .tard { margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: .875rem; } .cierre .tard li { padding: 2px 0; border: 0; }

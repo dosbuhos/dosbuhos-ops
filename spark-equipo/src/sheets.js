@@ -52,7 +52,9 @@ async function tabValues(env, ranges = Object.values(TABS).map((tab) => `'${tab}
   return j.valueRanges.map((v) => v.values || []);
 }
 
-export async function syncSheet(env) {
+const llave = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+// primera: the first read of the day (6 am). A row it finds was typed after the last read of the evening, so it is dated the day before.
+export async function syncSheet(env, { primera = false } = {}) {
   if (!env.SHEETS && !env.GOOGLE_SA_KEY) return { skipped: 'Falta la conexión con Google Sheets' };
   const vals = await tabValues(env);
   const rows = Object.keys(TABS).flatMap((p, i) => rowsFromValues(p, vals[i]));
@@ -61,12 +63,19 @@ export async function syncSheet(env) {
   // The sheet has no timestamp, so the first sync that sees a row dates it: that is the "logged on" date for the 48-hour rule.
   // The very first run (nothing seen yet) is different: every row already in the sheet is a backlog nobody logged today, so
   // those rows get no date at all. Dating them would make three weeks of silence read as "logged today".
-  const yaHay = await env.DB.prepare('SELECT 1 AS x FROM vistos LIMIT 1').first();
-  const hoy = yaHay ? new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'America/Mexico_City' }).format(new Date()) : '';
-  const clave = (x) => [x.persona, x.fecha, x.cuenta, (x.resultado || '').slice(0, 80)].join('|');
-  const visto = env.DB.prepare('INSERT OR IGNORE INTO vistos (clave, visto) VALUES (?, ?)');
-  const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}, registrado) VALUES (${Array(COLS.length + 1).fill('?').join(',')}, COALESCE((SELECT visto FROM vistos WHERE clave = ?), ''))`);
-  const stmts = [...rows.map((x) => visto.bind(clave(x), hoy)), env.DB.prepare("DELETE FROM activity WHERE origen = 'hoja'"), ...rows.map((x) => ins.bind(x.persona, ...COLS.map((k) => x[k]), clave(x)))];
+  // A row is known by person, day and account. The note is left out of the key on purpose: correcting a typo in it must not
+  // make the contact look logged again today. Keys from before this change carried the note; a row still found under its
+  // old key keeps the date it had.
+  const V = new Map((await env.DB.prepare('SELECT clave, visto FROM vistos').all()).results.map((r) => [r.clave, r.visto]));
+  const dia = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'America/Mexico_City' }).format(d);
+  const hoy = V.size ? dia(primera ? new Date(Date.now() - 864e5) : new Date()) : '';
+  const clave = (x) => [x.persona, x.fecha, llave(x.cuenta)].join('|'), vieja = (x) => [x.persona, x.fecha, x.cuenta, (x.resultado || '').slice(0, 80)].join('|');
+  const visto = env.DB.prepare('INSERT OR IGNORE INTO vistos (clave, visto) VALUES (?, ?)'), nuevos = [];
+  for (const x of rows) { const k = clave(x); let v = V.get(k);
+    if (v === undefined) { const o = V.get(vieja(x)); v = o !== undefined ? o : hoy; V.set(k, v); nuevos.push(visto.bind(k, v)); }
+    x.registrado = v; }
+  const ins = env.DB.prepare(`INSERT INTO activity (persona, ${COLS.join(', ')}, registrado) VALUES (${Array(COLS.length + 2).fill('?').join(',')})`);
+  const stmts = [...nuevos, env.DB.prepare("DELETE FROM activity WHERE origen = 'hoja'"), ...rows.map((x) => ins.bind(x.persona, ...COLS.map((k) => x[k]), x.registrado))];
   for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
   // Distributor scouting tab. A missing or empty tab leaves the last copy in place.
   let distribuidores = 0;

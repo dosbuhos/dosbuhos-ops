@@ -6,6 +6,11 @@ export const VENDEDORES = ['José Luis', 'Carlos'];
 // The house account: sales and prospecting Eric and Diane do themselves, under one shared name. It logs contacts and owns
 // orders like a rep, but has no contact goal, no rating, and stays out of the team's totals.
 export const CASA = 'Tito';
+// An order or an account reassigned to this name is not a sale at all (stock placed with a marketplace, a transfer keyed
+// as an order): it leaves sales and receivables.
+export const NO_VENTA = 'No es venta';
+// Who applies the month's punctuality adjustment.
+export const APLICA_AJUSTE = 'Carlos';
 export const PERSONAS = [...GENTE, CASA];
 // Who can own a commitment in the 90-day plan: the reps, the commercial lead, Dirección and the accountants.
 export const PLAN_GENTE = ['José Luis', 'Carlos', 'Daniel', 'Ily', 'Dirección', 'Contabilidad'];

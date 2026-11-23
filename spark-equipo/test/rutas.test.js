@@ -26,3 +26,12 @@ test('no route shows several plan commitments to the team at once', () => {
   const pantalla = readFileSync(new URL('../public/plan.js', import.meta.url), 'utf8');
   assert.ok(!/publicar: '(todos)'|publicar: g\b/.test(pantalla), 'the screen has no bulk control');
 });
+
+// Only Carlos (or the owner) applies the month's adjustment, only for a month that is over, and a real close is not redone.
+test('the month-end close is guarded: who, which month, and never twice', () => {
+  const src = readFileSync(new URL('../src/worker.js', import.meta.url), 'utf8');
+  const i = src.indexOf("if (p === '/api/cierre'"), ruta = src.slice(i, src.indexOf('return json({ ok: true, ensayo', i));
+  assert.match(ruta, /!yo\.dueno && yo\.persona !== APLICA_AJUSTE/);
+  assert.match(ruta, /mes >= HOY\.slice\(0, 7\)/);
+  assert.match(ruta, /ya && !ya\.ensayo/);
+});

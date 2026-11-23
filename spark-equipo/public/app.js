@@ -1,7 +1,7 @@
 import { MAS_VISTAS } from './mas.js';
 import { PLAN_VISTAS, urgentePlan, urgenteEventos } from './plan.js';
 import { LUNES_VISTAS } from './lunes.js';
-import { regla48de } from './regla.js';
+import { regla48de, cierreDe, REGLA_DESDE, AJUSTE_DESDE } from './regla.js';
 
 // Spark Equipo — phone-first UI. Every figure comes computed from /api/data; this file only lays it out.
 const $ = (id) => document.getElementById(id);
@@ -150,14 +150,14 @@ function preguntas() {
   const una = (q) => {
     const mia = admin || q.para === D.yo.persona, ta = h('textarea', { rows: 3, placeholder: 'Escribe tu respuesta', 'aria-label': 'Respuesta para: ' + q.texto.slice(0, 60) });
     return h('li', { class: q.respondida ? 'bien' : '' },
-      h('div', { class: 'l1' }, h('span', {}, q.texto), pill(q.para, q.respondida ? 'ok' : 'warn')),
+      h('div', { class: 'l1' }, h('span', {}, q.texto), h('span', {}, !q.respondida && q.fecha ? pill(q.fecha < D.hoy ? 'Vencida · ' + dia(q.fecha) : 'Para el ' + dia(q.fecha), q.fecha < D.hoy ? 'bad' : 'mute') : null, ' ', pill(q.para, q.respondida ? 'ok' : 'warn'))),
       h('div', { class: 'l2' }, `Preguntó ${q.creada_por || 'Eric'} el ${dia(q.creada)}` + (q.respondida ? ` · respondida el ${dia(q.respondida)}` : '')),
       q.respondida ? h('div', { class: 'sug' }, q.respuesta) : mia ? h('div', { class: 'resp' }, ta, h('button', { class: 'btn', onclick: () => enviar('api/preguntas/responder', { id: q.id, respuesta: ta.value }) }, 'Responder')) : null,
       admin ? h('div', { class: 'l2' }, q.respondida ? h('button', { class: 'linkb', onclick: () => enviar('api/admin/preguntas', { reabrir: q.id }) }, 'Reabrir') : null, ' ', h('button', { class: 'linkb', onclick: () => { if (confirm('¿Quitar esta pregunta?')) enviar('api/admin/preguntas', { borrar: q.id }); } }, 'Quitar')) : null);
   };
-  const f = admin ? h('form', { class: 'inline', onsubmit: (ev) => { ev.preventDefault(); const fd = new FormData(f); enviar('api/admin/preguntas', { para: fd.get('para'), texto: fd.get('texto') }); } },
+  const f = admin ? h('form', { class: 'inline', onsubmit: (ev) => { ev.preventDefault(); const fd = new FormData(f); enviar('api/admin/preguntas', { para: fd.get('para'), texto: fd.get('texto'), fecha: fd.get('fecha') }); } },
     h('input', { name: 'texto', placeholder: 'Nueva pregunta para el equipo', required: true, 'aria-label': 'Nueva pregunta' }),
-    h('select', { name: 'para', 'aria-label': 'Para quién' }, ['José Luis', 'Carlos', 'Daniel'].map((g) => h('option', { value: g, selected: S.persona === g }, g))), h('button', { class: 'btn' }, 'Preguntar')) : null;
+    h('select', { name: 'para', 'aria-label': 'Para quién' }, ['José Luis', 'Carlos', 'Daniel'].map((g) => h('option', { value: g, selected: S.persona === g }, g))), h('input', { name: 'fecha', type: 'date', min: D.hoy, 'aria-label': 'Para cuándo (opcional)', title: 'Para cuándo (opcional)' }), h('button', { class: 'btn' }, 'Preguntar')) : null;
   return h('section', { class: 'card preg' }, h('div', { class: 'name' }, 'Preguntas abiertas', pill(abiertas.length ? `${abiertas.length} sin responder` : 'Al día', abiertas.length ? 'warn' : 'ok')),
     abiertas.length ? h('ul', { class: 'rows' }, abiertas.map(una)) : h('p', { class: 'note' }, 'No hay preguntas pendientes.'),
     hechas.length ? h('details', {}, h('summary', {}, `Respondidas (${hechas.length})`), h('ul', { class: 'rows' }, hechas.map(una))) : null, f);
@@ -202,7 +202,6 @@ const sumar = (L, f) => L.reduce((t, x) => t + (f(x) || 0), 0);
 const abiertasDe = (p) => (D.preguntas || []).filter((q) => !q.respondida && q.para === p);
 // The 48-hour rule: a contact counts as on time when it was logged within two working days of the day it happened. Applies to
 // contacts from the day the rule started; sheet rows are dated by the sync that first saw them. The arithmetic is in regla.js.
-const REGLA_DESDE = '2026-11-21';
 const dDias = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
 // Invoices that are a bookkeeping gap, not debt to chase. The Worker marks each one (rule in src/calc.js, settings in the database).
 const porConciliar = (f) => !!f.conciliar;
@@ -213,6 +212,35 @@ function puntualidad(p) {
   const g = regla48(p), pc = g.n ? Math.round((g.n - g.tarde) / g.n * 100) : null;
   const pago = pc == null ? 'sin registros en el mes: se retiene y se paga con 30% menos' : pc >= 90 ? 'comisión completa' : pc >= 70 ? 'comisión con 15% menos' : 'comisión con 30% menos';
   return { ...g, pc, ok: pc != null && pc >= 90, texto: (pc == null ? 'Sin contactos registrados este mes desde que aplica la regla' : `${g.n - g.tarde} de ${g.n} contactos a tiempo (${pc}%)`) + ' · así, ' + pago };
+}
+// Month-end close of the 48-hour rule. Carlos applies it once the month is over: the figures are frozen, with the contacts
+// that were logged late under each person, and everyone sees them. Until then the card shows how the month would close.
+const mesTxt = (m) => `${MESL[Number(m.slice(5, 7)) - 1]} de ${m.slice(0, 4)}`;
+const pagoTxt = (c) => (c.pct == null ? 'Sin registros · se retiene y paga 30% menos' : c.ajuste ? `Comisión con ${c.ajuste}% menos` : 'Comisión completa');
+function cierreCard() {
+  const hoyM = D.hoy.slice(0, 7), ant = (() => { const d = new Date(D.hoy.slice(0, 8) + '01T12:00:00'); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
+  const C = D.cierres || [], quien = (D.reglas || {}).aplica_ajuste || 'Carlos', puede = D.yo.dueno || D.yo.persona === quien, gente = ['José Luis', 'Carlos', 'Daniel'];
+  const cerrado = (m) => C.filter((c) => c.mes === m), ult = C.length ? C[0].mes : null;
+  const err = h('p', { class: 'note aviso', role: 'alert', hidden: true }), di = (t) => { err.textContent = t; err.hidden = false; };
+  const fila = (p, c, tardios) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, p), pill(pagoTxt(c), c.pct == null || c.ajuste >= 30 ? 'bad' : c.ajuste ? 'warn' : 'ok')),
+    h('div', { class: 'l2' }, c.pct == null ? 'Ningún contacto registrado en el mes desde que aplica la regla.' : `${c.contactos - c.tarde} de ${c.contactos} a tiempo (${c.pct}%).`),
+    tardios.length ? h('details', {}, h('summary', {}, `Por qué: ${tardios.length} ${tardios.length === 1 ? 'contacto registrado tarde' : 'contactos registrados tarde'}`),
+      h('ul', { class: 'tard' }, tardios.map((t) => h('li', {}, `${dia(t.fecha)} · ${t.cuenta || 'sin cuenta'} · registrado el ${dia(t.registrado)}, ${t.dias} días hábiles después`)))) : null);
+  const bloque = (m) => { const L = cerrado(m), e = L[0];
+    return [h('h3', {}, (e.ensayo ? 'Ensayo de ' : 'Ajuste de ') + mesTxt(m)), h('p', { class: 'note' }, `${e.ensayo ? 'Ensayo, no descuenta nada. Lo corrió' : 'Lo aplicó'} ${e.aplico || quien} el ${dia(e.aplicado)}.` + (e.ensayo ? '' : ' Contabilidad paga las comisiones del mes con este ajuste.')),
+      h('ul', { class: 'rows' }, L.map((c) => fila(c.persona, c, c.detalle || []))),
+      D.yo.dueno && !e.ensayo ? h('p', {}, h('button', { class: 'linkb', onclick: async () => { const r = await api('api/admin/preguntas', { reabrir_cierre: m }); if (r.error) return di(r.error); await cargar(); } }, 'Reabrir este cierre')) : null]; };
+  // the month still open, as it would close today; and the month that just ended, waiting to be applied
+  const vivo = (m) => gente.map((p) => { const c = cierreDe(D.contactos, p, m, REGLA_DESDE); return fila(p, { pct: c.pc, ajuste: c.ajuste, contactos: c.n, tarde: c.tarde }, c.tardios); });
+  const falta = ant >= REGLA_DESDE.slice(0, 7) && (!cerrado(ant).length || cerrado(ant)[0].ensayo), ens = ant < AJUSTE_DESDE;
+  const aplicar = async () => { const r = await api('api/cierre', { mes: ant }); if (r.error) return di(r.error); await cargar(); };
+  return h('section', { class: 'card cierre' }, h('div', { class: 'name' }, 'Cierre del mes: ajuste por puntualidad', falta ? pill(`Falta ${ens ? 'el ensayo de' : 'aplicar'} ${MESL[Number(ant.slice(5, 7)) - 1]}`, 'warn') : null),
+    h('p', { class: 'note' }, `Al terminar el mes, ${quien} aplica el ajuste: Spark congela la puntualidad de cada quien con los contactos que llegaron tarde, y todos lo ven. El número no se edita; si un registro está mal, se corrige el registro. Con 90% o más a tiempo, comisión completa; de 70 a 89%, 15% menos; con menos, 30% menos.`),
+    falta && !cerrado(ant).length ? [h('h3', {}, `Así cerraría ${mesTxt(ant)}`), h('ul', { class: 'rows' }, vivo(ant))] : null,
+    falta && puede ? h('p', {}, h('button', { class: 'btn', onclick: aplicar }, ens ? `${cerrado(ant).length ? 'Volver a correr' : 'Correr'} el ensayo de ${MESL[Number(ant.slice(5, 7)) - 1]}` : `Aplicar el ajuste de ${MESL[Number(ant.slice(5, 7)) - 1]}`)) : null, err,
+    ult ? bloque(ult) : null,
+    h('details', {}, h('summary', {}, `Cómo va ${mesTxt(hoyM)}, al día de hoy`), h('ul', { class: 'rows' }, vivo(hoyM))),
+    C.some((c) => c.mes !== ult) ? h('details', {}, h('summary', {}, 'Meses anteriores'), [...new Set(C.map((c) => c.mes))].filter((m) => m !== ult).map(bloque)) : null);
 }
 // Service moments this month: the contacts that make a client feel looked after, beyond taking the order.
 const SERVICIO = ['Capacitación', 'Cata / prueba de vino', 'Visita del cliente a la bodega', 'Detalle o Magnum'];
@@ -707,7 +735,7 @@ const VISTAS = {
     const embajador = (p) => tarjeta(p, 'Embajador de marca', [['Mantener catalogación y recompra', 50, 'Falta el reporte de venta por cuenta del distribuidor', null], ['Catalogaciones nuevas con pedido', 20, 'Sin dato', null], ['Colocaciones a copeo', 15, 'Sin dato', null], ['Mezcla premium', 5, 'Sin dato', null], ['Tasa de resurtido', 5, 'Sin dato', null], ['Apoyo en construcción de marca', 5, 'Sin dato', null]],
       [[regla48(p).cumple, 'Registro en CRM dentro de 48 horas', ''], pun(p)], ser(p));
     const ps = personas().filter((p) => p !== 'Tito');
-    return h('div', {}, h('p', { class: 'note' }, 'Estimado con los tableros de junio de 2026. Ventas del año a la fecha, antes de impuestos. No sustituye el cálculo de comisiones.'),
+    return h('div', {}, cierreCard(), h('p', { class: 'note' }, 'Estimado con los tableros de junio de 2026. Ventas del año a la fecha, antes de impuestos. No sustituye el cálculo de comisiones.'),
       h('div', { class: 'grid3' }, ps.flatMap((p) => (p === 'Daniel' ? [embajador(p)] : p === 'Carlos' ? [director(p), ejecutivo(p)] : [ejecutivo(p)]))));
   },
 

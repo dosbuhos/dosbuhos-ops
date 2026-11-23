@@ -14,7 +14,8 @@ import presupuesto from './data/presupuesto.json';
 import prospCarlos from './data/prospeccion_carlos.json';
 import usa from './data/usa.json';
 import { encuestaPublica } from './encuesta.js';
-import { diff } from './calc.js';
+import { diff, NO_VENTA, APLICA_AJUSTE } from './calc.js';
+import { cierreDe, REGLA_DESDE, AJUSTE_DESDE } from '../public/regla.js';
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const setMeta = (env, k, v) => env.DB.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').bind(k, String(v)).run();
@@ -46,6 +47,7 @@ async function modelo(env, conActividad) {
   // Sales credited to someone other than the salesperson on the Zoho order: a single order, or every order of an account.
   const asig = await all('SELECT * FROM asignaciones'), porOrden = new Map(asig.filter((a) => a.tipo === 'orden').map((a) => [a.clave, a.vendedor])), porCuenta = new Map(asig.filter((a) => a.tipo === 'cuenta').map((a) => [norm(a.clave), a.vendedor]));
   for (const o of orders) { const v = porOrden.get(o.numero) || porCuenta.get(norm(o.cliente)); if (v) { o.vendedor_zoho = o.vendedor; o.vendedor = v; } }
+  for (let i = orders.length - 1; i >= 0; i--) if (orders[i].vendedor === NO_VENTA) orders.splice(i, 1);   // not a sale: out of every figure
   // No invoice copy (the Zoho token can't read invoices): a sales order stands in for its invoice, dated as the order.
   // Every order that is not void or draft counts, invoiced or not: counting only invoiced ones made the current year look
   // worse than last year, whose orders are all invoiced by now.
@@ -69,14 +71,14 @@ async function modelo(env, conActividad) {
   return conActividad ? { m, activity } : m;
 }
 
-async function sync(env, what) {
+async function sync(env, what, opts) {
   const out = {};
   if ((await env.DB.prepare('SELECT COUNT(*) n FROM alias').first()).n === 0) {
     await env.DB.batch(aliasSeed.map((a) => env.DB.prepare('INSERT OR IGNORE INTO alias (cliente, claves, nota) VALUES (?,?,?)').bind(a.cliente, a.claves, a.nota || '')));
   }
   for (const [name, fn] of [['hoja', syncSheet], ['zoho', syncZoho]]) {
     if (what && what !== name) continue;
-    try { out[name] = await fn(env); await setMeta(env, 'sync_' + name, JSON.stringify({ at: new Date().toISOString(), ok: !out[name].skipped, ...out[name] })); }
+    try { out[name] = await fn(env, opts); await setMeta(env, 'sync_' + name, JSON.stringify({ at: new Date().toISOString(), ok: !out[name].skipped, ...out[name] })); }
     catch (e) { out[name] = { error: String(e.message || e) }; await setMeta(env, 'sync_' + name, JSON.stringify({ at: new Date().toISOString(), ok: false, error: out[name].error })); }
   }
   // Claude's suggested next steps, from the notes just synced. A few accounts per run; the rest follow on the next runs.
@@ -144,7 +146,9 @@ export default {
       // The 90-day plan and event requests. Plan drafts are the owner's until he publishes them.
       m.plan = await todo('SELECT * FROM compromisos' + (yo.dueno ? '' : ' WHERE visible = 1') + ' ORDER BY fecha, orden, id');
       m.eventos = await todo('SELECT * FROM eventos ORDER BY fecha DESC, id DESC');
-      m.reglas = { plan_gente: PLAN_GENTE, evento_tope: EVENTO_TOPE, botella_muestra: BOTELLA_MUESTRA };
+      m.reglas = { plan_gente: PLAN_GENTE, evento_tope: EVENTO_TOPE, botella_muestra: BOTELLA_MUESTRA, aplica_ajuste: APLICA_AJUSTE };
+      // Month-end closes of the 48-hour rule: everyone sees them, with the late contacts behind each figure.
+      m.cierres = (await todo('SELECT * FROM cierres ORDER BY mes DESC, persona')).map((c) => { let d = []; try { d = JSON.parse(c.detalle); } catch { d = []; } return { ...c, detalle: d }; });
       // The Monday review: its numbers and each person's review points are kept in the database (they name accounts).
       // The owner sees it as a draft; the team sees it once at least one commitment of the plan is published.
       const lcfg = await env.DB.prepare("SELECT v FROM meta WHERE k = 'lunes_cfg'").first();
@@ -253,6 +257,20 @@ export default {
       await env.DB.prepare('UPDATE preguntas SET respuesta = ?, respondio = ?, respondida = ? WHERE id = ?').bind(txt, yo.email, hoyEn(env.TZ), q.id).run();
       return json({ ok: true });
     }
+    // Month-end close of the 48-hour rule. Carlos applies it (or the owner): the figures of a finished month are frozen with
+    // the late contacts behind them. Months before the rule adjusts pay are dry runs and can be run again; a real close stays.
+    if (p === '/api/cierre' && request.method === 'POST') {
+      const b = await cuerpo(), mes = String(b.mes || '');
+      if (!yo.dueno && yo.persona !== APLICA_AJUSTE) return json({ error: `El ajuste lo aplica ${APLICA_AJUSTE}` }, 403);
+      if (!/^\d{4}-\d\d$/.test(mes) || mes < REGLA_DESDE.slice(0, 7) || mes >= HOY.slice(0, 7)) return json({ error: 'Solo se cierra un mes que ya terminó' }, 400);
+      const ensayo = mes < AJUSTE_DESDE ? 1 : 0, ya = await env.DB.prepare('SELECT ensayo FROM cierres WHERE mes = ? LIMIT 1').bind(mes).first();
+      if (ya && !ya.ensayo) return json({ error: 'Ese mes ya está cerrado. Si un registro estaba mal, Dirección lo reabre.' }, 409);
+      const m = await modelo(env);
+      await env.DB.batch(GENTE.map((g) => { const c = cierreDe(m.contactos, g, mes);
+        return env.DB.prepare('INSERT INTO cierres (mes, persona, contactos, tarde, pct, ajuste, detalle, ensayo, aplicado, aplico) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(mes, persona) DO UPDATE SET contactos = excluded.contactos, tarde = excluded.tarde, pct = excluded.pct, ajuste = excluded.ajuste, detalle = excluded.detalle, ensayo = excluded.ensayo, aplicado = excluded.aplicado, aplico = excluded.aplico')
+          .bind(mes, g, c.n, c.tarde, c.pc, c.ajuste, JSON.stringify(c.tardios), ensayo, HOY, yo.nombre || yo.email); }));
+      return json({ ok: true, ensayo: !!ensayo });
+    }
     // The plan: whoever owns a commitment (or an admin) marks it done, with a note on what was delivered and where it shows.
     if (p === '/api/plan/hecho' && request.method === 'POST') {
       const b = await cuerpo(), c = await env.DB.prepare('SELECT * FROM compromisos WHERE id = ?').bind(Number(b.id) || 0).first();
@@ -345,10 +363,11 @@ export default {
     if (p === '/api/admin/preguntas' && request.method === 'POST') {
       const b = await request.json().catch(() => ({}));
       if (b.borrar) { await env.DB.prepare('DELETE FROM preguntas WHERE id = ?').bind(Number(b.borrar) || 0).run(); return json({ ok: true }); }
+      if (b.reabrir_cierre) { if (!yo.dueno) return json({ error: 'Solo Dirección reabre un cierre' }, 403); await env.DB.prepare('DELETE FROM cierres WHERE mes = ?').bind(String(b.reabrir_cierre)).run(); return json({ ok: true }); }
       if (b.reabrir) { await env.DB.prepare("UPDATE preguntas SET respondida = '' WHERE id = ?").bind(Number(b.reabrir) || 0).run(); return json({ ok: true }); }
       const txt = String(b.texto || '').trim().slice(0, 1000);
       if (!GENTE.includes(b.para) || !txt) return json({ error: 'Elige para quién es y escribe la pregunta' }, 400);
-      await env.DB.prepare('INSERT INTO preguntas (para, texto, creada, creada_por) VALUES (?,?,?,?)').bind(b.para, txt, hoyEn(env.TZ), yo.nombre || yo.email).run();
+      await env.DB.prepare('INSERT INTO preguntas (para, texto, creada, creada_por, fecha) VALUES (?,?,?,?,?)').bind(b.para, txt, hoyEn(env.TZ), yo.nombre || yo.email, /^\d{4}-\d\d-\d\d$/.test(b.fecha || '') ? b.fecha : '').run();
       return json({ ok: true });
     }
     if ((p === '/api/admin/estrategia' || p === '/api/admin/promociones') && request.method === 'POST') {
@@ -415,10 +434,12 @@ export default {
     return json({ error: 'No existe' }, 404);
   },
 
-  // 12:00 UTC = 6:00 in San Miguel: the CRM sheet and Zoho. 18:00 and 00:00 UTC (noon and 6 pm): Zoho only.
+  // The CRM sheet is read every hour from 6:00 to 21:00 in San Miguel (12:00 to 03:00 UTC), so a contact is dated the day
+  // it was typed. 6:00: sheet, Zoho and suggestions. Noon and 6 pm: the same. The other hours: the sheet only.
   async scheduled(event, env, ctx) {
     // The noon and 6 pm runs also continue the suggestions (sync writes them whenever `what` is empty or 'ia').
-    ctx.waitUntil(event.cron === '0 12 * * *' ? sync(env, null) : sync(env, 'zoho').then(() => sync(env, 'ia')));
+    const c = event.cron;
+    ctx.waitUntil(c === '0 12 * * *' ? sync(env, null, { primera: true }) : c === '0 18 * * *' || c === '0 0 * * *' ? sync(env, null) : sync(env, 'hoja'));
   }
 };
 
