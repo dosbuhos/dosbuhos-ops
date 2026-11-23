@@ -75,6 +75,13 @@ function fmtDateTime(s) {
   if (!d) return '';
   return `${fmtDay(ymdOf(d))}, ${d.getHours()}:${pad2(d.getMinutes())}`;
 }
+// For sentences: "hoy a las 14:32", "ayer a las 9:05", "el 13 nov a las 14:32".
+function fmtWhen(s) {
+  const d = parseUTC(s);
+  if (!d) return '';
+  const day = fmtDay(ymdOf(d));
+  return `${/^\d/.test(day) ? 'el ' : ''}${day} a las ${d.getHours()}:${pad2(d.getMinutes())}`;
+}
 function ago(ymd) {
   const n = daysBetween(ymd, todayStr());
   if (n <= 0) return 'hoy';
@@ -109,6 +116,8 @@ function dueInfo(t) {
 const tag = (name, color, extra = '') => `<span class="tag c-${esc(color || 'grey')}" ${extra}>${esc(name)}</span>`;
 const areaTag = (t) => (t.area_name ? tag(t.area_name, t.area_color) : '');
 const avatar = (name, cls = '') => `<span class="av ${cls}" aria-hidden="true">${esc(initials(name))}</span>`;
+// Facts that sit side by side (a phone and an email): each in its own span, spaced by the row.
+const bits = (arr) => arr.filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
 
 // phones
 function waNumber(phone) {
@@ -538,7 +547,7 @@ function unassignedLabel() {
 }
 function contactOptions(selected, emptyLabel) {
   const avail = S.providers.filter((p) => p.active || p.id === Number(selected));
-  const opt = (p) => `<option value="${p.id}" ${Number(selected) === p.id ? 'selected' : ''}>${esc(p.name)}${p.specialty ? ' · ' + esc(p.specialty) : ''}</option>`;
+  const opt = (p) => `<option value="${p.id}" ${Number(selected) === p.id ? 'selected' : ''}>${esc(p.name)}${p.specialty ? ' (' + esc(p.specialty) + ')' : ''}</option>`;
   const ints = avail.filter((p) => p.kind === 'interno');
   const exts = avail.filter((p) => p.kind === 'externo');
   return `<option value="">${esc(emptyLabel)}</option>

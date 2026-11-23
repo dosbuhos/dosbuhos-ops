@@ -383,7 +383,7 @@ async function tasksApi(request, env, url, user, seg, method) {
       dueDate, dueDate, num(b.cost), user.id, completedAt, status).run();
     const newId = r.meta.last_row_id;
     let log = kind === 'servicio' ? `Servicio registrado por ${user.name}` : `Reportado por ${user.name}`;
-    if (who) log += ` · asignado a ${who}`;
+    if (who) log += `, asignado a ${who}`;
     await addNote(env, newId, user.id, log, 'sistema');
     return json({ task: await getTask(env, newId) }, 201);
   }
@@ -455,7 +455,7 @@ async function tasksApi(request, env, url, user, seg, method) {
       if (![1, 2, 3, 4].includes(v)) fail(400, 'Prioridad inválida');
       if (v !== t.priority) {
         sets.push('priority = ?'); params.push(v);
-        logs.push(`Prioridad: ${PRIORITY_LABEL[t.priority]} → ${PRIORITY_LABEL[v]}`);
+        logs.push(`Prioridad: de ${PRIORITY_LABEL[t.priority]} a ${PRIORITY_LABEL[v]}`);
       }
     }
     if ('status' in b) {
@@ -470,7 +470,7 @@ async function tasksApi(request, env, url, user, seg, method) {
           } else sets.push('completed_at = NULL');
         }
         sets.push('wait_reason = ?'); params.push(wait);
-        logs.push(`${statusLabel(t.status, t.wait_reason)} → ${statusLabel(b.status, wait)}`);
+        logs.push(`Estado: de ${statusLabel(t.status, t.wait_reason)} a ${statusLabel(b.status, wait)}`);
       }
     }
     if ('provider_id' in b && int(b.provider_id) !== t.provider_id) {
@@ -486,9 +486,9 @@ async function tasksApi(request, env, url, user, seg, method) {
         const reason = str(b.postpone_reason, 200);
         if (v && t.due_date && v > t.due_date && wasOpen) {
           sets.push('postponed = postponed + 1');
-          logs.push(`Pospuesto: ${fmtDate(t.due_date)} → ${fmtDate(v)}${reason ? ' · ' + reason : ''}`);
+          logs.push(`Pospuesto del ${fmtDate(t.due_date)} al ${fmtDate(v)}${reason ? '. Motivo: ' + reason : ''}`);
         } else {
-          logs.push(v ? `Fecha: ${fmtDate(v)}${reason ? ' · ' + reason : ''}` : 'Sin fecha');
+          logs.push(v ? `Fecha: ${fmtDate(v)}${reason ? '. Motivo: ' + reason : ''}` : 'Sin fecha');
         }
         if (v && !t.first_due) { sets.push('first_due = ?'); params.push(v); }
       }

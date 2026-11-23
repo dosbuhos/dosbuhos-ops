@@ -4,8 +4,8 @@ BASE = os.environ.get('BASE', 'http://127.0.0.1:8787')
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(HERE, '.state.json')          # written by seed.py: session ids and record ids
 CHROME = os.environ.get('CHROME', '/usr/bin/google-chrome')
-# The Hub's theme.css is on another host. Point THEME_CSS at a saved copy to test with the real colours and fonts;
-# without it the app's own fallbacks are used.
+# The app has its own stylesheet and fonts now. THEME_CSS and the routes below are left from when it loaded the Hub's
+# theme.css: they only keep a stray request to it off the network.
 THEME = open(os.environ['THEME_CSS']).read() if os.environ.get('THEME_CSS') else None
 
 def state():

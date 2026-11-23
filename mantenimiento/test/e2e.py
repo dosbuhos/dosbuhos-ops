@@ -111,6 +111,12 @@ with sync_playwright() as p:
     # ---------- 5. list: tiles, filter, group, tick ----------
     pg.goto(BASE + '/#/'); expect(pg.locator('.top h1')).to_have_text('Pendientes'); pg.wait_for_timeout(900)
     n_all = pg.locator('.row').count()
+    # the list opens grouped by priority, most urgent first; priority is also a filter
+    heads = pg.locator('h2.sec').all_inner_texts(); assert heads[0].startswith('Urgente') and heads[1].startswith('Alta'), heads
+    n_urg = pg.locator('.row.urg').count(); assert n_urg > 0
+    pg.click('[data-filter]'); pg.click('.sheet [data-prio="1"]'); pg.click('.sheet [data-act="1"]')
+    expect(pg.locator('.fchip')).to_have_text('Urgente'); assert pg.locator('.row').count() == n_urg
+    pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0); assert pg.locator('.row').count() == n_all
     pg.click('.tile[data-quick=late]'); late = pg.locator('.row').count(); assert 0 < late < n_all, (late, n_all)
     assert pg.locator('.row:not(.late)').count() == 0
     pg.click('.tile[data-quick=late]'); assert pg.locator('.row').count() == n_all
@@ -120,7 +126,7 @@ with sync_playwright() as p:
     pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0)
     pg.click('[data-filter]'); pg.click('.sheet [data-who=mine]'); expect(pg.locator('.sheet [data-who=mine]')).to_have_attribute('aria-pressed', 'true'); pg.click('.sheet [data-act="0"]')
     expect(pg.locator('.fchip')).to_have_count(0)
-    step('tiles filter the list; area filter + grouping persist; filters clear')
+    step('opens by priority; priority, tiles and area filter the list; grouping persists; filters clear')
     first_title = pg.locator('.row .chk[data-done]').first.get_attribute('aria-label')
     pg.locator('.row .chk[data-done]').first.click(); expect(pg.locator('.sheet h2')).to_have_text('Marcar hecho'); pg.click('.sheet [data-act="1"]')
     expect(toast(pg)).to_contain_text('Hecho'); pg.wait_for_timeout(600); assert pg.locator('.row').count() == n_all - 1
@@ -143,7 +149,7 @@ with sync_playwright() as p:
     expect(pg.locator('[data-choice="pf-freq"] .ch.on')).to_have_text('4 veces al año')
     expect(pg.locator('#pf-sum')).to_contain_text('4 veces al año')
     pg.click('[data-choice="pf-area"] .ch:has-text("Instalaciones")')
-    pg.select_option('#pf-who', label='Chuy Hernández · Plomería'); pg.click('#pf-save')
+    pg.select_option('#pf-who', label='Chuy Hernández (Plomería)'); pg.click('#pf-save')
     expect(pg.locator('.top h1')).to_have_text('Preventivo'); expect(pg.locator('body')).to_contain_text('Lavar cisterna y tinacos')
     step('new plan: N times a year by tapping months')
     pg.goto(BASE + '/#/planes'); pg.click('.lrow:has-text("Lavar cisterna")'); expect(pg.locator('.hero h2')).to_have_text('Lavar cisterna y tinacos')
@@ -158,7 +164,7 @@ with sync_playwright() as p:
     pg.click('.hbtn'); pg.click('#ef-save'); expect(pg.locator('#ef-err')).to_contain_text('nombre')
     pg.set_input_files('#ef-pick-gal', JPG_PATH); pg.fill('#ef-name', 'Cava de vinos del restaurante')
     pg.click('[data-choice="ef-area"] .ch:has-text("Restaurante")'); pg.fill('#ef-model', 'Vinoteca Whirlpool WX-40')
-    pg.select_option('#ef-who', label='Anselmo Rivas · Refrigeración')
+    pg.select_option('#ef-who', label='Anselmo Rivas (Refrigeración)')
     pg.click('[data-choice="ef-freq"] .ch:has-text("2 veces al año")'); expect(pg.locator('.mo.on')).to_have_count(2)
     pg.fill('#ef-last', '2026-05-10'); pg.click('#ef-save')
     expect(pg.locator('.hero h2')).to_have_text('Cava de vinos del restaurante', timeout=15000)
@@ -167,7 +173,7 @@ with sync_playwright() as p:
     step('new equipment: photo, who looks after it, service plan and last service in one form')
     pg.click('.actionbar a:has-text("Anotar servicio")'); expect(pg.locator('.top.sub h1')).to_have_text('Anotar servicio')
     pg.fill('#sf-title', 'Limpieza de condensador'); pg.fill('#sf-cost', '900'); pg.click('#sf-save')
-    expect(pg.locator('.hist li')).to_have_count(2); expect(pg.locator('.hist li').first).to_contain_text('Limpieza de condensador'); expect(pg.locator('.svc')).to_contain_text('hoy')
+    expect(pg.locator('.hist li')).to_have_count(2); expect(pg.locator('.hist li').first).to_contain_text('Limpieza de condensador'); expect(pg.locator('.svc')).to_contain_text('Hoy')
     step('log a service: it becomes the latest line of the history')
     pg.click('.actionbar a:has-text("Reportar falla")'); expect(pg.locator('.fixed')).to_contain_text('Cava de vinos'); pg.fill('#r-title', 'No baja de 16 grados'); pg.click('#r-send')
     expect(pg.locator('.sent h1')).to_have_text('Reporte enviado'); pg.click('.sent a:has-text("Ver el reporte")'); expect(pg.locator('.cell:has-text("Equipo") .cv')).to_have_text('Cava de vinos del restaurante')

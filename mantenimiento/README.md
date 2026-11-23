@@ -27,7 +27,7 @@ phone and is in; the session lasts a year and renews on every visit.
 
 | Tab | What |
 |---|---|
-| **Pendientes** | Everything open, late first. Tiles filter (Atrasados, Para hoy, Sin asignar). *Filtrar*: whose, area tags, group by date / area / person. Tick the circle → *Hecho* with an optional note, photo and cost |
+| **Pendientes** | Everything open, grouped by priority (Urgente, Alta, Normal, Baja) with the late ones first in each group. Tiles filter (Atrasados, Para hoy, Sin asignar). *Filtrar*: whose, priority, area tags, group by priority / date / area / person. Tick the circle → *Hecho* with an optional note, photo and cost |
 | **Un pendiente** | Estado, Lo hace (with Llamar / WhatsApp), Fecha, Prioridad, Área, Equipo, Costo: each opens a sheet. *Posponer* asks for the new date and why, and counts how many times it was pushed. Late ones show a banner with *Pasar a otro*. Notes and the automatic history below |
 | **Reportar** (+) | Photo, what is wrong, where, how urgent. Without a date: urgent = today, normal = a week, "puede esperar" = none |
 | **Preventivo** | *El año*: the twelve months with every scheduled service (hecho / en Pendientes / atrasado / programado); what comes up every month folds into one line. From July on the page continues into the next year, so about a year ahead is always in view. *Planes*: N times a year by tapping months, every N days/weeks/months, or once. A plan puts its job in Pendientes N days before |
@@ -43,7 +43,9 @@ WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is
 - `src/worker.js` — the API (`/api/*`). `src/plan.js` — when a plan comes up next and the phone rule (unit-tested).
 - `public/core.js` (shared pieces), `public/app.js` (entering, Pendientes, one pendiente, reporting),
   `public/more.js` (Preventivo, Equipos, Contactos, Cuenta, router), `public/app.css`.
-- Colours and fonts come from the Hub's shared theme (`hub/THEME.md`); every token has a local fallback.
+- The look is the app's own (`public/app.css`), in the same family as Horizonte: ink on white, Geist (self-hosted in
+  `public/fonts/`), flat lists ruled with hairlines. Colour is kept for state (red late, amber today or waiting, green
+  done) and the area tags. It does not load the Hub's theme, so the Hub's presets do not restyle it.
 - `migrations/` — D1 schema. 0001–0006 are applied to the remote database. The tables `login_links` and `purchases`
   are left from the PIN / link version and are not used.
 

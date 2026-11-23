@@ -40,9 +40,12 @@ async function viewPM(query = {}, keep = false) {
     const st = PM_ST[it.status];
     const d = ymdDate(it.date);
     const when = it.status === 'done' && it.done_at ? `Hecho ${fmtDay(localYmd(it.done_at), { rel: false })}` : st.label;
+    // the equipment is not said twice when the plan is already named after it
+    const what = it.equipment_name ? (it.title.includes(it.equipment_name) ? '' : it.equipment_name) : (it.area_name || '');
+    const sub = [what, it.provider_name ? first(it.provider_name) : ''].filter(Boolean).join(', ');
     return `<button type="button" class="pmrow ${st.cls}" data-it="${all.indexOf(it)}">
       <span class="pmday"><b>${d.getDate()}</b><span>${DIAS[d.getDay()].slice(0, 3)}</span></span>
-      <span class="grow"><b class="pmt">${esc(it.title)}</b><span class="ls">${esc([it.equipment_name || it.area_name, it.provider_name ? first(it.provider_name) : ''].filter(Boolean).join(' · ') || 'Sin equipo')}</span>
+      <span class="grow"><b class="pmt">${esc(it.title)}</b>${sub ? `<span class="ls">${esc(sub)}</span>` : ''}
         <span class="pmst ${st.cls}">${ic(st.icon)}${esc(when)}</span></span>${ic('chev')}</button>`;
   };
   const monthSec = (yy, list) => (name, i) => {
@@ -57,7 +60,7 @@ async function viewPM(query = {}, keep = false) {
     return `<section class="month ${key === curM ? 'cur' : ''} ${past ? 'past' : ''} ${items.length ? '' : 'none'}" id="${yy === y ? 'm' : 'n'}-${i + 1}">
       <h2 class="mhead">${cap(name)}${key === curM ? '<span class="now">Este mes</span>' : ''}${items.length ? `<span class="n">${items.length}</span>` : ''}${late ? `<span class="mlate">${ic('alert')}${plural(late, 'atrasado', 'atrasados')}</span>` : ''}</h2>
       ${main.length ? `<div class="list">${main.map(pmRow).join('')}</div>` : ''}
-      ${routine.length ? `<details class="routine"><summary>${ic('repeat')}<span class="grow"><b>Lo de cada mes</b><span>${esc([...new Set(routine.map((it) => it.title))].join(' · '))}</span></span><span class="rn ${rdone === routine.length ? 'ok' : ''}">${rdone ? `${rdone} de ${routine.length} ${rdone === 1 ? 'hecho' : 'hechos'}` : routine.length}</span>${ic('down')}</summary>
+      ${routine.length ? `<details class="routine"><summary>${ic('repeat')}<span class="grow"><b>Lo de cada mes</b><span>${esc([...new Set(routine.map((it) => it.title))].join(', '))}</span></span><span class="rn ${rdone === routine.length ? 'ok' : ''}">${rdone ? `${rdone} de ${routine.length} ${rdone === 1 ? 'hecho' : 'hechos'}` : routine.length}</span>${ic('down')}</summary>
         <div class="list">${routine.map(pmRow).join('')}</div></details>` : ''}
       ${items.length ? '' : '<p class="mnone">Nada programado</p>'}
     </section>`;
@@ -81,7 +84,7 @@ async function viewPM(query = {}, keep = false) {
     const it = all[Number(b.dataset.it)];
     if (it.task_id) { location.hash = '#/p/' + it.task_id; return; }
     const v = await sheet({
-      title: it.title, sub: `${it.status === 'late' ? 'Tocaba' : 'Toca'} ${fmtDay(it.date, { weekday: true })}${it.equipment_name ? ' · ' + it.equipment_name : ''}`,
+      title: it.title, sub: `${it.status === 'late' ? 'Tocaba' : 'Toca'} ${fmtDay(it.date, { weekday: true })}${it.equipment_name && !it.title.includes(it.equipment_name) ? ', ' + it.equipment_name : ''}`,
       opts: [{ value: 'run', label: 'Hacerlo ya', sub: 'Lo pone en Pendientes hoy', icon: 'play' }, { value: 'plan', label: 'Ver o cambiar el plan', sub: 'Fechas, quién lo hace, cada cuándo', icon: 'repeat' }],
     });
     if (v === 'plan') location.hash = '#/plan/' + it.pm_id;
@@ -107,9 +110,9 @@ async function viewPlans() {
     ${pmTabs('plans')}
     ${r.pm.length ? `<div class="list">${r.pm.map((p) => {
       const late = p.next_due < r.today;
-      return `<a class="lrow" href="#/plan/${p.id}"><span class="lth ph0">${ic('repeat')}</span><span class="grow"><b>${esc(p.title)}</b>
-        <span class="ls">${esc([p.equipment_name || p.area_name, cap(p.every_text)].filter(Boolean).join(' · '))}</span>
-        <span class="ls ${late ? 'bad' : ''}">${late ? ic('alert') : ''}${p.last_status && OPEN.includes(p.last_status) ? 'Ya está en Pendientes · después ' : late ? 'Tocaba ' : 'Toca '}${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`;
+      return `<a class="lrow" href="#/plan/${p.id}"><span class="lth ico">${ic('repeat')}</span><span class="grow"><b>${esc(p.title)}</b>
+        <span class="ls">${esc(cap([p.equipment_name && !p.title.includes(p.equipment_name) ? p.equipment_name : (p.equipment_name ? '' : p.area_name), p.every_text].filter(Boolean).join(', ')))}</span>
+        <span class="ls ${late ? 'bad' : ''}">${late ? ic('alert') : ''}${p.last_status && OPEN.includes(p.last_status) ? 'Ya está en Pendientes; el siguiente, ' : late ? 'Tocaba ' : 'Toca '}${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`;
     }).join('')}</div>`
       : `<div class="empty"><h2>No hay planes</h2><p>Un plan es algo que se repite: cada mes, dos veces al año, cada año.</p><a class="b" href="#/plan/nuevo">${ic('plus')}Programar el primero</a></div>`}
   </div>`, { tab: 'preventivo' });
@@ -249,13 +252,21 @@ async function viewPlanForm(id, query = {}) {
 // How an equipment stands on service: late, soon (30 days), fine, or no plan at all.
 function svcState(e) {
   const today = todayStr();
-  if (!e.next_service) return { cls: 'none', text: 'Sin plan de servicio', icon: 'info' };
+  if (!e.next_service) return { cls: 'none', text: 'Sin plan de servicio', short: 'Sin plan', icon: 'info' };
   const diff = daysBetween(today, e.next_service);
-  if (diff < 0) return { cls: 'bad', text: `Servicio atrasado ${-diff === 1 ? 'desde ayer' : -diff + ' días'}`, icon: 'alert' };
-  if (diff <= 30) return { cls: 'warn', text: `Le toca servicio ${diff === 0 ? 'hoy' : diff === 1 ? 'mañana' : 'el ' + fmtDay(e.next_service)}`, icon: 'clock' };
-  return { cls: 'ok', text: `Al día · le toca el ${fmtDay(e.next_service)}`, icon: 'check' };
+  if (diff < 0) return { cls: 'bad', text: `Servicio atrasado ${-diff === 1 ? 'desde ayer' : -diff + ' días'}`, short: -diff === 1 ? 'Atrasado desde ayer' : `Atrasado ${-diff} días`, icon: 'alert' };
+  if (diff <= 30) return { cls: 'warn', text: `Le toca servicio ${diff === 0 ? 'hoy' : diff === 1 ? 'mañana' : 'el ' + fmtDay(e.next_service)}`, short: diff === 0 ? 'Le toca hoy' : diff === 1 ? 'Le toca mañana' : `En ${diff} días`, icon: 'clock' };
+  return { cls: 'ok', text: `Al día, le toca el ${fmtDay(e.next_service)}`, short: 'Al día', icon: 'check' };
 }
-const lastSvcText = (e) => (e.last_service ? `Último servicio: ${fmtDay(localYmd(e.last_service), { rel: false })} (${ago(localYmd(e.last_service))})` : 'Sin servicios anotados');
+// The service record of an equipment: when it was last serviced, and when it is due.
+function svcRecord(e) {
+  const st = svcState(e);
+  const last = e.last_service ? localYmd(e.last_service) : null;
+  return `<div class="svc">
+    <div class="${last ? '' : 'none'}"><span>Último servicio</span><b>${last ? esc(fmtDay(last, { rel: false })) : 'Sin anotar'}</b>${last ? `<i>${esc(cap(ago(last)))}</i>` : ''}</div>
+    <div class="${st.cls}"><span>Próximo servicio</span><b>${e.next_service ? esc(fmtDay(e.next_service, { rel: false })) : 'Sin programar'}</b>${e.next_service ? `<i>${ic(st.icon)}${esc(st.short)}</i>` : ''}</div>
+  </div>`;
+}
 
 async function viewEquipos() {
   UI.view = 'equipos';
@@ -275,7 +286,7 @@ async function viewEquipos() {
         return `<a class="lrow eq" href="#/e/${e.id}">${e.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic('wrench')}</span>`}
           <span class="grow"><b>${esc(e.name)}</b>${e.brand_model ? `<span class="ls">${esc(e.brand_model)}</span>` : ''}
             <span class="ls st ${st.cls}">${ic(st.icon)}${esc(st.text)}</span>
-            <span class="ls">${e.last_service ? 'Último servicio ' + esc(ago(localYmd(e.last_service))) : 'Sin servicios anotados'}</span>
+            ${e.last_service ? `<span class="ls">Último servicio ${esc(ago(localYmd(e.last_service)))}</span>` : ''}
             ${e.open_count ? `<span class="ls warn">${ic('tasks')}${plural(e.open_count, 'pendiente abierto', 'pendientes abiertos')}</span>` : ''}</span>${ic('chev')}</a>`;
       }).join('')}</div></section>`;
     }).join('') : `<div class="empty"><h2>Nada con «${esc(q)}»</h2></div>`;
@@ -310,19 +321,19 @@ async function viewEquipo(id, keep = false) {
   render(header('Equipo', { back: true, right: `<a class="ib" href="#/e/${id}/editar" aria-label="Editar">${ic('edit')}</a>` }) + `<div class="wrap detail">
     ${e.cover_id ? `<button class="cover" data-photo="${e.cover_id}" data-uid="${(d.photos[0] || {}).user_id}" aria-label="Ver foto"><img src="/api/photos/${e.cover_id}" alt="Foto de ${esc(e.name)}"></button>` : ''}
     <div class="hero"><div class="hmeta">${e.area_name ? tag(e.area_name, e.area_color) : ''}</div><h2>${esc(e.name)}</h2>${e.brand_model ? `<p class="by">${esc(e.brand_model)}</p>` : ''}</div>
-    <div class="svc ${st.cls}">${ic(st.icon)}<div class="grow"><b>${esc(st.text)}</b><span>${esc(lastSvcText(e))}</span></div></div>
+    ${svcRecord(e)}
     <div class="facts">${fact('Abiertos', open.length, open.length ? 'warn' : '')}${fact('Fallas en 90 días', e.fails_90, e.fails_90 >= 2 ? 'bad' : '')}${fact('Servicios', hist.filter((t) => t.kind !== 'tarea').length)}</div>
     <div class="cells">
-      <div class="cell"><a class="cmain" href="#/e/${id}/editar"><span class="cl">Lo atiende</span><span class="cv">${e.provider_id ? `${esc(e.provider_name)}${e.provider_kind === 'externo' ? `<span class="csub">Externo${e.provider_specialty ? ' · ' + esc(e.provider_specialty) : ''}</span>` : ''}` : '<span class="un">Nadie todavía</span>'}</span>${ic('chev')}</a>
+      <div class="cell"><a class="cmain" href="#/e/${id}/editar"><span class="cl">Lo atiende</span><span class="cv">${e.provider_id ? `${esc(e.provider_name)}${e.provider_kind === 'externo' ? `<span class="csub">${e.provider_specialty ? esc(e.provider_specialty) + ', externo' : 'Externo'}</span>` : ''}` : '<span class="un">Nadie todavía</span>'}</span>${ic('chev')}</a>
         ${e.provider_phone ? `<div class="cunder"><a class="b line sm" href="${telHref(e.provider_phone)}">${ic('phone')}Llamar</a><a class="b line sm wa" target="_blank" rel="noopener" href="${waHref(e.provider_phone, `Hola ${first(e.provider_name)}, te escribo de Dos Búhos por el equipo: ${e.name}${e.brand_model ? ' (' + e.brand_model + ')' : ''}.`)}">${ic('wa')}WhatsApp</a></div>` : ''}</div>
     </div>
     <h2 class="sec">Servicio programado<span class="n">${d.pm.length}</span></h2>
-    ${d.pm.length ? `<div class="list">${d.pm.map((p) => `<a class="lrow" href="#/plan/${p.id}"><span class="lth ph0">${ic('repeat')}</span><span class="grow"><b>${esc(p.title)}</b><span class="ls">${esc(cap(p.every_text))}</span><span class="ls ${p.next_due < d.today ? 'bad' : ''}">${p.next_due < d.today ? 'Tocaba' : 'Toca'} ${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`).join('')}</div>` : ''}
+    ${d.pm.length ? `<div class="list">${d.pm.map((p) => `<a class="lrow" href="#/plan/${p.id}"><span class="lth ico">${ic('repeat')}</span><span class="grow"><b>${esc(p.title)}</b><span class="ls">${esc(cap(p.every_text))}</span><span class="ls ${p.next_due < d.today ? 'bad' : ''}">${p.next_due < d.today ? 'Tocaba' : 'Toca'} ${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`).join('')}</div>` : ''}
     <a class="b tonal block" href="#/plan/nuevo?equipo=${id}">${ic('plus')}${d.pm.length ? 'Programar otro servicio' : 'Programar su servicio'}</a>
     ${open.length ? `<h2 class="sec warn">Abiertos<span class="n">${open.length}</span></h2><div class="list">${open.map((t) => taskRow(t)).join('')}</div>` : ''}
     <h2 class="sec">Historial<span class="n">${hist.length}</span></h2>
     ${hist.length ? `<ul class="hist">${hist.map((t) => `<li><a href="#/p/${t.id}"><span class="hd">${esc(fmtDay(localYmd(t.completed_at), { rel: false }))}<span>${esc(ago(localYmd(t.completed_at)))}</span></span>
-        <span class="grow"><b>${esc(t.title)}</b><span class="ls"><span class="pill ${t.kind === 'tarea' ? 'hi' : ''}">${kindLabel(t)}</span>${t.provider_name ? esc(first(t.provider_name)) : ''}${t.cost ? ' · ' + money(t.cost) : ''}</span></span>${ic('chev')}</a></li>`).join('')}</ul>`
+        <span class="grow"><b>${esc(t.title)}</b><span class="ls"><span class="pill ${t.kind === 'tarea' ? 'hi' : ''}">${kindLabel(t)}</span>${bits([t.provider_name ? first(t.provider_name) : '', t.cost ? money(t.cost) : ''])}</span></span>${ic('chev')}</a></li>`).join('')}</ul>`
       : '<p class="small">Todavía no hay servicios ni reparaciones anotados.</p>'}
     <h2 class="sec">Fotos<span class="n">${d.photos.length}</span></h2>
     <div id="e-photos">${photoGrid(d.photos, 'e-file', { label: 'Agregar foto' })}</div>
@@ -413,7 +424,7 @@ async function viewService(eqId) {
   const files = [];
   render(header('Anotar servicio', { back: true }) + `<form class="wrap form" id="sf" novalidate>
     <p class="fixed">${ic('wrench')}${esc(e.name)}</p>
-    ${pending ? `<div class="banner">${ic('info')}<div class="grow"><b>Ya hay un servicio programado abierto</b><span>${esc(pending.title)} · ${esc(dueInfo(pending).text.toLowerCase())}</span></div></div>
+    ${pending ? `<div class="banner">${ic('info')}<div class="grow"><b>Ya hay un servicio programado abierto</b><span>${esc(pending.title)}, ${esc(dueInfo(pending).text.toLowerCase())}</span></div></div>
       <button type="button" class="b tonal block" data-close-pending>${ic('check')}Marcar ese como hecho</button><p class="small center">O anota abajo un servicio distinto.</p>` : ''}
     ${fInput('sf-date', '¿Cuándo se hizo?', { type: 'date', value: todayStr(), attrs: `max="${todayStr()}"` })}
     ${fInput('sf-title', '¿Qué se le hizo?', { value: 'Servicio', placeholder: 'Ej. Limpieza de condensador y carga de gas', max: 200 })}
@@ -453,7 +464,7 @@ async function viewContactos() {
   S.today = r.today;
   const list = r.providers;
   const row = (p) => `<div class="lrow person"><a class="pmain" href="#/c/${p.id}">${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b>
-      <span class="ls">${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(' · ') : (p.specialty || 'De la casa'))}</span>
+      <span class="ls">${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(', ') : (p.specialty || 'De la casa'))}</span>
       ${p.open_count ? `<span class="ls ${p.late_count ? 'bad' : ''}">${p.late_count ? ic('alert') : ''}${plural(p.open_count, 'abierto', 'abiertos')}${p.late_count ? `, ${plural(p.late_count, 'atrasado', 'atrasados')}` : ''}</span>` : ''}</span></a>${contactBtns(p)}</div>`;
   const draw = (q = '') => {
     const s = fold(q.trim());
@@ -488,7 +499,7 @@ async function viewContacto(id) {
   const reload = () => viewContacto(id);
   render(header('Contacto', { back: true, right: `<a class="ib" href="#/c/${id}/editar" aria-label="Editar">${ic('edit')}</a>` }) + `<div class="wrap detail">
     <div class="who-card">${avatar(p.name, 'xl')}<h2>${esc(p.name)}</h2>
-      <p class="by">${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(' · ') : (p.specialty || 'De la casa'))}${p.user_id ? ' · usa la app' : ''}</p>
+      <p class="by">${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(', ') : (p.specialty || 'De la casa'))}${p.user_id ? ', usa la app' : ''}</p>
       ${p.phone ? `<p class="phone">${esc(fmtPhone(p.phone))}</p>` : '<p class="small">Sin teléfono. Agrégalo con el lápiz de arriba.</p>'}</div>
     ${p.phone ? `<div class="callrow"><a class="b tonal grow" href="${telHref(p.phone)}">${ic('phone')}Llamar</a><a class="b wa grow" target="_blank" rel="noopener" href="${waHref(p.phone)}">${ic('wa')}WhatsApp</a></div>` : ''}
     ${p.notes ? `<p class="desc">${esc(p.notes)}</p>` : ''}
@@ -543,10 +554,11 @@ const inviteText = () => `Para reportar algo que no sirve o darle seguimiento en
 function viewCuenta() {
   UI.view = 'cuenta';
   const u = S.user;
-  const item = (href, icon, title, sub, attrs = '') => `<a class="lrow" href="${href}" ${attrs}><span class="lth ph0">${ic(icon)}</span><span class="grow"><b>${title}</b><span class="ls">${sub}</span></span>${ic('chev')}</a>`;
+  const item = (href, icon, title, sub, attrs = '') => `<a class="lrow" href="${href}" ${attrs}><span class="lth ico">${ic(icon)}</span><span class="grow"><b>${title}</b><span class="ls">${sub}</span></span>${ic('chev')}</a>`;
   render(header('Mi cuenta', { back: true }) + `<div class="wrap detail">
     <div class="who-card">${avatar(u.name, 'xl')}<h2>${esc(u.name)}</h2>
-      <p class="by">${isAdmin() ? 'Administrador' : 'Equipo'} · ${esc(fmtPhone(u.phone))}${u.email ? ' · ' + esc(u.email) : ''}</p>
+      <p class="by">${isAdmin() ? 'Administrador' : 'Equipo'}</p>
+      <p class="phone">${esc(fmtPhone(u.phone))}</p>${u.email ? `<p class="by">${esc(u.email)}</p>` : ''}
       <button class="b tonal sm" data-edit>${ic('edit')}Cambiar mis datos</button></div>
     <div class="list">
       ${item('#/resumen', 'chart', 'Resumen', 'Cómo vamos: abiertos, atrasados, por persona y por área')}
@@ -596,9 +608,9 @@ async function viewPersonas() {
     ${fSelect('pp-coord', 'A quién se le avisa de lo urgente', contactOptions(S.settings.coordinator || '', 'A nadie'), { hint: 'Quien reporta algo sin asignar ve un botón para avisarle por WhatsApp.' })}
     <h2 class="sec">Registrados<span class="n">${users.filter((x) => x.active).length}</span></h2>
     <div class="list">${users.map((x) => `<button type="button" class="lrow ${x.active ? '' : 'off'}" data-u="${x.id}">${avatar(x.name)}<span class="grow"><b>${esc(x.name)}${x.id === S.user.id ? ' (tú)' : ''}</b>
-      <span class="ls">${esc(fmtPhone(x.phone) || 'Sin teléfono')}${x.email ? ' · ' + esc(x.email) : ''}</span>
+      <span class="ls">${bits([fmtPhone(x.phone) || 'Sin teléfono', x.email])}</span>
       <span class="ls">${x.active ? (x.last_seen ? 'Entró ' + esc(fmtDay(localYmd(x.last_seen))) : 'Todavía no entra') : 'Sin acceso'}</span></span>
-      ${x.role === 'admin' ? '<span class="pill hi">Admin</span>' : ''}${ic('chev')}</button>`).join('')}</div>
+      ${x.role === 'admin' ? '<span class="pill go">Admin</span>' : ''}${ic('chev')}</button>`).join('')}</div>
     <a class="b tonal block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(inviteText())}">${ic('wa')}Invitar por WhatsApp</a>
   </div>`, { tab: 'cuenta' });
   $('[data-signup]').onclick = async () => {
@@ -712,7 +724,7 @@ async function viewResumen() {
     ${ars.length ? `<div class="abars">${ars.map((x) => `<button type="button" class="abar" data-area="${x.id}"><span class="al">${x.a ? tag(x.a.name, x.a.color) : '<span class="tag c-grey">Sin área</span>'}</span>
       <span class="at"><i class="tagc c-${x.a ? x.a.color : 'grey'}" style="width:${Math.max(4, Math.round((x.n / amax) * 100))}%"></i></span><span class="an">${x.n}</span>
       ${x.late ? `<span class="alate">${ic('alert')}${plural(x.late, 'atrasado', 'atrasados')}</span>` : ''}</button>`).join('')}</div>` : '<p class="small">Nada abierto.</p>'}
-    ${oldest.length ? `<h2 class="sec">Lo más viejo sin resolver</h2><div class="list">${oldest.map((t) => `<a class="lrow" href="#/p/${t.id}"><span class="grow"><b>${esc(t.title)}</b><span class="ls">Reportado ${esc(ago(localYmd(t.created_at)))} · ${t.provider_id ? esc(first(t.provider_name)) : 'sin asignar'}</span></span>${ic('chev')}</a>`).join('')}</div>` : ''}
+    ${oldest.length ? `<h2 class="sec">Lo más viejo sin resolver</h2><div class="list">${oldest.map((t) => `<a class="lrow" href="#/p/${t.id}"><span class="grow"><b>${esc(t.title)}</b><span class="ls">Reportado ${esc(ago(localYmd(t.created_at)))}, ${t.provider_id ? 'lo tiene ' + esc(first(t.provider_name)) : 'sin asignar'}</span></span>${ic('chev')}</a>`).join('')}</div>` : ''}
   </div>`, { tab: 'cuenta' });
   $$('[data-who]').forEach((b) => (b.onclick = () => { F.who = Number(b.dataset.who) || 'none'; F.areas = []; QUICK = null; saveF(); location.hash = '#/'; }));
   $$('[data-area]').forEach((b) => (b.onclick = () => { if (!Number(b.dataset.area)) return; F.who = 'all'; F.areas = [Number(b.dataset.area)]; QUICK = null; saveF(); location.hash = '#/'; }));
