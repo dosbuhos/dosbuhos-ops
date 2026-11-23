@@ -1,0 +1,1 @@
+{ "name": "reservaciones", "private": true, "type": "module", "scripts": { "dev": "node scripts/seed-local.mjs && wrangler dev", "seed": "node scripts/seed-local.mjs", "test": "node --test", "check": "wrangler deploy --dry-run" }, "devDependencies": { "wrangler": "^4" } }

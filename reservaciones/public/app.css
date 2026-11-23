@@ -1,0 +1,238 @@
+/* Reservaciones. Same neutrals and shell as Spark and Rumbo (cool white and slate, a dark menu on desktop), so it reads as a
+   tool; the accent follows the Hub theme. The manifest is a timetable: one surface per day, the hour as the anchor of
+   every row. Charts: one accent for single series, four checked colours for the lines of business (light and dark). */
+:root {
+  --bg: #f3f4f6; --card: #ffffff; --text: #14171a; --muted: #5a626c; --rule: #e1e4e8; --rule-2: #c9ced5; --soft: #f0f1f3;
+  --accent: var(--db-accent, #7a1f33); --on-accent: var(--db-on-accent, #fff);
+  --ok: #1f7a3d; --bad: #b3261e; --warn: #8a5300; --gold: #b98f2f; --now: #fff6dc;
+  --lado-bg: #15171a; --lado-ink: #b4bac3; --lado-on: #ffffff;
+  /* Lines of business: restaurante, experiencias, tienda, eventos. Checked together, in this order, on the card surface. */
+  --s1: #8b2437; --s2: #b88400; --s3: #2a78d6; --s4: #22a06b;
+  --fantasma: #7b838d;
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: 12px; --tap: 44px; --lado: 212px; --paso: 50px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f1113; --card: #181b1f; --text: #eceef0; --muted: #9aa2ab; --rule: #2a2f35; --rule-2: #3c434b; --soft: #20242a;
+    --accent: var(--db-accent, #e08a9c); --on-accent: var(--db-on-accent, #1a0b0f); --ok: #7fbf85; --bad: #f08075; --warn: #dba640; --gold: #d9a93c; --now: #2a2616;
+    --lado-bg: #0a0b0d; --s1: #cf6680; --s2: #c98500; --s3: #3987e5; --s4: #199e70; --fantasma: #8b939c; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+html, body { overflow-x: clip; max-width: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.45; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom); }
+body.con-pestanas { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; } ul, ol { padding: 0; list-style: none; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--accent); text-decoration: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+[hidden] { display: none !important; }
+.tnum { font-variant-numeric: tabular-nums; }
+.nota { color: var(--muted); font-size: .875rem; } .relleno { padding: 24px 16px; }
+.sd { color: var(--muted); font-style: italic; font-weight: 400; }                 /* "sin dato": said, never shown as a zero */
+.est { color: var(--muted); font-size: .78rem; font-weight: 500; }                 /* "estimación" */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---- Shell ---- */
+.lado { display: none; }
+.arriba { background: var(--card); border-bottom: 1px solid var(--rule); padding: 6px 8px 6px 12px; display: flex; align-items: center; gap: 10px; min-height: 52px; }
+.arriba .al-hub { font-size: .875rem; font-weight: 600; color: var(--muted); padding: 10px 6px 10px 0; white-space: nowrap; }
+.marca { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -.01em; flex: 1; min-width: 0; }
+.marca h1 { font-size: 1.1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logo { width: 26px; height: 26px; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.800; stroke-linecap: round; stroke-linejoin: round; }
+.ico { width: var(--tap); height: var(--tap); display: grid; place-items: center; background: none; border: 0; border-radius: 10px; color: var(--muted); flex: none; }
+.ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.800; stroke-linecap: round; stroke-linejoin: round; }
+.ico:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+.ico:disabled { opacity: .35; cursor: default; background: none; }
+.ico.girando svg { animation: giro .9s linear infinite; }
+@keyframes giro { to { transform: rotate(360deg); } }
+
+/* The one row of controls: step back, where you are, step forward, back to today. It stays in view while scrolling. */
+.paso { position: sticky; top: 0; z-index: 6; background: var(--card); border-bottom: 1px solid var(--rule); min-height: var(--paso); padding: 3px 6px; display: flex; align-items: center; gap: 2px; }
+.donde { flex: 1; min-width: 0; text-align: center; font-weight: 650; font-size: 1rem; letter-spacing: -.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.donde small { display: block; font-size: .72rem; font-weight: 500; color: var(--muted); letter-spacing: 0; line-height: 1.1; }
+.hoy { min-height: 34px; padding: 0 12px; margin: 0 4px; border-radius: 999px; border: 1px solid var(--rule-2); background: var(--card); font-size: .85rem; font-weight: 600; }
+
+main { padding: 12px 0 28px; max-width: 760px; margin: 0 auto; display: grid; gap: 12px; outline: none; transition: opacity .15s; }
+main.cargando { opacity: .55; }
+.pestanas { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--card); border-top: 1px solid var(--rule); display: grid; grid-template-columns: 1fr 1fr; padding-bottom: env(safe-area-inset-bottom); }
+.pestanas a { display: grid; justify-items: center; gap: 2px; padding: 8px 2px 7px; color: var(--muted); font-size: .72rem; font-weight: 600; min-height: 56px; }
+.pestanas a svg, .lado nav a svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.700; stroke-linecap: round; stroke-linejoin: round; }
+.pestanas a[aria-current="page"] { color: var(--accent); }
+
+/* ---- Pieces ---- */
+.bloque { background: var(--card); border-block: 1px solid var(--rule); }
+.pad { padding: 14px; }
+.aviso { display: grid; grid-template-columns: 20px 1fr; gap: 8px; padding: 10px 14px; font-size: .86rem; color: var(--text); background: color-mix(in srgb, var(--gold) 13%, var(--card)); border-block: 1px solid color-mix(in srgb, var(--gold) 38%, var(--rule)); }
+.aviso svg { width: 18px; height: 18px; margin-top: 1px; fill: none; stroke: var(--warn); stroke-width: 1.800; stroke-linecap: round; stroke-linejoin: round; }
+.aviso.mal { background: color-mix(in srgb, var(--bad) 9%, var(--card)); border-color: color-mix(in srgb, var(--bad) 30%, var(--rule)); } .aviso.mal svg { stroke: var(--bad); }
+.btn { min-height: var(--tap); padding: 0 16px; border-radius: 10px; border: 1px solid var(--rule-2); background: var(--card); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--text); }
+.btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.800; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.btn.pri { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.vacio { text-align: center; padding: 28px 16px; color: var(--muted); } .vacio b { display: block; color: var(--text); margin-bottom: 4px; font-weight: 650; } .vacio .btn { margin-top: 14px; }
+.pie { padding: 4px 14px 0; color: var(--muted); font-size: .8rem; display: grid; gap: 6px; }
+
+/* ---- The week at a glance: one column per day, people expected; tap a day to go to it ---- */
+.semana { padding: 14px 14px 12px; }
+.semana .tot { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; }
+.semana .tot + .nota { margin-top: 1px; }
+.tira { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 12px; }
+.tira button { background: none; border: 0; display: grid; grid-template-rows: 44px auto auto; justify-items: center; align-items: end; gap: 3px; padding: 4px 0 5px; border-radius: 10px; color: var(--text); min-width: 0; }
+.tira button:hover { background: var(--soft); }
+.tira .col { width: min(22px, 60%); border-radius: 4px 4px 0 0; background: var(--accent); min-height: 2px; align-self: end; }
+.tira .col.cero { background: var(--rule-2); height: 2px; border-radius: 1px; }
+.tira .n { font-size: .82rem; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
+.tira .d { font-size: .7rem; color: var(--muted); line-height: 1.1; text-align: center; }
+.tira button.es-hoy { background: var(--now); } .tira button.es-hoy .d { color: var(--text); font-weight: 650; }
+.tira button.cerrado .n { color: var(--muted); font-weight: 500; } .tira button.pasado .col { background: color-mix(in srgb, var(--accent) 45%, var(--card)); }
+
+/* ---- A day ---- */
+.dia { background: var(--card); border-block: 1px solid var(--rule); scroll-margin-top: calc(var(--paso) + 4px); }
+.dia > .cab { position: sticky; top: var(--paso); z-index: 4; background: var(--card); display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 14px 9px; border-bottom: 1px solid var(--rule); }
+.dia > .cab h2 { font-size: 1.12rem; font-weight: 700; letter-spacing: -.015em; white-space: nowrap; } .dia > .cab h2 span { font-weight: 450; color: var(--muted); }
+.dia > .cab .res { font-size: .82rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.dia.es-hoy > .cab { background: var(--now); } .dia.es-hoy > .cab h2 span { color: var(--text); }
+.cerrados { padding: 9px 14px; color: var(--muted); font-size: .86rem; }
+.ritmo { padding: 10px 14px 2px; } .ritmo svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ritmo .bar { fill: var(--accent); } .ritmo .eje { stroke: var(--rule); } .ritmo text { fill: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.ritmo .tope { fill: var(--text); font-size: 10.5px; font-weight: 650; }
+
+/* A reservation: the hour leads, like a timetable. The whole row opens and closes. */
+.reserva + .reserva { border-top: 1px solid var(--rule); } .ritmo + ul { border-top: 1px solid var(--rule); margin-top: 8px; }
+.fila { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 3px; align-items: start; width: 100%; text-align: left; background: none; border: 0; padding: 12px 10px 12px 14px; min-height: 64px; }
+.fila:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.fila .hora { font-size: 1.22rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.fila .quien { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; padding-top: 2px; }
+.fila .meta { grid-column: 2 / 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; color: var(--muted); font-size: .88rem; }
+.mesa { border: 1px solid var(--rule-2); border-radius: 6px; padding: 0 6px; font-size: .78rem; font-weight: 650; color: var(--text); line-height: 1.5; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prep { display: inline-flex; align-items: center; gap: 4px; color: var(--text); font-size: .8rem; font-weight: 550; }
+.prep i { width: 8px; height: 8px; border-radius: 2px; background: var(--s2); flex: none; }
+.estado { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 650; white-space: nowrap; padding-top: 4px; color: var(--muted); }
+.estado svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.estado .gira { transition: transform .15s; margin-left: 1px; opacity: .7; } .fila[aria-expanded="true"] .estado .gira { transform: rotate(180deg); }
+.e-confirmada { color: var(--accent); } .e-atendida, .e-enmesa { color: var(--ok); } .e-nollego { color: var(--bad); } .e-sincerrar { color: var(--warn); }
+.reserva.fuera .hora { text-decoration: line-through; text-decoration-thickness: 1.5px; } .reserva.fuera .hora, .reserva.fuera .quien { color: var(--muted); font-weight: 500; }
+
+.detalle { padding: 0 14px 14px; display: grid; gap: 12px; }
+.datos { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 14px; font-size: .9rem; }
+.datos dt { color: var(--muted); } .datos dd { font-weight: 500; overflow-wrap: anywhere; }
+.plegar { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: var(--tap); padding: 0 12px; border: 1px solid var(--rule-2); border-radius: 10px; background: var(--card); font-weight: 600; font-size: .92rem; text-align: left; }
+.plegar svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; flex: none; }
+.plegar[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; } .plegar[aria-expanded="true"] svg { transform: rotate(180deg); }
+.huesped { border: 1px solid var(--rule-2); border-top: 0; border-radius: 0 0 10px 10px; padding: 12px; display: grid; gap: 10px; }
+.huesped .nombre { font-weight: 650; font-size: 1.02rem; overflow-wrap: anywhere; }
+.huesped .via { display: grid; gap: 8px; } .huesped .via .btn { justify-content: flex-start; width: 100%; font-weight: 550; overflow-wrap: anywhere; text-align: left; padding: 8px 14px; line-height: 1.25; }
+.huesped .via .btn span { min-width: 0; overflow-wrap: anywhere; }
+
+.sueltos { border-top: 1px solid var(--rule); padding: 11px 14px 12px; display: grid; gap: 7px; }
+.sueltos h3, .parrot h3 { font-size: .82rem; font-weight: 650; color: var(--muted); }
+.sueltos li { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; column-gap: 10px; font-size: .9rem; align-items: baseline; }
+.sueltos li .hora { font-weight: 650; font-variant-numeric: tabular-nums; } .sueltos li .cuanto { font-variant-numeric: tabular-nums; font-weight: 550; white-space: nowrap; }
+.sueltos li small { grid-column: 2 / 4; color: var(--muted); font-size: .8rem; }
+.parrot { border-top: 1px solid var(--rule); padding: 11px 14px 12px; display: grid; gap: 8px; background: color-mix(in srgb, var(--soft) 55%, var(--card)); }
+.parrot .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.parrot .cifras div { min-width: 0; } .parrot .cifras b { display: block; font-size: 1rem; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; } .parrot .cifras span { display: block; font-size: .72rem; color: var(--muted); line-height: 1.2; }
+.parrot .ir { font-size: .88rem; font-weight: 600; justify-self: start; min-height: var(--tap); display: inline-flex; align-items: center; margin: -6px 0 -8px; }
+.nada { padding: 16px 14px; color: var(--muted); font-size: .92rem; }
+
+/* ---- Ventas ---- */
+.seg3 { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--rule-2); border-radius: 10px; padding: 2px; background: var(--card); }
+.seg3 button { min-height: 36px; min-width: 58px; padding: 0 10px; border: 0; border-radius: 8px; background: none; font-size: .88rem; font-weight: 600; color: var(--muted); }
+.seg3 button[aria-pressed="true"] { background: var(--text); color: var(--card); }
+.lema { padding: 14px 14px 16px; display: grid; gap: 10px; }
+.lema .arr { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lema .que { font-size: .92rem; font-weight: 600; color: var(--muted); }
+.cifra { font-size: clamp(2.6rem, 13vw, 3.4rem); font-weight: 700; letter-spacing: -.035em; line-height: 1; }
+.cifra.sd { font-size: 1.6rem; letter-spacing: 0; font-style: italic; font-weight: 400; }
+.lema .iva { color: var(--muted); font-size: .9rem; }
+.cambios { display: grid; gap: 6px; font-size: .9rem; }
+.cambio { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.delta { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.delta svg { width: 12px; height: 12px; fill: currentColor; flex: none; align-self: center; }
+.delta.sube { color: var(--ok); } .delta.baja { color: var(--bad); } .delta.igual { color: var(--muted); }
+.cambio .contra { color: var(--muted); }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--rule); }
+.kpi { padding: 12px 14px; min-width: 0; border-bottom: 1px solid var(--rule); } .kpi:nth-child(odd) { border-right: 1px solid var(--rule); } .kpi:nth-last-child(-n+2) { border-bottom: 0; }
+.kpi .et { font-size: .82rem; color: var(--muted); font-weight: 550; } .kpi .va { font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; } .kpi .va.sd { font-size: 1rem; font-weight: 400; letter-spacing: 0; line-height: 1.8; }
+.kpi .ap { font-size: .78rem; color: var(--muted); line-height: 1.3; } .kpi .ap .delta { font-size: .78rem; }
+
+.fig { padding: 14px 14px 12px; display: grid; gap: 10px; }
+.fig > header { display: grid; gap: 1px; } .fig .con-lado { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; } .seg3.chico button { min-height: 32px; font-size: .82rem; } .fig h2 { font-size: 1rem; font-weight: 650; letter-spacing: -.005em; } .fig header p { color: var(--muted); font-size: .84rem; }
+.fig .lienzo { min-width: 0; } .fig svg { display: block; overflow: visible; }
+.fig svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; } .fig svg .halo { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; } .fig svg .fuerte { fill: var(--text); font-weight: 650; }
+.rej { stroke: var(--rule); stroke-width: 1; } .base { stroke: var(--rule-2); stroke-width: 1; }
+.col-a { fill: var(--accent); } .col-a.futuro { fill: var(--rule); } .col-a.hoy { fill: var(--accent); }
+.marca-anio { stroke: var(--fantasma); stroke-width: 2.5; stroke-linecap: round; }
+.toque { fill: transparent; } .toque:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; color: var(--muted); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); flex: none; } .leyenda i.raya { height: 0; width: 14px; border-top: 2.5px solid var(--fantasma); border-radius: 0; background: none; } .leyenda i.linea { height: 0; width: 14px; border-top: 2px solid var(--accent); background: none; border-radius: 0; }
+details.tabla { font-size: .84rem; } details.tabla summary { color: var(--accent); font-weight: 600; min-height: var(--tap); margin: -8px 0; display: inline-flex; align-items: center; cursor: pointer; list-style: none; } details.tabla summary::-webkit-details-marker { display: none; }
+details.tabla table { width: 100%; border-collapse: collapse; margin-top: 4px; font-variant-numeric: tabular-nums; }
+details.tabla th, details.tabla td { text-align: right; padding: 5px 3px; border-top: 1px solid var(--rule); font-weight: 450; } details.tabla th:first-child, details.tabla td:first-child { text-align: left; } details.tabla thead th { color: var(--muted); font-weight: 550; border-top: 0; hyphens: manual; } details.tabla tbody th { white-space: nowrap; }
+
+/* Hours: one row per day, one cell per hour; darker means more sales. */
+.calor { display: grid; gap: 2px; align-items: center; }
+.calor .et { font-size: .78rem; color: var(--muted); white-space: nowrap; padding-right: 6px; }
+.calor .hh { font-size: .7rem; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.calor button { height: 26px; min-width: 0; border: 0; padding: 0; border-radius: 4px; }
+.calor button[data-n="0"] { background: none; box-shadow: inset 0 0 0 1px var(--rule); }
+[data-n="1"] { background: color-mix(in oklab, var(--accent) 14%, var(--card)); } [data-n="2"] { background: color-mix(in oklab, var(--accent) 30%, var(--card)); }
+[data-n="3"] { background: color-mix(in oklab, var(--accent) 48%, var(--card)); } [data-n="4"] { background: color-mix(in oklab, var(--accent) 66%, var(--card)); }
+[data-n="5"] { background: color-mix(in oklab, var(--accent) 83%, var(--card)); } [data-n="6"] { background: var(--accent); }
+.escala { display: flex; align-items: center; gap: 6px; font-size: .76rem; color: var(--muted); }
+.escala i { width: 16px; height: 10px; border-radius: 2px; }
+
+/* One whole split into its lines: a thin bar, then the names and amounts. */
+.partes { display: flex; gap: 2px; height: 10px; } .partes i { display: block; border-radius: 5px; min-width: 3px; }
+.lineas > li { border-top: 1px solid var(--rule); } .lineas > li:first-child { border-top: 0; }
+.lineas button.lin { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; width: 100%; min-height: var(--tap); padding: 6px 0; background: none; border: 0; text-align: left; font-size: .93rem; }
+.lineas .cuadro { width: 10px; height: 10px; border-radius: 2px; } .lineas .monto { font-weight: 650; font-variant-numeric: tabular-nums; } .lineas .pct { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 38px; text-align: right; font-size: .86rem; }
+.lineas .cats { padding: 0 0 10px 22px; display: grid; gap: 3px; font-size: .86rem; color: var(--muted); } .lineas .cats li { display: flex; justify-content: space-between; gap: 10px; } .lineas .cats b { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text); }
+.c1 { background: var(--s1); } .c2 { background: var(--s2); } .c3 { background: var(--s3); } .c4 { background: var(--s4); }
+
+/* Ranked rows: a name, a bar, a figure. */
+.rango { display: grid; gap: 9px; }
+.rango li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: .92rem; }
+.rango .nom { overflow-wrap: anywhere; line-height: 1.3; } .rango .nom small { color: var(--muted); font-size: .8rem; margin-left: 4px; white-space: nowrap; }
+.rango .val { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rango .barra { grid-column: 1 / 3; height: 6px; border-radius: 3px; background: var(--soft); overflow: hidden; } .rango .barra i { display: block; height: 100%; border-radius: 3px; background: var(--accent); min-width: 2px; }
+.rango .ap { grid-column: 1 / 3; color: var(--muted); font-size: .8rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--rule-2); background: var(--card); font-size: .84rem; font-weight: 600; color: var(--muted); }
+.chips button[aria-pressed="true"] { background: var(--text); color: var(--card); border-color: var(--text); }
+.mas { justify-self: start; background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; font-size: .88rem; min-height: var(--tap); display: inline-flex; align-items: center; margin: -6px 0; }
+.frase { font-size: .93rem; } .frase b { font-weight: 650; }
+
+/* Tooltip for charts: the value first, what it is after. */
+.globo { position: fixed; z-index: 40; max-width: min(280px, calc(100vw - 16px)); background: #15171a; color: #fff; border-radius: 9px; padding: 8px 11px; font-size: .82rem; line-height: 1.35; pointer-events: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .28); }
+.globo b { display: block; font-size: .95rem; font-weight: 650; } .globo span { display: block; color: #c5cad1; }
+
+@media (max-width: 345px) { .rr { display: none; } .tira { gap: 2px; } .tira .d { font-size: .64rem; white-space: nowrap; } details.tabla { font-size: .74rem; } .fila { grid-template-columns: 52px minmax(0, 1fr) auto; column-gap: 8px; padding-left: 12px; } .fila .hora { font-size: 1.12rem; } }
+@media (min-width: 620px) {
+  main { padding: 16px 16px 40px; gap: 14px; }
+  .detalle { padding-left: 82px; }
+  .bloque, .dia { border: 1px solid var(--rule); border-radius: var(--radius); } .dia { overflow: clip; }
+  .aviso { border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--rule)); border-radius: var(--radius); }
+  .kpis { grid-template-columns: repeat(4, 1fr); } .kpi, .kpi:nth-child(odd) { border-right: 1px solid var(--rule); border-bottom: 0; } .kpi:last-child { border-right: 0; }
+  .pie { padding: 4px 4px 0; }
+}
+@media (min-width: 900px) {
+  body, body.con-pestanas { padding: 0 0 0 var(--lado); } .pestanas, .arriba .al-hub, .arriba .logo { display: none !important; }
+  .lado { display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; width: var(--lado); background: var(--lado-bg); color: var(--lado-ink); padding: 18px 12px; gap: 18px; }
+  .lado .marca { color: var(--lado-on); padding: 0 8px; font-size: 1.05rem; flex: none; } .lado .logo { stroke: #e9b949; }
+  .lado nav { display: grid; gap: 2px; } .lado nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; color: var(--lado-ink); font-weight: 550; font-size: .93rem; }
+  .lado nav a svg { width: 19px; height: 19px; } .lado nav a[aria-current="page"], .lado nav a:hover { background: rgba(255, 255, 255, .08); color: var(--lado-on); }
+  .lado .al-hub { margin-top: auto; color: var(--lado-ink); font-size: .88rem; font-weight: 600; padding: 8px; } .lado .yo { font-size: .78rem; padding: 0 8px; overflow-wrap: anywhere; }
+  .arriba { padding: 8px 24px; } .paso { padding: 3px 18px; } .paso .donde { text-align: left; padding-left: 6px; flex: 0 1 auto; min-width: 230px; } .paso { justify-content: flex-start; }
+  main { padding: 20px 24px 60px; }
+}
+@media (min-width: 1240px) {
+  /* Wide screens: the charts pair up; the headline, the daily chart and the trend keep the full width. */
+  main[data-vista="v"] { max-width: 1120px; grid-template-columns: 1fr 1fr; align-items: start; }
+  main[data-vista="v"] > .ancho, main[data-vista="v"] > .pie, main[data-vista="v"] > .aviso { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media print { .paso, .pestanas, .lado, .arriba .ico, .arriba .al-hub { display: none !important; } body { background: #fff; padding: 0; } .dia > .cab { position: static; } }

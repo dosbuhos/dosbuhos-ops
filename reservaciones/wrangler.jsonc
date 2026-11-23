@@ -1,0 +1,34 @@
+{
+  "name": "reservaciones",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // Logs of the cron and of failed requests (never a guest's data: only error texts and paths).
+  "observability": { "enabled": true },
+  // Phone app (static). The Worker answers /api/* only, and only for requests signed by the Hub.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/auth/*"] },
+  "d1_databases": [
+    // This app's own data: the guest behind each reservation (name, phone, email) and how far the read from Klaviyo got.
+    { "binding": "DB", "database_name": "reservaciones", "database_id": "cde5dfc3-5171-45bd-88d7-7ff2dd33d978", "migrations_dir": "migrations" },
+    // Growth Terminal's database, READ-ONLY use (src/manifiesto.js and src/ventas.js only SELECT): OpenTable reservations
+    // (ot_reservations), Parrot's checks, items and payments (pos_*), the old point of sale's daily totals
+    // (pos_daily_history) and Stripe prepayments (stripe_payments). Growth syncs them; its migrations stay in growth/.
+    { "binding": "GROWTH", "database_name": "growth", "database_id": "a55e5d23-3d7b-498c-aa66-e1145ae12bba" }
+  ],
+  // Guest names and contact details come from Klaviyo through the growth Worker, which holds the key
+  // (growth/src/guests.ts): one page of reservation events at a time, read-only. The growth Worker has to be deployed first.
+  "services": [{ "binding": "GUESTS", "service": "growth", "entrypoint": "KlaviyoGuests" }],
+  // The Hub's session secret from the account Secrets Store: checks that requests really come from the Hub (src/hub-secret.js).
+  "secrets_store_secrets": [
+    { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
+  ],
+  // UTC, every 15 minutes: read new guests from Klaviyo and delete those whose visit was more than 90 days ago.
+  "triggers": { "crons": ["4,19,34,49 * * * *"] },
+  "vars": {
+    // Always admins here, besides Hub admins (comma separated): they see sales and can start a guest read by hand.
+    "ADMIN_EMAILS": "cabosari@dosbuhos.com"
+  }
+  // Secrets (Worker → Settings → Variables and Secrets):
+  //   None. HUB_SECRET comes from HUB_SESSION_SECRET in the Secrets Store; Klaviyo's key stays on the growth Worker.
+  // Local dev: .dev.vars with ENVIRONMENT=dev, DEV_USER=you@example.com, DEV_ROLE=admin|editor|viewer (see README).
+}
