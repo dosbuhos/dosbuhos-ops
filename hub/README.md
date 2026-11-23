@@ -41,7 +41,7 @@ Once dosbuhos.com's DNS is on Cloudflare: uncomment `routes` in `wrangler.jsonc`
 
 1. Copy `lib/hub-auth.js` into the app; call `hubUser(request, env)` instead of its own login. Copy `src/hub-secret.js` from `spark-equipo/` too, add the `HUB_SESSION_SECRET` Secrets Store binding to the app's `wrangler.jsonc` and call `env = await withHubSecret(env)` first: the signature is then checked with the Hub's secret and nothing has to be pasted.
 2. Make the app work under a prefix: `withPrefix(request)` gives `/cellar`; use it in front of absolute links and `fetch()` paths.
-3. In the Hub's `wrangler.jsonc` the binding already exists (CELLAR, HUERTO, MANTENIMIENTO, SPARK, WINECLUB, OPS, COTIZADOR); in Admin → Apps set the app's mode to `proxy`.
+3. In the Hub's `wrangler.jsonc` the binding already exists (CELLAR, HUERTO, MANTENIMIENTO, SPARK, WINECLUB, OPS, COTIZADOR, GROWTH, SPARK_EQUIPO, RESERVACIONES); in Admin → Apps set the app's mode to `proxy`.
 4. When it works, set `"workers_dev": false` on the app so the Hub is the only way in.
 
 Roles: Hub admins are admins in every app. Everyone else gets `admin`, `editor` or `viewer` per app; the app decides what each role may do.
