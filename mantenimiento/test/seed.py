@@ -90,10 +90,17 @@ t8 = task(lupita, title='Aire acondicionado de la oficina hace ruido', area_id=A
 t9 = task(eric, title='Regadera de la cabaña 2 sin agua caliente', area_id=A['Hospedaje'], priority=2, provider_id=P['Chuy Hernández'], due_date=d(2))
 photo(eric, '/tasks/%d/photos' % t9, 'REGADERA', (120, 96, 84))
 t10 = task(jaime, title='Luminaria del viñedo apagada (poste 4)', area_id=A['Viñedo'], priority=3, provider_id=P['Jaime'], due_date=d(5))
+# the planner: some of it already has an hour
+patch(adrian, '/tasks/%d' % t6, {'plan_min': 9 * 60, 'est_min': 90})
+patch(adrian, '/tasks/%d' % t9, {'plan_min': 11 * 60, 'est_min': 60})
+t11 = task(adrian, title='Revisar la presión de la bomba de la cisterna', equipment_id=E['bomba'], priority=3, provider_id=P['Adrián'], due_date=d(0))
+patch(adrian, '/tasks/%d' % t11, {'plan_min': 12 * 60 + 30, 'est_min': 30})
+t12 = task(adrian, title='Recibir al herrero para la reja del estacionamiento', area_id=A['Instalaciones'], priority=3, provider_id=P['Marco Antonio Gil'], due_date=d(1))
+patch(adrian, '/tasks/%d' % t12, {'plan_min': 10 * 60, 'est_min': 120})
 # done ones
 for title, area, who, note, cost in [('Destapar coladera de la cocina', 'Restaurante', 'Chuy Hernández', 'Se destapó y se limpió la trampa.', 600), ('Arreglar chapa del almacén', 'Bodega y cava', 'Adrián', 'Se cambió la chapa.', 350), ('Reponer vidrio roto del salón', 'Eventos', 'Octavio Tovar', None, 1200)]:
     tid = task(lupita, title=title, area_id=A[area], priority=3, provider_id=P[who])
     patch(adrian, '/tasks/%d' % tid, {'status': 'hecha', 'note': note, 'cost': cost})
-print('seeded', {'tasks': t10, 'equipment': E})
+print('seeded', {'tasks': t12, 'equipment': E})
 json.dump({'sids': [eric.sid, adrian.sid, jaime.sid, lupita.sid],
            'urgent': t1, 'photo': t2, 'late': t3, 'plain': t4, 'far': t5, 'mine': t6, 'eq': E['chiller'], 'eq2': E['refri'], 'ext': P['Chuy Hernández'], 'plan': 1}, open(STATE, 'w'))

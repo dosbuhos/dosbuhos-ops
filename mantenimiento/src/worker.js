@@ -264,7 +264,7 @@ async function updateMe(request, env, user) {
 async function bootstrap(env, user) {
   try { await runPM(env); } catch (e) { console.error('pm', e); }
   const today = mxToday();
-  const [areas, providers, equipment, users, late] = await env.DB.batch([
+  const [areas, providers, equipment, users, late, inbox] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, color, sort, active FROM areas ORDER BY sort, name'),
     env.DB.prepare(`SELECT p.id, p.name, p.kind, p.company, p.specialty, p.phone, p.notes, p.active,
         (SELECT u.id FROM users u WHERE u.provider_id = p.id AND u.active = 1 LIMIT 1) AS user_id
@@ -273,8 +273,9 @@ async function bootstrap(env, user) {
     env.DB.prepare(isAdmin(user)
       ? 'SELECT id, name, role, active, provider_id, email, phone, last_seen, created_at FROM users ORDER BY active DESC, name COLLATE NOCASE'
       : 'SELECT id, name, role, active, provider_id FROM users WHERE active = 1 ORDER BY name COLLATE NOCASE'),
-    // Late count for the badge on the Pendientes tab, so it is right on whichever screen the app opens.
+    // How many are late and how many wait in the Bandeja, so the counts are right on whichever screen the app opens.
     env.DB.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status IN ${OPEN_SQL} AND due_date IS NOT NULL AND due_date < ?`).bind(today),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status IN ${OPEN_SQL} AND due_date IS NULL`),
   ]);
   return json({
     user,
@@ -284,6 +285,7 @@ async function bootstrap(env, user) {
     users: users.results,
     settings: await settings(env),
     late: late.results[0] ? late.results[0].n : 0,
+    inbox: inbox.results[0] ? inbox.results[0].n : 0,
     today,
   });
 }
@@ -310,12 +312,12 @@ function taskSelect({ list = false } = {}) {
 }
 const getTask = (env, id) => env.DB.prepare(`${taskSelect()} WHERE t.id = ?`).bind(id).first();
 
-// When the person reporting doesn't pick a date: urgent → today, high → tomorrow, normal → a week, low → no date.
+// When the person reporting doesn't pick a day: urgent → today, high → tomorrow. Everything else gets none and
+// waits in the Bandeja (the planner's inbox) until someone gives it a day and an hour.
 function defaultDue(priority) {
   const today = mxToday();
   if (priority === 1) return today;
   if (priority === 2) return addDaysYmd(today, 1);
-  if (priority === 3) return addDaysYmd(today, 7);
   return null;
 }
 async function providerName(env, id) {

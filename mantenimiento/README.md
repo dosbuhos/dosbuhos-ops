@@ -30,16 +30,39 @@ phone and is in; the session lasts a year and renews on every visit.
 
 ## Screens
 
-| Tab | What |
+Pulso is laid out the way Horizonte is (Eric, 23 Nov 2026): the calendar first, lists you plan from, no side menu.
+
+**On a phone.** A ribbon of views along the bottom (Bandeja, Atrasados, Día, Semana, Todo) and a floating **+** to
+report. The top row of every main screen is menu · title · the phone icon (Contactos).
+
+**On a wide screen.** One bar along the top: show/hide the lists, Pulso, Día | Semana, ‹ Hoy ›, whose calendar,
+Contactos, Reportar, the account. Under it the lists on the left and the hours on the right. Everything that is not
+the planner (Equipos, Preventivo, a pendiente's page, Cuenta) opens as a page under the same bar.
+
+| View | What |
 |---|---|
-| **Pendientes** | Everything open, grouped by priority (Urgente, Alta, Normal, Baja) with the late ones first in each group. Tiles filter (Atrasados, Para hoy, Sin asignar). *Filtrar*: whose, priority, area tags, group by priority / date / area / person. Tick the circle → *Hecho* with an optional note, photo and cost |
-| **Un pendiente** | Estado, Lo hace (with Llamar / WhatsApp), Fecha, Prioridad, Área, Equipo, Costo: each opens a sheet. *Posponer* asks for the new date and why, and counts how many times it was pushed. Late ones show a banner with *Pasar a otro*. Notes and the automatic history below |
-| **Semana** | The week planner, modelled on Horizonte. On a phone: the week as one column of days; hold a pendiente for a moment (here or in any list) and a day slides in: drop it on an hour, on *Ese día, sin hora* or on *Quitar la fecha*, and take the finger to the left or right edge to change the day. On a wide screen (mouse): Left: what still needs a day, by priority. Right: Monday to Sunday, 6:00 to 20:00. Drag a pendiente onto a day and hour to plan it (an hour long until its lower edge is pulled), drag it to move it, drop it on *Sin hora* for a day without a time, drop it back on the list to take the date away. Pick one person to see their week; unassigned work dropped there becomes theirs. Each day shows the hours planned. The day is the pendiente's `due_date`; `plan_min` is the time of day and `est_min` how long it takes (also the *Tiempo* row of a pendiente). Moving a date here before its day comes is planning, so it is not counted as *pospuesto* |
-| **Reportar** (the floating + on a phone, the button at the top of the side bar on a computer) | Photo, what is wrong, where, how urgent. Without a date: urgent = today, normal = a week, "puede esperar" = none |
-| **Preventivo** | *El año*: the twelve months with every scheduled service (hecho / en Pendientes / atrasado / programado); what comes up every month folds into one line. From July on the page continues into the next year, so about a year ahead is always in view. *Planes*: N times a year by tapping months, every N days/weeks/months, or once. A plan puts its job in Pendientes N days before |
+| **Día** (the app opens here) | Today's hours, 6:00 to 20:00. Phone: the strip of the week on top (tap a day, slide for another week), then what the day has without an hour (folds into one line), then the blocks; slide sideways for the next day. Wide: two days side by side, each with its *Sin hora* row |
+| **Semana** | Phone: the seven days in one column, each with its pendientes and a + to report something for that day. Wide: seven columns of hours |
+| **Bandeja** | The inbox: what has no day yet, by priority, with how long ago it was reported. A report with no day lands here (only an urgent one goes straight to today) |
+| **Atrasados** | What passed its day without being done, by the day it was for |
+| **Todo** | Everything open, by priority; *Filtrar y agrupar*: whose, priority, area tags, group by priority / date / area / person |
+| **The lists on a wide screen** | The panel on the left: Bandeja, Atrasados, Esta semana, Todo; one list per priority; Tableros (Equipos, Preventivo); Lo que ya se hizo, Resumen. A list opens in the panel and its cards are dragged onto the calendar |
+| **Menu** (the grid icon, phones) | Tableros (Equipos, Preventivo), one list per priority, Contactos, Lo que ya se hizo, Resumen, Mi cuenta |
+| **A pendiente's sheet** | Tapping a pendiente anywhere opens it over the screen you are on: *Cuándo* (Hoy, Mañana, Otro día, Sin día), hour and how long, priority, *Lo hace* (anyone from the house or a contact, with Llamar / WhatsApp), *Hecho*, and *Ver todo* for its page |
+| **Contactos** (the phone icon) | A sheet with every contact, search by name or trade, Llamar / WhatsApp on each row |
+| **A pendiente's page** | Estado, Lo hace, Fecha, Tiempo, Prioridad, Área, Equipo, Costo, photos, notes and the automatic history. *Posponer* asks for the new date and why, and counts how many times it was pushed |
+| **Reportar** | Photo, what is wrong, where, how urgent |
+| **Preventivo** | *El año*: the twelve months with every scheduled service (hecho / ya en el calendario / atrasado / programado); what comes up every month folds into one line. From July on the page continues into the next year. *Planes*: N times a year by tapping months, every N days/weeks/months, or once. A plan puts its job on the calendar N days before |
 | **Equipos** | Photo, make and model, who looks after it, last service, next service, faults in 90 days, history. *Anotar servicio*, *Reportar falla* |
-| **Contactos** | Outside providers by trade and the house team, each with call / WhatsApp and what they have open |
 | **Cuenta** | Resumen (8-week chart, by person, by area, oldest open), Lo que ya se hizo, Invitar por WhatsApp, Personas and Áreas (administrators) |
+
+Planning. The day of a pendiente is its `due_date`; `plan_min` is the hour (minutes after midnight) and `est_min`
+how long it takes. With a mouse: drag a card from a list or the calendar onto a day and an hour (an hour long until
+its lower edge is pulled), onto *Sin hora* for a day without an hour, or back onto the lists to send it to the
+Bandeja. By touch: hold a pendiente for a moment and a day slides in; drop it on an hour, on *Ese día, sin hora* or
+on *A la Bandeja*, and take the finger to an edge to change the day. With one person's calendar chosen, unassigned
+work dropped into it becomes theirs. Moving a day before it comes is planning and is not counted as *pospuesto*.
+Whatever is done leaves the calendar (it is in *Lo que ya se hizo* and in the equipment's history).
 
 Areas are coloured tags (the 12 colour names Horizonte uses), set in Cuenta → Áreas.
 WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is sent automatically.
@@ -47,10 +70,11 @@ WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is
 ## Files
 
 - `src/worker.js` — the API (`/api/*`). `src/plan.js` — when a plan comes up next and the phone rule (unit-tested).
-- `public/core.js` (shared pieces), `public/app.js` (entering, Pendientes, one pendiente, reporting),
-  `public/week.js` (the week planner), `public/more.js` (Preventivo, Equipos, Contactos, Cuenta, router), `public/app.css`.
-- The look is the app's own (`public/app.css`), in the same family as Horizonte: ink on white, Geist (self-hosted in
-  `public/fonts/`), flat lists ruled with hairlines. Colour is kept for state (red late, amber today or waiting, green
+- `public/core.js` (shared pieces and the shell: ribbon, top bar, sheets), `public/app.js` (entering, what can be done
+  to a pendiente, its page, reporting), `public/planner.js` (Día, Semana, the lists, the card, the sheets of a
+  pendiente and of Contactos, dragging), `public/more.js` (Preventivo, Equipos, Contactos, Cuenta, router), `public/app.css`.
+- The look is the app's own (`public/app.css`) and follows Horizonte's: the same shell, ink on white, Geist
+  (self-hosted in `public/fonts/`), flat lists ruled with hairlines on a phone, boxed cards in the columns of a wide screen. Colour is kept for state (red late, amber today or waiting, green
   done) and the area tags. It does not load the Hub's theme, so the Hub's presets do not restyle it.
 - `migrations/` — D1 schema. 0001–0007 are applied to the remote database. The tables `login_links` and `purchases`
   are left from the PIN / link version and are not used.
@@ -73,7 +97,7 @@ Photos are shrunk on the phone to about 250 KB plus a 10 KB preview and stored i
 npm test                      # plan dates and the phone rule (node:test)
 npm run db:local && npm run dev -- --port 8787
 python3 test/seed.py          # made-up people and jobs in the local database (needs: requests, Pillow)
-python3 test/e2e.py           # every main flow through the phone UI (needs: playwright for Python, Chrome)
+python3 test/e2e.py           # every main flow through the UI, phone and wide (needs: playwright for Python, Chrome)
 python3 test/shots.py /tmp/shots 390 light   # a screenshot of every screen + overflow and tap-target checks
 ```
 `e2e.py` and `shots.py` expect a freshly seeded database (`rm -rf .wrangler/state`, `npm run db:local`, seed).

@@ -1,10 +1,10 @@
-/* Mantenimiento Dos Búhos — Preventivo, Equipos, Contactos, Cuenta, and the router. Needs core.js and app.js. */
+/* Pulso — Preventivo, Equipos, Contactos, Cuenta, and the router. Needs core.js, app.js and planner.js. */
 'use strict';
 
 // ---------- Preventivo: the year, month by month ----------
 const PM_ST = {
   done: { icon: 'check', cls: 'ok', label: 'Hecho' },
-  open: { icon: 'clock', cls: 'go', label: 'En Pendientes' },
+  open: { icon: 'clock', cls: 'go', label: 'Ya en el calendario' },
   late: { icon: 'alert', cls: 'bad', label: 'Atrasado' },
   future: { icon: 'cal', cls: '', label: 'Programado' },
 };
@@ -72,7 +72,7 @@ async function viewPM(query = {}, keep = false) {
   render(header('Preventivo', { right: newPlanBtn }) + `<div class="wrap">
     ${pmTabs('year')}
     ${empty ? `<div class="empty"><h2>Todavía no hay nada programado</h2>
-        <p>Aquí va lo que se repite: el servicio de los refrigeradores, la fumigación, los extintores. Lo programas una vez y la app lo pone en Pendientes cuando toca.</p>
+        <p>Aquí va lo que se repite: el servicio de los refrigeradores, la fumigación, los extintores. Lo programas una vez y la app lo pone en el calendario cuando toca.</p>
         <a class="b" href="#/plan/nuevo">${ic('plus')}Programar el primero</a></div>
       <h2 class="sec">Ideas para empezar</h2>
       <div class="ideas">${PM_IDEAS.map(([t, n]) => `<a class="idea" href="#/plan/nuevo?t=${encodeURIComponent(t)}&n=${n}"><b>${esc(t)}</b><span>${n === 12 ? 'Cada mes' : plural(n, 'vez al año', 'veces al año')}</span></a>`).join('')}</div>`
@@ -85,7 +85,7 @@ async function viewPM(query = {}, keep = false) {
     if (it.task_id) { location.hash = '#/p/' + it.task_id; return; }
     const v = await sheet({
       title: it.title, sub: `${it.status === 'late' ? 'Tocaba' : 'Toca'} ${fmtDay(it.date, { weekday: true })}${it.equipment_name && !it.title.includes(it.equipment_name) ? ', ' + it.equipment_name : ''}`,
-      opts: [{ value: 'run', label: 'Hacerlo ya', sub: 'Lo pone en Pendientes hoy', icon: 'play' }, { value: 'plan', label: 'Ver o cambiar el plan', sub: 'Fechas, quién lo hace, cada cuándo', icon: 'repeat' }],
+      opts: [{ value: 'run', label: 'Hacerlo ya', sub: 'Lo pone en el día de hoy', icon: 'play' }, { value: 'plan', label: 'Ver o cambiar el plan', sub: 'Fechas, quién lo hace, cada cuándo', icon: 'repeat' }],
     });
     if (v === 'plan') location.hash = '#/plan/' + it.pm_id;
     if (v === 'run') {
@@ -95,7 +95,9 @@ async function viewPM(query = {}, keep = false) {
   if (!keep && y === thisYear && !empty) {
     const cur = $('.month.cur');
     const first6 = Number(curM.slice(5)) > 1;
-    if (cur && first6) requestAnimationFrame(() => window.scrollTo(0, Math.max(0, cur.getBoundingClientRect().top + window.scrollY - 120)));
+    // the current month lands right under whatever is stuck to the top (the bar on a wide screen, the title)
+    const under = (isDesk() ? NAV.offsetHeight : 0) + ($('.mh') ? $('.mh').offsetHeight : 0) + 14;
+    if (cur && first6) requestAnimationFrame(() => window.scrollTo(0, Math.max(0, cur.getBoundingClientRect().top + window.scrollY - under)));
   }
   UI.refresh = () => viewPM(query, true);
 }
@@ -112,7 +114,7 @@ async function viewPlans() {
       const late = p.next_due < r.today;
       return `<a class="lrow" href="#/plan/${p.id}"><span class="lth ico">${ic('repeat')}</span><span class="grow"><b>${esc(p.title)}</b>
         <span class="ls">${esc(cap([p.equipment_name && !p.title.includes(p.equipment_name) ? p.equipment_name : (p.equipment_name ? '' : p.area_name), p.every_text].filter(Boolean).join(', ')))}</span>
-        <span class="ls ${late ? 'bad' : ''}">${late ? ic('alert') : ''}${p.last_status && OPEN.includes(p.last_status) ? 'Ya está en Pendientes; el siguiente, ' : late ? 'Tocaba ' : 'Toca '}${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`;
+        <span class="ls ${late ? 'bad' : ''}">${late ? ic('alert') : ''}${p.last_status && OPEN.includes(p.last_status) ? 'Ya está en el calendario; el siguiente, ' : late ? 'Tocaba ' : 'Toca '}${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`;
     }).join('')}</div>`
       : `<div class="empty"><h2>No hay planes</h2><p>Un plan es algo que se repite: cada mes, dos veces al año, cada año.</p><a class="b" href="#/plan/nuevo">${ic('plus')}Programar el primero</a></div>`}
   </div>`, { tab: 'preventivo' });
@@ -132,12 +134,12 @@ async function viewPlan(id) {
       <h2>${esc(p.title)}</h2>${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}</div>
     <div class="cells">
       ${fact('Cada cuándo', esc(cap(p.every_text)))}
-      ${p.active ? fact(waiting ? 'Después toca' : 'Toca', `${esc(fmtDay(p.next_due, { weekday: true, rel: false }))}<span class="csub">Aparece en Pendientes ${p.lead_days ? plural(p.lead_days, 'día', 'días') + ' antes' : 'ese día'}</span>`) : ''}
+      ${p.active ? fact(waiting ? 'Después toca' : 'Toca', `${esc(fmtDay(p.next_due, { weekday: true, rel: false }))}<span class="csub">Aparece en el calendario ${p.lead_days ? plural(p.lead_days, 'día', 'días') + ' antes' : 'ese día'}</span>`) : ''}
       ${p.equipment_id ? `<div class="cell"><a class="cmain" href="#/e/${p.equipment_id}"><span class="cl">Equipo</span><span class="cv">${esc(p.equipment_name)}</span>${ic('chev')}</a></div>` : ''}
       ${fact('Lo hace', p.provider_name ? esc(p.provider_name) : '<span class="un">Sin asignar</span>')}
     </div>
     <h2 class="sec">Lo que ha salido de este plan<span class="n">${r.tasks.length}</span></h2>
-    ${r.tasks.length ? `<div class="list">${r.tasks.map((t) => taskRow(t, { done: false })).join('')}</div>` : '<p class="small">Todavía nada. El primero aparece en Pendientes cuando se acerque la fecha.</p>'}
+    ${r.tasks.length ? `<div class="list">${r.tasks.map((t) => taskRow(t, { done: false })).join('')}</div>` : '<p class="small">Todavía nada. El primero aparece en el calendario cuando se acerque la fecha.</p>'}
     ${p.active ? `<button class="b plain danger block" data-del>${ic('trash')}Quitar este plan</button>` : ''}
   </div>`, { tab: 'preventivo', bar: p.active ? `<a class="b tonal ${waiting ? 'grow' : ''}" href="#/plan/${id}/editar">${ic('edit')}Cambiar</a>${waiting ? '' : `<button class="b grow" data-run>${ic('play')}Hacerlo ya</button>`}` : '' });
   const run = $('[data-run]');
@@ -180,7 +182,7 @@ async function viewPlanForm(id, query = {}) {
     ${S.equipment.some((e) => e.active) ? fSelect('pf-equip', '¿A qué equipo?', equipmentOptions('', st.equipment_id, 'A ninguno en particular'), { optional: true }) : ''}
     <div class="field" id="pf-areabox"><span class="flabel">¿Dónde?</span>${areaChoice(st.area_id, 'pf-area')}</div>
     ${fSelect('pf-who', '¿Quién lo hace?', contactOptions(st.provider_id, unassignedLabel()))}
-    ${fSelect('pf-lead', 'Avisar en Pendientes', [[0, 'El mismo día'], [3, '3 días antes'], [7, 'Una semana antes'], [14, '2 semanas antes'], [30, 'Un mes antes']].map(([v, l]) => `<option value="${v}" ${(p ? p.lead_days : 7) === v ? 'selected' : ''}>${l}</option>`).join(''))}
+    ${fSelect('pf-lead', 'Ponerlo en el calendario', [[0, 'El mismo día'], [3, '3 días antes'], [7, 'Una semana antes'], [14, '2 semanas antes'], [30, 'Un mes antes']].map(([v, l]) => `<option value="${v}" ${(p ? p.lead_days : 7) === v ? 'selected' : ''}>${l}</option>`).join(''))}
     ${fText('pf-desc', 'Instrucciones', { value: p ? p.description : '', optional: true, placeholder: 'Qué revisar, qué material llevar, a quién llamar' })}
     <p class="err hidden" id="pf-err" role="alert"></p>
   </form>`, { tab: 'preventivo', bar: `<button class="b block lg" form="pf" type="submit" id="pf-save">${ic('check')}${p ? 'Guardar cambios' : 'Programar'}</button>` });
@@ -508,6 +510,7 @@ async function viewContacto(id) {
     <p class="small">${p.done_count ? `Ha terminado ${plural(p.done_count, 'trabajo', 'trabajos')}.` : ''}</p>
   </div>`, { tab: 'contactos' });
   bindRows(APP, tasks, reload);
+  UI.refresh = reload;
 }
 
 async function viewContactoForm(id) {
@@ -726,8 +729,8 @@ async function viewResumen() {
       ${x.late ? `<span class="alate">${ic('alert')}${plural(x.late, 'atrasado', 'atrasados')}</span>` : ''}</button>`).join('')}</div>` : '<p class="small">Nada abierto.</p>'}
     ${oldest.length ? `<h2 class="sec">Lo más viejo sin resolver</h2><div class="list">${oldest.map((t) => `<a class="lrow" href="#/p/${t.id}"><span class="grow"><b>${esc(t.title)}</b><span class="ls">Reportado ${esc(ago(localYmd(t.created_at)))}, ${t.provider_id ? 'lo tiene ' + esc(first(t.provider_name)) : 'sin asignar'}</span></span>${ic('chev')}</a>`).join('')}</div>` : ''}
   </div>`, { tab: 'cuenta' });
-  $$('[data-who]').forEach((b) => (b.onclick = () => { F.who = Number(b.dataset.who) || 'none'; F.areas = []; QUICK = null; saveF(); location.hash = '#/'; }));
-  $$('[data-area]').forEach((b) => (b.onclick = () => { if (!Number(b.dataset.area)) return; F.who = 'all'; F.areas = [Number(b.dataset.area)]; QUICK = null; saveF(); location.hash = '#/'; }));
+  $$('[data-who]').forEach((b) => (b.onclick = () => { F.who = Number(b.dataset.who) || 'none'; F.areas = []; F.prios = []; saveF(); P.src = 'all'; location.hash = '#/todo'; }));
+  $$('[data-area]').forEach((b) => (b.onclick = () => { if (!Number(b.dataset.area)) return; F.who = 'all'; F.areas = [Number(b.dataset.area)]; F.prios = []; saveF(); P.src = 'all'; location.hash = '#/todo'; }));
 }
 
 // ---------- router ----------
@@ -738,24 +741,33 @@ function parseHash() {
   if (qs) for (const kv of qs.split('&')) { const [k, v] = kv.split('='); try { query[decodeURIComponent(k)] = decodeURIComponent((v || '').replace(/\+/g, ' ')); } catch { /* bad escape */ } }
   return { seg: path.split('/').filter(Boolean), query };
 }
+// Where we have been, to tell "back" from "forward": coming back to a screen puts it where it was left.
+const TRAIL = [];
 async function route() {
   if (!S.user) return showEnter();
-  // a real navigation with a sheet or photo still open (a link inside it, a typed address): drop it without touching history
+  // a real navigation with a sheet or photo still open (a typed address, the Back button twice): drop it without touching history
   if (sheet.close || openViewer.close) { OV.open = false; OV.onBack = null; OV.after = null; }
   if (sheet.close) sheet.close();
   if (openViewer.close) openViewer.close();
   UI.refresh = null;
+  UI.plan = false;
+  const here = location.hash || '#/';
+  const top = TRAIL[TRAIL.length - 1];
+  if (top && top.h !== here) top.y = window.scrollY;
+  if (TRAIL.length > 1 && TRAIL[TRAIL.length - 2].h === here) { TRAIL.pop(); UI.backY = TRAIL[TRAIL.length - 1].y || 0; }
+  else if (!top || top.h !== here) { TRAIL.push({ h: here, y: 0 }); UI.backY = 0; if (TRAIL.length > 30) TRAIL.shift(); }
   const { seg, query } = parseHash();
   const [a, b, c] = seg;
   const n = /^\d+$/.test(b || '') ? Number(b) : null;
   try {
-    if (!a) return await viewPendientes();
+    if (!a) return await viewPlanner('dia');
+    if (a === 'semana' || a === 'bandeja' || a === 'atrasados' || a === 'todo') return await viewPlanner(a);
+    if (a === 'prioridad' && n) return await viewPlanner('prio', n);
     if (a === 'p' && n) return await viewTask(n);
     if (a === 't' && n) return location.replace('#/p/' + n);          // links from the old version
     if (a === 'nuevo') return await viewReport(query);
     if (a === 'enviado' && n) return await viewReported(n);
     if (a === 'hechos') return await viewDone(query);
-    if (a === 'semana') return await viewWeek(query);
     if (a === 'buscar') return await viewSearch(query);
     if (a === 'preventivo') return await viewPM(query);
     if (a === 'planes') return await viewPlans();
@@ -781,7 +793,7 @@ window.addEventListener('hashchange', () => { inAppNavs++; route(); });
 // Coming back to the app after a while: bring the screen up to date without losing the place.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !S.user || !UI.refresh || !$('#sheet').classList.contains('hidden')) return;
-  if (UI.view === 'pendientes' && Date.now() - C.openAt > 30000) UI.refresh();
+  if (UI.plan && Date.now() - C.openAt > 30000) UI.refresh();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;

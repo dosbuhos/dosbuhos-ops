@@ -23,6 +23,9 @@ with sync_playwright() as p:
         # 4xx answers are part of the flows below (validation, permissions); anything else on the console is a bug
         pg.on('console', lambda m: errs.append('console: ' + m.text) if m.type == 'error' and 'Failed to load resource' not in m.text else None)
     toast = lambda pg: pg.locator('#toast.show .tmsg')
+    tab = lambda pg: pg.locator('.mbar [aria-current]')            # the view lit in the ribbon (phones)
+    head = lambda pg: pg.locator('.mh h1')                         # the title of a main screen
+    api_task = lambda pg, tid: pg.evaluate("(id) => fetch('/api/tasks/' + id).then((r) => r.json()).then((d) => d.task)", str(tid))
 
     # ---------- 1. sign up ----------
     c = ctx(); pg = c.new_page(); watch(pg)
@@ -35,12 +38,27 @@ with sync_playwright() as p:
     pg.fill('#en-phone', '415 555 0199'); pg.click('#en-go')
     expect(pg.locator('.top.sub h1')).to_have_text('Pendiente #9')   # lands on the link she opened
     step('sign-up with name + WhatsApp, lands on the deep link')
-    pg.goto(BASE + '/'); expect(pg.locator('.top h1')).to_have_text('Pendientes')
-    assert pg.locator('.row').count() >= 8
-    step('Pendientes lists the open work')
+    # the app opens on today's hours, the way Horizonte does: what has no hour on top, the blocks on the grid
+    pg.goto(BASE + '/'); expect(tab(pg)).to_have_text('Día'); expect(pg.locator('.mtop .tdy')).to_have_text('Hoy')
+    expect(pg.locator('.wstrip button')).to_have_count(7); expect(pg.locator('.wstrip button[aria-pressed=true]')).to_have_class(re.compile('today'))
+    expect(pg.locator('.foldrow .lbl')).to_contain_text('sin hora'); assert pg.locator('.mm > .card').count() >= 1
+    assert pg.locator('.hgrid .grid .card.blk').count() >= 2 and pg.locator('.nav .mbar a').count() == 5
+    expect(pg.locator('.mbar a:has-text("Atrasados") .n')).to_have_text('2')
+    pg.click('[data-go=fold]'); expect(pg.locator('.mm > .card')).to_have_count(0); pg.click('[data-go=fold]'); assert pg.locator('.mm > .card').count() >= 1
+    step('opens on the day: week strip, what has no hour, the blocks, the ribbon with its counts')
+    # the ribbon's views take each other's place in history: Back does not walk through them
+    h0 = pg.evaluate('history.length')
+    pg.click('.mbar a:has-text("Bandeja")'); expect(head(pg)).to_contain_text('Bandeja'); expect(tab(pg)).to_contain_text('Bandeja')
+    n_in = pg.locator('#pl-items .card').count(); assert n_in >= 2 and pg.locator('#pl-items .card .due').count() == 0     # nothing in it has a day
+    pg.click('.mbar a:has-text("Atrasados")'); expect(head(pg)).to_contain_text('Atrasados'); assert pg.locator('#pl-items .card').count() == pg.locator('#pl-items .card.late').count() == 2
+    pg.click('.mbar a:has-text("Semana")'); expect(pg.locator('.mday')).to_have_count(7); expect(pg.locator('.mday .tpill')).to_have_text('Hoy')
+    pg.click('.mbar a:has-text("Todo")'); expect(head(pg)).to_contain_text('Todo'); assert pg.locator('#pl-items .card').count() >= 8
+    pg.click('.mbar a:has-text("Día")'); expect(tab(pg)).to_have_text('Día'); assert pg.evaluate('history.length') == h0
+    step('Bandeja, Atrasados, Semana, Todo and back to Día from the ribbon')
 
     # ---------- 2. report with a photo ----------
-    pg.click('.nav .nv.report'); expect(pg.locator('.top.sub h1')).to_have_text('Reportar')
+    fab = pg.locator('.nav .fab'); expect(fab).to_be_visible(); assert fab.bounding_box()['x'] > 300      # Reportar floats in the corner
+    fab.click(); expect(pg.locator('.top.sub h1')).to_have_text('Reportar')
     pg.click('#r-send'); expect(pg.locator('.ferr')).to_have_text('Escribe qué pasa')
     pg.fill('#r-title', 'Se cayó la canaleta de la entrada')
     pg.click('#r-send'); expect(pg.locator('.ferr')).to_have_text('Elige dónde está el problema')
@@ -108,35 +126,90 @@ with sync_playwright() as p:
     pg.click('[data-reopen]'); expect(pg.locator('.cell:has-text("Estado") .pill')).to_have_text('Por hacer')
     step('mark done with a note and a photo; reopen')
 
-    # ---------- 5. list: tiles, filter, group, tick ----------
-    pg.goto(BASE + '/#/'); expect(pg.locator('.top h1')).to_have_text('Pendientes'); pg.wait_for_timeout(900)
-    n_all = pg.locator('.row').count()
-    # the list opens grouped by priority, most urgent first; priority is also a filter
-    heads = pg.locator('h2.sec').all_inner_texts(); assert heads[0].startswith('Urgente') and heads[1].startswith('Alta'), heads
-    n_urg = pg.locator('.row.urg').count(); assert n_urg > 0
-    pg.click('[data-filter]'); pg.click('.sheet [data-prio="1"]'); pg.click('.sheet [data-act="1"]')
-    expect(pg.locator('.fchip')).to_have_text('Urgente'); assert pg.locator('.row').count() == n_urg
-    pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0); assert pg.locator('.row').count() == n_all
-    pg.click('.tile[data-quick=late]'); late = pg.locator('.row').count(); assert 0 < late < n_all, (late, n_all)
-    assert pg.locator('.row:not(.late)').count() == 0
-    pg.click('.tile[data-quick=late]'); assert pg.locator('.row').count() == n_all
-    pg.click('[data-filter]'); pg.click('.sheet [data-area]:has-text("Restaurante")'); pg.click('.sheet [data-group=area]'); pg.click('.sheet [data-act="1"]')
-    expect(pg.locator('.fchip')).to_have_count(1); assert pg.locator('h2.sec .tag').count() == 1
+    # ---------- 5. Todo: by priority, filter, group, search, tick ----------
+    pg.goto(BASE + '/#/todo'); expect(head(pg)).to_contain_text('Todo'); pg.wait_for_timeout(900)
+    cards = pg.locator('#pl-items .card'); n_all = cards.count(); assert pg.locator('.mtop .cnt').inner_text() == str(n_all)
+    # it opens grouped by priority, most urgent first; priority is also a filter
+    heads = pg.locator('#pl-items h2.eyebrow').all_inner_texts(); assert heads[0].startswith('Urgente') and heads[1].startswith('Alta'), heads
+    n_urg = pg.locator('#pl-items .card.p1').count(); assert n_urg > 0
+    pg.click('[data-go=filter]'); pg.click('.sheet [data-prio="1"]'); pg.click('.sheet [data-act="1"]')
+    expect(pg.locator('.fchip')).to_have_text('Urgente'); assert cards.count() == n_urg; expect(pg.locator('[data-go=filter]')).to_have_attribute('aria-pressed', 'true')
+    pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0); assert cards.count() == n_all
+    pg.click('[data-go=filter]'); pg.click('.sheet [data-area]:has-text("Restaurante")'); pg.click('.sheet [data-group=area]'); pg.click('.sheet [data-act="1"]')
+    expect(pg.locator('.fchip')).to_have_count(1); assert pg.locator('#pl-items h2.eyebrow .tag').count() == 1
     pg.reload(); expect(pg.locator('.fchip')).to_have_count(1)          # the filter is remembered
     pg.click('.fchip'); expect(pg.locator('.fchip')).to_have_count(0)
-    pg.click('[data-filter]'); pg.click('.sheet [data-who=mine]'); expect(pg.locator('.sheet [data-who=mine]')).to_have_attribute('aria-pressed', 'true'); pg.click('.sheet [data-act="0"]')
-    expect(pg.locator('.fchip')).to_have_count(0)
-    step('opens by priority; priority, tiles and area filter the list; grouping persists; filters clear')
-    first_title = pg.locator('.row .chk[data-done]').first.get_attribute('aria-label')
-    pg.locator('.row .chk[data-done]').first.click(); expect(pg.locator('.sheet h2')).to_have_text('Marcar hecho'); pg.click('.sheet [data-act="1"]')
-    expect(toast(pg)).to_contain_text('Hecho'); pg.wait_for_timeout(600); assert pg.locator('.row').count() == n_all - 1
-    pg.click('#toast button'); pg.wait_for_timeout(900); assert pg.locator('.row').count() == n_all
-    step('tick a row → done in two taps, with undo')
+    pg.click('[data-go=filter]'); pg.click('.sheet [data-who=mine]'); expect(pg.locator('.sheet [data-who=mine]')).to_have_attribute('aria-pressed', 'true'); pg.click('.sheet [data-act="0"]')
+    expect(pg.locator('.fchip')).to_have_count(0); expect(pg.locator('#pl-items h2.eyebrow').first).to_contain_text('Urgente')
+    pg.fill('#pl-q', 'canaleta'); expect(cards).to_have_count(1); expect(pg.locator('.mtop .cnt')).to_have_text('1'); expect(pg.locator('#pl-q')).to_be_focused()
+    expect(pg.locator('#pl-items a.showmore')).to_have_attribute('href', re.compile('#/buscar\\?q=canaleta'))
+    pg.fill('#pl-q', 'zzzz'); expect(pg.locator('#pl-items .empty h2')).to_contain_text('Nada con'); pg.fill('#pl-q', ''); expect(cards).to_have_count(n_all)
+    step('Todo opens by priority; priority and area filter it; grouping persists; filters clear; search narrows it')
+    pg.locator('#pl-items .card .ck[data-done]').first.click(); expect(pg.locator('.sheet h2')).to_have_text('Marcar hecho'); pg.click('.sheet [data-act="1"]')
+    expect(toast(pg)).to_contain_text('Hecho'); pg.wait_for_timeout(600); assert cards.count() == n_all - 1
+    pg.click('#toast button'); pg.wait_for_timeout(900); assert cards.count() == n_all
+    step('tick a card → done in two taps, with undo')
+
+    # ---------- 5b. a pendiente opens in a sheet over the list: day, hour, how long, priority, who ----------
+    pg.goto(BASE + '/#/bandeja'); expect(head(pg)).to_contain_text('Bandeja'); pg.wait_for_timeout(700)
+    foco = pg.locator('#pl-items .card:has-text("Foco fundido")'); fid = foco.get_attribute('data-tid'); n_in = pg.locator('#pl-items .card').count()
+    expect(foco.locator('.rm')).to_contain_text('Reportado')
+    url0 = pg.url; foco.locator('.body').click(); sh = pg.locator('.sheet.tsheet'); expect(sh.locator('h2')).to_have_text('Foco fundido en la terraza del restaurante'); assert pg.url == url0
+    expect(sh.locator('[data-when=""]')).to_have_attribute('aria-pressed', 'true'); expect(sh.locator('.stepper div')).to_have_text('Sin estimar')
+    pg.go_back(); expect(pg.locator('#sheet')).to_be_hidden(); assert pg.url == url0                       # Back closes the sheet, the list stays
+    foco.locator('.body').click(); expect(sh).to_be_visible()
+    sh.locator('.when button:has-text("Mañana")').click(); expect(sh.locator('.when button:has-text("Mañana")')).to_have_attribute('aria-pressed', 'true')
+    expect(pg.locator('#pl-items .card')).to_have_count(n_in - 1)                                           # it left the Bandeja behind the sheet
+    sh.locator('#ts-time').fill('14:30'); sh.locator('#ts-time').dispatch_event('change'); expect(sh.locator('.stepper div')).to_have_text('1 h')
+    sh.locator('[data-dur="1"]').click(); expect(sh.locator('.stepper div')).to_have_text('1 h 30'); expect(sh.locator('[data-dur="1"]')).to_be_focused()
+    sh.locator('[data-prio="2"]').click(); expect(sh.locator('[data-prio="2"]')).to_have_attribute('aria-checked', 'true'); pg.wait_for_timeout(400)
+    t = api_task(pg, fid); assert t['plan_min'] == 870 and t['est_min'] == 90 and t['priority'] == 2 and t['due_date'] and not t['postponed'], t
+    sh.locator('[data-pickwho]').click(); expect(pg.locator('.sheet h2')).to_have_text('¿Quién lo hace?'); pg.click('.sheet .opt:has-text("Raúl Mendoza")')
+    expect(sh.locator('[data-pickwho]')).to_contain_text('Raúl Mendoza', timeout=8000)                       # the pendiente comes back with the contact on it
+    expect(sh.locator('.whorow a.wa')).to_have_attribute('href', re.compile('^https://wa\\.me/524155550150\\?text='))
+    sh.locator('[data-when=pick]').click(); expect(pg.locator('.sheet h2')).to_have_text('Posponer'); pg.click('.sheet .dopt:has-text("En 3 días")'); pg.click('.sheet [data-act="1"]')
+    expect(sh.locator('[data-when=pick]')).to_have_attribute('aria-pressed', 'true', timeout=8000)
+    sh.locator('[data-x]').click(); expect(pg.locator('#sheet')).to_be_hidden()
+    pg.click('.mbar a:has-text("Semana")'); wk = pg.locator('.mday .card[data-tid="%s"]' % fid)
+    if wk.count() == 0: pg.click('.mtop [data-step="1"]')                                                    # three days from now can fall in next week
+    expect(wk.locator('.meta')).to_have_text('14:30'); expect(wk.locator('.rm')).to_contain_text('Raúl')
+    wk.locator('.body').click(); sh.locator('[data-when=""]').click(); expect(sh.locator('.twhen')).to_contain_text('Bandeja'); expect(sh.locator('#ts-time')).to_have_value('')
+    pg.keyboard.press('Escape'); expect(pg.locator('.mday .card[data-tid="%s"]' % fid)).to_have_count(0)
+    step('the sheet: a day, an hour, how long, the priority, a contact to do it, another day, back to the Bandeja')
+
+    # ---------- 5c. the menu, Contactos one tap away, coming back where you were ----------
+    pg.goto(BASE + '/#/'); expect(tab(pg)).to_have_text('Día')
+    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink').count() == 10
+    pg.click('.msheet .rowlink:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('#sheet')).to_be_hidden(); expect(pg.locator('.mbar')).to_be_visible()
+    pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.wait_for_timeout(300)
+    pg.click('[data-go=menu]'); pg.click('.msheet .rowlink:has-text("Alta")'); expect(head(pg)).to_contain_text('Alta'); assert pg.locator('#pl-items .card').count() == pg.locator('#pl-items .card.p2').count() > 0
+    pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.wait_for_timeout(300)
+    pg.click('[data-go=contacts]'); cs = pg.locator('.sheet.csheet'); expect(cs.locator('h2')).to_have_text('Contactos'); n_c = cs.locator('.lrow.person:visible').count(); assert n_c >= 8
+    assert cs.locator('.lrow.person a.wa').first.get_attribute('href').startswith('https://wa.me/52')
+    cs.locator('#cs-q').fill('plom'); expect(cs.locator('.lrow.person:visible')).to_have_count(1); expect(cs.locator('.lrow.person:visible')).to_contain_text('Chuy Hernández')
+    cs.locator('.lrow.person:visible .pmain').click(); expect(pg.locator('.who-card h2')).to_have_text('Chuy Hernández'); expect(pg.locator('#sheet')).to_be_hidden()
+    pg.go_back(); expect(tab(pg)).to_have_text('Día')
+    pg.goto(BASE + '/#/todo'); pg.wait_for_timeout(700); pg.evaluate('window.scrollTo(0, 420)'); pg.wait_for_timeout(100)
+    pg.locator('#pl-items .card .body').last.click(); y0 = pg.evaluate('window.scrollY'); assert y0 >= 420, y0
+    pg.click('.sheet.tsheet [data-act="0"]'); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); assert pg.evaluate('window.scrollY') == 0
+    pg.click('.top.sub [data-back]'); expect(head(pg)).to_contain_text('Todo'); pg.wait_for_timeout(300); assert abs(pg.evaluate('window.scrollY') - y0) < 40, (pg.evaluate('window.scrollY'), y0)
+    step('menu → Equipos and a priority; the phone icon → Contactos with search; back puts the list where it was')
+    # the + beside a day reports something for that day
+    pg.goto(BASE + '/#/semana'); pg.wait_for_timeout(600); plus = pg.locator('.mday .dayhead a.pb').last; day = re.search(r'fecha=(\d{4}-\d\d-\d\d)', plus.get_attribute('href')).group(1)
+    plus.click(); expect(pg.locator('.top.sub h1')).to_have_text('Reportar'); expect(pg.locator('#r-due')).to_have_value(day); expect(pg.locator('.fixed')).to_be_visible()
+    pg.fill('#r-title', 'Barnizar la puerta de la capilla'); pg.click('[data-choice="r-area"] .ch:has-text("Capilla")'); pg.click('#r-send')
+    expect(pg.locator('.sent h1')).to_have_text('Reporte enviado', timeout=15000); expect(pg.locator('.sent')).not_to_contain_text('Bandeja')
+    nid = re.search(r'#/enviado/(\d+)', pg.url).group(1); assert api_task(pg, nid)['due_date'] == day
+    # a normal report with no day waits in the Bandeja
+    pg.goto(BASE + '/#/nuevo'); pg.fill('#r-title', 'Cambiar el tapete de la entrada'); pg.click('[data-choice="r-area"] .ch:has-text("Restaurante")'); pg.click('#r-send')
+    expect(pg.locator('.sent')).to_contain_text('Está en la Bandeja'); pg.click('.sent a:has-text("Ir a la Bandeja")'); expect(head(pg)).to_contain_text('Bandeja')
+    expect(pg.locator('#pl-items .card:has-text("Cambiar el tapete")')).to_have_count(1)
+    step('the + beside a day reports for that day; a report without a day lands in the Bandeja')
     c.close()
 
     # ---------- 6. Adrián (admin): preventive plan, equipment, service, contact, areas, people ----------
     c = ctx(SIDS[1]); pg = c.new_page(); watch(pg)
-    pg.goto(BASE + '/#/preventivo'); expect(pg.locator('.top h1')).to_have_text('Preventivo')
+    pg.goto(BASE + '/#/preventivo'); expect(head(pg)).to_have_text('Preventivo')
     expect(pg.locator('.month[id^="m-"]')).to_have_count(12)
     # from July on the page continues into next year, up to the month before this one: always a year ahead in view
     mx_month = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=6)).month
@@ -150,7 +223,7 @@ with sync_playwright() as p:
     expect(pg.locator('#pf-sum')).to_contain_text('4 veces al año')
     pg.click('[data-choice="pf-area"] .ch:has-text("Instalaciones")')
     pg.select_option('#pf-who', label='Chuy Hernández (Plomería)'); pg.click('#pf-save')
-    expect(pg.locator('.top h1')).to_have_text('Preventivo'); expect(pg.locator('body')).to_contain_text('Lavar cisterna y tinacos')
+    expect(head(pg)).to_have_text('Preventivo'); expect(pg.locator('body')).to_contain_text('Lavar cisterna y tinacos')
     step('new plan: N times a year by tapping months')
     pg.goto(BASE + '/#/planes'); pg.click('.lrow:has-text("Lavar cisterna")'); expect(pg.locator('.hero h2')).to_have_text('Lavar cisterna y tinacos')
     pg.click('[data-run]'); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); expect(pg.locator('.hmeta')).to_contain_text('Preventivo')
@@ -160,7 +233,7 @@ with sync_playwright() as p:
     pg.click('[data-choice="pf-freq"] .ch:has-text("Una sola vez")'); expect(pg.locator('#pf-sum')).to_contain_text('Una sola vez')
     step('plan form switches between months, every N, and once')
 
-    pg.goto(BASE + '/#/equipos'); expect(pg.locator('.top h1')).to_have_text('Equipos'); expect(pg.locator('.lrow.eq').first).to_be_visible()
+    pg.goto(BASE + '/#/equipos'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.lrow.eq').first).to_be_visible()
     pg.click('.hbtn'); pg.click('#ef-save'); expect(pg.locator('#ef-err')).to_contain_text('nombre')
     pg.set_input_files('#ef-pick-gal', JPG_PATH); pg.fill('#ef-name', 'Cava de vinos del restaurante')
     pg.click('[data-choice="ef-area"] .ch:has-text("Restaurante")'); pg.fill('#ef-model', 'Vinoteca Whirlpool WX-40')
@@ -181,7 +254,7 @@ with sync_playwright() as p:
 
     pg.goto(BASE + '/#/contactos'); pg.click('.hbtn'); pg.click('#cf-save'); expect(pg.locator('#cf-err')).to_contain_text('nombre')
     pg.fill('#cf-name', 'Beto Salinas'); pg.fill('#cf-spec', 'Gas'); pg.fill('#cf-phone', '4155550111'); pg.click('#cf-save')
-    expect(pg.locator('.top h1')).to_have_text('Contactos'); expect(pg.locator('.lrow.person:has-text("Beto Salinas")')).to_have_count(1)
+    expect(head(pg)).to_have_text('Contactos'); expect(pg.locator('.lrow.person:has-text("Beto Salinas")')).to_have_count(1)
     pg.fill('#ct-q', 'gas'); expect(pg.locator('.lrow.person')).to_have_count(1)
     pg.click('.lrow.person .pmain'); expect(pg.locator('.who-card h2')).to_have_text('Beto Salinas'); expect(pg.locator('.phone')).to_have_text('415 555 0111')
     pg.click('.top.sub a[aria-label=Editar]'); pg.fill('#cf-company', 'Gas Express'); pg.click('#cf-save'); expect(pg.locator('.who-card .by')).to_contain_text('Gas Express')
@@ -198,66 +271,89 @@ with sync_playwright() as p:
     pg.click('[data-signup]'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'false')
     c2 = ctx(); p2 = c2.new_page(); p2.goto(BASE + '/'); p2.fill('#en-name', 'Persona Nueva'); p2.fill('#en-phone', '4155550555'); p2.click('#en-go')
     expect(p2.locator('#en-err')).to_contain_text('registro está cerrado')
-    p2.fill('#en-phone', '415 555 0199'); p2.click('#en-go'); expect(p2.locator('.top h1')).to_have_text('Pendientes')    # Rosa is already registered: she still gets in
+    p2.fill('#en-phone', '415 555 0199'); p2.click('#en-go'); expect(tab(p2)).to_have_text('Día')    # Rosa is already registered: she still gets in
     c2.close()
     pg.click('[data-signup]'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'true')
     pg.click('.lrow:has-text("Rosa Méndez")'); pg.click('.sheet .opt:has-text("Quitarle el acceso")'); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.lrow:has-text("Rosa Méndez")')).to_contain_text('Sin acceso')
     step('people: close and reopen sign-up; remove someone')
-    pg.goto(BASE + '/#/resumen'); expect(pg.locator('.chart .wk')).to_have_count(8); pg.click('.lrow[data-who] >> nth=0'); expect(pg.locator('.top h1')).to_have_text('Pendientes'); expect(pg.locator('.fchip')).to_have_count(1)
+    pg.goto(BASE + '/#/resumen'); expect(pg.locator('.chart .wk')).to_have_count(8); pg.click('.lrow[data-who] >> nth=0'); expect(head(pg)).to_contain_text('Todo'); expect(pg.locator('.fchip')).to_have_count(1)
     pg.click('.fchip')
-    pg.goto(BASE + '/#/buscar'); pg.fill('#s-q', 'canaleta'); expect(pg.locator('#s-res .row')).to_have_count(1)
+    pg.goto(BASE + '/#/buscar'); pg.fill('#s-q', 'canaleta'); expect(pg.locator('#s-res .card')).to_have_count(1)
     step('summary drills into the list; search finds it')
     # delete as admin
-    pg.click('#s-res .row a'); pg.click('[data-menu]'); pg.click('.sheet .opt:has-text("Eliminar")'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_have_text('Eliminado')
+    pg.click('#s-res .card .body'); pg.click('.sheet.tsheet [data-act="0"]'); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #')
+    pg.click('[data-menu]'); pg.click('.sheet .opt:has-text("Eliminar")'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_have_text('Eliminado')
     step('admin can delete')
     # sign out and back in
     pg.goto(BASE + '/#/cuenta'); pg.click('[data-out]'); pg.click('.sheet [data-act="1"]'); expect(pg.locator('.enter h1')).to_be_visible()
     pg.fill('#en-name', ''); pg.fill('#en-phone', '4155550142'); pg.fill('#en-email', ''); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('administrador')
-    pg.fill('#en-email', 'Adrian@Example.com'); pg.click('#en-go'); expect(pg.locator('.top h1')).to_have_text('Pendientes')
+    pg.fill('#en-email', 'Adrian@Example.com'); pg.click('#en-go'); expect(tab(pg)).to_have_text('Día')
     step('sign out; an administrator needs the email too; back in')
     c.close()
-    # ---------- the week planner (wide screens): drag onto a day and hour, stretch, move, hand out, take back ----------
+    # ---------- wide screens: no side menu; lists on the left, the hours on the right, as in Horizonte ----------
     c = b.new_context(viewport={'width': 1440, 'height': 900}, locale='es-MX', timezone_id='America/Mexico_City')
     route_theme(c); c.add_cookies([cookie(SIDS[0])]); c.set_default_timeout(6000); pg = c.new_page(); watch(pg)
-    pg.goto(BASE + '/#/semana'); expect(pg.locator('.wk-top h1')).to_have_text('Semana')
-    # something without a date to plan (low priority gets none)
-    new = pg.evaluate("fetch('/api/tasks', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({title: 'Pintar la reja del huerto', priority: 4})}).then((r) => r.json())")
-    assert new['task']['due_date'] is None, new
-    pg.reload(); expect(pg.locator('.wk-top h1')).to_have_text('Semana'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '/'); expect(pg.locator('.dtop .zoom [aria-current]')).to_have_text('Día'); expect(pg.locator('.hours .grid')).to_have_count(2)
+    expect(pg.locator('.hcol.today .num')).to_have_class(re.compile('today')); expect(pg.locator('.panel .navrow')).to_have_count(12); expect(pg.locator('.mbar, .fab')).to_have_count(0)
+    assert pg.evaluate("document.documentElement.scrollHeight <= innerHeight + 1")                          # the planner fills the window and scrolls inside
+    pg.click('[data-go=panel]'); expect(pg.locator('.panel')).to_be_hidden(); pg.click('[data-go=panel]'); expect(pg.locator('.panel')).to_be_visible()
+    pg.click('.dtop [data-step="1"]'); expect(pg.locator('.hcol.today')).to_have_count(0); pg.click('.dtop [data-step="0"]'); expect(pg.locator('.hcol.today')).to_have_count(1)
+    pg.click('.panel [data-src=p1]'); expect(pg.locator('.listtitle b')).to_have_text('Urgente'); assert pg.locator('.panel .card').count() == pg.locator('.panel .card.p1').count() > 0
+    pg.click('.panel [data-src=""]'); pg.fill('#pl-q', 'regadera'); expect(pg.locator('.listtitle b')).to_have_text('Todo'); expect(pg.locator('.panel .card')).to_have_count(1); expect(pg.locator('#pl-q')).to_be_focused()
+    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel .navrow')).to_have_count(12)
+    pg.click('.dtop [data-go=contacts]'); expect(pg.locator('.sheet.csheet h2')).to_have_text('Contactos'); pg.keyboard.press('Escape'); expect(pg.locator('#sheet')).to_be_hidden()
+    pg.click('.panel a.navrow:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.dtop')).to_be_visible(); expect(pg.locator('.panel')).to_have_count(0)
+    pg.click('.dtop .zoom a:has-text("Semana")'); expect(pg.locator('.hours.n7 .grid')).to_have_count(7)
+    step('wide: top bar, panel of lists, priorities and tableros, two days of hours; Equipos is a page; no side menu')
+    # something without a day to plan
+    new = pg.evaluate("fetch('/api/tasks', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({title: 'Pintar la reja del huerto', priority: 3})}).then((r) => r.json())")
+    assert new['task']['due_date'] is None, new                                                             # a normal report waits in the Bandeja
+    pg.reload(); expect(pg.locator('.hours.n7 .grid')).to_have_count(7); pg.wait_for_timeout(500)
+    pg.click('.panel [data-src=inbox]'); expect(pg.locator('.listtitle b')).to_have_text('Bandeja')
     def pull(box, x2, y2):
-        pg.mouse.move(box['x'] + 24, box['y'] + 10); pg.mouse.down(); pg.mouse.move(box['x'] + 40, box['y'] + 26, steps=3); pg.mouse.move(x2, y2, steps=8); pg.mouse.up(); pg.wait_for_timeout(500)
-    def slot(day, hour): col = pg.locator('.wcol').nth(day).bounding_box(); return col['x'] + col['width'] / 2, col['y'] + (hour - 6) * 46 + 2
-    tid = str(new['task']['id']); card = pg.locator('.wcard[data-tid="%s"]' % tid); expect(card).to_be_visible(); n_cards = pg.locator('.wcard').count()
+        pg.mouse.move(box['x'] + 60, box['y'] + 10); pg.mouse.down(); pg.mouse.move(box['x'] + 76, box['y'] + 26, steps=3); pg.mouse.move(x2, y2, steps=8); pg.mouse.up(); pg.wait_for_timeout(500)
+    def slot(day, hour): col = pg.locator('.hours .grid').nth(day).bounding_box(); return col['x'] + col['width'] / 2, col['y'] + (hour - 6) * 52 + 2
+    tid = str(new['task']['id']); card = pg.locator('.panel .card[data-tid="%s"]' % tid); expect(card).to_be_visible(); n_cards = pg.locator('.panel .card').count()
+    load0 = pg.locator('.hcol').nth(2).inner_text()
     pull(card.bounding_box(), *slot(2, 10))
-    blk = pg.locator('.wblk[data-tid="%s"]' % tid); expect(blk).to_contain_text('10:00 a 11:00'); expect(pg.locator('.wcard')).to_have_count(n_cards - 1)
-    t = pg.evaluate("(id) => fetch('/api/tasks/' + id).then((r) => r.json()).then((d) => d.task)", tid)
-    assert t['plan_min'] == 600 and t['est_min'] == 60 and t['due_date'], t
-    bb = blk.bounding_box(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] - 3); pg.mouse.down(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] + 43, steps=5); pg.mouse.up()
-    expect(blk).to_contain_text('10:00 a 12:00'); expect(pg.locator('.wd').nth(2)).to_contain_text('2 h'); pg.wait_for_timeout(500)
-    pull(blk.bounding_box(), *slot(4, 15)); expect(pg.locator('.wcol').nth(4).locator('.wblk[data-tid="%s"]' % tid)).to_be_visible()
-    blk.click(); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); expect(pg.locator('.cell:has-text("Tiempo") .cv')).to_have_text('2 h')
-    pg.go_back(); expect(pg.locator('.wk-top h1')).to_have_text('Semana'); pg.wait_for_timeout(300)
-    lb = pg.locator('.wk-list').bounding_box(); pull(pg.locator('.wblk[data-tid="%s"]' % tid).bounding_box(), lb['x'] + 120, lb['y'] + 320)
-    expect(pg.locator('.wblk[data-tid="%s"]' % tid)).to_have_count(0); expect(pg.locator('.wcard[data-tid="%s"]' % tid)).to_be_visible()
-    step('week planner: drag onto a day and hour, stretch, move, open, take the date away')
+    blk = pg.locator('.grid .card.blk[data-tid="%s"]' % tid); expect(blk.locator('.meta')).to_have_text('10:00 a 11:00'); expect(pg.locator('.panel .card')).to_have_count(n_cards - 1)
+    t = api_task(pg, tid); assert t['plan_min'] == 600 and t['est_min'] == 60 and t['due_date'], t
+    bb = blk.bounding_box(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] - 3); pg.mouse.down(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] + 49, steps=5); pg.mouse.up()
+    expect(blk.locator('.meta')).to_have_text('10:00 a 12:00'); pg.wait_for_timeout(500)
+    load1 = pg.locator('.hcol').nth(2).inner_text(); assert ' h' in load1 and load1 != load0, (load0, load1)                # the day's load in its heading
+    pull(blk.bounding_box(), *slot(4, 15)); expect(pg.locator('.hours .grid').nth(4).locator('.card.blk[data-tid="%s"]' % tid)).to_be_visible()
+    # a click opens its sheet over the calendar
+    blk.locator('.body').click(); sh = pg.locator('.sheet.tsheet'); expect(sh.locator('h2')).to_have_text('Pintar la reja del huerto'); expect(sh.locator('.stepper div')).to_have_text('2 h'); expect(sh.locator('#ts-time')).to_have_value('14:45')     # it keeps the spot it was grabbed by
+    assert '#/semana' in pg.url; pg.keyboard.press('Escape'); expect(pg.locator('#sheet')).to_be_hidden(); pg.wait_for_timeout(300)
+    # onto a day without an hour, then back onto the list
+    uc = pg.locator('.hours .ucol').nth(5).bounding_box(); pull(pg.locator('.grid .card.blk[data-tid="%s"]' % tid).bounding_box(), uc['x'] + uc['width'] / 2, uc['y'] + 12)
+    expect(pg.locator('.hours .ucol').nth(5).locator('.card[data-tid="%s"]' % tid)).to_be_visible(); t = api_task(pg, tid); assert t['plan_min'] is None and t['due_date'], t
+    lb = pg.locator('.panel').bounding_box(); pull(pg.locator('.ucol .card[data-tid="%s"]' % tid).bounding_box(), lb['x'] + 120, lb['y'] + 420)
+    expect(pg.locator('.hours .card[data-tid="%s"]' % tid)).to_have_count(0); expect(pg.locator('.panel .card[data-tid="%s"]' % tid)).to_be_visible(); expect(toast(pg)).to_have_text('Volvió a la Bandeja')
+    # a person's week: what has no owner and is dropped into it becomes theirs
+    pg.select_option('#pl-who', label='Adrián Robles'); pg.wait_for_timeout(300); pull(pg.locator('.panel .card[data-tid="%s"]' % tid).bounding_box(), *slot(3, 9))
+    expect(toast(pg)).to_have_text('Asignado a Adrián'); t = api_task(pg, tid); assert t['provider_name'] == 'Adrián Robles' and t['plan_min'] == 540, t
+    pg.select_option('#pl-who', 'all')
+    pg.click('.dtop .zoom a:has-text("Día")'); expect(pg.locator('.hours.n2 .grid')).to_have_count(2); expect(pg.locator('.hours .ucol .card.in-day').first).to_be_visible()
+    step('wide: drag from a list onto a day and hour, stretch, move, open its sheet, a day without hour, back to the Bandeja, into a person\'s week')
     c.close()
     # ---------- on a phone: hold a pendiente, a day slides in, drop it on an hour (the edge changes the day) ----------
     c = ctx(SIDS[0]); pg = c.new_page(); watch(pg); cdp = c.new_cdp_session(pg)
     def finger(kind, x=0, y=0): cdp.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [] if kind == 'touchEnd' else [{'x': x, 'y': y}]})
-    pg.goto(BASE + '/#/'); expect(pg.locator('.top h1')).to_have_text('Pendientes'); pg.wait_for_timeout(800)
-    expect(pg.locator('.nv.report')).to_be_visible(); assert pg.locator('.nv.report').bounding_box()['x'] > 300      # Reportar floats in the corner
-    row = pg.locator('.row:has(.chk[data-done]) .rbody').first; rid = row.locator('xpath=..').get_attribute('data-id'); bb = row.bounding_box()
+    pg.goto(BASE + '/#/bandeja'); expect(head(pg)).to_contain_text('Bandeja'); pg.wait_for_timeout(800)
+    row = pg.locator('#pl-items .card .body').first; rid = row.locator('xpath=..').get_attribute('data-tid'); bb = row.bounding_box()
     finger('touchStart', bb['x'] + 80, bb['y'] + 14); pg.wait_for_timeout(500); expect(pg.locator('.ddrop.in')).to_have_count(1)
     day0 = pg.locator('.ddrop').get_attribute('data-day'); sc = pg.locator('.dd-scroll').bounding_box()
     for i in range(1, 5): finger('touchMove', bb['x'] + 80 + i * 20, bb['y'] + 14 + i * 40); pg.wait_for_timeout(30)
-    finger('touchMove', 386, sc['y'] + 200); pg.wait_for_timeout(750); assert pg.locator('.ddrop').get_attribute('data-day') > day0
+    finger('touchMove', 386, sc['y'] + 200); pg.wait_for_timeout(750); day1 = pg.locator('.ddrop').get_attribute('data-day'); assert day1 > day0
     finger('touchMove', 220, sc['y'] + 220); pg.wait_for_timeout(120); expect(pg.locator('.dd-prev')).to_be_visible(); finger('touchEnd'); pg.wait_for_timeout(800)
-    expect(pg.locator('#toast')).to_contain_text('Quedó para'); expect(pg.locator('.ddrop')).to_have_count(0)
-    t = pg.evaluate("(id) => fetch('/api/tasks/' + id).then((r) => r.json()).then((d) => d.task)", rid)
-    assert t['due_date'] > day0 and t['plan_min'] is not None and t['est_min'], t
-    pg.click('.nav a[href="#/semana"]'); expect(pg.locator('.top h1')).to_have_text('Semana'); expect(pg.locator('.wrow[data-tid="%s"] .wtime' % rid)).not_to_be_empty()
-    step('phone: floating Reportar, hold a pendiente and drop it on a day and hour, the week in one column')
+    expect(pg.locator('#toast')).to_contain_text('Quedó para'); expect(pg.locator('.ddrop')).to_have_count(0); expect(pg.locator('#sheet')).to_be_hidden()
+    t = api_task(pg, rid); assert t['due_date'] == day1 and t['plan_min'] is not None and t['est_min'], t
+    expect(pg.locator('#pl-items .card[data-tid="%s"]' % rid)).to_have_count(0)                               # it left the Bandeja
+    pg.click('.mbar a:has-text("Día")'); pg.click('.wstrip button[data-day="%s"]' % day1) if pg.locator('.wstrip button[data-day="%s"]' % day1).count() else pg.click('.mbar a:has-text("Semana")')
+    expect(pg.locator('.card[data-tid="%s"]' % rid).first).to_be_visible()
+    step('phone: hold a pendiente in the Bandeja and drop it on a day and hour; it shows on that day')
     c.close()
     # nothing answers without a session
     c = ctx(); pg = c.new_page(); pg.goto(BASE + '/')

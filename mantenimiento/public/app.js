@@ -1,4 +1,4 @@
-/* Mantenimiento Dos Búhos — entering, Pendientes, one pendiente, reporting. Needs core.js. */
+/* Pulso — entering, what you can do to a pendiente, its page, reporting, what is done, search. Needs core.js; the planner is in planner.js. */
 'use strict';
 
 // ---------- entering: sign up once per phone, no PIN, no approval ----------
@@ -6,7 +6,7 @@ function showEnter() {
   if (sheet.close) sheet.close();
   if (openViewer.close) openViewer.close();
   NAV.classList.add('hidden');
-  document.body.classList.remove('authed', 'has-bar');
+  document.body.classList.remove('authed', 'has-bar', 'cal');
   const me = store('mt_me') || {};
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
@@ -45,13 +45,11 @@ function showEnter() {
   };
 }
 
-// ---------- Pendientes ----------
-// who: 'all' | 'mine' | 'none' | a contact id. areas: area ids (any of). group: 'date' | 'area' | 'who'.
-// What the list shows. It opens grouped by priority: the point of the screen is to triage.
+// ---------- the open pendientes ----------
+// What the Todo list shows: who ('all' | 'mine' | 'none' | 'reported' | a contact id), area ids (any of), priorities
+// (any of), and how it is grouped ('prio' | 'date' | 'area' | 'who'). It opens by priority: the point is to triage.
 const F = Object.assign({ who: 'all', areas: [], prios: [], group: 'prio' }, store('mt_f2') || {});
-let QUICK = null; // tile tapped: 'late' | 'today' | 'none'
 const saveF = () => store('mt_f2', F);
-const filterOn = () => F.who !== 'all' || F.areas.length > 0;
 
 async function fetchOpen() {
   const r = await api('GET', '/tasks?view=open');
@@ -64,133 +62,8 @@ async function fetchOpen() {
 const touch = () => { C.openAt = 0; };  // something changed: the list is fetched again next time
 const bySort = (a, b) => a.priority - b.priority || (a.due_date || '9').localeCompare(b.due_date || '9') || a.id - b.id;
 const byLate = (a, b) => (a.due_date || '9').localeCompare(b.due_date || '9') || a.priority - b.priority || a.id - b.id;
-
-function taskRow(t, { done = true, area = true, prio: showPrio = true } = {}) {
-  const due = dueInfo(t);
-  const open = isOpen(t);
-  const urg = open && t.priority === 1;
-  const hi = open && t.priority === 2;
-  // One line under the title, in this order: where, how urgent, when, who, and only then anything unusual about it.
-  const prio = !open || !showPrio ? '' : urg ? `<b class="urgent">${ic('flag')}Urgente</b>` : hi ? '<span class="st hi">Alta</span>' : `<span class="st">${PRIO[t.priority] || ''}</span>`;
-  const when = open ? (due ? `<span class="due ${due.cls}">${ic(due.icon)}${esc(due.text)}</span>` : '')
-    : t.completed_at ? `<span class="due ok">${ic('check')}Hecho ${esc(fmtDay(localYmd(t.completed_at)))}</span>` : '';
-  const who = t.provider_id
-    ? `<span class="who">${ic('user')}${esc(first(t.provider_name))}</span>`
-    : open ? '<span class="who un">Sin asignar</span>' : '';
-  const st = t.status === 'en_proceso' ? '<span class="st go">En curso</span>'
-    : t.status === 'en_espera' ? `<span class="st wait">${esc(statusText(t))}</span>`
-      : t.status === 'cancelada' ? '<span class="st">No aplica</span>' : '';
-  const kind = t.kind === 'preventivo' ? `<span class="st">${ic('repeat')}Preventivo</span>` : t.kind === 'servicio' ? '<span class="st">Servicio</span>' : '';
-  const post = t.postponed ? `<span class="st">${ic('clock')}Pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}</span>` : '';
-  return `<article class="row ${urg ? 'urg' : hi ? 'hi' : ''} ${isLate(t) ? 'late' : ''}" data-id="${t.id}">
-    ${open && done ? `<button class="chk" data-done="${t.id}" aria-label="Marcar hecho: ${esc(t.title)}"><span>${ic('check')}</span></button>`
-      : `<span class="chk static ${t.status === 'hecha' ? 'ok' : ''}" aria-hidden="true"><span>${ic(t.status === 'cancelada' ? 'x' : 'check')}</span></span>`}
-    <a class="rbody ${t.thumb_id ? 'has-th' : ''}" href="#/p/${t.id}">
-      <span class="rt">${esc(t.title)}</span>
-      <span class="rm">${area ? areaTag(t) : ''}${prio}${when}${who}${st}${kind}${post}</span>
-      ${t.thumb_id ? `<img class="rthumb" loading="lazy" src="/api/photos/${t.thumb_id}?t=1" alt="">` : ''}
-    </a>
-  </article>`;
-}
-function bindRows(root, list, reload) {
-  $$('[data-done]', root).forEach((b) => (b.onclick = () => {
-    const t = list.find((x) => x.id === Number(b.dataset.done));
-    if (t) completeSheet(t, reload);
-  }));
-}
-
-async function viewPendientes({ silent = false } = {}) {
-  if (!C.open) {
-    if (!silent) loading({ tab: 'pendientes' });
-    try { await fetchOpen(); } catch (e) { return errorView(e.message, { tab: 'pendientes' }); }
-  } else if (!C.openAt) {
-    // something was just changed: never paint a list we know is out of date
-    try { await fetchOpen(); } catch (e) { toast(e.message, { bad: true }); }
-  } else if (Date.now() - C.openAt > 15000) {
-    // paint what we have, refresh behind
-    fetchOpen().then(() => { if (UI.view === 'pendientes') drawPendientes(true); }).catch(() => {});
-  }
-  drawPendientes(silent);
-}
-
-function drawPendientes(keepScroll = false) {
-  UI.view = 'pendientes';
-  const all = C.open || [];
-  const me = myCard();
-  F.areas = F.areas.filter((id) => areaOf(id));
-  if (typeof F.who === 'number' && !provOf(F.who)) F.who = 'all';
-  const pool = all.filter((t) => (F.who === 'all' || (F.who === 'mine' ? t.provider_id === me : F.who === 'none' ? !t.provider_id : F.who === 'reported' ? t.created_by === S.user.id : t.provider_id === F.who))
-    && (!F.areas.length || F.areas.includes(t.area_id)) && (!F.prios.length || F.prios.includes(t.priority)));
-  const today = todayStr();
-  const n = { late: pool.filter(isLate).length, today: pool.filter((t) => t.due_date === today).length, none: pool.filter((t) => !t.provider_id).length };
-  if (QUICK && !n[QUICK]) QUICK = null;
-  const list = QUICK === 'late' ? pool.filter(isLate) : QUICK === 'today' ? pool.filter((t) => t.due_date === today) : QUICK === 'none' ? pool.filter((t) => !t.provider_id) : pool;
-
-  // groups
-  let groups;
-  if (F.group === 'prio') {
-    groups = [1, 2, 3, 4].map((p) => ({ head: PRIO[p], cls: p === 1 ? 'bad' : p === 2 ? 'warn' : '', items: list.filter((t) => t.priority === p).sort(byLate) }));
-  } else if (F.group === 'area') {
-    const ids = [...new Set(list.map((t) => t.area_id || 0))];
-    ids.sort((a, b) => (areaOf(a) ? areaOf(a).sort : 999) - (areaOf(b) ? areaOf(b).sort : 999));
-    groups = ids.map((id) => ({ head: id && areaOf(id) ? tag(areaOf(id).name, areaOf(id).color) : 'Sin área', items: list.filter((t) => (t.area_id || 0) === id).sort(byLate) }));
-  } else if (F.group === 'who') {
-    const ids = [...new Set(list.map((t) => t.provider_id || 0))];
-    const cnt = (id) => list.filter((t) => (t.provider_id || 0) === id).length;
-    ids.sort((a, b) => (a === 0 ? -1 : b === 0 ? 1 : cnt(b) - cnt(a)));
-    groups = ids.map((id) => ({ head: esc(id ? (provOf(id) || {}).name || 'Alguien' : 'Sin asignar'), cls: id ? '' : 'warn', items: list.filter((t) => (t.provider_id || 0) === id).sort(byLate) }));
-  } else {
-    const week = addDays(today, 7);
-    const used = new Set();
-    const take = (fn) => list.filter((t) => !used.has(t.id) && fn(t)).map((t) => (used.add(t.id), t));
-    groups = [
-      { head: 'Atrasados', cls: 'bad', items: take(isLate).sort(byLate) },
-      { head: 'Para hoy', cls: 'warn', items: take((t) => t.due_date === today).sort(bySort) },
-      { head: 'Esta semana', items: take((t) => t.due_date && t.due_date <= week).sort(byLate) },
-      { head: 'Más adelante', items: take((t) => !!t.due_date).sort(byLate) },
-      { head: 'Sin fecha', items: take(() => true).sort(bySort) },
-    ];
-  }
-  groups = groups.filter((g) => g.items.length);
-
-  const tile = (k, label, cls) => `<button type="button" class="tile ${n[k] ? cls : 'zero'} ${QUICK === k ? 'on' : ''}" data-quick="${k}" aria-pressed="${QUICK === k}" ${n[k] ? '' : 'disabled'}><b>${n[k]}</b><span>${label}</span></button>`;
-  const chips = [];
-  const WHO = { mine: 'Los que me tocan', none: 'Sin asignar', reported: 'Los que reporté' };
-  if (F.who !== 'all') chips.push(`<button class="fchip" data-clear="who" aria-label="Quitar filtro">${esc(WHO[F.who] || 'De ' + first((provOf(F.who) || {}).name))}${ic('x')}</button>`);
-  for (const p of F.prios) chips.push(`<button class="fchip" data-clear="p${p}" aria-label="Quitar filtro ${PRIO[p]}">${PRIO[p]}${ic('x')}</button>`);
-  for (const id of F.areas) chips.push(`<button class="fchip tagc c-${areaOf(id).color}" data-clear="${id}" aria-label="Quitar filtro ${esc(areaOf(id).name)}">${esc(areaOf(id).name)}${ic('x')}</button>`);
-  const d = ymdDate(today);
-  const starter = isAdmin() && !store('mt_starter') && (S.equipment.length === 0 || !S.providers.some((p) => p.kind === 'externo' && p.active) || S.users.length < 3);
-  const body = groups.length
-    ? groups.map((g) => `<section><h2 class="sec ${g.cls || ''}">${g.head}<span class="n">${g.items.length}</span></h2><div class="list">${g.items.map((t) => taskRow(t, { area: F.group !== 'area', prio: F.group !== 'prio' })).join('')}</div></section>`).join('')
-    : all.length
-      ? `<div class="empty"><h2>Nada con este filtro</h2><p>Hay ${plural(all.length, 'pendiente', 'pendientes')} en total.</p><button class="b tonal" data-clearall>Ver todos</button></div>`
-      : `<div class="empty"><h2>No hay pendientes</h2><p>Cuando alguien reporte algo, aparece aquí.</p><a class="b" href="#/nuevo">${ic('camera')}Reportar un problema</a></div>`;
-  const nf = (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.group !== 'prio' ? 1 : 0);
-  render(header('Pendientes', { right: `<a class="ib" href="#/buscar" aria-label="Buscar">${ic('search')}</a>` }) + `<div class="wrap">
-    <div class="subhead"><p>${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}</p>
-      <span class="shbtns"><a class="fbtn calbtn" href="#/semana">${ic('cal')}Semana</a><button type="button" class="fbtn ${nf ? 'on' : ''}" data-filter>${ic('filter')}Filtrar${nf ? `<b>${nf}</b>` : ''}</button></span></div>
-    <div class="tiles">${tile('late', 'Atrasados', 'bad')}${tile('today', 'Para hoy', 'warn')}${tile('none', 'Sin asignar', 'plain')}</div>
-    ${chips.length ? `<div class="fchips">${chips.join('')}</div>` : ''}
-    ${starter ? starterCard() : ''}
-    ${body}
-    <p class="foot-links"><a href="#/hechos">${ic('check')}Ver lo que ya se hizo</a><a href="#/resumen">${ic('chart')}Ver el resumen</a></p>
-  </div>`, { tab: 'pendientes', keepScroll });
-  const reload = () => viewPendientes({ silent: true });
-  bindRows(APP, all, reload);
-  $$('[data-quick]').forEach((b) => (b.onclick = () => { QUICK = QUICK === b.dataset.quick ? null : b.dataset.quick; drawPendientes(true); }));
-  $$('[data-clear]').forEach((b) => (b.onclick = () => {
-    const c = b.dataset.clear;
-    if (c === 'who') F.who = 'all'; else if (c[0] === 'p') F.prios = F.prios.filter((x) => x !== Number(c.slice(1))); else F.areas = F.areas.filter((x) => x !== Number(c));
-    saveF(); drawPendientes(true);
-  }));
-  const ca = $('[data-clearall]');
-  if (ca) ca.onclick = () => { F.who = 'all'; F.areas = []; F.prios = []; QUICK = null; saveF(); drawPendientes(); };
-  $('[data-filter]').onclick = () => filterSheet();
-  const hs = $('[data-hidestarter]');
-  if (hs) hs.onclick = () => { store('mt_starter', 1); drawPendientes(true); };
-  UI.refresh = reload;
-}
+// A pendiente in a list outside the planner (an equipment's, a contact's, what is done, search): the same card.
+const taskRow = (t, o = {}) => cardHTML(t, o);
 
 function starterCard() {
   const step = (ok, text, href) => `<a class="st-step ${ok ? 'ok' : ''}" href="${href}"><span class="st-n">${ok ? ic('check') : ''}</span><span class="grow">${text}</span>${ic('chev')}</a>`;
@@ -202,7 +75,7 @@ function starterCard() {
   </section>`;
 }
 
-// The filter sheet (same idea as Horizonte's): who, area tags, how to group. Applies as you tap.
+// The filter sheet of Todo (same idea as Horizonte's): who, priority, area tags, how to group. Applies as you tap.
 function filterSheet() {
   const all = C.open || [];
   const me = myCard();
@@ -223,7 +96,7 @@ function filterSheet() {
     </div>`;
   };
   sheet({
-    title: 'Filtrar',
+    title: 'Filtrar y agrupar',
     body: `<div id="f-body">${draw()}</div>`,
     acts: [{ label: 'Quitar filtros', cls: 'plain', value: 'clear' }, { label: 'Listo', value: 'ok' }],
     onOpen: (w) => {
@@ -233,10 +106,10 @@ function filterSheet() {
         $$('[data-prio]', w).forEach((b) => (b.onclick = () => { const p = Number(b.dataset.prio); F.prios = F.prios.includes(p) ? F.prios.filter((x) => x !== p) : [...F.prios, p].sort(); apply(); }));
         $$('[data-group]', w).forEach((b) => (b.onclick = () => { F.group = b.dataset.group; apply(); }));
       };
-      const apply = () => { saveF(); QUICK = null; $('#f-body', w).innerHTML = draw(); bind(); drawPendientes(true); };
+      const apply = () => { saveF(); $('#f-body', w).innerHTML = draw(); bind(); drawPlanner(true); };
       bind();
     },
-  }).then((v) => { if (v === 'clear') { F.who = 'all'; F.areas = []; F.prios = []; F.group = 'prio'; QUICK = null; saveF(); drawPendientes(true); } });
+  }).then((v) => { if (v === 'clear') { F.who = 'all'; F.areas = []; F.prios = []; F.group = 'prio'; saveF(); if (UI.plan) drawPlanner(true); } });
 }
 
 // ---------- what you can do to a pendiente ----------
@@ -502,9 +375,9 @@ async function editSheet(t, after) {
 // ---------- one pendiente ----------
 async function viewTask(id, keep = false) {
   UI.view = 'task';
-  if (!keep) loading({ tab: 'pendientes' });
+  if (!keep) loading({});
   let d;
-  try { d = await api('GET', '/tasks/' + id); } catch (e) { return errorView(e.message, { tab: 'pendientes' }); }
+  try { d = await api('GET', '/tasks/' + id); } catch (e) { return errorView(e.message, {}); }
   const t = d.task;
   const open = isOpen(t);
   const late = isLate(t);
@@ -544,7 +417,7 @@ async function viewTask(id, keep = false) {
     <div class="composer"><label class="sr" for="d-note">Escribe una nota</label><textarea class="input" id="d-note" rows="1" placeholder="Escribe una nota" maxlength="4000"></textarea>
       <button class="ib send" id="d-send" aria-label="Guardar nota" disabled>${ic('send')}</button></div>
   </div>`, {
-    tab: 'pendientes', keepScroll: keep,
+    keepScroll: keep,
     bar: open
       ? `<button class="b tonal" data-set="due">${ic('clock')}${t.due_date ? 'Posponer' : 'Poner fecha'}</button><button class="b ok grow" data-finish>${ic('check')}Hecho</button>`
       : `<button class="b tonal grow" data-reopen>${ic('undo')}Volver a abrir</button>`,
@@ -598,6 +471,7 @@ async function viewReport(query = {}) {
   const eq = query.equipo ? S.equipment.find((e) => e.id === Number(query.equipo)) : null;
   const files = [];
   let area = eq ? eq.area_id : '';
+  const day = /^\d{4}-\d\d-\d\d$/.test(query.fecha || '') && query.fecha >= todayStr() ? query.fecha : '';   // came from the + beside a day
   render(header(eq ? 'Reportar falla' : 'Reportar', { back: true }) + `<form class="wrap form" id="r-form" novalidate>
     <div class="field"><span class="flabel">Foto ${optTxt}</span>${pickerHtml('r-pick')}</div>
     <div class="field"><label class="flabel" for="r-title">¿Qué pasa?</label>
@@ -606,11 +480,12 @@ async function viewReport(query = {}) {
     <div class="field"><span class="flabel">¿Dónde?</span>${areaChoice(area, 'r-area')}</div>
     <div class="field"><span class="flabel">¿Qué tan urgente?</span>
       ${choice('r-prio', [{ v: 1, label: 'Urgente', sub: 'Peligro, fuga o detiene el servicio', cls: 'urg' }, { v: 3, label: 'Normal', sub: 'Esta semana' }, { v: 4, label: 'Puede esperar', sub: 'Cuando se pueda' }], 3, { cls: 'stack' })}</div>
+    ${day ? `<div class="field"><span class="flabel">Día</span><p class="fixed">${ic('cal')}${esc(cap(fmtDay(day, { weekday: true })))}</p></div>` : ''}
     <details class="more"><summary>Más detalles ${optTxt}${ic('down')}</summary>
       ${fText('r-desc', 'Detalles', { placeholder: 'Lo que ayude a quien lo va a arreglar', rows: 3 })}
       ${eq ? '' : fSelect('r-equip', 'Equipo', equipmentOptions(area, ''))}
       ${fSelect('r-who', '¿Quién lo hace?', contactOptions('', unassignedLabel()))}
-      ${fInput('r-due', 'Fecha', { type: 'date', attrs: `min="${todayStr()}"`, hint: 'Si la dejas en blanco: urgente es para hoy y normal para dentro de una semana.' })}
+      ${fInput('r-due', 'Día', { type: 'date', value: day, attrs: `min="${todayStr()}"`, hint: 'Si lo dejas en blanco, lo urgente queda para hoy y lo demás llega a la Bandeja para darle día.' })}
     </details>
     <p class="err hidden" id="r-err" role="alert"></p>
   </form>`, { tab: 'nuevo', bar: `<button class="b block lg" id="r-send" form="r-form" type="submit">${ic('send')}Enviar reporte</button>` });
@@ -660,11 +535,11 @@ async function viewReported(id) {
     <div class="okmark">${ic('check')}</div>
     <h1>Reporte enviado</h1>
     <p class="lead">${esc(t.title)}</p>
-    <p class="small">Es el pendiente #${t.id}. ${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Quedó sin fecha.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
+    <p class="small">Es el pendiente #${t.id}. ${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Está en la Bandeja, sin día todavía.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
     ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Pulso:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
     <a class="b block lg ${tell ? 'tonal' : ''}" href="#/p/${t.id}">Ver el reporte</a>
     <a class="b block lg tonal" href="#/nuevo">${ic('plus')}Reportar otro</a>
-    <a class="b block lg plain" href="#/">Ir a Pendientes</a>
+    <a class="b block lg plain" href="${t.due_date ? '#/' : '#/bandeja'}">${t.due_date ? 'Ir al día de hoy' : 'Ir a la Bandeja'}</a>
   </div>`, { tab: 'nuevo' });
 }
 
@@ -672,9 +547,9 @@ async function viewReported(id) {
 async function viewDone(query = {}) {
   UI.view = 'done';
   const q = (query.q || '').trim();
-  loading({ tab: 'pendientes' });
+  loading({});
   let r;
-  try { r = await api('GET', `/tasks?view=done&limit=40${q ? '&q=' + encodeURIComponent(q) : ''}`); } catch (e) { return errorView(e.message, { tab: 'pendientes' }); }
+  try { r = await api('GET', `/tasks?view=done&limit=40${q ? '&q=' + encodeURIComponent(q) : ''}`); } catch (e) { return errorView(e.message, {}); }
   let list = r.tasks;
   let more = r.more;
   const draw = () => {
@@ -682,7 +557,7 @@ async function viewDone(query = {}) {
       <form class="searchbar" id="dn-form" role="search">${ic('search')}<label class="sr" for="dn-q">Buscar</label><input id="dn-q" type="search" value="${esc(q)}" placeholder="Buscar en lo hecho" autocomplete="off" enterkeyhint="search"></form>
       ${list.length ? `<div class="list">${list.map((t) => taskRow(t)).join('')}</div>${more ? '<button class="b tonal block" id="dn-more">Ver más</button>' : ''}`
         : `<div class="empty"><h2>${q ? 'Nada con esa búsqueda' : 'Todavía no hay nada hecho'}</h2><p>${q ? 'Prueba con otra palabra.' : 'Lo que se marque como hecho aparece aquí.'}</p></div>`}
-    </div>`, { tab: 'pendientes', keepScroll: list.length > 40 });
+    </div>`, { keepScroll: list.length > 40 });
     $('#dn-form').onsubmit = (e) => { e.preventDefault(); const v = $('#dn-q').value.trim(); location.replace('#/hechos' + (v ? '?q=' + encodeURIComponent(v) : '')); };
     const m = $('#dn-more');
     if (m) m.onclick = async () => {
@@ -699,7 +574,7 @@ async function viewSearch(query = {}) {
   const q = (query.q || '').trim();
   render(header('Buscar', { back: true }) + `<div class="wrap">
     <form class="searchbar" id="s-form" role="search">${ic('search')}<label class="sr" for="s-q">Buscar</label><input id="s-q" type="search" value="${esc(q)}" placeholder="Pendientes, equipos, contactos" autocomplete="off" enterkeyhint="search"></form>
-    <div id="s-res">${q ? `<div class="skel">${'<i></i>'.repeat(3)}</div>` : '<p class="small center">Escribe una palabra o el número del pendiente.</p>'}</div></div>`, { tab: 'pendientes' });
+    <div id="s-res">${q ? `<div class="skel">${'<i></i>'.repeat(3)}</div>` : '<p class="small center">Escribe una palabra o el número del pendiente.</p>'}</div></div>`, {});
   const inp = $('#s-q');
   if (!q) inp.focus();
   const go = (v) => location.replace('#/buscar' + (v ? '?q=' + encodeURIComponent(v) : ''));

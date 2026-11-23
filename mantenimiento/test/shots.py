@@ -16,27 +16,36 @@ CHECK = """() => {
   for (const el of document.querySelectorAll('body *')) {
     if (!vis(el)) continue;
     const r = el.getBoundingClientRect();
-    if ((r.right > window.innerWidth + 1 || r.left < -1) && !el.closest('.skip, .sr, .toast')) out.wide.push(name(el) + ' ' + Math.round(r.left) + '..' + Math.round(r.right));
+    if ((r.right > window.innerWidth + 1 || r.left < -1) && !el.closest('.skip, .sr, .toast, .mbar, .tl')) out.wide.push(name(el) + ' ' + Math.round(r.left) + '..' + Math.round(r.right));
   }
   const sel = 'a[href], button, input:not([type=hidden]):not([type=file]), select, textarea, label[role=button], [role=switch]';
   for (const el of document.querySelectorAll(sel)) {
     if (!vis(el) || el.closest('.hidden')) continue;
     const r = el.getBoundingClientRect();
     if (r.bottom < 0 || r.top > document.documentElement.scrollHeight) continue;
-    if ((r.height < 40 || r.width < 40) && !el.closest('p, .nh, li.sys, dd, .foot-links, .wk-body')) out.small.push(name(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    if ((r.height < 40 || r.width < 40) && !el.closest('p, .nh, li.sys, dd, .foot-links, .grid, .dmain, .dtop')) out.small.push(name(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
   }
   return out;
 }"""
 
 # (name, hash, user index, steps). A step is a selector to click, or 'js:...' to evaluate, or 'wait:ms', or 'full' for a full-page shot.
 SCREENS = [
-  ('01-pendientes', '#/', 1, []),
-  ('02-pend-scroll', '#/', 1, ['js:window.scrollTo(0, 700)']),
-  ('03-filtro', '#/', 1, ['[data-filter]']),
-  ('04-por-area', '#/', 1, ['[data-filter]', '[data-group=area]', '.sheet [data-act="1"]']),
-  ('07-semana', '#/semana', 1, []),
-  ('05-por-persona', '#/', 1, ['[data-filter]', '[data-group=who]', '.sheet [data-act="1"]']),
-  ('06-atrasados', '#/', 1, ['[data-filter]', '[data-group=date]', '.sheet [data-act="1"]', '[data-quick=late]']),
+  ('01-dia', '#/', 1, []),
+  ('02-dia-full', '#/', 1, ['full']),
+  ('03-dia-hoja', '#/', 1, ['.grid .card .body']),
+  ('04-bandeja', '#/bandeja', 1, []),
+  ('05-bandeja-hoja', '#/bandeja', 1, ['#pl-items .card .body']),
+  ('06-atrasados', '#/atrasados', 1, []),
+  ('07-semana', '#/semana', 1, ['full']),
+  ('08-todo', '#/todo', 1, ['full']),
+  ('09-todo-filtro', '#/todo', 1, ['[data-go=filter]']),
+  ('09b-todo-por-area', '#/todo', 1, ['[data-go=filter]', '[data-group=area]', '.sheet [data-act="1"]', 'full']),
+  ('09c-todo-por-persona', '#/todo', 1, ['[data-go=filter]', '[data-group=who]', '.sheet [data-act="1"]', 'full']),
+  ('09d-todo-por-fecha', '#/todo', 1, ['[data-go=filter]', '[data-group=date]', '.sheet [data-act="1"]', 'full']),
+  ('09e-todo-prioridad', '#/todo', 1, ['[data-go=filter]', '[data-group=prio]', '.sheet [data-act="1"]']),
+  ('09f-menu', '#/', 1, ['[data-go=menu]']),
+  ('09g-contactos-hoja', '#/', 1, ['[data-go=contacts]']),
+  ('09h-prioridad', '#/prioridad/2', 1, []),
   ('10-pendiente-tarde', '#/p/{late}', 1, []),
   ('11-pendiente-tarde-full', '#/p/{late}', 1, ['full']),
   ('12-pendiente-foto', '#/p/{photo}', 1, ['full']),
@@ -106,6 +115,7 @@ async def main():
             await c.close()
         for name, h, u, steps in SCREENS:
             if ONLY and not any(o in name for o in ONLY.split(',')): continue
+            if W >= 960 and name == '09f-menu': continue   # the menu is a phone thing: on a wide screen the panel has it
             pg = await page_for(u)
             await pg.goto('about:blank'); await pg.goto(BASE + '/' + h.format(**IDS)); await pg.wait_for_timeout(1000)
             full = False

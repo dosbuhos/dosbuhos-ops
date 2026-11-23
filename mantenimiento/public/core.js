@@ -1,4 +1,4 @@
-/* Mantenimiento Dos Búhos — shared pieces (plain JS, no build step). Screens are in app.js. */
+/* Pulso, el mantenimiento de Dos Búhos — shared pieces (plain JS, no build step). The planner is in planner.js, the other screens in app.js and more.js. */
 'use strict';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -164,8 +164,9 @@ async function api(method, path, data) {
 }
 async function loadBoot() {
   const b = await api('GET', '/bootstrap');
-  UI.lateN = b.late || 0;   // badge on the Pendientes tab; fetchOpen() keeps it current afterwards
-  delete b.late;
+  UI.lateN = b.late || 0;   // the counts on Atrasados and Bandeja, right on whichever screen the app opens; fetchOpen() keeps them current
+  UI.inboxN = b.inbox || 0;
+  delete b.late; delete b.inbox;
   Object.assign(S, b);
 }
 
@@ -360,7 +361,7 @@ window.addEventListener('pagehide', () => { UI.unloading = true; for (const j of
 // ---------- bottom sheet ----------
 // opts: a list to pick from (resolves with the option's value). body: free HTML. acts: buttons; an act's value may be a
 // function (w) => value, and returning undefined keeps the sheet open (validation failed).
-function sheet({ title = '', sub = '', opts = null, body = '', acts = null, onOpen = null }) {
+function sheet({ title = '', sub = '', subHtml = '', right = '', cls = '', opts = null, body = '', acts = null, onOpen = null }) {
   return new Promise((resolve) => {
     if (sheet.close) sheet.close();
     $('#toast').classList.remove('show');   // a leftover toast would sit on top of the sheet's buttons
@@ -374,9 +375,9 @@ function sheet({ title = '', sub = '', opts = null, body = '', acts = null, onOp
         ${o.icon ? `<span class="oi">${ic(o.icon)}</span>` : ''}${o.html || ''}<span class="grow"><span class="ol">${esc(o.label)}</span>${o.sub ? `<span class="os">${esc(o.sub)}</span>` : ''}</span>
         ${o.right ? `<span class="or">${esc(o.right)}</span>` : ''}<span class="tick">${ic('check')}</span></button>`;
     }).join('')}</div>` : '';
-    w.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title || 'Opciones')}" tabindex="-1">
-      <div class="shead"><div class="grow">${title ? `<h2>${esc(title)}</h2>` : ''}${sub ? `<p class="sub">${esc(sub)}</p>` : ''}</div>
-        <button type="button" class="ib" data-x aria-label="Cerrar">${ic('x')}</button></div>
+    w.innerHTML = `<div class="sheet ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title || 'Opciones')}" tabindex="-1">
+      <div class="shead"><div class="grow">${title ? `<h2>${esc(title)}</h2>` : ''}${subHtml ? `<p class="sub">${subHtml}</p>` : sub ? `<p class="sub">${esc(sub)}</p>` : ''}</div>
+        ${right}<button type="button" class="ib" data-x aria-label="Cerrar">${ic('x')}</button></div>
       <div class="sbody">${body}${optHtml}</div>
       ${acts ? `<div class="acts">${acts.map((a, i) => `<button type="button" class="b ${a.cls || ''}" data-act="${i}">${a.label}</button>`).join('')}</div>` : ''}
     </div>`;
@@ -384,13 +385,15 @@ function sheet({ title = '', sub = '', opts = null, body = '', acts = null, onOp
     document.body.classList.add('lock');
     let done = false;
     const hide = () => {
-      w.classList.add('hidden'); w.innerHTML = ''; w.onclick = null; sheet.close = null;
+      w.classList.add('hidden'); w.innerHTML = ''; w.onclick = null; sheet.close = null; sheet.closeThen = null;
       document.body.classList.remove('lock');
       if (UI.lastFocus && UI.lastFocus.isConnected) UI.lastFocus.focus({ preventScroll: true });
     };
     // closed from the screen: take our history entry away, then answer
     const close = (v) => { if (done) return; done = true; hide(); ovPop(() => resolve(v)); };
     sheet.close = () => close(null);
+    // close and then go somewhere: the sheet's history entry is taken away before the address changes
+    sheet.closeThen = (fn) => { if (done) return fn(); done = true; hide(); ovPop(() => { resolve(null); fn(); }); };
     // closed with the phone's Back button: the entry is already gone
     ovPush(() => { if (done) return; done = true; hide(); resolve(null); });
     w.onclick = (e) => { if (e.target === w) close(null); };
@@ -426,47 +429,82 @@ function inputSheet(title, value, okLabel, { sub = '', placeholder = '', max = 6
 }
 
 // ---------- shell ----------
-const TABS = [
-  { tab: 'pendientes', href: '#/', icon: 'tasks', label: 'Pendientes' },
-  { tab: 'semana', href: '#/semana', icon: 'cal', label: 'Semana' },
-  { tab: 'preventivo', href: '#/preventivo', icon: 'repeat', label: 'Preventivo' },
-  { tab: 'equipos', href: '#/equipos', icon: 'wrench', label: 'Equipos' },
-  { tab: 'contactos', href: '#/contactos', icon: 'users', label: 'Contactos' },
-  { tab: 'nuevo', href: '#/nuevo', icon: 'plus', label: 'Reportar', cls: 'report' },       // phones: the floating button; wide: the button at the top of the side bar
+// Laid out the way Horizonte is. Phones: a ribbon of views along the bottom and a floating +. Wide screens: one bar
+// along the top. There is no side menu; the lists live in the planner's own panel.
+const isDesk = () => matchMedia('(min-width: 960px)').matches;
+const MTABS = [
+  { tab: 'bandeja', href: '#/bandeja', label: 'Bandeja' },
+  { tab: 'atrasados', href: '#/atrasados', label: 'Atrasados' },
+  { tab: 'dia', href: '#/', label: 'Día' },
+  { tab: 'semana', href: '#/semana', label: 'Semana' },
+  { tab: 'todo', href: '#/todo', label: 'Todo' },
 ];
-function drawNav(tab) {
-  NAV.innerHTML = `<a class="brand" href="#/"><img src="/logo-word.png" alt="Dos Búhos" width="146" height="32"><span>Pulso</span></a>
-    ${TABS.map((t) => `<a href="${t.href}" class="nv ${t.cls || ''} ${t.tab === tab ? 'on' : ''}" ${t.tab === tab ? 'aria-current="page"' : ''}>
-      <span class="nico">${ic(t.icon)}${t.tab === 'pendientes' && UI.lateN ? `<b class="dot" aria-label="${plural(UI.lateN, 'atrasado', 'atrasados')}">${UI.lateN > 99 ? '99+' : UI.lateN}</b>` : ''}</span><span class="nl">${t.label}</span></a>`).join('')}
-    <a href="#/cuenta" class="nv acct ${tab === 'cuenta' ? 'on' : ''}">${avatar(S.user.name)}<span class="nl">${esc(first(S.user.name))}</span></a>`;
+function navCounts() {
+  if (!C.open) return { inbox: UI.inboxN || 0, late: UI.lateN || 0 };
+  return { inbox: C.open.filter((t) => !t.due_date).length, late: C.open.filter(isLate).length };
 }
-// Main screens: big title + icons. Inner screens (back: true): arrow, centred title.
-function header(title, { back = false, sub = '', right = '' } = {}) {
+function drawNav(tab) {
+  const n = navCounts();
+  const num = (x) => (x > 99 ? '99+' : x);
+  if (isDesk()) {
+    const cal = tab === 'dia' || tab === 'semana';
+    const lists = P.panel ? 'Ocultar las listas' : 'Mostrar las listas';
+    NAV.className = 'nav dtop';
+    NAV.innerHTML = `<div class="brandrow">
+        ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
+        <a class="dbrand" href="#/" data-tab aria-label="Pulso: ir a hoy">${ic('pulse')}<span>Pulso</span></a></div>
+      <div class="zoom" role="group" aria-label="Vista">
+        <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a></div>
+      ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${tab === 'semana' ? 'Semana anterior' : 'Día anterior'}">${ic('back')}</button>
+        <button type="button" class="tbtn" data-step="0">Hoy</button>
+        <button type="button" class="ibtn" data-step="1" aria-label="${tab === 'semana' ? 'Semana siguiente' : 'Día siguiente'}">${ic('chev')}</button>
+        <h1 class="dtitle">${esc(planTitle())}</h1></div>` : ''}
+      <div class="dright">
+        ${cal ? whoSelect() : ''}
+        <button type="button" class="ibtn" data-go="contacts" aria-label="Contactos" title="Contactos">${ic('phone')}</button>
+        <a class="tbtn dark" href="#/nuevo">${ic('plus')}Reportar</a>
+        <a class="dacct" href="#/cuenta" aria-label="Mi cuenta: ${esc(S.user.name)}" title="Mi cuenta">${avatar(S.user.name)}</a></div>`;
+    return;
+  }
+  NAV.className = 'nav mnav';
+  NAV.innerHTML = `<a class="fab" href="#/nuevo" aria-label="Reportar un problema">${ic('plus')}</a>
+    <div class="mbar">${MTABS.map((t) => `<a href="${t.href}" data-tab ${t.tab === tab ? 'aria-current="page"' : ''}>${t.label}${t.tab === 'bandeja' && n.inbox ? `<span class="n" aria-label="${n.inbox} sin programar">${num(n.inbox)}</span>` : t.tab === 'atrasados' && n.late ? `<span class="n late" aria-label="${plural(n.late, 'atrasado', 'atrasados')}">${num(n.late)}</span>` : ''}</a>`).join('')}</div>`;
+  const bar = $('.mbar', NAV);
+  const cur = $('[aria-current]', bar);
+  if (cur) bar.scrollLeft = cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2;   // the ribbon scrolls sideways: keep the current view in sight
+}
+// Phones, top of a main screen: menu (tableros, prioridades, cuenta) · title · actions. Inner screens (back: true): arrow, centred title.
+const mtop = (title, right = '') => `<div class="mtop"><button type="button" class="pb mmenu" data-go="menu" aria-label="Menú">${ic('grid')}</button><div class="ttl">${title}</div><div class="acts">${right}</div></div>`;
+const phoneBtn = () => `<button type="button" class="pb" data-go="contacts" aria-label="Contactos">${ic('phone')}</button>`;
+function header(title, { back = false, right = '' } = {}) {
   if (back) {
     return `<header class="top sub"><button class="ib" data-back aria-label="Atrás">${ic('back')}</button>
       <h1>${esc(title)}</h1><div class="hr">${right}</div></header>`;
   }
-  return `<header class="top"><div class="ht"><h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div>
-    <div class="hr">${right}<a class="ib me" href="#/cuenta" aria-label="Mi cuenta">${avatar(S.user.name)}</a></div></header>`;
+  return `<header class="mh">${mtop(`<h1 class="date">${esc(title)}</h1>`, right)}</header>`;
 }
 let inAppNavs = 0;
 function goBack(fallback = '#/') {
   if (inAppNavs > 0) history.back();
   else location.hash = fallback;
 }
-// tab: which nav item is lit. bar: sticky buttons at the bottom (replaces the tab bar on phones).
-function render(html, { tab = '', bar = '', keepScroll = false } = {}) {
+// tab: which view is lit. bar: sticky buttons at the bottom (they take the ribbon's place on phones).
+// cal: the planner on a wide screen, which fills the window and scrolls inside itself.
+function render(html, { tab = '', bar = '', keepScroll = false, cal = false, skel = false } = {}) {
   const y = window.scrollY;
   APP.innerHTML = html + (bar ? `<div class="actionbar"><div class="abin">${bar}</div></div>` : '');
   document.body.classList.add('authed');
   document.body.classList.toggle('has-bar', !!bar);
-  NAV.classList.remove('hidden');
+  document.body.classList.toggle('cal', !!cal);
   drawNav(tab);
   $$('[data-back]', APP).forEach((b) => (b.onclick = () => goBack(b.dataset.back || '#/')));
-  window.scrollTo(0, keepScroll ? y : 0);
+  // coming back to a screen puts it where it was left (the router sets UI.backY); a skeleton does not use that up
+  const back = skel ? 0 : UI.backY || 0;
+  if (!skel) UI.backY = 0;
+  window.scrollTo(0, keepScroll ? y : back);
 }
 function loading(opts) {
-  render(`<div class="skel" aria-busy="true" aria-label="Cargando">${'<i></i>'.repeat(5)}</div>`, opts);
+  render(`<div class="skel" aria-busy="true" aria-label="Cargando">${'<i></i>'.repeat(5)}</div>`, { ...opts, skel: true });
 }
 function errorView(msg, opts = {}) {
   render(header('No se pudo abrir', { back: true }) + `<div class="wrap"><div class="empty"><h2>Algo falló</h2><p>${esc(msg)}</p>
