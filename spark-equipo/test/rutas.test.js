@@ -35,3 +35,25 @@ test('the month-end close is guarded: who, which month, and never twice', () => 
   assert.match(ruta, /mes >= HOY\.slice\(0, 7\)/);
   assert.match(ruta, /ya && !ya\.ensayo/);
 });
+
+// Questioned orders: out of sales until someone says they are a sale; Contabilidad's verdict overrides the team's note.
+test('a questioned order counts only once it is called a sale', async () => {
+  const { enDuda, estadoRev } = await import('../src/calc.js');
+  const o = { estado: 'confirmed', total: 5000, fecha: '2026-10-14', cliente: 'Publico en general Mercado Libre', facturacion: 'invoiced' };
+  assert.ok(enDuda(o, '2026-11-23'), 'no client on it');
+  assert.equal(enDuda({ ...o, cliente: 'Restaurante X' }, '2026-11-23'), '', 'an invoiced order to a named client is fine');
+  assert.ok(enDuda({ ...o, cliente: 'Restaurante X', facturacion: 'not_invoiced' }, '2026-11-23'), 'no invoice after two weeks');
+  assert.equal(enDuda({ ...o, cliente: 'Restaurante X', facturacion: 'not_invoiced', fecha: '2026-11-15' }, '2026-11-23'), '', 'a recent order may still be invoiced');
+  assert.equal(enDuda({ ...o, total: 0.5 }, '2026-11-23'), '', 'sample orders at cents never counted and are not listed');
+  assert.equal(enDuda({ ...o, fecha: '2026-03-01' }, '2026-11-23'), '', 'before the review period');
+  assert.deepEqual(estadoRev(null), { estado: 'pendiente', tipo: '', cuenta: false, cobrar: true });
+  assert.equal(estadoRev({ tipo: 'venta', verificado: '' }).cuenta, true);
+  assert.equal(estadoRev({ tipo: 'venta', verificado: '2026-11-24', veredicto: 'traspaso' }).cuenta, false);
+  assert.equal(estadoRev({ tipo: 'muestra', verificado: '' }).cobrar, false);
+});
+test('only an admin verifies a questioned order, and only the owner reopens it', () => {
+  const src = readFileSync(new URL('../src/worker.js', import.meta.url), 'utf8');
+  const i = src.indexOf("p === '/api/admin/revision'"), blk = src.slice(i, i + 1200);
+  assert.ok(i > src.indexOf("if (!yo.admin) return json({ error: 'Solo administradores' }, 403);"));
+  assert.match(blk, /b\.reabrir\) \{ if \(!yo\.dueno\)/);
+});

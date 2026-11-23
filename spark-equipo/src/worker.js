@@ -14,7 +14,7 @@ import presupuesto from './data/presupuesto.json';
 import prospCarlos from './data/prospeccion_carlos.json';
 import usa from './data/usa.json';
 import { encuestaPublica } from './encuesta.js';
-import { diff, NO_VENTA, APLICA_AJUSTE } from './calc.js';
+import { diff, NO_VENTA, APLICA_AJUSTE, enDuda, estadoRev, TIPOS_REV, REVISION_DIAS } from './calc.js';
 import { cierreDe, REGLA_DESDE, AJUSTE_DESDE } from '../public/regla.js';
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -48,6 +48,18 @@ async function modelo(env, conActividad) {
   const asig = await all('SELECT * FROM asignaciones'), porOrden = new Map(asig.filter((a) => a.tipo === 'orden').map((a) => [a.clave, a.vendedor])), porCuenta = new Map(asig.filter((a) => a.tipo === 'cuenta').map((a) => [norm(a.clave), a.vendedor]));
   for (const o of orders) { const v = porOrden.get(o.numero) || porCuenta.get(norm(o.cliente)); if (v) { o.vendedor_zoho = o.vendedor; o.vendedor = v; } }
   for (let i = orders.length - 1; i >= 0; i--) if (orders[i].vendedor === NO_VENTA) orders.splice(i, 1);   // not a sale: out of every figure
+  // Orders that may not be a sale (see enDuda in calc.js): listed for review, and out of the sales figures until someone
+  // says they are a sale. Receivables keep them unless they turned out not to be a sale.
+  const notas = new Map((await all('SELECT * FROM revisiones')).map((r) => [r.numero, r])), hoyRev = hoyEn(env.TZ), revision = [], sinCobro = new Set(), todas = orders.slice();
+  for (let i = orders.length - 1; i >= 0; i--) { const o = orders[i], r = notas.get(o.numero), motivo = enDuda(o, hoyRev);
+    if (!motivo && !r) continue;
+    const e = estadoRev(r);
+    revision.push({ numero: o.numero, fecha: o.fecha, cliente: o.cliente, vendedor: deEric(o.cliente) ? CASA : vendedorDe(o.vendedor) || 'Sin vendedor', total: o.total, motivo: motivo || 'Revisado', estado: e.estado, tipo: e.tipo, cuenta: e.cuenta,
+      nota: r?.nota || '', anoto: r?.anoto || '', anotado: r?.anotado || '', dijo: r?.tipo || '', verifico: r?.verifico || '', verificado: r?.verificado || '', nota_conta: r?.nota_conta || '' });
+    if (!e.cobrar) sinCobro.add(o.numero);
+    if (!e.cuenta) orders.splice(i, 1);
+  }
+  const cobrables = todas.filter((o) => !sinCobro.has(o.numero));
   // No invoice copy (the Zoho token can't read invoices): a sales order stands in for its invoice, dated as the order.
   // Every order that is not void or draft counts, invoiced or not: counting only invoiced ones made the current year look
   // worse than last year, whose orders are all invoiced by now.
@@ -64,9 +76,10 @@ async function modelo(env, conActividad) {
   const m = build({ activity, orders, invoices: inv, alias, zonasCfg, prospectos: [...prospectos, ...nuevas], distribuidores: hoja.length ? hoja : prospCarlos, hoy: hoyEn(env.TZ) });
   m.dist_fuente = hoja.length ? 'hoja' : 'archivo'; m.crm_hoja = env.CRM_SHEET_ID;
   m.asignaciones = asig;
+  m.revision = revision.sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); m.reglas_revision = { dias: REVISION_DIAS, tipos: TIPOS_REV };
   // Receivables straight from Zoho: invoiced sales orders with a balance. Due date is taken as 30 days after the order
   // (the usual terms); the invoice's own due date needs invoice access the Zoho token does not have.
-  if (orders.some((o) => o.saldo != null)) m.por_cobrar = orders.filter((o) => o.saldo > 0.5 && o.estado !== 'void' && ['invoiced', 'partially_invoiced'].includes(o.facturacion) && !esInterno(o.cliente))
+  if (cobrables.some((o) => o.saldo != null)) m.por_cobrar = cobrables.filter((o) => o.saldo > 0.5 && o.estado !== 'void' && ['invoiced', 'partially_invoiced'].includes(o.facturacion) && !esInterno(o.cliente))
     .map((o) => ({ fecha: o.fecha, vence: masDias(o.fecha, 30), factura: o.numero, cliente: o.cliente, saldo: Math.round(o.saldo * 100) / 100, vendedor: deEric(o.cliente) ? CASA : vendedorDe(o.vendedor) || 'Sin vendedor', pronostico: 0, comentario: '' }));
   return conActividad ? { m, activity } : m;
 }
@@ -107,6 +120,7 @@ export default {
     if (p === '/api/version' && request.method === 'GET') return json({ v: version(env) });
     if (p === '/api/data' && request.method === 'GET') {
       const m = paraVer(await modelo(env), yo);
+      if (!yo.admin) m.revision = m.revision.filter((r) => r.vendedor === yo.persona);
       const sug = new Map((await env.DB.prepare('SELECT persona, clave, texto FROM sugerencias').all()).results.map((r) => [r.persona + '|' + r.clave, r.texto]));
       for (const r of m.seguimiento) r.sugerencia = sug.get(r.persona + '|' + norm(r.cuenta)) || '';
       const todo = (sql) => env.DB.prepare(sql).all().then((r) => r.results);
@@ -271,6 +285,18 @@ export default {
           .bind(mes, g, c.n, c.tarde, c.pc, c.ajuste, JSON.stringify(c.tardios), ensayo, HOY, yo.nombre || yo.email); }));
       return json({ ok: true, ensayo: !!ensayo });
     }
+    // A questioned order: whoever made it (or an admin) says what it is, with a note. Contabilidad confirms afterwards.
+    if (p === '/api/revision' && request.method === 'POST') {
+      const b = await cuerpo(), numero = txt(b.numero, 40), m = await modelo(env), r = m.revision.find((x) => x.numero === numero);
+      if (!r) return json({ error: 'Ese pedido no está en revisión' }, 404);
+      if (!yo.admin && r.vendedor !== yo.persona) return json({ error: 'Este pedido es de ' + r.vendedor }, 403);
+      if (r.estado === 'verificado') return json({ error: 'Contabilidad ya lo verificó. Si está mal, Dirección lo reabre.' }, 409);
+      if (!TIPOS_REV[b.tipo]) return json({ error: 'Elige qué es este pedido' }, 400);
+      if (!txt(b.nota, 600)) return json({ error: 'Escribe una nota: a quién se le vendió o para qué salió el vino' }, 400);
+      await env.DB.prepare('INSERT INTO revisiones (numero, tipo, nota, anoto, anotado) VALUES (?,?,?,?,?) ON CONFLICT(numero) DO UPDATE SET tipo = excluded.tipo, nota = excluded.nota, anoto = excluded.anoto, anotado = excluded.anotado')
+        .bind(numero, b.tipo, txt(b.nota, 600), yo.nombre || yo.email, HOY).run();
+      return json({ ok: true });
+    }
     // The plan: whoever owns a commitment (or an admin) marks it done, with a note on what was delivered and where it shows.
     if (p === '/api/plan/hecho' && request.method === 'POST') {
       const b = await cuerpo(), c = await env.DB.prepare('SELECT * FROM compromisos WHERE id = ?').bind(Number(b.id) || 0).first();
@@ -410,6 +436,18 @@ export default {
       return json({ ok: true });
     }
     if (p === '/api/admin/sync' && request.method === 'POST') return json(await sync(env, url.searchParams.get('solo')));
+    // Final word on a questioned order. It needs the team's note first; the owner can reopen a verified one.
+    if (p === '/api/admin/revision' && request.method === 'POST') {
+      const b = await cuerpo(), numero = txt(b.numero, 40), r = await env.DB.prepare('SELECT * FROM revisiones WHERE numero = ?').bind(numero).first();
+      if (!r) return json({ error: 'Primero falta la nota de quien hizo el pedido' }, 400);
+      if (b.reabrir) { if (!yo.dueno) return json({ error: 'Solo Dirección reabre una verificación' }, 403);
+        await env.DB.prepare("UPDATE revisiones SET verificado = '', verifico = '', veredicto = '', nota_conta = '' WHERE numero = ?").bind(numero).run(); return json({ ok: true }); }
+      if (r.verificado) return json({ error: 'Ya está verificado' }, 409);
+      if (!TIPOS_REV[b.veredicto]) return json({ error: 'Elige el veredicto' }, 400);
+      if (b.veredicto !== r.tipo && !txt(b.nota, 600)) return json({ error: 'Si no coincide con la nota del equipo, escribe por qué' }, 400);
+      await env.DB.prepare('UPDATE revisiones SET verificado = ?, verifico = ?, veredicto = ?, nota_conta = ? WHERE numero = ?').bind(HOY, yo.nombre || yo.email, b.veredicto, txt(b.nota, 600), numero).run();
+      return json({ ok: true });
+    }
     // Credit an order (or a whole account) to someone else, or put it back the way Zoho has it.
     if (p === '/api/admin/asignar' && request.method === 'POST') {
       const b = await cuerpo(), tipo = b.tipo === 'cuenta' ? 'cuenta' : 'orden', clave = txt(b.clave, 160);

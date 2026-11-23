@@ -41,7 +41,7 @@ const SECC = [
   ['inicio', 'Inicio', 'M4 11l8-7 8 7v8.500a1 1 0 0 1-1 1h-4.500v-6h-5v6H5a1 1 0 0 1-1-1z', [['hoy', 'Inicio', 'Inicio']]],
   ['cuentas', 'Cuentas', 'M4 20v-1.500A4.500 4.500 0 0 1 8.500 14h3A4.500 4.500 0 0 1 16 18.500V20M10 10.500a3.250 3.250 0 1 0 0-6.500 3.250 3.250 0 0 0 0 6.500zM17 13.800a4 4 0 0 1 3 3.900V20M15.500 4.300a3.200 3.200 0 0 1 0 6', [['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['clientes', 'Cómo va cada una', 'Clientes: cómo va cada uno'], ['directorio', 'Directorio', 'Directorio de clientes'], ['cobranza', 'Cobranza', 'Cobranza'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes']]],
   ['prospectos', 'Prospectos', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.500a4.500 4.500 0 1 0 0-9 4.500 4.500 0 0 0 0 9zM12 12h.010', [['zonas', 'Zonas y prospectos', 'Zonas y prospectos'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores']]],
-  ['ventas', 'Ventas', 'M4 20V10M10 20V4M16 20v-7M21 20H3', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero'], ['efectividad', 'Efectividad', 'Efectividad', true]]],
+  ['ventas', 'Ventas', 'M4 20V10M10 20V4M16 20v-7M21 20H3', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero'], ['revision', 'Por confirmar', 'Pedidos por confirmar: ¿es venta?'], ['efectividad', 'Efectividad', 'Efectividad', true]]],
   ['plan', 'Plan', 'M9 11.500l2.200 2.200L15.500 9.400M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', [['lunes', 'Revisión del lunes', 'Revisión del lunes: los números del plan y cada persona'], ['plan', 'Plan de 90 días', 'Plan de 90 días: compromisos con fecha'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['estrategia', 'Promociones y estrategia', 'Estrategia, metas y promociones']]],
   ['recursos', 'Recursos', 'M5 4.500h9.500a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h9.500', [['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
 ];
@@ -212,6 +212,18 @@ function puntualidad(p) {
   const g = regla48(p), pc = g.n ? Math.round((g.n - g.tarde) / g.n * 100) : null;
   const pago = pc == null ? 'sin registros en el mes: se retiene y se paga con 30% menos' : pc >= 90 ? 'comisión completa' : pc >= 70 ? 'comisión con 15% menos' : 'comisión con 30% menos';
   return { ...g, pc, ok: pc != null && pc >= 90, texto: (pc == null ? 'Sin contactos registrados este mes desde que aplica la regla' : `${g.n - g.tarde} de ${g.n} contactos a tiempo (${pc}%)`) + ' · así, ' + pago };
+}
+// Orders Zoho holds that may not be a sale. They stay out of the sales figures until someone says they are one.
+const TIPO_REV = { venta: 'Sí es venta', muestra: 'Muestra o cortesía', traspaso: 'Traspaso de inventario', no_venta: 'No es venta' };
+const revDe = () => (D.revision || []).filter((r) => !S.persona || r.vendedor === S.persona);
+function revAviso() {
+  const P = revDe().filter((r) => r.estado === 'pendiente'), A = revDe().filter((r) => r.estado === 'anotado' && r.cuenta);
+  if (!P.length && !A.length) return null;
+  const suma = (L) => peso(neto(L.reduce((a, r) => a + r.total, 0)));
+  return h('p', { class: 'note aviso' }, 'Venta estimada, pendiente de revisión. ',
+    P.length ? `${P.length} ${P.length === 1 ? 'pedido' : 'pedidos'} por ${suma(P)} no ${P.length === 1 ? 'cuenta' : 'cuentan'} todavía: falta decir si ${P.length === 1 ? 'es venta' : 'son venta'}. ` : '',
+    A.length ? `${A.length} por ${suma(A)} ${A.length === 1 ? 'cuenta' : 'cuentan'} como venta y ${A.length === 1 ? 'espera' : 'esperan'} la verificación de Contabilidad. ` : '',
+    h('button', { class: 'linkb', onclick: () => ir('revision') }, 'Ver los pedidos'));
 }
 // Month-end close of the 48-hour rule. Carlos applies it once the month is over: the figures are frozen, with the contacts
 // that were logged late under each person, and everyone sees them. Until then the card shows how the month would close.
@@ -503,6 +515,30 @@ const VISTAS = {
             { t: 'Sin contacto', v: (c) => pill(c.dias == null ? 'Sin registro' : (c.dias === 1 ? '1 día' : `${c.dias} días`), dot[c.estado]), s: (c) => (c.dias == null ? 1e6 : c.dias), num: true }, { t: 'Última nota', v: (c) => (c.ultima_nota || '').slice(0, 140), largo: true }], (c) => { if (puede(c.vendedor)) registrar(deCob(c)); }))] : null);
   },
 
+  revision() {
+    const L = revDe(), admin = D.yo.admin, pend = L.filter((r) => r.estado === 'pendiente'), anot = L.filter((r) => r.estado === 'anotado'), ver = L.filter((r) => r.estado === 'verificado');
+    const suma = (X) => peso(neto(X.reduce((a, r) => a + r.total, 0)));
+    const anotar = (r) => formulario(`${r.numero} · ${r.cliente}`, [{ k: 'tipo', t: '¿Qué es este pedido?', tipo: 'select', ops: Object.entries(TIPO_REV), v: r.dijo || 'venta', req: true },
+      { k: 'nota', t: 'Nota: a quién se le vendió, o para qué salió el vino', tipo: 'textarea', v: r.nota, req: true }],
+      (v) => enviar('api/revision', { numero: r.numero, tipo: v.tipo, nota: v.nota }), `${dia(r.fecha)} · ${peso(neto(r.total))} antes de impuestos · ${r.motivo}. Contabilidad lo verifica después.`);
+    const verificar = (r) => formulario(`Verificar ${r.numero}`, [{ k: 'veredicto', t: 'Veredicto de Contabilidad', tipo: 'select', ops: Object.entries(TIPO_REV), v: r.dijo, req: true },
+      { k: 'nota', t: 'Nota (obligatoria si no coincide con la del equipo)', tipo: 'textarea' }],
+      (v) => enviar('api/admin/revision', { numero: r.numero, veredicto: v.veredicto, nota: v.nota }), `${r.cliente} · ${peso(neto(r.total))} · ${r.anoto} dijo: ${TIPO_REV[r.dijo]}. "${r.nota}"`, 'Verificar');
+    const fila = (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(neto(r.total)))),
+      h('div', { class: 'l2' }, [dia(r.fecha), r.numero, r.vendedor, r.motivo].join(' · ')),
+      r.estado !== 'pendiente' ? h('div', { class: 'l2' }, pill(TIPO_REV[r.dijo], r.dijo === 'venta' ? 'ok' : 'warn'), ` ${r.anoto}, ${dia(r.anotado)}: ${r.nota}`) : null,
+      r.estado === 'verificado' ? h('div', { class: 'l2' }, pill('Verificado: ' + TIPO_REV[r.tipo], r.tipo === 'venta' ? 'ok' : 'bad'), ` ${r.verifico}, ${dia(r.verificado)}${r.nota_conta ? ': ' + r.nota_conta : ''}`) : null,
+      h('div', { class: 'acc' }, r.estado !== 'verificado' && puede(r.vendedor) ? h('button', { class: 'btn sec', onclick: () => anotar(r) }, r.estado === 'pendiente' ? 'Decir qué es' : 'Corregir la nota') : null,
+        r.estado === 'anotado' && admin ? h('button', { class: 'btn', onclick: () => verificar(r) }, 'Verificar') : null,
+        r.estado === 'verificado' && D.yo.dueno ? h('button', { class: 'linkb', onclick: () => enviar('api/admin/revision', { numero: r.numero, reabrir: true }) }, 'Reabrir') : null));
+    const bloque = (t, X, vacio) => [h('h2', {}, `${t} (${X.length})`), h('div', { class: 'card' }, X.length ? h('ul', { class: 'rows' }, X.map(fila)) : h('p', { class: 'note' }, vacio))];
+    return h('div', { class: 'revis' },
+      h('p', { class: 'note' }, `Zoho guarda como pedido de venta cosas que no lo son: muestras, traspasos de inventario, ventas sin cliente. Spark aparta los pedidos desde junio de 2026 a nombre de "Público en general" y los que llevan más de ${(D.reglas_revision || {}).dias || 14} días sin factura. Quien hizo el pedido dice qué es y deja una nota; Contabilidad tiene la última palabra. Mientras nadie diga que es venta, el pedido no cuenta en ninguna cifra. Importes antes de impuestos.`),
+      h('div', { class: 'kpis' }, [[pend.length, 'Por decir qué son', suma(pend) + ' fuera de la venta'], [anot.length, 'Esperan a Contabilidad', suma(anot.filter((r) => r.cuenta)) + ' cuentan como venta'], [ver.length, 'Verificados', suma(ver.filter((r) => r.cuenta)) + ' sí fueron venta']]
+        .map(([n, l, sub]) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, l), h('div', { class: 'note' }, sub)))),
+      L.length ? h('p', { class: 'acc noimp' }, h('button', { class: 'btn sec', onclick: () => print() }, 'Imprimir o guardar en PDF')) : null,
+      bloque('Por decir qué son', pend, 'Nada pendiente.'), bloque('Esperan la verificación de Contabilidad', anot, 'Nada en espera.'), bloque('Verificados', ver, 'Todavía ninguno.'));
+  },
   ventas() {
     const vs = vendedores();
     if (!vs.length) return h('p', { class: 'note' }, 'Daniel no factura: sus números están en Semanas y Seguimiento.');
@@ -519,7 +555,7 @@ const VISTAS = {
       const real = R.reduce((t, x) => t + (x || 0), 0), meta = M.reduce((t, x) => t + x, 0), aFecha = Math.round(M.slice(0, mH - 1).reduce((t, x) => t + x, 0) + M[mH - 1] * dH / dMes);
       return { v, M, R, real, meta, aFecha, pcF: aFecha ? Math.round(real / aFecha * 100) : 0, pcA: Math.round(real / meta * 100) }; });
     const E = { invoiced: 'Facturada', not_invoiced: 'Sin facturar', partially_invoiced: 'Factura parcial', paid: 'pagada', unpaid: 'sin pagar', partially_paid: 'pago parcial' };
-    return h('div', {},
+    return h('div', {}, revAviso(),
       h('h2', {}, `Ventas de ${MESL[Number(ym.slice(5)) - 1]}`),
       h('div', { class: 'grid3' }, D.mes.filter((r) => vs.includes(r.vendedor)).map((r) => h('section', { class: 'card' },
         h('div', { class: 'name' }, r.vendedor), h('div', { class: 'num' }, peso(r.total)),
@@ -735,7 +771,7 @@ const VISTAS = {
     const embajador = (p) => tarjeta(p, 'Embajador de marca', [['Mantener catalogación y recompra', 50, 'Falta el reporte de venta por cuenta del distribuidor', null], ['Catalogaciones nuevas con pedido', 20, 'Sin dato', null], ['Colocaciones a copeo', 15, 'Sin dato', null], ['Mezcla premium', 5, 'Sin dato', null], ['Tasa de resurtido', 5, 'Sin dato', null], ['Apoyo en construcción de marca', 5, 'Sin dato', null]],
       [[regla48(p).cumple, 'Registro en CRM dentro de 48 horas', ''], pun(p)], ser(p));
     const ps = personas().filter((p) => p !== 'Tito');
-    return h('div', {}, cierreCard(), h('p', { class: 'note' }, 'Estimado con los tableros de junio de 2026. Ventas del año a la fecha, antes de impuestos. No sustituye el cálculo de comisiones.'),
+    return h('div', {}, revAviso(), cierreCard(), h('p', { class: 'note' }, 'Estimado con los tableros de junio de 2026. Ventas del año a la fecha, antes de impuestos. No sustituye el cálculo de comisiones.'),
       h('div', { class: 'grid3' }, ps.flatMap((p) => (p === 'Daniel' ? [embajador(p)] : p === 'Carlos' ? [director(p), ejecutivo(p)] : [ejecutivo(p)]))));
   },
 

@@ -462,3 +462,7 @@ details.nota { margin: 0 0 10px; } details.nota summary { cursor: pointer; color
 /* Month-end close of the 48-hour rule */
 .cierre { margin-bottom: 16px; } .cierre h3 { margin: 14px 0 4px; } .cierre details { margin-top: 6px; } .cierre summary { cursor: pointer; color: var(--muted); font-size: .875rem; padding: 6px 0; }
 .cierre .tard { margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: .875rem; } .cierre .tard li { padding: 2px 0; border: 0; }
+
+/* Orders to confirm */
+.revis .kpis { margin: 12px 0 16px; } .revis .rows .pill { margin-right: 6px; } .revis h2 { margin-top: 20px; }
+@media print { .noimp, .revis .rows .acc { display: none !important; } .revis .card { break-inside: auto; } .revis .rows li { break-inside: avoid; } }

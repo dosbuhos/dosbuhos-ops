@@ -54,6 +54,22 @@ export const HEREDADAS = { 'José Luis': ['SMDA HOTELES', 'ROSEWOOD MAYAKOBA', '
 // Daniel's distributors as they appear in Zoho (LIZA STIKER = Acuyo).
 export const DIST_DANIEL = ['Vivid Distribución', 'Grandes Viñedos de Francia', 'LIZA STIKER'];
 
+// Orders that may not be a sale. Zoho holds sales orders that are samples, stock transfers or sales with no client on them.
+// Spark sets apart the ones it cannot vouch for; whoever made the order says what it is, with a note, and Contabilidad has
+// the last word. Until someone says it is a sale, the order stays out of every sales figure.
+export const REVISION_DESDE = '2026-06-01';
+export const REVISION_DIAS = 14;   // days an order may go without an invoice before it is questioned
+export const TIPOS_REV = { venta: 'Sí es venta', muestra: 'Muestra o cortesía', traspaso: 'Traspaso de inventario', no_venta: 'No es venta' };
+export const enDuda = (o, hoy) => {
+  if (['void', 'draft'].includes(o.estado) || !(o.total >= 1) || !/^\d{4}-\d\d-\d\d$/.test(o.fecha || '') || o.fecha < REVISION_DESDE || esInterno(o.cliente) || deEric(o.cliente)) return '';
+  if (/^p[uú]blico en general/i.test(String(o.cliente || '').trim())) return 'El cliente es "Público en general": no dice a quién se le vendió';
+  if (!['invoiced', 'partially_invoiced'].includes(o.facturacion) && diff(o.fecha, hoy) > REVISION_DIAS) return `Sin factura a más de ${REVISION_DIAS} días del pedido`;
+  return '';
+};
+// Where a questioned order stands and whether it counts as a sale: pending (no), noted by the team (yes only if they say
+// it is a sale, until Contabilidad confirms), verified by Contabilidad (their verdict stands).
+export const estadoRev = (r) => { const estado = !r ? 'pendiente' : r.verificado ? 'verificado' : 'anotado', tipo = !r ? '' : r.verificado ? r.veredicto : r.tipo;
+  return { estado, tipo, cuenta: tipo === 'venta', cobrar: !tipo || tipo === 'venta' }; };
 export const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 const ms = (d) => Date.parse(d + 'T00:00:00Z');
 export const diff = (a, b) => Math.round((ms(b) - ms(a)) / 86400000);
