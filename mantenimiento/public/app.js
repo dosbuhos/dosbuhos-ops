@@ -127,7 +127,7 @@ async function patchTask(t, data, msg, after, undoData = null) {
 const taskLink = (t) => `${APP_URL}/#/p/${t.id}`;
 function taskMsg(t, hello = '') {
   const due = t.due_date ? `\nPara: ${fmtDay(t.due_date, { weekday: true, rel: false })}` : '';
-  return `${hello ? hello + '\n\n' : ''}*${t.title}*\n${t.area_name ? 'Área: ' + t.area_name + '\n' : ''}${t.equipment_name ? 'Equipo: ' + t.equipment_name + '\n' : ''}Prioridad: ${PRIO[t.priority]}${due}${t.description ? '\n\n' + t.description : ''}\n\nFotos y avances: ${taskLink(t)}`;
+  return `${hello ? hello + '\n\n' : ''}*${t.title}*\n${t.area_name ? 'Área: ' + t.area_name + '\n' : t.place ? 'Lugar: ' + t.place + '\n' : ''}${t.equipment_name ? 'Equipo: ' + t.equipment_name + '\n' : ''}Prioridad: ${PRIO[t.priority]}${due}${t.description ? '\n\n' + t.description : ''}\n\nFotos y avances: ${taskLink(t)}`;
 }
 
 const DONE_WORDS = ['Se reparó', 'Se cambió la pieza', 'Se limpió o ajustó', 'Lo hizo el externo'];
@@ -294,13 +294,35 @@ async function prioSheet(t, after) {
   const v = await sheet({ title: 'Prioridad', sub: t.title, opts: [1, 2, 3, 4].map((p) => ({ value: p, label: PRIO[p], sub: PRIO_HINT[p], on: t.priority === p, html: `<span class="pdot p${p}"></span>` })) });
   if (v && v !== t.priority) patchTask(t, { priority: v }, `Prioridad: ${PRIO[v]}`, after, { priority: t.priority });
 }
+// One answer to "¿dónde?": an area from the list, or a place written by hand. An administrator can turn a written
+// place into an area of the list from here.
 async function areaSheet(t, after) {
+  const place = t.area_id ? '' : (t.place || '');
+  const undo = { area_id: t.area_id || null, place: t.place || null };
   const v = await sheet({
-    title: 'Área', sub: t.title,
-    opts: [...activeAreas().map((a) => ({ value: a.id, label: a.name, on: t.area_id === a.id, html: `<span class="pdot tagc c-${a.color}"></span>` })), { value: 0, label: 'Sin área', on: !t.area_id }],
+    title: '¿Dónde?', sub: t.title,
+    opts: [...activeAreas().map((a) => ({ value: a.id, label: a.name, on: t.area_id === a.id, html: `<span class="pdot tagc c-${a.color}"></span>` })),
+      { value: 'otro', label: 'Otro lugar…', sub: place, on: !!place, html: '<span class="pdot tagc c-grey"></span>' },
+      ...(place && isAdmin() ? [{ value: 'add', label: `Agregar «${place}» a la lista`, sub: 'Queda como área para todos', icon: 'plus' }] : []),
+      { value: 0, label: 'Sin área', on: !t.area_id && !place }],
   });
-  if (v === null || v === (t.area_id || 0)) return;
-  patchTask(t, { area_id: v || null }, v ? `Área: ${areaOf(v).name}` : 'Quedó sin área', after, { area_id: t.area_id });
+  if (v === null || v === undefined) return;
+  if (v === 'otro') {
+    const txt = await inputSheet('Otro lugar', place, 'Guardar', { sub: t.title, placeholder: 'Escribe el lugar', max: 80 });
+    if (!txt || txt === place) return;
+    return patchTask(t, { place: txt }, `Lugar: ${txt}`, after, undo);
+  }
+  if (v === 'add') {
+    const name = await inputSheet('Nueva área', place.slice(0, 40), 'Agregar', { sub: 'Aparecerá en la lista de todos', max: 40 });
+    if (!name) return;
+    try {
+      const r = await api('POST', '/areas', { name });
+      await loadBoot();
+      return patchTask(t, { area_id: r.id }, `Área nueva: ${name}`, after);
+    } catch (e) { return toast(e.message, { bad: true }); }
+  }
+  if (v === (t.area_id || 0) && !(v === 0 && place)) return;
+  patchTask(t, v ? { area_id: v } : { area_id: null, place: null }, v ? `Área: ${areaOf(v).name}` : 'Quedó sin área', after, undo);
 }
 async function equipSheet(t, after) {
   const list = S.equipment.filter((e) => e.active);
@@ -405,7 +427,7 @@ async function viewTask(id, keep = false) {
       ${open ? cell('due', 'Fecha', due.cls === 'none' ? '<span class="un">Sin fecha</span>' : `<span class="due ${due.cls}">${ic(due.icon)}${esc(due.text)}</span><span class="csub">${esc(fmtDay(t.due_date, { weekday: true, rel: false }))}${t.plan_min !== null && t.plan_min !== undefined ? ` a las ${fmtClock(t.plan_min)}` : ''}${t.postponed ? `, pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}` : ''}</span>`, { cls: late ? 'late' : '' }) : ''}
       ${open ? cell('est', 'Tiempo', t.est_min ? fmtDur(t.est_min) : '<span class="muted">Sin estimar</span>') : ''}
       ${cell('prio', 'Prioridad', `<span class="pdot p${t.priority}"></span>${PRIO[t.priority]}`)}
-      ${cell('area', 'Área', t.area_name ? areaTag(t) : '<span class="un">Sin área</span>')}
+      ${cell('area', 'Dónde', t.area_name || t.place ? areaTag(t) : '<span class="un">Sin área</span>')}
       ${cell('equip', 'Equipo', t.equipment_id ? esc(t.equipment_name) : '<span class="muted">Ninguno</span>', { under: t.equipment_id ? `<a class="b line sm" href="#/e/${t.equipment_id}">${ic('wrench')}Ver el equipo</a>` : '' })}
       ${cell('cost', 'Costo', t.cost ? money(t.cost) : '<span class="muted">Sin anotar</span>')}
     </div>
@@ -477,7 +499,7 @@ async function viewReport(query = {}) {
     <div class="field"><label class="flabel" for="r-title">¿Qué pasa?</label>
       <input class="input big" id="r-title" type="text" maxlength="200" placeholder="Ej. Gotea la llave del baño de visitas" autocomplete="off" enterkeyhint="done"></div>
     ${eq ? `<div class="field"><span class="flabel">Equipo</span><p class="fixed">${ic('wrench')}${esc(eq.name)}</p></div>` : ''}
-    <div class="field"><span class="flabel">¿Dónde?</span>${areaChoice(area, 'r-area')}</div>
+    ${areaSelect('r-area', area, { other: true })}
     <div class="field"><span class="flabel">¿Qué tan urgente?</span>
       ${choice('r-prio', [{ v: 1, label: 'Urgente', sub: 'Peligro, fuga o detiene el servicio', cls: 'urg' }, { v: 3, label: 'Normal', sub: 'Esta semana' }, { v: 4, label: 'Puede esperar', sub: 'Cuando se pueda' }], 3, { cls: 'stack' })}</div>
     ${day ? `<div class="field"><span class="flabel">Día</span><p class="fixed">${ic('cal')}${esc(cap(fmtDay(day, { weekday: true })))}</p></div>` : ''}
@@ -490,7 +512,7 @@ async function viewReport(query = {}) {
     <p class="err hidden" id="r-err" role="alert"></p>
   </form>`, { tab: 'nuevo', bar: `<button class="b block lg" id="r-send" form="r-form" type="submit">${ic('send')}Enviar reporte</button>` });
   bindPicker(APP, 'r-pick', files);
-  const getArea = bindChoice(APP, 'r-area', (v) => {
+  const where = bindAreaSelect('r-area', (v) => {
     area = v;
     const sel = $('#r-equip');
     if (sel) sel.innerHTML = equipmentOptions(v, sel.value);
@@ -504,8 +526,10 @@ async function viewReport(query = {}) {
     const title = $('#r-title').value.trim();
     if (!title) return fieldErr($('#r-title'), 'Escribe qué pasa');
     const equipId = eq ? eq.id : ($('#r-equip').value || null);
-    if (!getArea() && !equipId) return fieldErr($('[data-choice="r-area"]'), 'Elige dónde está el problema');
-    const data = { title, area_id: getArea() || null, priority: Number(getPrio() || 3), description: $('#r-desc').value, equipment_id: equipId, provider_id: $('#r-who').value || null };
+    const place = where.place();
+    if (where.isOther() && !place) return fieldErr(where.other, 'Escribe el lugar');
+    if (!where.area() && !place && !equipId) return fieldErr(where.el, 'Elige dónde está el problema');
+    const data = { title, area_id: where.area() || null, place: place || null, priority: Number(getPrio() || 3), description: $('#r-desc').value, equipment_id: equipId, provider_id: $('#r-who').value || null };
     if ($('#r-due').value) data.due_date = $('#r-due').value;
     const btn = $('#r-send');
     btn.disabled = true; btn.innerHTML = 'Enviando…';

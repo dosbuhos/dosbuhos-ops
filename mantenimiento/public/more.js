@@ -180,7 +180,7 @@ async function viewPlanForm(id, query = {}) {
       <input class="input" id="pf-date" type="date" value="${p && p.unit !== 'months' ? p.next_due : addDays(today, 7)}"></div>
     <p class="plansum" id="pf-sum" aria-live="polite"></p>
     ${S.equipment.some((e) => e.active) ? fSelect('pf-equip', '¿A qué equipo?', equipmentOptions('', st.equipment_id, 'A ninguno en particular'), { optional: true }) : ''}
-    <div class="field" id="pf-areabox"><span class="flabel">¿Dónde?</span>${areaChoice(st.area_id, 'pf-area')}</div>
+    <div id="pf-areabox">${areaSelect('pf-area', st.area_id, { empty: 'Sin área' })}</div>
     ${fSelect('pf-who', '¿Quién lo hace?', contactOptions(st.provider_id, unassignedLabel()))}
     ${fSelect('pf-lead', 'Ponerlo en el calendario', [[0, 'El mismo día'], [3, '3 días antes'], [7, 'Una semana antes'], [14, '2 semanas antes'], [30, 'Un mes antes']].map(([v, l]) => `<option value="${v}" ${(p ? p.lead_days : 7) === v ? 'selected' : ''}>${l}</option>`).join(''))}
     ${fText('pf-desc', 'Instrucciones', { value: p ? p.description : '', optional: true, placeholder: 'Qué revisar, qué material llevar, a quién llamar' })}
@@ -197,7 +197,7 @@ async function viewPlanForm(id, query = {}) {
     if (/^\d+$/.test(v) && months.length !== Number(v)) { months = spreadMonths(Number(v)); mg.set(months); }
     sync();
   });
-  const getArea = bindChoice(APP, 'pf-area');
+  const getArea = bindAreaSelect('pf-area').area;
   const eqSel = $('#pf-equip');
   const syncEq = () => { $('#pf-areabox').classList.toggle('hidden', !!(eqSel && eqSel.value)); };
   if (eqSel) eqSel.onchange = () => {
@@ -358,7 +358,7 @@ async function viewEquipoForm(id) {
   render(header(e ? 'Editar equipo' : 'Nuevo equipo', { back: true }) + `<form class="wrap form" id="ef" novalidate>
     ${e ? '' : `<div class="field"><span class="flabel">Foto</span>${pickerHtml('ef-pick')}<p class="hint">Tómale una al equipo y otra a su placa de datos: así no hay que escribir el modelo ni la serie.</p></div>`}
     ${fInput('ef-name', 'Nombre', { value: e ? e.name : '', placeholder: 'Ej. Refrigerador de la barra', max: 120, attrs: 'autocomplete="off"' })}
-    <div class="field"><span class="flabel">¿Dónde está?</span>${areaChoice(e ? e.area_id : '', 'ef-area')}</div>
+    ${areaSelect('ef-area', e ? e.area_id : '', { label: '¿Dónde está?', empty: 'Sin área' })}
     ${fInput('ef-model', 'Marca y modelo', { value: e ? e.brand_model : '', placeholder: 'Ej. Torrey R-36', optional: true, attrs: 'autocomplete="off"' })}
     ${fSelect('ef-who', '¿Quién lo atiende?', contactOptions(e ? e.provider_id : '', 'Nadie todavía'), { hint: 'A quién se le habla cuando falla o le toca servicio. Si no está en la lista, agrégalo en Contactos.' })}
     ${e ? '' : `<div class="field"><span class="flabel">¿Cada cuándo le toca servicio?</span>
@@ -385,7 +385,7 @@ async function viewEquipoForm(id) {
       $('#ef-sum').textContent = months.length ? monthsText(months) + '. Toca un mes para cambiarlo.' : '';
     });
   }
-  const getArea = bindChoice(APP, 'ef-area');
+  const getArea = bindAreaSelect('ef-area').area;
   const del = $('[data-del]');
   if (del) del.onclick = async () => {
     if (!(await confirmSheet('¿Dar de baja este equipo?', 'Sale de la lista y se detienen sus servicios programados. Su historial no se borra.', 'Dar de baja', true))) return;

@@ -105,7 +105,7 @@ function cardHTML(t, o = {}) {
   const due = dueInfo(t);
   const b = [];
   if (ctx === 'list' || ctx === 'day') {
-    if (area && t.area_name) b.push(areaTag(t));
+    if (area && (t.area_name || t.place)) b.push(areaTag(t));
     if (open && prio && t.priority === 1) b.push(`<b class="urgent">${ic('flag')}Urgente</b>`);
     else if (open && prio && t.priority === 2) b.push('<span class="st hi">Alta</span>');
     if (open && ctx === 'list' && showDue && due) b.push(`<span class="due ${due.cls}">${esc(due.text)}${timed(t) && t.due_date ? ', ' + fmtClock(t.plan_min) : ''}</span>`);
@@ -148,7 +148,7 @@ function bindRows(root, list, reload) {
 function listHTML(k) {
   const s = fold(P.q.trim());
   const total = srcTasks(k);
-  const list = s ? total.filter((t) => fold([t.title, t.area_name, t.provider_name, t.equipment_name, '#' + t.id].join(' ')).includes(s)) : total;
+  const list = s ? total.filter((t) => fold([t.title, t.area_name, t.place, t.provider_name, t.equipment_name, '#' + t.id].join(' ')).includes(s)) : total;
   const groups = srcGroups(k, list).filter((g) => g.items.length);
   const o = k === 'inbox' ? { prio: false, due: false, age: true }
     : k === 'late' ? { due: false }
@@ -728,31 +728,58 @@ document.addEventListener('dragstart', (e) => { if (e.target.closest && e.target
 
 // ---------- touch: hold a pendiente, then drop it on a day (the way Horizonte does on a phone) ----------
 // Hold 350 ms on a pendiente anywhere. A panel with one day slides in: drop on an hour, on "sin hora" or on
-// "a la Bandeja"; take the finger to the left or right edge to change the day.
+// "a la Bandeja"; take the finger to the left or right edge and the days turn like pages under the pendiente.
 const MHPX = 52;
 let hold = null;
 let tdrag = null;
 const dayTxt = (d) => { const x = fmtDay(d, { weekday: true }); return /^(hoy|mañana|ayer)$/.test(x) ? x : 'el ' + x; };
-function ddRender(p, day) {
-  const sc0 = $('.dd-scroll', p);
-  const keep = sc0 ? sc0.scrollTop : null;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+// What changes in the panel from one day to the next: its title and its blocks.
+function ddDay(day) {
   const d = ymdDate(day);
   const today = todayStr();
   const mine = (C.open || []).filter((t) => t.due_date === day && (!tdrag || t.id !== tdrag.t.id));
   const total = mine.reduce((n, t) => n + (t.est_min || 0), 0);
-  let rows = '';
-  for (let m = DAY_START; m < DAY_END; m += 60) rows += `<span style="top:${((m - DAY_START) / 60) * MHPX}px">${m / 60}:00</span>`;
   const blocks = mine.filter(timed).map((t) => {
     const st = Math.min(Math.max(t.plan_min, DAY_START), DAY_END - 15);
     return `<div class="dd-b c-${esc(t.area_color || 'grey')}" style="top:${((st - DAY_START) / 60) * MHPX}px;height:${(Math.min(durOf(t), DAY_END - st) / 60) * MHPX - 2}px">${esc(t.title)}</div>`;
   }).join('');
   const nm = nowMin();
   const rel = day === today ? 'Hoy' : day === addDays(today, 1) ? 'Mañana' : '';
-  p.dataset.day = day;
-  p.innerHTML = `<div class="dd-top"><span class="dd-edge">${day > today ? ic('back') : ''}</span><div class="dd-title"><b>${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}${rel ? `<i>${rel}</i>` : ''}</b><small>${total ? fmtDur(total) + ' planeadas. ' : ''}Lleva el dedo a la orilla para cambiar de día.</small></div><span class="dd-edge">${ic('chev')}</span></div>
+  return {
+    title: `<div class="dd-title"><b>${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}</b><small>${rel ? `<i>${rel}</i>` : ''}${mine.length ? plural(mine.length, 'pendiente', 'pendientes') + (total ? ', ' + fmtDur(total) : '') : 'Día libre'}</small></div>`,
+    grid: `<div class="dd-grid">${blocks}${day === today && nm >= DAY_START && nm <= DAY_END ? `<div class="wnow" style="top:${((nm - DAY_START) / 60) * MHPX}px"></div>` : ''}</div>`,
+  };
+}
+// Puts `html` in `win` in place of what it shows. With a direction the day turns like a page under the pendiente
+// being held: the one on screen leaves toward the side the finger came from, the next comes in from the edge it rests on.
+function ddSwap(win, html, dir) {
+  $$('.out', win).forEach((x) => x.remove());                // a turn still on its way: let it go
+  const old = win.lastElementChild;
+  win.insertAdjacentHTML('beforeend', html);
+  if (!old) return;
+  if (!dir || REDUCED.matches) { old.remove(); return; }
+  const neu = win.lastElementChild;
+  old.classList.add('out', dir > 0 ? 'to-l' : 'to-r');
+  neu.classList.add(dir > 0 ? 'from-r' : 'from-l');
+  const done = () => { old.remove(); neu.classList.remove('from-r', 'from-l'); };
+  old.addEventListener('animationend', done, { once: true });
+  setTimeout(done, 520);                                     // in case the animation never runs (a tab in the background)
+}
+function ddRender(p, day, dir = 0) {
+  if (!p.firstChild) {   // the frame is drawn once: the arrows, the two slots and the hours stay still while the days pass
+    let rows = '';
+    for (let m = DAY_START; m < DAY_END; m += 60) rows += `<span style="top:${((m - DAY_START) / 60) * MHPX}px">${m / 60}:00</span>`;
+    p.innerHTML = `<div class="dd-top"><span class="dd-edge">${ic('back')}</span><div class="dd-mid"><div class="dd-win"></div>${store('mt_edge') ? '' : '<p class="dd-hint">Lleva el dedo a la orilla para cambiar de día.</p>'}</div><span class="dd-edge">${ic('chev')}</span></div>
     <div class="dd-strip"><div class="dd-slot" data-slot="any">Ese día, sin hora</div><div class="dd-slot" data-slot="none">A la Bandeja</div></div>
-    <div class="dd-scroll"><div class="dd-in" style="height:${((DAY_END - DAY_START) / 60) * MHPX}px"><div class="dd-hours">${rows}</div><div class="dd-grid">${blocks}${day === today && nm >= DAY_START && nm <= DAY_END ? `<div class="wnow" style="top:${((nm - DAY_START) / 60) * MHPX}px"></div>` : ''}</div></div></div>`;
-  if (keep !== null) $('.dd-scroll', p).scrollTop = keep;
+    <div class="dd-scroll"><div class="dd-in" style="height:${((DAY_END - DAY_START) / 60) * MHPX}px"><div class="dd-hours">${rows}</div><div class="dd-win days"></div></div></div>`;
+  }
+  const x = ddDay(day);
+  p.dataset.day = day;
+  p.classList.toggle('first', day <= todayStr());            // nothing before today: the left arrow rests
+  const [tw, gw] = $$('.dd-win', p);
+  ddSwap(tw, x.title, dir);
+  ddSwap(gw, x.grid, dir);
 }
 function tdStart(h) {
   hold = null;
@@ -788,8 +815,7 @@ function tdMove(x, y) {
   d.x = x; d.y = y;
   d.ghost.style.transform = `translate(${Math.min(Math.max(8, x - 100), innerWidth - 208)}px, ${Math.max(4, y - 70)}px)`;
   $$('.dd-slot.over', d.panel).forEach((z) => z.classList.remove('over'));
-  const pv = $('.dd-prev', d.panel);
-  if (pv) pv.remove();
+  $$('.dd-prev', d.panel).forEach((z) => z.remove());
   d.target = null;
   const pr = d.panel.getBoundingClientRect();
   const dir = x < pr.left + 26 ? -1 : x > pr.right - 26 ? 1 : 0;       // the edges change the day
@@ -800,7 +826,8 @@ function tdMove(x, y) {
       if (!tdrag || tdrag.dir !== dir) return;
       const nk = addDays(d.panel.dataset.day, dir);
       if (nk < todayStr()) return;
-      ddRender(d.panel, nk);
+      ddRender(d.panel, nk, dir);                             // the day slides over
+      store('mt_edge', 1);                                    // they know the edges now: the hint goes
       if (navigator.vibrate) navigator.vibrate(8);
       d.edgeT = setTimeout(flip, 900);
     }, 500);
@@ -812,7 +839,7 @@ function tdMove(x, y) {
   const sc = $('.dd-scroll', d.panel);
   const sr = sc.getBoundingClientRect();
   if (y < sr.top || y > sr.bottom) return;
-  const grid = $('.dd-grid', d.panel);
+  const grid = $('.dd-grid:not(.out)', d.panel);
   const dur = Math.min(durOf(d.t), DAY_END - DAY_START);
   const min = Math.min(Math.max(snap(DAY_START + ((y - 40 - grid.getBoundingClientRect().top) / MHPX) * 60), DAY_START), DAY_END - dur);
   d.target = { min };

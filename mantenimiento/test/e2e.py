@@ -26,6 +26,10 @@ with sync_playwright() as p:
     tab = lambda pg: pg.locator('.mbar [aria-current]')            # the view lit in the ribbon (phones)
     head = lambda pg: pg.locator('.mh h1')                         # the title of a main screen
     api_task = lambda pg, tid: pg.evaluate("(id) => fetch('/api/tasks/' + id).then((r) => r.json()).then((d) => d.task)", str(tid))
+    def area(pg, sel, text):                                       # pick an area in a drop-down by part of its name
+        v = pg.evaluate("([s, t]) => { const o = [...document.querySelector(s).options].find((x) => x.text.includes(t)); return o ? o.value : null; }", [sel, text])
+        assert v, 'no area ' + text
+        pg.select_option(sel, v)
 
     # ---------- 1. sign up ----------
     c = ctx(); pg = c.new_page(); watch(pg)
@@ -62,7 +66,8 @@ with sync_playwright() as p:
     pg.click('#r-send'); expect(pg.locator('.ferr')).to_have_text('Escribe qué pasa')
     pg.fill('#r-title', 'Se cayó la canaleta de la entrada')
     pg.click('#r-send'); expect(pg.locator('.ferr')).to_have_text('Elige dónde está el problema')
-    pg.click('[data-choice="r-area"] .ch:has-text("Instalaciones")')
+    assert pg.locator('#r-area').bounding_box()['height'] < 60      # one line on the screen, not a wall of chips
+    area(pg, '#r-area', 'Instalaciones'); expect(pg.locator('.ferr')).to_have_count(0)
     pg.set_input_files('#r-pick-gal', JPG_PATH)
     expect(pg.locator('#r-pick [data-local] .ph')).to_have_count(1)
     pg.click('[data-choice="r-prio"] .ch:has-text("Urgente")')
@@ -197,14 +202,28 @@ with sync_playwright() as p:
     # the + beside a day reports something for that day
     pg.goto(BASE + '/#/semana'); pg.wait_for_timeout(600); plus = pg.locator('.mday .dayhead a.pb').last; day = re.search(r'fecha=(\d{4}-\d\d-\d\d)', plus.get_attribute('href')).group(1)
     plus.click(); expect(pg.locator('.top.sub h1')).to_have_text('Reportar'); expect(pg.locator('#r-due')).to_have_value(day); expect(pg.locator('.fixed')).to_be_visible()
-    pg.fill('#r-title', 'Barnizar la puerta de la capilla'); pg.click('[data-choice="r-area"] .ch:has-text("Capilla")'); pg.click('#r-send')
+    pg.fill('#r-title', 'Barnizar la puerta de la capilla'); area(pg, '#r-area', 'Capilla'); pg.click('#r-send')
     expect(pg.locator('.sent h1')).to_have_text('Reporte enviado', timeout=15000); expect(pg.locator('.sent')).not_to_contain_text('Bandeja')
     nid = re.search(r'#/enviado/(\d+)', pg.url).group(1); assert api_task(pg, nid)['due_date'] == day
     # a normal report with no day waits in the Bandeja
-    pg.goto(BASE + '/#/nuevo'); pg.fill('#r-title', 'Cambiar el tapete de la entrada'); pg.click('[data-choice="r-area"] .ch:has-text("Restaurante")'); pg.click('#r-send')
+    pg.goto(BASE + '/#/nuevo'); pg.fill('#r-title', 'Cambiar el tapete de la entrada'); area(pg, '#r-area', 'Restaurante'); pg.click('#r-send')
     expect(pg.locator('.sent')).to_contain_text('Está en la Bandeja'); pg.click('.sent a:has-text("Ir a la Bandeja")'); expect(head(pg)).to_contain_text('Bandeja')
     expect(pg.locator('#pl-items .card:has-text("Cambiar el tapete")')).to_have_count(1)
     step('the + beside a day reports for that day; a report without a day lands in the Bandeja')
+    # a place that is not on the list: "Otro lugar" asks for it in writing, and it travels with that pendiente only
+    pg.goto(BASE + '/#/nuevo'); pg.fill('#r-title', 'Reja suelta en la caseta'); expect(pg.locator('#r-area-other')).to_be_hidden()
+    pg.select_option('#r-area', 'otro'); expect(pg.locator('#r-area-other')).to_be_visible(); pg.click('#r-send'); expect(pg.locator('.ferr')).to_have_text('Escribe el lugar')
+    pg.fill('#r-area-other', 'Caseta de la entrada'); pg.click('#r-send'); expect(pg.locator('.sent h1')).to_have_text('Reporte enviado', timeout=15000)
+    oid = re.search(r'#/enviado/(\d+)', pg.url).group(1); t = api_task(pg, oid); assert t['place'] == 'Caseta de la entrada' and t['area_id'] is None, t
+    pg.goto(BASE + '/#/bandeja'); expect(pg.locator('#pl-items .card:has-text("Reja suelta") .tag')).to_have_text('Caseta de la entrada')
+    pg.goto(BASE + '/#/p/' + oid); expect(pg.locator('.cell:has-text("Dónde") .tag')).to_have_text('Caseta de la entrada')
+    pg.click('.cell [data-set=area]'); expect(pg.locator('.sheet .opt.on')).to_contain_text('Otro lugar'); expect(pg.locator('.sheet .opt:has-text("a la lista")')).to_have_count(0)   # only administrators add to the list
+    pg.click('.sheet .opt:has-text("Otro lugar")'); pg.fill('#sh-in', 'Caseta de vigilancia'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_contain_text('Lugar: Caseta de vigilancia')
+    expect(pg.locator('.cell:has-text("Dónde") .tag')).to_have_text('Caseta de vigilancia')
+    pg.click('.cell [data-set=area]'); pg.click('.sheet .opt:has-text("Jardín")'); expect(pg.locator('.cell:has-text("Dónde") .tag')).to_have_text('Jardín y huerta')
+    t = api_task(pg, oid); assert t['place'] is None and t['area_id'], t                      # an area from the list takes the written place's spot
+    pg.click('#toast.show [data-undo], #toast.show button'); pg.wait_for_timeout(700); t = api_task(pg, oid); assert t['place'] == 'Caseta de vigilancia' and t['area_id'] is None, t
+    step('"Otro lugar": a written place instead of an area; it shows on the card and the pendiente, can be rewritten, and gives way to an area')
     c.close()
 
     # ---------- 6. Adrián (admin): preventive plan, equipment, service, contact, areas, people ----------
@@ -221,7 +240,7 @@ with sync_playwright() as p:
     pg.click('.mo:not(.on) >> nth=0'); expect(pg.locator('.mo.on')).to_have_count(4)
     expect(pg.locator('[data-choice="pf-freq"] .ch.on')).to_have_text('4 veces al año')
     expect(pg.locator('#pf-sum')).to_contain_text('4 veces al año')
-    pg.click('[data-choice="pf-area"] .ch:has-text("Instalaciones")')
+    area(pg, '#pf-area', 'Instalaciones')
     pg.select_option('#pf-who', label='Chuy Hernández (Plomería)'); pg.click('#pf-save')
     expect(head(pg)).to_have_text('Preventivo'); expect(pg.locator('body')).to_contain_text('Lavar cisterna y tinacos')
     step('new plan: N times a year by tapping months')
@@ -236,7 +255,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '/#/equipos'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.lrow.eq').first).to_be_visible()
     pg.click('.hbtn'); pg.click('#ef-save'); expect(pg.locator('#ef-err')).to_contain_text('nombre')
     pg.set_input_files('#ef-pick-gal', JPG_PATH); pg.fill('#ef-name', 'Cava de vinos del restaurante')
-    pg.click('[data-choice="ef-area"] .ch:has-text("Restaurante")'); pg.fill('#ef-model', 'Vinoteca Whirlpool WX-40')
+    area(pg, '#ef-area', 'Restaurante'); pg.fill('#ef-model', 'Vinoteca Whirlpool WX-40')
     pg.select_option('#ef-who', label='Anselmo Rivas (Refrigeración)')
     pg.click('[data-choice="ef-freq"] .ch:has-text("2 veces al año")'); expect(pg.locator('.mo.on')).to_have_count(2)
     pg.fill('#ef-last', '2026-05-10'); pg.click('#ef-save')
@@ -267,6 +286,15 @@ with sync_playwright() as p:
     pg.click('.lrow.area:has-text("Estacionamiento") [data-dir="-1"]'); pg.wait_for_timeout(700)
     assert pg.locator('.lrow.area').nth(n_ar - 1).inner_text().startswith('Estacionamiento')
     step('areas: add, recolour, reorder')
+    # an administrator turns a written place into an area of the list, from the pendiente
+    oid = pg.evaluate("() => fetch('/api/tasks?view=open').then((r) => r.json()).then((d) => (d.tasks.find((t) => t.place === 'Caseta de vigilancia') || {}).id)")
+    assert oid, 'the pendiente with a written place'
+    pg.goto(BASE + '/#/p/' + str(oid)); pg.click('.cell [data-set=area]'); pg.click('.sheet .opt:has-text("a la lista")')
+    expect(pg.locator('#sh-in')).to_have_value('Caseta de vigilancia'); pg.fill('#sh-in', 'Caseta'); pg.click('.sheet [data-act="1"]')
+    expect(toast(pg)).to_contain_text('Área nueva: Caseta'); expect(pg.locator('.cell:has-text("Dónde") .tag')).to_have_text('Caseta')
+    t = api_task(pg, oid); assert t['place'] is None and t['area_name'] == 'Caseta', t
+    pg.goto(BASE + '/#/nuevo'); assert 'Caseta' in pg.locator('#r-area').inner_text()
+    step('an administrator adds a written place to the list of areas from the pendiente')
     pg.goto(BASE + '/#/personas'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'true')
     pg.click('[data-signup]'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'false')
     c2 = ctx(); p2 = c2.new_page(); p2.goto(BASE + '/'); p2.fill('#en-name', 'Persona Nueva'); p2.fill('#en-phone', '4155550555'); p2.click('#en-go')
@@ -346,7 +374,13 @@ with sync_playwright() as p:
     finger('touchStart', bb['x'] + 80, bb['y'] + 14); pg.wait_for_timeout(500); expect(pg.locator('.ddrop.in')).to_have_count(1)
     day0 = pg.locator('.ddrop').get_attribute('data-day'); sc = pg.locator('.dd-scroll').bounding_box()
     for i in range(1, 5): finger('touchMove', bb['x'] + 80 + i * 20, bb['y'] + 14 + i * 40); pg.wait_for_timeout(30)
-    finger('touchMove', 386, sc['y'] + 200); pg.wait_for_timeout(750); day1 = pg.locator('.ddrop').get_attribute('data-day'); assert day1 > day0
+    expect(pg.locator('.dd-hint')).to_be_visible(); title0 = pg.locator('.dd-title b').inner_text()
+    finger('touchMove', 386, sc['y'] + 200); pg.wait_for_timeout(300); expect(pg.locator('.ddrop.edge-r')).to_have_count(1)      # the edge lights up first
+    pg.wait_for_function("(d) => document.querySelector('.ddrop').dataset.day > d", arg=day0, timeout=3000)
+    assert pg.locator('.dd-win .out').count() == 2 and pg.locator('.dd-grid.from-r').count() == 1                                # the day slides: one leaving, one arriving
+    pg.wait_for_timeout(600); day1 = pg.locator('.ddrop').get_attribute('data-day'); assert day1 > day0
+    assert pg.locator('.dd-win .out').count() == 0 and pg.locator('.dd-grid').count() == 1 and pg.locator('.dd-title b').inner_text() != title0
+    assert pg.evaluate("localStorage.getItem('mt_edge')")                                                                         # the hint about the edges has done its job
     finger('touchMove', 220, sc['y'] + 220); pg.wait_for_timeout(120); expect(pg.locator('.dd-prev')).to_be_visible(); finger('touchEnd'); pg.wait_for_timeout(800)
     expect(pg.locator('#toast')).to_contain_text('Quedó para'); expect(pg.locator('.ddrop')).to_have_count(0); expect(pg.locator('#sheet')).to_be_hidden()
     t = api_task(pg, rid); assert t['due_date'] == day1 and t['plan_min'] is not None and t['est_min'], t

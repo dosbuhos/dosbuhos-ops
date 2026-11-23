@@ -117,7 +117,8 @@ function dueInfo(t) {
   return { cls: '', text: `Para el ${fmtDay(t.due_date, { weekday: diff < 7 })}`, icon: 'cal' };
 }
 const tag = (name, color, extra = '') => `<span class="tag c-${esc(color || 'grey')}" ${extra}>${esc(name)}</span>`;
-const areaTag = (t) => (t.area_name ? tag(t.area_name, t.area_color) : '');
+// Where a pendiente is: its area, or the place someone wrote because it was not on the list.
+const areaTag = (t) => (t.area_name ? tag(t.area_name, t.area_color) : t.place ? tag(t.place, 'grey') : '');
 // The address people are sent to. On the live hosts it is always Pulso's own; anywhere else (a laptop) it is where you are.
 const APP_URL = /(^|\.)dosbuhos\.com$|\.workers\.dev$/.test(location.hostname) ? 'https://pulso.dosbuhos.com' : location.origin;
 const avatar = (name, cls = '') => `<span class="av ${cls}" aria-hidden="true">${esc(initials(name))}</span>`;
@@ -556,7 +557,30 @@ function bindChoice(root, name, cb, { toggle = false } = {}) {
   }));
   return () => { const on = $('.ch.on', box); return on ? on.dataset.v : ''; };
 }
-const areaChoice = (selected, name = 'area') => choice(name, activeAreas().map((a) => ({ v: a.id, label: a.name, color: a.color })), selected, { label: 'Área', cls: 'tags' });
+// "¿Dónde?" as a drop-down: the areas, one line on the screen (as chips they took half of it). With `other`, the last
+// option opens a line to write a place that is not on the list; it stays with that pendiente and does not join the list.
+function areaSelect(id, selected, { label = '¿Dónde?', empty = 'Elige un área', other = false } = {}) {
+  const sel = Number(selected) || 0;
+  const opts = S.areas.filter((a) => a.active || a.id === sel).map((a) => `<option value="${a.id}" ${a.id === sel ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+  return `<div class="field"><label class="flabel" for="${id}">${esc(label)}</label>
+    <select class="input" id="${id}"><option value="">${esc(empty)}</option>${opts}${other ? '<option value="otro">Otro lugar…</option>' : ''}</select>
+    ${other ? `<input class="input other hidden" id="${id}-other" type="text" maxlength="80" placeholder="Escribe el lugar" aria-label="Otro lugar" autocomplete="off" enterkeyhint="done">` : ''}</div>`;
+}
+function bindAreaSelect(id, cb) {
+  const sel = $('#' + id);
+  const other = $('#' + id + '-other');
+  const area = () => (sel.value && sel.value !== 'otro' ? sel.value : '');
+  sel.onchange = () => {
+    clearErrs(sel.closest('.field'));
+    if (other) { other.classList.toggle('hidden', sel.value !== 'otro'); if (sel.value === 'otro') other.focus(); }
+    if (cb) cb(area());
+  };
+  if (other) {
+    other.oninput = () => clearErrs(sel.closest('.field'));
+    other.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); other.blur(); } };
+  }
+  return { el: sel, other, area, isOther: () => sel.value === 'otro', place: () => (other && sel.value === 'otro' ? other.value.trim() : '') };
+}
 
 // The 12 months as toggles (4 × 3), for "N veces al año"
 function monthGrid(selected) {

@@ -295,7 +295,7 @@ function taskSelect({ list = false } = {}) {
   const cols = list
     ? `t.id, t.title, substr(t.description, 1, 240) AS description, t.kind, t.area_id, t.equipment_id, t.priority, t.status,
        t.provider_id, t.due_date, t.cost, t.created_by, t.created_at, t.updated_at, t.completed_at, t.wait_reason, t.pm_id,
-       t.postponed, t.first_due, t.est_min, t.plan_min`
+       t.postponed, t.first_due, t.est_min, t.plan_min, t.place`
     : 't.*';
   return `
   SELECT ${cols}, a.name AS area_name, a.color AS area_color, e.name AS equipment_name,
@@ -342,9 +342,9 @@ async function tasksApi(request, env, url, user, seg, method) {
     if (q.get('equipment')) { where.push('t.equipment_id = ?'); params.push(int(q.get('equipment'))); }
     if (q.get('area')) { where.push('t.area_id = ?'); params.push(int(q.get('area'))); }
     if (q.get('q')) {
-      where.push('(t.title LIKE ? OR t.description LIKE ? OR CAST(t.id AS TEXT) = ?)');
+      where.push('(t.title LIKE ? OR t.description LIKE ? OR t.place LIKE ? OR CAST(t.id AS TEXT) = ?)');
       const like = '%' + q.get('q').slice(0, 100) + '%';
-      params.push(like, like, q.get('q').replace(/^#/, ''));
+      params.push(like, like, like, q.get('q').replace(/^#/, ''));
     }
     const limit = Math.min(500, Math.max(1, int(q.get('limit')) || (view === 'open' ? 500 : 40)));
     const offset = Math.max(0, int(q.get('offset')) || 0);
@@ -369,20 +369,22 @@ async function tasksApi(request, env, url, user, seg, method) {
     // a service already done: its date goes in at midday Mexico time (18:00 UTC)
     const completedAt = status === 'hecha' ? (isDate(b.completed_date) ? `${b.completed_date} 18:00:00` : null) : null;
     let areaId = int(b.area_id);
+    // "Otro lugar": somewhere that is not on the list of areas, in the reporter's words. It takes the area's spot.
+    const place = areaId ? null : str(b.place, 80);
     const equipmentId = int(b.equipment_id);
     let providerId = int(b.provider_id);
     if (equipmentId) {
       const eq = await env.DB.prepare('SELECT area_id, provider_id FROM equipment WHERE id = ?').bind(equipmentId).first();
       if (!eq) fail(400, 'Ese equipo ya no existe');
-      if (!areaId) areaId = eq.area_id;
+      if (!areaId && !place) areaId = eq.area_id;
     }
     const who = await providerName(env, providerId);
     const r = await env.DB.prepare(
       `INSERT INTO tasks (title, description, kind, area_id, equipment_id, priority, status, provider_id,
-                          due_date, first_due, cost, created_by, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END))`
+                          due_date, first_due, cost, created_by, completed_at, place)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END), ?)`
     ).bind(title, str(b.description, 4000), kind, areaId, equipmentId, priority, status, providerId,
-      dueDate, dueDate, num(b.cost), user.id, completedAt, status).run();
+      dueDate, dueDate, num(b.cost), user.id, completedAt, status, place).run();
     const newId = r.meta.last_row_id;
     let log = kind === 'servicio' ? `Servicio registrado por ${user.name}` : `Reportado por ${user.name}`;
     if (who) log += `, asignado a ${who}`;
@@ -441,11 +443,21 @@ async function tasksApi(request, env, url, user, seg, method) {
       const v = str(b.description, 4000);
       if (v !== t.description) { sets.push('description = ?'); params.push(v); }
     }
-    if ('area_id' in b && int(b.area_id) !== t.area_id) {
-      const a = int(b.area_id) ? await env.DB.prepare('SELECT name FROM areas WHERE id = ?').bind(int(b.area_id)).first() : null;
-      if (int(b.area_id) && !a) fail(400, 'Esa área ya no existe');
-      sets.push('area_id = ?'); params.push(int(b.area_id));
-      logs.push(`Área: ${a ? a.name : 'sin área'}`);
+    // "¿Dónde?" has one answer: an area from the list, or a place written by hand. Whichever comes in takes the other's spot.
+    if ('area_id' in b || 'place' in b) {
+      let areaId = 'area_id' in b ? int(b.area_id) : t.area_id;
+      let place = 'place' in b ? str(b.place, 80) : (t.place || null);
+      if ('place' in b && place) areaId = null; else if ('area_id' in b && areaId) place = null;
+      if (areaId !== t.area_id) {
+        const a = areaId ? await env.DB.prepare('SELECT name FROM areas WHERE id = ?').bind(areaId).first() : null;
+        if (areaId && !a) fail(400, 'Esa área ya no existe');
+        sets.push('area_id = ?'); params.push(areaId);
+        if (a || !place) logs.push(`Área: ${a ? a.name : 'sin área'}`);
+      }
+      if (place !== (t.place || null)) {
+        sets.push('place = ?'); params.push(place);
+        if (place) logs.push(`Lugar: ${place}`);
+      }
     }
     if ('equipment_id' in b && int(b.equipment_id) !== t.equipment_id) {
       const e = int(b.equipment_id) ? await env.DB.prepare('SELECT name FROM equipment WHERE id = ?').bind(int(b.equipment_id)).first() : null;
@@ -1070,7 +1082,7 @@ async function searchApi(env, url) {
   if (raw.length < 2 && !/^#?\d+$/.test(raw)) return json({ tasks: [], equipment: [], providers: [] });
   const like = '%' + raw.replace(/[%_]/g, ' ') + '%';
   const [tasks, equipment, providers] = await env.DB.batch([
-    env.DB.prepare(`${taskSelect({ list: true })} WHERE t.title LIKE ?1 OR t.description LIKE ?1 OR CAST(t.id AS TEXT) = ?2
+    env.DB.prepare(`${taskSelect({ list: true })} WHERE t.title LIKE ?1 OR t.description LIKE ?1 OR t.place LIKE ?1 OR CAST(t.id AS TEXT) = ?2
       ORDER BY CASE WHEN t.status IN ${OPEN_SQL} THEN 0 ELSE 1 END, t.id DESC LIMIT 25`).bind(like, raw.replace(/^#/, '')),
     env.DB.prepare(`SELECT e.id, e.name, e.location, e.brand_model, a.name AS area_name, a.color AS area_color,
         (SELECT MIN(ph.id) FROM photos ph WHERE ph.equipment_id = e.id) AS cover_id

@@ -51,7 +51,7 @@ the planner (Equipos, Preventivo, a pendiente's page, Cuenta) opens as a page un
 | **A pendiente's sheet** | Tapping a pendiente anywhere opens it over the screen you are on: *Cuándo* (Hoy, Mañana, Otro día, Sin día), hour and how long, priority, *Lo hace* (anyone from the house or a contact, with Llamar / WhatsApp), *Hecho*, and *Ver todo* for its page |
 | **Contactos** (the phone icon) | A sheet with every contact, search by name or trade, Llamar / WhatsApp on each row |
 | **A pendiente's page** | Estado, Lo hace, Fecha, Tiempo, Prioridad, Área, Equipo, Costo, photos, notes and the automatic history. *Posponer* asks for the new date and why, and counts how many times it was pushed |
-| **Reportar** | Photo, what is wrong, where, how urgent |
+| **Reportar** | Photo, what is wrong, where, how urgent. *¿Dónde?* is a drop-down of the areas; its last option, *Otro lugar*, opens a line to write a place that is not on the list. That text stays with the pendiente (`tasks.place`) and shows where the area would; it does not join the list unless an administrator adds it from the pendiente (*¿Dónde?* → *Agregar a la lista*). A pendiente has an area or a written place, never both |
 | **Preventivo** | *El año*: the twelve months with every scheduled service (hecho / ya en el calendario / atrasado / programado); what comes up every month folds into one line. From July on the page continues into the next year. *Planes*: N times a year by tapping months, every N days/weeks/months, or once. A plan puts its job on the calendar N days before |
 | **Equipos** | Photo, make and model, who looks after it, last service, next service, faults in 90 days, history. *Anotar servicio*, *Reportar falla* |
 | **Cuenta** | Resumen (8-week chart, by person, by area, oldest open), Lo que ya se hizo, Invitar por WhatsApp, Personas and Áreas (administrators) |
@@ -60,7 +60,8 @@ Planning. The day of a pendiente is its `due_date`; `plan_min` is the hour (minu
 how long it takes. With a mouse: drag a card from a list or the calendar onto a day and an hour (an hour long until
 its lower edge is pulled), onto *Sin hora* for a day without an hour, or back onto the lists to send it to the
 Bandeja. By touch: hold a pendiente for a moment and a day slides in; drop it on an hour, on *Ese día, sin hora* or
-on *A la Bandeja*, and take the finger to an edge to change the day. With one person's calendar chosen, unassigned
+on *A la Bandeja*. Take the finger to an edge and, after half a second, the day turns like a page: the one on screen
+slides out and the next slides in under the pendiente being held (no slide with reduced motion). With one person's calendar chosen, unassigned
 work dropped into it becomes theirs. Moving a day before it comes is planning and is not counted as *pospuesto*.
 Whatever is done leaves the calendar (it is in *Lo que ya se hizo* and in the equipment's history).
 
@@ -76,7 +77,7 @@ WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is
 - The look is the app's own (`public/app.css`) and follows Horizonte's: the same shell, ink on white, Geist
   (self-hosted in `public/fonts/`), flat lists ruled with hairlines on a phone, boxed cards in the columns of a wide screen. Colour is kept for state (red late, amber today or waiting, green
   done) and the area tags. It does not load the Hub's theme, so the Hub's presets do not restyle it.
-- `migrations/` — D1 schema. 0001–0007 are applied to the remote database. The tables `login_links` and `purchases`
+- `migrations/` — D1 schema. 0001–0008 are applied to the remote database. The tables `login_links` and `purchases`
   are left from the PIN / link version and are not used.
 
 ## Deploy
