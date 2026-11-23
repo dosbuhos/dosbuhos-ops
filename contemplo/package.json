@@ -1,0 +1,3 @@
+{ "name": "contemplo", "private": true, "type": "module",
+  "scripts": { "dev": "wrangler dev --var ENVIRONMENT:dev", "test": "node --test test/*.test.mjs", "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run", "db:local": "wrangler d1 migrations apply contemplo --local" },
+  "devDependencies": { "wrangler": "^4" } }

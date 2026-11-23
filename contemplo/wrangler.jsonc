@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "contemplo",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  // Stays on: the Android TV players call /api/device/* here directly with their own token (staff pages need the Hub).
+  "workers_dev": true,
+  // Dashboard and show-control page. Every request goes through the Worker first: pages need a Hub identity.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "d1_databases": [
+    // Library, devices, what each device should hold, commands, run-of-show lists, events.
+    { "binding": "DB", "database_name": "contemplo", "database_id": "84c423bd-6362-4bb0-9a86-051d890a5010", "migrations_dir": "migrations" }
+  ],
+  // Video files (videos/<id>.mp4) and thumbnails (thumbs/<id>.jpg). Private: served only through this Worker.
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "contemplo-media" }],
+  // The Hub's session secret (account Secrets Store): checks that staff requests really come from the Hub (src/hub-secret.js).
+  "secrets_store_secrets": [
+    { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
+  ],
+  // UTC 10:20 = 4:20 in San Miguel: drop abandoned uploads, old events and old commands.
+  "triggers": { "crons": ["20 10 * * *"] },
+  "observability": { "enabled": true },
+  "vars": {
+    // "production" here; `wrangler dev --var ENVIRONMENT:dev` signs you in as a local admin without the Hub.
+    "ENVIRONMENT": "production"
+  }
+  // Secrets: none. HUB_SECRET comes from HUB_SESSION_SECRET in the Secrets Store; the TVs get their own tokens when paired.
+}
