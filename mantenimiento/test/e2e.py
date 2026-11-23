@@ -130,6 +130,8 @@ with sync_playwright() as p:
     pg.click('.sheet .qchip:has-text("Se cambió la pieza")'); pg.set_input_files('#dn-pick-gal', JPG_PATH); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.cell:has-text("Estado") .pill')).to_have_text('Hecho', timeout=15000)
     expect(pg.locator('#d-photos .ph[data-photo]')).to_have_count(2)
+    assert pg.locator('#d-photos .pstrip .ph.big').first.bounding_box()['width'] > 250 and pg.locator('#d-photos').bounding_box()['y'] < pg.locator('.hero h2').bounding_box()['y']   # the photo is large and comes first
+    expect(pg.locator('#d-photos .pcount')).to_have_text('1 / 2'); pg.evaluate("document.querySelector('#d-photos .pstrip').scrollLeft = 9999"); expect(pg.locator('#d-photos .pcount')).to_have_text('2 / 2')
     expect(pg.locator('.timeline .note .nt').last).to_have_text('Se cambió la pieza')
     pg.click('[data-reopen]'); expect(pg.locator('.cell:has-text("Estado") .pill')).to_have_text('Por hacer')
     step('mark done with a note and a photo; reopen')

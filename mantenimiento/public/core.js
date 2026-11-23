@@ -254,7 +254,9 @@ function openViewer(photoId, { canDelete = false, onDelete = null } = {}) {
   v.classList.remove('hidden');
   document.body.classList.add('lock');
   const hide = () => {
-    v.classList.add('hidden'); v.innerHTML = ''; document.body.classList.remove('lock'); openViewer.close = null;
+    v.classList.add('hidden'); v.innerHTML = ''; openViewer.close = null;
+    if ($('#sheet').classList.contains('hidden')) document.body.classList.remove('lock');   // opened over a sheet, the page stays put
+
     if (UI.lastFocus && UI.lastFocus.isConnected) UI.lastFocus.focus({ preventScroll: true });
   };
   const close = (then) => { if (v.classList.contains('hidden')) return; hide(); ovPop(() => { if (typeof then === 'function') then(); }); };
@@ -274,8 +276,23 @@ function openViewer(photoId, { canDelete = false, onDelete = null } = {}) {
   });
 }
 // Photos already saved, with an "add" tile. inputId = the hidden file input.
-function photoGrid(photos, inputId, { add = true, label = 'Agregar foto' } = {}) {
+// The photos of a pendiente, large: one fills the width, the rest are a slide away. A photo says what is wrong
+// faster than its title, so it is the first thing on the screen and one tap from full size.
+function photoStrip(photos) {
+  if (!photos.length) return '';
+  return `<div class="pwrap"><div class="pstrip ${photos.length > 1 ? 'many' : ''}" data-strip tabindex="0" aria-label="${plural(photos.length, 'foto', 'fotos')}">
+    ${photos.map((p, i) => `<button class="ph big" type="button" data-photo="${p.id}" data-uid="${p.user_id || ''}" aria-label="Ver la foto ${i + 1} en grande"><img ${i ? 'loading="lazy"' : ''} src="/api/photos/${p.id}" alt=""></button>`).join('')}</div>
+    ${photos.length > 1 ? `<span class="pcount" aria-hidden="true">1 / ${photos.length}</span>` : ''}</div>`;
+}
+function bindStrip(root) {
+  $$('[data-strip]', root).forEach((st) => {
+    const c = $('.pcount', st.parentElement);
+    if (c) st.onscroll = () => { c.textContent = `${Math.min(st.children.length, Math.round(st.scrollLeft / st.clientWidth) + 1)} / ${st.children.length}`; };
+  });
+}
+function photoGrid(photos, inputId, { add = true, label = 'Agregar foto', big = false } = {}) {
   const input = add ? `<input type="file" id="${inputId}" accept="image/*" multiple hidden>` : '';
+  if (big && photos.length) return `${photoStrip(photos)}${add ? `<label class="b line sm addphoto more" for="${inputId}" role="button" tabindex="0">${ic('camera')}${label}</label>` : ''}${input}`;
   if (!photos.length) return add ? `<label class="b line block addphoto" for="${inputId}" role="button" tabindex="0">${ic('camera')}${label}</label>${input}` : '';
   return `<div class="photos" data-grid="${inputId}">
     ${photos.map((p) => `<button class="ph" type="button" data-photo="${p.id}" data-uid="${p.user_id}" aria-label="Ver foto"><img loading="lazy" src="/api/photos/${p.id}?t=1" alt=""></button>`).join('')}
@@ -283,6 +300,7 @@ function photoGrid(photos, inputId, { add = true, label = 'Agregar foto' } = {})
   </div>${input}`;
 }
 function bindPhotoGrid(root, inputId, uploadPath, reload) {
+  bindStrip(root);
   $$('[data-photo]', root).forEach((el) => {
     el.onclick = () => openViewer(el.dataset.photo, { canDelete: isAdmin() || Number(el.dataset.uid) === S.user.id, onDelete: reload });
   });

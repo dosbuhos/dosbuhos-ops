@@ -414,13 +414,14 @@ async function viewTask(id, keep = false) {
   render(header(`Pendiente #${t.id}`, { back: true, right: `<button class="ib" data-menu aria-label="Más opciones">${ic('more')}</button>` }) + `<div class="wrap detail">
     ${late ? `<div class="banner bad" role="status">${ic('alert')}<div class="grow"><b>${esc(due.text)}</b><span>Era para el ${esc(fmtDay(t.due_date, { weekday: true, rel: false }))}.${t.postponed ? ` Pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}.` : ''}</span></div>
         <button class="b line sm" data-set="who">${t.provider_id ? 'Pasar a otro' : 'Asignar'}</button></div>` : ''}
+    ${d.photos.length ? `<div id="d-photos" class="top">${photoGrid(d.photos, 'd-file', { label: 'Agregar foto', big: true })}</div>` : ''}
     <div class="hero">
       <div class="hmeta">${areaTag(t)}${t.kind === 'preventivo' ? `<span class="pill">${ic('repeat')}Preventivo</span>` : t.kind === 'servicio' ? '<span class="pill">Servicio</span>' : ''}${open && t.priority === 1 ? `<b class="urgent">${ic('flag')}Urgente</b>` : ''}</div>
       <h2>${esc(t.title)}</h2>
       <p class="by">${t.created_by_name ? `${t.kind === 'servicio' ? 'Lo anotó' : t.kind === 'preventivo' ? 'Plan de' : 'Lo reportó'} ${esc(t.created_by_name)}` : 'Lo creó el plan preventivo'} ${esc(fmtWhen(t.created_at))}</p>
       ${t.description ? `<p class="desc">${esc(t.description)}</p>` : ''}
     </div>
-    <div id="d-photos">${photoGrid(d.photos, 'd-file', { label: 'Agregar foto' })}</div>
+    ${d.photos.length ? '' : `<div id="d-photos">${photoGrid(d.photos, 'd-file', { label: 'Agregar foto' })}</div>`}
     <div class="cells">
       ${cell('status', 'Estado', `<span class="pill big ${stCls}">${esc(statusText(t))}</span>${t.status === 'hecha' && t.completed_at ? `<span class="csub">${esc(fmtDay(localYmd(t.completed_at)))}</span>` : ''}`)}
       ${cell('who', 'Lo hace', t.provider_id ? `${esc(t.provider_name)}${t.provider_kind === 'externo' ? `<span class="csub">${t.provider_specialty ? esc(t.provider_specialty) + ', externo' : 'Externo'}</span>` : ''}` : '<span class="un">Sin asignar</span>', { under: contact })}

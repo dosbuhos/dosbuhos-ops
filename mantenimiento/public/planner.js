@@ -625,7 +625,7 @@ function taskSheet(t0) {
     const whenBtn = (d, label) => `<button type="button" data-when="${d}" aria-pressed="${x.due_date === d}">${label}</button>`;
     const media = [x.photo_count ? plural(x.photo_count, 'foto', 'fotos') : '', x.note_count ? plural(x.note_count, 'nota', 'notas') : ''].filter(Boolean).join(' y ');
     return `${x.description ? `<p class="tdesc">${esc(x.description)}${x.description.length >= 240 ? '…' : ''}</p>` : ''}
-      ${media ? `<a class="tmedia" href="#/p/${id}">${x.thumb_id ? `<img loading="lazy" src="/api/photos/${x.thumb_id}?t=1" alt="">` : ''}<span class="grow">${media}</span>${ic('chev')}</a>` : ''}
+      ${x.note_count ? `<a class="tmedia" href="#/p/${id}"><span class="grow">${plural(x.note_count, 'nota', 'notas')}</span>${ic('chev')}</a>` : ''}
       <div class="grp"><h3 class="eyebrow">Cuándo</h3>
         <div class="when">${whenBtn(today, 'Hoy')}${whenBtn(addDays(today, 1), 'Mañana')}<button type="button" data-when="pick" aria-pressed="${other}">${other ? esc(dayName(x.due_date) + (x.due_date.slice(0, 7) === today.slice(0, 7) ? '' : ' ' + MESES[Number(x.due_date.slice(5, 7)) - 1])) : 'Otro día'}</button><button type="button" data-when="" aria-pressed="${!x.due_date}">Sin día</button></div>
         ${isLate(x) ? `<p class="twhen"><span class="due late">${esc(due.text)}</span>${x.postponed ? `<span>Pospuesto ${x.postponed === 1 ? '1 vez' : x.postponed + ' veces'}</span>` : ''}</p>` : x.due_date ? '' : '<p class="twhen">Sin día, espera en la Bandeja.</p>'}</div>
@@ -643,9 +643,16 @@ function taskSheet(t0) {
   sheet({
     title: t0.title, cls: 'tsheet',
     subHtml: `${areaTag(t0)}<span>#${id}</span>${by ? `<span>${by}</span>` : ''}${stt}${t0.equipment_name ? `<span>${ic('wrench')}${esc(t0.equipment_name)}</span>` : ''}`,
-    body: `<div class="pad" id="ts">${draw()}</div>`,
+    body: `${t0.thumb_id ? `<div id="ts-ph">${photoStrip([{ id: t0.thumb_id }])}</div>` : ''}<div class="pad" id="ts">${draw()}</div>`,
     acts: [{ label: 'Ver todo', cls: 'tonal', value: 'page' }, { label: `${ic('check')}Hecho`, cls: 'ok', value: 'done' }],
     onOpen: (w, close) => {
+      // the photo is one tap from full size; when there are more, they come in behind the first
+      const ph = $('#ts-ph', w);
+      const bindPh = () => { bindStrip(ph); $$('[data-photo]', ph).forEach((el) => (el.onclick = () => openViewer(el.dataset.photo))); };
+      if (ph) {
+        bindPh();
+        if (t0.photo_count > 1) api('GET', '/tasks/' + id).then((d) => { if (ph.isConnected && d.photos && d.photos.length > 1) { ph.innerHTML = photoStrip(d.photos); bindPh(); } }).catch(() => {});
+      }
       const box = $('#ts', w);
       const redraw = () => {
         const a = document.activeElement;

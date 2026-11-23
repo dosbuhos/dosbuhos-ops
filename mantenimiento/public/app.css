@@ -387,7 +387,19 @@ details.more .field:first-of-type { margin-top: 4px; }
 .pickbtns { display: flex; gap: 8px; }
 .pickbtns .b { cursor: pointer; }
 @media (max-width: 379px) { .hide-s { display: none; } }
-.viewer { position: fixed; inset: 0; z-index: 60; background: rgba(8, 9, 12, .96); display: flex; align-items: center; justify-content: center; padding: calc(var(--safe-t) + 60px) 0 calc(var(--safe-b) + 16px); }
+/* the photos of a pendiente, large: one fills the width, slide sideways for the rest */
+.pwrap { position: relative; }
+.pstrip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: var(--r); }
+.pstrip::-webkit-scrollbar { display: none; }
+.pstrip .ph.big { flex: 0 0 100%; aspect-ratio: 4 / 3; max-height: 58vh; scroll-snap-align: center; border-radius: var(--r); cursor: zoom-in; }
+.pstrip.many .ph.big { flex-basis: 92%; }                    /* the edge of the next one shows there is more */
+.pcount { position: absolute; right: 10px; bottom: 10px; padding: 4px 8px; border-radius: 999px; background: rgba(15, 17, 21, .72); color: #fff; font: 600 12px/1 var(--font); font-variant-numeric: tabular-nums; pointer-events: none; }
+#d-photos.top { display: block; margin: 0 0 14px; }
+#d-photos.top .pwrap { display: block; width: 100%; }
+#d-photos.top .addphoto.more { display: inline-flex; width: auto; margin-top: 8px; }
+#ts-ph { padding: 0 var(--gut) 12px; }
+.tsheet #ts-ph .ph.big { max-height: 42vh; }
+.viewer { position: fixed; inset: 0; z-index: 96; background: rgba(8, 9, 12, .96); display: flex; align-items: center; justify-content: center; padding: calc(var(--safe-t) + 60px) 0 calc(var(--safe-b) + 16px); }
 .viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .vbar { position: absolute; top: var(--safe-t); left: 0; right: 0; display: flex; justify-content: space-between; padding: 8px; }
 .vbar .ib { color: #fff; background: rgba(255, 255, 255, .14); border-radius: 50%; }
