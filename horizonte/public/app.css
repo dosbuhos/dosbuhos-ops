@@ -472,6 +472,25 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .dd-edge { width: 28px; text-align: center; font-size: 28px; color: var(--ink-2); }
 .dd-title { flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 17px; }
 .dd-title small { font-size: 12px; color: var(--ink-2); }
+/* v63: the days turn like pages inside two windows (the title above, the blocks below); what is around them stays still */
+.dd-win { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+.dd-top .dd-win { display: flex; align-items: center; min-height: 64px; }
+.dd-win > .out { position: absolute; inset: 0; pointer-events: none; }
+.dd-top .dd-win > .out { justify-content: center; }
+.dd-win > .from-r { animation: dd-from-r 340ms cubic-bezier(.32, .72, 0, 1); }
+.dd-win > .from-l { animation: dd-from-l 340ms cubic-bezier(.32, .72, 0, 1); }
+.dd-win > .to-l { animation: dd-to-l 340ms cubic-bezier(.32, .72, 0, 1) forwards; }
+.dd-win > .to-r { animation: dd-to-r 340ms cubic-bezier(.32, .72, 0, 1) forwards; }
+@keyframes dd-from-r { from { transform: translateX(100%); } }
+@keyframes dd-from-l { from { transform: translateX(-100%); } }
+@keyframes dd-to-l { to { transform: translateX(-100%); } }
+@keyframes dd-to-r { to { transform: translateX(100%); } }
+/* the edge the finger rests on lights up before the day turns */
+.daydrop::before, .daydrop::after { content: ''; position: absolute; top: 0; bottom: 0; width: 34px; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 180ms; }
+.daydrop::before { left: 0; background: linear-gradient(to right, color-mix(in srgb, var(--blue) 26%, transparent), transparent); }
+.daydrop::after { right: 0; background: linear-gradient(to left, color-mix(in srgb, var(--blue) 26%, transparent), transparent); }
+.daydrop.edge-l:not(.first)::before, .daydrop.edge-r::after { opacity: 1; }
+.daydrop.first .dd-edge:first-child { visibility: hidden; }
 .dd-strip { display: flex; gap: 8px; padding: 8px 16px; }
 .dd-strip .slot { flex: 1; min-height: 40px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line-3); border-radius: 10px; font-size: 14px; font-weight: 600; }
 .dd-strip .slot.over { border: 2px solid var(--blue); background: var(--drop); color: var(--blue); }

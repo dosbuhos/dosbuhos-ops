@@ -1512,19 +1512,39 @@ function openDayDrop(k) {
   sc.scrollTop = Math.max(0, (startH - MH0) * MHPX);
   requestAnimationFrame(() => el.classList.add('in')); return el;
 }
-function renderDayDrop(el, k) {
-  const keep = el.querySelector('.dd-scroll')?.scrollTop;
+// What a day brings to the phone drop screen: its title and its blocks.
+function dayDropParts(k) {
   const d = parseD(k), rel = relDay(k);
   const items = placedOn(k).filter(t => t.at && (!drag || t.id !== drag.id));
-  let rows = ''; for (let h = MH0; h < MH1; h++) rows += `<div class="dd-h" style="height:${MHPX}px"><span>${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</span></div>`;
   const blocks = items.map(t => { const top = (toMin(t.at) / 60 - MH0) * MHPX, ht = Math.max(20, (t.dur || 30) / 60 * MHPX - 2);
     return `<div class="dd-b ${t.kind === 'meeting' ? 'mt' : ''}" style="${colorStyle(t)}top:${top}px;height:${ht}px">${esc(t.title)} · ${clock(t.at)}</div>`; }).join('');
   let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); now = `<div class="nowline" style="top:${(m / 60 - MH0) * MHPX}px"></div>`; }
-  el.innerHTML = `<div class="dd-top"><div class="dd-edge">‹</div><div class="dd-title"><b>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</b>${rel ? ` <span class="pill">${rel}</span>` : ''}<small>${loadText(k)} · hold at an edge to change day</small></div><div class="dd-edge">›</div></div>
-<div class="dd-strip"><div class="slot" data-drop="day:${k}">Anytime ${esc(rel || dayShort(k))}</div><div class="slot" data-drop="list">Unschedule</div></div>
-<div class="dd-scroll"><div class="dd-wrap"><div class="dd-rows">${rows}</div><div class="dd-grid" data-drop="slot:${k}" data-hpx="${MHPX}" data-h0="${MH0}" style="height:${(MH1 - MH0) * MHPX}px">${blocks}${now}</div></div></div>`;
-  el.dataset.k = k;
-  if (keep != null) el.querySelector('.dd-scroll').scrollTop = keep;
+  return { rel, title: `<div class="dd-title"><b>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</b>${rel ? ` <span class="pill">${rel}</span>` : ''}<small>${loadText(k)} · hold at an edge to change day</small></div>`,
+    grid: `<div class="dd-grid" data-drop="slot:${k}" data-hpx="${MHPX}" data-h0="${MH0}" style="height:${(MH1 - MH0) * MHPX}px">${blocks}${now}</div>` };
+}
+// Swaps what a window shows. With a direction the day turns like a page under the task being held (v63): the one on
+// screen leaves toward the side the finger came from, the next comes in from the edge it rests on.
+function ddSwap(win, html, dir) {
+  win.querySelectorAll('.out').forEach(x => x.remove()); // a turn still on its way: let it go
+  const old = win.lastElementChild; win.insertAdjacentHTML('beforeend', html); if (!old) return;
+  if (!dir) { old.remove(); return; }
+  const neu = win.lastElementChild;
+  old.removeAttribute('data-drop'); old.classList.add('out', dir > 0 ? 'to-l' : 'to-r'); neu.classList.add(dir > 0 ? 'from-r' : 'from-l');
+  const done = () => { old.remove(); neu.classList.remove('from-r', 'from-l'); };
+  old.addEventListener('animationend', done, { once: true }); setTimeout(done, 520); // the timeout covers a tab in the background
+}
+function renderDayDrop(el, k, dir = 0) {
+  if (!el.firstChild) { // the frame is drawn once: the arrows, the two slots and the hours stay still while the days pass
+    let rows = ''; for (let h = MH0; h < MH1; h++) rows += `<div class="dd-h" style="height:${MHPX}px"><span>${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</span></div>`;
+    el.innerHTML = `<div class="dd-top"><div class="dd-edge">‹</div><div class="dd-win"></div><div class="dd-edge">›</div></div>
+<div class="dd-strip"><div class="slot" data-day></div><div class="slot" data-drop="list">Unschedule</div></div>
+<div class="dd-scroll"><div class="dd-wrap"><div class="dd-rows">${rows}</div><div class="dd-win days"></div></div></div>`;
+  }
+  const p = dayDropParts(k), [tw, gw] = el.querySelectorAll('.dd-win'), any = el.querySelector('.slot[data-day]');
+  el.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+  any.dataset.drop = 'day:' + k; any.textContent = `Anytime ${p.rel || dayShort(k)}`;
+  el.dataset.k = k; el.classList.toggle('first', k <= todayK()); // nothing before today
+  ddSwap(tw, p.title, dir); ddSwap(gw, p.grid, dir);
 }
 function dropAt(x, y) {
   const el = document.elementFromPoint(x, y); if (!el) return null;
@@ -1549,9 +1569,9 @@ function moveDrag(x, y) {
   if (d.rail) {
     clearInterval(autoScroll);
     const dir = x > innerWidth - 34 ? 1 : x < 34 ? -1 : 0;
-    if (dir !== d.edgeDir) { clearTimeout(d.edgeTimer); d.edgeDir = dir;
+    if (dir !== d.edgeDir) { clearTimeout(d.edgeTimer); d.edgeDir = dir; d.rail.classList.toggle('edge-r', dir > 0); d.rail.classList.toggle('edge-l', dir < 0); // the edge lights up, then the day slides
       if (dir) d.edgeTimer = setTimeout(function flip() { if (!drag || drag.edgeDir !== dir) return; const nk = addDays(d.rail.dataset.k, dir); if (dir < 0 && nk < todayK()) return;
-        renderDayDrop(d.rail, nk); d.over = null; navigator.vibrate?.(8); d.edgeTimer = setTimeout(flip, 900); }, 550); }
+        renderDayDrop(d.rail, nk, dir); d.over = null; navigator.vibrate?.(8); d.edgeTimer = setTimeout(flip, 900); }, 550); }
     const sc = d.rail.querySelector('.dd-scroll'), r = sc.getBoundingClientRect(); let vy = 0;
     if (y > r.bottom - 60) vy = 10; else if (y < r.top + 50 && y > r.top - 40) vy = -10;
     if (vy) autoScroll = setInterval(() => { sc.scrollTop += vy; }, 16);
