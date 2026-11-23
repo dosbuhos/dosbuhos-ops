@@ -8,6 +8,8 @@ import { withHubSecret } from './api/hub-secret.ts';
 
 export { AccountCoordinator } from './coordinator/do.ts';
 export { DailyReviewWorkflow, WeeklyReviewWorkflow } from './workflows/workflows.ts';
+// Guest names and contact details for the Reservaciones app, over a service binding only (src/guests.ts).
+export { KlaviyoGuests } from './guests.ts';
 
 const SECURITY_HEADERS: Record<string, string> = {
   'x-content-type-options': 'nosniff',

@@ -128,7 +128,13 @@ reservation event in real time, with two years of history. `KLAVIYO_API_KEY` is 
   carry never erases a known one.
 - Kept: confirmation number, when it was made, the reserved time, party size, how it was booked (web, phone,
   walk-in), table, the times it was seated and finished, status, and the check total if OpenTable ever matches one.
-  Never read: the guest's profile. Dropped on arrival: guest request, visit tags, the server's name.
+  Never read by this sync: the guest's profile. Dropped on arrival: guest request, visit tags, the server's name.
+- Guest names and contact details never enter this database or this dashboard. The Reservaciones app
+  (`reservaciones/`) shows them to the floor staff, so the `KlaviyoGuests` entrypoint (`src/guests.ts`,
+  `src/connectors/klaviyo-guests.ts`) hands it, over a service binding only, one page of a reservation metric's
+  events reduced to the confirmation number, the reserved time and the booker's first name, last name, email and
+  phone (Klaviyo scope `profiles:read`, which the key already has). That app keeps them in its own D1 database and
+  deletes them 90 days after the visit. Nothing in Growth Terminal calls the entrypoint.
 - `GET /api/reservations` (`src/read/reservations.ts`) feeds the first card of **Reservaciones → De dónde vienen**:
   reservations made in the last 28 days and how, next to what GA4 saw of the web ones; how the visits ended
   (came, cancelled, no-show, never closed); visits closed less than five minutes after being seated (OpenTable
