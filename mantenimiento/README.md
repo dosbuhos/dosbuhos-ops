@@ -1,10 +1,13 @@
-# Mantenimiento Dos Búhos
+# Pulso (Mantenimiento Dos Búhos)
 
 What is broken, who has it, what is late, and what comes up through the year. Phone first, Spanish, for the whole
 team: anyone reports with a photo; Adrián assigns, postpones or hands work to an outside provider; equipment keeps
 its service record. Cloudflare Worker + D1, plain JS, no build step.
 
-- Worker `dosbuhos-mantenimiento`, D1 `mantenimiento`, live at https://dosbuhos-mantenimiento.dos-buhos.workers.dev
+- The app is called **Pulso** and lives at https://pulso.dosbuhos.com (a custom domain on this Worker, declared in
+  `wrangler.jsonc`). The folder, the Worker (`dosbuhos-mantenimiento`) and the D1 database (`mantenimiento`) keep their
+  names; https://dosbuhos-mantenimiento.dos-buhos.workers.dev keeps working. Sessions are per address, so someone who
+  signed in on one signs in once more on the other.
 - Not behind the Hub: it has its own open sign-up. The Hub lists it as a link.
 
 ## Access: open sign-up (Eric, Nov 2026)

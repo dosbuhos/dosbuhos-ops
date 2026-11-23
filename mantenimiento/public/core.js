@@ -118,6 +118,8 @@ function dueInfo(t) {
 }
 const tag = (name, color, extra = '') => `<span class="tag c-${esc(color || 'grey')}" ${extra}>${esc(name)}</span>`;
 const areaTag = (t) => (t.area_name ? tag(t.area_name, t.area_color) : '');
+// The address people are sent to. On the live hosts it is always Pulso's own; anywhere else (a laptop) it is where you are.
+const APP_URL = /(^|\.)dosbuhos\.com$|\.workers\.dev$/.test(location.hostname) ? 'https://pulso.dosbuhos.com' : location.origin;
 const avatar = (name, cls = '') => `<span class="av ${cls}" aria-hidden="true">${esc(initials(name))}</span>`;
 // Facts that sit side by side (a phone and an email): each in its own span, spaced by the row.
 const bits = (arr) => arr.filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
@@ -433,7 +435,7 @@ const TABS = [
   { tab: 'contactos', href: '#/contactos', icon: 'users', label: 'Contactos' },
 ];
 function drawNav(tab) {
-  NAV.innerHTML = `<a class="brand" href="#/"><img src="/logo-word.png" alt="Dos Búhos" width="146" height="32"><span>Mantenimiento</span></a>
+  NAV.innerHTML = `<a class="brand" href="#/"><img src="/logo-word.png" alt="Dos Búhos" width="146" height="32"><span>Pulso</span></a>
     ${TABS.map((t) => `<a href="${t.href}" class="nv ${t.cls || ''} ${t.tab === tab ? 'on' : ''}" ${t.tab === tab ? 'aria-current="page"' : ''}>
       <span class="nico">${ic(t.icon)}${t.tab === 'pendientes' && UI.lateN ? `<b class="dot" aria-label="${plural(UI.lateN, 'atrasado', 'atrasados')}">${UI.lateN > 99 ? '99+' : UI.lateN}</b>` : ''}</span><span class="nl">${t.label}</span></a>`).join('')}
     <a href="#/cuenta" class="nv acct ${tab === 'cuenta' ? 'on' : ''}">${avatar(S.user.name)}<span class="nl">${esc(first(S.user.name))}</span></a>`;

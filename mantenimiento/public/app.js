@@ -10,8 +10,8 @@ function showEnter() {
   const me = store('mt_me') || {};
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1>Mantenimiento</h1>
-    <p class="lead">Regístrate una sola vez en este teléfono. Después entras directo.</p>
+    <h1>Pulso</h1>
+    <p class="lead">El mantenimiento de Dos Búhos. Regístrate una sola vez en este teléfono; después entras directo.</p>
     <form id="en-form" novalidate>
       ${fInput('en-name', 'Tu nombre y apellido', { value: me.name, placeholder: 'Ej. Lupita Ramírez', max: 60, attrs: 'autocomplete="name" autocapitalize="words" enterkeyhint="next"' })}
       ${fInput('en-phone', 'Tu WhatsApp', { value: me.phone, type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'autocomplete="tel" inputmode="tel" enterkeyhint="next"', hint: 'Si tu número es de Estados Unidos, empieza con +1.' })}
@@ -251,7 +251,7 @@ async function patchTask(t, data, msg, after, undoData = null) {
     return true;
   } catch (e) { toast(e.message, { bad: true }); return false; }
 }
-const taskLink = (t) => `${location.origin}/#/p/${t.id}`;
+const taskLink = (t) => `${APP_URL}/#/p/${t.id}`;
 function taskMsg(t, hello = '') {
   const due = t.due_date ? `\nPara: ${fmtDay(t.due_date, { weekday: true, rel: false })}` : '';
   return `${hello ? hello + '\n\n' : ''}*${t.title}*\n${t.area_name ? 'Área: ' + t.area_name + '\n' : ''}${t.equipment_name ? 'Equipo: ' + t.equipment_name + '\n' : ''}Prioridad: ${PRIO[t.priority]}${due}${t.description ? '\n\n' + t.description : ''}\n\nFotos y avances: ${taskLink(t)}`;
@@ -661,7 +661,7 @@ async function viewReported(id) {
     <h1>Reporte enviado</h1>
     <p class="lead">${esc(t.title)}</p>
     <p class="small">Es el pendiente #${t.id}. ${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Quedó sin fecha.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
-    ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Mantenimiento:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
+    ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Pulso:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
     <a class="b block lg ${tell ? 'tonal' : ''}" href="#/p/${t.id}">Ver el reporte</a>
     <a class="b block lg tonal" href="#/nuevo">${ic('plus')}Reportar otro</a>
     <a class="b block lg plain" href="#/">Ir a Pendientes</a>

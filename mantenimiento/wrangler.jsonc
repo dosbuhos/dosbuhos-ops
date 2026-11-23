@@ -4,6 +4,9 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  // Pulso's own address. It goes straight to this Worker, not through the Hub: the Hub asks for Google sign-in and
+  // this app is open to anyone on the team who has the link. (The workers.dev address keeps working.)
+  "routes": [{ "pattern": "pulso.dosbuhos.com", "custom_domain": true }],
   // Static files (the app itself); the Worker only runs for /api/*.
   "assets": {
     "directory": "./public",

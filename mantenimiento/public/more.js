@@ -549,8 +549,8 @@ async function viewContactoForm(id) {
 }
 
 // ---------- Cuenta ----------
-const appLink = () => location.origin + '/';
-const inviteText = () => `Para reportar algo que no sirve o darle seguimiento en Dos Búhos, entra aquí y regístrate con tu nombre y tu WhatsApp (se hace una sola vez):\n${appLink()}`;
+const appLink = () => APP_URL + '/';
+const inviteText = () => `Esto es Pulso, donde llevamos el mantenimiento de Dos Búhos. Para reportar algo que no sirve o darle seguimiento, entra aquí y regístrate con tu nombre y tu WhatsApp (se hace una sola vez):\n${appLink()}`;
 function viewCuenta() {
   UI.view = 'cuenta';
   const u = S.user;
@@ -797,7 +797,7 @@ async function start() {
     await loadBoot();
     route();
   } catch (e) {
-    APP.innerHTML = `<div class="enter"><img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40"><h1>Mantenimiento</h1>
+    APP.innerHTML = `<div class="enter"><img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40"><h1>Pulso</h1>
       <p class="lead">${esc(e.message)}</p><button class="b block lg" onclick="location.reload()">${ic('refresh')}Volver a intentar</button></div>`;
   }
 }

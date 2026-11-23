@@ -1,7 +1,7 @@
 {
-  "name": "Mantenimiento · Dos Búhos",
-  "short_name": "Mantenimiento",
-  "description": "Pendientes, preventivo, equipos y contactos de mantenimiento en Dos Búhos.",
+  "name": "Pulso Dos Búhos",
+  "short_name": "Pulso",
+  "description": "Pulso: pendientes, preventivo, equipos y contactos de mantenimiento en Dos Búhos.",
   "lang": "es-MX",
   "start_url": "/",
   "scope": "/",

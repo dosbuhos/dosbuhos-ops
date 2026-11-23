@@ -27,7 +27,7 @@ with sync_playwright() as p:
     # ---------- 1. sign up ----------
     c = ctx(); pg = c.new_page(); watch(pg)
     pg.goto(BASE + '/#/p/9')                       # deep link while signed out
-    expect(pg.locator('.enter h1')).to_have_text('Mantenimiento')
+    expect(pg.locator('.enter h1')).to_have_text('Pulso')
     pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('nombre')
     pg.fill('#en-phone', '415 555 0199'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_have_text('Escribe tu nombre y apellido')   # new phone, no name
     pg.fill('#en-name', 'Rosa Méndez'); pg.fill('#en-phone', '415 12'); pg.click('#en-go')
