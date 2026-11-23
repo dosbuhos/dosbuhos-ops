@@ -507,7 +507,7 @@ async function viewReport(query = {}) {
       ${fText('r-desc', 'Detalles', { placeholder: 'Lo que ayude a quien lo va a arreglar', rows: 3 })}
       ${eq ? '' : fSelect('r-equip', 'Equipo', equipmentOptions(area, ''))}
       ${fSelect('r-who', '¿Quién lo hace?', contactOptions('', unassignedLabel()))}
-      ${fInput('r-due', 'Día', { type: 'date', value: day, attrs: `min="${todayStr()}"`, hint: 'Si lo dejas en blanco, lo urgente queda para hoy y lo demás llega a la Bandeja para darle día.' })}
+      ${fInput('r-due', 'Día', { type: 'date', value: day, attrs: `min="${todayStr()}"`, hint: 'Si lo dejas en blanco, llega a la Bandeja para darle día.' })}
     </details>
     <p class="err hidden" id="r-err" role="alert"></p>
   </form>`, { tab: 'nuevo', bar: `<button class="b block lg" id="r-send" form="r-form" type="submit">${ic('send')}Enviar reporte</button>` });

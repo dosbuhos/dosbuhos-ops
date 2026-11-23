@@ -761,8 +761,9 @@ async function route() {
   const n = /^\d+$/.test(b || '') ? Number(b) : null;
   try {
     if (!a) return await viewPlanner('dia');
-    if (a === 'semana' || a === 'bandeja' || a === 'atrasados' || a === 'todo') return await viewPlanner(a);
+    if (a === 'semana' || a === 'mes' || a === 'bandeja' || a === 'atrasados' || a === 'todo') return await viewPlanner(a);
     if (a === 'prioridad' && n) return await viewPlanner('prio', n);
+    if (a === 'area' && n !== null) return await viewPlanner('area', n);
     if (a === 'p' && n) return await viewTask(n);
     if (a === 't' && n) return location.replace('#/p/' + n);          // links from the old version
     if (a === 'nuevo') return await viewReport(query);

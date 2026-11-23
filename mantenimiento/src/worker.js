@@ -312,14 +312,6 @@ function taskSelect({ list = false } = {}) {
 }
 const getTask = (env, id) => env.DB.prepare(`${taskSelect()} WHERE t.id = ?`).bind(id).first();
 
-// When the person reporting doesn't pick a day: urgent → today, high → tomorrow. Everything else gets none and
-// waits in the Bandeja (the planner's inbox) until someone gives it a day and an hour.
-function defaultDue(priority) {
-  const today = mxToday();
-  if (priority === 1) return today;
-  if (priority === 2) return addDaysYmd(today, 1);
-  return null;
-}
 async function providerName(env, id) {
   if (!id) return null;
   const p = await env.DB.prepare('SELECT name FROM providers WHERE id = ?').bind(id).first();
@@ -364,8 +356,9 @@ async function tasksApi(request, env, url, user, seg, method) {
     const kind = b.kind === 'servicio' ? 'servicio' : 'tarea';
     const priority = [1, 2, 3, 4].includes(int(b.priority)) ? int(b.priority) : 3;
     const status = kind === 'servicio' ? 'hecha' : 'pendiente';
-    let dueDate = isDate(b.due_date) ? b.due_date : null;
-    if (!dueDate && b.due_date === undefined && kind === 'tarea') dueDate = defaultDue(priority);
+    // No day unless the person reporting picks one: everything new waits in the Bandeja, urgent included, so that
+    // days fill up because someone planned them and not because things were reported (Eric, 23 Nov 2026).
+    const dueDate = isDate(b.due_date) ? b.due_date : null;
     // a service already done: its date goes in at midday Mexico time (18:00 UTC)
     const completedAt = status === 'hecha' ? (isDate(b.completed_date) ? `${b.completed_date} 18:00:00` : null) : null;
     let areaId = int(b.area_id);
@@ -1023,6 +1016,7 @@ async function pmYear(env, url) {
       status: t.status === 'hecha' ? 'done' : t.due_date < today ? 'late' : 'open',
       done_at: t.status === 'hecha' ? t.completed_at : null,
       equipment_id: t.equipment_id, equipment_name: t.equipment_name, area_name: t.area_name, area_color: t.area_color, provider_name: t.provider_name,
+      provider_id: t.provider_id,
     });
   }
   for (const s of plans.results) {
@@ -1034,6 +1028,7 @@ async function pmYear(env, url) {
         items.push({
           date: d, task_id: null, pm_id: s.id, title: s.title, kind: 'preventivo', per_year: freq.get(s.id) || 1, status: d < today ? 'late' : 'future', done_at: null,
           equipment_id: s.equipment_id, equipment_name: s.equipment_name, area_name: s.area_name, area_color: s.area_color, provider_name: s.provider_name,
+          provider_id: s.provider_id,
         });
       }
       d = advancePlan(s, d);

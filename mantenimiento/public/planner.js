@@ -1,16 +1,16 @@
-/* Pulso — the planner. The day and the week with their hours, the lists you plan from (Bandeja, Atrasados, Esta semana,
-   Todo, one per priority), and the sheets that go with them: one pendiente, Contactos, the menu.
+/* Pulso — the planner. The day and the week with their hours, the month as a calendar, the lists you plan from (Bandeja,
+   Atrasados, Esta semana, Todo, one per priority), and the sheets that go with them: one pendiente, Contactos, the menu.
    It is laid out the way Horizonte is: lists on the left and hours on the right; on a phone, the day first and a ribbon
    of views. Drag a pendiente onto a day and an hour to plan it; on a phone, hold it. Needs core.js and app.js. */
 'use strict';
 
-const P = Object.assign({ zoom: 'dia', src: null, who: 'all', panel: true, unt: true }, store('mt_pl') || {});
+const P = Object.assign({ zoom: 'dia', src: null, who: 'all', panel: true, unt: true, areas: false }, store('mt_pl') || {});
 P.day = null;      // the day shown (the first of the two on a wide screen); set on the first draw
 P.follow = true;   // it is showing today: keep showing today when the date changes
 P.tab = 'dia';     // phones: the view that is up
 P.list = null;     // phones: which list a list view shows
 P.q = '';          // search text in a list
-const saveP = () => store('mt_pl', { zoom: P.zoom, src: P.src, who: P.who, panel: P.panel, unt: P.unt });
+const saveP = () => store('mt_pl', { zoom: P.zoom, src: P.src, who: P.who, panel: P.panel, unt: P.unt, areas: P.areas });
 
 const DAY_START = 6 * 60, DAY_END = 20 * 60, SNAP = 15;   // the hours run 6:00–20:00 in 15-minute steps
 const HOUR_H = 52;                                        // px per hour on a wide screen
@@ -35,6 +35,18 @@ const SRC = {
   all: { label: 'Todo', icon: 'tasks', has: () => true },
 };
 for (const p of [1, 2, 3, 4]) SRC['p' + p] = { label: PRIO[p], prio: p, has: (t) => t.priority === p };
+// The definition of a list. Besides the fixed ones there is one per area ("a3") and one for what has no area ("a0"):
+// those are made when asked for, because the areas change.
+function srcOf(k) {
+  if (SRC[k]) return SRC[k];
+  const m = /^a(\d+)$/.exec(k || '');
+  if (!m) return null;
+  const id = Number(m[1]);
+  const a = id ? areaOf(id) : null;
+  if (id && !a) return null;
+  return { label: a ? a.name : 'Sin área', area: id, color: a ? a.color : 'grey', has: (t) => (t.area_id || 0) === id };
+}
+const isSub = (k) => { const x = srcOf(k); return !!x && (!!x.prio || x.area !== undefined); };   // a list reached from the menu, not from the ribbon
 const TAB_SRC = { bandeja: 'inbox', atrasados: 'late', todo: 'all' };
 const EMPTY = {
   inbox: ['La Bandeja está vacía', 'Lo que se reporta sin día llega aquí, para darle día y hora.'],
@@ -47,19 +59,20 @@ const passF = (t) => (F.who === 'all' || (F.who === 'mine' ? t.provider_id === m
   && (!F.areas.length || F.areas.includes(t.area_id)) && (!F.prios.length || F.prios.includes(t.priority));
 const filterCount = () => (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.group !== 'prio' ? 1 : 0);
 function srcTasks(k) {
-  const list = (C.open || []).filter((t) => SRC[k].has(t) && inWhoList(t));
+  const src = srcOf(k);
+  const list = (C.open || []).filter((t) => src.has(t) && inWhoList(t));
   return k === 'all' ? list.filter(passF) : list;
 }
 function srcGroups(k, list) {
   const today = todayStr();
   const byPrio = () => [1, 2, 3, 4].map((p) => ({ head: PRIO[p], cls: p === 1 ? 'bad' : p === 2 ? 'warn' : '', items: list.filter((t) => t.priority === p).sort(byLate) }));
-  if (k === 'inbox') return byPrio();
+  if (k === 'inbox' || srcOf(k).area !== undefined) return byPrio();
   if (k === 'late' || k === 'week') {
     const days = [...new Set(list.map((t) => t.due_date))].sort();
     if (k === 'late') days.reverse();
     return days.map((d) => ({ head: esc(cap(fmtDay(d, { weekday: true }))), cls: d < today ? 'bad' : d === today ? 'warn' : '', items: list.filter((t) => t.due_date === d).sort(byPlan) }));
   }
-  if (SRC[k].prio) {
+  if (srcOf(k).prio) {
     const used = new Set();
     const take = (fn) => list.filter((t) => !used.has(t.id) && fn(t)).map((t) => (used.add(t.id), t));
     return [
@@ -153,17 +166,18 @@ function listHTML(k) {
   const o = k === 'inbox' ? { prio: false, due: false, age: true }
     : k === 'late' ? { due: false }
       : k === 'week' ? { ctx: 'day' }
-        : SRC[k].prio ? { prio: false }
-          : { prio: F.group !== 'prio', area: F.group !== 'area' };
+        : srcOf(k).prio ? { prio: false }
+          : srcOf(k).area !== undefined ? { prio: false, area: false }
+            : { prio: F.group !== 'prio', area: F.group !== 'area' };
   let html;
   if (groups.length) {
     html = groups.map((g) => `<h2 class="eyebrow ${g.cls || ''}">${g.head}<span class="n">${g.items.length}</span></h2>${g.items.map((t) => cardHTML(t, o)).join('')}`).join('');
   } else if (s) {
-    html = `<div class="empty"><h2>Nada con «${esc(P.q.trim())}»</h2><p>Aquí se busca en ${esc(SRC[k].label)}.</p></div>`;
+    html = `<div class="empty"><h2>Nada con «${esc(P.q.trim())}»</h2><p>Aquí se busca en ${esc(srcOf(k).label)}.</p></div>`;
   } else if (k === 'all' && (C.open || []).length) {
     html = `<div class="empty"><h2>Nada con este filtro</h2><p>Hay ${plural(C.open.length, 'pendiente', 'pendientes')} en total.</p><button type="button" class="b tonal" data-go="nofilter">Ver todos</button></div>`;
   } else {
-    const e = EMPTY[k] || [`Nada con prioridad ${SRC[k].label.toLowerCase()}`, ''];
+    const e = EMPTY[k] || [srcOf(k).area !== undefined ? `Nada abierto en ${srcOf(k).label}` : `Nada con prioridad ${srcOf(k).label.toLowerCase()}`, ''];
     html = `<div class="empty"><h2>${e[0]}</h2>${e[1] ? `<p>${e[1]}</p>` : ''}${k === 'all' || k === 'inbox' ? `<a class="b" href="#/nuevo">${ic('camera')}Reportar un problema</a>` : ''}</div>`;
   }
   if (s) html += `<a class="showmore" href="#/buscar?q=${encodeURIComponent(P.q.trim())}">Buscar también en lo hecho, equipos y contactos</a>`;
@@ -187,14 +201,18 @@ function whoSelect() {
   if (!people.length) return '';
   return `<label class="sr" for="pl-who">De quién</label><select class="whosel" id="pl-who" data-who><option value="all">De todos</option>${people.map((p) => `<option value="${p.id}" ${P.who === p.id ? 'selected' : ''}>${esc(isDesk() ? p.name : first(p.name))}</option>`).join('')}</select>`;
 }
-function planTitle() {
+// What the calendar is showing, for the top bar. `short` is the same in fewer letters, for a narrow window.
+function planTitle(short = false) {
   const day = P.day || todayStr();
-  const yr = (d) => (d.getFullYear() === Number(todayStr().slice(0, 4)) ? '' : ' de ' + d.getFullYear());
+  const yr = (d) => (d.getFullYear() === Number(todayStr().slice(0, 4)) ? '' : (short ? ' ' : ' de ') + d.getFullYear());
+  if (P.zoom === 'mes') return short ? `${cap(MESES[Number(day.slice(5, 7)) - 1])} ${day.slice(0, 4)}` : monthName(day.slice(0, 7));
   if (P.zoom === 'semana') {
     const a = ymdDate(mondayOf(day)), b = ymdDate(addDays(mondayOf(day), 6));
+    if (short) return (a.getMonth() === b.getMonth() ? `${a.getDate()} al ${b.getDate()} ${MESES[b.getMonth()]}` : `${a.getDate()} ${MESES[a.getMonth()]} al ${b.getDate()} ${MESES[b.getMonth()]}`) + yr(b);
     return (a.getMonth() === b.getMonth() ? `${a.getDate()} al ${b.getDate()} de ${MESES_L[b.getMonth()]}` : `${a.getDate()} de ${MESES[a.getMonth()]} al ${b.getDate()} de ${MESES[b.getMonth()]}`) + yr(b);
   }
   const d = ymdDate(day);
+  if (short) return `${cap(DIAS[d.getDay()].slice(0, 3))} ${d.getDate()} ${MESES[d.getMonth()]}${yr(d)}`;
   return `${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}${yr(d)}`;
 }
 
@@ -284,8 +302,99 @@ function phoneWeek() {
 }
 function phoneList(k) {
   const L = listHTML(k);
-  return `<header class="mh">${mtop(`<h1 class="date">${esc(SRC[k].label)}<span class="cnt" id="pl-n">${L.n || ''}</span></h1>`, phoneBtn())}${searchRow(k)}</header>
+  return `<header class="mh">${mtop(`<h1 class="date">${esc(srcOf(k).label)}<span class="cnt" id="pl-n">${L.n || ''}</span></h1>`, phoneBtn())}${searchRow(k)}</header>
     <div class="mm lists">${k === 'all' ? filterChips() : ''}${k === 'inbox' && showStarter() ? starterCard() : ''}<div id="pl-items">${L.html}</div></div>`;
+}
+
+// ---------- the month ----------
+// A Monday-to-Sunday calendar of the month the anchor day is in. Each day shows its open pendientes (titles on a wide
+// screen, bars on a phone) and the preventive visits still to come: a plan's order is only made some days ahead, so
+// without them a month looked emptier than it is. A day opens in Día; a pendiente dropped on a day moves to it.
+const monthEnd = (ym) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0); return `${ym}-${pad2(d.getDate())}`; };
+const monthShift = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+const monthName = (ym) => `${cap(MESES_L[Number(ym.slice(5, 7)) - 1])} ${ym.slice(0, 4)}`;
+const PMY = {};   // the year's preventive work, by year: { at, items, wait }
+function loadPlanned(y) {
+  const c = PMY[y] || (PMY[y] = { at: 0, items: null, wait: null });
+  if (c.wait) return;
+  c.wait = api('GET', '/pm/year?y=' + y)
+    .then((r) => { c.items = r.items || []; c.at = Date.now(); if (UI.plan && (isDesk() ? P.zoom : P.tab) === 'mes' && !wdrag && !tdrag && !document.body.classList.contains('lock')) drawPlanner(true); })
+    .catch(() => { c.at = Date.now(); })                    // no signal: the month shows what it has and tries again in a minute
+    .finally(() => { c.wait = null; });
+}
+// The visits of a month that are not pendientes yet.
+function plannedIn(ym) {
+  const y = Number(ym.slice(0, 4));
+  const c = PMY[y];
+  if (!c || Date.now() - c.at > 60000) loadPlanned(y);
+  return c && c.items ? c.items.filter((it) => it.status === 'future' && !it.task_id && it.date.slice(0, 7) === ym && (P.who === 'all' || it.provider_id === P.who)) : [];
+}
+function monthStats(ym, plan) {
+  const today = todayStr(), a = ym + '-01', b = monthEnd(ym);
+  const list = (C.open || []).filter((t) => t.due_date && t.due_date >= a && t.due_date <= b && inWho(t));
+  const late = list.filter((t) => t.due_date < today).length;
+  const mins = list.reduce((n, t) => n + (t.est_min || (timed(t) ? 60 : 0)), 0);
+  const bits = [];
+  if (list.length) bits.push(plural(list.length, 'pendiente', 'pendientes'));
+  if (late) bits.push(late === 1 ? '1 atrasado' : late + ' atrasados');
+  if (mins) bits.push(fmtDur(mins));
+  if (plan.length) bits.push(plan.length === 1 ? '1 preventivo por venir' : plan.length + ' preventivos por venir');
+  return { n: list.length, late, text: bits.join(', ') || 'Nada programado' };
+}
+const planChip = (it) => `<a class="card in-chip plan c-${esc(it.area_color || 'grey')}" href="#/plan/${it.pm_id}" title="Preventivo, todavía no es un pendiente: ${esc(it.title)}">${ic('repeat')}<span class="t">${esc(it.title)}</span></a>`;
+const planRow = (it) => `<a class="prow" href="#/plan/${it.pm_id}">${ic('repeat')}<span class="grow"><b>${esc(it.title)}</b><span class="rm"><span>Preventivo</span>${it.provider_name ? `<span>${esc(first(it.provider_name))}</span>` : ''}${it.area_name ? tag(it.area_name, it.area_color) : ''}</span></span>${ic('chev')}</a>`;
+function monthHTML(ym, plan, fit) {
+  const today = todayStr(), a = ym + '-01', b = monthEnd(ym);
+  let k = mondayOf(a);
+  let cells = '';
+  for (let i = 0; i < 42; i++, k = addDays(k, 1)) {
+    if (i === 35 && k > b) break;                             // five rows when the sixth would be all next month
+    const dn = Number(k.slice(8));
+    if (k < a || k > b) { cells += `<div class="mcell out" aria-hidden="true"><span class="dn">${dn}</span></div>`; continue; }
+    const list = dayTasks(k).sort(byPlan), pl = plan.filter((x) => x.date === k);
+    const n = list.length + pl.length, late = k < today && list.length > 0;
+    const say = `${DIAS[ymdDate(k).getDay()]} ${dn}${k === today ? ', hoy' : ''}${n ? ', ' + plural(n, 'cosa', 'cosas') : ''}${late ? ', con atrasados' : ''}`;
+    let inner;
+    if (fit) {   // a wide screen: as many titles as the row has room for
+      const show = n <= fit ? n : Math.max(1, fit - 1);
+      inner = [...list.map((t) => cardHTML(t, { ctx: 'chip' })), ...pl.map(planChip)].slice(0, show).join('') + (n > show ? `<a class="mmore" href="#/" data-mday="${k}">${n - show} más</a>` : '');
+    } else {     // a phone: one bar each, in the colour of its area
+      inner = `<span class="bars">${[...list.map((t) => `<i class="${late ? 'late' : 'tagc c-' + esc(t.area_color || 'grey')}"></i>`), ...pl.map(() => '<i class="plan"></i>')].slice(0, 3).join('')}</span>${n > 3 ? `<span class="mmore">+${n - 3}</span>` : ''}`;
+    }
+    const cls = `mcell ${k === today ? 'today' : ''} ${k < today ? 'past' : ''} ${late ? 'late' : ''}`;
+    cells += fit   // wide: the number is the way into the day, the rest of the cell is where pendientes are dropped; phone: the whole day is the button
+      ? `<div class="${cls}" data-day="${k}"><a class="dn" href="#/" data-mday="${k}" aria-label="${say}">${dn}</a>${inner}</div>`
+      : `<a class="${cls}" href="#/" data-mday="${k}" data-day="${k}" aria-label="${say}"><span class="dn">${dn}</span>${inner}</a>`;
+  }
+  return `<div class="mcal ${fit ? '' : 'mob'}"><div class="mdow" aria-hidden="true">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="mcells">${cells}</div></div>`;
+}
+function phoneMonth() {
+  const today = todayStr(), ym = P.day.slice(0, 7), cur = ym === today.slice(0, 7), b = monthEnd(ym);
+  const plan = plannedIn(ym), st = monthStats(ym, plan);
+  let body = '';
+  // under the calendar, the days that have something; in the month we are in, from today on (what is late has its own tab)
+  for (let k = cur ? today : ym + '-01'; k <= b; k = addDays(k, 1)) {
+    const list = dayTasks(k).sort(byPlan), pl = plan.filter((x) => x.date === k);
+    if (!list.length && !pl.length) continue;
+    const d = ymdDate(k), load = dayLoad(k);
+    body += `<section class="mday ${k < today ? 'past' : ''}"><div class="dayhead"><b>${dayName(k)}</b>${k === today ? '<span class="tpill">Hoy</span>' : ''}
+        <span class="small">${list.length ? `${plural(list.length, 'pendiente', 'pendientes')}${load ? ', ' + fmtDur(load) : ''}` : 'Preventivo'}</span>
+        <a class="pb" href="#/nuevo?fecha=${k}" aria-label="Reportar algo para el ${DIAS[d.getDay()]} ${d.getDate()}">${ic('plus')}</a></div>
+      ${list.map((t) => cardHTML(t, { ctx: 'day' })).join('')}${pl.map(planRow).join('')}</section>`;
+  }
+  const right = `<button type="button" class="pb" data-step="-1" aria-label="Mes anterior">${ic('back')}</button><button type="button" class="tb" data-step="0">Hoy</button><button type="button" class="pb" data-step="1" aria-label="Mes siguiente">${ic('chev')}</button>`;
+  return `<header class="mh">${mtop(`<h1 class="date">${monthName(ym)}</h1>`, right)}</header>
+    <div class="mm mes" data-swipe="month"><div class="foldrow week">${whoSelect()}<span class="small">${st.text}</span></div>
+      ${monthHTML(ym, plan, 0)}
+      ${cur && st.late ? `<a class="mesl" href="#/atrasados" data-tab>${st.late === 1 ? '1 atrasado de días anteriores' : st.late + ' atrasados de días anteriores'}<b>Ver</b></a>` : ''}
+      ${body || `<p class="mesn">${st.n || plan.length ? 'Nada más en lo que queda del mes.' : 'Nada programado este mes.'}</p>`}</div>`;
+}
+function monthPane() {
+  const ym = P.day.slice(0, 7), plan = plannedIn(ym);
+  const rows = addDays(mondayOf(ym + '-01'), 35) > monthEnd(ym) ? 5 : 6;
+  const rowH = Math.max(104, (innerHeight - 54 - 72) / rows);    // the bar on top, then the month's line and the letters of the days
+  return `<div class="mesv"><div class="mroll"><span class="small">${monthStats(ym, plan).text}</span><span class="small">Un día se abre con su número. Arrastra un pendiente a otro día para moverlo.</span></div>
+    ${monthHTML(ym, plan, Math.max(1, Math.floor((rowH - 30) / 29)))}</div>`;
 }
 
 // ---------- wide screens ----------
@@ -310,18 +419,20 @@ function hoursHTML() {
     <div class="hrow"><div class="gutter hrs" aria-hidden="true">${gutterHTML(HOUR_H)}</div>${days.map((k) => gridHTML(k, HOUR_H)).join('')}</div></div>`;
 }
 function panelHTML() {
-  if (P.src && SRC[P.src]) {
+  if (P.src && srcOf(P.src)) {
     const k = P.src;
     const L = listHTML(k);
     return `<div class="listhead"><button type="button" class="back" data-src="">${ic('back')}Listas</button></div>
-      <div class="listtitle"><b>${esc(SRC[k].label)}</b><span class="muted" id="pl-n">${L.n || ''}</span></div>
+      <div class="listtitle">${srcOf(k).area !== undefined ? `<i class="pdot tagc c-${esc(srcOf(k).color)}"></i>` : ''}<b>${esc(srcOf(k).label)}</b><span class="muted" id="pl-n">${L.n || ''}</span></div>
       ${searchRow(k)}
       <p class="phint">Arrastra un pendiente a un día y a una hora.</p>
       ${k === 'all' ? filterChips() : ''}
       <div class="stack" id="pl-items">${L.html}</div>`;
   }
   const n = (k) => srcTasks(k).length;
-  const row = (k) => `<button type="button" class="navrow ${k === 'late' && n(k) ? 'late' : ''}" data-src="${k}"><span class="ni">${SRC[k].prio ? `<i class="pdot p${SRC[k].prio}"></i>` : ic(SRC[k].icon)}</span><span class="lbl">${SRC[k].label}</span><span class="n">${n(k) || ''}</span></button>`;
+  const urgentIn = (C.open || []).some((t) => !t.due_date && t.priority === 1 && inWhoList(t));   // something urgent waits in the Bandeja: its count goes red
+  const row = (k) => { const x = srcOf(k); return `<button type="button" class="navrow ${(k === 'late' && n(k)) || (k === 'inbox' && urgentIn) ? 'late' : ''}" data-src="${k}"><span class="ni">${x.prio ? `<i class="pdot p${x.prio}"></i>` : x.area !== undefined ? `<i class="pdot tagc c-${esc(x.color)}"></i>` : ic(x.icon)}</span><span class="lbl">${esc(x.label)}</span><span class="n">${n(k) || ''}</span></button>`; };
+  const areaKeys = [...activeAreas().map((a) => 'a' + a.id), ...(n('a0') ? ['a0'] : [])];
   const link = (href, icon, label, count = '') => `<a class="navrow" href="${href}"><span class="ni">${ic(icon)}</span><span class="lbl">${label}</span><span class="n">${count}</span></a>`;
   const late = n('late');
   return `${late ? `<button type="button" class="pbanner" data-src="late"><span>${late === 1 ? '1 atrasado de días anteriores' : late + ' atrasados de días anteriores'}</span>Ver</button>` : ''}
@@ -329,6 +440,8 @@ function panelHTML() {
     <div class="navgroup">${row('inbox')}${row('late')}${row('week')}${row('all')}</div>
     <div class="navhead"><span class="eyebrow">Prioridad</span></div>
     <div class="navgroup">${[1, 2, 3, 4].map((p) => row('p' + p)).join('')}</div>
+    <div class="navhead"><button type="button" class="eyebrow foldh" data-go="areas" aria-expanded="${!!P.areas}">Áreas${ic(P.areas ? 'down' : 'chev')}</button></div>
+    ${P.areas ? `<div class="navgroup">${areaKeys.map(row).join('')}</div>` : ''}
     <div class="navhead"><span class="eyebrow">Tableros</span></div>
     <div class="navgroup">${link('#/equipos', 'wrench', 'Equipos', S.equipment.filter((e) => e.active).length || '')}${link('#/preventivo', 'repeat', 'Preventivo')}</div>
     <div class="navgroup foot">${link('#/hechos', 'check', 'Lo que ya se hizo')}${link('#/resumen', 'chart', 'Resumen')}</div>
@@ -348,15 +461,15 @@ function drawPlanner(keep = false) {
     const tl0 = $('.tl'), pn0 = $('.panel');
     const pos = keep && tl0 ? { y: tl0.scrollTop, x: tl0.scrollLeft, p: pn0 ? pn0.scrollTop : 0 } : null;
     render(`<div class="dmain"><aside class="panel ${P.panel ? '' : 'collapsed'}" aria-label="Listas">${panelHTML()}</aside>
-      <section class="tl" aria-label="${P.zoom === 'semana' ? 'La semana' : 'El día'}">${hoursHTML()}</section></div>`, { tab: P.zoom, cal: true });
+      <section class="tl ${P.zoom === 'mes' ? 'mes' : ''}" aria-label="${P.zoom === 'mes' ? 'El mes' : P.zoom === 'semana' ? 'La semana' : 'El día'}">${P.zoom === 'mes' ? monthPane() : hoursHTML()}</section></div>`, { tab: P.zoom, cal: true });
     const tl = $('.tl');
     if (pos) { tl.scrollTop = pos.y; tl.scrollLeft = pos.x; if ($('.panel')) $('.panel').scrollTop = pos.p; }
-    else {   // in the afternoon, open with the hours that are left in view
+    else if (P.zoom !== 'mes') {   // in the afternoon, open with the hours that are left in view
       const g = $('.grid', tl), nm = nowMin();
       if (g && nm >= 11 * 60) tl.scrollTop = Math.max(0, g.offsetTop + ((Math.min(nm, 16 * 60) - 120 - DAY_START) / 60) * HOUR_H - 80);
     }
   } else {
-    render(P.tab === 'dia' ? phoneDay() : P.tab === 'semana' ? phoneWeek() : phoneList(P.list), { tab: P.list && SRC[P.list].prio ? '' : P.tab, keepScroll: keep });
+    render(P.tab === 'dia' ? phoneDay() : P.tab === 'semana' ? phoneWeek() : P.tab === 'mes' ? phoneMonth() : phoneList(P.list), { tab: P.list && isSub(P.list) ? '' : P.tab, keepScroll: keep });
   }
   bindPlanner();
 }
@@ -387,10 +500,11 @@ function bindPlanner() {
 }
 
 async function viewPlanner(tab, arg) {
-  const src = tab === 'prio' ? 'p' + ([1, 2, 3, 4].includes(arg) ? arg : 3) : TAB_SRC[tab] || null;
+  const src = tab === 'prio' ? 'p' + ([1, 2, 3, 4].includes(arg) ? arg : 3) : tab === 'area' ? 'a' + (arg || 0) : TAB_SRC[tab] || null;
+  if (src && !srcOf(src)) { location.replace('#/todo'); return; }   // an area that is no longer there
   if (isDesk()) {
     // one screen on a wide window: a list opens in the panel, beside whichever calendar was up
-    if (src) { P.src = src; P.q = ''; saveP(); location.replace(P.zoom === 'semana' ? '#/semana' : '#/'); return; }
+    if (src) { P.src = src; P.q = ''; saveP(); location.replace(P.zoom === 'semana' ? '#/semana' : P.zoom === 'mes' ? '#/mes' : '#/'); return; }
     P.zoom = tab; saveP();
   } else if (src !== P.list) P.q = '';
   P.tab = tab; P.list = src;
@@ -409,8 +523,11 @@ async function viewPlanner(tab, arg) {
 }
 function stepPlan(n, anim = '') {
   const today = todayStr();
-  const unit = (isDesk() ? P.zoom : P.tab) === 'semana' ? 7 : 1;
-  P.day = n ? addDays(P.day || today, n * unit) : today;
+  const view = isDesk() ? P.zoom : P.tab;
+  if (view === 'mes' && n) {   // a month at a time; the month we are in stays on today
+    const ym = monthShift((P.day || today).slice(0, 7), n);
+    P.day = ym === today.slice(0, 7) ? today : ym + '-01';
+  } else P.day = n ? addDays(P.day || today, n * (view === 'semana' ? 7 : 1)) : today;
   P.follow = P.day === today;
   drawPlanner(true);
   const mm = anim && $('.mm');
@@ -440,6 +557,7 @@ document.addEventListener('click', (e) => {
     if (a === 'menu') menuSheet();
     else if (a === 'contacts') contactsSheet();
     else if (a === 'panel') { P.panel = !P.panel; saveP(); drawPlanner(true); }
+    else if (a === 'areas') { P.areas = !P.areas; saveP(); drawPlanner(true); }
     else if (a === 'fold') { P.unt = !P.unt; saveP(); drawPlanner(true); }
     else if (a === 'filter') filterSheet();
     else if (a === 'nofilter') { F.who = 'all'; F.areas = []; F.prios = []; saveF(); drawPlanner(true); }
@@ -447,6 +565,13 @@ document.addEventListener('click', (e) => {
   }
   const st = el.closest('[data-step]');
   if (st && UI.plan) { stepPlan(Number(st.dataset.step)); return; }
+  const md = el.closest('[data-mday]');
+  if (md && UI.plan) {   // a day of the month: it opens in Día
+    e.preventDefault();
+    P.day = md.dataset.mday; P.follow = P.day === todayStr();
+    location.replace('#/');
+    return;
+  }
   const dy = el.closest('.wstrip [data-day]');
   if (dy && UI.plan) { P.day = dy.dataset.day; P.follow = P.day === todayStr(); drawPlanner(true); return; }
   const sr = el.closest('[data-src]');
@@ -627,7 +752,10 @@ function menuSheet() {
       <div class="rows">${row('#/equipos', ic('wrench'), 'Equipos', S.equipment.filter((e) => e.active).length || '')}${row('#/preventivo', ic('repeat'), 'Preventivo')}</div>
       <h3 class="eyebrow">Prioridad</h3>
       <div class="rows">${[1, 2, 3, 4].map((p) => row('#/prioridad/' + p, `<i class="pdot p${p}"></i>`, PRIO[p], n('p' + p))).join('')}</div>
+      <details class="mfold" ${P.areas ? 'open' : ''}><summary><span class="eyebrow">Áreas</span>${ic('down')}</summary>
+        <div class="rows">${activeAreas().map((a) => row('#/area/' + a.id, `<i class="pdot tagc c-${esc(a.color)}"></i>`, esc(a.name), n('a' + a.id))).join('')}${n('a0') ? row('#/area/0', '<i class="pdot tagc c-grey"></i>', 'Sin área', n('a0')) : ''}</div></details>
       <div class="rows last">${row('#/contactos', ic('phone'), 'Contactos')}${row('#/hechos', ic('check'), 'Lo que ya se hizo')}${row('#/resumen', ic('chart'), 'Resumen')}${row('#/cuenta', ic('user'), 'Mi cuenta', esc(first(S.user.name)))}</div></div>`,
+    onOpen: (w) => { const f = $('.mfold', w); if (f) f.ontoggle = () => { P.areas = f.open; saveP(); }; },
   });
 }
 
@@ -636,7 +764,7 @@ let wdrag = null;
 let planNoClick = false;
 function dragClean() {
   $$('.card.ghost, .prev').forEach((x) => x.remove());
-  $$('.ucol.over, .panel.over, .hcol.over').forEach((x) => x.classList.remove('over'));
+  $$('.ucol.over, .panel.over, .hcol.over, .mcell.over').forEach((x) => x.classList.remove('over'));
   document.body.classList.remove('wdragging');
 }
 async function planSave(t, data, msg) {
@@ -688,13 +816,15 @@ document.addEventListener('pointermove', (e) => {
   }
   d.ghost.style.transform = `translate(${e.clientX + 10}px, ${e.clientY + 8}px)`;
   $$('.prev').forEach((x) => x.remove());
-  $$('.ucol.over, .panel.over, .hcol.over').forEach((x) => x.classList.remove('over'));
+  $$('.ucol.over, .panel.over, .hcol.over, .mcell.over').forEach((x) => x.classList.remove('over'));
   const under = document.elementFromPoint(e.clientX, e.clientY);
   const col = under && under.closest('.grid');
   const ad = under && under.closest('.ucol, .hcol');
   const lp = under && under.closest('.panel');
+  const mc = under && under.closest('.mcell[data-day]');
   d.target = null;
-  if (col) {
+  if (mc) { mc.classList.add('over'); d.target = { day: mc.dataset.day, keep: true }; }   // a day of the month
+  else if (col) {
     const r = col.getBoundingClientRect();
     const min = Math.min(Math.max(snap(DAY_START + ((e.clientY - r.top) / HOUR_H) * 60 - d.grab), DAY_START), DAY_END - Math.min(d.dur, DAY_END - DAY_START));
     d.target = { day: col.dataset.day, min };
@@ -716,10 +846,10 @@ document.addEventListener('pointerup', () => {
   const tg = d.target;
   if (!tg) return;
   if (tg.un) return planSave(t, { due_date: null }, 'Volvió a la Bandeja');
-  if (tg.day === t.due_date && tg.min === (t.plan_min === undefined ? null : t.plan_min)) return;
-  const data = { due_date: tg.day, plan_min: tg.min, replan: 1 };
-  if (tg.min !== null && !t.est_min) data.est_min = 60;     // an hour until someone says otherwise
-  let msg = '';
+  if (tg.keep ? tg.day === t.due_date : tg.day === t.due_date && tg.min === (t.plan_min === undefined ? null : t.plan_min)) return;
+  const data = tg.keep ? { due_date: tg.day, replan: 1 } : { due_date: tg.day, plan_min: tg.min, replan: 1 };   // dropped on a day of the month, it keeps its hour
+  if (!tg.keep && tg.min !== null && !t.est_min) data.est_min = 60;     // an hour until someone says otherwise
+  let msg = tg.keep ? `Quedó para ${dayTxt(tg.day)}` : '';
   if (typeof P.who === 'number' && !t.provider_id) { data.provider_id = P.who; msg = `Asignado a ${first((provOf(P.who) || {}).name)}`; }
   planSave(t, data, msg);
 });

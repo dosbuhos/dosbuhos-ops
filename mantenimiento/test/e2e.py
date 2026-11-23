@@ -46,7 +46,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '/'); expect(tab(pg)).to_have_text('Día'); expect(pg.locator('.mtop .tdy')).to_have_text('Hoy')
     expect(pg.locator('.wstrip button')).to_have_count(7); expect(pg.locator('.wstrip button[aria-pressed=true]')).to_have_class(re.compile('today'))
     expect(pg.locator('.foldrow .lbl')).to_contain_text('sin hora'); assert pg.locator('.mm > .card').count() >= 1
-    assert pg.locator('.hgrid .grid .card.blk').count() >= 2 and pg.locator('.nav .mbar a').count() == 5
+    assert pg.locator('.hgrid .grid .card.blk').count() >= 2 and pg.locator('.nav .mbar a').count() == 6
     expect(pg.locator('.mbar a:has-text("Atrasados") .n')).to_have_text('2')
     pg.click('[data-go=fold]'); expect(pg.locator('.mm > .card')).to_have_count(0); pg.click('[data-go=fold]'); assert pg.locator('.mm > .card').count() >= 1
     step('opens on the day: week strip, what has no hour, the blocks, the ribbon with its counts')
@@ -78,9 +78,12 @@ with sync_playwright() as p:
     pg.click('.sent a:has-text("Ver el reporte")')
     expect(pg.locator('.hero h2')).to_have_text('Se cayó la canaleta de la entrada')
     expect(pg.locator('#d-photos .ph[data-photo]')).to_have_count(1)
+    expect(pg.locator('.cell:has-text("Fecha") .un')).to_have_text('Sin fecha')                           # nothing gets a day by itself, the urgent neither
+    tid = int(re.search(r'#/p/(\d+)', pg.url).group(1)); t = api_task(pg, tid); assert t['due_date'] is None and t['priority'] == 1, t
+    pg.goto(BASE + '/#/bandeja'); expect(pg.locator('#pl-items .card[data-tid="%d"]' % tid)).to_be_visible(); expect(pg.locator('.mbar a:has-text("Bandeja") .n')).to_have_class(re.compile('late'))   # and the Bandeja says something urgent waits
+    pg.goto(BASE + '/#/p/%d' % tid); pg.click('.actionbar [data-set=due]'); expect(pg.locator('.sheet h2')).to_have_text('Poner fecha'); pg.click('.sheet .dopt:has-text("Hoy")'); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.cell:has-text("Fecha") .due')).to_have_text('Para hoy')
-    tid = int(re.search(r'#/p/(\d+)', pg.url).group(1))
-    step('the report opens with its photo and a date for today')
+    step('the report opens with its photo and no day: it waits in the Bandeja, urgent or not, until someone gives it one')
     # photo viewer: closes with its button and with the phone's Back button, staying on the page
     pg.click('#d-photos .ph[data-photo]'); expect(pg.locator('#viewer img')).to_be_visible(); pg.click('#viewer [data-close]'); expect(pg.locator('#viewer')).to_be_hidden()
     pg.click('#d-photos .ph[data-photo]'); expect(pg.locator('#viewer img')).to_be_visible(); pg.go_back(); expect(pg.locator('#viewer')).to_be_hidden()
@@ -184,7 +187,7 @@ with sync_playwright() as p:
 
     # ---------- 5c. the menu, Contactos one tap away, coming back where you were ----------
     pg.goto(BASE + '/#/'); expect(tab(pg)).to_have_text('Día')
-    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink').count() == 10
+    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink:visible').count() == 10
     pg.click('.msheet .rowlink:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('#sheet')).to_be_hidden(); expect(pg.locator('.mbar')).to_be_visible()
     pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.wait_for_timeout(300)
     pg.click('[data-go=menu]'); pg.click('.msheet .rowlink:has-text("Alta")'); expect(head(pg)).to_contain_text('Alta'); assert pg.locator('#pl-items .card').count() == pg.locator('#pl-items .card.p2').count() > 0
@@ -199,6 +202,13 @@ with sync_playwright() as p:
     pg.click('.sheet.tsheet [data-act="0"]'); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); assert pg.evaluate('window.scrollY') == 0
     pg.click('.top.sub [data-back]'); expect(head(pg)).to_contain_text('Todo'); pg.wait_for_timeout(300); assert abs(pg.evaluate('window.scrollY') - y0) < 40, (pg.evaluate('window.scrollY'), y0)
     step('menu → Equipos and a priority; the phone icon → Contactos with search; back puts the list where it was')
+    # the areas, behind a fold in the menu: where the open work is, and each one's list
+    pg.goto(BASE + '/#/'); pg.wait_for_timeout(500); pg.click('[data-go=menu]'); expect(pg.locator('.sheet .mfold')).not_to_have_attribute('open', ''); pg.click('.sheet .mfold summary')
+    arow = pg.locator('.sheet .mfold .rowlink:has-text("Restaurante")'); expect(arow).to_be_visible(); n_rest = int(arow.locator('.n').inner_text()); assert n_rest >= 1
+    arow.click(); expect(head(pg)).to_contain_text('Restaurante'); expect(pg.locator('#pl-items .card')).to_have_count(n_rest); expect(pg.locator('.mbar [aria-current]')).to_have_count(0)
+    assert pg.locator('#pl-items .card .tag').count() == 0 and pg.locator('#pl-items .eyebrow').count() >= 1          # by priority, without repeating the area on each card
+    pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.click('[data-go=menu]'); expect(pg.locator('.sheet .mfold')).to_have_attribute('open', ''); pg.click('.sheet [data-x]')   # it stays open
+    step('menu → Áreas opens to show each area with its count; an area lists its open pendientes by priority')
     # the + beside a day reports something for that day
     pg.goto(BASE + '/#/semana'); pg.wait_for_timeout(600); plus = pg.locator('.mday .dayhead a.pb').last; day = re.search(r'fecha=(\d{4}-\d\d-\d\d)', plus.get_attribute('href')).group(1)
     plus.click(); expect(pg.locator('.top.sub h1')).to_have_text('Reportar'); expect(pg.locator('#r-due')).to_have_value(day); expect(pg.locator('.fixed')).to_be_visible()
@@ -224,6 +234,20 @@ with sync_playwright() as p:
     t = api_task(pg, oid); assert t['place'] is None and t['area_id'], t                      # an area from the list takes the written place's spot
     pg.click('#toast.show [data-undo], #toast.show button'); pg.wait_for_timeout(700); t = api_task(pg, oid); assert t['place'] == 'Caseta de vigilancia' and t['area_id'] is None, t
     step('"Otro lugar": a written place instead of an area; it shows on the card and the pendiente, can be rewritten, and gives way to an area')
+    # the month: a calendar with a bar per pendiente, then the days that have something; a day opens in Día
+    today = dt.date.today(); ym = today.strftime('%Y-%m'); MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    pg.goto(BASE + '/#/'); pg.wait_for_timeout(500); h0 = pg.evaluate('history.length'); pg.click('.mbar a:has-text("Mes")'); expect(tab(pg)).to_have_text('Mes'); assert pg.evaluate('history.length') == h0
+    expect(head(pg)).to_have_text('%s %d' % (MES[today.month - 1], today.year)); expect(pg.locator('.mcell.today .dn')).to_have_text(str(today.day))
+    import calendar; assert pg.locator('.mcell:not(.out)').count() == calendar.monthrange(today.year, today.month)[1]
+    assert pg.locator('.mcell.today .bars i').count() >= 1; expect(pg.locator('.mday').first.locator('.tpill')).to_have_text('Hoy')
+    assert pg.evaluate("document.documentElement.scrollWidth <= innerWidth")                               # nothing slides sideways
+    pg.click('.mh [data-step="1"]'); nxt = (today.replace(day=1) + dt.timedelta(days=32)).replace(day=1)
+    expect(head(pg)).to_have_text('%s %d' % (MES[nxt.month - 1], nxt.year)); expect(pg.locator('.mcell.today')).to_have_count(0)
+    expect(pg.locator('.prow').first).to_be_visible(); assert pg.locator('.mcell .bars i.plan').count() >= 1    # preventive visits to come show before they are pendientes
+    pg.click('.mcell[data-day="%s"] .dn' % nxt.replace(day=15).isoformat()); expect(tab(pg)).to_have_text('Día'); expect(pg.locator('.wstrip [aria-pressed="true"]')).to_have_attribute('data-day', nxt.replace(day=15).isoformat())
+    pg.click('.mbar a:has-text("Mes")'); expect(head(pg)).to_have_text('%s %d' % (MES[nxt.month - 1], nxt.year)); pg.click('.mh [data-step="0"]'); expect(pg.locator('.mcell.today')).to_have_count(1)
+    pg.click('.mbar a:has-text("Día")'); expect(pg.locator('.wstrip .today')).to_have_attribute('aria-pressed', 'true')
+    step('phone: Mes is a calendar with a bar per pendiente and the days below; next month shows the preventive visits to come; a day opens in Día')
     c.close()
 
     # ---------- 6. Adrián (admin): preventive plan, equipment, service, contact, areas, people ----------
@@ -323,13 +347,18 @@ with sync_playwright() as p:
     c = b.new_context(viewport={'width': 1440, 'height': 900}, locale='es-MX', timezone_id='America/Mexico_City')
     route_theme(c); c.add_cookies([cookie(SIDS[0])]); c.set_default_timeout(6000); pg = c.new_page(); watch(pg)
     pg.goto(BASE + '/'); expect(pg.locator('.dtop .zoom [aria-current]')).to_have_text('Día'); expect(pg.locator('.hours .grid')).to_have_count(2)
-    expect(pg.locator('.hcol.today .num')).to_have_class(re.compile('today')); expect(pg.locator('.panel .navrow')).to_have_count(12); expect(pg.locator('.mbar, .fab')).to_have_count(0)
+    expect(pg.locator('.hcol.today .num')).to_have_class(re.compile('today')); assert pg.locator('.panel .navrow').count() >= 12; expect(pg.locator('.mbar, .fab')).to_have_count(0)
     assert pg.evaluate("document.documentElement.scrollHeight <= innerHeight + 1")                          # the planner fills the window and scrolls inside
     pg.click('[data-go=panel]'); expect(pg.locator('.panel')).to_be_hidden(); pg.click('[data-go=panel]'); expect(pg.locator('.panel')).to_be_visible()
     pg.click('.dtop [data-step="1"]'); expect(pg.locator('.hcol.today')).to_have_count(0); pg.click('.dtop [data-step="0"]'); expect(pg.locator('.hcol.today')).to_have_count(1)
+    # under the priorities, "Áreas" opens to show where the open work is
+    expect(pg.locator('.panel [data-go=areas]')).to_have_attribute('aria-expanded', 'false'); expect(pg.locator('.panel .navrow[data-src^=a]:not([data-src=all])')).to_have_count(0)
+    pg.click('.panel [data-go=areas]'); n_ar = pg.evaluate("S.areas.filter((a) => a.active).length + (C.open.some((t) => !t.area_id) ? 1 : 0)")
+    expect(pg.locator('.panel .navrow[data-src^=a]:not([data-src=all])')).to_have_count(n_ar); pg.reload(); expect(pg.locator('.panel [data-go=areas]')).to_have_attribute('aria-expanded', 'true')   # and stays open
+    pg.click('.panel .navrow:has-text("Restaurante")'); expect(pg.locator('.listtitle b')).to_have_text('Restaurante'); assert pg.locator('.panel .card').count() >= 1; pg.click('.panel [data-src=""]')
     pg.click('.panel [data-src=p1]'); expect(pg.locator('.listtitle b')).to_have_text('Urgente'); assert pg.locator('.panel .card').count() == pg.locator('.panel .card.p1').count() > 0
     pg.click('.panel [data-src=""]'); pg.fill('#pl-q', 'regadera'); expect(pg.locator('.listtitle b')).to_have_text('Todo'); expect(pg.locator('.panel .card')).to_have_count(1); expect(pg.locator('#pl-q')).to_be_focused()
-    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel .navrow')).to_have_count(12)
+    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel [data-src=inbox]')).to_be_visible(); assert pg.locator('.panel .navrow').count() == 12 + n_ar
     pg.click('.dtop [data-go=contacts]'); expect(pg.locator('.sheet.csheet h2')).to_have_text('Contactos'); pg.keyboard.press('Escape'); expect(pg.locator('#sheet')).to_be_hidden()
     pg.click('.panel a.navrow:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.dtop')).to_be_visible(); expect(pg.locator('.panel')).to_have_count(0)
     pg.click('.dtop .zoom a:has-text("Semana")'); expect(pg.locator('.hours.n7 .grid')).to_have_count(7)
@@ -365,6 +394,22 @@ with sync_playwright() as p:
     pg.select_option('#pl-who', 'all')
     pg.click('.dtop .zoom a:has-text("Día")'); expect(pg.locator('.hours.n2 .grid')).to_have_count(2); expect(pg.locator('.hours .ucol .card.in-day').first).to_be_visible()
     step('wide: drag from a list onto a day and hour, stretch, move, open its sheet, a day without hour, back to the Bandeja, into a person\'s week')
+    # the month on a wide screen: every day lists its pendientes by name; drop one on another day and it moves there with its hour
+    pg.click('.dtop .zoom a:has-text("Mes")'); expect(pg.locator('.dtop .zoom [aria-current]')).to_have_text('Mes'); expect(pg.locator('.mesv .mcell.today')).to_have_count(1)
+    expect(pg.locator('.dtitle .lg')).to_have_text('%s %d' % (MES[today.month - 1], today.year)); assert pg.evaluate("document.documentElement.scrollHeight <= innerHeight + 1")
+    chip = pg.locator('.mcell .card.in-chip[data-tid]').first; mid = chip.get_attribute('data-tid'); before = api_task(pg, mid)
+    dest = (today + dt.timedelta(days=2)).isoformat() if (today + dt.timedelta(days=2)).month == today.month else (today - dt.timedelta(days=2)).isoformat()
+    if dest == before['due_date']: dest = (dt.date.fromisoformat(dest) + dt.timedelta(days=1)).isoformat()
+    cb = pg.locator('.mcell[data-day="%s"]' % dest).bounding_box(); pull(chip.bounding_box(), cb['x'] + cb['width'] / 2, cb['y'] + cb['height'] - 14)
+    expect(pg.locator('.mcell[data-day="%s"] .card[data-tid="%s"]' % (dest, mid))).to_be_visible(); expect(toast(pg)).to_contain_text('Quedó para')
+    t = api_task(pg, mid); assert t['due_date'] == dest and t['plan_min'] == before['plan_min'], (t['due_date'], t['plan_min'], before['plan_min'])
+    if pg.locator('.panel [data-src=""]').count(): pg.click('.panel [data-src=""]')
+    pg.click('.panel [data-src=inbox]'); row = pg.locator('.panel .card[data-tid]').first; rid2 = row.get_attribute('data-tid')
+    pull(row.bounding_box(), cb['x'] + cb['width'] / 2, cb['y'] + cb['height'] - 14); pg.wait_for_timeout(500); t = api_task(pg, rid2); assert t['due_date'] == dest and t['plan_min'] is None, t
+    pg.locator('.mcell[data-day="%s"] .card[data-tid="%s"] .body' % (dest, mid)).click(); expect(pg.locator('.sheet.tsheet')).to_be_visible(); pg.keyboard.press('Escape')
+    pg.click('.dtop [data-step="1"]'); expect(pg.locator('.dtitle .lg')).to_have_text('%s %d' % (MES[nxt.month - 1], nxt.year)); expect(pg.locator('.mcell .card.plan').first).to_be_visible()
+    pg.click('.dtop [data-step="0"]'); pg.click('.mcell[data-day="%s"] .dn' % dest); expect(pg.locator('.dtop .zoom [aria-current]')).to_have_text('Día'); expect(pg.locator('.hours .hcol').first).to_have_attribute('data-day', dest)
+    step('wide: Mes lists each day\'s pendientes; one dropped on another day moves there and keeps its hour; from a list it gets the day; a day opens in Día')
     c.close()
     # ---------- on a phone: hold a pendiente, a day slides in, drop it on an hour (the edge changes the day) ----------
     c = ctx(SIDS[0]); pg = c.new_page(); watch(pg); cdp = c.new_cdp_session(pg)

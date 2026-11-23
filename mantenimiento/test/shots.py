@@ -37,6 +37,8 @@ SCREENS = [
   ('05-bandeja-hoja', '#/bandeja', 1, ['#pl-items .card .body']),
   ('06-atrasados', '#/atrasados', 1, []),
   ('07-semana', '#/semana', 1, ['full']),
+  ('07b-mes', '#/mes', 1, ['wait:900', 'full']),
+  ('07c-mes-siguiente', '#/mes', 1, ['wait:700', '[data-step="1"]', 'wait:700', 'full']),
   ('08-todo', '#/todo', 1, ['full']),
   ('09-todo-filtro', '#/todo', 1, ['[data-go=filter]']),
   ('09b-todo-por-area', '#/todo', 1, ['[data-go=filter]', '[data-group=area]', '.sheet [data-act="1"]', 'full']),

@@ -43,7 +43,8 @@ the planner (Equipos, Preventivo, a pendiente's page, Cuenta) opens as a page un
 |---|---|
 | **Día** (the app opens here) | Today's hours, 6:00 to 20:00. Phone: the strip of the week on top (tap a day, slide for another week), then what the day has without an hour (folds into one line), then the blocks; slide sideways for the next day. Wide: two days side by side, each with its *Sin hora* row |
 | **Semana** | Phone: the seven days in one column, each with its pendientes and a + to report something for that day. Wide: seven columns of hours |
-| **Bandeja** | The inbox: what has no day yet, by priority, with how long ago it was reported. A report with no day lands here (only an urgent one goes straight to today) |
+| **Mes** | A Monday-to-Sunday calendar. Each day shows its open pendientes (a bar each on a phone, their names on a wide screen) and the preventive visits still to come, dashed, before they are pendientes. Phone: the days that have something are listed under the calendar; a day opens in Día. Wide: drop a pendiente on a day to move it there (it keeps its hour) |
+| **Bandeja** | The inbox: what has no day yet, by priority, with how long ago it was reported. Every new report lands here, urgent included: nothing gets a day unless the person reporting picks one. While something urgent waits here the Bandeja's count is red |
 | **Atrasados** | What passed its day without being done, by the day it was for |
 | **Todo** | Everything open, by priority; *Filtrar y agrupar*: whose, priority, area tags, group by priority / date / area / person |
 | **The lists on a wide screen** | The panel on the left: Bandeja, Atrasados, Esta semana, Todo; one list per priority; Tableros (Equipos, Preventivo); Lo que ya se hizo, Resumen. A list opens in the panel and its cards are dragged onto the calendar |
@@ -77,6 +78,7 @@ WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is
 - The look is the app's own (`public/app.css`) and follows Horizonte's: the same shell, ink on white, Geist
   (self-hosted in `public/fonts/`), flat lists ruled with hairlines on a phone, boxed cards in the columns of a wide screen. Colour is kept for state (red late, amber today or waiting, green
   done) and the area tags. It does not load the Hub's theme, so the Hub's presets do not restyle it.
+- Lists by area: under the priorities, *Áreas* opens (and stays as it was left) to show each area with its open pendientes; an area is a list like any other, by priority (`#/area/N`, `#/area/0` for what has none). On a phone it is in the menu.
 - `migrations/` — D1 schema. 0001–0008 are applied to the remote database. The tables `login_links` and `purchases`
   are left from the PIN / link version and are not used.
 

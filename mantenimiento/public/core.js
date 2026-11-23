@@ -438,38 +438,41 @@ const MTABS = [
   { tab: 'atrasados', href: '#/atrasados', label: 'Atrasados' },
   { tab: 'dia', href: '#/', label: 'Día' },
   { tab: 'semana', href: '#/semana', label: 'Semana' },
+  { tab: 'mes', href: '#/mes', label: 'Mes' },
   { tab: 'todo', href: '#/todo', label: 'Todo' },
 ];
 function navCounts() {
-  if (!C.open) return { inbox: UI.inboxN || 0, late: UI.lateN || 0 };
-  return { inbox: C.open.filter((t) => !t.due_date).length, late: C.open.filter(isLate).length };
+  if (!C.open) return { inbox: UI.inboxN || 0, late: UI.lateN || 0, urgent: false };
+  // everything new lands in the Bandeja, the urgent too: its count goes red while something urgent waits there
+  return { inbox: C.open.filter((t) => !t.due_date).length, late: C.open.filter(isLate).length, urgent: C.open.some((t) => !t.due_date && t.priority === 1) };
 }
 function drawNav(tab) {
   const n = navCounts();
   const num = (x) => (x > 99 ? '99+' : x);
   if (isDesk()) {
-    const cal = tab === 'dia' || tab === 'semana';
+    const cal = tab === 'dia' || tab === 'semana' || tab === 'mes';
+    const unit = tab === 'semana' ? 'Semana' : tab === 'mes' ? 'Mes' : 'Día';
     const lists = P.panel ? 'Ocultar las listas' : 'Mostrar las listas';
     NAV.className = 'nav dtop';
     NAV.innerHTML = `<div class="brandrow">
         ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
         <a class="dbrand" href="#/" data-tab aria-label="Pulso: ir a hoy">${ic('pulse')}<span>Pulso</span></a></div>
       <div class="zoom" role="group" aria-label="Vista">
-        <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a></div>
-      ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${tab === 'semana' ? 'Semana anterior' : 'Día anterior'}">${ic('back')}</button>
+        <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a><a href="#/mes" data-tab ${tab === 'mes' ? 'aria-current="page"' : ''}>Mes</a></div>
+      ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${unit} anterior">${ic('back')}</button>
         <button type="button" class="tbtn" data-step="0">Hoy</button>
-        <button type="button" class="ibtn" data-step="1" aria-label="${tab === 'semana' ? 'Semana siguiente' : 'Día siguiente'}">${ic('chev')}</button>
-        <h1 class="dtitle">${esc(planTitle())}</h1></div>` : ''}
+        <button type="button" class="ibtn" data-step="1" aria-label="${unit} siguiente">${ic('chev')}</button>
+        <h1 class="dtitle"><span class="lg">${esc(planTitle())}</span><span class="sm" aria-hidden="true">${esc(planTitle(true))}</span></h1></div>` : ''}
       <div class="dright">
         ${cal ? whoSelect() : ''}
         <button type="button" class="ibtn" data-go="contacts" aria-label="Contactos" title="Contactos">${ic('phone')}</button>
-        <a class="tbtn dark" href="#/nuevo">${ic('plus')}Reportar</a>
+        <a class="tbtn dark" href="#/nuevo" aria-label="Reportar un problema">${ic('plus')}<span>Reportar</span></a>
         <a class="dacct" href="#/cuenta" aria-label="Mi cuenta: ${esc(S.user.name)}" title="Mi cuenta">${avatar(S.user.name)}</a></div>`;
     return;
   }
   NAV.className = 'nav mnav';
   NAV.innerHTML = `<a class="fab" href="#/nuevo" aria-label="Reportar un problema">${ic('plus')}</a>
-    <div class="mbar">${MTABS.map((t) => `<a href="${t.href}" data-tab ${t.tab === tab ? 'aria-current="page"' : ''}>${t.label}${t.tab === 'bandeja' && n.inbox ? `<span class="n" aria-label="${n.inbox} sin programar">${num(n.inbox)}</span>` : t.tab === 'atrasados' && n.late ? `<span class="n late" aria-label="${plural(n.late, 'atrasado', 'atrasados')}">${num(n.late)}</span>` : ''}</a>`).join('')}</div>`;
+    <div class="mbar">${MTABS.map((t) => `<a href="${t.href}" data-tab ${t.tab === tab ? 'aria-current="page"' : ''}>${t.label}${t.tab === 'bandeja' && n.inbox ? `<span class="n ${n.urgent ? 'late' : ''}" aria-label="${n.inbox} sin programar${n.urgent ? ', con algo urgente' : ''}">${num(n.inbox)}</span>` : t.tab === 'atrasados' && n.late ? `<span class="n late" aria-label="${plural(n.late, 'atrasado', 'atrasados')}">${num(n.late)}</span>` : ''}</a>`).join('')}</div>`;
   const bar = $('.mbar', NAV);
   const cur = $('[aria-current]', bar);
   if (cur) bar.scrollLeft = cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2;   // the ribbon scrolls sideways: keep the current view in sight

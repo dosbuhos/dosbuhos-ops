@@ -69,10 +69,10 @@ post(eric, '/pm', {'title': 'Servicio preventivo: Chiller', 'equipment_id': E['o
 for eq, title, days, who, cost in [('refri', 'Limpieza de condensador', -160, 'Anselmo Rivas', 1800), ('chiller', 'Cambio de contactor', -31, 'Anselmo Rivas', 4200), ('chiller', 'Recarga de gas', -70, 'Anselmo Rivas', 6500), ('bomba', 'Cambio de sello mecánico', -210, 'Chuy Hernández', 950)]:
     post(adrian, '/tasks', {'kind': 'servicio', 'title': title, 'equipment_id': E[eq], 'provider_id': P[who], 'completed_date': d(days), 'cost': cost})
 
-# pendientes
+# pendientes (a report gets no day by itself: the ones that sit on a day here were given one)
 def task(s, **k):
     return post(s, '/tasks', k)['task']['id']
-t1 = task(lupita, title='Gotea la llave del baño de visitas', area_id=A['Restaurante'], priority=1, description='Ya hay charco junto al lavabo. Se cerró la llave de paso.')
+t1 = task(lupita, title='Gotea la llave del baño de visitas', area_id=A['Restaurante'], priority=1, due_date=d(0), description='Ya hay charco junto al lavabo. Se cerró la llave de paso.')
 photo(lupita, '/tasks/%d/photos' % t1, 'LAVABO', (90, 120, 150))
 t2 = task(eric, title='Chiller no enfría: se disparó otra vez', equipment_id=E['chiller'], priority=1, provider_id=P['Anselmo Rivas'], due_date=d(-7))
 photo(eric, '/tasks/%d/photos' % t2, 'TABLERO', (60, 60, 70))
@@ -85,7 +85,7 @@ t4 = task(lupita, title='Foco fundido en la terraza del restaurante', area_id=A[
 t5 = task(eric, title='Pintar el barandal de la capilla antes de la boda del 12 de diciembre', area_id=A['Capilla / Contemplo'], priority=3, due_date=d(14), provider_id=P['Marco Antonio Gil'])
 t6 = task(adrian, title='Cambiar manguera de riego rota en la huerta', area_id=A['Jardín y huerta'], priority=3, provider_id=P['Adrián'], due_date=d(0))
 patch(adrian, '/tasks/%d' % t6, {'status': 'en_proceso'})
-t7 = task(jaime, title='Tapa del registro suelta en el estacionamiento', area_id=A['Instalaciones'], priority=2)
+t7 = task(jaime, title='Tapa del registro suelta en el estacionamiento', area_id=A['Instalaciones'], priority=2, due_date=d(1))
 t8 = task(lupita, title='Aire acondicionado de la oficina hace ruido', area_id=A['Oficina'], priority=4)
 t9 = task(eric, title='Regadera de la cabaña 2 sin agua caliente', area_id=A['Hospedaje'], priority=2, provider_id=P['Chuy Hernández'], due_date=d(2))
 photo(eric, '/tasks/%d/photos' % t9, 'REGADERA', (120, 96, 84))
