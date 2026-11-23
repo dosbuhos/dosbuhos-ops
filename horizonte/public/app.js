@@ -1665,6 +1665,18 @@ async function start() {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!sheetState && !drag && !S.ui.draft) reflowTick(); if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
   setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) { reflowTick(); render(); } }, 60000);
   setInterval(syncNow, 60000);
-  if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js').catch(() => {});
+  // New releases take over by themselves: the worker is re-checked whenever the app comes back to the front, and when a new one
+  // takes control the page reloads (unless something is mid-edit; then on the next return). A phone that was left open on an
+  // old build no longer stays there.
+  if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+      setInterval(() => reg.update().catch(() => {}), 30 * 60000);
+    }).catch(() => {});
+    let had = !!navigator.serviceWorker.controller, pending = false;
+    const reloadSoon = () => { if (sheetState || drag || press || S.ui.draft || document.activeElement?.matches('input,textarea')) { pending = true; return; } location.reload(); };
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) reloadSoon(); had = true; });
+    document.addEventListener('visibilitychange', () => { if (pending && document.visibilityState === 'visible') reloadSoon(); });
+  }
 }
 start();
