@@ -428,11 +428,11 @@ function inputSheet(title, value, okLabel, { sub = '', placeholder = '', max = 6
 // ---------- shell ----------
 const TABS = [
   { tab: 'pendientes', href: '#/', icon: 'tasks', label: 'Pendientes' },
-  { tab: 'semana', href: '#/semana', icon: 'cal', label: 'Semana', cls: 'desk' },          // wide screens only
+  { tab: 'semana', href: '#/semana', icon: 'cal', label: 'Semana' },
   { tab: 'preventivo', href: '#/preventivo', icon: 'repeat', label: 'Preventivo' },
-  { tab: 'nuevo', href: '#/nuevo', icon: 'plus', label: 'Reportar', cls: 'report' },
   { tab: 'equipos', href: '#/equipos', icon: 'wrench', label: 'Equipos' },
   { tab: 'contactos', href: '#/contactos', icon: 'users', label: 'Contactos' },
+  { tab: 'nuevo', href: '#/nuevo', icon: 'plus', label: 'Reportar', cls: 'report' },       // phones: the floating button; wide: the button at the top of the side bar
 ];
 function drawNav(tab) {
   NAV.innerHTML = `<a class="brand" href="#/"><img src="/logo-word.png" alt="Dos Búhos" width="146" height="32"><span>Pulso</span></a>

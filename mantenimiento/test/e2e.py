@@ -242,6 +242,23 @@ with sync_playwright() as p:
     expect(pg.locator('.wblk[data-tid="%s"]' % tid)).to_have_count(0); expect(pg.locator('.wcard[data-tid="%s"]' % tid)).to_be_visible()
     step('week planner: drag onto a day and hour, stretch, move, open, take the date away')
     c.close()
+    # ---------- on a phone: hold a pendiente, a day slides in, drop it on an hour (the edge changes the day) ----------
+    c = ctx(SIDS[0]); pg = c.new_page(); watch(pg); cdp = c.new_cdp_session(pg)
+    def finger(kind, x=0, y=0): cdp.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [] if kind == 'touchEnd' else [{'x': x, 'y': y}]})
+    pg.goto(BASE + '/#/'); expect(pg.locator('.top h1')).to_have_text('Pendientes'); pg.wait_for_timeout(800)
+    expect(pg.locator('.nv.report')).to_be_visible(); assert pg.locator('.nv.report').bounding_box()['x'] > 300      # Reportar floats in the corner
+    row = pg.locator('.row:has(.chk[data-done]) .rbody').first; rid = row.locator('xpath=..').get_attribute('data-id'); bb = row.bounding_box()
+    finger('touchStart', bb['x'] + 80, bb['y'] + 14); pg.wait_for_timeout(500); expect(pg.locator('.ddrop.in')).to_have_count(1)
+    day0 = pg.locator('.ddrop').get_attribute('data-day'); sc = pg.locator('.dd-scroll').bounding_box()
+    for i in range(1, 5): finger('touchMove', bb['x'] + 80 + i * 20, bb['y'] + 14 + i * 40); pg.wait_for_timeout(30)
+    finger('touchMove', 386, sc['y'] + 200); pg.wait_for_timeout(750); assert pg.locator('.ddrop').get_attribute('data-day') > day0
+    finger('touchMove', 220, sc['y'] + 220); pg.wait_for_timeout(120); expect(pg.locator('.dd-prev')).to_be_visible(); finger('touchEnd'); pg.wait_for_timeout(800)
+    expect(pg.locator('#toast')).to_contain_text('Quedó para'); expect(pg.locator('.ddrop')).to_have_count(0)
+    t = pg.evaluate("(id) => fetch('/api/tasks/' + id).then((r) => r.json()).then((d) => d.task)", rid)
+    assert t['due_date'] > day0 and t['plan_min'] is not None and t['est_min'], t
+    pg.click('.nav a[href="#/semana"]'); expect(pg.locator('.top h1')).to_have_text('Semana'); expect(pg.locator('.wrow[data-tid="%s"] .wtime' % rid)).not_to_be_empty()
+    step('phone: floating Reportar, hold a pendiente and drop it on a day and hour, the week in one column')
+    c.close()
     # nothing answers without a session
     c = ctx(); pg = c.new_page(); pg.goto(BASE + '/')
     for path in ['/bootstrap', '/tasks', '/photos/1', '/equipment', '/providers', '/pm/year', '/summary', '/search?q=a']:

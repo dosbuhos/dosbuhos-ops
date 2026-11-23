@@ -169,7 +169,7 @@ function drawPendientes(keepScroll = false) {
   const nf = (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.group !== 'prio' ? 1 : 0);
   render(header('Pendientes', { right: `<a class="ib" href="#/buscar" aria-label="Buscar">${ic('search')}</a>` }) + `<div class="wrap">
     <div class="subhead"><p>${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}</p>
-      <button type="button" class="fbtn ${nf ? 'on' : ''}" data-filter>${ic('filter')}Filtrar${nf ? `<b>${nf}</b>` : ''}</button></div>
+      <span class="shbtns"><a class="fbtn calbtn" href="#/semana">${ic('cal')}Semana</a><button type="button" class="fbtn ${nf ? 'on' : ''}" data-filter>${ic('filter')}Filtrar${nf ? `<b>${nf}</b>` : ''}</button></span></div>
     <div class="tiles">${tile('late', 'Atrasados', 'bad')}${tile('today', 'Para hoy', 'warn')}${tile('none', 'Sin asignar', 'plain')}</div>
     ${chips.length ? `<div class="fchips">${chips.join('')}</div>` : ''}
     ${starter ? starterCard() : ''}

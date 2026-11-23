@@ -7,6 +7,8 @@ const DAY_START = 6 * 60, DAY_END = 20 * 60, SNAP = 15; // the grid runs 6:00–
 const mondayOf = (ymd) => addDays(ymd, -((ymdDate(ymd).getDay() + 6) % 7));
 const durOf = (t) => Math.max(15, t.est_min || 60);
 const snap = (m) => Math.round(m / SNAP) * SNAP;
+const wkDesk = () => matchMedia('(min-width: 960px)').matches;
+matchMedia('(min-width: 960px)').addEventListener('change', () => { if (UI.view === 'semana' && S.user) drawWeek(true); });
 
 async function viewWeek(query = {}, keep = false) {
   UI.view = 'semana';
@@ -89,6 +91,28 @@ function drawWeek(keepScroll = false) {
   }).join('');
   const a = ymdDate(WK.start), b = ymdDate(last);
   const label = a.getMonth() === b.getMonth() ? `${a.getDate()} al ${b.getDate()} de ${MESES_L[b.getMonth()]}` : `${a.getDate()} de ${MESES[a.getMonth()]} al ${b.getDate()} de ${MESES[b.getMonth()]}`;
+  if (!wkDesk()) {   // phones: the week as one column of days; a held pendiente is dropped on a day panel
+    const mrow = (t) => `<a class="wrow ${isLate(t) ? 'late' : ''}" href="#/p/${t.id}" data-tid="${t.id}" draggable="false">
+      <span class="wtime">${t.plan_min !== null && t.plan_min !== undefined && t.due_date ? fmtClock(t.plan_min) : ''}</span>
+      <span class="grow"><b>${esc(t.title)}</b><span class="rm">${areaTag(t)}${isLate(t) ? `<span class="due late">${esc(dueInfo(t).text)}</span>` : ''}${t.provider_id ? `<span class="who">${ic('user')}${esc(first(t.provider_name))}</span>` : '<span class="who un">Sin asignar</span>'}${t.est_min ? `<span class="st">${ic('clock')}${fmtDur(t.est_min)}</span>` : ''}</span></span>${ic('chev')}</a>`;
+    const secs = days.map((d) => {
+      const dt = ymdDate(d);
+      const items = week.filter((t) => t.due_date === d).sort((x, y) => (x.plan_min === null || x.plan_min === undefined ? -1 : x.plan_min) - (y.plan_min === null || y.plan_min === undefined ? -1 : y.plan_min) || x.priority - y.priority);
+      return `<section class="wday ${d < today ? 'past' : ''}"><h2 class="sec">${cap(DIAS[dt.getDay()])} ${dt.getDate()}${d === today ? '<span class="now">Hoy</span>' : ''}${tot(d) ? `<span class="n">${fmtDur(tot(d))}</span>` : ''}</h2>
+        ${items.length ? `<div class="list">${items.map(mrow).join('')}</div>` : '<p class="wk-nada">Nada</p>'}</section>`;
+    }).join('');
+    render(header('Semana', { right: `<button type="button" class="ib line" data-wk="-7" aria-label="Semana anterior">${ic('back')}</button><button type="button" class="b tonal sm" data-wk="0">Hoy</button><button type="button" class="ib line" data-wk="7" aria-label="Semana siguiente">${ic('chev')}</button>` }) + `<div class="wrap wk-m">
+      <div class="subhead"><p>${label}</p></div>
+      <label class="sr" for="wk-who">De quién</label><select class="input" id="wk-who"><option value="all">La semana de todos</option>${people.map((p) => `<option value="${p.id}" ${WK.who === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+      <p class="wk-hint">Mantén presionado un pendiente y suéltalo en el día y la hora en que se va a hacer.</p>
+      ${secs}
+      <h2 class="sec">Por programar<span class="n">${todo.length}</span></h2>
+      ${todo.length ? `<div class="list">${todo.sort(bySort).map(mrow).join('')}</div>` : '<p class="wk-nada">Todo lo abierto ya tiene día.</p>'}
+    </div>`, { tab: 'semana', keepScroll });
+    $('#wk-who').onchange = (e) => { WK.who = e.target.value === 'all' ? 'all' : Number(e.target.value); drawWeek(true); };
+    $$('[data-wk]').forEach((x) => (x.onclick = () => { const n = Number(x.dataset.wk); WK.start = n ? addDays(WK.start, n) : mondayOf(todayStr()); drawWeek(true); }));
+    return;
+  }
   const grid = $('.wk-grid');
   const gy = grid ? grid.scrollTop : null;
   const ly = $('.wk-list') ? $('.wk-list').scrollTop : 0;
@@ -112,7 +136,6 @@ function drawWeek(keepScroll = false) {
         <div class="wk-grid"><div class="wk-in" style="height:${((DAY_END - DAY_START) / 60) * HOUR_H}px"><div class="wk-hours">${hours.join('')}</div>${cols}</div></div>
       </section>
     </div>
-    <p class="wk-phone">La semana se arma en una pantalla grande. En el teléfono, agrupa los pendientes por fecha desde <b>Filtrar</b>.</p>
   </div>`, { tab: 'semana', keepScroll });
   const g2 = $('.wk-grid');
   if (g2) g2.scrollTop = gy !== null ? gy : Math.max(0, ((Math.min(Math.max(nowMin, 8 * 60), 14 * 60) - DAY_START - 120) / 60) * HOUR_H);
@@ -150,7 +173,7 @@ async function wkSave(t, data, msg) {
   } catch (e) { Object.assign(t, before); drawWeek(true); toast(e.message, { bad: true }); }
 }
 document.addEventListener('pointerdown', (e) => {
-  if (UI.view !== 'semana' || e.button !== 0 || document.body.classList.contains('lock')) return;
+  if (UI.view !== 'semana' || e.pointerType !== 'mouse' || e.button !== 0 || document.body.classList.contains('lock')) return;
   const el = e.target.closest('.wkp [data-tid]');
   if (!el || e.target.closest('[data-est]')) return;
   const t = (C.open || []).find((x) => x.id === Number(el.dataset.tid));
@@ -218,5 +241,131 @@ document.addEventListener('pointerup', (e) => {
 });
 document.addEventListener('pointercancel', () => { if (wdrag) { if (wdrag.on) { wkClean(); drawWeek(true); } wdrag = null; } });
 // the click that ends a drag must not open the pendiente
-document.addEventListener('click', (e) => { if (wkNoClick && e.target.closest('.wkp [data-tid]')) { e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener('click', (e) => { if (wkNoClick && e.target.closest('[data-tid], .row[data-id]')) { e.preventDefault(); e.stopPropagation(); } }, true);
 document.addEventListener('dragstart', (e) => { if (e.target.closest && e.target.closest('.wkp')) e.preventDefault(); });
+
+// ---------- touch: hold a pendiente, then drop it on a day (the way Horizonte does on a phone) ----------
+// Hold 350 ms on a pendiente in any list. A panel with one day slides in: drop on an hour, on "sin hora" or on
+// "quitar la fecha"; take the finger to the left or right edge to change the day.
+const MHPX = 52;
+let hold = null;
+let tdrag = null;
+const dayTxt = (d) => { const x = fmtDay(d, { weekday: true }); return /^(hoy|mañana|ayer)$/.test(x) ? x : 'el ' + x; };
+function ddRender(p, day) {
+  const sc0 = $('.dd-scroll', p);
+  const keep = sc0 ? sc0.scrollTop : null;
+  const d = ymdDate(day);
+  const today = todayStr();
+  const mine = (C.open || []).filter((t) => t.due_date === day && (!tdrag || t.id !== tdrag.t.id));
+  const total = mine.reduce((n, t) => n + (t.est_min || 0), 0);
+  let rows = '';
+  for (let m = DAY_START; m < DAY_END; m += 60) rows += `<span style="top:${((m - DAY_START) / 60) * MHPX}px">${m / 60}:00</span>`;
+  const blocks = mine.filter((t) => t.plan_min !== null && t.plan_min !== undefined).map((t) => {
+    const st = Math.min(Math.max(t.plan_min, DAY_START), DAY_END - 15);
+    return `<div class="dd-b c-${esc(t.area_color || 'grey')}" style="top:${((st - DAY_START) / 60) * MHPX}px;height:${(Math.min(durOf(t), DAY_END - st) / 60) * MHPX - 2}px">${esc(t.title)}</div>`;
+  }).join('');
+  const now = new Date();
+  const nm = now.getHours() * 60 + now.getMinutes();
+  const rel = day === today ? 'Hoy' : day === addDays(today, 1) ? 'Mañana' : '';
+  p.dataset.day = day;
+  p.innerHTML = `<div class="dd-top"><span class="dd-edge">${day > today ? ic('back') : ''}</span><div class="dd-title"><b>${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}${rel ? `<i>${rel}</i>` : ''}</b><small>${total ? fmtDur(total) + ' planeadas. ' : ''}Lleva el dedo a la orilla para cambiar de día.</small></div><span class="dd-edge">${ic('chev')}</span></div>
+    <div class="dd-strip"><div class="dd-slot" data-slot="any">Ese día, sin hora</div><div class="dd-slot" data-slot="none">Quitar la fecha</div></div>
+    <div class="dd-scroll"><div class="dd-in" style="height:${((DAY_END - DAY_START) / 60) * MHPX}px"><div class="dd-hours">${rows}</div><div class="dd-grid">${blocks}${day === today && nm >= DAY_START && nm <= DAY_END ? `<div class="wnow" style="top:${((nm - DAY_START) / 60) * MHPX}px"></div>` : ''}</div></div></div>`;
+  if (keep !== null) $('.dd-scroll', p).scrollTop = keep;
+}
+function tdStart(h) {
+  hold = null;
+  if (navigator.vibrate) navigator.vibrate(15);
+  const today = todayStr();
+  const g = document.createElement('div'); g.className = 'tghost'; g.textContent = h.t.title; document.body.appendChild(g);
+  const p = document.createElement('div'); p.className = 'ddrop'; p.setAttribute('aria-hidden', 'true'); document.body.appendChild(p);
+  tdrag = { t: h.t, pid: h.pid, ghost: g, panel: p, x: h.x, y: h.y, target: null, dir: 0, edgeT: null, raf: 0 };
+  document.body.classList.add('tdragging');
+  ddRender(p, h.t.due_date && h.t.due_date >= today ? h.t.due_date : today);
+  const now = new Date();
+  const at = h.t.plan_min !== null && h.t.plan_min !== undefined ? h.t.plan_min : Math.min(Math.max(now.getHours() * 60, 8 * 60), 15 * 60);
+  $('.dd-scroll', p).scrollTop = Math.max(0, ((at - DAY_START) / 60 - 1.5) * MHPX);
+  requestAnimationFrame(() => p.classList.add('in'));
+  tdMove(h.x, h.y);
+  const loop = () => {   // keep scrolling while the finger rests near the top or bottom of the hours
+    const d = tdrag;
+    if (!d) return;
+    const sc = $('.dd-scroll', d.panel);
+    if (sc && !d.dir) {
+      const r = sc.getBoundingClientRect();
+      const v = d.y < r.top + 44 && d.y > r.top - 8 ? -7 : d.y > r.bottom - 44 ? 7 : 0;
+      if (v) { const before = sc.scrollTop; sc.scrollTop += v; if (sc.scrollTop !== before) tdMove(d.x, d.y); }
+    }
+    d.raf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+function tdMove(x, y) {
+  const d = tdrag;
+  d.x = x; d.y = y;
+  d.ghost.style.transform = `translate(${Math.min(Math.max(8, x - 100), innerWidth - 208)}px, ${Math.max(4, y - 70)}px)`;
+  $$('.dd-slot.over', d.panel).forEach((z) => z.classList.remove('over'));
+  const pv = $('.dd-prev', d.panel);
+  if (pv) pv.remove();
+  d.target = null;
+  const dir = x < 26 ? -1 : x > innerWidth - 26 ? 1 : 0;       // the edges change the day
+  if (dir !== d.dir) {
+    d.dir = dir; clearTimeout(d.edgeT);
+    d.panel.classList.toggle('edge-l', dir < 0); d.panel.classList.toggle('edge-r', dir > 0);
+    if (dir) d.edgeT = setTimeout(function flip() {
+      if (!tdrag || tdrag.dir !== dir) return;
+      const nk = addDays(d.panel.dataset.day, dir);
+      if (nk < todayStr()) return;
+      ddRender(d.panel, nk);
+      if (navigator.vibrate) navigator.vibrate(8);
+      d.edgeT = setTimeout(flip, 900);
+    }, 500);
+  }
+  if (dir) return;
+  const under = document.elementFromPoint(x, y);
+  const slot = under && under.closest('.dd-slot');
+  if (slot) { slot.classList.add('over'); d.target = { slot: slot.dataset.slot }; return; }
+  const sc = $('.dd-scroll', d.panel);
+  const sr = sc.getBoundingClientRect();
+  if (y < sr.top || y > sr.bottom) return;
+  const grid = $('.dd-grid', d.panel);
+  const dur = Math.min(durOf(d.t), DAY_END - DAY_START);
+  const min = Math.min(Math.max(snap(DAY_START + ((y - 40 - grid.getBoundingClientRect().top) / MHPX) * 60), DAY_START), DAY_END - dur);
+  d.target = { min };
+  grid.insertAdjacentHTML('beforeend', `<div class="dd-prev" style="top:${((min - DAY_START) / 60) * MHPX}px;height:${(dur / 60) * MHPX - 2}px"><span>${fmtClock(min)} a ${fmtClock(min + dur)}</span></div>`);
+}
+function tdEnd(commit) {
+  const d = tdrag;
+  tdrag = null;
+  cancelAnimationFrame(d.raf); clearTimeout(d.edgeT);
+  d.ghost.remove(); d.panel.classList.remove('in'); setTimeout(() => d.panel.remove(), 200);
+  document.body.classList.remove('tdragging');
+  wkNoClick = true; setTimeout(() => { wkNoClick = false; }, 400);
+  if (!commit || !d.target) return;
+  const t = d.t;
+  const day = d.panel.dataset.day;
+  let data;
+  let msg;
+  if (d.target.slot === 'none') { if (!t.due_date) return; data = { due_date: null }; msg = 'Quedó sin fecha'; }
+  else if (d.target.slot === 'any') { data = { due_date: day, plan_min: null, replan: 1 }; msg = `Quedó para ${dayTxt(day)}`; }
+  else { data = { due_date: day, plan_min: d.target.min, replan: 1 }; if (!t.est_min) data.est_min = 60; msg = `Quedó para ${dayTxt(day)} a las ${fmtClock(d.target.min)}`; }
+  const undo = { due_date: t.due_date || null, plan_min: t.plan_min === undefined ? null : t.plan_min, replan: 1 };
+  patchTask(t, data, msg, () => { if (UI.view === 'semana') fetchOpen().then(() => drawWeek(true)); else if (UI.refresh) UI.refresh(); else route(); }, undo);
+}
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' || !S.user || tdrag || document.body.classList.contains('lock')) return;
+  const el = e.target.closest('.row[data-id] .rbody, .wkp [data-tid], .wk-m [data-tid]');
+  if (!el || e.target.closest('[data-est]')) return;
+  const id = Number(el.dataset.tid || el.closest('[data-id]').dataset.id);
+  const t = (C.open || []).find((x) => x.id === id);
+  if (!t || !isOpen(t)) return;
+  hold = { t, x: e.clientX, y: e.clientY, pid: e.pointerId, timer: setTimeout(() => { if (hold) tdStart(hold); }, 350) };
+});
+document.addEventListener('pointermove', (e) => {
+  if (tdrag) { if (e.pointerId === tdrag.pid) { e.preventDefault(); tdMove(e.clientX, e.clientY); } return; }
+  if (hold && e.pointerId === hold.pid && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10) { clearTimeout(hold.timer); hold = null; }
+}, { passive: false });
+document.addEventListener('pointerup', () => { if (hold) { clearTimeout(hold.timer); hold = null; } if (tdrag) tdEnd(true); });
+document.addEventListener('pointercancel', () => { if (hold) { clearTimeout(hold.timer); hold = null; } if (tdrag) tdEnd(false); });
+document.addEventListener('touchmove', (e) => { if (tdrag) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', (e) => { if (hold || tdrag) e.preventDefault(); });
