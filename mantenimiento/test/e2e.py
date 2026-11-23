@@ -217,6 +217,31 @@ with sync_playwright() as p:
     pg.fill('#en-email', 'Adrian@Example.com'); pg.click('#en-go'); expect(pg.locator('.top h1')).to_have_text('Pendientes')
     step('sign out; an administrator needs the email too; back in')
     c.close()
+    # ---------- the week planner (wide screens): drag onto a day and hour, stretch, move, hand out, take back ----------
+    c = b.new_context(viewport={'width': 1440, 'height': 900}, locale='es-MX', timezone_id='America/Mexico_City')
+    route_theme(c); c.add_cookies([cookie(SIDS[0])]); c.set_default_timeout(6000); pg = c.new_page(); watch(pg)
+    pg.goto(BASE + '/#/semana'); expect(pg.locator('.wk-top h1')).to_have_text('Semana')
+    # something without a date to plan (low priority gets none)
+    new = pg.evaluate("fetch('/api/tasks', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({title: 'Pintar la reja del huerto', priority: 4})}).then((r) => r.json())")
+    assert new['task']['due_date'] is None, new
+    pg.reload(); expect(pg.locator('.wk-top h1')).to_have_text('Semana'); pg.wait_for_timeout(500)
+    def pull(box, x2, y2):
+        pg.mouse.move(box['x'] + 24, box['y'] + 10); pg.mouse.down(); pg.mouse.move(box['x'] + 40, box['y'] + 26, steps=3); pg.mouse.move(x2, y2, steps=8); pg.mouse.up(); pg.wait_for_timeout(500)
+    def slot(day, hour): col = pg.locator('.wcol').nth(day).bounding_box(); return col['x'] + col['width'] / 2, col['y'] + (hour - 6) * 46 + 2
+    tid = str(new['task']['id']); card = pg.locator('.wcard[data-tid="%s"]' % tid); expect(card).to_be_visible(); n_cards = pg.locator('.wcard').count()
+    pull(card.bounding_box(), *slot(2, 10))
+    blk = pg.locator('.wblk[data-tid="%s"]' % tid); expect(blk).to_contain_text('10:00 a 11:00'); expect(pg.locator('.wcard')).to_have_count(n_cards - 1)
+    t = pg.evaluate("(id) => fetch('/api/tasks/' + id).then((r) => r.json()).then((d) => d.task)", tid)
+    assert t['plan_min'] == 600 and t['est_min'] == 60 and t['due_date'], t
+    bb = blk.bounding_box(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] - 3); pg.mouse.down(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] + 43, steps=5); pg.mouse.up()
+    expect(blk).to_contain_text('10:00 a 12:00'); expect(pg.locator('.wd').nth(2)).to_contain_text('2 h'); pg.wait_for_timeout(500)
+    pull(blk.bounding_box(), *slot(4, 15)); expect(pg.locator('.wcol').nth(4).locator('.wblk[data-tid="%s"]' % tid)).to_be_visible()
+    blk.click(); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); expect(pg.locator('.cell:has-text("Tiempo") .cv')).to_have_text('2 h')
+    pg.go_back(); expect(pg.locator('.wk-top h1')).to_have_text('Semana'); pg.wait_for_timeout(300)
+    lb = pg.locator('.wk-list').bounding_box(); pull(pg.locator('.wblk[data-tid="%s"]' % tid).bounding_box(), lb['x'] + 120, lb['y'] + 320)
+    expect(pg.locator('.wblk[data-tid="%s"]' % tid)).to_have_count(0); expect(pg.locator('.wcard[data-tid="%s"]' % tid)).to_be_visible()
+    step('week planner: drag onto a day and hour, stretch, move, open, take the date away')
+    c.close()
     # nothing answers without a session
     c = ctx(); pg = c.new_page(); pg.goto(BASE + '/')
     for path in ['/bootstrap', '/tasks', '/photos/1', '/equipment', '/providers', '/pm/year', '/summary', '/search?q=a']:

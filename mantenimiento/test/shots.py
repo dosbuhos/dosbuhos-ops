@@ -23,7 +23,7 @@ CHECK = """() => {
     if (!vis(el) || el.closest('.hidden')) continue;
     const r = el.getBoundingClientRect();
     if (r.bottom < 0 || r.top > document.documentElement.scrollHeight) continue;
-    if ((r.height < 40 || r.width < 40) && !el.closest('p, .nh, li.sys, dd, .foot-links')) out.small.push(name(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    if ((r.height < 40 || r.width < 40) && !el.closest('p, .nh, li.sys, dd, .foot-links, .wk-body')) out.small.push(name(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
   }
   return out;
 }"""
@@ -34,6 +34,7 @@ SCREENS = [
   ('02-pend-scroll', '#/', 1, ['js:window.scrollTo(0, 700)']),
   ('03-filtro', '#/', 1, ['[data-filter]']),
   ('04-por-area', '#/', 1, ['[data-filter]', '[data-group=area]', '.sheet [data-act="1"]']),
+  ('07-semana', '#/semana', 1, []),
   ('05-por-persona', '#/', 1, ['[data-filter]', '[data-group=who]', '.sheet [data-act="1"]']),
   ('06-atrasados', '#/', 1, ['[data-filter]', '[data-group=date]', '.sheet [data-act="1"]', '[data-quick=late]']),
   ('10-pendiente-tarde', '#/p/{late}', 1, []),

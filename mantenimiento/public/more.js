@@ -755,6 +755,7 @@ async function route() {
     if (a === 'nuevo') return await viewReport(query);
     if (a === 'enviado' && n) return await viewReported(n);
     if (a === 'hechos') return await viewDone(query);
+    if (a === 'semana') return await viewWeek(query);
     if (a === 'buscar') return await viewSearch(query);
     if (a === 'preventivo') return await viewPM(query);
     if (a === 'planes') return await viewPlans();

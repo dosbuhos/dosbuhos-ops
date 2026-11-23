@@ -82,6 +82,9 @@ function fmtWhen(s) {
   const day = fmtDay(ymdOf(d));
   return `${/^\d/.test(day) ? 'el ' : ''}${day} a las ${d.getHours()}:${pad2(d.getMinutes())}`;
 }
+// 45 → "45 min", 60 → "1 h", 90 → "1 h 30"; and minutes after midnight → "9:30"
+const fmtDur = (m) => (!m ? '' : m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} h ${m % 60}` : `${m / 60} h`);
+const fmtClock = (m) => `${Math.floor(m / 60)}:${pad2(m % 60)}`;
 function ago(ymd) {
   const n = daysBetween(ymd, todayStr());
   if (n <= 0) return 'hoy';
@@ -423,6 +426,7 @@ function inputSheet(title, value, okLabel, { sub = '', placeholder = '', max = 6
 // ---------- shell ----------
 const TABS = [
   { tab: 'pendientes', href: '#/', icon: 'tasks', label: 'Pendientes' },
+  { tab: 'semana', href: '#/semana', icon: 'cal', label: 'Semana', cls: 'desk' },          // wide screens only
   { tab: 'preventivo', href: '#/preventivo', icon: 'repeat', label: 'Preventivo' },
   { tab: 'nuevo', href: '#/nuevo', icon: 'plus', label: 'Reportar', cls: 'report' },
   { tab: 'equipos', href: '#/equipos', icon: 'wrench', label: 'Equipos' },

@@ -293,7 +293,7 @@ function taskSelect({ list = false } = {}) {
   const cols = list
     ? `t.id, t.title, substr(t.description, 1, 240) AS description, t.kind, t.area_id, t.equipment_id, t.priority, t.status,
        t.provider_id, t.due_date, t.cost, t.created_by, t.created_at, t.updated_at, t.completed_at, t.wait_reason, t.pm_id,
-       t.postponed, t.first_due`
+       t.postponed, t.first_due, t.est_min, t.plan_min`
     : 't.*';
   return `
   SELECT ${cols}, a.name AS area_name, a.color AS area_color, e.name AS equipment_name,
@@ -428,6 +428,7 @@ async function tasksApi(request, env, url, user, seg, method) {
     const params = [];
     const logs = [];
     const wasOpen = OPEN.includes(t.status);
+    let clearPlan = false;
 
     if ('title' in b) {
       const v = str(b.title, 200);
@@ -484,7 +485,10 @@ async function tasksApi(request, env, url, user, seg, method) {
       if (v !== t.due_date) {
         sets.push('due_date = ?'); params.push(v);
         const reason = str(b.postpone_reason, 200);
-        if (v && t.due_date && v > t.due_date && wasOpen) {
+        // Moved in the week planner before its day came: that is planning, not postponing.
+        const replan = !!b.replan && !!t.due_date && t.due_date > mxToday();
+        if (!v) clearPlan = true;
+        if (v && t.due_date && v > t.due_date && wasOpen && !replan) {
           sets.push('postponed = postponed + 1');
           logs.push(`Pospuesto del ${fmtDate(t.due_date)} al ${fmtDate(v)}${reason ? '. Motivo: ' + reason : ''}`);
         } else {
@@ -492,6 +496,18 @@ async function tasksApi(request, env, url, user, seg, method) {
         }
         if (v && !t.first_due) { sets.push('first_due = ?'); params.push(v); }
       }
+    }
+    // week planner: the time of day (minutes after midnight) and how long it should take (minutes)
+    if (clearPlan) { if (t.plan_min !== null) sets.push('plan_min = NULL'); }
+    else if ('plan_min' in b) {
+      const v = int(b.plan_min);
+      const m = v !== null && v >= 0 && v < 1440 ? v : null;
+      if (m !== t.plan_min) { sets.push('plan_min = ?'); params.push(m); }
+    }
+    if ('est_min' in b) {
+      const v = int(b.est_min);
+      const m = v !== null && v >= 5 && v <= 1440 ? v : null;
+      if (m !== t.est_min) { sets.push('est_min = ?'); params.push(m); }
     }
     if ('cost' in b) {
       const v = num(b.cost);

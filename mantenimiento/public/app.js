@@ -451,6 +451,16 @@ async function costSheet(t, after) {
   if (res) patchTask(t, { cost: res.cost === '' ? null : res.cost }, 'Costo guardado', after);
 }
 const NA_WORDS = ['Está repetido', 'No era una falla', 'Ya no se necesita'];
+// How long the job should take: what the week planner uses for the size of its block.
+async function estSheet(t, after) {
+  const opts = [[15, '15 min'], [30, '30 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h'], [180, '3 h'], [240, 'Medio día', '4 h'], [480, 'Todo el día', '8 h']];
+  const v = await sheet({
+    title: '¿Cuánto tiempo lleva?', sub: t.title,
+    opts: [...opts.map(([m, label, sub]) => ({ value: m, label, sub: sub || '', on: t.est_min === m })), { value: 0, label: 'Sin estimar', on: !t.est_min }],
+  });
+  if (v === null || v === undefined || (v || null) === (t.est_min || null)) return;
+  await patchTask(t, { est_min: v || null }, v ? `Tiempo: ${fmtDur(v)}` : 'Sin tiempo estimado', after, { est_min: t.est_min || null });
+}
 async function statusSheet(t, after) {
   const cur = t.status === 'en_espera' ? 'en_espera:' + (t.wait_reason || 'proveedor') : t.status;
   const O = [
@@ -519,7 +529,8 @@ async function viewTask(id, keep = false) {
     <div class="cells">
       ${cell('status', 'Estado', `<span class="pill big ${stCls}">${esc(statusText(t))}</span>${t.status === 'hecha' && t.completed_at ? `<span class="csub">${esc(fmtDay(localYmd(t.completed_at)))}</span>` : ''}`)}
       ${cell('who', 'Lo hace', t.provider_id ? `${esc(t.provider_name)}${t.provider_kind === 'externo' ? `<span class="csub">${t.provider_specialty ? esc(t.provider_specialty) + ', externo' : 'Externo'}</span>` : ''}` : '<span class="un">Sin asignar</span>', { under: contact })}
-      ${open ? cell('due', 'Fecha', due.cls === 'none' ? '<span class="un">Sin fecha</span>' : `<span class="due ${due.cls}">${ic(due.icon)}${esc(due.text)}</span><span class="csub">${esc(fmtDay(t.due_date, { weekday: true, rel: false }))}${t.postponed ? `, pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}` : ''}</span>`, { cls: late ? 'late' : '' }) : ''}
+      ${open ? cell('due', 'Fecha', due.cls === 'none' ? '<span class="un">Sin fecha</span>' : `<span class="due ${due.cls}">${ic(due.icon)}${esc(due.text)}</span><span class="csub">${esc(fmtDay(t.due_date, { weekday: true, rel: false }))}${t.plan_min !== null && t.plan_min !== undefined ? ` a las ${fmtClock(t.plan_min)}` : ''}${t.postponed ? `, pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}` : ''}</span>`, { cls: late ? 'late' : '' }) : ''}
+      ${open ? cell('est', 'Tiempo', t.est_min ? fmtDur(t.est_min) : '<span class="muted">Sin estimar</span>') : ''}
       ${cell('prio', 'Prioridad', `<span class="pdot p${t.priority}"></span>${PRIO[t.priority]}`)}
       ${cell('area', 'Área', t.area_name ? areaTag(t) : '<span class="un">Sin área</span>')}
       ${cell('equip', 'Equipo', t.equipment_id ? esc(t.equipment_name) : '<span class="muted">Ninguno</span>', { under: t.equipment_id ? `<a class="b line sm" href="#/e/${t.equipment_id}">${ic('wrench')}Ver el equipo</a>` : '' })}
@@ -538,7 +549,7 @@ async function viewTask(id, keep = false) {
       ? `<button class="b tonal" data-set="due">${ic('clock')}${t.due_date ? 'Posponer' : 'Poner fecha'}</button><button class="b ok grow" data-finish>${ic('check')}Hecho</button>`
       : `<button class="b tonal grow" data-reopen>${ic('undo')}Volver a abrir</button>`,
   });
-  const acts = { status: statusSheet, who: assignSheet, due: dateSheet, prio: prioSheet, area: areaSheet, equip: equipSheet, cost: costSheet };
+  const acts = { status: statusSheet, who: assignSheet, due: dateSheet, est: estSheet, prio: prioSheet, area: areaSheet, equip: equipSheet, cost: costSheet };
   $$('[data-set]', APP).forEach((b) => (b.onclick = () => acts[b.dataset.set](t, reload)));
   const fin = $('[data-finish]');
   if (fin) fin.onclick = () => completeSheet(t, reload);
