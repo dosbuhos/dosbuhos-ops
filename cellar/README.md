@@ -1,4 +1,4 @@
-# Cellar Target Calendar (Calendario de bodega)
+# Crianza (cellar app, formerly Cellar Target Calendar)
 
 The Claude artifact, running on Cloudflare Workers. `app/cellar-targets.html` is the artifact source, unchanged;
 `app/web-shim.js` gives it the same `window.claude.use(...)` API it had on claude.ai, backed by this Worker:

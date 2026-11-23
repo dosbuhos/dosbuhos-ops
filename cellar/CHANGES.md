@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-23 — The app is now called Crianza · v1.24.0
+- Name everywhere the app shows it: header, tab title, footer, home-screen name, sign-in page and the assistant's prompt. Address: crianza.dosbuhos.com (a Hub short host that sends to the app); cellar.dos-buhos.workers.dev keeps working · Eric: brand it like the other apps · src/version.js, app/cellar-targets.html, src/chat.js
+
 ## 2026-11-21 — Lab uploads: new parameters go in the row's note, not new sheet columns · v1.23.1
 - The 27 parameters added in v1.23.0 (CO₂, glucosa, fructosa, densidad…) no longer append columns to the lot tabs: in the sheet they're written into the row's note («CO₂ DISUELTO 0.60 G/L; GLUCOSA 0.2 G/L»), in the app they stay proper values. Parameters that already had a column keep using it · Eric: the sheet is the record and must not get wider · src/params.js (note flag), src/entries.js (writeEntry)
 
