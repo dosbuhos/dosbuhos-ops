@@ -8,7 +8,9 @@ its service record. Cloudflare Worker + D1, plain JS, no build step.
   `wrangler.jsonc`). The folder, the Worker (`dosbuhos-mantenimiento`) and the D1 database (`mantenimiento`) keep their
   names; https://dosbuhos-mantenimiento.dos-buhos.workers.dev keeps working. Sessions are per address, so someone who
   signed in on one signs in once more on the other.
-- Not behind the Hub: it has its own open sign-up. The Hub lists it as a link.
+- Not behind the Hub: it has its own open sign-up. The Hub lists it as a link: its tile is the `apps` row with slug
+  `mantenimiento` in the Hub database, renamed there to Pulso and pointed at https://pulso.dosbuhos.com (a data change
+  made with the D1 tool on 23 Nov 2026; nothing in `hub/` changed).
 
 ## Access: open sign-up (Eric, Nov 2026)
 
