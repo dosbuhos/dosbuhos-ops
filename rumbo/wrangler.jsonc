@@ -1,0 +1,31 @@
+{
+  "name": "rumbo",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // Phone app (static). The Worker answers /api/* only.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/auth/*"] },
+  "d1_databases": [
+    // Rumbo's own data: initiatives, measures, check-ins, wins, comments and evidence photos.
+    { "binding": "DB", "database_name": "rumbo", "database_id": "c4f2857e-4bed-4ef1-8c5e-bc92a28ae132", "migrations_dir": "migrations" },
+    // The wine club's database, read-only (src/club.js only SELECTs): new and cancelled subscriptions feed the club measure
+    // so nobody types it. Its migrations stay in wineclub/. Without it the club measure simply shows no number.
+    { "binding": "CLUB", "database_name": "wineclub-production", "database_id": "4c77e154-a12c-47c2-992e-43977abffc78" }
+  ],
+  // The Hub's session secret from the account Secrets Store: checks that requests really come from the Hub (src/hub-secret.js).
+  "secrets_store_secrets": [
+    { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
+  ],
+  "vars": {
+    // San Miguel de Allende, UTC-6 all year: "today" and the scoring windows.
+    "TZ": "America/Mexico_City",
+    // The F&B director: the one person who logs initiatives, check-ins and wins (comma separated if it ever is more than one).
+    "DIRECTOR_EMAILS": "michael@dosbuhos.com",
+    // Always admins here, besides Hub admins (comma separated): they comment, suggest initiatives and edit targets.
+    "ADMIN_EMAILS": "cabosari@dosbuhos.com",
+    // At most this many initiatives in Planeación or En marcha at once, so things get finished.
+    "TOPE_ACTIVAS": "6"
+  }
+  // Secrets (Worker → Settings → Variables and Secrets):
+  //   None. HUB_SECRET comes from HUB_SESSION_SECRET in the Secrets Store.
+}

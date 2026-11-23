@@ -1,0 +1,1079 @@
+[
+ {
+  "clave": "club-cierre-en-mesa",
+  "titulo": "Cierre del club en cada visita",
+  "area": "club",
+  "tipo": "ingreso",
+  "resumen": "Que a cada mesa y a cada tour se le pida, con las mismas palabras, que entre al Círculo. Hoy se menciona; no se pide.",
+  "paga": "El socio es ingreso recurrente y de los mejores clientes de la casa. Con 5 a 10% de cierre, cuatro altas al mes salen de 40 a 80 pedidos reales.",
+  "pasos": [
+   "Guion de 30 segundos para meseros y guías, con el precio y el beneficio del día",
+   "Folleto o QR en cada mesa y al cierre de cada tour",
+   "Contar los pedidos por turno (cuántas veces se ofreció)",
+   "Revisar cada lunes pedidos contra altas y ajustar el guion"
+  ],
+  "medidas": [
+   {
+    "nombre": "Altas nuevas",
+    "unidad": "altas",
+    "meta": 4,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": "club_altas"
+   },
+   {
+    "nombre": "Veces que se ofreció",
+    "unidad": "pedidos",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "club-credito-tour",
+  "titulo": "Crédito del tour hacia el primer envío",
+  "area": "club",
+  "tipo": "ingreso",
+  "resumen": "El grupo que ya pagó sus tours recibe ese monto como crédito si entra al club ese mismo día.",
+  "paga": "Convierte un gasto ya hecho en razón para decidir hoy. Es el mejor gancho que tienen los guías y casi no se usa.",
+  "pasos": [
+   "Dejar la regla por escrito (qué cubre el crédito y qué no)",
+   "Entrenar a los guías: el momento exacto del tour en que se dice",
+   "Tarjeta impresa para entregar al cierre",
+   "Registrar cuántos tours lo escucharon y cuántos entraron"
+  ],
+  "medidas": [
+   {
+    "nombre": "Altas por crédito de tour",
+    "unidad": "altas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Tours que recibieron la oferta",
+    "unidad": "tours",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "club-referidos",
+  "titulo": "Socios que traen socios",
+  "area": "club",
+  "tipo": "ingreso",
+  "resumen": "Un beneficio claro para el socio actual cuando un amigo suyo se inscribe, y una invitación que pueda regalar.",
+  "paga": "Los socios actuales son la mejor fuente de socios nuevos: ya confían en la casa y conocen a gente parecida.",
+  "pasos": [
+   "Definir el beneficio (botella, cata, crédito) y su costo",
+   "Anunciarlo en el boletín y en la cata del viernes",
+   "Entregar a cada socio dos invitaciones a una cata",
+   "Anotar de qué socio vino cada alta"
+  ],
+  "medidas": [
+   {
+    "nombre": "Altas por referido",
+    "unidad": "altas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Invitaciones entregadas",
+    "unidad": "invitaciones",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "club-catas-viernes",
+  "titulo": "Catas de los viernes como puerta al club",
+  "area": "club",
+  "tipo": "ingreso",
+  "resumen": "La cata comparativa semanal, llena, con socios e invitados, y con un cierre de club al final.",
+  "paga": "Es el evento que ya funciona con los socios. Lleno cada semana, es la mejor sala de ventas del club y vende botella a la salida.",
+  "pasos": [
+   "Tema y vinos definidos con dos semanas de anticipación",
+   "Correo y WhatsApp el martes; recordatorio el jueves",
+   "Vender los 12 lugares: socios primero, luego locales",
+   "Cerrar con oferta de club y contar altas y botellas"
+  ],
+  "medidas": [
+   {
+    "nombre": "Lugares vendidos",
+    "unidad": "lugares",
+    "meta": 12,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Botellas vendidas en la cata",
+    "unidad": "botellas",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Altas que salieron de la cata",
+    "unidad": "altas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "club-retencion",
+  "titulo": "Retención: que el socio se quede",
+  "area": "club",
+  "tipo": "ingreso",
+  "resumen": "Seguimiento a cada socio: bienvenida, entrega a tiempo, una llamada antes del segundo envío y aviso cuando una tarjeta falla.",
+  "paga": "Cada baja borra un alta. Cuidar al socio que ya está cuesta menos que conseguir otro.",
+  "pasos": [
+   "Kit de bienvenida entregado en la primera semana",
+   "Llamada o mensaje antes del segundo envío",
+   "Revisar pagos fallidos cada semana y resolverlos",
+   "Preguntar el motivo de cada baja y anotarlo"
+  ],
+  "medidas": [
+   {
+    "nombre": "Altas menos bajas",
+    "unidad": "socios",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": "club_neto"
+   },
+   {
+    "nombre": "Bajas con motivo anotado",
+    "unidad": "bajas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "rest-ticket",
+  "titulo": "Subir el consumo por persona",
+  "area": "restaurante",
+  "tipo": "ingreso",
+  "resumen": "Tres ventas sugeridas fijas en cada mesa: copa de bienvenida, segundo vino o botella, y postre con vino dulce.",
+  "paga": "El restaurante se llena en fin de semana; lo que falta es que cada comensal gaste más. Cada $50 extra por persona cuenta todos los días.",
+  "pasos": [
+   "Sacar del POS el consumo por persona actual, por día",
+   "Elegir las tres sugerencias y escribir cómo se dicen",
+   "Practicarlas en el pre-turno del sábado",
+   "Medir cada semana por mesero"
+  ],
+  "medidas": [
+   {
+    "nombre": "Consumo por persona",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "rest-dias-flojos",
+  "titulo": "Promoción para el día más flojo",
+  "area": "restaurante",
+  "tipo": "ingreso",
+  "resumen": "Una oferta sencilla y fija para el día de menor venta entre semana, anunciada a locales.",
+  "paga": "Los costos fijos corren igual en un miércoles vacío. Llenar el día flojo es venta casi pura.",
+  "pasos": [
+   "Identificar el día más flojo con el POS",
+   "Definir una oferta que no rompa el margen",
+   "Anunciarla por correo, WhatsApp y cartel",
+   "Comparar ese día contra las cuatro semanas anteriores"
+  ],
+  "medidas": [
+   {
+    "nombre": "Venta del día flojo",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Comensales ese día",
+    "unidad": "personas",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "rest-botella",
+  "titulo": "Venta de botella para llevar",
+  "area": "restaurante",
+  "tipo": "ingreso",
+  "resumen": "Que cada mesa se vaya sabiendo que puede llevarse lo que tomó, con una estación visible y un precio claro.",
+  "paga": "El vino propio es el margen más alto de la casa y el cliente ya lo probó.",
+  "pasos": [
+   "Estación de botellas a la vista a la salida",
+   "Frase de cierre del mesero al entregar la cuenta",
+   "Promoción por tres y por seis botellas",
+   "Contar botellas por mesero cada semana"
+  ],
+  "medidas": [
+   {
+    "nombre": "Botellas para llevar",
+    "unidad": "botellas",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "rest-maridaje",
+  "titulo": "Cena maridaje mensual",
+  "area": "restaurante",
+  "tipo": "ingreso",
+  "resumen": "Una cena con boleto, cupo corto, con la enóloga y el chef, vendida primero a socios.",
+  "paga": "Ingreso con boleto pagado por adelantado, contenido para redes y un motivo más para ser socio.",
+  "pasos": [
+   "Fecha, precio por cubierto y menú costeado",
+   "Preventa a socios y después al público",
+   "Ejecutar con roles claros en piso y cocina",
+   "Cerrar cuentas: ingreso, costo y margen de la noche"
+  ],
+  "medidas": [
+   {
+    "nombre": "Cenas realizadas",
+    "unidad": "cenas",
+    "meta": 1,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Ingreso por cena",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "rest-picnic",
+  "titulo": "Canastas de picnic",
+  "area": "restaurante",
+  "tipo": "ingreso",
+  "resumen": "Canastas armadas en tienda, con pedido anticipado en línea y servicio de vino en el jardín.",
+  "paga": "Da una opción de comida entre semana y un regalo para llevar, con poca carga para la cocina.",
+  "pasos": [
+   "Tres niveles de canasta con costo y precio",
+   "Pedido anticipado en el sitio",
+   "Señalización en tienda y jardín",
+   "Contar canastas y el vino que se vende con ellas"
+  ],
+  "medidas": [
+   {
+    "nombre": "Canastas vendidas",
+    "unidad": "canastas",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Venta de canastas",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "rest-resenas",
+  "titulo": "Reseñas de cinco estrellas",
+  "area": "restaurante",
+  "tipo": "ingreso",
+  "resumen": "Pedir la reseña a quien ya dijo que le encantó, con un QR a la mano, y contestar todas.",
+  "paga": "La calificación en Google decide reservas antes de que el cliente nos conozca.",
+  "pasos": [
+   "QR de reseña en la cuenta y al cierre del tour",
+   "El mesero o guía la pide cuando el cliente elogia",
+   "Contestar cada reseña en 48 horas",
+   "Llevar la cuenta mensual y la calificación"
+  ],
+  "medidas": [
+   {
+    "nombre": "Reseñas nuevas de 5 estrellas",
+    "unidad": "reseñas",
+    "meta": 10,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Calificación en Google",
+    "unidad": "",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "eno-experiencia-premium",
+  "titulo": "Experiencia premium de enoturismo",
+  "area": "enoturismo",
+  "tipo": "ingreso",
+  "resumen": "Una versión superior del recorrido (sala de barricas, vinos de reserva, maridaje) con precio y cupo definidos.",
+  "paga": "Sube el ingreso por visitante sin traer más gente y da algo que ofrecer a hoteles y operadores.",
+  "pasos": [
+   "Definir contenido, duración, cupo y precio",
+   "Costear y entrenar a un guía",
+   "Publicarla en el sistema de reservas",
+   "Ofrecerla como mejora a quien reserva el recorrido normal"
+  ],
+  "medidas": [
+   {
+    "nombre": "Experiencias premium vendidas",
+    "unidad": "ventas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Ingreso por visitante",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "eno-cierre-tour",
+  "titulo": "Cierre de venta al final del tour",
+  "area": "enoturismo",
+  "tipo": "ingreso",
+  "resumen": "El último minuto del recorrido termina en la tienda, con una oferta del día y el club.",
+  "paga": "El visitante acaba de probar cuatro vinos: es el mejor momento para vender botella y club.",
+  "pasos": [
+   "Rediseñar el final del recorrido para que acabe en tienda",
+   "Oferta del día para llevar",
+   "Comisión clara para el guía",
+   "Medir botellas y altas por tour"
+  ],
+  "medidas": [
+   {
+    "nombre": "Botellas por tour",
+    "unidad": "botellas",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Tours con oferta de club",
+    "unidad": "tours",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ali-operadores",
+  "titulo": "Programa de operadores de tours",
+  "area": "alianzas",
+  "tipo": "ingreso",
+  "resumen": "Salir a buscar operadores, hoteles y concierges con un paquete claro de comisión y una visita de cortesía.",
+  "paga": "Un aliado que funciona trae grupos todos los meses sin gasto de publicidad.",
+  "pasos": [
+   "Lista de 20 operadores y hoteles, por prioridad",
+   "Correo de presentación y seguimiento a los tres días",
+   "Visita de cortesía a la bodega para los interesados",
+   "Registrar cada aliado: quién lo trajo, fecha y primer grupo"
+  ],
+  "medidas": [
+   {
+    "nombre": "Reuniones o contactos efectivos",
+    "unidad": "reuniones",
+    "meta": 4,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Aliados con primer grupo",
+    "unidad": "aliados",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Visitantes traídos por aliados",
+    "unidad": "personas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ali-planners",
+  "titulo": "Wedding planners y eventos de destino",
+  "area": "alianzas",
+  "tipo": "ingreso",
+  "resumen": "Relación directa con las planners de San Miguel: una experiencia de viñedo que puedan ofrecer a sus grupos.",
+  "paga": "Las planners deciden a dónde va el grupo. Una sola que nos recomiende vale varias bodas al año.",
+  "pasos": [
+   "Lista de planners activas en San Miguel",
+   "Propuesta de experiencia hecha para planners",
+   "Comida de cortesía para conocer el lugar",
+   "Pasar cada interesada a Luis y registrar el resultado"
+  ],
+  "medidas": [
+   {
+    "nombre": "Planners contactadas",
+    "unidad": "contactos",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Cotizaciones que salieron de planners",
+    "unidad": "cotizaciones",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ali-etiqueta-privada",
+  "titulo": "Etiqueta privada para restaurantes",
+  "area": "alianzas",
+  "tipo": "ingreso",
+  "resumen": "Vino con la etiqueta del restaurante, con mínimos bajos para empezar y capacitación a su equipo.",
+  "paga": "Cuenta que entra con etiqueta privada tiende a quedarse: es volumen recurrente y nos pone en su carta.",
+  "pasos": [
+   "Lista de cuentas objetivo y contacto en cada una",
+   "Presentación adaptada con su logo y sus precios por copa",
+   "Visita con muestras",
+   "Primer pedido, diseño aprobado y capacitación de servicio"
+  ],
+  "medidas": [
+   {
+    "nombre": "Cuentas en conversación",
+    "unidad": "cuentas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Botellas vendidas en etiqueta privada",
+    "unidad": "botellas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Cuentas con primer pedido",
+    "unidad": "cuentas",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ali-corporativo",
+  "titulo": "Comidas y posadas de empresa",
+  "area": "alianzas",
+  "tipo": "ingreso",
+  "resumen": "Paquete entre semana para empresas locales, y campaña de posadas y fin de año.",
+  "paga": "Llena días flojos con grupos que pagan por adelantado.",
+  "pasos": [
+   "Lista de empresas de San Miguel, Querétaro y Celaya",
+   "Paquete con precio por persona, listo para enviar",
+   "Correo y llamada de seguimiento",
+   "Pasar los interesados a Luis y contar los que se cierran"
+  ],
+  "medidas": [
+   {
+    "nombre": "Empresas contactadas",
+    "unidad": "contactos",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Grupos confirmados",
+    "unidad": "grupos",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ev-menus",
+  "titulo": "Menús de eventos siempre al día",
+  "area": "eventos",
+  "tipo": "ingreso",
+  "resumen": "Ser el dueño de los tres niveles de menú: costeados cada mes, con ficha, foto y prueba con cocina.",
+  "paga": "Sin menú listo no hay cotización. Con el menú al día Luis cotiza el mismo día y el margen se sostiene.",
+  "pasos": [
+   "Recostear los tres niveles el primer lunes del mes",
+   "Ficha y foto de cada platillo",
+   "Prueba de cada menú con cocina antes de venderlo",
+   "Avisar a Luis de cada cambio de precio"
+  ],
+  "medidas": [
+   {
+    "nombre": "Costo de alimentos en eventos",
+    "unidad": "%",
+    "meta": 30,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "baja",
+    "auto": ""
+   },
+   {
+    "nombre": "Menús recosteados este mes",
+    "unidad": "menús",
+    "meta": 3,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ev-ticket",
+  "titulo": "Subir el ticket por invitado",
+  "area": "eventos",
+  "tipo": "ingreso",
+  "resumen": "En cada cotización, ofrecer el nivel de arriba: menú superior, barra Gran Reserva, recorrido y botellas de obsequio.",
+  "paga": "Luis trae el evento; lo que se sirve define cuánto deja. Subir un nivel casi no cambia el trabajo.",
+  "pasos": [
+   "Revisar con Luis cada cotización abierta, una vez por semana",
+   "Una mejora sugerida por cotización, con su precio",
+   "Degustación para los eventos grandes",
+   "Anotar qué mejoras se aceptaron"
+  ],
+  "medidas": [
+   {
+    "nombre": "Ingreso de alimentos y bebidas por invitado",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Cotizaciones revisadas con Luis",
+    "unidad": "cotizaciones",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ev-leads-piso",
+  "titulo": "Clientes de eventos desde el piso",
+  "area": "eventos",
+  "tipo": "ingreso",
+  "resumen": "Cada mesa que festeja algo es un evento en potencia: se le pregunta, se le deja tarjeta y se pasa el contacto a Luis.",
+  "paga": "Los mejores prospectos de eventos ya están comiendo en la casa.",
+  "pasos": [
+   "Frase para el mesero cuando hay cumpleaños o grupo",
+   "Tarjeta de eventos en la cuenta",
+   "Anotar nombre y teléfono y pasarlo a Luis el mismo día",
+   "Contar cuántos se vuelven cotización"
+  ],
+  "medidas": [
+   {
+    "nombre": "Contactos pasados a Luis",
+    "unidad": "contactos",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Cotizaciones que salieron del piso",
+    "unidad": "cotizaciones",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ev-ejecucion",
+  "titulo": "Eventos bien servidos y rentables",
+  "area": "eventos",
+  "tipo": "ingreso",
+  "resumen": "Hoja de servicio por evento, personal según invitados, y cierre de cuentas a los dos días.",
+  "paga": "Un evento bien servido trae el siguiente. Uno que se sale de costo se come la ganancia.",
+  "pasos": [
+   "Hoja de evento con horarios, menú y responsables",
+   "Personal según la tabla por número de invitados",
+   "Encuesta corta al cliente",
+   "Cierre: ingreso, costo de alimentos, personal y margen"
+  ],
+  "medidas": [
+   {
+    "nombre": "Eventos con cierre de cuentas",
+    "unidad": "eventos",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Calificación del cliente",
+    "unidad": "",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ev-propios",
+  "titulo": "Eventos de la casa con boleto",
+  "area": "eventos",
+  "tipo": "ingreso",
+  "resumen": "Calendario de eventos propios: concierto con quesos, noche flamenca, fin de año, vendimia.",
+  "paga": "Ingreso que no depende de que alguien nos contrate, y contenido para todo el mes.",
+  "pasos": [
+   "Calendario de tres meses con fecha y precio",
+   "Costeo y punto de equilibrio de cada uno",
+   "Venta anticipada con liga de pago",
+   "Cierre de cada evento: boletos, ingreso, costo"
+  ],
+  "medidas": [
+   {
+    "nombre": "Eventos realizados",
+    "unidad": "eventos",
+    "meta": 1,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Boletos vendidos",
+    "unidad": "boletos",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Ingreso de eventos propios",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-alimentos",
+  "titulo": "Costo de alimentos bajo control",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Recetas costeadas, compras contra receta y revisión mensual de los diez platillos que más se venden.",
+  "paga": "Cada punto de costo de alimentos es dinero que se queda. La meta de la casa es 30%.",
+  "pasos": [
+   "Recetas y subrecetas completas en el sistema",
+   "Costo real del mes: compras entre venta de alimentos",
+   "Ajustar precio o porción de los platillos fuera de meta",
+   "Repetir cada mes"
+  ],
+  "medidas": [
+   {
+    "nombre": "Costo de alimentos",
+    "unidad": "%",
+    "meta": 30,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "baja",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-bebidas",
+  "titulo": "Costo de bebidas y vino por copa",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Medidas estándar de servicio, control de botellas abiertas y precio por copa revisado.",
+  "paga": "El vino propio debería dejar el mejor margen de la carta; las copas sin medir se lo comen.",
+  "pasos": [
+   "Medida de servicio definida y jarritas en cada estación",
+   "Conteo de botellas abiertas al cierre",
+   "Revisar precio por copa contra costo",
+   "Costo real del mes"
+  ],
+  "medidas": [
+   {
+    "nombre": "Costo de bebidas",
+    "unidad": "%",
+    "meta": 24,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "baja",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-nomina",
+  "titulo": "Horarios según la demanda",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Programar al personal con las reservas y el historial de ventas, no por costumbre.",
+  "paga": "La nómina es el segundo costo más grande. Un turno de más cada día flojo suma mucho al mes.",
+  "pasos": [
+   "Venta por día y por hora de los últimos tres meses",
+   "Plantilla base por día según reservas",
+   "Reloj checador obligatorio y nómina según el reloj",
+   "Nómina entre venta, cada mes"
+  ],
+  "medidas": [
+   {
+    "nombre": "Nómina de A&B sobre venta",
+    "unidad": "%",
+    "meta": 32,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "baja",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-compras",
+  "titulo": "Compras y proveedores",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Tres cotizaciones en los veinte insumos que más pesan, pedidos consolidados y órdenes de compra.",
+  "paga": "Pocos insumos concentran casi todo el gasto. Negociar esos es donde está el ahorro.",
+  "pasos": [
+   "Lista de los veinte insumos de mayor gasto",
+   "Cotizar con dos proveedores más cada uno",
+   "Cambiar o renegociar donde convenga",
+   "Anotar el ahorro mensual de cada cambio"
+  ],
+  "medidas": [
+   {
+    "nombre": "Ahorro en compras",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Insumos renegociados",
+    "unidad": "insumos",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-merma",
+  "titulo": "Merma y diferencias de inventario",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Conteo diario de vino y semanal de cocina, con cada diferencia investigada el mismo día.",
+  "paga": "Lo que no se cuenta se pierde. La meta es una diferencia menor al 2% de la venta.",
+  "pasos": [
+   "Conteo diario por área contra el sistema",
+   "Conciliar las diferencias antes de cerrar el día",
+   "Bitácora de merma en cocina",
+   "Reporte semanal de diferencias sin explicar"
+  ],
+  "medidas": [
+   {
+    "nombre": "Diferencia de inventario sobre venta",
+    "unidad": "%",
+    "meta": 2,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "baja",
+    "auto": ""
+   },
+   {
+    "nombre": "Diferencias sin explicar",
+    "unidad": "botellas",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "baja",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-cortesias",
+  "titulo": "Cortesías, cancelaciones y descuentos",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Toda cortesía, cancelación y descuento en el POS con motivo y autorización.",
+  "paga": "Son la fuga más silenciosa de una caja. Con motivo anotado, bajan solas.",
+  "pasos": [
+   "Motivo obligatorio en el POS",
+   "Quién puede autorizar y hasta cuánto",
+   "Revisión semanal del reporte",
+   "Hablar con quien se salga del patrón"
+  ],
+  "medidas": [
+   {
+    "nombre": "Cortesías y cancelaciones sobre venta",
+    "unidad": "%",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "baja",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "cos-energia",
+  "titulo": "Gas, luz y desechables",
+  "area": "costos",
+  "tipo": "ahorro",
+  "resumen": "Rutina de apertura y cierre para equipos, y revisión de lo que se compra en desechables y limpieza.",
+  "paga": "Son gastos chicos que nadie mira y que juntos pesan.",
+  "pasos": [
+   "Lista de encendido y apagado por área",
+   "Revisar recibos de tres meses",
+   "Cambiar lo que convenga",
+   "Comparar el gasto mensual"
+  ],
+  "medidas": [
+   {
+    "nombre": "Ahorro mensual",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ctl-presupuesto",
+  "titulo": "Presupuesto de A&B y revisión mensual",
+  "area": "controles",
+  "tipo": "base",
+  "resumen": "Presupuesto anual por unidad, y cada mes real contra presupuesto en una sola hoja.",
+  "paga": "Sin presupuesto no se sabe si el mes fue bueno. Es la base para decidir precios, personal y promociones.",
+  "pasos": [
+   "Presupuesto por unidad con contabilidad",
+   "Cierre mensual a más tardar el día 5",
+   "Revisión con Eric: qué se desvió y por qué",
+   "Ajustes para el mes siguiente"
+  ],
+  "medidas": [
+   {
+    "nombre": "Meses cerrados a tiempo",
+    "unidad": "cierres",
+    "meta": 1,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "ctl-caja",
+  "titulo": "Caja y conciliación diaria",
+  "area": "controles",
+  "tipo": "base",
+  "resumen": "Arqueo diario documentado y conciliación de ventas del POS contra depósitos y terminales.",
+  "paga": "Un faltante que se detecta el mismo día se resuelve; uno que se detecta a fin de mes ya no.",
+  "pasos": [
+   "Formato de arqueo por caja",
+   "Conciliación diaria POS, terminales y efectivo",
+   "Diferencias explicadas por escrito",
+   "Resumen semanal a dirección"
+  ],
+  "medidas": [
+   {
+    "nombre": "Días con arqueo documentado",
+    "unidad": "días",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Diferencia de caja",
+    "unidad": "$",
+    "meta": null,
+    "periodo": "semana",
+    "modo": "suma",
+    "sentido": "baja",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "eq-estandares",
+  "titulo": "Estándares de servicio y pre-turno",
+  "area": "equipo",
+  "tipo": "base",
+  "resumen": "Secuencia de servicio escrita, pre-turno fijo los sábados y secciones claras por mesero.",
+  "paga": "El servicio parejo es lo que convierte una visita en reseña, en regreso y en socio.",
+  "pasos": [
+   "Secuencia de servicio y mantenimiento de mesa por escrito",
+   "Pre-turno cada sábado, mismo horario",
+   "Secciones y roles de apoyo definidos",
+   "Revisar quejas y reseñas en el pre-turno"
+  ],
+  "medidas": [
+   {
+    "nombre": "Pre-turnos realizados",
+    "unidad": "pre-turnos",
+    "meta": 4,
+    "periodo": "mes",
+    "modo": "suma",
+    "sentido": "sube",
+    "auto": ""
+   },
+   {
+    "nombre": "Quejas resueltas en 48 horas",
+    "unidad": "%",
+    "meta": 100,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ },
+ {
+  "clave": "eq-capacitacion",
+  "titulo": "Capacitación de vino y venta",
+  "area": "equipo",
+  "tipo": "base",
+  "resumen": "Que todo el equipo de piso termine la capacitación de vinos y practique la venta sugerida.",
+  "paga": "El equipo vende lo que conoce. Quien sabe contar el vino vende botella y club.",
+  "pasos": [
+   "Todos inscritos en la capacitación",
+   "Avance revisado cada quincena",
+   "Práctica de venta en pre-turno",
+   "Reconocer a quien más vende"
+  ],
+  "medidas": [
+   {
+    "nombre": "Equipo con capacitación completa",
+    "unidad": "%",
+    "meta": null,
+    "periodo": "mes",
+    "modo": "ultimo",
+    "sentido": "sube",
+    "auto": ""
+   }
+  ]
+ }
+]

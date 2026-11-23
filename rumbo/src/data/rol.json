@@ -1,0 +1,97 @@
+{
+ "titulo": "Director de Alimentos y Bebidas",
+ "proposito": "Hacer crecer con ganancia las tres unidades de alimentos y bebidas de Dos Búhos (enoturismo, restaurante y eventos) y operarlas con disciplina financiera y un servicio de lujo discreto, parejo en cada punto de contacto. El puesto existe para generar ingreso medible, no solo para administrar la operación.",
+ "unidades": [
+  {
+   "nombre": "Enoturismo",
+   "texto": "Diseñar y elevar las experiencias de cata y visita con la mira en el ingreso por visitante. Cada tour es una oportunidad de venta: club, botellas y mejoras de experiencia."
+  },
+  {
+   "nombre": "Restaurante",
+   "texto": "La operación completa: carta, costos, merma, márgenes y servicio. Con cocina, ingeniería de menú, maridajes y promociones que llenen los días y horas flojos."
+  },
+  {
+   "nombre": "Eventos",
+   "texto": "Todo lo operativo y financiero de alimentos y bebidas una vez vendido el evento: menú, costeo, personal, montaje, servicio y rentabilidad. Crear y mejorar los paquetes con cocina."
+  }
+ ],
+ "quien": [
+  {
+   "quien": "Luis",
+   "hace": "Vende los eventos y lleva la relación con el cliente."
+  },
+  {
+   "quien": "Michael",
+   "hace": "Entrega los alimentos y bebidas del evento, mantiene los menús al día y sube el ticket por invitado."
+  },
+  {
+   "quien": "Lalo",
+   "hace": "Cocina: recetas, costos de receta y ejecución."
+  },
+  {
+   "quien": "Jess",
+   "hace": "Jefa de piso: el servicio de todos los días."
+  },
+  {
+   "quien": "Diane",
+   "hace": "Los vinos y el programa de vino."
+  },
+  {
+   "quien": "Eric",
+   "hace": "Dirección. A él se le reporta."
+  }
+ ],
+ "responsabilidades": [
+  {
+   "t": "Crecimiento",
+   "d": "Proponer, lanzar y medir iniciativas de ingreso: promociones, paquetes, experiencias, venta sugerida y conversión. Tener siempre varias en distintas etapas."
+  },
+  {
+   "t": "Club de vinos",
+   "d": "Hacer crecer las membresías y su permanencia, con un proceso de venta claro en cada tour y cada mesa."
+  },
+  {
+   "t": "Aliados",
+   "d": "Reclutar y activar operadores de tours, hoteles, concierges y planners. Cada aliado queda registrado desde el primer día."
+  },
+  {
+   "t": "Finanzas",
+   "d": "Presupuesto y pronóstico, compras y proveedores, costeo y precios, inventario, caja y POS, y nómina según la demanda."
+  },
+  {
+   "t": "Equipo y servicio",
+   "d": "Contratación, capacitación, horarios y evaluación. Manuales y estándares de servicio. Reseñas y quejas."
+  },
+  {
+   "t": "Cumplimiento",
+   "d": "Higiene y manejo de alimentos, servicio responsable de alcohol, permisos y mantenimiento de equipo."
+  }
+ ],
+ "tablero": [
+  {
+   "t": "Crecimiento",
+   "p": 40,
+   "d": "Venta del restaurante, enoturismo y eventos, altas netas del club y consumo por persona."
+  },
+  {
+   "t": "Actividad comercial",
+   "p": 30,
+   "d": "Promociones lanzadas, reuniones con aliados, aliados activados, paquetes de eventos e iniciativas en marcha."
+  },
+  {
+   "t": "Experiencia",
+   "p": 20,
+   "d": "Reseñas nuevas de cinco estrellas, calificación en Google y quejas resueltas en 48 horas."
+  },
+  {
+   "t": "Disciplina financiera",
+   "p": 10,
+   "d": "Costo de alimentos, costo de bebidas, nómina sobre venta y diferencias de inventario."
+  }
+ ],
+ "ritmo": [
+  "Cada semana: un registro por iniciativa en marcha.",
+  "Cada mes: revisar las iniciativas con Eric, cerrar las que no funcionan y adoptar la siguiente.",
+  "Cada trimestre: el tablero completo contra sus metas."
+ ]
+}
