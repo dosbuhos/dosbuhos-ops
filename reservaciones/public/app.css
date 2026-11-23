@@ -281,6 +281,7 @@ details.tabla th, details.tabla td { text-align: right; padding: 5px 3px; border
 .chips button { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--rule-2); background: var(--card); font-size: .82rem; font-weight: 650; color: var(--muted); }
 .chips button[aria-pressed="true"] { background: var(--tinto); color: var(--crema); border-color: var(--tinto); }
 .mas { justify-self: start; background: none; border: 0; padding: 0; color: var(--accent); font-weight: 650; font-size: .86rem; min-height: var(--tap); display: inline-flex; align-items: center; margin: -6px 0; }
+.mezcla { display: grid; gap: 6px; } .mezcla .leyenda b { color: var(--text); font-stretch: 80%; font-size: .95rem; }
 .frase { font-size: .92rem; } .frase b { font-weight: 700; }
 
 .globo { position: fixed; z-index: 40; max-width: min(280px, calc(100vw - 16px)); background: #22090f; color: #fff; border-radius: 10px; padding: 8px 11px; font-size: .8rem; line-height: 1.35; pointer-events: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .28); }

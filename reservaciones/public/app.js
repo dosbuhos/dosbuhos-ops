@@ -389,12 +389,22 @@ function pintarVentas(v) {
   if (v.conParrot) {
     const r = Object.fromEntries(v.reservas.map((x) => [x.estado, x])), at = r.completed, partes = [at ? `<b>${cuantos(at.reservas, 'atendida', 'atendidas')}</b> con ${cuantos(at.personas, 'persona', 'personas')}` : '', r.no_show ? cuantos(r.no_show.reservas, 'no llegó', 'no llegaron') : '', r.cancelled ? cuantos(r.cancelled.reservas, 'cancelada', 'canceladas') : '',
       (r.created || r.confirmed) ? `${num((r.created?.reservas || 0) + (r.confirmed?.reservas || 0))} sin cerrar` : ''].filter(Boolean);
-    h += figura('Reservaciones de estas fechas', 'Sin ligar a las cuentas. Los walk-ins no están aquí.',
-      `<p class="frase">${partes.length ? `${partes.join(', ')}.` : 'Sin reservaciones en estas fechas.'}</p><a class="mas" href="${ruta('r', v.desde)}">Ver el manifiesto de ${P === 'dia' ? 'esa semana' : 'esas fechas'}</a>`, { ancho: true });
+    h += figura('Reservaciones de estas fechas', 'Sin ligar a las cuentas: OpenTable todavía no las relaciona.',
+      `<p class="frase">${partes.length ? `${partes.join(', ')}.` : 'Sin reservaciones en estas fechas.'}</p>${conReserva(at, t)}<a class="mas" href="${ruta('r', v.desde)}">Ver el manifiesto de ${P === 'dia' ? 'esa semana' : 'esas fechas'}</a>`, { ancho: true });
   }
   h += `<div class="pie"><p>Venta neta: cuentas cerradas en Parrot, sin IVA y después de descuentos; los mismos números que Growth Terminal. Comensales: personas en cuentas “Comer aquí”, desde el ${fDiaMes(v.comensalesDesde)}. Las visitas prepagadas en línea se registran en Parrot al llegar, así que no se suman aparte.</p>
     <p>${v.fresco ? `Parrot actualizado ${hace(v.fresco)}.` : ''}${v.parrotDesde ? ` Parrot desde el ${fDiaMes(v.parrotDesde)} ${pf(v.parrotDesde).y}; antes, totales diarios del sistema anterior.` : ''}</p></div>`;
   main.innerHTML = h;
+}
+
+// Of the guests Parrot counted at tables, how many came with a reservation: an estimate (tour guests are counted
+// by OpenTable but may not sit at a table; the rest are walk-ins).
+function conReserva(at, t) {
+  if (!at?.personas || !(t.comensales > 0)) return '';
+  const p = Math.min(100, (at.personas / t.comensales) * 100), con = Math.min(at.personas, t.comensales), sin = Math.max(0, t.comensales - at.personas);
+  return `<div class="mezcla"><div class="partes" role="img" aria-label="${esc(`Con reservación ${pct(p)}, sin reservación ${pct(100 - p)}`)}"><i class="c1" style="flex:${con} 1 0"></i>${sin ? `<i style="flex:${sin} 1 0;background:var(--rule-2)"></i>` : ''}</div>
+    <div class="leyenda"><span><i></i><b>${pct(p)}</b>&nbsp;llegó con reservación (${num(con)})</span><span><i style="background:var(--rule-2)"></i><b>${pct(100 - p)}</b>&nbsp;sin reservación (${num(sin)})</span></div>
+    <p class="nota">De ${cuantos(t.comensales, 'comensal', 'comensales')} en mesas. <span class="est">estimación</span></p></div>`;
 }
 
 function figuraLineas(v) {
