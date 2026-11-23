@@ -222,7 +222,7 @@ function revAviso() {
   const suma = (L) => peso(neto(L.reduce((a, r) => a + r.total, 0)));
   return h('p', { class: 'note aviso' }, 'Venta estimada, pendiente de revisión. ',
     P.length ? `${P.length} ${P.length === 1 ? 'pedido' : 'pedidos'} por ${suma(P)} no ${P.length === 1 ? 'cuenta' : 'cuentan'} todavía: falta decir si ${P.length === 1 ? 'es venta' : 'son venta'}. ` : '',
-    A.length ? `${A.length} por ${suma(A)} ${A.length === 1 ? 'cuenta' : 'cuentan'} como venta y ${A.length === 1 ? 'espera' : 'esperan'} la verificación de Contabilidad. ` : '',
+    A.length ? `${A.length} por ${suma(A)} ${A.length === 1 ? 'cuenta' : 'cuentan'} como venta y ${A.length === 1 ? 'espera' : 'esperan'} la verificación final. ` : '',
     h('button', { class: 'linkb', onclick: () => ir('revision') }, 'Ver los pedidos'));
 }
 // Month-end close of the 48-hour rule. Carlos applies it once the month is over: the figures are frozen, with the contacts
@@ -272,6 +272,9 @@ function urgente(p) {
   const U = [], nq = abiertasDe(p).length;
   if (nq) U.push({ k: 'bad', t: nq === 1 ? '1 pregunta de Eric sin responder' : `${nq} preguntas de Eric sin responder`, vista: 'buzon' });
   for (const u of [urgentePlan(p), urgenteEventos(p)]) if (u) U.push(u);   // commitments about to be due or overdue, and events never closed
+  // Orders of theirs that Spark set apart: they count for nothing until the rep says what each one is.
+  const rv = (D.revision || []).filter((r) => r.vendedor === p && r.estado === 'pendiente');
+  if (rv.length) U.push({ k: 'bad', t: rv.length === 1 ? '1 pedido por confirmar: no cuenta como venta todavía' : `${rv.length} pedidos por confirmar: no cuentan como venta todavía`, d: `${peso(neto(sumar(rv, (r) => r.total)))} antes de impuestos · ${rv.slice(0, 3).map((r) => r.numero).join(' · ')}`, vista: 'revision' });
   const reg = D.foco.find((f) => f.persona === p && f.tipo === 'registrar');
   if (reg) U.push({ k: 'warn', t: reg.titulo, d: reg.detalle, vista: 'semanas' });
   const venc = D.seguimiento.filter((r) => r.persona === p && r.estado === 'vencida' && r.dias_vencido > 14).sort((a, b) => b.dias_vencido - a.dias_vencido);
@@ -520,8 +523,8 @@ const VISTAS = {
     const suma = (X) => peso(neto(X.reduce((a, r) => a + r.total, 0)));
     const anotar = (r) => formulario(`${r.numero} · ${r.cliente}`, [{ k: 'tipo', t: '¿Qué es este pedido?', tipo: 'select', ops: Object.entries(TIPO_REV), v: r.dijo || 'venta', req: true },
       { k: 'nota', t: 'Nota: a quién se le vendió, o para qué salió el vino', tipo: 'textarea', v: r.nota, req: true }],
-      (v) => enviar('api/revision', { numero: r.numero, tipo: v.tipo, nota: v.nota }), `${dia(r.fecha)} · ${peso(neto(r.total))} antes de impuestos · ${r.motivo}. Contabilidad lo verifica después.`);
-    const verificar = (r) => formulario(`Verificar ${r.numero}`, [{ k: 'veredicto', t: 'Veredicto de Contabilidad', tipo: 'select', ops: Object.entries(TIPO_REV), v: r.dijo, req: true },
+      (v) => enviar('api/revision', { numero: r.numero, tipo: v.tipo, nota: v.nota }), `${dia(r.fecha)} · ${peso(neto(r.total))} antes de impuestos · ${r.motivo}. Dirección lo verifica después.`);
+    const verificar = (r) => formulario(`Verificar ${r.numero}`, [{ k: 'veredicto', t: 'Veredicto final', tipo: 'select', ops: Object.entries(TIPO_REV), v: r.dijo, req: true },
       { k: 'nota', t: 'Nota (obligatoria si no coincide con la del equipo)', tipo: 'textarea' }],
       (v) => enviar('api/admin/revision', { numero: r.numero, veredicto: v.veredicto, nota: v.nota }), `${r.cliente} · ${peso(neto(r.total))} · ${r.anoto} dijo: ${TIPO_REV[r.dijo]}. "${r.nota}"`, 'Verificar');
     const fila = (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(neto(r.total)))),
@@ -533,11 +536,11 @@ const VISTAS = {
         r.estado === 'verificado' && D.yo.dueno ? h('button', { class: 'linkb', onclick: () => enviar('api/admin/revision', { numero: r.numero, reabrir: true }) }, 'Reabrir') : null));
     const bloque = (t, X, vacio) => [h('h2', {}, `${t} (${X.length})`), h('div', { class: 'card' }, X.length ? h('ul', { class: 'rows' }, X.map(fila)) : h('p', { class: 'note' }, vacio))];
     return h('div', { class: 'revis' },
-      h('p', { class: 'note' }, `Zoho guarda como pedido de venta cosas que no lo son: muestras, traspasos de inventario, ventas sin cliente. Spark aparta los pedidos desde junio de 2026 a nombre de "Público en general" y los que llevan más de ${(D.reglas_revision || {}).dias || 14} días sin factura. Quien hizo el pedido dice qué es y deja una nota; Contabilidad tiene la última palabra. Mientras nadie diga que es venta, el pedido no cuenta en ninguna cifra. Importes antes de impuestos.`),
-      h('div', { class: 'kpis' }, [[pend.length, 'Por decir qué son', suma(pend) + ' fuera de la venta'], [anot.length, 'Esperan a Contabilidad', suma(anot.filter((r) => r.cuenta)) + ' cuentan como venta'], [ver.length, 'Verificados', suma(ver.filter((r) => r.cuenta)) + ' sí fueron venta']]
+      h('p', { class: 'note' }, `Zoho guarda como pedido de venta cosas que no lo son: muestras, traspasos de inventario, ventas sin cliente. Spark aparta los pedidos desde junio de 2026 a nombre de "Público en general" y los que llevan más de ${(D.reglas_revision || {}).dias || 14} días sin factura. Quien hizo el pedido dice qué es y deja una nota; Dirección da la verificación final. Mientras nadie diga que es venta, el pedido no cuenta en ninguna cifra. Importes antes de impuestos.`),
+      h('div', { class: 'kpis' }, [[pend.length, 'Por decir qué son', suma(pend) + ' fuera de la venta'], [anot.length, 'Esperan verificación', suma(anot.filter((r) => r.cuenta)) + ' cuentan como venta'], [ver.length, 'Verificados', suma(ver.filter((r) => r.cuenta)) + ' sí fueron venta']]
         .map(([n, l, sub]) => h('div', { class: 'kpi' }, h('div', { class: 'num' }, n), h('div', { class: 'kl' }, l), h('div', { class: 'note' }, sub)))),
       L.length ? h('p', { class: 'acc noimp' }, h('button', { class: 'btn sec', onclick: () => print() }, 'Imprimir o guardar en PDF')) : null,
-      bloque('Por decir qué son', pend, 'Nada pendiente.'), bloque('Esperan la verificación de Contabilidad', anot, 'Nada en espera.'), bloque('Verificados', ver, 'Todavía ninguno.'));
+      bloque('Por decir qué son', pend, 'Nada pendiente.'), bloque('Esperan la verificación final', anot, 'Nada en espera.'), bloque('Verificados', ver, 'Todavía ninguno.'));
   },
   ventas() {
     const vs = vendedores();
