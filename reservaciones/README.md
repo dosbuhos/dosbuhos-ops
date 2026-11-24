@@ -12,7 +12,7 @@ Spanish UI. Worker `reservaciones`, behind the Hub at `apps.dosbuhos.com/reserva
   guest, tags (table, prepaid, nth visit, earlier no-shows, channel); it opens a sheet with call / WhatsApp / email,
   lead time, the visit timeline, the prepayment (with card country) and history. Repeat guests match on email or
   phone among the guests kept here. Each day carries its Parrot numbers side by side, never joined to a reservation.
-- Look: Archivo (self-hosted, OFL), wine-dark bar, owl-eye logo; installable (`manifest.webmanifest`, icons).
+- Look: Archivo (self-hosted, OFL), night-blue bar, teal pulse (EKG) logo; colour carries state (grey done, green confirmed, amber to confirm, red no-show, violet at the table). Installable (`manifest.webmanifest`, icons).
 - **Ventas** (Hub roles editor and admin): ‹ › by day, week or month. Net sales, guests, tickets and tips against the
   previous period and the same weekdays a year earlier; sales by day, by hour, by line of business, top products,
   payments by type, twelve weeks of trend. Every chart has its table.

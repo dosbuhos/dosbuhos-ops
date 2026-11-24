@@ -1,30 +1,31 @@
-/* Reservaciones — the host stand. A wine-dark bar on top (it continues into the phone's status bar), white sheets
-   below, and Archivo throughout: condensed and heavy for the figures a host scans (times, covers, money), regular for
-   names and text. Every reservation row carries a coloured rail for its status, so a day reads at a glance.
-   Charts: one accent (tinto) for single series; four checked colours for the lines of business (light and dark). */
+/* Pulso — the host stand. One night-blue bar on top (it runs into the phone's status bar) with the pulse mark, cool
+   white sheets below, Archivo throughout: condensed and heavy for the figures a host scans (times, covers, money),
+   regular for names and text. Colour carries state, not decoration: grey is done, green confirmed, amber needs a call,
+   red didn't come, violet is at the table. The one brand colour (teal) is for actions and single-series charts.
+   Lines of business use the four checked categorical hues (light and dark). */
 @font-face { font-family: "Archivo"; src: url(archivo.woff2) format("woff2-variations"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
 :root {
-  --tinto: #4a1424; --tinto-2: #5c1a2e; --oro: #e8c27a; --crema: #f6ead2;
-  --bg: #f1f1f3; --card: #ffffff; --text: #17181b; --muted: #62666e; --rule: #e3e3e8; --rule-2: #cdced6; --soft: #f4f4f6;
-  --accent: #7a2038; --on-accent: #fff;
-  --ok: #23774a; --bad: #b3261e; --warn: #9a5b00; --now: #fbf3e2;
+  --noche: #0b2330; --noche-2: #133445; --pulso: #3ee0c4; --hielo: #cfe6ea; --hielo-2: #8fb3bd;
+  --bg: #f2f4f5; --card: #ffffff; --text: #141a1e; --muted: #5d6870; --rule: #e1e6e9; --rule-2: #c9d1d6; --soft: #f3f6f7;
+  --accent: #0a6f7c; --on-accent: #fff;
+  --ok: #1d7a46; --bad: #b42318; --warn: #9a5b00; --now: #e7f5f3;
   /* Status rails and chips */
-  --st-conf: #23774a; --st-res: #c27c0e; --st-mesa: #1f63c9; --st-hecha: #8b8f98; --st-falta: #b3261e; --st-cerrar: #9a5b00;
-  --lado-bg: #240a12; --lado-ink: #d7c3c8; --lado-on: #ffffff;
-  --s1: #8b2437; --s2: #b88400; --s3: #2a78d6; --s4: #22a06b;
-  --fantasma: #7b838d;
+  --st-conf: #1e7d4a; --st-res: #d4901c; --st-mesa: #6a4cd2; --st-hecha: #8f99a5; --st-falta: #b42318; --st-cerrar: #a86200;
+  --lado-bg: #0b2330; --lado-ink: #a9c3ca; --lado-on: #ffffff;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --fantasma: #8a949c;
   --font: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --radius: 14px; --tap: 44px; --lado: 220px; --paso: 52px;
+  --radius: 14px; --tap: 44px; --lado: 220px; --paso: 56px;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --tinto: #2a0b14; --tinto-2: #3a1020; --bg: #0f0e10; --card: #19171a; --text: #efecee; --muted: #a29ca2; --rule: #2c282d; --rule-2: #413b42; --soft: #221f23;
-    --accent: #e58ba0; --on-accent: #25080f; --ok: #6fc28f; --bad: #f08075; --warn: #e0a548; --now: #2a2216;
-    --st-conf: #5cbf85; --st-res: #e3a23c; --st-mesa: #6aa1f0; --st-hecha: #7d7880; --st-falta: #f08075; --st-cerrar: #e0a548;
-    --lado-bg: #150509; --s1: #cf6680; --s2: #c98500; --s3: #3987e5; --s4: #199e70; --fantasma: #8b939c; }
+  :root { --noche: #07161e; --noche-2: #0f2633; --bg: #0b1013; --card: #131a1e; --text: #e8eef0; --muted: #94a2a9; --rule: #233038; --rule-2: #34444d; --soft: #1a2328;
+    --accent: #4cc8d6; --on-accent: #062026; --ok: #5fc48a; --bad: #f2877b; --warn: #e3a64a; --now: #0f2a2c;
+    --st-conf: #4fbf7f; --st-res: #e3a23c; --st-mesa: #a08cf2; --st-hecha: #6f7c85; --st-falta: #f2877b; --st-cerrar: #e3a64a;
+    --lado-bg: #07161e; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --fantasma: #7d8a92; }
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; background: var(--tinto); }
+html { -webkit-text-size-adjust: 100%; background: var(--noche); }
 html, body { overflow-x: clip; max-width: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.42; -webkit-font-smoothing: antialiased; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); -webkit-tap-highlight-color: transparent; }
 body.con-pestanas { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
@@ -43,25 +44,25 @@ a { color: var(--accent); text-decoration: none; }
 
 /* ---- Shell: the dark bar and the stepper are one band ---- */
 .lado { display: none; }
-.paso .recargar-ancho { display: none; }
-.arriba { background: var(--tinto); color: #fff; padding: calc(4px + env(safe-area-inset-top)) 6px 0 10px; display: flex; align-items: center; gap: 8px; min-height: 50px; }
-.arriba .al-hub { font-size: .86rem; font-weight: 600; color: var(--crema); opacity: .85; padding: 10px 4px; white-space: nowrap; }
+.arriba { background: var(--noche); color: #fff; padding: calc(4px + env(safe-area-inset-top)) 6px 4px 12px; display: flex; align-items: center; gap: 8px; min-height: 52px; }
+.app:has(#paso:not([hidden])) .arriba { display: none; }
 .marca { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
 .marca h1 { font-size: 1.12rem; font-weight: 750; font-stretch: 92%; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .logo { width: 28px; height: 28px; flex: none; border-radius: 7px; display: block; }
 .ico { width: var(--tap); height: var(--tap); display: grid; place-items: center; background: none; border: 0; border-radius: 12px; color: var(--muted); flex: none; }
 .ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.arriba .ico, .paso .ico { color: var(--crema); }
+.arriba .ico, .paso .ico { color: var(--hielo); }
 .ico:hover { background: rgba(255, 255, 255, .1); }
 .ico:disabled { opacity: .3; cursor: default; background: none; }
 .ico.girando svg { animation: giro .9s linear infinite; }
 @keyframes giro { to { transform: rotate(360deg); } }
 
 /* The one row of controls: back, where you are, forward, today. Stays on top while the page scrolls. */
-.paso { position: sticky; top: 0; z-index: 6; background: var(--tinto); color: #fff; min-height: var(--paso); padding: 2px 6px 4px; display: flex; align-items: center; gap: 2px; box-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
+.paso { position: sticky; top: 0; z-index: 6; background: var(--noche); color: #fff; min-height: calc(var(--paso) + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 4px 0 12px; display: flex; align-items: center; gap: 0; box-shadow: 0 1px 0 rgba(0, 0, 0, .3); }
+.logo-paso { margin-right: 4px; }
 .donde { flex: 1; min-width: 0; text-align: center; font-weight: 800; font-stretch: 82%; font-size: 1.2rem; letter-spacing: -.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
-.donde small { display: block; font-size: .72rem; font-weight: 500; font-stretch: 100%; color: var(--oro); letter-spacing: .01em; line-height: 1.2; }
-.hoy { min-height: 34px; padding: 0 13px; margin: 0 4px 0 2px; border-radius: 999px; border: 0; background: var(--oro); color: #2a0b14; font-size: .84rem; font-weight: 750; }
+.donde small { display: block; font-size: .72rem; font-weight: 550; font-stretch: 100%; color: var(--pulso); letter-spacing: .01em; line-height: 1.25; }
+.hoy { min-height: 32px; padding: 0 12px; margin: 0 2px; border-radius: 999px; border: 0; background: var(--pulso); color: #06222a; font-size: .82rem; font-weight: 750; }
 
 main { padding: 10px 0 84px; max-width: 760px; margin: 0 auto; display: grid; gap: 10px; outline: none; transition: opacity .15s; }
 main.cargando { opacity: .55; }
@@ -73,8 +74,8 @@ main.cargando { opacity: .55; }
 
 /* ---- Pieces ---- */
 .bloque { background: var(--card); border-block: 1px solid var(--rule); }
-.aviso { display: grid; grid-template-columns: 20px 1fr; gap: 8px; padding: 10px 14px; font-size: .86rem; background: color-mix(in srgb, var(--oro) 22%, var(--card)); border-block: 1px solid color-mix(in srgb, var(--oro) 55%, var(--rule)); }
-.aviso svg { width: 18px; height: 18px; margin-top: 1px; fill: none; stroke: var(--warn); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.aviso { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 8px 14px; font-size: .8rem; line-height: 1.35; color: var(--muted); background: color-mix(in srgb, var(--st-res) 10%, var(--card)); border-block: 1px solid color-mix(in srgb, var(--st-res) 30%, var(--rule)); }
+.aviso svg { width: 16px; height: 16px; margin-top: 1px; fill: none; stroke: var(--warn); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .aviso.mal { background: color-mix(in srgb, var(--bad) 9%, var(--card)); border-color: color-mix(in srgb, var(--bad) 30%, var(--rule)); } .aviso.mal svg { stroke: var(--bad); }
 .btn { min-height: var(--tap); padding: 0 16px; border-radius: 12px; border: 1px solid var(--rule-2); background: var(--card); font-weight: 650; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--text); }
 .btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -83,34 +84,44 @@ main.cargando { opacity: .55; }
 .pie { padding: 4px 14px 0; color: var(--muted); font-size: .78rem; display: grid; gap: 6px; }
 .seccion { font-size: .8rem; font-weight: 700; color: var(--muted); padding: 0 0 6px; }
 
-/* ---- Today, at the top of the current week ---- */
-.ahora { padding: 14px 14px 10px; display: grid; gap: 12px; border-top: 3px solid var(--oro); }
+/* ---- Today, at the top of the current week: the covers as one bar, the next arrival, arrivals by half hour ---- */
+.ahora { padding: 14px 14px 12px; display: grid; gap: 10px; border-top: 3px solid var(--pulso); }
 .ahora .titulo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .ahora .titulo h2 { font-size: 1.35rem; font-weight: 800; font-stretch: 80%; letter-spacing: -.01em; }
-.ahora .titulo h2 span { font-weight: 500; color: var(--muted); font-stretch: 100%; font-size: .95rem; letter-spacing: 0; margin-left: 4px; }
-.cuatro { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.cuatro > div { min-width: 0; background: var(--soft); border-radius: 12px; padding: 8px 9px 7px; }
-.cuatro b { display: block; font-size: 1.7rem; line-height: 1.05; font-stretch: 75%; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-.cuatro span { display: block; font-size: .72rem; color: var(--muted); line-height: 1.2; font-weight: 550; }
-.siguiente { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; text-align: left; border: 0; background: var(--tinto); color: #fff; border-radius: 12px; padding: 10px 12px; }
-.siguiente .que { font-size: .72rem; color: var(--oro); font-weight: 650; display: block; }
-.siguiente .h { font-size: 1.6rem; font-stretch: 75%; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.ahora .titulo h2 span { font-weight: 500; color: var(--muted); font-stretch: 100%; font-size: .95rem; letter-spacing: 0; margin-left: 6px; }
+.ahora .total { color: var(--muted); font-size: .86rem; text-align: right; line-height: 1.1; }
+.ahora .total b { font-size: 2rem; font-weight: 800; font-stretch: 72%; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.01em; margin-right: 2px; }
+.ahora .total span { display: block; font-size: .74rem; }
+.avance { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; }
+.avance i { display: block; min-width: 4px; }
+.avance .llego, .avance-clave .llego i { background: var(--accent); }
+.avance .viene, .avance-clave .viene i { background: color-mix(in srgb, var(--accent) 18%, var(--card)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, var(--card)); }
+.avance .tarde, .avance-clave .tarde i { background: var(--st-res); }
+.avance-clave { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: .8rem; color: var(--muted); margin-top: -3px; }
+.avance-clave li { display: inline-flex; align-items: center; gap: 6px; } .avance-clave i { width: 10px; height: 10px; border-radius: 3px; }
+.avance-clave b { color: var(--text); font-weight: 800; font-stretch: 80%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+.avance-clave .tarde:not(.cero) b { color: var(--st-cerrar); } .avance-clave .cero { opacity: .55; }
+.siguiente { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; text-align: left; border: 0; background: var(--noche); color: #fff; border-radius: 12px; padding: 10px 14px 10px 12px; position: relative; overflow: hidden; }
+.siguiente::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--pulso); }
+.siguiente .que { font-size: .72rem; color: var(--pulso); font-weight: 650; display: block; }
+.siguiente .h { font-size: 1.7rem; font-stretch: 72%; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; padding-left: 4px; }
 .siguiente .n { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.siguiente .p { font-size: .82rem; color: var(--crema); opacity: .85; }
-.siguiente .en { font-size: .8rem; color: var(--crema); text-align: right; white-space: nowrap; }
+.siguiente .p { font-size: .82rem; color: var(--hielo); }
+.siguiente .en { font-size: .8rem; color: var(--hielo); text-align: right; white-space: nowrap; font-weight: 600; }
 
 /* ---- To-dos: what a host should do next, each one tappable ---- */
 .pendientes { padding: 12px 14px; display: grid; gap: 4px; }
 .pendientes h2 { font-size: .98rem; font-weight: 750; display: flex; align-items: center; gap: 8px; }
 .pendientes h2 .cuenta { min-width: 22px; height: 22px; border-radius: 11px; background: var(--accent); color: var(--on-accent); font-size: .76rem; display: inline-grid; place-items: center; padding: 0 6px; font-stretch: 85%; }
-.pend { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--rule); }
+.pend { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--rule); }
 .pend:first-of-type { border-top: 0; }
-.pend .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--c, var(--warn)) 14%, var(--card)); color: var(--c, var(--warn)); }
+.pend .ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--c, var(--warn)) 14%, var(--card)); color: var(--c, var(--warn)); }
 .pend .ic svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pend .tx { min-width: 0; font-size: .9rem; line-height: 1.3; background: none; border: 0; padding: 4px 0; text-align: left; }
 .pend .tx b { font-weight: 650; } .pend .tx small { display: block; color: var(--muted); font-size: .78rem; }
-.pend .acc { min-height: 36px; padding: 0 12px; border-radius: 10px; font-size: .82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule-2); background: var(--card); color: var(--text); white-space: nowrap; }
-.pend .acc svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pend .acc { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--rule-2); background: var(--card); color: var(--muted); padding: 0; }
+.pend .acc.llama { background: color-mix(in srgb, var(--accent) 10%, var(--card)); border-color: color-mix(in srgb, var(--accent) 35%, var(--rule)); color: var(--accent); }
+.pend .acc svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pendientes .todo-bien { display: flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 600; font-size: .9rem; }
 .pendientes .todo-bien svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pendientes .mas { margin: 0; }
@@ -127,15 +138,15 @@ main.cargando { opacity: .55; }
 .tira .col { width: min(26px, 66%); display: flex; flex-direction: column-reverse; gap: 2px; align-self: end; }
 .tira .col i { display: block; width: 100%; background: var(--st-conf); border-radius: 2px; }
 .tira .col i:last-child { border-radius: 5px 5px 2px 2px; } .tira .col i:only-child { border-radius: 5px 5px 2px 2px; }
-.tira .col i.res { background: var(--st-res); } .tira .col i.hecha { background: var(--accent); }
+.tira .col i.res { background: var(--st-res); } .tira .col i.hecha { background: var(--st-hecha); }
 .tira .col.cero { height: 2px; background: var(--rule-2); border-radius: 1px; }
 .tira .n { font-size: 1.05rem; font-weight: 800; font-stretch: 75%; line-height: 1; font-variant-numeric: tabular-nums; }
 .tira .d { font-size: .7rem; color: var(--muted); line-height: 1.1; text-align: center; white-space: nowrap; }
-.tira button.es-hoy { background: var(--now); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--oro) 70%, transparent); } .tira button.es-hoy .d { color: var(--text); font-weight: 750; }
+.tira button.es-hoy { background: var(--now); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); } .tira button.es-hoy .d { color: var(--text); font-weight: 750; }
 .tira button.cerrado .n { color: var(--muted); font-weight: 500; }
 .clave { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: .74rem; color: var(--muted); }
 .clave span { display: inline-flex; align-items: center; gap: 5px; } .clave i { width: 9px; height: 9px; border-radius: 2px; background: var(--st-conf); }
-.clave i.res { background: var(--st-res); } .clave i.hecha { background: var(--accent); }
+.clave i.res { background: var(--st-res); } .clave i.hecha { background: var(--st-hecha); }
 
 /* ---- A day ---- */
 .dia { background: var(--card); border-block: 1px solid var(--rule); scroll-margin-top: calc(var(--paso) + 2px); }
@@ -144,11 +155,11 @@ main.cargando { opacity: .55; }
 .dia > .cab h2 span { font-weight: 500; color: var(--muted); font-stretch: 100%; font-size: .9rem; letter-spacing: 0; }
 .dia > .cab .res { display: flex; gap: 12px; text-align: right; }
 .dia > .cab .res div { line-height: 1.05; } .dia > .cab .res .sr-b { color: var(--muted); } .dia > .cab .res b { display: block; font-size: 1.15rem; font-stretch: 75%; font-weight: 800; font-variant-numeric: tabular-nums; } .dia > .cab .res span { font-size: .68rem; color: var(--muted); font-weight: 600; }
-.dia.es-hoy > .cab { background: var(--now); box-shadow: inset 4px 0 0 var(--oro); }
+.dia.es-hoy > .cab { background: var(--now); box-shadow: inset 4px 0 0 var(--accent); }
 .cerrados { padding: 6px 14px; color: var(--muted); font-size: .84rem; }
 .ritmo { padding: 8px 14px 4px; } .ritmo svg { display: block; width: 100%; height: auto; overflow: visible; }
-.ritmo .bar { fill: color-mix(in srgb, var(--accent) 80%, var(--card)); } .ritmo .eje { stroke: var(--rule); } .ritmo text { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; font-family: var(--font); }
-.ritmo .tope { fill: var(--text); font-size: 10.5px; font-weight: 750; } .ritmo .ya { stroke: var(--oro); stroke-width: 2; } .ritmo .ya-t { fill: var(--warn); font-weight: 700; }
+.ritmo .bar { fill: var(--accent); } .ritmo .bar.pasada { fill: color-mix(in srgb, var(--accent) 35%, var(--card)); } .ritmo .eje { stroke: var(--rule); } .ritmo text { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; font-family: var(--font); }
+.ritmo .tope { fill: var(--text); font-size: 10.5px; font-weight: 750; } .ritmo .ya { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 2 2; } .ritmo .ya-t { fill: var(--text); font-weight: 700; }
 
 /* A reservation: status rail, the hour, the party, who. The whole row opens the reservation. */
 .reservas { border-top: 1px solid var(--rule); }
@@ -158,16 +169,17 @@ main.cargando { opacity: .55; }
 .fila:active { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .fila .hora { font-size: 1.32rem; font-weight: 800; font-stretch: 75%; letter-spacing: -.01em; line-height: 1; font-variant-numeric: tabular-nums; }
 .pax { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); border: 1.5px solid var(--rule-2); font-size: 1.15rem; font-weight: 800; font-stretch: 75%; font-variant-numeric: tabular-nums; line-height: 1; }
-.pax.grande { background: var(--tinto); color: var(--crema); border-color: var(--tinto); }
+.pax.grande { background: var(--noche); color: #fff; border-color: var(--noche); }
 .fila .quien { min-width: 0; }
 .fila .quien .n { display: block; font-weight: 650; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fila .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--muted); font-size: .78rem; line-height: 1.35; margin-top: 2px; }
 .tag { display: inline-flex; align-items: center; gap: 3px; border-radius: 6px; padding: 0 5px; font-size: .72rem; font-weight: 700; line-height: 1.55; white-space: nowrap; background: var(--soft); color: var(--text); border: 1px solid var(--rule); }
 .tag.mesa { font-stretch: 85%; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
-.tag.prep { background: color-mix(in srgb, var(--s2) 16%, var(--card)); border-color: color-mix(in srgb, var(--s2) 40%, var(--rule)); }
+.tag.prep { background: color-mix(in srgb, var(--st-mesa) 10%, var(--card)); border-color: color-mix(in srgb, var(--st-mesa) 30%, var(--rule)); color: var(--st-mesa); }
 .tag.vuelve { background: color-mix(in srgb, var(--ok) 13%, var(--card)); border-color: color-mix(in srgb, var(--ok) 35%, var(--rule)); color: var(--ok); }
 .tag.falto { background: color-mix(in srgb, var(--bad) 11%, var(--card)); border-color: color-mix(in srgb, var(--bad) 32%, var(--rule)); color: var(--bad); }
 .estado { justify-self: end; display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; font-weight: 750; white-space: nowrap; color: var(--st); }
+.estado.callado .txt { display: none; } .estado.callado { opacity: .8; }
 .estado svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .s-confirmada { --st: var(--st-conf); } .s-reservada { --st: var(--st-res); } .s-enmesa { --st: var(--st-mesa); } .s-atendida { --st: var(--st-hecha); }
 .s-nollego { --st: var(--st-falta); } .s-cancelada { --st: var(--st-hecha); } .s-sincerrar { --st: var(--st-cerrar); }
@@ -176,7 +188,7 @@ main.cargando { opacity: .55; }
 .fuera-lista summary::-webkit-details-marker { display: none; } .fuera-lista summary svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .15s; }
 .fuera-lista[open] summary svg { transform: rotate(180deg); }
 
-.sueltos { border-top: 1px solid var(--rule); padding: 10px 14px 11px; display: grid; gap: 7px; background: color-mix(in srgb, var(--s2) 6%, var(--card)); }
+.sueltos { border-top: 1px solid var(--rule); padding: 10px 14px 11px; display: grid; gap: 7px; background: var(--soft); }
 .sueltos h3, .parrot h3 { font-size: .8rem; font-weight: 700; color: var(--muted); }
 .sueltos li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; column-gap: 10px; font-size: .88rem; align-items: baseline; }
 .sueltos li .hora { font-weight: 800; font-stretch: 75%; font-size: 1.1rem; font-variant-numeric: tabular-nums; } .sueltos li .cuanto { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
@@ -189,13 +201,13 @@ main.cargando { opacity: .55; }
 
 /* ---- The reservation sheet: slides up on a phone, a panel on wide screens ---- */
 .hoja { border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 560px; max-height: 92vh; border-radius: 20px 20px 0 0; background: var(--card); color: var(--text); box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); overflow: hidden; }
-.hoja::backdrop { background: rgba(20, 8, 12, .5); }
+.hoja::backdrop { background: rgba(5, 16, 22, .55); }
 .hoja[open] { animation: sube .22s cubic-bezier(.2, .8, .2, 1); display: flex; flex-direction: column; }
 @keyframes sube { from { transform: translateY(40px); opacity: 0; } }
 .hoja .asa { width: 40px; height: 5px; border-radius: 3px; background: var(--rule-2); margin: 8px auto 0; flex: none; }
 .hoja .cuerpo { overflow-y: auto; padding: 6px 16px calc(18px + env(safe-area-inset-bottom)); display: grid; gap: 14px; overscroll-behavior: contain; }
 .hoja .cierra { position: absolute; top: 8px; right: 8px; color: var(--muted); }
-.hoja .encab { --st: var(--st-res); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; align-items: center; padding: 8px 40px 0 0; }
+.hoja .encab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; align-items: center; padding: 8px 40px 0 0; }
 .hoja .encab .hora { font-size: 2.6rem; font-weight: 800; font-stretch: 72%; line-height: .95; font-variant-numeric: tabular-nums; grid-row: 1 / 3; }
 .hoja .encab .cuando { font-size: .84rem; color: var(--muted); font-weight: 550; }
 .hoja .encab .estado { justify-self: start; font-size: .8rem; padding: 3px 9px 3px 7px; border-radius: 999px; background: color-mix(in srgb, var(--st) 13%, var(--card)); }
@@ -218,9 +230,14 @@ main.cargando { opacity: .55; }
 .hoja .linea-t b { font-size: .9rem; font-stretch: 80%; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--muted); }
 
 /* ---- New reservation ---- */
-.fab { position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 8; display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 18px 0 14px; border: 0; border-radius: 26px; background: var(--tinto); color: var(--crema); font-weight: 750; box-shadow: 0 6px 20px rgba(42, 11, 20, .35); }
+.fab { position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 8; display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 18px 0 14px; border: 0; border-radius: 26px; background: var(--noche); color: var(--hielo); font-weight: 750; box-shadow: 0 6px 20px rgba(5, 25, 33, .35); }
 .fab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 body:not(.con-pestanas) .fab { bottom: calc(18px + env(safe-area-inset-bottom)); }
+.fab { width: 56px; height: 56px; padding: 0; justify-content: center; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
+.fab span { display: none; } .fab svg { width: 26px; height: 26px; }
+/* With the tab bar, the button sits in its middle, so it never covers a row's call button. */
+.pestanas { grid-template-columns: 1fr 76px 1fr; } .pestanas a:last-child { grid-column: 3; }
+body.con-pestanas .fab { left: 50%; right: auto; margin-left: -26px; width: 52px; height: 52px; bottom: calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 4px 14px rgba(5, 25, 33, .3), 0 0 0 4px var(--card); }
 .dia > .cab { gap: 6px; } .dia > .cab h2 { margin-right: auto; }
 .mas-dia { width: 34px; height: 34px; margin-left: -6px; color: var(--accent) !important; }
 .mas-dia svg { width: 20px; height: 20px; stroke-width: 2.2; }
@@ -293,24 +310,25 @@ details.tabla th, details.tabla td { text-align: right; padding: 5px 3px; border
 .rango .ap { grid-column: 1 / 3; color: var(--muted); font-size: .76rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--rule-2); background: var(--card); font-size: .82rem; font-weight: 650; color: var(--muted); }
-.chips button[aria-pressed="true"] { background: var(--tinto); color: var(--crema); border-color: var(--tinto); }
+.chips button[aria-pressed="true"] { background: var(--noche); color: var(--hielo); border-color: var(--noche); }
 .mas { justify-self: start; background: none; border: 0; padding: 0; color: var(--accent); font-weight: 650; font-size: .86rem; min-height: var(--tap); display: inline-flex; align-items: center; margin: -6px 0; }
 .mezcla { display: grid; gap: 6px; } .mezcla .leyenda b { color: var(--text); font-stretch: 80%; font-size: .95rem; }
 .frase { font-size: .92rem; } .frase b { font-weight: 700; }
 
-.globo { position: fixed; z-index: 40; max-width: min(280px, calc(100vw - 16px)); background: #22090f; color: #fff; border-radius: 10px; padding: 8px 11px; font-size: .8rem; line-height: 1.35; pointer-events: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .28); }
-.globo b { display: block; font-size: 1.05rem; font-weight: 800; font-stretch: 80%; } .globo span { display: block; color: #e2cfd4; }
+.globo { position: fixed; z-index: 40; max-width: min(280px, calc(100vw - 16px)); background: #0b2330; color: #fff; border-radius: 10px; padding: 8px 11px; font-size: .8rem; line-height: 1.35; pointer-events: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .28); }
+.globo b { display: block; font-size: 1.05rem; font-weight: 800; font-stretch: 80%; } .globo span { display: block; color: #b9d2d8; }
 
 @media (max-width: 359px) {
   .tira { gap: 1px; } .tira .d { font-size: .62rem; } details.tabla { font-size: .72rem; }
   .fila { grid-template-columns: 46px 34px minmax(0, 1fr) auto; column-gap: 8px; padding-left: 12px; } .fila .hora { font-size: 1.18rem; } .pax { width: 34px; height: 34px; font-size: 1.02rem; }
-  .estado .txt { display: none; } .cuatro b { font-size: 1.45rem; } .dia > .cab .res { gap: 8px; }
+  .estado .txt { display: none; } .dia > .cab .res { gap: 8px; }
 }
 @media (min-width: 620px) {
   main { padding: 16px 16px 40px; gap: 14px; }
   .bloque, .dia { border: 1px solid var(--rule); border-radius: var(--radius); } .dia { overflow: clip; } .dia > .cab { position: sticky; }
-  .aviso { border: 1px solid color-mix(in srgb, var(--oro) 55%, var(--rule)); border-radius: var(--radius); }
+  .aviso { border: 1px solid color-mix(in srgb, var(--st-res) 30%, var(--rule)); border-radius: var(--radius); }
   .kpis { grid-template-columns: repeat(4, 1fr); }
+
   .pie { padding: 4px 4px 0; }
   .hoja { margin: auto; border-radius: 20px; max-height: 86vh; } .hoja .asa { display: none; } .hoja .cuerpo { padding: 18px 20px 20px; }
 }
@@ -321,8 +339,9 @@ details.tabla th, details.tabla td { text-align: right; padding: 5px 3px; border
   .lado .marca { color: var(--lado-on); padding: 0 6px; font-size: 1.1rem; font-weight: 800; font-stretch: 90%; flex: none; }
   .lado nav { display: grid; gap: 2px; } .lado nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--lado-ink); font-weight: 600; font-size: .93rem; }
   .lado nav a svg { width: 20px; height: 20px; } .lado nav a[aria-current="page"], .lado nav a:hover { background: rgba(255, 255, 255, .09); color: var(--lado-on); }
-  .lado nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--oro); }
-  .fab { right: 28px; bottom: 28px; }
+  .lado nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--pulso); }
+  .lado .marca .logo { width: 30px; height: 30px; }
+  .fab, body.con-pestanas .fab { left: auto; margin-left: 0; right: 28px; bottom: 28px; width: auto; height: auto; min-height: 52px; padding: 0 20px 0 16px; border-radius: 26px; box-shadow: 0 6px 20px rgba(5, 25, 33, .3); } .fab span { display: inline; } .fab svg { width: 22px; height: 22px; } .logo-paso { display: none; }
   .lado .al-hub { margin-top: auto; color: var(--lado-ink); font-size: .88rem; font-weight: 600; padding: 8px; } .lado .yo { font-size: .78rem; padding: 0 8px; overflow-wrap: anywhere; }
   .paso { padding: 6px 18px; justify-content: flex-start; } .paso .donde { text-align: left; padding-left: 6px; flex: 0 1 auto; min-width: 240px; } .paso .recargar-ancho { margin-left: auto; display: grid; }
   main { padding: 20px 24px 60px; }

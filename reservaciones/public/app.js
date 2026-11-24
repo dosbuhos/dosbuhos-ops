@@ -52,6 +52,7 @@ const IC = {
   grupo: ic('<circle cx="9" cy="8.500" r="3"/><circle cx="16.500" cy="9.500" r="2.300"/><path d="M3.500 19a5.500 5.500 0 0 1 11 0M14.500 14.300A4.500 4.500 0 0 1 20.500 18.500"/>'),
   mas: ic('<path d="M12 5v14M5 12h14"/>'),
   externo: ic('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
+  der: ic('<path d="M9.500 6l6 6-6 6"/>'),
   info: ic('<circle cx="12" cy="12" r="8.500"/><path d="M12 11v5.500M12 7.800v.2"/>'),
   sube: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2l5 8H1z"/></svg>',
   baja: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10L1 2h10z"/></svg>',
@@ -172,11 +173,11 @@ function telDe(h) {
 }
 function etiquetas(r, dia, { todas = false } = {}) {
   const t = [];
-  if (r.mesa) t.push(`<span class="tag mesa">${esc(r.mesa)}</span>`);
+  if (r.mesa && !todas) t.push(`<span class="tag mesa">${esc(r.mesa)}</span>`);   // the sheet shows the table in its own tile
   if (r.experiencia) t.push(`<span class="tag prep">Prepagada${todas ? '' : `: ${esc(EXP_C[r.experiencia.nombre] || r.experiencia.nombre)}`}</span>`);
   if (r.historial?.visitas) t.push(`<span class="tag vuelve">${ordinal(r.historial.visitas + 1)} visita</span>`);
-  if (r.historial?.faltas) t.push(`<span class="tag falto">No llegó ${r.historial.faltas === 1 ? 'una vez' : `${r.historial.faltas} veces`}</span>`);
-  if (!todas && r.origen) t.push(`<span>${ORIGEN_C[r.origen] || esc(r.origen)}</span>`);
+  if (r.historial?.faltas) t.push(`<span class="tag falto">Faltó ${r.historial.faltas === 1 ? '1 vez' : `${r.historial.faltas} veces`}</span>`);
+  if (!todas && r.origen && r.origen !== 'web') t.push(`<span>${ORIGEN_C[r.origen] || esc(r.origen)}</span>`);
   if (!todas && r.reservada && fechaDe(r.reservada) === dia.fecha && !dia.pasado) t.push('<span>Mismo día</span>');
   return t.join('');
 }
@@ -187,7 +188,7 @@ function filaReserva(r, dia) {
       <span class="hora">${r.hora ? esc(r.hora) : '<span class="sd">s/h</span>'}</span>
       <span class="pax${r.personas >= GRANDE ? ' grande' : ''}" aria-label="${r.personas ? cuantos(r.personas, 'persona', 'personas') : 'personas sin dato'}">${r.personas ? num(r.personas) : '?'}</span>
       <span class="quien"><span class="n">${nombreDe(r)}</span><span class="meta">${etiquetas(r, dia)}</span></span>
-      <span class="estado">${e.i}<span class="txt">${e.t}</span></span></button></li>`;
+      <span class="estado${dia.pasado ? ' callado' : ''}" title="${e.t}">${e.i}<span class="txt">${e.t}</span></span></button></li>`;
 }
 
 // ---- The reservation sheet ----
@@ -261,10 +262,14 @@ function bloqueHoy(dia) {
   const porLlegar = faltan.filter((r) => !r.hora || minutosDe(r.hora) >= ya - 20), tarde = faltan.filter((r) => !porLlegar.includes(r));
   const sig = porLlegar.filter((r) => r.hora).sort((a, b) => minutosDe(a.hora) - minutosDe(b.hora))[0];
   const p = (lista) => lista.reduce((a, r) => a + (r.personas || 0), 0);
-  const falta = sig ? minutosDe(sig.hora) - ya : 0;
+  const falta = sig ? minutosDe(sig.hora) - ya : 0, total = p(vivas);
+  // One bar for the day's covers: here already (teal), still expected (open), past their time and unmarked (amber).
+  const partes = [['llego', p(llegaron), 'ya llegaron'], ['viene', p(porLlegar), 'por llegar'], ['tarde', p(tarde), 'sin marcar']];
+  const barra = total ? `<div class="avance" role="img" aria-label="${esc(partes.map(([, n, t]) => `${n} ${t}`).join(', '))}">${partes.filter(([, n]) => n > 0).map(([k, n]) => `<i class="${k}" style="flex:${n} 1 0"></i>`).join('')}</div>
+    <ul class="avance-clave">${partes.map(([k, n, t]) => `<li class="${k}${n ? '' : ' cero'}"><i></i><b>${num(n)}</b> ${t}</li>`).join('')}</ul>` : '';
   return `<section class="bloque ahora" aria-label="Hoy">
-    <div class="titulo"><h2>Hoy<span>${DIAS[pf(dia.fecha).w]} ${pf(dia.fecha).d}</span></h2></div>
-    <div class="cuatro"><div><b>${num(p(vivas))}</b><span>personas</span></div><div><b>${num(p(porLlegar))}</b><span>por llegar</span></div><div><b>${num(p(llegaron))}</b><span>ya llegaron</span></div><div><b${tarde.length ? ' style="color:var(--st-cerrar)"' : ''}>${num(p(tarde))}</b><span>sin marcar</span></div></div>
+    <div class="titulo"><h2>Hoy<span>${DIAS[pf(dia.fecha).w]} ${pf(dia.fecha).d}</span></h2><p class="total"><b>${num(total)}</b> ${total === 1 ? 'persona' : 'personas'}${vivas.length ? `<span>en ${cuantos(vivas.length, 'mesa', 'mesas')}</span>` : ''}</p></div>
+    ${barra}
     ${sig ? `<button class="siguiente" type="button" data-abrir="${esc(sig.id)}"><span class="h">${esc(sig.hora)}</span><span><span class="que">Siguiente llegada</span><span class="n">${nombreDe(sig)}</span><span class="p">${sig.personas ? cuantos(sig.personas, 'persona', 'personas') : 'personas sin dato'}${sig.mesa ? `, mesa ${esc(sig.mesa)}` : ''}</span></span><span class="en">${falta > 0 ? `en ${duracion(falta * 60_000)}` : 'ahora'}</span></button>`
       : `<p class="nota">${!vivas.length ? 'Sin reservaciones para hoy por ahora.' : tarde.length ? `No queda nadie por llegar. ${cuantos(tarde.length, 'reservación pasó', 'reservaciones pasaron')} su hora sin marcarse en OpenTable.` : 'No queda nadie por llegar.'}</p>`}
     ${dia.franjas.length ? `<div class="ritmo" data-franjas="${esc(JSON.stringify(dia.franjas))}" data-ya="${ya / 30}" style="padding:0"></div>` : ''}
@@ -278,16 +283,16 @@ function pendientes(d) {
     for (const r of dia.reservas) {
       const e = estadoDe(r, dia), cuando = dia.fecha === hoy ? 'Hoy' : dia.fecha === manana ? 'Mañana' : mayus(fCorto(dia.fecha));
       const quien = `${nombreDe(r)}, ${r.hora || 's/h'}, ${r.personas ? cuantos(r.personas, 'persona', 'personas') : 'personas sin dato'}`;
-      const t = telDe(r.huesped), llamar = t ? `<a class="acc" href="tel:${esc(t.tel)}">${IC.tel}Llamar</a>` : `<button class="acc" type="button" data-abrir="${esc(r.id)}">Ver</button>`;
+      const t = telDe(r.huesped), ver = `<button class="acc" type="button" data-abrir="${esc(r.id)}" aria-label="Ver la reservación">${IC.der}</button>`, llamar = t ? `<a class="acc llama" href="tel:${esc(t.tel)}" aria-label="Llamar">${IC.tel}</a>` : ver;
       const cerca = dia.fecha === hoy || dia.fecha === manana;
       if (e.c === 'reservada' && cerca) items.push({ orden: 1, c: 'var(--st-res)', i: IC.tel, t: `<b>Confirmar</b> · ${cuando}`, s: quien, id: r.id, acc: llamar });
       if (e.c === 'reservada' || e.c === 'confirmada') {
         if (r.historial?.faltas && cerca && e.c !== 'reservada') items.push({ orden: 2, c: 'var(--st-falta)', i: IC.alerta, t: `<b>No llegó la vez pasada</b> · ${cuando}`, s: quien, id: r.id, acc: llamar });
-        if (!r.mesa && cerca) items.push({ orden: 3, c: 'var(--st-mesa)', i: IC.mesa, t: `<b>Sin mesa asignada</b> · ${cuando}`, s: quien, id: r.id, acc: `<button class="acc" type="button" data-abrir="${esc(r.id)}">Ver</button>` });
-        if (r.personas >= GRANDE && dia.fecha >= hoy) items.push({ orden: 4, c: 'var(--accent)', i: IC.grupo, t: `<b>Mesa de ${num(r.personas)}</b> · ${cuando}`, s: `${nombreDe(r)}, ${r.hora || 's/h'}${r.mesa ? `, ${esc(r.mesa)}` : ''}`, id: r.id, acc: `<button class="acc" type="button" data-abrir="${esc(r.id)}">Ver</button>` });
+        if (!r.mesa && cerca) items.push({ orden: 3, c: 'var(--st-mesa)', i: IC.mesa, t: `<b>Sin mesa asignada</b> · ${cuando}`, s: quien, id: r.id, acc: ver });
+        if (r.personas >= GRANDE && dia.fecha >= hoy) items.push({ orden: 4, c: 'var(--accent)', i: IC.grupo, t: `<b>Mesa de ${num(r.personas)}</b> · ${cuando}`, s: `${nombreDe(r)}, ${r.hora || 's/h'}${r.mesa ? `, ${esc(r.mesa)}` : ''}`, id: r.id, acc: ver });
       }
     }
-    if (dia.fecha >= hoy) for (const c of dia.prepagos) if (c.motivo === 'sin_reserva') items.push({ orden: 5, c: 'var(--s2)', i: IC.info, t: `<b>Prepago sin reservación</b> · ${dia.fecha === hoy ? 'Hoy' : dia.fecha === manana ? 'Mañana' : mayus(fCorto(dia.fecha))}`, s: `${esc(c.experiencia)}, ${esc(c.hora)}, ${pesos(c.monto)}${c.personas ? `, ${cuantos(c.personas, 'persona', 'personas')}` : ''}. Búscala en OpenTable.`, dia: dia.fecha, acc: `<button class="acc" type="button" data-dia="${dia.fecha}">Ver día</button>` });
+    if (dia.fecha >= hoy) for (const c of dia.prepagos) if (c.motivo === 'sin_reserva') items.push({ orden: 5, c: 'var(--st-mesa)', i: IC.info, t: `<b>Prepago sin reservación</b> · ${dia.fecha === hoy ? 'Hoy' : dia.fecha === manana ? 'Mañana' : mayus(fCorto(dia.fecha))}`, s: `${esc(c.experiencia)}, ${esc(c.hora)}, ${pesos(c.monto)}${c.personas ? `, ${cuantos(c.personas, 'persona', 'personas')}` : ''}. Búscala en OpenTable.`, dia: dia.fecha, acc: `<button class="acc" type="button" data-dia="${dia.fecha}" aria-label="Ir al día">${IC.der}</button>` });
   }
   const sinCerrar = d.dias.filter((x) => x.pasado).flatMap((x) => x.reservas.filter((r) => estadoDe(r, x).c === 'sincerrar'));
   if (sinCerrar.length) items.push({ orden: 6, c: 'var(--st-cerrar)', i: IC.reloj, t: `<b>${cuantos(sinCerrar.length, 'reservación sin cerrar', 'reservaciones sin cerrar')}</b>`, s: 'De días pasados: márcalas en OpenTable como atendidas o que no llegaron.', dia: d.dias.find((x) => x.pasado && x.reservas.some((r) => estadoDe(r, x).c === 'sincerrar'))?.fecha, acc: '' });
@@ -295,11 +300,11 @@ function pendientes(d) {
   return items;
 }
 function bloquePendientes(d) {
-  const items = pendientes(d), ver = S.pendTodos ? items : items.slice(0, 5);
+  const items = pendientes(d), ver = S.pendTodos ? items : items.slice(0, 3);
   if (!d.dias.some((x) => x.fecha >= d.hoy)) return '';
   return `<section class="bloque pendientes" aria-label="Pendientes"><h2>Pendientes${items.length ? `<span class="cuenta">${num(items.length)}</span>` : ''}</h2>
     ${items.length ? ver.map((p) => `<div class="pend" style="--c:${p.c}"><span class="ic">${p.i}</span><button class="tx" type="button" ${p.id ? `data-abrir="${esc(p.id)}"` : p.dia ? `data-dia="${p.dia}"` : ''}>${p.t}<small>${p.s}</small></button>${p.acc}</div>`).join('')
-      + (items.length > 5 ? `<button class="mas" type="button" data-pendientes>${S.pendTodos ? 'Ver menos' : `Ver los ${num(items.length)}`}</button>` : '')
+      + (items.length > 3 ? `<button class="mas" type="button" data-pendientes>${S.pendTodos ? 'Ver menos' : `Ver ${num(items.length - 3)} más`}</button>` : '')
       : `<p class="todo-bien">${IC.palomita}Nada pendiente por ahora.</p>`}</section>`;
 }
 
@@ -355,7 +360,7 @@ function pintarManifiesto(d) {
     <div class="clave">${hecha ? '<span><i class="hecha"></i>Atendidas</span>' : ''}${conf ? '<span><i></i>Confirmadas</span>' : ''}${res ? '<span><i class="res"></i>Sin confirmar</span>' : ''}${extra.length ? `<span>${mayus(extra.join(', '))}</span>` : ''}</div></section>`;
   if (d.dias.some((x) => x.incompleto && x.abierto)) izq += `<div class="aviso">${IC.info}<p>Pueden faltar reservaciones hechas antes del ${fDiaMes(d.feedDesde)}, cuando se conectó OpenTable. Los prepagos en línea sí aparecen.</p></div>`;
   if (d.fresco.errorHuespedes) izq += `<div class="aviso mal">${IC.alerta}<p>Los nombres de los huéspedes no se están actualizando${d.yo.admin ? `: ${esc(d.fresco.errorHuespedes)}` : '. Avisa a quien administra el Hub.'}</p></div>`;
-  let h = `<div class="col-izq">${izq}</div><button class="fab" type="button" data-nueva="${actual ? d.hoy : d.desde}">${IC.mas}<span>Nueva reservación</span></button>`;
+  let h = `<div class="col-izq">${izq}</div><button class="fab" type="button" data-nueva="${actual ? d.hoy : d.desde}" aria-label="Nueva reservación">${IC.mas}<span>Nueva reservación</span></button>`;
   let cerrados = [];
   const soltar = () => { if (cerrados.length) { h += `<p class="cerrados">${mayus(cerrados.map((f) => `${DIAS[pf(f).w]} ${pf(f).d}`).join(' y '))}: sin servicio.</p>`; cerrados = []; } };
   for (const x of d.dias) { if (x.abierto) { soltar(); h += bloqueDia(x); } else cerrados.push(x.fecha); }
@@ -387,7 +392,10 @@ function pintarVentas(v) {
 
   let h = `<section class="bloque ancho"><div class="lema"><div class="arr"><span class="que">Venta neta</span>${seg}</div>`;
   if (t.neto === null) h += `<div class="cifra sd">sin dato</div><p class="iva">${v.desde > hoy ? 'Este periodo todavía no empieza.' : 'No hay registro de ventas para estas fechas.'}</p></div></section>`;
-  else {
+  else if (!t.neto && !t.cuentas) {
+    // Nothing sold yet (a closed Monday, the first days of a week): one line instead of a page of zeros and "-100%".
+    h += `<div class="cifra">$0</div><p class="iva">${v.enCurso ? `Todavía sin ventas ${P === 'dia' ? 'este día' : P === 'semana' ? 'esta semana' : 'este mes'}. Va hasta hoy, ${fCorto(v.corte)}.` : 'Sin ventas en estas fechas.'}${v.vs.anterior ? ` ${mayus(contraAntes)}: ${pesos(v.vs.anterior.antes)}.` : ''}</p></div></section>`;
+  } else {
     h += `<div class="cifra">${pesos(t.neto)}</div><p class="iva">Sin IVA. Con IVA: ${pesos(t.conIva)}.${v.enCurso ? ` Va hasta hoy, ${fCorto(v.corte)}; se compara con los mismos días.` : ''}</p>
       <div class="cambios"><div class="cambio">${delta(v.vs.anterior)}<span class="contra">${contraAntes}${v.vs.anterior ? ` (${pesos(v.vs.anterior.antes)})` : ''}</span></div>
       <div class="cambio">${delta(v.vs.anio)}<span class="contra">${contraAnio}${v.vs.anio ? ` (${pesos(v.vs.anio.antes)})` : ''}</span></div></div></div>

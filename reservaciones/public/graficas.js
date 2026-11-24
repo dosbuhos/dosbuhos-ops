@@ -92,7 +92,7 @@ export function ritmo({ ancho, franjas, desde = 20, hasta = 37, ya = null }) {
   for (let k = a; k <= b; k++) if (k % 4 === 0) s += `<text x="${r1(banda * (k - a + 0.5))}" y="${alto - 3}" text-anchor="middle">${Math.floor(k / 2)}:00</text>`;
   for (const f of franjas) {
     const cx = banda * (f.media - a + 0.5), alt = Math.max(3, (f.personas / max) * h);
-    s += columna(cx - bw / 2, mt + h - alt, bw, alt, 'bar');
+    s += columna(cx - bw / 2, mt + h - alt, bw, alt, ya !== null && f.media + 1 <= ya ? 'bar pasada' : 'bar');   // half hours already over recede
     if (todas || f === tope) s += `<text class="tope" x="${r1(Math.min(Math.max(cx, 8), ancho - 8))}" y="${r1(mt + h - alt - 3)}" text-anchor="middle">${f.personas}</text>`;
   }
   if (ya !== null && ya >= a - 0.5 && ya <= b + 0.5) {
