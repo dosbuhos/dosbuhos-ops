@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-24 — Crianza wordmark in Cinzel caps · v1.26.1
+- Header and sign-in page set "CRIANZA" in Cinzel caps, wide-spaced, burgundy (Eric picked option E). · commit pending
+
 ## 2026-11-24 — Crianza logo and favicon · v1.26.0
 - New Crianza mark (a "C" with a wine drop, burgundy) in the header, sign-in page, browser tab and home-screen icons; the Dos Búhos script logo is gone. Page titles and the installed-app name say Crianza. · commit pending
 
