@@ -111,7 +111,7 @@ const doRestart = () => cmd('restart');
 function layout() {
   const showLists = S.lib.playlists.filter((p) => p.items.length);
   app.innerHTML = `
-    <div class="monitors">
+    <div class="monitors mons">
       <section class="mon program"><div class="screen" id="pgmScreen"><span class="lbl pgm">PROGRAMA</span><div class="empty">Sin señal de video</div></div>
         <div class="meta"><div class="t" id="pgmT">—</div><div class="tc" id="pgmTc">0:00</div></div>
         <div class="bar live" style="margin-top:8px"><i id="pgmBar"></i></div>
@@ -246,7 +246,12 @@ function pinScreen() {
 }
 async function start() {
   try { S.lib = await T.library(); } catch (e) { if (e.pin) return pinScreen(); throw e; }
-  S.list = location.hash.slice(1) && S.lib.playlists.some((p) => p.id === location.hash.slice(1)) ? location.hash.slice(1) : S.list;
+  const want = location.hash.slice(1);
+  if (want && S.lib.playlists.some((p) => p.id === want)) S.list = want;
+  try { const r = await T.state(); S.st = r.state; S.stAt = Date.now(); S.online = r.online !== false; } catch (e) { if (e.pin) return pinScreen(); }
+  // Open on the run-of-show that is on air; otherwise the first show list.
+  if (!S.list) S.list = (S.st?.program?.playlist_id && S.lib.playlists.some((p) => p.id === S.st.program.playlist_id) ? S.st.program.playlist_id : S.lib.playlists.find((p) => p.mode === 'show' && p.items.length)?.id) || '';
+  const li = liveIndex(); if (li >= 0) S.sel = Math.min(li + 1, scenes().length - 1);
   layout(); await poll(true);
   setInterval(() => document.visibilityState === 'visible' && poll(), 100);
   setInterval(() => drawProgram(), 250);

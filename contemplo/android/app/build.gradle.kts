@@ -15,7 +15,10 @@ android {
         targetSdk = 35
         versionCode = ciRun
         versionName = "1.0.$ciRun"
-        buildConfigField("String", "CLOUD_URL", "\"https://contemplo.dos-buhos.workers.dev\"")
+        // CI's emulator test points the app at a local Worker (http://10.0.2.2:8787); real builds use the deployed one.
+        val cloud = System.getenv("CONTEMPLO_CLOUD_URL") ?: "https://contemplo.dos-buhos.workers.dev"
+        buildConfigField("String", "CLOUD_URL", "\"$cloud\"")
+        manifestPlaceholders["cleartext"] = if (cloud.startsWith("http://")) "true" else "false"
     }
     signingConfigs {
         // A committed debug key (public by design, like any Android debug key): every CI build has the same signature, so
