@@ -70,6 +70,10 @@ try {
   r = await lan('cmd', { type: 'blackout', payload: { on: false, fade_ms: 300 } }); assert.equal(r.d.status, 'done'); ok('reveal');
   r = await lan('cmd', { type: 'pause', payload: {} }); assert.equal(r.d.status, 'done'); assert.equal(r.d.state.mode, 'paused'); ok('PAUSE');
   r = await lan('cmd', { type: 'restart', payload: {} }); assert.equal(r.d.status, 'done'); ok('RESTART');
+  r = await lan('cmd', { type: 'volume', payload: { value: 0.4 } }); assert.equal(r.d.status, 'done'); assert.ok(Math.abs(r.d.state.volume - 0.4) < 0.01); ok('VOLUME 40%');
+  r = await lan('cmd', { type: 'mute', payload: { on: true } }); assert.equal(r.d.state.muted, true);
+  r = await lan('cmd', { type: 'mute', payload: { on: false } }); assert.equal(r.d.state.muted, false); ok('MUTE on/off');
+  r = await lan('cmd', { type: 'skip', payload: { dir: 1 } }); assert.equal(r.d.status, 'done', 'skip: ' + r.d.result); ok('SKIP: ' + (r.d.result || 'ok'));
   r = await lan('cmd', { type: 'go', payload: { video_id: 'nope' } }); assert.equal(r.d.status, 'failed'); ok('GO of a missing video is refused: ' + r.d.result);
 
   // 5. Dashboard sees the LAN-driven state

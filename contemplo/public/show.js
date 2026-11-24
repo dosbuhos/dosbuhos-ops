@@ -94,6 +94,25 @@ async function cmd(type, payload = {}, label) {
     toast(entry.label + ': ' + entry.result, 5000);
   } finally { S.busy.delete(type); drawLog(); drawButtons(); poll(true); }
 }
+// Volume: only the latest value is sent; a drag doesn't queue dozens of commands. The TV confirms each one.
+let volPending = null, volSending = false, volTouch = 0;
+function setVol(v) {
+  v = Math.max(0, Math.min(100, Math.round(v)));
+  $('#vol').value = v; $('#volN').textContent = v + '%'; volTouch = Date.now(); volPending = v;
+  if (!volSending) flushVol();
+}
+async function flushVol() {
+  volSending = true;
+  while (volPending != null) {
+    const v = volPending; volPending = null;
+    try {
+      const r = await T.cmd('volume', { value: v / 100 }, () => {});
+      if (r.state) { S.st = r.state; S.stAt = Date.now(); }
+      if (r.status !== 'done') toast('Volumen: ' + (STATUS_WORDS[r.status] || r.status) + (r.result ? ' — ' + r.result : ''), 4000);
+    } catch (e) { if (e.pin) { volSending = false; return pinScreen(); } toast('Volumen: sin conexión con el TV', 4000); }
+  }
+  volSending = false; volTouch = Date.now();
+}
 const doCue = () => { const s = scenes()[S.sel]; if (!s) return; if (!s.v.ready) return toast('Ese video no está copiado en el TV. Envíalo desde la Biblioteca.', 5000); cmd('cue', scenePayload(s), 'CUE ' + (s.index + 1) + ' · ' + (s.label || s.v.title)); };
 const doGo = () => {
   const ci = cuedIndex(), s = scenes()[S.sel];
@@ -130,17 +149,26 @@ function layout() {
       <button class="tbtn" id="bRestart">REINICIAR<small>R</small></button>
       <button class="tbtn black" id="bBlack">NEGRO<small>B</small></button>
     </div>
+    <section class="panel audio"><div class="row">
+      <span class="small muted">Volumen</span><button class="btn" id="vDown" aria-label="Bajar volumen">−</button>
+      <input type="range" id="vol" class="vol" min="0" max="100" step="5" value="100" aria-label="Volumen">
+      <button class="btn" id="vUp" aria-label="Subir volumen">+</button><span class="mono small" id="volN">—</span>
+      <button class="btn" id="bMute">Silencio</button><button class="btn" id="bSkip">Saltar ⏭</button></div></section>
     <div class="monitors">
       <section class="panel"><div class="row"><h2 style="margin:0">Guion</h2><span class="spacer"></span>
         <select id="list" style="width:auto"><option value="">Todos los videos</option>${showLists.map((p) => `<option value="${p.id}" ${S.list === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
         <div class="list ros" id="ros" style="margin-top:10px"></div></section>
       <section class="panel"><h2>Órdenes</h2><div class="cmdlog" id="log"></div>
-        <p class="tiny muted" style="margin-top:10px">Clic en una escena = vista previa aquí (no toca la proyección). <kbd>C</kbd> CUE · <kbd>espacio</kbd> GO · <kbd>N</kbd> siguiente · <kbd>P</kbd> pausa · <kbd>B</kbd> negro · <kbd>R</kbd> reiniciar</p>
-        <div class="row small" style="margin-top:8px"><button class="btn sm" id="bFit">Encuadre</button><button class="btn sm" id="bMute">Silencio</button><button class="btn sm" id="bId">Identificar</button><button class="btn sm danger" id="bStop">Detener</button></div></section>
+        <p class="tiny muted" style="margin-top:10px">Clic en una escena = vista previa aquí (no toca la proyección). <kbd>C</kbd> CUE · <kbd>espacio</kbd> GO · <kbd>N</kbd> siguiente · <kbd>P</kbd> pausa · <kbd>B</kbd> negro · <kbd>R</kbd> reiniciar · <kbd>+</kbd>/<kbd>−</kbd> volumen · <kbd>M</kbd> silencio</p>
+        <div class="row small" style="margin-top:8px"><button class="btn sm" id="bFit">Encuadre</button><button class="btn sm" id="bId">Identificar</button><button class="btn sm danger" id="bStop">Detener</button></div></section>
     </div>`;
   $('#bCue').onclick = doCue; $('#bGo').onclick = doGo; $('#bNext').onclick = doNext; $('#bPause').onclick = doPause; $('#bRestart').onclick = doRestart; $('#bBlack').onclick = doBlack;
   $('#bFit').onclick = () => cmd('fit', { mode: S.st?.fit === 'fill' ? 'fit' : 'fill' }, S.st?.fit === 'fill' ? 'Encuadre: completo' : 'Encuadre: llenar (recorta)');
-  $('#bMute').onclick = () => cmd('mute', { on: !S.st?.muted });
+  $('#bMute').onclick = () => cmd('mute', { on: !S.st?.muted }, S.st?.muted ? 'Con sonido' : 'Silencio');
+  $('#bSkip').onclick = () => cmd('skip', { dir: 1 }, 'Saltar a la siguiente');
+  $('#vol').oninput = (e) => setVol(Number(e.target.value));
+  $('#vDown').onclick = () => setVol(Number($('#vol').value) - 10);
+  $('#vUp').onclick = () => setVol(Number($('#vol').value) + 10);
   $('#bId').onclick = () => cmd('identify');
   $('#bStop').onclick = () => { if (confirm('¿Detener la proyección? La pantalla queda en negro.')) cmd('stop'); };
   $('#list').onchange = (e) => { S.list = e.target.value; S.sel = 0; location.hash = S.list; drawRos(); loadPreview(); };
@@ -177,6 +205,10 @@ function drawButtons() {
   set('#bPause', !st.program, st.mode === 'playing' ? 'pause' : 'resume'); set('#bRestart', !st.program, 'restart'); set('#bBlack', false, 'blackout');
   if ($('#bPause')) $('#bPause').firstChild.textContent = st.mode === 'playing' ? 'PAUSA' : 'CONTINUAR';
   if ($('#bBlack')) { $('#bBlack').classList.toggle('on', !!st.blackout); $('#bBlack').firstChild.textContent = st.blackout ? 'QUITAR NEGRO' : 'NEGRO'; }
+  if ($('#bMute')) { $('#bMute').textContent = st.muted ? 'Con sonido' : 'Silencio'; $('#bMute').classList.toggle('on', !!st.muted); $('#bMute').disabled = !ok; }
+  if ($('#bSkip')) $('#bSkip').disabled = !ok || !st.program;
+  // Follow the TV's volume unless the operator touched the slider in the last 2 s.
+  if ($('#vol') && st.mode && Date.now() - volTouch > 2000 && !volSending) { const v = Math.round((st.volume ?? 1) * 100); $('#vol').value = v; $('#volN').textContent = (st.muted ? 'mudo · ' : '') + v + '%'; }
   const ci = cuedIndex();
   if ($('#bGo')) $('#bGo').querySelector('small').textContent = ci >= 0 ? `lanza ${ci + 1} · espacio` : 'lanza la seleccionada · espacio';
   if ($('#cueState')) $('#cueState').innerHTML = st.cued ? `<span class="badge cue">En espera en el TV: ${esc(st.cued.title)} ${st.cued.ready ? '✓' : '…'}</span>` : '<span class="muted">Nada en espera</span>';
@@ -261,6 +293,8 @@ document.addEventListener('keydown', (e) => {
   if (!T || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
   const k = e.key.toLowerCase();
   if (k === ' ') { e.preventDefault(); doGo(); } else if (k === 'c') doCue(); else if (k === 'n') doNext(); else if (k === 'p') doPause(); else if (k === 'b') doBlack(); else if (k === 'r') doRestart();
+  else if (k === '+' || k === '=') setVol(Number($('#vol').value) + 5); else if (k === '-') setVol(Number($('#vol').value) - 5);
+  else if (k === 'm') cmd('mute', { on: !S.st?.muted }, S.st?.muted ? 'Con sonido' : 'Silencio');
   else if (k === 'arrowdown' || k === 'arrowup') { e.preventDefault(); S.sel = Math.max(0, Math.min(scenes().length - 1, S.sel + (k === 'arrowdown' ? 1 : -1))); drawRos(); loadPreview(); }
 });
 

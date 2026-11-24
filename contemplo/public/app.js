@@ -109,10 +109,14 @@ function nowPanel() {
         <button class="btn ${pg.loop ? 'on' : ''}" data-c="loop" ${pg.video_id ? '' : 'disabled'}>Repetir ${pg.loop ? 'sí' : 'no'}</button>
         <button class="btn ${st.muted ? 'on' : ''}" data-c="mute">${st.muted ? 'Con sonido' : 'Silencio'}</button>
       </div>
+      <div class="row"><span class="small muted">Volumen</span><input type="range" id="npVol" class="vol" min="0" max="100" step="5" value="${Math.round((st.volume ?? 1) * 100)}" ${d.online ? '' : 'disabled'} aria-label="Volumen"><span class="mono small" id="npVolN">${Math.round((st.volume ?? 1) * 100)}%</span></div>
       <div class="status-line" id="cmdline">${pg.video_id || S.cmd ? '' : '<span class="muted">Para proyectar: en un video listo en el TV, toca <strong>Reproducir</strong>.</span>'}</div>
       <div class="row small">${d.lan_url ? `<a class="btn sm" href="${esc(d.lan_url)}" target="_blank" rel="noopener">Control en vivo por Wi-Fi ↗</a>` : ''}<a class="btn sm ghost" href="#vivo">Control en vivo vía nube</a>
       ${st.cued?.title ? `<span class="badge cue">En espera: ${esc(st.cued.title)}</span>` : ''}${st.transition_mode ? `<span class="muted tiny">Transición: ${st.transition_mode === 'dual' ? 'doble decodificador (sin negro)' : 'corte simple'}</span>` : ''}</div>
     </div></div>`;
+  // Sent when the slider is released; the line below shows when the TV confirms it.
+  $('#npVol').oninput = (e) => ($('#npVolN').textContent = e.target.value + '%');
+  $('#npVol').onchange = (e) => send('volume', { value: Number(e.target.value) / 100 }, 'Volumen ' + e.target.value + '%');
   $$('[data-c]', el).forEach((b) => (b.onclick = () => {
     const c = b.dataset.c;
     if (c === 'blackout') send('blackout', { on: !st.blackout, fade_ms: 500 });
@@ -411,6 +415,6 @@ function guia() {
   try { await loadAll(); } catch (e) { $('#view').innerHTML = `<section class="panel"><p>${esc(e.message)}</p></section>`; return; }
   chip(); route();
   window.addEventListener('hashchange', route);
-  setInterval(async () => { if (document.visibilityState !== 'visible') return; await refreshDevices(); if (current === 'ahora') nowPanel(); }, 3000);
+  setInterval(async () => { if (document.visibilityState !== 'visible') return; await refreshDevices(); if (current === 'ahora' && document.activeElement?.id !== 'npVol') nowPanel(); }, 3000);
   setInterval(async () => { if (document.visibilityState !== 'visible' || current !== 'biblioteca' || S.uploads.some((u) => u.file)) return; await refreshVideos(); libGrid(); }, 6000);
 })();
