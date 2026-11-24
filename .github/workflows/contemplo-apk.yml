@@ -53,8 +53,8 @@ jobs:
       - name: Test clips
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick >/dev/null
-          ffmpeg -loglevel error -f lavfi -i testsrc2=size=1920x1080:rate=30 -t 8 -c:v libx264 -b:v 4M -pix_fmt yuv420p /tmp/a.mp4
-          ffmpeg -loglevel error -f lavfi -i smptehdbars=size=1920x1080:rate=30 -f lavfi -i sine=frequency=440 -t 8 -c:v libx264 -b:v 4M -pix_fmt yuv420p -c:a aac -shortest /tmp/b.mp4
+          ffmpeg -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=30 -t 8 -c:v libx264 -b:v 3M -pix_fmt yuv420p /tmp/a.mp4
+          ffmpeg -loglevel error -f lavfi -i smptehdbars=size=1280x720:rate=30 -f lavfi -i sine=frequency=440 -t 8 -c:v libx264 -b:v 3M -pix_fmt yuv420p -c:a aac -shortest /tmp/b.mp4
       - name: Local Worker
         working-directory: contemplo
         env: { WRANGLER_SEND_METRICS: 'false' }
@@ -73,7 +73,9 @@ jobs:
           target: android-tv
           arch: x86
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -skin 1280x720
+          ram-size: 4096M
+          disk-size: 6000M
           disable-animations: false
           script: bash contemplo/test/android-e2e.sh
       - if: always()

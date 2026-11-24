@@ -7,6 +7,8 @@ adb shell input keyevent KEYCODE_WAKEUP || true
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 adb shell appops set mx.contemplo.studio SYSTEM_ALERT_WINDOW allow || true
 adb logcat -c || true
+# Live capture: survives a system crash later in the run.
+(adb logcat -v time Contemplo:V AndroidRuntime:E ActivityManager:W ExoPlayerImplInternal:V MediaCodecVideoRenderer:V lowmemorykiller:V libprocessgroup:I '*:F' > shots/live.log 2>&1 &)
 adb shell am start -W -n mx.contemplo.studio/.MainActivity
 adb forward tcp:18320 tcp:8320
 sleep 5
@@ -14,7 +16,7 @@ adb shell dumpsys activity activities | grep -E "ResumedActivity|topResumed" | h
 status=0
 node test/android-e2e.mjs || status=$?
 adb logcat -d > shots/logcat.txt 2>/dev/null || true
-echo "---- app log ----"; grep -E "Contemplo|ExoPlayer|MediaCodecVideoRenderer|ANR in|FATAL|mx\.contemplo" shots/logcat.txt | grep -v "systemui" | tail -120
+echo "---- app log ----"; tail -150 shots/live.log
 adb shell dumpsys activity activities | grep -E "ResumedActivity|topResumed" | head -3
 for f in shots/*.png; do echo "SHOT $(basename $f) $(convert "$f" -resize 480x -quality 60 jpg:- | base64 -w0)"; done
 exit $status
