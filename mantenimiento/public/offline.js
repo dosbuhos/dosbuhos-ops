@@ -1,4 +1,4 @@
-/* Pulso — working without signal (Adrián's garden has little).
+/* Esmero — working without signal (Adrián's garden has little).
    Reading: sw.js keeps the app and the last answer to every GET on the phone; a kept answer comes back marked and the
    page says "Sin señal" with how much is waiting to go out.
    Writing: a report, a change to a pendiente, a note or a photo made with no signal goes to an outbox kept on the phone
@@ -19,7 +19,7 @@ const OFF = (() => {
   const open = () => new Promise((resolve) => {
     if (db) return resolve(db);
     let r;
-    try { r = indexedDB.open('pulso', 1); } catch { return resolve(null); }
+    try { r = indexedDB.open('esmero', 1); } catch { return resolve(null); }
     r.onupgradeneeded = () => r.result.createObjectStore('out', { keyPath: 'k', autoIncrement: true });
     r.onsuccess = () => { db = r.result; resolve(db); };
     r.onerror = () => resolve(null);       // private mode and the like: the outbox lives in memory only

@@ -1,4 +1,4 @@
-"""Pulso with no signal: python3 test/offline.py (after seed.py, with wrangler dev running).
+"""Esmero with no signal: python3 test/offline.py (after seed.py, with wrangler dev running).
 Opens the app once with signal, cuts the signal, reloads, reports with a photo, marks one done, writes a note,
 then brings the signal back and checks that all of it reached the server."""
 import sys, os, re, json, time

@@ -1,4 +1,4 @@
-/* Pulso — the planner. The day and the week with their hours, the month as a calendar, the lists you plan from (Bandeja,
+/* Esmero — the planner. The day and the week with their hours, the month as a calendar, the lists you plan from (Bandeja,
    Atrasados, Esta semana, Todo, one per priority), and the sheets that go with them: one pendiente, Contactos, the menu.
    It is laid out the way Horizonte is: lists on the left and hours on the right; on a phone, the day first and a ribbon
    of views. Drag a pendiente onto a day and an hour to plan it; on a phone, hold it. Needs core.js and app.js. */

@@ -10,5 +10,5 @@ test('sw.js keeps the files index.html loads, at the same version', () => {
   assert.ok(used.length >= 5);
   for (const u of used) assert.ok(sw.includes(`'${u}'`), `sw.js does not keep ${u}`);
   const v = used[0].split('v=')[1];
-  assert.ok(sw.includes(`const V = 'pulso-${v}'`), 'bump V in sw.js with ?v= in index.html');
+  assert.ok(sw.includes(`const V = 'esmero-${v}'`), 'bump V in sw.js with ?v= in index.html');
 });

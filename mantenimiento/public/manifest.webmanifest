@@ -1,7 +1,7 @@
 {
-  "name": "Pulso Dos Búhos",
-  "short_name": "Pulso",
-  "description": "Pulso: pendientes, preventivo, equipos y contactos de mantenimiento en Dos Búhos.",
+  "name": "Esmero Dos Búhos",
+  "short_name": "Esmero",
+  "description": "Esmero: pendientes, preventivo, equipos y contactos de mantenimiento en Dos Búhos.",
   "lang": "es-MX",
   "start_url": "/",
   "scope": "/",

@@ -1,4 +1,4 @@
-/* Pulso, el mantenimiento de Dos Búhos — shared pieces (plain JS, no build step). The planner is in planner.js, the other screens in app.js and more.js. */
+/* Esmero, el mantenimiento de Dos Búhos — shared pieces (plain JS, no build step). The planner is in planner.js, the other screens in app.js and more.js. */
 'use strict';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -119,8 +119,8 @@ function dueInfo(t) {
 const tag = (name, color, extra = '') => `<span class="tag c-${esc(color || 'grey')}" ${extra}>${esc(name)}</span>`;
 // Where a pendiente is: its area, or the place someone wrote because it was not on the list.
 const areaTag = (t) => (t.area_name ? tag(t.area_name, t.area_color) : t.place ? tag(t.place, 'grey') : '');
-// The address people are sent to. On the live hosts it is always Pulso's own; anywhere else (a laptop) it is where you are.
-const APP_URL = /(^|\.)dosbuhos\.com$|\.workers\.dev$/.test(location.hostname) ? 'https://pulso.dosbuhos.com' : location.origin;
+// The address people are sent to. On the live hosts it is always Esmero's own; anywhere else (a laptop) it is where you are.
+const APP_URL = /(^|\.)dosbuhos\.com$|\.workers\.dev$/.test(location.hostname) ? 'https://esmero.dosbuhos.com' : location.origin;
 const avatar = (name, cls = '') => `<span class="av ${cls}" aria-hidden="true">${esc(initials(name))}</span>`;
 // Facts that sit side by side (a phone and an email): each in its own span, spaced by the row.
 const bits = (arr) => arr.filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
@@ -167,7 +167,7 @@ async function api(method, path, data) {
   }
   let out = {};
   try { out = await res.json(); } catch { /* empty */ }
-  if (method === 'GET' && res.ok) { OFF.seen(res.headers.get('x-pulso-offline') === '1'); out = OFF.overlay(path, out); }
+  if (method === 'GET' && res.ok) { OFF.seen(res.headers.get('x-esmero-offline') === '1'); out = OFF.overlay(path, out); }
   if (res.status === 401 && path !== '/enter') {
     S.user = null;
     showEnter();
@@ -492,7 +492,7 @@ function drawNav(tab) {
     NAV.className = 'nav dtop';
     NAV.innerHTML = `<div class="brandrow">
         ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
-        <a class="dbrand" href="#/" data-tab aria-label="Pulso: ir a hoy">${ic('pulse')}<span>Pulso</span></a></div>
+        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy">${ic('esmero')}<span>Esmero</span></a></div>
       <div class="zoom" role="group" aria-label="Vista">
         <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a><a href="#/mes" data-tab ${tab === 'mes' ? 'aria-current="page"' : ''}>Mes</a></div>
       ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${unit} anterior">${ic('back')}</button>

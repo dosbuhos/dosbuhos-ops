@@ -1,21 +1,21 @@
-# Pulso (Mantenimiento Dos Búhos)
+# Esmero (Mantenimiento Dos Búhos)
 
 What is broken, who has it, what is late, and what comes up through the year. Phone first, Spanish, for the whole
 team: anyone reports with a photo; Adrián assigns, postpones or hands work to an outside provider; equipment keeps
 its service record. Cloudflare Worker + D1, plain JS, no build step.
 
-- The app is called **Pulso** and lives at https://pulso.dosbuhos.com (a custom domain on this Worker, declared in
+- The app is called **Esmero** and lives at https://esmero.dosbuhos.com (a custom domain on this Worker, declared in
   `wrangler.jsonc`). The folder, the Worker (`dosbuhos-mantenimiento`) and the D1 database (`mantenimiento`) keep their
   names; https://dosbuhos-mantenimiento.dos-buhos.workers.dev keeps working. Sessions are per address, so someone who
   signed in on one signs in once more on the other.
 - Not behind the Hub: it has its own open sign-up. The Hub lists it as a link: its tile is the `apps` row with slug
-  `mantenimiento` in the Hub database, renamed there to Pulso and pointed at https://pulso.dosbuhos.com (a data change
+  `mantenimiento` in the Hub database, renamed there to Esmero and pointed at https://esmero.dosbuhos.com (a data change
   made with the D1 tool on 23 Nov 2026; nothing in `hub/` changed).
 
 ## Without signal
-The garden has little signal, so Pulso works offline (`public/sw.js` + `public/offline.js`).
+The garden has little signal, so Esmero works offline (`public/sw.js` + `public/offline.js`).
 - **Reading.** The service worker keeps the app on the phone, and the last answer to every GET (network first; after 6 s
-  with no answer, the kept copy, marked `x-pulso-offline`). Photos are kept once seen, and the photos of open pendientes are
+  with no answer, the kept copy, marked `x-esmero-offline`). Photos are kept once seen, and the photos of open pendientes are
   fetched in the background so they are there in the garden. A line at the bottom says *Sin señal* while what is shown came
   from the phone.
 - **Writing.** A report, a change to a pendiente, a note or a pendiente's photo made with no signal goes to an outbox in
@@ -44,12 +44,12 @@ phone and is in; the session lasts a year and renews on every visit.
 
 ## Screens
 
-Pulso is laid out the way Horizonte is (Eric, 23 Nov 2026): the calendar first, lists you plan from, no side menu.
+Esmero is laid out the way Horizonte is (Eric, 23 Nov 2026): the calendar first, lists you plan from, no side menu.
 
 **On a phone.** A ribbon of views along the bottom (Bandeja, Atrasados, Día, Semana, Todo) and a floating **+** to
 report. The top row of every main screen is menu · title · the phone icon (Contactos).
 
-**On a wide screen.** One bar along the top: show/hide the lists, Pulso, Día | Semana, ‹ Hoy ›, whose calendar,
+**On a wide screen.** One bar along the top: show/hide the lists, Esmero, Día | Semana, ‹ Hoy ›, whose calendar,
 Contactos, Reportar, the account. Under it the lists on the left and the hours on the right. Everything that is not
 the planner (Equipos, Preventivo, a pendiente's page, Cuenta) opens as a page under the same bar.
 

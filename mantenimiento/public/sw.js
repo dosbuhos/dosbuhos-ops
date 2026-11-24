@@ -1,16 +1,16 @@
-/* Pulso — service worker. It lets the app open and be read with no signal (Adrián's garden has little):
+/* Esmero — service worker. It lets the app open and be read with no signal (Adrián's garden has little):
    - the app itself (page, styles, scripts, fonts, icons) is kept on the phone and served from there;
    - every GET to /api goes to the network first and, when there is no answer in a few seconds, gets the last copy kept;
-     a copy served that way carries `x-pulso-offline: 1` so the page can say it is showing what it had;
+     a copy served that way carries `x-esmero-offline: 1` so the page can say it is showing what it had;
    - photos never change once uploaded (each has its own id), so once seen they are served from the phone.
    Writes (reports, changes, notes, photos) are not handled here: the page keeps them in its outbox (offline.js) and
    sends them when there is signal. Bump V with the ?v= in index.html. */
-const V = 'pulso-32';
-const SHELL = ['/', '/app.css?v=32', '/core.js?v=32', '/offline.js?v=32', '/app.js?v=32', '/planner.js?v=32', '/more.js?v=32',
+const V = 'esmero-33';
+const SHELL = ['/', '/app.css?v=33', '/core.js?v=33', '/offline.js?v=33', '/app.js?v=33', '/planner.js?v=33', '/more.js?v=33',
   '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2', '/fonts/geist-700.woff2',
   '/logo-word.png', '/icon.svg', '/icon-192.png', '/manifest.webmanifest'];
-const API = 'pulso-api';      // the last answer to each GET, kept across versions
-const PHOTOS = 'pulso-photos';
+const API = 'esmero-api';      // the last answer to each GET, kept across versions
+const PHOTOS = 'esmero-photos';
 const WAIT_MS = 6000;         // a weak signal: after this long, show what we have
 
 self.addEventListener('install', (e) => {
@@ -18,7 +18,7 @@ self.addEventListener('install', (e) => {
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys()
-    .then((ks) => Promise.all(ks.filter((k) => k.startsWith('pulso-') && ![V, API, PHOTOS].includes(k)).map((k) => caches.delete(k))))
+    .then((ks) => Promise.all(ks.filter((k) => k.startsWith('esmero-') && ![V, API, PHOTOS].includes(k)).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -32,7 +32,7 @@ async function fromCache(cacheName, req) {
   const hit = await (await caches.open(cacheName)).match(req);
   if (!hit) return null;
   const h = new Headers(hit.headers);
-  h.set('x-pulso-offline', '1');
+  h.set('x-esmero-offline', '1');
   return new Response(hit.body, { status: hit.status, headers: h });
 }
 

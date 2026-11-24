@@ -1,4 +1,4 @@
-/* Pulso — entering, what you can do to a pendiente, its page, reporting, what is done, search. Needs core.js; the planner is in planner.js. */
+/* Esmero — entering, what you can do to a pendiente, its page, reporting, what is done, search. Needs core.js; the planner is in planner.js. */
 'use strict';
 
 // ---------- entering: sign up once per phone, no PIN, no approval ----------
@@ -10,7 +10,7 @@ function showEnter() {
   const me = store('mt_me') || {};
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1>Pulso</h1>
+    <h1>Esmero</h1>
     <p class="lead">El mantenimiento de Dos Búhos. Regístrate una sola vez en este teléfono; después entras directo.</p>
     <form id="en-form" novalidate>
       ${fInput('en-name', 'Tu nombre y apellido', { value: me.name, placeholder: 'Ej. Lupita Ramírez', max: 60, attrs: 'autocomplete="name" autocapitalize="words" enterkeyhint="next"' })}
@@ -565,7 +565,7 @@ async function viewReported(id) {
     <p class="lead">${esc(t.title)}</p>
     ${t.id < 0 ? '<p class="pendmsg">Sin señal: quedó guardado en el teléfono y se enviará solo cuando haya internet.</p>' : ''}
     <p class="small">${t.id < 0 ? '' : `Es el pendiente #${t.id}. `}${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Está en la Bandeja, sin día todavía.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
-    ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Pulso:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
+    ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Esmero:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
     <a class="b block lg ${tell ? 'tonal' : ''}" href="#/p/${t.id}">Ver el reporte</a>
     <a class="b block lg tonal" href="#/nuevo">${ic('plus')}Reportar otro</a>
     <a class="b block lg plain" href="${t.due_date ? '#/' : '#/bandeja'}">${t.due_date ? 'Ir al día de hoy' : 'Ir a la Bandeja'}</a>
