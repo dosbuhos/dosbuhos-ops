@@ -14,8 +14,8 @@ if src != here / "cellar-targets.html":
 head = ('<!doctype html>\n<html lang="es" data-theme="light">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
         '<meta name="robots" content="noindex">\n<meta name="theme-color" content="#5c1f33">\n<meta name="color-scheme" content="light">\n'
-        '<link rel="manifest" href="/manifest.webmanifest">\n<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">\n'
-        '<meta name="apple-mobile-web-app-title" content="Cellar Tracker">\n<meta name="application-name" content="Cellar Tracker">\n'
+        '<link rel="manifest" href="/manifest.webmanifest">\n<link rel="icon" type="image/svg+xml" href="/icons/crianza.svg"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">\n<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">\n'
+        '<meta name="apple-mobile-web-app-title" content="Crianza">\n<meta name="application-name" content="Crianza">\n'
         '<script src="/web-shim.js"></script>\n')
 i = body.find("<style")  # artifact puts <title>, metas and fonts first; keep them in <head>
 page = head + body[:i] + body[i:] if i >= 0 else head + body

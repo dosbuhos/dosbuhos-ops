@@ -7,11 +7,12 @@
 <meta name="theme-color" content="#5c1f33">
 <meta name="color-scheme" content="light">
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/icons/crianza.svg"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="Cellar Tracker">
-<meta name="application-name" content="Cellar Tracker">
+<meta name="apple-mobile-web-app-title" content="Crianza">
+<meta name="application-name" content="Crianza">
 <script src="/web-shim.js"></script>
-<title>Crianza · Dos Búhos</title>
+<title>Crianza</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1188,8 +1189,8 @@ h1, .top h1 { font-family: "Lustria", Georgia, "Times New Roman", serif; font-we
 /* v1.2 header: one compact app bar. Small mark · divider · product name, actions on the right; no tagline. */
 .top { flex-wrap: nowrap; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
 .top .titles { flex-wrap: nowrap; align-items: center; gap: 12px; }
-.brand-logo { height: 22px; opacity: .9; }
-.top .brand-logo + h1 { padding-left: 12px; border-left: 1px solid var(--rule); }
+.brand-logo { height: 26px; width: 26px; flex: none; }
+.top .brand-logo + h1 { margin-left: -2px; }
 .top h1 { font-size: 19px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top .sub { display: none; }
 /* v1.3: merged / archived lots */
@@ -1327,7 +1328,7 @@ body { background-image: none !important; font-family: var(--f-body); }
 <div class="page">
   <header class="top">
     <div class="titles">
-      <img class="brand-logo" src="/brand/logo-dark.webp" alt="Dos Búhos" width="120" height="40">
+      <svg class="brand-logo" viewBox="0 0 64 64" width="30" height="30" role="img" aria-label="Crianza"><rect width="64" height="64" rx="14" fill="#5c1f33"/><path d="M44.7 19.3A18 18 0 1 0 44.7 44.7" fill="none" stroke="#f4e8de" stroke-width="7" stroke-linecap="round"/><path d="M32 22.5c0 0-6.5 7.6-6.5 12.2a6.5 6.5 0 0 0 13 0C38.5 30.1 32 22.5 32 22.5z" fill="#e3a593"/></svg>
       <h1>Crianza</h1>
       <p class="sub" id="sub">Every wine on one page.</p>
     </div>
