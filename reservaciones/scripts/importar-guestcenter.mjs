@@ -7,8 +7,8 @@
 // created (to the minute, the same in both sources) and its visit date; failing that, by visit date, time, party
 // size and table. Rows already stored are left to the sync. Missing ones get a stable id, "gc-" plus a hash of the
 // visit date, creation minute, size and guest, so importing the same export twice changes nothing. When the feed later
-// brings the same reservation under its real number, the sync deletes the gc- copy (same visit date and creation
-// time), and this script deletes any it finds too.
+// brings the same reservation under its real number, the sync deletes the gc- copy (first sighting, exact twin), and
+// this script deletes any copy the export no longer accounts for.
 //
 // Usage: node scripts/importar-guestcenter.mjs <export.csv> <rows.txt> [out-dir]
 //   rows.txt: the output of FILAS_SQL below (one line: id|service_date|created minute|time|size|table|status;…).
@@ -102,7 +102,7 @@ const mins = (h) => { const [a, b] = String(h || '0:0').split(':').map(Number); 
 
 /**
  * Match the export against what is stored. Returns { nuevas, actualizar, yaEstan, borrar, errores }:
- * nuevas → rows to insert (gc- id); actualizar → gc- rows already stored whose export row changed (upsert by their id);
+ * nuevas → rows to insert (gc- id); actualizar → gc- rows whose status, time, size or table changed (upsert by id);
  * yaEstan → count of rows the feed already has; borrar → gc- ids that duplicate a real reservation.
  */
 export function comparar(exportRows, guardadas) {
@@ -126,14 +126,18 @@ export function comparar(exportRows, guardadas) {
       if (cand[0]) { pareja.set(r, cand[0]); libres.delete(cand[0].id); }
     }
   }
-  // gc- rows that duplicate a real one (same visit date and creation minute) go.
+  // A gc- row goes only when the export no longer accounts for it (every booking in the export's dates matched
+  // something else, a real reservation first) and a real reservation is its exact twin: same visit date and time,
+  // party size and creation minute. Different bookings entered in the same minute each keep their row.
+  const fechas = filas.map((r) => r.servicio).sort(), desde = fechas[0], hasta = fechas[fechas.length - 1];
   const reales = guardadas.filter((g) => !g.id.startsWith('gc-'));
-  const borrar = guardadas.filter((g) => g.id.startsWith('gc-') && reales.some((x) => x.servicio === g.servicio && g.creadaMin && x.creadaMin === g.creadaMin)).map((g) => g.id);
+  const borrar = [...libres.values()].filter((g) => g.id.startsWith('gc-') && desde && g.servicio >= desde && g.servicio <= hasta
+    && reales.some((x) => x.servicio === g.servicio && x.hora === g.hora && x.partySize === g.partySize && g.creadaMin && x.creadaMin === g.creadaMin)).map((g) => g.id);
   const nuevas = [], actualizar = []; let yaEstan = 0;
   for (const r of filas) {
     const g = pareja.get(r);
     if (!g) nuevas.push(r);
-    else if (g.id.startsWith('gc-') && !borrar.includes(g.id)) actualizar.push({ ...r, id: g.id });
+    else if (g.id.startsWith('gc-') && !borrar.includes(g.id) && (g.status !== r.status || g.hora !== r.hora || g.partySize !== r.partySize || g.tableName !== r.tableName.toUpperCase())) actualizar.push({ ...r, id: g.id });
     else yaEstan++;
   }
   return { nuevas, actualizar, yaEstan, borrar, errores };

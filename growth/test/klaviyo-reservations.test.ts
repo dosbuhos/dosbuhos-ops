@@ -112,15 +112,26 @@ describe('Klaviyo reservations sync', () => {
     ]);
   });
 
-  it('replaces a reservation imported from Guest Center (gc- id) when the real one arrives: same visit date, made the same minute', async () => {
+  it('replaces a reservation imported from Guest Center (gc- id) the first time the real one arrives, and only an exact twin', async () => {
     const { db, d1 } = sqliteD1();
     const ins = db.prepare("INSERT INTO ot_reservations (confirmation_id, created_at, created_date, scheduled_at, service_date, party_size, origin, status, status_rank, status_at, table_name, currency, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'phone', 'created', 1, 1, '', '', 1)");
     ins.run('gc-aaaaaaaaaaaa', at('2026-11-19T17:00:00Z'), '2026-11-19', at('2026-11-21T20:00:00Z'), '2026-11-21', 4);     // reservation 2, imported earlier
-    ins.run('gc-bbbbbbbbbbbb', at('2026-11-19T17:05:00Z'), '2026-11-19', at('2026-11-21T20:00:00Z'), '2026-11-21', 4);     // another booking, five minutes later: stays
-    ins.run('gc-cccccccccccc', at('2026-11-19T17:00:00Z'), '2026-11-19', at('2026-11-22T20:00:00Z'), '2026-11-22', 4);     // same minute, another day: stays
+    ins.run('gc-bbbbbbbbbbbb', at('2026-11-19T17:00:00Z'), '2026-11-19', at('2026-11-21T20:00:00Z'), '2026-11-21', 2);     // same minute, another size: another booking
+    ins.run('gc-cccccccccccc', at('2026-11-19T17:00:00Z'), '2026-11-19', at('2026-11-21T22:00:00Z'), '2026-11-21', 4);     // same minute, another time: another booking
+    ins.run('gc-dddddddddddd', at('2026-11-19T17:00:00Z'), '2026-11-19', at('2026-11-22T20:00:00Z'), '2026-11-22', 4);     // another day
     await syncKlaviyoReservations(d1, 'pk', NOW, TZ, { restaurantId: RID, fetchFn: klaviyo(story).fetchFn });
-    expect(db.prepare("SELECT confirmation_id AS id FROM ot_reservations WHERE confirmation_id LIKE 'gc-%' ORDER BY id").all()).toEqual([{ id: 'gc-bbbbbbbbbbbb' }, { id: 'gc-cccccccccccc' }]);
+    expect(db.prepare("SELECT confirmation_id AS id FROM ot_reservations WHERE confirmation_id LIKE 'gc-%' ORDER BY id").all()).toEqual([{ id: 'gc-bbbbbbbbbbbb' }, { id: 'gc-cccccccccccc' }, { id: 'gc-dddddddddddd' }]);
     expect(db.prepare("SELECT status FROM ot_reservations WHERE confirmation_id = '2'").get()).toEqual({ status: 'cancelled' });
+  });
+
+  it('re-reading a reservation it already has never removes a gc- booking, even an identical one entered the same minute', async () => {
+    const { db, d1 } = sqliteD1();
+    await syncKlaviyoReservations(d1, 'pk', NOW, TZ, { restaurantId: RID, fetchFn: klaviyo(story).fetchFn });
+    db.prepare("INSERT INTO ot_reservations (confirmation_id, created_at, created_date, scheduled_at, service_date, party_size, origin, status, status_rank, status_at, table_name, currency, updated_at) VALUES ('gc-eeeeeeeeeeee', ?, '2026-11-19', ?, '2026-11-21', 4, 'phone', 'completed', 3, 1, '', '', 1)")
+      .run(at('2026-11-19T17:00:00Z'), at('2026-11-21T20:00:00Z'));
+    db.prepare("UPDATE klaviyo_sync_state SET done = 0, cursor = NULL").run();
+    await syncKlaviyoReservations(d1, 'pk', NOW, TZ, { restaurantId: RID, fetchFn: klaviyo(story).fetchFn });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM ot_reservations WHERE confirmation_id = 'gc-eeeeeeeeeeee'").get()).toEqual({ n: 1 });
   });
 
   it('reads the history a few pages at a time and resumes; once caught up it re-reads the last two days', async () => {

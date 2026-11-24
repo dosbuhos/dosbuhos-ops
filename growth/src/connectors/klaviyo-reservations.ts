@@ -138,11 +138,14 @@ export async function syncKlaviyoReservations(db: D1Database, key: string, now: 
         if (!cursor || at > Date.parse(cursor)) cursor = new Date(at).toISOString();
         const row = parseReservation(e.attributes?.event_properties as Json | undefined, status, at, opts.restaurantId);
         if (row) {
+          // A reservation imported from a Guest Center export (gc- id: the export has no confirmation number) is the
+          // same booking when this one is new to us and matches it exactly: visit date and time, party size, made
+          // within the same minute. Only a first sighting may replace one, so re-reading a reservation we already have
+          // never removes a different booking that happened to be entered in the same minute.
+          if (row.createdAt !== null && row.scheduledAt !== null && row.partySize !== null) stmts.push(db.prepare(
+            "DELETE FROM ot_reservations WHERE confirmation_id LIKE 'gc-%' AND service_date = ? AND scheduled_at = ? AND party_size = ? AND created_at BETWEEN ? AND ? AND NOT EXISTS (SELECT 1 FROM ot_reservations WHERE confirmation_id = ?)")
+            .bind(localDate(row.scheduledAt, tz), row.scheduledAt, row.partySize, row.createdAt - 60_000, row.createdAt + 60_000, row.confirmationId));
           stmts.push(upsert(db, row, tz, now)); stored++;
-          // A reservation imported from a Guest Center export (gc- id, no confirmation number there) is the same booking
-          // when it was made in the same minute for the same visit date: the real one replaces it.
-          if (row.createdAt !== null && row.scheduledAt !== null) stmts.push(db.prepare("DELETE FROM ot_reservations WHERE confirmation_id LIKE 'gc-%' AND service_date = ? AND created_at BETWEEN ? AND ?")
-            .bind(localDate(row.scheduledAt, tz), row.createdAt - 60_000, row.createdAt + 60_000));
         }
       }
       url = typeof j.links?.next === 'string' && j.links.next.startsWith(`${KLAVIYO_BASE}/`) ? j.links.next : null;

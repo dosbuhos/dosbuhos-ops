@@ -89,6 +89,8 @@ The Klaviyo feed misses bookings OpenTable never passes on (mostly phone and in-
 Reservations, all statuses, with the Created / Canceled / No-show / Seated / Finished / Last Updated columns) and the
 current rows (`FILAS_SQL` in the script), matches them by visit date and creation minute, and writes SQL with the
 sync's own upsert. Missing rows get a stable `gc-` id; walk-ins are stored with origin `walk-in` and shown here only as
-a per-day count. When the feed later brings a `gc-` reservation under its real number, the sync deletes the copy
-(growth `klaviyo-reservations.ts`). A daily scheduled task runs the export and the import at 05:47.
+a per-day count. When the feed first brings a `gc-` reservation under its real number (same visit date and time, party size and
+creation minute), the sync deletes the copy (growth `klaviyo-reservations.ts`); the importer deletes a copy only when
+its export no longer accounts for it. Bookings entered in the same minute keep their own rows. Run it after each
+Guest Center export (a daily scheduled task is pending approval).
 

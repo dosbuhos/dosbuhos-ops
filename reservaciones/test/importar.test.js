@@ -40,7 +40,7 @@ test('the same export twice changes nothing; a gc- row that later arrives under 
   const comoTexto = () => filas().map((f) => [f.confirmation_id, f.service_date, f.c, f.h, f.party_size, f.table_name, f.status].join('|')).join(';');
   assert.deepEqual(filas().map((f) => [f.confirmation_id, f.status, f.party_size, f.h]), [[id, 'created', 40, '13:00']]);
   const segunda = comparar(export_, leerFilas(comoTexto()));
-  assert.equal(segunda.nuevas.length, 0); assert.equal(segunda.actualizar.length, 1); assert.equal(segunda.actualizar[0].id, id);
+  assert.equal(segunda.nuevas.length, 0); assert.equal(segunda.actualizar.length, 0); assert.equal(segunda.yaEstan, 1);
   // Confirmed later in OpenTable: the import updates the same row.
   const confirmada = csv({ fecha: '2026-12-04', hora: '13:00', creada: '2026-11-10', creadaHora: '11:15', estado: 'Confirmado', p: 40, cambio: '2026-12-01 09:00:00.000' });
   for (const s of sentencias(comparar(confirmada, leerFilas(comoTexto())), 2000)) G.db.prepare(s).run();
@@ -57,4 +57,15 @@ test('the same export twice changes nothing; a gc- row that later arrives under 
 test('two bookings identical in every field the id uses still get two ids', () => {
   const r = comparar(csv({ fecha: '2026-11-05', hora: '15:15', estado: 'Cancelado', mesa: 'M7' }, { fecha: '2026-11-05', hora: '15:15', estado: 'Cancelado', mesa: '' }), []);
   assert.equal(r.nuevas.length, 2); assert.equal(r.nuevas[1].id, `${r.nuevas[0].id}-2`);
+});
+
+test('bookings entered in the same minute keep their own rows; only an unaccounted exact twin is deleted', () => {
+  // Two identical bookings in OpenTable, entered seconds apart: one came through the feed (481), one was imported.
+  const guardadas = leerFilas('481|2026-11-15|2026-10-30 12:28|11:00|2|PIR2|completed;gc-38944546f15b|2026-11-15|2026-10-30 12:28|11:00|2|PIR2|completed;gc-0000000000aa|2026-11-15|2026-10-30 12:28|15:30|6|PIR1|completed');
+  const dos = { fecha: '2026-11-15', hora: '11:00', creada: '2026-10-30', creadaHora: '12:28', p: 2, mesa: 'PIR2' };
+  const r = comparar(csv(dos, { ...dos, nombre: 'Otro Huésped' }, { fecha: '2026-11-15', hora: '15:30', creada: '2026-10-30', creadaHora: '12:28', p: 6, mesa: 'PIR1' }), guardadas);
+  assert.deepEqual(r.borrar, []); assert.equal(r.nuevas.length, 0);
+  // If OpenTable only has one of them, the gc- twin is the leftover.
+  const una = comparar(csv(dos, { fecha: '2026-11-15', hora: '15:30', creada: '2026-10-30', creadaHora: '12:28', p: 6, mesa: 'PIR1' }), guardadas);
+  assert.deepEqual(una.borrar, ['gc-38944546f15b']);
 });
