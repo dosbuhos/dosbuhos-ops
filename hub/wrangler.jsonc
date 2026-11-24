@@ -47,7 +47,9 @@
     // Reservaciones (/reservaciones/): the week's reservations with guests, and Parrot sales. It only answers requests signed by the Hub.
     { "binding": "RESERVACIONES", "service": "reservaciones" },
     // Rumbo (/rumbo/): the F&B director's initiatives, wins and score. It only answers requests signed by the Hub.
-    { "binding": "RUMBO", "service": "rumbo" }
+    { "binding": "RUMBO", "service": "rumbo" },
+    // Contemplo Studio (/contemplo/): video library, Google TV players, live show. Checks the Hub signature itself.
+    { "binding": "CONTEMPLO", "service": "contemplo" }
   ],
   // The session secret, shared by name with every app behind the Hub (account Secrets Store). Read in src/hub-secret.js.
   "secrets_store_secrets": [
