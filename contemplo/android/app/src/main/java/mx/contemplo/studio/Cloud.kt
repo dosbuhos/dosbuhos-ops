@@ -34,6 +34,7 @@ class Cloud(private val app: App, private val http: OkHttpClient) {
     @Volatile var lastContact = 0L; private set
 
     fun event(kind: String, detail: String) {
+        android.util.Log.i("Contemplo", "$kind $detail")
         events.add(JSONObject().put("at", System.currentTimeMillis()).put("kind", kind).put("detail", detail))
         while (events.size > 50) events.poll()
     }
@@ -102,6 +103,7 @@ class Cloud(private val app: App, private val http: OkHttpClient) {
             val c = cmds.getJSONObject(i); val id = c.optString("id")
             if (serverNow - c.optLong("created_at", serverNow) > 90_000) { ack(id, false, "Orden vencida, no se ejecutó"); continue }
             val type = c.optString("type")
+            android.util.Log.i("Contemplo", "cloud command $id $type")
             if (type == "sync_now") { syncSoon(); ack(id, true, ""); continue }
             app.main.post { app.engine.command(type, c.optJSONObject("payload") ?: JSONObject()) { ok, msg -> ack(id, ok, msg) } }
         }
@@ -110,6 +112,7 @@ class Cloud(private val app: App, private val http: OkHttpClient) {
     }
 
     private fun ack(id: String, ok: Boolean, msg: String) {
+        android.util.Log.i("Contemplo", "ack $id ok=$ok $msg")
         val a = JSONObject().put("id", id).put("status", if (ok) "done" else "failed").put("result", msg)
         scope.launch {
             try { val (c, _) = post("/api/device/ack", JSONObject().put("acks", JSONArray().put(a))); if (c != 200) acks.add(a) } catch (_: Exception) { acks.add(a) }

@@ -102,6 +102,7 @@ class Engine(private val ctx: Context, private val store: MediaStore, private va
     // ---------- commands ----------
     /** Run one command; [done] is called with (ok, message) once the TV has actually done it. */
     fun command(type: String, a: JSONObject, done: (Boolean, String) -> Unit) {
+        android.util.Log.i("Contemplo", "engine $type $a")
         try {
             when (type) {
                 "play" -> { val s = scene(a.put("end_action", if (a.optBoolean("loop", true)) "loop" else "hold")) ?: return done(false, notReady(a)); cue(s); goWhenReady(s.copy(transition = "cut"), done) }

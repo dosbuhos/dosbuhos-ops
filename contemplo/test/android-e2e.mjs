@@ -39,6 +39,8 @@ try {
   await until('both ready on TV', async () => { const m = (await staff(`devices/${dev.id}/media`)).media; return m.length === 2 && m.every((x) => x.state === 'ready'); }, 240_000);
   ok('both clips downloaded and SHA-256 verified on the TV');
 
+  // The main thread must answer: LAN state goes through it (an empty object means it is blocked).
+  const probe = await (await fetch(L + '/api/lan/info')).json(); console.log('  lan info', JSON.stringify(probe));
   // 3. Cloud command, acknowledged by the TV
   const c = await staff(`devices/${dev.id}/commands`, 'POST', { type: 'play', payload: { video_id: a.id, loop: true } });
   const st = await until('play acked', async () => { const x = await staff('commands/' + c.id); return ['done', 'failed', 'expired'].includes(x.status) && x; }, 60_000);
