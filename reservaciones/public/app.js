@@ -101,8 +101,8 @@ function armazon() {
   $('#nav-lado').innerHTML = conVentas ? enlaces : '';
   document.body.classList.toggle('con-pestanas', conVentas);
   $('#yo').textContent = S.yo?.nombre || '';
-  $('#titulo').textContent = S.vista === 'v' ? 'Ventas' : 'Reservaciones';
-  document.title = `${S.vista === 'v' ? 'Ventas' : 'Reservaciones'} · Dos Búhos`;
+  // the app is Pulso; the tabs say which part is open (Eric, 23 Nov 2026: renamed from Reservaciones, no Hub back link)
+  document.title = `${S.vista === 'v' ? 'Ventas' : 'Reservaciones'} · Pulso`;
 }
 function paso(texto, sub, { atras, adelante, actual }) {
   $('#paso').hidden = false;
@@ -131,7 +131,7 @@ function pintar() {
 function pintarError(e) {
   $('#paso').hidden = true;
   const fuera = e.status === 401, sinPermiso = e.status === 403;
-  main.innerHTML = `<div class="bloque vacio"><b>${fuera ? 'Abre Reservaciones desde el Hub' : sinPermiso ? 'Esta parte es para gerencia' : 'No se pudo cargar'}</b>${esc(e.message)}
+  main.innerHTML = `<div class="bloque vacio"><b>${fuera ? 'Abre Pulso desde el Hub' : sinPermiso ? 'Esta parte es para gerencia' : 'No se pudo cargar'}</b>${esc(e.message)}
     <div>${fuera ? '<a class="btn pri" href="https://apps.dosbuhos.com/">Ir al Hub</a>' : sinPermiso ? `<a class="btn" href="${ruta('r', hoyLocal())}">Ver reservaciones</a>` : '<button class="btn pri" type="button" data-reintentar>Intentar de nuevo</button>'}</div></div>`;
 }
 

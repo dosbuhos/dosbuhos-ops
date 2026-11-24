@@ -1,4 +1,6 @@
-# Reservaciones
+# Pulso (reservaciones/)
+
+The reservations and sales app, at pulso.dosbuhos.com and apps.dosbuhos.com/reservaciones/ (Hub sign-in). Named Pulso on 23 Nov 2026 (it was "Reservaciones"); it has no "‹ Hub" link.
 
 The week's reservations as a manifest, with the guest behind each one, and Parrot's sales beside them. Phone first,
 Spanish UI. Worker `reservaciones`, behind the Hub at `apps.dosbuhos.com/reservaciones/` (short address: `manifest.dosbuhos.com`). No build step.
