@@ -119,10 +119,14 @@ async function applyOps(env, ops) {
   }
 }
 
-// POST /api/sync { ops: [{k, id, f, t}], cursor } → { cursor, changes: [{k, id, d}] }
+const MIN_CLIENT = 65; // oldest app build allowed to sync (raise it when an old build must stop writing)
+// POST /api/sync { ops: [{k, id, f, t}], cursor, v } → { cursor, changes: [{k, id, d}] }
 async function sync(request, env, ctx) {
   const body = await request.json().catch(() => null);
   if (!body || !Array.isArray(body.ops) || body.ops.length > 500) return json({ error: 'bad request' }, 400);
+  // Builds before 65 still run reflow and move tasks on their own; a tab left open on one is refused (nothing applied, nothing
+  // sent back) until it reloads. 426 tells current builds to reload; old ones just show "not synced".
+  if (!(Number(body.v) >= MIN_CLIENT)) return json({ error: 'reload', reload: true }, 426);
   await applyOps(env, body.ops);
   if (env.GOOGLE_CLIENT_SECRET) {
     const touched = body.ops.filter(o => o && o.k === 'task' && typeof o.id === 'string').map(o => o.id);

@@ -24,5 +24,5 @@ task('Follow up with three restaurant buyers', { board: 'winery', section: 'Sale
 const wk = (() => { const d = new Date(); d.setDate(d.getDate() + 7); const x = new Date(d); const dd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dd + 3); const y = x.getFullYear(); const j = new Date(y, 0, 4); const w = 1 + Math.round(((x - j) / 864e5 - 3 + ((j.getDay() + 6) % 7)) / 7); return `${y}-W${pad(w)}`; })();
 task('Prep Bruselas competition entries', { when: wk, dur: 90 }); task('Quarterly tax review', { when: `${new Date().getFullYear()}-Q4`, dur: 120 });
 for (let i = 0; i < 40; i++) task(`Old Timestripe task ${i + 1}`, { board: 'backlog' });
-const r = await fetch(base + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops, cursor: 0 }) });
+const r = await fetch(base + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops, cursor: 0, v: 999 }) });
 console.log(r.status, (await r.json()).cursor);

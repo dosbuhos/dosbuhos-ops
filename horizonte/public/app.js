@@ -126,6 +126,9 @@ const device = store.get('device', null) || (() => { const d = Math.random().toS
 let lastMs = 0, ctr = 0;
 function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; } else ctr++; return `${lastMs.toString(36).padStart(9, '0')}.${ctr.toString(36).padStart(3, '0')}.${device}`; }
 
+// The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
+// so a tab left open on an old version cannot keep writing; this page reloads when told to.
+const BUILD = 67;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -142,6 +145,10 @@ async function loadAll() {
     c.onsuccess = () => { const cur = c.result; if (cur) { out.push(cur.value); cur.continue(); } else res(out); }; });
   for (const r of all) setLocal(r.k, r.id, r.d);
   S.outbox = (await tx('meta', 'readonly', s => s.get('outbox'))) || [];
+  // Once, after the update that removed reflow: time-only changes still queued were written by the old reflow (a tab on an old
+  // build kept sliding tasks); drop them instead of sending them.
+  if (!store.get('purge65', false)) { const timeOnly = (f) => Object.keys(f).every(x => ['at', 'dur', 'nofit'].includes(x));
+    S.outbox = S.outbox.filter(o => !(o.k === 'task' && timeOnly(o.f))); store.set('purge65', true); }
   S.cursor = (await tx('meta', 'readonly', s => s.get('cursor'))) || 0;
 }
 function mapOf(k) { return k === 'task' ? S.tasks : k === 'board' ? S.boards : null; }
@@ -178,7 +185,8 @@ async function syncNow() {
   try {
     for (let i = 0; i < 20; i++) {
       const ops = S.outbox.slice(0, 500);
-      const r = await fetch('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops, cursor: S.cursor }) });
+      const r = await fetch('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops, cursor: S.cursor, v: BUILD }) });
+      if (r.status === 426) { location.reload(); return; } // this build is too old for the server
       if (r.status === 401) { S.me = null; store.set('me', null); render(); break; }
       if (!r.ok) throw new Error('sync ' + r.status);
       const res = await r.json();
