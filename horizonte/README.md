@@ -24,6 +24,9 @@ Eric's personal planner (a Timestripe replacement). Not part of the Hub. Scope d
 ## Reminders (web push)
 Settings → Reminders turns push on per device (Chrome/Android/desktop; iPhone only once added to the Home Screen). Two kinds, from the 5-minute cron (`src/push.js`): a nudge 10 minutes before a timed task (meetings are left to Google Calendar) with a Done action, and a morning digest at 9:00 in the planner's time zone. VAPID keys are generated once into `meta`; subscriptions in `push_subs`; `push_sent` dedupes. Library: `@block65/webcrypto-web-push` (RFC 8291/8292 on WebCrypto). No secrets to configure. Add `--test-scheduled` to `wrangler dev` and request `/__scheduled` to run the cron locally.
 
+## Resizing a block on the phone (v66)
+Every timed block on the phone grid has a small grip at the bottom. Put a finger on it and drag (no long press): the block grows or shrinks in 15-minute steps with a tick of haptics, the time range updates live, and letting go saves it (Undo in the toast). Meetings sync the new end to Google Calendar. Desktop keeps its bottom-edge drag.
+
 ## Releases
 Every change bumps the version in three places: `?v=` in index.html, `V` and the `SHELL` URLs in sw.js. The app re-checks the worker whenever it comes to the front and reloads itself when a new one takes control (v64), so a phone left on an old build catches up on its own.
 

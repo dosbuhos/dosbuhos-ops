@@ -1,6 +1,6 @@
 // App shell cache: Horizonte opens with no network. API calls always go to the network.
-const V = 'hz-65';
-const SHELL = ['/', '/app.css?v=65', '/app.js?v=65', '/manifest.webmanifest', '/icon-192.png', '/icon.svg', '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2', '/fonts/geist-700.woff2', '/fonts/fraunces-wordmark.woff2'];
+const V = 'hz-66';
+const SHELL = ['/', '/app.css?v=66', '/app.js?v=66', '/manifest.webmanifest', '/icon-192.png', '/icon.svg', '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2', '/fonts/geist-700.woff2', '/fonts/fraunces-wordmark.woff2'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {

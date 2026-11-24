@@ -1366,6 +1366,8 @@ document.addEventListener('pointerdown', (e) => {
   const card = e.target.closest('.card[data-tid]'); if (!card || e.target.closest('input,.ck')) return;
   const resize = e.target.closest('[data-resize]');
   press = { id: card.dataset.tid, card, x: e.clientX, y: e.clientY, type: e.pointerType, resize: !!resize, pid: e.pointerId, t: Date.now(), swipe: null };
+  // Phone: the grip at the bottom of a block resizes it straight away, no long press (Google Calendar style).
+  if (resize && e.pointerType !== 'mouse') { e.preventDefault(); navigator.vibrate?.(8); startResize(e); return; }
   if (e.pointerType !== 'mouse') press.timer = setTimeout(() => { if (press && !press.swipe) startDrag(e.clientX, e.clientY); }, 350);
 });
 // Phone: a horizontal swipe on the week strip moves a week, on the hours screen a day (cards keep their own swipe).
@@ -1393,7 +1395,7 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', (e) => { if (drag) { endDrag(e.clientX, e.clientY); return; } if (press?.swipe) swipeEnd(e.clientX - press.x); if (press) clearTimeout(press.timer); press = null; });
 document.addEventListener('pointercancel', () => { if (drag) cancelDrag(); if (press?.swipe) swipeEnd(0); if (press) clearTimeout(press.timer); press = null; });
-document.addEventListener('touchmove', (e) => { if (drag || press?.swipe) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', (e) => { if (drag || press?.swipe || resizing) e.preventDefault(); }, { passive: false });
 // Desktop right-click menu on a task card: the common actions without opening the sheet.
 function closeMenu() { $('.ctxmenu')?.remove(); }
 document.addEventListener('contextmenu', (e) => {
@@ -1584,13 +1586,17 @@ function startDraw(e, grid) {
   const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.body.classList.remove('is-dragging');
     suppressClick = true; setTimeout(() => { suppressClick = false; }, 50);
     render(); const inp = $('#qc-title'); if (inp) { inp.focus(); if (onDraft && !moved) inp.select(); } };
-  document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+  document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
 }
+let resizing = false;
 function startResize(e) {
   const p = press; press = null; const t = S.tasks.get(p.id); if (!t) return;
-  const startDur = t.dur || 30, y0 = p.y; let cur = startDur; document.body.classList.add('is-dragging');
-  const mv = (ev) => { cur = Math.max(15, Math.round((startDur + (ev.clientY - y0) / HPX * 60) / 15) * 15); p.card.style.height = (cur / 60 * HPX - 2) + 'px'; p.card.querySelector('.meta').textContent = `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + cur))}`; };
-  const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.body.classList.remove('is-dragging');
+  const hpx = isDesk() ? HPX : MG, step = 15; // both grids are 56 px an hour today; kept apart so either can change
+  const startDur = t.dur || 30, y0 = p.y; let cur = startDur; document.body.classList.add('is-dragging'); p.card.classList.add('resizing'); resizing = true;
+  const mv = (ev) => { const n = Math.max(15, Math.round((startDur + (ev.clientY - y0) / hpx * 60) / step) * step);
+    if (n !== cur && !isDesk()) navigator.vibrate?.(4); cur = n;
+    const ph = Math.max(24, cur / 60 * hpx - 2); p.card.style.height = ph + 'px'; p.card.classList.toggle('short', ph < 34); const m = p.card.querySelector('.meta'); if (m) m.textContent = `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + cur))}`; };
+  const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); document.body.classList.remove('is-dragging'); resizing = false;
     suppressClick = true; setTimeout(() => { suppressClick = false; }, 50); if (cur !== startDur) { put('task', p.id, { dur: cur }); toast(`${fmtDur(cur)}`, true); } render(); };
   document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
 }

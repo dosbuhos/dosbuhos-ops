@@ -405,7 +405,11 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .grid .card .meta { font-size: 11px; max-width: none; }
 .m .grid .card.short { padding-top: 1px; padding-bottom: 1px; } .m .grid .card.short .meta { display: none; }
 .m .grid .card.meeting .lk { display: none; }
-.m .grid .resize { display: none; }
+/* phone grip: the bottom strip of a block (inside it: cards clip their overflow); drag it to change the length */
+.m .grid .resize { display: block; position: absolute; left: 25%; right: 25%; bottom: 0; height: 18px; touch-action: none; z-index: 2; }
+.m .grid .resize::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 26px; height: 4px; margin-left: -13px; border-radius: 2px; background: currentColor; opacity: .3; }
+.m .grid .card.short .resize { height: 12px; } .m .grid .card.short .resize::after { bottom: 2px; height: 3px; }
+.m .grid .card.resizing { z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.25); } .m .grid .card.resizing .resize::after { opacity: .7; }
 .m .nowline { position: absolute; left: -4px; right: 0; height: 2px; background: var(--now); z-index: 4; pointer-events: none; }
 .m .nowline::before { content: ''; position: absolute; left: -3px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--now); }
 .m .nowline span { display: none; }
