@@ -137,7 +137,13 @@ export async function syncKlaviyoReservations(db: D1Database, key: string, now: 
         if (at === null) continue;
         if (!cursor || at > Date.parse(cursor)) cursor = new Date(at).toISOString();
         const row = parseReservation(e.attributes?.event_properties as Json | undefined, status, at, opts.restaurantId);
-        if (row) { stmts.push(upsert(db, row, tz, now)); stored++; }
+        if (row) {
+          stmts.push(upsert(db, row, tz, now)); stored++;
+          // A reservation imported from a Guest Center export (gc- id, no confirmation number there) is the same booking
+          // when it was made in the same minute for the same visit date: the real one replaces it.
+          if (row.createdAt !== null && row.scheduledAt !== null) stmts.push(db.prepare("DELETE FROM ot_reservations WHERE confirmation_id LIKE 'gc-%' AND service_date = ? AND created_at BETWEEN ? AND ?")
+            .bind(localDate(row.scheduledAt, tz), row.createdAt - 60_000, row.createdAt + 60_000));
+        }
       }
       url = typeof j.links?.next === 'string' && j.links.next.startsWith(`${KLAVIYO_BASE}/`) ? j.links.next : null;
       done = !url;

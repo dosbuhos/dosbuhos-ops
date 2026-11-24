@@ -106,3 +106,15 @@ test('a returning guest is recognised by email or phone: earlier visits and no-s
   const r = s.dias.find((d) => d.fecha === '2026-11-28').reservas.find((x) => x.id === hoyR);
   assert.deepEqual(r.historial, { visitas: 1, faltas: 1, ultima: '2026-11-14' });
 });
+
+test('walk-ins imported from Guest Center are counted per day, never listed as reservations', async () => {
+  const { G, env } = datos();
+  reserva(G.db, { fecha: '2026-11-28', hora: '13:00', personas: 4, estado: 'confirmed' });
+  reserva(G.db, { fecha: '2026-11-28', hora: '13:10', personas: 3, estado: 'completed', origen: 'walk-in', mesa: 'M2' });
+  reserva(G.db, { fecha: '2026-11-28', hora: '14:00', personas: 2, estado: 'completed', origen: 'walk-in' });
+  const s = await semana(env, { nombre: 'A', ventas: false }, LUNES, HOY, AHORA);
+  const sab = s.dias.find((d) => d.fecha === '2026-11-28');
+  assert.equal(sab.reservas.length, 1); assert.equal(sab.totales.personas, 4);
+  assert.deepEqual(sab.sinReservar, { visitas: 2, personas: 5 });
+  assert.equal(s.dias.find((d) => d.fecha === '2026-11-27').sinReservar, null);
+});

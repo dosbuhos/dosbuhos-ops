@@ -34,9 +34,10 @@ export async function loadReservations(db: D1Database, now: number, tz: string):
     db.prepare('SELECT MIN(service_date) AS first, MAX(status_at) AS last FROM ot_reservations').first<{ first: string | null; last: number | null }>().catch(() => null),
     db.prepare('SELECT created_date AS d, origin, COUNT(*) AS n, SUM(COALESCE(party_size, 0)) AS g FROM ot_reservations WHERE created_date BETWEEN ? AND ? GROUP BY created_date, origin').bind(prevFrom, to)
       .all<{ d: string; origin: string; n: number; g: number }>().catch(() => none<{ d: string; origin: string; n: number; g: number }>()),
-    db.prepare('SELECT status, COUNT(*) AS n, SUM(COALESCE(party_size, 0)) AS g FROM ot_reservations WHERE service_date BETWEEN ? AND ? GROUP BY status').bind(from, to)
+    // How visits ended is about reservations: walk-ins (imported from Guest Center) count as made, never as visits.
+    db.prepare("SELECT status, COUNT(*) AS n, SUM(COALESCE(party_size, 0)) AS g FROM ot_reservations WHERE service_date BETWEEN ? AND ? AND origin <> 'walk-in' GROUP BY status").bind(from, to)
       .all<{ status: string; n: number; g: number }>().catch(() => none<{ status: string; n: number; g: number }>()),
-    db.prepare("SELECT COUNT(*) AS n, SUM(CASE WHEN done_at - seated_at < 300000 THEN 1 ELSE 0 END) AS quick FROM ot_reservations WHERE status = 'completed' AND service_date BETWEEN ? AND ? AND seated_at IS NOT NULL AND done_at IS NOT NULL").bind(from, to)
+    db.prepare("SELECT COUNT(*) AS n, SUM(CASE WHEN done_at - seated_at < 300000 THEN 1 ELSE 0 END) AS quick FROM ot_reservations WHERE status = 'completed' AND origin <> 'walk-in' AND service_date BETWEEN ? AND ? AND seated_at IS NOT NULL AND done_at IS NOT NULL").bind(from, to)
       .first<{ n: number; quick: number | null }>().catch(() => null),
     db.prepare("SELECT service_date AS d, COUNT(*) AS n, SUM(COALESCE(party_size, 0)) AS g FROM ot_reservations WHERE service_date BETWEEN ? AND ? AND status IN ('created', 'confirmed') GROUP BY service_date").bind(today, upTo)
       .all<{ d: string; n: number; g: number }>().catch(() => none<{ d: string; n: number; g: number }>()),

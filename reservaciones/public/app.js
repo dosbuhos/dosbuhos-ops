@@ -50,6 +50,8 @@ const IC = {
   correo: ic('<rect x="3.500" y="5.500" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
   chat: ic('<path d="M4.500 19.500l1.300-3.800A8 8 0 1 1 8.600 18.400z"/>'),
   grupo: ic('<circle cx="9" cy="8.500" r="3"/><circle cx="16.500" cy="9.500" r="2.300"/><path d="M3.500 19a5.500 5.500 0 0 1 11 0M14.500 14.300A4.500 4.500 0 0 1 20.500 18.500"/>'),
+  mas: ic('<path d="M12 5v14M5 12h14"/>'),
+  externo: ic('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
   info: ic('<circle cx="12" cy="12" r="8.500"/><path d="M12 11v5.500M12 7.800v.2"/>'),
   sube: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2l5 8H1z"/></svg>',
   baja: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10L1 2h10z"/></svg>',
@@ -223,6 +225,32 @@ hoja.addEventListener('click', (e) => { if (e.target === hoja || e.target.closes
 hoja.addEventListener('close', () => { if (history.state?.hoja) history.back(); });
 addEventListener('popstate', () => { if (hoja.open) hoja.close(); });
 
+// ---- New reservation: OpenTable has no booking API for us, so this opens OpenTable's own booking page with the date,
+// time and party filled in (the booking lands in OpenTable like any other and shows up here a few minutes later), or
+// the day in Guest Center for what the online page cannot take (big groups, special tables).
+const RID = '1258120';
+const HORAS = []; for (let m = 11 * 60; m <= 17 * 60; m += 15) HORAS.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+const ligaOpenTable = (f, h, p) => `https://www.opentable.com/booking/restref/availability?rid=${RID}&restRef=${RID}&lang=es-MX&dateTime=${encodeURIComponent(`${f}T${h}`)}&partySize=${p}`;
+const ligaGuestCenter = (f) => `https://guestcenter.opentable.com/restaurant/${RID}/front-of-house/reservations/${f}`;
+function abrirNueva(fecha) {
+  const f = fecha && fecha >= hoyLocal() ? fecha : hoyLocal();
+  hoja.innerHTML = `<div class="asa" aria-hidden="true"></div><button class="ico cierra" type="button" data-cerrar aria-label="Cerrar">${IC.equis}</button>
+    <form class="cuerpo nueva" id="nueva" onsubmit="return false">
+      <h2 class="nombre" id="hoja-nombre">Nueva reservación</h2>
+      <label class="campo"><span>Fecha</span><input type="date" name="f" value="${f}" min="${hoyLocal()}" required></label>
+      <label class="campo"><span>Hora</span><select name="h">${HORAS.map((h) => `<option${h === '13:00' ? ' selected' : ''}>${h}</option>`).join('')}</select></label>
+      <div class="campo"><span>Personas</span><div class="paso-n"><button type="button" class="ico" data-n="-1" aria-label="Una persona menos">−</button><output name="p">2</output><button type="button" class="ico" data-n="1" aria-label="Una persona más">${IC.mas}</button></div></div>
+      <a class="btn pri" id="ir-ot" target="_blank" rel="noopener">${IC.externo}Reservar en OpenTable</a>
+      <a class="btn" id="ir-gc" target="_blank" rel="noopener">${IC.externo}Abrir el día en Guest Center</a>
+      <p class="nota">Se reserva en OpenTable, como cualquier otra: aparece aquí unos minutos después. Para grupos de más de 20 o una mesa en particular, usa Guest Center.</p>
+    </form>`;
+  const form = $('#nueva'), ligas = () => { const p = Number(form.p.value); $('#ir-ot').href = ligaOpenTable(form.f.value, form.h.value, p); $('#ir-gc').href = ligaGuestCenter(form.f.value); };
+  form.addEventListener('input', ligas);
+  form.addEventListener('click', (e) => { const b = e.target.closest('[data-n]'); if (!b) return; form.p.value = String(Math.min(20, Math.max(1, Number(form.p.value) + Number(b.dataset.n)))); ligas(); });
+  ligas();
+  if (!hoja.open) { hoja.showModal(); history.pushState({ hoja: true }, ''); }
+}
+
 // ---- Today: the numbers for the door, the next arrival and the arrivals by half hour ----
 function bloqueHoy(dia) {
   const vivas = dia.reservas.filter((r) => r.estado !== 'cancelled' && r.estado !== 'no_show');
@@ -277,7 +305,7 @@ function bloquePendientes(d) {
 
 function bloqueDia(d) {
   const p = pf(d.fecha), t = d.totales;
-  const cab = `<div class="res">${t.reservas ? `<div><b>${num(t.personas)}</b><span>personas</span></div><div><b>${num(t.reservas)}</b><span>${t.reservas === 1 ? 'reservación' : 'reservas'}</span></div>` : ''}${t.noLlegaron ? `<div><b style="color:var(--st-falta)">${num(t.noLlegaron)}</b><span>no llegó</span></div>` : ''}</div>`;
+  const cab = `<div class="res">${t.reservas ? `<div><b>${num(t.personas)}</b><span>personas</span></div><div><b>${num(t.reservas)}</b><span>${t.reservas === 1 ? 'reservación' : 'reservas'}</span></div>` : ''}${t.noLlegaron ? `<div><b style="color:var(--st-falta)">${num(t.noLlegaron)}</b><span>no llegó</span></div>` : ''}${d.sinReservar ? `<div title="${esc(cuantos(d.sinReservar.visitas, 'mesa', 'mesas'))} sin reservación"><b class="sr-b">+${num(d.sinReservar.personas)}</b><span>sin reservar</span></div>` : ''}</div>`;
   const sueltos = d.prepagos.length ? `<div class="sueltos"><h3>Prepagos en línea sin reservación identificada <span class="est">estimación</span></h3><ul>${d.prepagos.map((c) => `<li><span class="hora">${esc(c.hora)}</span><span>${esc(c.experiencia)}</span><span class="cuanto">${pesos(c.monto)}</span>
       <small>${c.personas ? `Alcanza para ${cuantos(c.personas, 'persona', 'personas')}. ` : ''}${c.motivo === 'sin_reserva' ? 'Su reservación todavía no llega de OpenTable.' : 'Hay varias reservaciones a esa hora y no se puede saber de cuál es.'}</small></li>`).join('')}</ul></div>` : '';
   let parrot = '';
@@ -294,7 +322,7 @@ function bloqueDia(d) {
   const lista = d.reservas.length ? `${t.reservas >= 3 && !d.hoy ? `<div class="ritmo" data-franjas="${esc(JSON.stringify(d.franjas))}"></div>` : ''}${activas.length ? `<ul class="reservas">${activas.map((r) => filaReserva(r, d)).join('')}</ul>` : ''}
       ${canceladas.length ? `<details class="fuera-lista"><summary>${cuantos(canceladas.length, 'cancelada', 'canceladas')}${IC.abajo}</summary><ul class="reservas">${canceladas.map((r) => filaReserva(r, d)).join('')}</ul></details>` : ''}`
     : `<p class="nada">${d.pasado ? 'No hubo reservaciones.' : 'Sin reservaciones por ahora.'}</p>`;
-  return `<section class="dia${d.hoy ? ' es-hoy' : ''}" id="dia-${d.fecha}"><div class="cab"><h2>${d.hoy ? `Hoy <span>${DIAS[p.w]} ${p.d}</span>` : `${mayus(DIAS[p.w])} ${p.d}`}</h2>${cab}</div>${lista}${sueltos}${parrot}</section>`;
+  return `<section class="dia${d.hoy ? ' es-hoy' : ''}" id="dia-${d.fecha}"><div class="cab">${!d.pasado ? `<button class="ico mas-dia" type="button" data-nueva="${d.fecha}" aria-label="Nueva reservación el ${esc(fLargo(d.fecha))}">${IC.mas}</button>` : ''}<h2>${d.hoy ? `Hoy <span>${DIAS[p.w]} ${p.d}</span>` : `${mayus(DIAS[p.w])} ${p.d}`}</h2>${cab}</div>${lista}${sueltos}${parrot}</section>`;
 }
 
 // Covers per day, split: already served (or seated), confirmed, still to confirm.
@@ -317,7 +345,7 @@ function pintarManifiesto(d) {
     return `<button type="button" data-dia="${x.fecha}" class="${x.hoy ? 'es-hoy ' : ''}${x.abierto ? '' : 'cerrado'}" aria-label="${esc(`${fLargo(x.fecha)}: ${x.abierto ? `${cuantos(n, 'persona', 'personas')}${q.res ? `, ${q.res} sin confirmar` : ''}` : 'sin servicio'}`)}">
       <span class="col${n ? '' : ' cero'}">${segs}</span><span class="n">${x.abierto ? num(n) : '–'}</span><span class="d">${DIA_C[p.w]} ${p.d}</span></button>`; }).join('');
   const t = d.totales, conf = partes.reduce((a, p) => a + p.conf, 0), res = partes.reduce((a, p) => a + p.res, 0), hecha = partes.reduce((a, p) => a + p.hecha, 0);
-  const extra = [t.canceladas ? cuantos(t.canceladas, 'cancelada', 'canceladas') : '', t.noLlegaron ? cuantos(t.noLlegaron, 'no llegó', 'no llegaron') : '', t.prepagos ? `${cuantos(t.prepagos, 'prepago', 'prepagos')} sin reservación` : ''].filter(Boolean);
+  const extra = [t.canceladas ? cuantos(t.canceladas, 'cancelada', 'canceladas') : '', t.noLlegaron ? cuantos(t.noLlegaron, 'no llegó', 'no llegaron') : '', t.prepagos ? `${cuantos(t.prepagos, 'prepago', 'prepagos')} sin reservación` : '', (() => { const w = d.dias.reduce((a, x) => a + (x.sinReservar?.personas || 0), 0); return w ? `${num(w)} personas llegaron sin reservar` : ''; })()].filter(Boolean);
   let izq = '';
   const diaHoy = actual ? d.dias.find((x) => x.hoy) : null;
   if (diaHoy && (diaHoy.abierto || diaHoy.reservas.length)) izq += bloqueHoy(diaHoy);
@@ -327,12 +355,12 @@ function pintarManifiesto(d) {
     <div class="clave">${hecha ? '<span><i class="hecha"></i>Atendidas</span>' : ''}${conf ? '<span><i></i>Confirmadas</span>' : ''}${res ? '<span><i class="res"></i>Sin confirmar</span>' : ''}${extra.length ? `<span>${mayus(extra.join(', '))}</span>` : ''}</div></section>`;
   if (d.dias.some((x) => x.incompleto && x.abierto)) izq += `<div class="aviso">${IC.info}<p>Pueden faltar reservaciones hechas antes del ${fDiaMes(d.feedDesde)}, cuando se conectó OpenTable. Los prepagos en línea sí aparecen.</p></div>`;
   if (d.fresco.errorHuespedes) izq += `<div class="aviso mal">${IC.alerta}<p>Los nombres de los huéspedes no se están actualizando${d.yo.admin ? `: ${esc(d.fresco.errorHuespedes)}` : '. Avisa a quien administra el Hub.'}</p></div>`;
-  let h = `<div class="col-izq">${izq}</div>`;
+  let h = `<div class="col-izq">${izq}</div><button class="fab" type="button" data-nueva="${actual ? d.hoy : d.desde}">${IC.mas}<span>Nueva reservación</span></button>`;
   let cerrados = [];
   const soltar = () => { if (cerrados.length) { h += `<p class="cerrados">${mayus(cerrados.map((f) => `${DIAS[pf(f).w]} ${pf(f).d}`).join(' y '))}: sin servicio.</p>`; cerrados = []; } };
   for (const x of d.dias) { if (x.abierto) { soltar(); h += bloqueDia(x); } else cerrados.push(x.fecha); }
   soltar();
-  h += `<div class="pie"><p>Solo reservaciones: quien llega sin reservar no está en este dato.</p><p>Reservaciones de OpenTable${d.fresco.reservas ? `, actualizadas ${hace(d.fresco.reservas)}` : ''}${d.fresco.huespedes ? `; huéspedes ${hace(d.fresco.huespedes)}` : ''}${d.fresco.ventas ? `; Parrot ${hace(d.fresco.ventas)}` : ''}.</p></div>`;
+  h += `<div class="pie"><p>Quien llega sin reservar se cuenta aparte ("sin reservar"), con lo que Guest Center registra; se importa cada mañana.</p><p>Reservaciones de OpenTable${d.fresco.reservas ? `, actualizadas ${hace(d.fresco.reservas)}` : ''}${d.fresco.guestcenter ? `; importación de Guest Center ${hace(d.fresco.guestcenter)}` : ''}${d.fresco.huespedes ? `; huéspedes ${hace(d.fresco.huespedes)}` : ''}${d.fresco.ventas ? `; Parrot ${hace(d.fresco.ventas)}` : ''}.</p></div>`;
   main.innerHTML = h;
 }
 
@@ -390,21 +418,23 @@ function pintarVentas(v) {
     const r = Object.fromEntries(v.reservas.map((x) => [x.estado, x])), at = r.completed, partes = [at ? `<b>${cuantos(at.reservas, 'atendida', 'atendidas')}</b> con ${cuantos(at.personas, 'persona', 'personas')}` : '', r.no_show ? cuantos(r.no_show.reservas, 'no llegó', 'no llegaron') : '', r.cancelled ? cuantos(r.cancelled.reservas, 'cancelada', 'canceladas') : '',
       (r.created || r.confirmed) ? `${num((r.created?.reservas || 0) + (r.confirmed?.reservas || 0))} sin cerrar` : ''].filter(Boolean);
     h += figura('Reservaciones de estas fechas', 'Sin ligar a las cuentas: OpenTable todavía no las relaciona.',
-      `<p class="frase">${partes.length ? `${partes.join(', ')}.` : 'Sin reservaciones en estas fechas.'}</p>${conReserva(at, t)}<a class="mas" href="${ruta('r', v.desde)}">Ver el manifiesto de ${P === 'dia' ? 'esa semana' : 'esas fechas'}</a>`, { ancho: true });
+      `<p class="frase">${partes.length ? `${partes.join(', ')}.` : 'Sin reservaciones en estas fechas.'}</p>${conReserva(at, t, v.sinReserva)}<a class="mas" href="${ruta('r', v.desde)}">Ver el manifiesto de ${P === 'dia' ? 'esa semana' : 'esas fechas'}</a>`, { ancho: true });
   }
   h += `<div class="pie"><p>Venta neta: cuentas cerradas en Parrot, sin IVA y después de descuentos; los mismos números que Growth Terminal. Comensales: personas en cuentas “Comer aquí”, desde el ${fDiaMes(v.comensalesDesde)}. Las visitas prepagadas en línea se registran en Parrot al llegar, así que no se suman aparte.</p>
     <p>${v.fresco ? `Parrot actualizado ${hace(v.fresco)}.` : ''}${v.parrotDesde ? ` Parrot desde el ${fDiaMes(v.parrotDesde)} ${pf(v.parrotDesde).y}; antes, totales diarios del sistema anterior.` : ''}</p></div>`;
   main.innerHTML = h;
 }
 
-// Of the guests Parrot counted at tables, how many came with a reservation: an estimate (tour guests are counted
-// by OpenTable but may not sit at a table; the rest are walk-ins).
-function conReserva(at, t) {
-  if (!at?.personas || !(t.comensales > 0)) return '';
-  const p = Math.min(100, (at.personas / t.comensales) * 100), con = Math.min(at.personas, t.comensales), sin = Math.max(0, t.comensales - at.personas);
+// Who came with a reservation and who walked in. With Guest Center's walk-ins for these dates the split is OpenTable's
+// own count; without them it is an estimate against the guests Parrot counted at tables.
+function conReserva(at, t, w) {
+  const real = w && w.personas > 0 && at?.personas;
+  const con = real ? at.personas : Math.min(at?.personas || 0, t.comensales || 0), base = real ? at.personas + w.personas : t.comensales;
+  if (!con || !(base > 0)) return '';
+  const sin = Math.max(0, base - con), p = (con / base) * 100;
   return `<div class="mezcla"><div class="partes" role="img" aria-label="${esc(`Con reservación ${pct(p)}, sin reservación ${pct(100 - p)}`)}"><i class="c1" style="flex:${con} 1 0"></i>${sin ? `<i style="flex:${sin} 1 0;background:var(--rule-2)"></i>` : ''}</div>
     <div class="leyenda"><span><i></i><b>${pct(p)}</b>&nbsp;llegó con reservación (${num(con)})</span><span><i style="background:var(--rule-2)"></i><b>${pct(100 - p)}</b>&nbsp;sin reservación (${num(sin)})</span></div>
-    <p class="nota">De ${cuantos(t.comensales, 'comensal', 'comensales')} en mesas. <span class="est">estimación</span></p></div>`;
+    <p class="nota">${real ? `Personas atendidas según OpenTable (${cuantos(w.visitas, 'mesa', 'mesas')} sin reservación).` : `De ${cuantos(t.comensales, 'comensal', 'comensales')} en mesas. <span class="est">estimación</span>`}</p></div>`;
 }
 
 function figuraLineas(v) {
@@ -513,10 +543,11 @@ function buscarReserva(id) { for (const d of S.datos?.dias || []) { const r = d.
 document.addEventListener('click', (e) => {
   const tip = e.target.closest('[data-t]');
   if (tip) mostrar(tip); else if (conGlobo) ocultar();
-  const el = e.target.closest('[data-abrir],[data-pendientes],[data-dia],[data-periodo],[data-linea],[data-filtro],[data-orden],[data-mas],[data-reintentar],[data-ir]');
+  const el = e.target.closest('[data-abrir],[data-nueva],[data-pendientes],[data-dia],[data-periodo],[data-linea],[data-filtro],[data-orden],[data-mas],[data-reintentar],[data-ir]');
   if (!el) return;
   const d = el.dataset;
-  if ('abrir' in d) { abrirHoja(d.abrir);
+  if ('nueva' in d) { abrirNueva(d.nueva); }
+  else if ('abrir' in d) { abrirHoja(d.abrir);
   } else if ('dia' in d) {
     const destino = $(`#dia-${d.dia}`); if (destino) destino.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   } else if ('periodo' in d) { ir('v', S.datos?.corte && d.periodo !== 'dia' ? S.datos.corte : S.datos?.corte || S.datos?.desde || S.fecha, d.periodo); }

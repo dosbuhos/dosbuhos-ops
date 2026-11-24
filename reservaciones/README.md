@@ -81,3 +81,14 @@ npm test           # node --test; the growth schema comes from ../growth/migrati
 
 In local dev `?hoy=2026-11-21` before the `#` pretends it is that day. The guest read needs the growth Worker, so
 locally it reports that it is missing; the seed provides made-up guests instead.
+
+## Guest Center import
+
+The Klaviyo feed misses bookings OpenTable never passes on (mostly phone and in-house), future bookings made before
+22 Nov 2026, and walk-ins. `scripts/importar-guestcenter.mjs` takes Guest Center's reservations export (Reporting →
+Reservations, all statuses, with the Created / Canceled / No-show / Seated / Finished / Last Updated columns) and the
+current rows (`FILAS_SQL` in the script), matches them by visit date and creation minute, and writes SQL with the
+sync's own upsert. Missing rows get a stable `gc-` id; walk-ins are stored with origin `walk-in` and shown here only as
+a per-day count. When the feed later brings a `gc-` reservation under its real number, the sync deletes the copy
+(growth `klaviyo-reservations.ts`). A daily scheduled task runs the export and the import at 05:47.
+

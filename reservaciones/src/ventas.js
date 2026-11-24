@@ -147,7 +147,8 @@ export async function ventas(env, periodo, fecha, hoy, ahora = Date.now()) {
       FROM pos_items i JOIN pos_orders o ON o.uuid = i.order_uuid WHERE o.status = 'FINISHED' AND i.status = 'ACTIVE' AND i.local_date BETWEEN ? AND ? GROUP BY i.item_name, i.category`, P.desde, corte),
     todos(db, `SELECT p.payment_type AS tipo, COUNT(*) AS pagos, SUM(p.amount_minor) AS monto, SUM(p.tip_minor) AS propina FROM pos_payments p JOIN pos_orders o ON o.uuid = p.order_uuid
       WHERE p.status = 'CHARGED' AND o.status = 'FINISHED' AND p.local_date BETWEEN ? AND ? GROUP BY p.payment_type`, P.desde, corte),
-    todos(db, 'SELECT status AS estado, COUNT(*) AS reservas, SUM(COALESCE(party_size, 0)) AS personas FROM ot_reservations WHERE service_date BETWEEN ? AND ? GROUP BY status', P.desde, corte),
+    // Walk-ins (imported from Guest Center) are counted apart: they are not reservations.
+    todos(db, "SELECT CASE WHEN origin = 'walk-in' THEN 'walk_in' ELSE status END AS estado, COUNT(*) AS reservas, SUM(COALESCE(party_size, 0)) AS personas FROM ot_reservations WHERE service_date BETWEEN ? AND ? AND NOT (origin = 'walk-in' AND status = 'cancelled') GROUP BY 1", P.desde, corte),
     db.prepare('SELECT MAX(fetched_at) AS t FROM pos_orders').first(),
   ]) : [[], [], [], [], null];
 
@@ -168,7 +169,8 @@ export async function ventas(env, periodo, fecha, hoy, ahora = Date.now()) {
     horas: horas.map((r) => ({ fecha: r.d, hora: n(r.h), cuentas: n(r.cuentas), neto: n(r.neto) })),
     lineas, productos: items.slice(0, 80), productosTotal: items.length,
     pagos: pagos.map((p) => ({ tipo: String(p.tipo || 'Sin tipo'), pagos: n(p.pagos), monto: n(p.monto), propina: n(p.propina) })).sort((a, b) => b.monto - a.monto),
-    reservas: reservas.map((r) => ({ estado: r.estado, reservas: n(r.reservas), personas: n(r.personas) })),
+    reservas: reservas.filter((r) => r.estado !== 'walk_in').map((r) => ({ estado: r.estado, reservas: n(r.reservas), personas: n(r.personas) })),
+    sinReserva: (() => { const w = reservas.find((r) => r.estado === 'walk_in'); return w ? { visitas: n(w.reservas), personas: n(w.personas) } : null; })(),
     fresco: fresco?.t ?? null,
   };
 }

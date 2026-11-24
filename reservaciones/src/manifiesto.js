@@ -22,7 +22,7 @@ async function preciosConocidos(db, hoy, ahora) {
   const desde = sumarDias(hoy, -180);
   const pares = await todos(db, `WITH r AS (
       SELECT service_date AS d, strftime('%H:%M', scheduled_at / 1000 - ${OFFSET_S}, 'unixepoch') AS t, COUNT(*) AS n, MAX(party_size) AS personas
-      FROM ot_reservations WHERE status <> 'cancelled' AND scheduled_at IS NOT NULL AND service_date >= ? GROUP BY d, t
+      FROM ot_reservations WHERE status <> 'cancelled' AND origin <> 'walk-in' AND scheduled_at IS NOT NULL AND service_date >= ? GROUP BY d, t
     ), c AS (
       SELECT service_date AS d, service_time AS t, COUNT(*) AS n, MAX(experience_id) AS e, MAX(amount_minor) AS monto
       FROM stripe_payments WHERE source = 'opentable' AND status = 'succeeded' AND refunded_minor = 0 AND service_time IS NOT NULL AND service_date >= ? GROUP BY d, t
@@ -82,7 +82,7 @@ async function huespedesDe(db, ids) {
 /** yo: { ventas: boolean }. desde: the Monday of the week. */
 export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
   const g = env.GROWTH, hasta = sumarDias(desde, 6);
-  const [reservas, cargos, mapaPrecios, abiertos, ventas, frescura, sync] = await Promise.all([
+  const [todasLasFilas, cargos, mapaPrecios, abiertos, ventas, frescura, sync] = await Promise.all([
     todos(g, `SELECT confirmation_id, created_at, scheduled_at, service_date, party_size, origin, status, table_name, arrived_at, seated_at, done_at, pos_total_minor
       FROM ot_reservations WHERE service_date BETWEEN ? AND ? ORDER BY scheduled_at, confirmation_id`, desde, hasta),
     todos(g, `SELECT id, service_date, service_time, amount_minor - refunded_minor AS monto, experience_id, card_country FROM stripe_payments
@@ -90,9 +90,13 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
     preciosConocidos(g, hoy, ahora),
     diasAbiertos(g, hoy, ahora),
     yo.ventas ? ventasDeLaSemana(g, desde, hasta, hoy, ahora) : null,
-    g.prepare('SELECT (SELECT MAX(updated_at) FROM ot_reservations) AS reservas, (SELECT MAX(fetched_at) FROM pos_orders) AS ventas').first(),
+    g.prepare("SELECT (SELECT MAX(updated_at) FROM ot_reservations WHERE confirmation_id NOT LIKE 'gc-%') AS reservas, (SELECT MAX(updated_at) FROM ot_reservations WHERE confirmation_id LIKE 'gc-%') AS guestcenter, (SELECT MAX(fetched_at) FROM pos_orders) AS ventas").first(),
     estadoSync(env.DB),
   ]);
+  // Walk-ins (imported from Guest Center, origin walk-in) are counted per day, never listed as reservations.
+  const sinReservar = new Map();
+  for (const r of todasLasFilas) if (r.origin === 'walk-in' && r.status !== 'cancelled') { const w = sinReservar.get(r.service_date) || { visitas: 0, personas: 0 }; w.visitas++; w.personas += r.party_size || 0; sinReservar.set(r.service_date, w); }
+  const reservas = todasLasFilas.filter((r) => r.origin !== 'walk-in');
   const huespedes = await huespedesDe(env.DB, reservas.map((r) => r.confirmation_id));
   const antes = await historial(env, reservas, huespedes);
   const borradoAntesDe = sumarDias(hoy, -RETENCION_DIAS);
@@ -123,12 +127,13 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
     const v = ventas ? ventas.get(fecha) : undefined;
     return {
       fecha, hoy: fecha === hoy, pasado: fecha < hoy,
-      abierto: abiertos.has(diaSemana(fecha)) || lista.length > 0 || sueltos.length > 0 || (!!v && v.cuentas > 0),
+      abierto: abiertos.has(diaSemana(fecha)) || lista.length > 0 || sueltos.length > 0 || sinReservar.has(fecha) || (!!v && v.cuentas > 0),
       incompleto: fecha >= hoy && fecha > FEED_DESDE && fecha <= avisoHasta,
       totales: { reservas: vivas.length, personas: vivas.reduce((a, r) => a + (r.personas || 0), 0), canceladas: lista.filter((r) => r.estado === 'cancelled').length, noLlegaron: lista.filter((r) => r.estado === 'no_show').length,
         porLlegar: lista.filter((r) => !FINALES.includes(r.estado)).length },
       franjas: [...franjas].sort((a, b) => a[0] - b[0]).map(([k, personas]) => ({ media: k, personas })),
       reservas: lista,
+      sinReservar: sinReservar.get(fecha) || null,
       prepagos: sueltos.map((c) => ({ hora: c.hora, experiencia: nombreExperiencia(c.experiencia), monto: c.monto, personas: c.personas, motivo: c.motivo })),
       ...(yo.ventas ? { ventas: v ?? null } : {}),
     };
@@ -141,7 +146,7 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
     totales: { reservas: t('reservas'), personas: t('personas'), canceladas: t('canceladas'), noLlegaron: t('noLlegaron'), prepagos: dias.reduce((a, d) => a + d.prepagos.length, 0) },
     dias,
     feedDesde: FEED_DESDE, retencionDias: RETENCION_DIAS,
-    fresco: { reservas: frescura?.reservas ?? null, ventas: yo.ventas ? frescura?.ventas ?? null : undefined, huespedes: sync.bien, errorHuespedes: yo.admin ? sync.error : sync.error ? 'pendiente' : '' },
+    fresco: { reservas: frescura?.reservas ?? null, guestcenter: frescura?.guestcenter ?? null, ventas: yo.ventas ? frescura?.ventas ?? null : undefined, huespedes: sync.bien, errorHuespedes: yo.admin ? sync.error : sync.error ? 'pendiente' : '' },
     sinHuesped, syncCorrio: sync.corrio,
   };
 }
