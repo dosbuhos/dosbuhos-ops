@@ -146,15 +146,28 @@ function fmtPhone(phone) {
 
 // ---------- API ----------
 async function api(method, path, data) {
+  // offline.js: a pendiente reported without signal lives on the phone until it goes out; writes wait their turn
+  if (method === 'GET') {
+    const l = OFF.local(path);
+    if (l && l.redirect) path = path.replace(/^\/tasks\/-\d+/, '/tasks/' + l.redirect);
+    else if (l) return l;
+  }
+  const waits = OFF.queueable(method, path);
+  if (waits && (navigator.onLine === false || OFF.count || /^\/tasks\/-\d+/.test(path))) return OFF.enqueue(method, path, data);
   const opts = { method, headers: {}, credentials: 'same-origin', keepalive: !!UI.unloading };
   if (data !== undefined) {
     opts.headers['content-type'] = 'application/json';
     opts.body = JSON.stringify(data);
   }
   let res;
-  try { res = await fetch('/api' + path, opts); } catch { throw new Error('Sin señal. Revisa tu internet e intenta de nuevo.'); }
+  try { res = await fetch('/api' + path, opts); } catch {
+    if (waits) return OFF.enqueue(method, path, data);
+    if (method === 'GET') OFF.seen(true);
+    throw new Error(method === 'GET' ? 'Sin señal, y esto no estaba guardado en el teléfono todavía.' : 'Sin señal. Esto necesita internet: intenta cuando tengas señal.');
+  }
   let out = {};
   try { out = await res.json(); } catch { /* empty */ }
+  if (method === 'GET' && res.ok) { OFF.seen(res.headers.get('x-pulso-offline') === '1'); out = OFF.overlay(path, out); }
   if (res.status === 401 && path !== '/enter') {
     S.user = null;
     showEnter();
@@ -205,12 +218,17 @@ async function prepPhoto(file) {
 }
 async function uploadPhoto(path, file) {
   const { full, thumb } = await prepPhoto(file);
+  const later = /^\/tasks\/-?\d+\/photos$/.test(path);   // a pendiente's photo can wait on the phone; others need signal
+  if (later && (navigator.onLine === false || OFF.count || /^\/tasks\/-\d+/.test(path))) return OFF.queuePhoto(path, full, thumb);
   const form = new FormData();
   form.append('photo', full, 'foto.jpg');
   if (thumb) form.append('thumb', thumb, 'mini.jpg');
   let res;
   try { res = await fetch('/api' + path, { method: 'POST', credentials: 'same-origin', body: form }); }
-  catch { throw new Error('Sin señal: la foto no se subió. Intenta de nuevo.'); }
+  catch {
+    if (later) return OFF.queuePhoto(path, full, thumb);
+    throw new Error('Sin señal: la foto no se subió. Intenta de nuevo.');
+  }
   if (!res.ok) {
     let e = {};
     try { e = await res.json(); } catch { /* */ }

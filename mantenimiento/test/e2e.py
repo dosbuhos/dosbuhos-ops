@@ -181,7 +181,8 @@ with sync_playwright() as p:
     expect(sh.locator('[data-when=pick]')).to_have_attribute('aria-pressed', 'true', timeout=8000)
     sh.locator('[data-x]').click(); expect(pg.locator('#sheet')).to_be_hidden()
     pg.click('.mbar a:has-text("Semana")'); wk = pg.locator('.mday .card[data-tid="%s"]' % fid)
-    if wk.count() == 0: pg.click('.mtop [data-step="1"]')                                                    # three days from now can fall in next week
+    expect(pg.locator('.mday').first).to_be_visible(); pg.wait_for_timeout(300)
+    if (dt.date.today() + dt.timedelta(days=3)).isocalendar()[1] != dt.date.today().isocalendar()[1]: pg.click('.mtop [data-step="1"]')   # three days from now can fall in next week
     expect(wk.locator('.meta')).to_have_text('14:30'); expect(wk.locator('.rm')).to_contain_text('Raúl')
     wk.locator('.body').click(); sh.locator('[data-when=""]').click(); expect(sh.locator('.twhen')).to_contain_text('Bandeja'); expect(sh.locator('#ts-time')).to_have_value('')
     pg.keyboard.press('Escape'); expect(pg.locator('.mday .card[data-tid="%s"]' % fid)).to_have_count(0)

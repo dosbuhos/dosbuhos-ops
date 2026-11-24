@@ -12,6 +12,20 @@ its service record. Cloudflare Worker + D1, plain JS, no build step.
   `mantenimiento` in the Hub database, renamed there to Pulso and pointed at https://pulso.dosbuhos.com (a data change
   made with the D1 tool on 23 Nov 2026; nothing in `hub/` changed).
 
+## Without signal
+The garden has little signal, so Pulso works offline (`public/sw.js` + `public/offline.js`).
+- **Reading.** The service worker keeps the app on the phone, and the last answer to every GET (network first; after 6 s
+  with no answer, the kept copy, marked `x-pulso-offline`). Photos are kept once seen, and the photos of open pendientes are
+  fetched in the background so they are there in the garden. A line at the bottom says *Sin señal* while what is shown came
+  from the phone.
+- **Writing.** A report, a change to a pendiente, a note or a pendiente's photo made with no signal goes to an outbox in
+  IndexedDB and the screen carries on as if it had gone out (marked *Por enviar*). The outbox is laid over what the server
+  last said and goes out in order on `online`, on reopening the app and every 30 s. A pendiente reported offline has a
+  negative id until the server numbers it; what was done to it meanwhile follows with the real number. Anything else
+  (contacts, equipment, plans, Personas) still needs signal and says so.
+- **Version.** `V` and the file list in `sw.js` must match the `?v=` in `index.html` (`test/shell.test.mjs` checks).
+  Tests: `python3 test/offline.py` (the service worker is not registered on 127.0.0.1 unless the page is opened with `?sw`).
+
 ## Access: open sign-up (Eric, Nov 2026)
 
 No PIN, no links, no approval. A person opens the address, types **name + WhatsApp (+ email, optional)** once per

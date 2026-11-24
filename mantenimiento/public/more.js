@@ -758,7 +758,7 @@ async function route() {
   else if (!top || top.h !== here) { TRAIL.push({ h: here, y: 0 }); UI.backY = 0; if (TRAIL.length > 30) TRAIL.shift(); }
   const { seg, query } = parseHash();
   const [a, b, c] = seg;
-  const n = /^\d+$/.test(b || '') ? Number(b) : null;
+  const n = /^-?\d+$/.test(b || '') ? Number(b) : null;   // negative: a pendiente still on the phone (offline.js)
   try {
     if (!a) return await viewPlanner('dia');
     if (a === 'semana' || a === 'mes' || a === 'bandeja' || a === 'atrasados' || a === 'todo') return await viewPlanner(a);
@@ -803,6 +803,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 async function start() {
+  await OFF.load();
   try {
     const st = await api('GET', '/status');
     if (!st.user) return showEnter();

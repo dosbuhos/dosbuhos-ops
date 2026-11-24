@@ -57,6 +57,7 @@ async function fetchOpen() {
   S.today = r.today;
   C.open = r.tasks;
   C.openAt = Date.now();
+  setTimeout(() => OFF.keepPhotos(C.open), 3000);   // their photos stay on the phone, for when there is no signal
   UI.lateN = C.open.filter(isLate).length;
   return C.open;
 }
@@ -404,6 +405,7 @@ async function viewTask(id, keep = false) {
   const t = d.task;
   const open = isOpen(t);
   const late = isLate(t);
+  const waiting = t.pending || t.photos_waiting ? `<p class="pendmsg">${ic('clock')}${t.id < 0 ? 'Está en el teléfono: se enviará solo cuando haya señal' : 'Hay cambios en el teléfono que se enviarán cuando haya señal'}${t.photos_waiting ? `, con ${plural(t.photos_waiting, 'foto', 'fotos')}` : ''}.</p>` : '';
   const due = dueInfo(t);
   const me = myCard();
   const reload = () => viewTask(id, true);
@@ -416,7 +418,7 @@ async function viewTask(id, keep = false) {
     ${late ? `<div class="banner bad" role="status">${ic('alert')}<div class="grow"><b>${esc(due.text)}</b><span>Era para el ${esc(fmtDay(t.due_date, { weekday: true, rel: false }))}.${t.postponed ? ` Pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}.` : ''}</span></div>
         <button class="b line sm" data-set="who">${t.provider_id ? 'Pasar a otro' : 'Asignar'}</button></div>` : ''}
     ${d.photos.length ? `<div id="d-photos" class="top">${photoGrid(d.photos, 'd-file', { label: 'Agregar foto', big: true })}</div>` : ''}
-    <div class="hero">
+    ${waiting}<div class="hero">
       <div class="hmeta">${areaTag(t)}${t.kind === 'preventivo' ? `<span class="pill">${ic('repeat')}Preventivo</span>` : t.kind === 'servicio' ? '<span class="pill">Servicio</span>' : ''}${open && t.priority === 1 ? `<b class="urgent">${ic('flag')}Urgente</b>` : ''}</div>
       <h2>${esc(t.title)}</h2>
       <p class="by">${t.created_by_name ? `${t.kind === 'servicio' ? 'Lo anotó' : t.kind === 'preventivo' ? 'Plan de' : 'Lo reportó'} ${esc(t.created_by_name)}` : 'Lo creó el plan preventivo'} ${esc(fmtWhen(t.created_at))}</p>
@@ -437,7 +439,7 @@ async function viewTask(id, keep = false) {
     <ul class="timeline">${notes.map((nt) => nt.kind === 'sistema'
       ? `<li class="sys"><span class="tdot"></span><p class="grow">${esc(nt.body)}</p><span class="tt">${esc(fmtDateTime(nt.created_at))}</span></li>`
       : `<li class="note" data-note="${nt.id}">${avatar(nt.user_name || '?')}<div class="nb"><p class="nh"><b>${esc(nt.user_name || 'Alguien')}</b> <span class="tt">${esc(fmtDateTime(nt.created_at))}</span>
-          ${(isAdmin() || nt.user_id === S.user.id) ? `<button class="linkbtn del" data-delnote="${nt.id}">Borrar</button>` : ''}</p><p class="nt">${esc(nt.body)}</p></div></li>`).join('')}</ul>
+          ${!nt.pending && (isAdmin() || nt.user_id === S.user.id) ? `<button class="linkbtn del" data-delnote="${nt.id}">Borrar</button>` : ''}</p><p class="nt">${esc(nt.body)}</p></div></li>`).join('')}</ul>
     <div class="composer"><label class="sr" for="d-note">Escribe una nota</label><textarea class="input" id="d-note" rows="1" placeholder="Escribe una nota" maxlength="4000"></textarea>
       <button class="ib send" id="d-send" aria-label="Guardar nota" disabled>${ic('send')}</button></div>
   </div>`, {
@@ -561,7 +563,8 @@ async function viewReported(id) {
     <div class="okmark">${ic('check')}</div>
     <h1>Reporte enviado</h1>
     <p class="lead">${esc(t.title)}</p>
-    <p class="small">Es el pendiente #${t.id}. ${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Está en la Bandeja, sin día todavía.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
+    ${t.id < 0 ? '<p class="pendmsg">Sin señal: quedó guardado en el teléfono y se enviará solo cuando haya internet.</p>' : ''}
+    <p class="small">${t.id < 0 ? '' : `Es el pendiente #${t.id}. `}${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Está en la Bandeja, sin día todavía.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
     ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Pulso:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
     <a class="b block lg ${tell ? 'tonal' : ''}" href="#/p/${t.id}">Ver el reporte</a>
     <a class="b block lg tonal" href="#/nuevo">${ic('plus')}Reportar otro</a>

@@ -165,6 +165,7 @@ function cardHTML(t, o = {}) {
     if (t.status === 'en_proceso') b.push('<span class="st go">En curso</span>');
     else if (t.status === 'en_espera') b.push(`<span class="st wait">${esc(statusText(t))}</span>`);
     else if (t.status === 'cancelada') b.push('<span class="st">No aplica</span>');
+    if (t.pending) b.push(`<span class="st wait">${ic('clock')}Por enviar</span>`);
     if (t.kind === 'preventivo') b.push(`<span class="st">${ic('repeat')}Preventivo</span>`);
     else if (t.kind === 'servicio') b.push('<span class="st">Servicio</span>');
     if (t.postponed) b.push(`<span class="st">${ic('clock')}Pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}</span>`);
@@ -487,6 +488,12 @@ function panelHTML() {
 // ---------- drawing ----------
 const planAfter = () => fetchOpen().then(() => { if (UI.plan) drawPlanner(true); }).catch(() => {});
 function drawPlanner(keep = false) {
+  const typing = document.activeElement && document.activeElement.id === 'pl-add' ? document.activeElement.value : null;   // a redraw keeps the cursor in the quick-add line
+  drawPlanner0(keep);
+  const a = typing !== null && $('#pl-add');
+  if (a) { a.value = typing; a.focus(); }
+}
+function drawPlanner0(keep) {
   const today = todayStr();
   if (!P.day || (P.follow && P.day !== today)) P.day = today;
   if (typeof P.who === 'number' && !provOf(P.who)) P.who = 'all';
@@ -539,6 +546,7 @@ function bindPlanner() {
     try {
       const r = await api('POST', '/tasks', { title, priority: x.prio || 3, area_id: x.area || null });
       if (C.open) C.open.push(r.task);
+      inp.value = '';
       touch(); drawPlanner(true);
       const again = $('#pl-add'); if (again) again.focus();
       planAfter();

@@ -1143,3 +1143,10 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
   .dtop .tbtn.dark { padding: 0 9px; }
   .mcell .card.in-chip .meta { display: none; }               /* the day is narrow: the name matters more than how long it takes */
 }
+
+/* ---------- no signal (offline.js): a quiet line at the bottom while something waits or what is shown is from the phone ---------- */
+#net { position: fixed; left: 50%; bottom: calc(var(--bar-h) + 70px + env(safe-area-inset-bottom)); transform: translate(-50%, 16px); z-index: 55; max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: 999px; background: var(--ink); color: var(--on-accent); font: 600 13px/1.25 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; cursor: pointer; }
+#net.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+@media (min-width: 960px) { #net { bottom: 20px; } }
+.pendmsg { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r); background: var(--wash); color: var(--muted); font-size: 13.5px; line-height: 1.35; }
+.pendmsg svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
