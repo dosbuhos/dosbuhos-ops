@@ -53,3 +53,8 @@ test('the same export twice changes nothing; a gc- row that later arrives under 
   for (const s of sentencias(tercera, 4000)) G.db.prepare(s).run();
   assert.deepEqual(filas().map((f) => f.confirmation_id), ['812']);
 });
+
+test('two bookings identical in every field the id uses still get two ids', () => {
+  const r = comparar(csv({ fecha: '2026-11-05', hora: '15:15', estado: 'Cancelado', mesa: 'M7' }, { fecha: '2026-11-05', hora: '15:15', estado: 'Cancelado', mesa: '' }), []);
+  assert.equal(r.nuevas.length, 2); assert.equal(r.nuevas[1].id, `${r.nuevas[0].id}-2`);
+});

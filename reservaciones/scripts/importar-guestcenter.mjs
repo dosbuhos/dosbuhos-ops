@@ -12,7 +12,7 @@
 //
 // Usage: node scripts/importar-guestcenter.mjs <export.csv> <rows.txt> [out-dir]
 //   rows.txt: the output of FILAS_SQL below (one line: id|service_date|created minute|time|size|table|status;…).
-// Writes out-dir/import-NN.sql (batches of 40 statements) and prints a summary as JSON.
+// Writes out-dir/import-NN.sql (up to 4 statements each, about 100 rows) and prints a summary as JSON.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
@@ -108,7 +108,10 @@ const mins = (h) => { const [a, b] = String(h || '0:0').split(':').map(Number); 
 export function comparar(exportRows, guardadas) {
   const errores = [], libres = new Map(guardadas.map((g) => [g.id, g])), pareja = new Map();
   const filas = [];
-  exportRows.forEach((x, i) => { const r = deExport(x); if (r.error) errores.push({ fila: i + 2, error: r.error }); else filas.push(r); });
+  // Two bookings can share every field of the id (same guest, same minute, same size): the second gets -2, and so on.
+  const vistos = new Map();
+  exportRows.forEach((x, i) => { const r = deExport(x); if (r.error) { errores.push({ fila: i + 2, error: r.error }); return; }
+    const k = (vistos.get(r.id) || 0) + 1; vistos.set(r.id, k); if (k > 1) r.id = `${r.id}-${k}`; filas.push(r); });
   const intentos = [
     (r, g) => g.servicio === r.servicio && r.creadaMin && g.creadaMin === r.creadaMin && g.partySize === r.partySize,
     (r, g) => g.servicio === r.servicio && r.creadaMin && g.creadaMin === r.creadaMin,
@@ -147,9 +150,13 @@ export function upsertSql(r, ahora) {
   return `INSERT INTO ot_reservations (confirmation_id, created_at, created_date, scheduled_at, service_date, party_size, origin, status, status_rank, status_at, table_name, arrived_at, seated_at, done_at, pos_total_minor, currency, updated_at) VALUES (${[r.id, r.createdAt, creadaDia, r.scheduledAt, r.servicio, r.partySize, r.origin, r.status, RANK[r.status], r.statusAt, r.tableName, null, r.seatedAt, r.doneAt, null, '', ahora].map(lit).join(', ')}) ON CONFLICT(confirmation_id) DO UPDATE SET ${keep('created_at')}, ${keep('created_date')}, ${latest('scheduled_at')}, ${latest('service_date')}, ${latest('party_size')}, ${latestText('origin')}, ${latestText('table_name')}, ${keep('arrived_at')}, ${keep('seated_at')}, ${keep('done_at')}, ${keep('pos_total_minor')}, ${latestText('currency')}, status = CASE WHEN ${newer} THEN excluded.status ELSE ot_reservations.status END, status_rank = CASE WHEN ${newer} THEN excluded.status_rank ELSE ot_reservations.status_rank END, status_at = MAX(excluded.status_at, ot_reservations.status_at), updated_at = excluded.updated_at`;
 }
 
+/** New rows have no stored twin (that is what makes them new): a compact multi-row insert, 25 rows a statement, that
+ *  never overwrites. Rows already stored as gc- go through the sync's upsert, so the newest event still decides. */
 export function sentencias(res, ahora) {
-  return [...res.borrar.map((id) => `DELETE FROM ot_reservations WHERE confirmation_id = ${lit(id)} AND confirmation_id LIKE 'gc-%'`),
-    ...[...res.nuevas, ...res.actualizar].map((r) => upsertSql(r, ahora))];
+  const fila = (r) => `(${[r.id, r.createdAt, r.createdAt === null ? null : new Date(r.createdAt - OFFSET_MS).toISOString().slice(0, 10), r.scheduledAt, r.servicio, r.partySize, r.origin, r.status, RANK[r.status], r.statusAt, r.tableName, r.seatedAt, r.doneAt, ahora].map(lit).join(',')})`;
+  const altas = [];
+  for (let i = 0; i < res.nuevas.length; i += 25) altas.push(`INSERT INTO ot_reservations (confirmation_id, created_at, created_date, scheduled_at, service_date, party_size, origin, status, status_rank, status_at, table_name, seated_at, done_at, updated_at) VALUES ${res.nuevas.slice(i, i + 25).map(fila).join(',')} ON CONFLICT(confirmation_id) DO NOTHING`);
+  return [...res.borrar.map((id) => `DELETE FROM ot_reservations WHERE confirmation_id = ${lit(id)} AND confirmation_id LIKE 'gc-%'`), ...altas, ...res.actualizar.map((r) => upsertSql(r, ahora))];
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
@@ -158,7 +165,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const res = comparar(leerCsv(readFileSync(csvPath, 'utf8')), leerFilas(readFileSync(filasPath, 'utf8')));
   const sql = sentencias(res, Date.now());
   mkdirSync(out, { recursive: true });
-  for (let i = 0; i < sql.length; i += 40) writeFileSync(`${out}/import-${String(i / 40 + 1).padStart(2, '0')}.sql`, `${sql.slice(i, i + 40).join(';\n')};\n`);
+  for (let i = 0; i < sql.length; i += 4) writeFileSync(`${out}/import-${String(i / 4 + 1).padStart(2, '0')}.sql`, `${sql.slice(i, i + 4).join(';\n')};\n`);
   const por = (L, k) => L.reduce((m, r) => ((m[r[k]] = (m[r[k]] || 0) + 1), m), {});
-  console.log(JSON.stringify({ yaEstan: res.yaEstan, nuevas: res.nuevas.length, nuevasPorOrigen: por(res.nuevas, 'origin'), actualizar: res.actualizar.length, borrar: res.borrar.length, errores: res.errores, archivos: Math.ceil(sql.length / 40) }, null, 1));
+  console.log(JSON.stringify({ yaEstan: res.yaEstan, nuevas: res.nuevas.length, nuevasPorOrigen: por(res.nuevas, 'origin'), actualizar: res.actualizar.length, borrar: res.borrar.length, errores: res.errores, archivos: Math.ceil(sql.length / 4) }, null, 1));
 }
