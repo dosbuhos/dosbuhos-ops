@@ -1,7 +1,7 @@
 // The Guest Center importer: matching against stored rows, stable ids, the sync's upsert, cleanup of gc- copies.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { leerCsv, aMs, deExport, comparar, leerFilas, sentencias } from '../scripts/importar-guestcenter.mjs';
+import { leerCsv, aMs, deExport, comparar, leerFilas, sentencias, huespedesSql } from '../scripts/importar-guestcenter.mjs';
 import { growth } from './d1.js';
 
 const CAB = 'Fecha de visita,Hora de visita,Fecha de creación,Hora de creación,Fecha de cancelación,Fecha de inasistencia,Fecha de asistencia,Fecha de término,Última actualización,Nombre del comensal,Número de teléfono,Tamaño,Estado,Mesa,Fuente';
@@ -68,4 +68,14 @@ test('bookings entered in the same minute keep their own rows; only an unaccount
   // If OpenTable only has one of them, the gc- twin is the leftover.
   const una = comparar(csv(dos, { fecha: '2026-11-15', hora: '15:30', creada: '2026-10-30', creadaHora: '12:28', p: 6, mesa: 'PIR1' }), guardadas);
   assert.deepEqual(una.borrar, ['gc-38944546f15b']);
+});
+
+test('guests of gc- reservations: name, phone and notes, never for walk-ins, an empty field never erases', () => {
+  const r = { id: 'gc-abc', origin: 'web', nombre: "Ana O'Hara", tel: '+52 415 555 0101', notas: 'Aniversario', servicio: '2026-12-01', statusAt: 1, createdAt: 1 };
+  const w = { ...r, id: 'gc-w', origin: 'walk-in' };
+  const [sql, ...resto] = huespedesSql({ nuevas: [r, w], copias: [] }, 5);
+  assert.equal(resto.length, 0);
+  assert.match(sql, /'gc-abc','Ana O''Hara','','','\+52 415 555 0101','2026-12-01',1,5,'Aniversario'/);
+  assert.doesNotMatch(sql, /gc-w/);
+  assert.match(sql, /first_name = CASE WHEN excluded.first_name <> '' THEN excluded.first_name ELSE guests.first_name END/);
 });

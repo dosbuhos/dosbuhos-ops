@@ -175,6 +175,8 @@ function etiquetas(r, dia, { todas = false } = {}) {
   const t = [];
   if (r.mesa && !todas) t.push(`<span class="tag mesa">${esc(r.mesa)}</span>`);   // the sheet shows the table in its own tile
   if (r.experiencia) t.push(`<span class="tag prep">Prepagada${todas ? '' : `: ${esc(EXP_C[r.experiencia.nombre] || r.experiencia.nombre)}`}</span>`);
+  const nota = r.huesped?.nota || '';
+  if (/no cobrar/i.test(nota)) t.push(`<span class="tag pagada">${/rezdy/i.test(nota) ? 'Pagado en Rezdy' : 'No cobrar'}</span>`);   // the host must not charge again
   if (r.historial?.visitas) t.push(`<span class="tag vuelve">${ordinal(r.historial.visitas + 1)} visita</span>`);
   if (r.historial?.faltas) t.push(`<span class="tag falto">Faltó ${r.historial.faltas === 1 ? '1 vez' : `${r.historial.faltas} veces`}</span>`);
   if (!todas && r.origen && r.origen !== 'web') t.push(`<span>${ORIGEN_C[r.origen] || esc(r.origen)}</span>`);
@@ -182,12 +184,15 @@ function etiquetas(r, dia, { todas = false } = {}) {
   return t.join('');
 }
 
+// The visit note minus Rezdy's bookkeeping (code, product, "see payment in Rezdy"), which the tags already say.
+const notaCorta = (r) => String(r.huesped?.nota || '').replace(/Rezdy\s+\w+\s*-\s*[^()]*\([^)]*\)\.?/gi, '').replace(/Ver pago en Rezdy;?\s*no cobrar aqu[ií]\.?/gi, '').replace(/\s+/g, ' ').trim();
+
 function filaReserva(r, dia) {
   const e = estadoDe(r, dia), fuera = r.estado === 'cancelled' || r.estado === 'no_show';
   return `<li class="reserva${fuera ? ' fuera' : ''}"><button class="fila s-${e.c}" type="button" data-abrir="${esc(r.id)}" aria-haspopup="dialog">
       <span class="hora">${r.hora ? esc(r.hora) : '<span class="sd">s/h</span>'}</span>
       <span class="pax${r.personas >= GRANDE ? ' grande' : ''}" aria-label="${r.personas ? cuantos(r.personas, 'persona', 'personas') : 'personas sin dato'}">${r.personas ? num(r.personas) : '?'}</span>
-      <span class="quien"><span class="n">${nombreDe(r)}</span><span class="meta">${etiquetas(r, dia)}</span></span>
+      <span class="quien"><span class="n">${nombreDe(r)}</span><span class="meta">${etiquetas(r, dia)}</span>${notaCorta(r) ? `<span class="nota-fila">${esc(notaCorta(r))}</span>` : ''}</span>
       <span class="estado${dia.pasado ? ' callado' : ''}" title="${e.t}">${e.i}<span class="txt">${e.t}</span></span></button></li>`;
 }
 
@@ -215,6 +220,7 @@ function abrirHoja(id) {
       <h2 class="nombre" id="hoja-nombre">${nombreDe(r)}</h2>
       ${etiquetas(r, dia, { todas: true }) ? `<div class="tags">${etiquetas(r, dia, { todas: true })}</div>` : ''}
       <div class="grandes"><div><b>${r.personas ? num(r.personas) : SD}</b><span>${r.personas === 1 ? 'persona' : 'personas'}</span></div><div><b>${r.mesa ? esc(r.mesa) : SD}</b><span>mesa</span></div><div><b>${ant ? esc(ant.replace(' antes', '')) : SD}</b><span>de anticipación</span></div></div>
+      ${h?.nota ? `<div class="nota-visita"><b>Nota de la visita</b><p>${esc(h.nota)}</p></div>` : ''}
       ${acciones}${linea}
       <dl class="datos">${filas.join('')}</dl>
       ${h ? `<p class="nota">Datos de OpenTable, para atender esta reservación. Se borran de aquí ${S.datos.retencionDias} días después de la visita.</p>` : ''}
@@ -345,8 +351,8 @@ function pintarManifiesto(d) {
   const actual = d.hoy >= d.desde && d.hoy <= d.hasta, dif = Math.round((Date.parse(d.desde) - Date.parse(lunesDe(d.hoy))) / 604_800_000);
   paso(rangoTxt(d.desde, d.hasta), dif === 0 ? 'Esta semana' : dif === -1 ? 'Semana pasada' : dif === 1 ? 'Semana próxima' : '', { atras: ruta('r', d.anterior), adelante: ruta('r', d.siguiente), actual });
   const partes = d.dias.map(partesDia), max = Math.max(1, ...partes.map((p) => p.hecha + p.conf + p.res));
-  const tira = d.dias.map((x, i) => { const p = pf(x.fecha), q = partes[i], n = q.hecha + q.conf + q.res, alto = (v) => Math.max(v ? 3 : 0, Math.round((v / max) * 54));
-    const segs = [['hecha', q.hecha], ['conf', q.conf], ['res', q.res]].filter(([, v]) => v > 0).map(([k, v]) => `<i class="${k}" style="height:${alto(v)}px"></i>`).join('');
+  const tira = d.dias.map((x, i) => { const p = pf(x.fecha), q = partes[i], n = q.hecha + q.conf + q.res, alto = (v) => `${Math.max(v ? 4 : 0, (v / max) * 100).toFixed(1)}%`;   // of the column's height, which CSS sets per screen
+    const segs = [['hecha', q.hecha], ['conf', q.conf], ['res', q.res]].filter(([, v]) => v > 0).map(([k, v]) => `<i class="${k}" style="height:${alto(v)}"></i>`).join('');
     return `<button type="button" data-dia="${x.fecha}" class="${x.hoy ? 'es-hoy ' : ''}${x.abierto ? '' : 'cerrado'}" aria-label="${esc(`${fLargo(x.fecha)}: ${x.abierto ? `${cuantos(n, 'persona', 'personas')}${q.res ? `, ${q.res} sin confirmar` : ''}` : 'sin servicio'}`)}">
       <span class="col${n ? '' : ' cero'}">${segs}</span><span class="n">${x.abierto ? num(n) : '–'}</span><span class="d">${DIA_C[p.w]} ${p.d}</span></button>`; }).join('');
   const t = d.totales, conf = partes.reduce((a, p) => a + p.conf, 0), res = partes.reduce((a, p) => a + p.res, 0), hecha = partes.reduce((a, p) => a + p.hecha, 0);
@@ -355,12 +361,14 @@ function pintarManifiesto(d) {
   const diaHoy = actual ? d.dias.find((x) => x.hoy) : null;
   if (diaHoy && (diaHoy.abierto || diaHoy.reservas.length)) izq += bloqueHoy(diaHoy);
   izq += bloquePendientes(d);
-  izq += `<section class="bloque semana" aria-label="La semana"><div class="tot"><span class="grupo"><b>${num(t.personas)}</b><span>personas</span></span><span class="grupo"><b>${num(t.reservas)}</b><span>reservaciones</span></span></div>
+  if (d.fresco.errorHuespedes) izq += `<div class="aviso mal">${IC.alerta}<p>Los nombres de los huéspedes no se están actualizando${d.yo.admin ? `: ${esc(d.fresco.errorHuespedes)}` : '. Avisa a quien administra el Hub.'}</p></div>`;
+  // Phones: today, to-dos, the week, then the days. Wide screens: the week across the top, the days on the left and
+  // today and the to-dos in a rail on the right (CSS places them).
+  const semana = `<section class="bloque semana" aria-label="La semana"><div class="tot"><span class="grupo"><b>${num(t.personas)}</b><span>personas</span></span><span class="grupo"><b>${num(t.reservas)}</b><span>reservaciones</span></span></div>
     <div class="tira">${tira}</div>
     <div class="clave">${hecha ? '<span><i class="hecha"></i>Atendidas</span>' : ''}${conf ? '<span><i></i>Confirmadas</span>' : ''}${res ? '<span><i class="res"></i>Sin confirmar</span>' : ''}${extra.length ? `<span>${mayus(extra.join(', '))}</span>` : ''}</div></section>`;
-  if (d.dias.some((x) => x.incompleto && x.abierto)) izq += `<div class="aviso">${IC.info}<p>Pueden faltar reservaciones hechas antes del ${fDiaMes(d.feedDesde)}, cuando se conectó OpenTable. Los prepagos en línea sí aparecen.</p></div>`;
-  if (d.fresco.errorHuespedes) izq += `<div class="aviso mal">${IC.alerta}<p>Los nombres de los huéspedes no se están actualizando${d.yo.admin ? `: ${esc(d.fresco.errorHuespedes)}` : '. Avisa a quien administra el Hub.'}</p></div>`;
-  let h = `<div class="col-izq">${izq}</div><button class="fab" type="button" data-nueva="${actual ? d.hoy : d.desde}" aria-label="Nueva reservación">${IC.mas}<span>Nueva reservación</span></button>`;
+  $('#nueva-paso').hidden = false; $('#nueva-paso').dataset.nueva = actual ? d.hoy : d.desde;
+  let h = `<div class="col-izq">${izq}</div>${semana}<button class="fab" type="button" data-nueva="${actual ? d.hoy : d.desde}" aria-label="Nueva reservación">${IC.mas}<span>Nueva reservación</span></button>`;
   let cerrados = [];
   const soltar = () => { if (cerrados.length) { h += `<p class="cerrados">${mayus(cerrados.map((f) => `${DIAS[pf(f).w]} ${pf(f).d}`).join(' y '))}: sin servicio.</p>`; cerrados = []; } };
   for (const x of d.dias) { if (x.abierto) { soltar(); h += bloqueDia(x); } else cerrados.push(x.fecha); }
@@ -382,6 +390,7 @@ const tabla = (cab, filas) => `<details class="tabla"><summary>Ver como tabla</s
 const figura = (titulo, sub, cuerpo, { lado = '', ancho = false } = {}) => `<figure class="bloque fig${ancho ? ' ancho' : ''}"><header>${lado ? `<div class="con-lado"><h2>${titulo}</h2>${lado}</div>` : `<h2>${titulo}</h2>`}${sub ? `<p>${sub}</p>` : ''}</header>${cuerpo}</figure>`;
 
 function pintarVentas(v) {
+  $('#nueva-paso').hidden = true;
   const P = v.periodo, hoy = v.hoy, actual = hoy >= v.desde && hoy <= v.hasta, w = pf(v.desde).w;
   const titulo = P === 'dia' ? mayus(fCorto(v.desde)) : P === 'semana' ? rangoTxt(v.desde, v.hasta) : `${mayus(MESES[pf(v.desde).m - 1])} ${pf(v.desde).y}`;
   const sub = P === 'dia' ? (v.desde === hoy ? 'Hoy' : v.desde === sumar(hoy, -1) ? 'Ayer' : '') : actual ? (P === 'semana' ? 'Esta semana' : 'Este mes') : '';

@@ -7,9 +7,10 @@ import { casar, preciosPorPersona, nombreExperiencia } from './experiencias.js';
 import { ventasDeLaSemana, diasAbiertos } from './ventas.js';
 import { estadoSync, RETENCION_DIAS } from './huespedes.js';
 
-/** OpenTable was connected to Klaviyo on this day. A reservation booked earlier for a later date is not in the feed
- *  until OpenTable sends another event for it, so the days ahead can be short for a while. */
-export const FEED_DESDE = '2026-11-22';
+/** First day with complete reservations: the Klaviyo feed started on 22 Nov 2026, and the Guest Center import
+ *  (scripts/importar-guestcenter.mjs, 24 Nov) filled in every booking, walk-in and guest from here on, future ones
+ *  included. So the days ahead are no longer short, and repeat-guest history reaches back to this day. */
+export const FEED_DESDE = '2026-09-02';
 /** Nearly every booking is made within a few weeks of the visit; after this many days the warning stops. */
 const AVISO_DIAS = 60;
 
@@ -74,7 +75,7 @@ async function huespedesDe(db, ids) {
   const out = new Map();
   for (let i = 0; i < ids.length; i += 80) {
     const parte = ids.slice(i, i + 80);
-    for (const g of await todos(db, `SELECT confirmation_id, first_name, last_name, email, phone FROM guests WHERE confirmation_id IN (${parte.map(() => '?').join(',')})`, ...parte)) out.set(g.confirmation_id, g);
+    for (const g of await todos(db, `SELECT confirmation_id, first_name, last_name, email, phone, notes FROM guests WHERE confirmation_id IN (${parte.map(() => '?').join(',')})`, ...parte)) out.set(g.confirmation_id, g);
   }
   return out;
 }
@@ -114,7 +115,7 @@ export async function semana(env, yo, desde, hoy, ahora = Date.now()) {
       return {
         id: r.confirmation_id, hora: filas[i].hora, personas: r.party_size, mesa: r.table_name || null, origen: r.origin || null, estado: r.status,
         reservada: r.created_at, llego: r.arrived_at, sentado: r.seated_at, salio: r.done_at, cuenta: r.pos_total_minor,
-        huesped: h ? { nombre: nombre || null, telefono: h.phone || null, correo: h.email || null } : null,
+        huesped: h ? { nombre: nombre || null, telefono: h.phone || null, correo: h.email || null, ...(h.notes ? { nota: h.notes } : {}) } : null,
         huespedBorrado: !h && fecha < borradoAntesDe,
         experiencia: exp ? { nombre: nombreExperiencia(exp.experiencia), monto: exp.monto, seguridad: exp.seguridad, ...(exp.pais ? { pais: exp.pais } : {}) } : null,
         historial: antes.get(r.confirmation_id) || null,

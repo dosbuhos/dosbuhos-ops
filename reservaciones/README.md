@@ -94,3 +94,8 @@ creation minute), the sync deletes the copy (growth `klaviyo-reservations.ts`); 
 its export no longer accounts for it. Bookings entered in the same minute keep their own rows. Run it after each
 Guest Center export (a daily scheduled task is pending approval).
 
+Klaviyo never had these bookings, so it has no names for them. The importer also writes `huespedes-NN.sql` for this
+app's database (`DB`): the guest name, phone and visit notes (migration 0002) of every `gc-` reservation, new or
+already stored; walk-ins stay unnamed. Notes show in the row (one line) and in full on the reservation sheet; a note
+saying "no cobrar aquí" adds a "Pagado en Rezdy" / "No cobrar" tag. Apply the growth files first, then these.
+

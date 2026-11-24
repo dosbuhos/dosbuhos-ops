@@ -135,11 +135,12 @@ main.cargando { opacity: .55; }
 .tira { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
 .tira button { background: none; border: 0; display: grid; grid-template-rows: 58px auto auto; justify-items: center; align-items: end; gap: 3px; padding: 4px 0 5px; border-radius: 10px; color: var(--text); min-width: 0; }
 .tira button:hover { background: var(--soft); }
-.tira .col { width: min(26px, 66%); display: flex; flex-direction: column-reverse; gap: 2px; align-self: end; }
+.tira .col { width: min(26px, 66%); height: 100%; display: flex; flex-direction: column-reverse; gap: 2px; align-self: end; }
+.tira .col i { flex: none; }
 .tira .col i { display: block; width: 100%; background: var(--st-conf); border-radius: 2px; }
 .tira .col i:last-child { border-radius: 5px 5px 2px 2px; } .tira .col i:only-child { border-radius: 5px 5px 2px 2px; }
 .tira .col i.res { background: var(--st-res); } .tira .col i.hecha { background: var(--st-hecha); }
-.tira .col.cero { height: 2px; background: var(--rule-2); border-radius: 1px; }
+.tira .col.cero { height: 2px; align-self: end; background: var(--rule-2); border-radius: 1px; }
 .tira .n { font-size: 1.05rem; font-weight: 800; font-stretch: 75%; line-height: 1; font-variant-numeric: tabular-nums; }
 .tira .d { font-size: .7rem; color: var(--muted); line-height: 1.1; text-align: center; white-space: nowrap; }
 .tira button.es-hoy { background: var(--now); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); } .tira button.es-hoy .d { color: var(--text); font-weight: 750; }
@@ -177,6 +178,10 @@ main.cargando { opacity: .55; }
 .tag.mesa { font-stretch: 85%; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
 .tag.prep { background: color-mix(in srgb, var(--st-mesa) 10%, var(--card)); border-color: color-mix(in srgb, var(--st-mesa) 30%, var(--rule)); color: var(--st-mesa); }
 .tag.vuelve { background: color-mix(in srgb, var(--ok) 13%, var(--card)); border-color: color-mix(in srgb, var(--ok) 35%, var(--rule)); color: var(--ok); }
+.tag.pagada { background: color-mix(in srgb, var(--ok) 12%, var(--card)); border-color: color-mix(in srgb, var(--ok) 35%, var(--rule)); color: var(--ok); }
+.nota-fila { display: block; margin-top: 3px; font-size: .8rem; color: var(--muted); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nota-visita { background: color-mix(in srgb, var(--st-res) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--st-res) 30%, var(--rule)); border-radius: 12px; padding: 10px 12px; font-size: .9rem; line-height: 1.4; }
+.nota-visita b { display: block; font-size: .74rem; color: var(--st-cerrar); font-weight: 750; margin-bottom: 2px; }
 .tag.falto { background: color-mix(in srgb, var(--bad) 11%, var(--card)); border-color: color-mix(in srgb, var(--bad) 32%, var(--rule)); color: var(--bad); }
 .estado { justify-self: end; display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; font-weight: 750; white-space: nowrap; color: var(--st); }
 .estado.callado .txt { display: none; } .estado.callado { opacity: .8; }
@@ -349,12 +354,28 @@ details.tabla th, details.tabla td { text-align: right; padding: 5px 3px; border
 @media (min-width: 1240px) {
   main[data-vista="v"] { max-width: 1120px; grid-template-columns: 1fr 1fr; align-items: start; }
   main[data-vista="v"] > .ancho, main[data-vista="v"] > .pie, main[data-vista="v"] > .aviso { grid-column: 1 / -1; }
-  main[data-vista="r"] { max-width: 1120px; grid-template-columns: 360px minmax(0, 1fr); align-items: start; }
-  main[data-vista="r"] > .col-izq { grid-column: 1; position: sticky; top: calc(var(--paso) + 16px); display: grid; gap: 14px; }
-  main[data-vista="r"] > :not(.col-izq) { grid-column: 2; }
-  main[data-vista="r"] > .col-izq { grid-row: 1 / span 40; }
 }
+/* Reservations on a wide screen: the week across the top, the days on the left, today and the to-dos in a rail. */
 .col-izq { display: contents; }
-@media (min-width: 1240px) { .col-izq { display: grid; } }
+.btn-nueva { display: none; }
+@media (min-width: 1100px) {
+  main[data-vista="r"] { max-width: 1400px; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 20px; row-gap: 14px; align-items: start; }
+  main[data-vista="r"] > * { grid-column: 1; }
+  main[data-vista="r"] > .semana { grid-column: 1 / -1; grid-row: 1; }
+  main[data-vista="r"] > .col-izq { display: grid; gap: 14px; grid-column: 2; grid-row: 2 / span 60; position: sticky; top: calc(var(--paso) + 16px); max-height: calc(100vh - var(--paso) - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .semana { grid-template-columns: 210px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 24px; align-items: start; padding: 16px 20px 14px; }
+  .semana .tot { grid-column: 1; flex-direction: column; gap: 10px; } .semana .tot b { font-size: 2.6rem; }
+  .semana .clave { grid-column: 1; flex-direction: column; gap: 4px; }
+  .semana .tira { grid-column: 2; grid-row: 1 / 3; gap: 10px; }
+  .tira button { grid-template-rows: 92px auto auto; padding: 8px 0 8px; }
+  .tira .col { width: min(44px, 60%); }
+  .tira .n { font-size: 1.35rem; } .tira .d { font-size: .8rem; }
+  .fab { display: none !important; }
+  .btn-nueva { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; min-height: 38px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--pulso); color: #06222a; font-weight: 750; font-size: .9rem; }
+  .btn-nueva[hidden] { display: none; }
+  .btn-nueva svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+  .btn-nueva:not([hidden]) + .recargar-ancho { margin-left: 6px; }
+  .dia > .cab { padding: 10px 18px; } .fila { padding-left: 18px; padding-right: 16px; min-height: 56px; grid-template-columns: 56px 40px minmax(0, 1fr) auto; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media print { .paso, .pestanas, .lado, .arriba, .hoja { display: none !important; } body { background: #fff; padding: 0; } .dia > .cab { position: static; } }

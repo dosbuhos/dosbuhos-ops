@@ -83,7 +83,7 @@ export function tendencia({ ancho, puntos, alto = 176, formato = pesosCorto }) {
  */
 export function ritmo({ ancho, franjas, desde = 20, hasta = 37, ya = null }) {
   const a = Math.min(desde, ...franjas.map((f) => f.media)), b = Math.max(hasta, ...franjas.map((f) => f.media));
-  const n = b - a + 1, alto = 64, mt = 15, mb = 15, h = alto - mt - mb, banda = ancho / n, bw = Math.max(4, Math.min(18, banda - 3));
+  const n = b - a + 1, mt = ya !== null ? 28 : 15 /* room above the bars for "ahora" */, alto = 49 + mt, mb = 15, h = alto - mt - mb, banda = ancho / n, bw = Math.max(4, Math.min(18, banda - 3));
   const max = Math.max(1, ...franjas.map((f) => f.personas)), tope = franjas.reduce((m, f) => (f.personas > (m?.personas ?? 0) ? f : m), null);
   const todas = banda >= 13;
   const hhmm = (k) => `${Math.floor(k / 2)}:${k % 2 ? '30' : '00'}`;
@@ -97,7 +97,7 @@ export function ritmo({ ancho, franjas, desde = 20, hasta = 37, ya = null }) {
   }
   if (ya !== null && ya >= a - 0.5 && ya <= b + 0.5) {
     const x = r1(banda * (ya - a + 0.5));
-    s += `<line class="ya" x1="${x}" x2="${x}" y1="${mt - 4}" y2="${mt + h + 3}"/><text class="ya-t" x="${x}" y="${mt - 6}" text-anchor="${x < 30 ? 'start' : x > ancho - 30 ? 'end' : 'middle'}">ahora</text>`;
+    s += `<line class="ya" x1="${x}" x2="${x}" y1="12" y2="${mt + h + 3}"/><text class="ya-t" x="${x}" y="9" text-anchor="${x < 30 ? 'start' : x > ancho - 30 ? 'end' : 'middle'}">ahora</text>`;
   }
   return `${s}</svg>`;
 }

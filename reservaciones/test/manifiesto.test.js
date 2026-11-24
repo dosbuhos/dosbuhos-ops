@@ -40,12 +40,12 @@ test('a week is seven days with each reservation, its guest and its totals; canc
   assert.equal(c.length > 0, true);
 });
 
-test('open days, today, and the days ahead that may be short while the feed is young', async () => {
+test('open days and today; with the Guest Center import (from 2 Sep) no day ahead is short any more', async () => {
   const { env } = datos();
   const s = await semana(env, { ventas: false }, LUNES, HOY, AHORA);
   assert.deepEqual(s.dias.map((d) => [d.fecha.slice(8), d.abierto, d.hoy, d.pasado, d.incompleto]), [
-    ['23', false, false, true, false], ['24', false, false, true, false], ['25', false, false, true, false], ['26', false, true, false, true],
-    ['27', false, false, false, true], ['28', true, false, false, true], ['29', true, false, false, true],
+    ['23', false, false, true, false], ['24', false, false, true, false], ['25', false, false, true, false], ['26', false, true, false, false],
+    ['27', false, false, false, false], ['28', true, false, false, false], ['29', true, false, false, false],
   ]);
   assert.equal(s.feedDesde, FEED_DESDE);
   const lejos = await semana(env, { ventas: false }, '2027-03-01', HOY, AHORA);

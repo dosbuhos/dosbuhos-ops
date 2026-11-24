@@ -12,7 +12,8 @@
 //
 // Usage: node scripts/importar-guestcenter.mjs <export.csv> <rows.txt> [out-dir]
 //   rows.txt: the output of FILAS_SQL below (one line: id|service_date|created minute|time|size|table|status;…).
-// Writes out-dir/import-NN.sql (up to 4 statements each, about 100 rows) and prints a summary as JSON.
+// Writes out-dir/import-NN.sql (growth database; up to 4 statements each, about 100 rows), out-dir/huespedes-NN.sql
+// (Pulso's database: names, phones and visit notes of the gc- rows) and prints a summary as JSON.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
@@ -27,7 +28,7 @@ const COL = {
   cancelada: ['Fecha de cancelación', 'Canceled Date'], noLlego: ['Fecha de inasistencia', 'No-show Date'],
   sentada: ['Fecha de asistencia', 'Seated Date'], termino: ['Fecha de término', 'Finished Date'], cambio: ['Última actualización', 'Last Updated'],
   nombre: ['Nombre del comensal', 'Guest Name'], tel: ['Número de teléfono', 'Phone Number'], personas: ['Tamaño', 'Size'],
-  estado: ['Estado', 'Status'], mesa: ['Mesa', 'Table'], fuente: ['Fuente', 'Source'],
+  estado: ['Estado', 'Status'], mesa: ['Mesa', 'Table'], fuente: ['Fuente', 'Source'], notas: ['Notas de la visita', 'Visit Notes'],
 };
 const ESTADO = {
   'listo': 'completed', 'done': 'completed', 'finished': 'completed', 'asumida como terminada': 'completed', 'assumed finished': 'completed',
@@ -89,6 +90,8 @@ export function deExport(x) {
     createdAt: creada, scheduledAt: visita, partySize: personas >= 1 && personas <= 500 ? personas : null,
     origin: origen, status: estado, statusAt, tableName: mesa,
     seatedAt: aMs(v('sentada')), doneAt: estado === 'completed' ? aMs(v('termino')) : null,
+    // The guest, for Pulso's guests table: what Klaviyo never had for these bookings.
+    nombre: v('nombre').replace(/\s+/g, ' ').slice(0, 120), tel: v('tel').replace(/\s+/g, ' ').slice(0, 40), notas: v('notas').replace(/\s+/g, ' ').slice(0, 600),
   };
 }
 
@@ -133,14 +136,15 @@ export function comparar(exportRows, guardadas) {
   const reales = guardadas.filter((g) => !g.id.startsWith('gc-'));
   const borrar = [...libres.values()].filter((g) => g.id.startsWith('gc-') && desde && g.servicio >= desde && g.servicio <= hasta
     && reales.some((x) => x.servicio === g.servicio && x.hora === g.hora && x.partySize === g.partySize && g.creadaMin && x.creadaMin === g.creadaMin)).map((g) => g.id);
-  const nuevas = [], actualizar = []; let yaEstan = 0;
+  const nuevas = [], actualizar = [], copias = []; let yaEstan = 0;
   for (const r of filas) {
     const g = pareja.get(r);
+    if (g && g.id.startsWith('gc-') && !borrar.includes(g.id)) copias.push({ ...r, id: g.id });
     if (!g) nuevas.push(r);
     else if (g.id.startsWith('gc-') && !borrar.includes(g.id) && (g.status !== r.status || g.hora !== r.hora || g.partySize !== r.partySize || g.tableName !== r.tableName.toUpperCase())) actualizar.push({ ...r, id: g.id });
     else yaEstan++;
   }
-  return { nuevas, actualizar, yaEstan, borrar, errores };
+  return { nuevas, actualizar, yaEstan, borrar, errores, copias };
 }
 
 const lit = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'number' ? String(Math.round(v)) : `'${String(v).replace(/'/g, "''")}'`);
@@ -163,6 +167,20 @@ export function sentencias(res, ahora) {
   return [...res.borrar.map((id) => `DELETE FROM ot_reservations WHERE confirmation_id = ${lit(id)} AND confirmation_id LIKE 'gc-%'`), ...altas, ...res.actualizar.map((r) => upsertSql(r, ahora))];
 }
 
+/**
+ * Guests for Pulso's own database (binding DB, not growth): name, phone and the visit notes of every gc- reservation,
+ * new or already stored. Walk-ins are counted, never named. The export is the only source for these bookings, so it
+ * decides; an empty field never erases a known one. Kept 90 days after the visit, like every guest (src/huespedes.js).
+ */
+export function huespedesSql(res, ahora) {
+  const filas = [...res.nuevas, ...res.copias].filter((r) => r.origin !== 'walk-in' && (r.nombre || r.tel || r.notas));
+  const fila = (r) => `(${[r.id, r.nombre, '', '', r.tel, r.servicio, r.statusAt ?? r.createdAt ?? ahora, ahora, r.notas].map(lit).join(',')})`;
+  const toma = (c) => `${c} = CASE WHEN excluded.${c} <> '' THEN excluded.${c} ELSE guests.${c} END`;
+  const out = [];
+  for (let i = 0; i < filas.length; i += 25) out.push(`INSERT INTO guests (confirmation_id, first_name, last_name, email, phone, service_date, event_at, updated_at, notes) VALUES ${filas.slice(i, i + 25).map(fila).join(',')} ON CONFLICT(confirmation_id) DO UPDATE SET ${toma('first_name')}, ${toma('phone')}, notes = excluded.notes, service_date = excluded.service_date, event_at = MAX(excluded.event_at, guests.event_at), updated_at = excluded.updated_at`);
+  return out;
+}
+
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const [csvPath, filasPath, out = './import-sql'] = process.argv.slice(2);
   if (!csvPath || !filasPath) { console.error('Uso: node scripts/importar-guestcenter.mjs <export.csv> <rows.txt> [out-dir]'); process.exit(2); }
@@ -170,6 +188,9 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const sql = sentencias(res, Date.now());
   mkdirSync(out, { recursive: true });
   for (let i = 0; i < sql.length; i += 4) writeFileSync(`${out}/import-${String(i / 4 + 1).padStart(2, '0')}.sql`, `${sql.slice(i, i + 4).join(';\n')};\n`);
+  // Pulso's database: apply with --database reservaciones (or the D1 tool on its id), after the files above.
+  const hs = huespedesSql(res, Date.now());
+  for (let i = 0; i < hs.length; i += 4) writeFileSync(`${out}/huespedes-${String(i / 4 + 1).padStart(2, '0')}.sql`, `${hs.slice(i, i + 4).join(';\n')};\n`);
   const por = (L, k) => L.reduce((m, r) => ((m[r[k]] = (m[r[k]] || 0) + 1), m), {});
-  console.log(JSON.stringify({ yaEstan: res.yaEstan, nuevas: res.nuevas.length, nuevasPorOrigen: por(res.nuevas, 'origin'), actualizar: res.actualizar.length, borrar: res.borrar.length, errores: res.errores, archivos: Math.ceil(sql.length / 4) }, null, 1));
+  console.log(JSON.stringify({ yaEstan: res.yaEstan, nuevas: res.nuevas.length, nuevasPorOrigen: por(res.nuevas, 'origin'), actualizar: res.actualizar.length, borrar: res.borrar.length, errores: res.errores, archivos: Math.ceil(sql.length / 4), huespedes: res.nuevas.concat(res.copias).filter((r) => r.origin !== 'walk-in' && (r.nombre || r.tel || r.notas)).length }, null, 1));
 }
