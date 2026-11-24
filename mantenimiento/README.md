@@ -26,21 +26,21 @@ The garden has little signal, so Esmero works offline (`public/sw.js` + `public/
 - **Version.** `V` and the file list in `sw.js` must match the `?v=` in `index.html` (`test/shell.test.mjs` checks).
   Tests: `python3 test/offline.py` (the service worker is not registered on 127.0.0.1 unless the page is opened with `?sw`).
 
-## Access: open sign-up (Eric, Nov 2026)
+## Access
+The WhatsApp number is the username, and only people an administrator registered can enter (Eric, 24 Nov 2026).
+- **Adding someone.** Cuenta → Personas → *Agregar persona*: name, WhatsApp, administrator or not. The app shows a six-digit
+  one-time code (good for 7 days, kept only as a hash) with a button to send it by WhatsApp. With it the person chooses their
+  own password (PBKDF2-SHA-256, `src/auth.js`); the code then stops working.
+- **Forgotten password.** Personas → the person → *Darle un código nuevo*: their password stops working and their phones are
+  signed out until they enter with the new code. Everyone can change their own password in Mi cuenta.
+- **Wrong passwords.** After 8 in a row the account rests 15 minutes.
+- **Sessions** last a year and renew every time the app is opened. An empty database lets the first person in as administrator.
+- Columns: `users.pin_hash` / `pin_salt` (the password, '' = none yet), `temp_hash` / `temp_salt` / `temp_until` (the code).
 
-No PIN, no links, no approval. A person opens the address, types **name + WhatsApp (+ email, optional)** once per
-phone and is in; the session lasts a year and renews on every visit.
-
-- The last 10 digits of the phone identify the person (`users.phone_key`), so `415 123 4567`, `+52 415…` and
-  `521415…` are the same account. Typing a registered phone signs that person back in.
-- An administrator with an email on file also has to type it (they can delete things and remove people). There is
-  no code or password: knowing someone's phone is enough to enter as them, which is the trade-off of having no gates.
-- Everyone can report, assign, set priority and dates, postpone, add notes and photos, add equipment, contacts and
-  plans. Only administrators delete, manage people and edit the areas.
-- Cuenta → Personas: close or reopen sign-up (`settings.signup_open`), make someone an administrator, remove access.
-- Safety nets: 40 sign-ups a day at most, `noindex` everywhere, `robots.txt` disallows all.
-- A person who signs up gets a card in Contactos (or takes over the card someone already made with their phone), so
-  work can be assigned to them.
+## Steps
+Lines of a pendiente's instructions written as a list (`1.`, `2)`, `-`, `•`) show as boxes to tick on its page; the ticks are
+kept in `tasks.checks`. Closing it with steps left unticked writes "Se cerró con N pasos sin marcar" in its history. A plan's
+instructions written that way become the steps of every visit.
 
 ## Screens
 
@@ -94,7 +94,7 @@ WhatsApp is by link (`wa.me`) with the pendiente's details filled in; nothing is
   (self-hosted in `public/fonts/`), flat lists ruled with hairlines on a phone, boxed cards in the columns of a wide screen. Colour is kept for state (red late, amber today or waiting, green
   done) and the area tags. It does not load the Hub's theme, so the Hub's presets do not restyle it.
 - Lists by area: under the priorities, *Áreas* opens (and stays as it was left) to show each area with its open pendientes; an area is a list like any other, by priority (`#/area/N`, `#/area/0` for what has none). On a phone it is in the menu.
-- `migrations/` — D1 schema. 0001–0008 are applied to the remote database. The tables `login_links` and `purchases`
+- `migrations/` — D1 schema. 0001–0009 are applied to the remote database. The tables `login_links` and `purchases`
   are left from the PIN / link version and are not used.
 
 ## Deploy

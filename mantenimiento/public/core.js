@@ -296,6 +296,37 @@ function openViewer(photoId, { canDelete = false, onDelete = null } = {}) {
 // Photos already saved, with an "add" tile. inputId = the hidden file input.
 // The photos of a pendiente, large: one fills the width, the rest are a slide away. A photo says what is wrong
 // faster than its title, so it is the first thing on the screen and one tap from full size.
+// The steps of a pendiente: lines of its description written as a list ("1. …", "2) …", "- …", "• …") become boxes
+// to tick (the server counts them the same way, to note in the history when something is closed with steps left).
+const STEP = /^\s*(?:\d{1,2}[.)]|[-*•]|\[[ xX]?\])\s+(?=\S)/;
+function descHTML(t, open) {
+  const lines = String(t.description || '').split('\n');
+  const done = new Set(Array.isArray(t.checks) ? t.checks : (() => { try { return JSON.parse(t.checks || '[]'); } catch { return []; } })());
+  let n = 0, html = '', para = [];
+  const flush = () => { if (para.join('').trim()) html += `<p class="desc">${esc(para.join('\n').trim())}</p>`; para = []; };
+  const steps = [];
+  for (const l of lines) {
+    if (STEP.test(l)) { flush(); steps.push(l); html += `\u0000${n++}\u0000`; } else para.push(l);
+  }
+  flush();
+  if (!n) return html;
+  const ticked = [...done].filter((i) => i < n).length;
+  let k = 0;
+  html = html.replace(/(\u0000\d+\u0000)+/g, (run) => {
+    const ids = run.split('\u0000').filter(Boolean).map(Number);
+    return `<ol class="steps">${ids.map((i) => `<li><label class="step ${done.has(i) ? 'on' : ''}"><input type="checkbox" data-step="${i}" ${done.has(i) ? 'checked' : ''} ${open ? '' : 'disabled'}><span>${esc(steps[i].replace(STEP, ''))}</span></label></li>`).join('')}</ol>`;
+  });
+  return `<p class="stepn" id="d-stepn">${ticked === n ? 'Todos los pasos marcados' : `${ticked} de ${n} pasos`}</p>` + html;
+}
+function bindSteps(root, t) {
+  $$('[data-step]', root).forEach((cb) => (cb.onchange = async () => {
+    const all = $$('[data-step]', root), on = all.filter((x) => x.checked).map((x) => Number(x.dataset.step));
+    cb.closest('.step').classList.toggle('on', cb.checked);
+    const c = $('#d-stepn', root); if (c) c.textContent = on.length === all.length ? 'Todos los pasos marcados' : `${on.length} de ${all.length} pasos`;
+    t.checks = JSON.stringify(on);
+    try { await api('PATCH', '/tasks/' + t.id, { checks: on }); touch(); } catch (e) { toast(e.message, { bad: true }); }
+  }));
+}
 function photoStrip(photos) {
   if (!photos.length) return '';
   return `<div class="pwrap"><div class="pstrip ${photos.length > 1 ? 'many' : ''}" data-strip tabindex="0" aria-label="${plural(photos.length, 'foto', 'fotos')}">

@@ -2,44 +2,60 @@
 'use strict';
 
 // ---------- entering: sign up once per phone, no PIN, no approval ----------
-function showEnter() {
+// Entering: the WhatsApp number and a password. The first time, the password is the one-time code an administrator
+// sent by WhatsApp, and the person then chooses their own. An empty database asks the first person for their name too.
+function showEnter(step = 'pass', ctx = {}) {
   if (sheet.close) sheet.close();
   if (openViewer.close) openViewer.close();
   NAV.classList.add('hidden');
   document.body.classList.remove('authed', 'has-bar', 'cal');
   const me = store('mt_me') || {};
+  const eye = (id) => `<button type="button" class="eye" data-eye="${id}" aria-label="Mostrar la contraseña" aria-pressed="false">${ic('eye')}</button>`;
+  const pw = (id, label, auto, hint = '') => `<div class="field"><label class="flabel" for="${id}">${label}</label>
+    <div class="pwrow"><input class="input" id="${id}" type="password" maxlength="64" autocomplete="${auto}" autocapitalize="none" spellcheck="false" enterkeyhint="go">${eye(id)}</div>${hint ? `<p class="hint">${hint}</p>` : ''}</div>`;
+  const body = step === 'new'
+    ? `<p class="lead">Hola ${esc(ctx.name || '')}. Elige la contraseña que vas a usar desde ahora en lugar del código.</p>
+       <input type="hidden" id="en-phone" value="${esc(ctx.phone)}" autocomplete="username">
+       ${pw('en-new', 'Tu contraseña', 'new-password', 'Al menos 8 letras o números. Que sea fácil para ti y difícil de adivinar.')}`
+    : `<p class="lead">El mantenimiento de Dos Búhos. Entra con tu WhatsApp y tu contraseña; la primera vez, con el código que te mandaron.</p>
+       ${UI.firstRun ? fInput('en-name', 'Tu nombre y apellido', { placeholder: 'Ej. Lupita Ramírez', max: 60, attrs: 'autocomplete="name" autocapitalize="words" enterkeyhint="next"', hint: 'Eres la primera persona en Esmero: quedas como administrador.' }) : ''}
+       ${fInput('en-phone', 'Tu WhatsApp', { value: me.phone, type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'autocomplete="username" inputmode="tel" enterkeyhint="next"', hint: 'Si tu número es de Estados Unidos, empieza con +1.' })}
+       ${pw('en-pass', UI.firstRun ? 'Elige tu contraseña' : 'Contraseña o código', UI.firstRun ? 'new-password' : 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
     <h1>Esmero</h1>
-    <p class="lead">El mantenimiento de Dos Búhos. Regístrate una sola vez en este teléfono; después entras directo.</p>
-    <form id="en-form" novalidate>
-      ${fInput('en-name', 'Tu nombre y apellido', { value: me.name, placeholder: 'Ej. Lupita Ramírez', max: 60, attrs: 'autocomplete="name" autocapitalize="words" enterkeyhint="next"' })}
-      ${fInput('en-phone', 'Tu WhatsApp', { value: me.phone, type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'autocomplete="tel" inputmode="tel" enterkeyhint="next"', hint: 'Si tu número es de Estados Unidos, empieza con +1.' })}
-      ${fInput('en-email', 'Tu correo', { value: me.email, type: 'email', placeholder: 'nombre@correo.com', max: 120, optional: true, attrs: 'autocomplete="email" autocapitalize="none" spellcheck="false" enterkeyhint="go"' })}
+    <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
-      <button class="b block lg" type="submit" id="en-go">Entrar</button>
+      <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
     </form>
-    <p class="small center">¿Ya te habías registrado? Escribe el mismo WhatsApp y entras a tu cuenta.</p>
+    ${step === 'new' ? '' : '<p class="small center">¿No tienes código o lo olvidaste? Pídele uno nuevo a Adrián o a un administrador.</p>'}
   </div>`;
   window.scrollTo(0, 0);
+  $$('[data-eye]').forEach((b) => (b.onclick = () => { const i = $('#' + b.dataset.eye), on = i.type === 'password'; i.type = on ? 'text' : 'password'; b.setAttribute('aria-pressed', on); i.focus(); }));
   const err = $('#en-err');
+  const first0 = $('#en-new') || (me.phone ? $('#en-pass') : $('#en-name') || $('#en-phone'));
+  if (first0 && matchMedia('(min-width: 600px)').matches) first0.focus();
   $('#en-form').onsubmit = async (e) => {
     e.preventDefault();
-    const data = { name: $('#en-name').value.trim(), phone: $('#en-phone').value.trim(), email: $('#en-email').value.trim() };
     const bad = (msg, id) => { err.textContent = msg; err.classList.remove('hidden'); if (id) $('#' + id).focus(); };
-    // Only the phone is checked here: someone who is already registered gets in with it alone, and the server asks
-    // a new person for their name.
-    if (data.phone.replace(/\D/g, '').length < 10) return bad(data.name ? 'Escribe tu WhatsApp con los 10 dígitos' : 'Escribe tu nombre y tu WhatsApp', data.name ? 'en-phone' : 'en-name');
-    const go = $('#en-go');
+    const phone = $('#en-phone').value.trim();
+    const data = step === 'new' ? { phone, password: ctx.code, new_password: $('#en-new').value } : { phone, password: $('#en-pass').value, name: $('#en-name') ? $('#en-name').value.trim() : undefined };
+    if (step !== 'new' && UI.firstRun && (!data.name || data.name.length < 2)) return bad('Escribe tu nombre y apellido', 'en-name');
+    if (phone.replace(/\D/g, '').length < 10) return bad('Escribe tu WhatsApp con los 10 dígitos', 'en-phone');
+    if (step === 'new' ? !data.new_password : !data.password) return bad(step === 'new' ? 'Elige tu contraseña' : 'Escribe tu contraseña o el código que te mandaron', step === 'new' ? 'en-new' : 'en-pass');
+    const go = $('#en-go'), label = go.textContent;
     go.disabled = true; go.textContent = 'Entrando…';
     try {
       const r = await api('POST', '/enter', data);
+      if (r.need_new) return showEnter('new', { phone, code: data.password, name: r.name });
       S.user = r.user;
-      store('mt_me', { name: r.user.name, phone: r.user.phone || data.phone, email: r.user.email || data.email });
+      UI.firstRun = false;
+      store('mt_me', { name: r.user.name, phone: r.user.phone || phone });
       await loadBoot();
+      if (location.hash === '' || location.hash === '#') location.replace('#/');
       route();
     } catch (ex) {
-      go.disabled = false; go.textContent = 'Entrar';
+      go.disabled = false; go.textContent = label;
       bad(ex.message);
     }
   };
@@ -422,7 +438,7 @@ async function viewTask(id, keep = false) {
       <div class="hmeta">${areaTag(t)}${t.kind === 'preventivo' ? `<span class="pill">${ic('repeat')}Preventivo</span>` : t.kind === 'servicio' ? '<span class="pill">Servicio</span>' : ''}${open && t.priority === 1 ? `<b class="urgent">${ic('flag')}Urgente</b>` : ''}</div>
       <h2>${esc(t.title)}</h2>
       <p class="by">${t.created_by_name ? `${t.kind === 'servicio' ? 'Lo anotó' : t.kind === 'preventivo' ? 'Plan de' : 'Lo reportó'} ${esc(t.created_by_name)}` : 'Lo creó el plan preventivo'} ${esc(fmtWhen(t.created_at))}</p>
-      ${t.description ? `<p class="desc">${esc(t.description)}</p>` : ''}
+      ${t.description ? descHTML(t, open) : ''}
     </div>
     ${d.photos.length ? '' : `<div id="d-photos">${photoGrid(d.photos, 'd-file', { label: 'Agregar foto' })}</div>`}
     <div class="cells">
@@ -454,6 +470,7 @@ async function viewTask(id, keep = false) {
   if (fin) fin.onclick = () => completeSheet(t, reload);
   const ro = $('[data-reopen]');
   if (ro) ro.onclick = () => patchTask(t, { status: 'pendiente' }, 'Abierto otra vez', reload, { status: t.status });
+  bindSteps(APP, t);
   bindPhotoGrid(APP, 'd-file', `/tasks/${id}/photos`, reload);
   const note = $('#d-note');
   const send = $('#d-send');

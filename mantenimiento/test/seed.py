@@ -6,14 +6,22 @@ from _env import BASE as B, STATE
 today = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=6)).date()
 d = lambda n: (today + dt.timedelta(days=n)).isoformat()
 
-def person(name, phone, email=None):
+PASS = 'cerro-azul-27'          # every made-up person's password, here only
+def session(r):
     s = requests.Session()
-    r = s.post(B + '/api/enter', json={'name': name, 'phone': phone, 'email': email})
-    assert r.ok, r.text
     s.me = r.json()['user']
     s.headers['Cookie'] = 'mt_sid=' + r.cookies.get('mt_sid')   # the cookie is Secure; requests won't send it over plain http
     s.sid = r.cookies.get('mt_sid')
     return s
+def first_admin(name, phone):           # an empty database: the first person in is its administrator
+    r = requests.post(B + '/api/enter', json={'name': name, 'phone': phone, 'password': PASS}); assert r.ok, r.text
+    return session(r)
+def person(name, phone, role='staff'):  # registered by Eric; enters with the one-time code and chooses a password
+    code = eric.post(B + '/api/users', json={'name': name, 'phone': phone, 'role': role}); assert code.ok, code.text
+    code = code.json()['code']
+    r = requests.post(B + '/api/enter', json={'phone': phone, 'password': code}); assert r.ok and r.json().get('need_new'), r.text
+    r = requests.post(B + '/api/enter', json={'phone': phone, 'password': code, 'new_password': PASS}); assert r.ok, r.text
+    return session(r)
 def post(s, path, data):
     r = s.post(B + '/api' + path, json=data); assert r.ok, (path, r.text); return r.json()
 def patch(s, path, data):
@@ -29,11 +37,12 @@ def photo(s, path, label, color):
     r = s.post(B + '/api' + path, files={'photo': ('foto.jpg', full.getvalue(), 'image/jpeg'), 'thumb': ('mini.jpg', th.getvalue(), 'image/jpeg')})
     assert r.ok, r.text
 
-eric = person('Eric Méndez', '+1 512 555 0100', 'eric@example.com')
-adrian = person('Adrián Robles', '415 555 0142', 'adrian@example.com')
+eric = first_admin('Eric Méndez', '+1 512 555 0100')
+adrian = person('Adrián Robles', '415 555 0142', 'admin')
 jaime = person('Jaime López', '415 555 0177')
 lupita = person('Guadalupe Ramírez', '415 555 0119')
-patch(eric, '/users/%d' % adrian.me['id'], {'role': 'admin'})
+# someone registered who has not come in yet: the e2e test enters with this code
+pend = eric.post(B + '/api/users', json={'name': 'Rosa Méndez', 'phone': '415 555 0199'}).json()
 A = {a['name']: a['id'] for a in eric.get(B + '/api/bootstrap').json()['areas']}
 P = {}
 for name, kind, spec, phone, comp in [
@@ -102,5 +111,5 @@ for title, area, who, note, cost in [('Destapar coladera de la cocina', 'Restaur
     tid = task(lupita, title=title, area_id=A[area], priority=3, provider_id=P[who])
     patch(adrian, '/tasks/%d' % tid, {'status': 'hecha', 'note': note, 'cost': cost})
 print('seeded', {'tasks': t12, 'equipment': E})
-json.dump({'sids': [eric.sid, adrian.sid, jaime.sid, lupita.sid],
+json.dump({'pass': PASS, 'rosa_code': pend['code'], 'sids': [eric.sid, adrian.sid, jaime.sid, lupita.sid],
            'urgent': t1, 'photo': t2, 'late': t3, 'plain': t4, 'far': t5, 'mine': t6, 'eq': E['chiller'], 'eq2': E['refri'], 'ext': P['Chuy Hernández'], 'plan': 1}, open(STATE, 'w'))

@@ -1,17 +1,19 @@
 // Mantenimiento Dos Búhos — Cloudflare Worker (API + static assets)
 // Bindings: DB (D1), ASSETS (static files), optional PHOTOS (R2 bucket; without it photos live in D1).
 //
-// Access is open on purpose (Eric, Nov 2026): anyone signs up once per phone with name + WhatsApp (+ email).
-// The phone's last 10 digits identify the person; there is no PIN, link or approval. Administrators can close
-// sign-up (settings.signup_open) and remove people.
+// Access (Eric, 24 Nov 2026): the WhatsApp number is the username. Only people an administrator registered can enter
+// (Cuenta → Personas → Agregar persona): the app gives a one-time code, sent to them by WhatsApp, good for 7 days; with
+// it they choose their own password. A session lasts a year and renews every time the app is opened. An administrator
+// can give someone a new code (a forgotten password). The very first person into an empty database becomes its
+// administrator, with their name, number and password.
 
+import { MAX_FAILS, LOCK_MIN, passProblem, hashPass, sameHex } from './auth.js';
 import { MX_OFFSET_H, mxToday, addDaysYmd, fmtDate, parseMonths, monthsOnOrAfter, advancePlan, everyText, perYear, phoneKey, mergePhone } from './plan.js';
 
 const COOKIE = 'mt_sid';
 const SESSION_DAYS = 365;
 const MAX_PHOTO_BYTES = 1900000;   // D1 rows top out at 2 MB; the phone compresses to ~250 KB
 const MAX_THUMB_BYTES = 120000;
-const MAX_SIGNUPS_PER_DAY = 40;    // open sign-up safety net
 const STATUSES = ['pendiente', 'en_proceso', 'en_espera', 'hecha', 'cancelada'];
 const STATUS_LABEL = { pendiente: 'Por hacer', en_proceso: 'En curso', en_espera: 'Esperando', hecha: 'Hecho', cancelada: 'No aplica' };
 const WAIT_LABEL = { material: 'Esperando material', proveedor: 'Esperando al externo' };
@@ -87,7 +89,7 @@ function getCookie(request, name) {
 }
 const sessionCookie = (token, maxAge) => `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
-const USER_COLS = 'u.id, u.name, u.role, u.provider_id, u.phone, u.email';
+const USER_COLS = "u.id, u.name, u.role, u.provider_id, u.phone, u.email, (u.pin_hash != '') AS has_pass";
 async function currentUser(request, env) {
   const token = getCookie(request, COOKIE);
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
@@ -106,7 +108,7 @@ async function addNote(env, taskId, userId, text, kind = 'nota') {
 async function settings(env) {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all();
   const s = Object.fromEntries(results.map((r) => [r.key, r.value]));
-  return { signup_open: s.signup_open !== '0', coordinator: int(s.coordinator) };
+  return { coordinator: int(s.coordinator) };
 }
 
 // ---------- router ----------
@@ -118,7 +120,7 @@ async function api(request, env, url) {
   // --- open endpoints ---
   if (path === '/api/status' && method === 'GET') {
     const user = await currentUser(request, env);
-    return json({ user, signup_open: (await settings(env)).signup_open });
+    return json({ user, first: !user && (await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first('n')) === 0 });
   }
   if (path === '/api/enter' && method === 'POST') return enter(request, env);
   if (path === '/api/logout' && method === 'POST') {
@@ -139,6 +141,7 @@ async function api(request, env, url) {
     return res;
   }
   if (path === '/api/me' && method === 'PATCH') return updateMe(request, env, user);
+  if (path === '/api/me/password' && method === 'POST') return changePassword(request, env, user);
 
   switch (seg[0]) {
     case 'tasks': return tasksApi(request, env, url, user, seg, method);
@@ -156,79 +159,93 @@ async function api(request, env, url) {
   fail(404, 'No encontrado');
 }
 
-// ---------- sign up / sign in (one form) ----------
+// The steps of a pendiente: lines of its description written as a list ("1. …", "2) …", "- …", "• …").
+// The page shows them as boxes; the client parses them the same way (stepsOf in core.js).
+const STEP = /^\s*(?:\d{1,2}[.)]|[-*•]|\[[ xX]?\])\s+\S/;
+const stepCount = (desc) => String(desc || '').split('\n').filter((l) => STEP.test(l)).length;
+
+// ---------- entering: WhatsApp number and password ----------
 async function startSession(env, userId) {
   const token = randomHex(32);
   await env.DB.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').bind(token, userId).run();
   const user = await env.DB.prepare(`SELECT ${USER_COLS} FROM users u WHERE u.id = ?`).bind(userId).first();
   return json({ user }, 200, { 'set-cookie': sessionCookie(token, 60 * 60 * 24 * SESSION_DAYS) });
 }
+const TEMP_DAYS = 7;
+// A one-time code: six digits, easy to read out or type from a WhatsApp message.
+function newCode() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(100000 + (a[0] % 900000)); }
+async function setCode(env, id) {
+  const code = newCode(), salt = randomHex(16);
+  await env.DB.prepare('UPDATE users SET temp_hash = ?, temp_salt = ?, temp_until = ?, failed_count = 0, locked_until = NULL WHERE id = ?')
+    .bind(await hashPass(code, salt), salt, Date.now() + TEMP_DAYS * 864e5, id).run();
+  return code;
+}
 
+// POST /api/enter { phone, password, new_password?, name? }
+// - a registered number with its password: in.
+// - a registered number with its one-time code: answers { need_new: true } until a new_password comes with it, then in.
+// - an empty database: the first person (name, number, password) is its administrator.
 async function enter(request, env) {
   const b = await body(request);
   const phone = str(b.phone, 40);
   const key = phoneKey(phone);
   if (!key) fail(400, 'Escribe tu WhatsApp con los 10 dígitos');
-  const email = normEmail(b.email);
-  if (!validEmail(email)) fail(400, 'Revisa tu correo: le falta algo');
-  const name = str(b.name, 60);
-
-  // 1) The phone is already registered: that person is back (new phone browser, cleared cookies…).
+  const pass = typeof b.password === 'string' ? b.password : '';
+  const now = Date.now();
   const u = await env.DB.prepare('SELECT * FROM users WHERE phone_key = ?').bind(key).first();
-  if (u) {
-    if (!u.active) fail(403, 'Tu acceso está desactivado. Habla con Adrián o con Eric.');
-    // Administrators can delete things and remove people, so their email has to match too.
-    if (u.role === 'admin' && u.email && email !== u.email.toLowerCase()) {
-      fail(401, 'Para entrar como administrador escribe también el correo con el que te registraste.');
-    }
-    if (!u.email && email) {
-      const taken = await env.DB.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE').bind(email).first();
-      if (!taken) await env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(email, u.id).run();
-    }
-    // People from before open sign-up may have no card in Contactos yet: without one nothing can be assigned to them.
-    if (!u.provider_id) {
-      await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ? AND provider_id IS NULL').bind(await cardFor(env, u.name, u.phone || phone, key), u.id).run();
-    }
-    return startSession(env, u.id);
-  }
 
-  // 2) New phone, known email: almost always a typo in one of the two numbers. Say which number is on file.
-  if (email) {
-    const ue = await env.DB.prepare('SELECT id, phone_key, active FROM users WHERE email = ? COLLATE NOCASE').bind(email).first();
-    if (ue) {
-      if (!ue.active) fail(403, 'Tu acceso está desactivado. Habla con Adrián o con Eric.');
-      if (ue.phone_key) fail(409, `Ese correo ya está registrado con otro WhatsApp (termina en ${ue.phone_key.slice(-2)}). Entra con ese número.`);
-      await env.DB.prepare('UPDATE users SET phone = ?, phone_key = ? WHERE id = ?').bind(phone, key, ue.id).run();
-      return startSession(env, ue.id);
-    }
+  if (!u) {
+    const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first('n');
+    if (total > 0) fail(403, 'Ese número no está registrado en Esmero. Pide a un administrador que te agregue.');
+    const name = str(b.name, 60);
+    if (!name || name.length < 2) fail(400, 'Escribe tu nombre y apellido');
+    const bad = passProblem(pass);
+    if (bad) fail(400, bad);
+    const salt = randomHex(16);
+    const r = await env.DB.prepare("INSERT INTO users (name, pin_hash, pin_salt, role, phone, phone_key, provider_id) VALUES (?, ?, ?, 'admin', ?, ?, ?)")
+      .bind(name, await hashPass(pass, salt), salt, phone, key, await cardFor(env, name, phone, key)).run();
+    return startSession(env, r.meta.last_row_id);
   }
+  if (!u.active) fail(403, 'Tu acceso está desactivado. Habla con un administrador de Esmero.');
+  const rest = (ms) => `Demasiados intentos. Espera ${Math.max(1, Math.ceil(ms / 60000))} min o pide un código nuevo a un administrador.`;
+  if (u.locked_until && u.locked_until > now) fail(429, rest(u.locked_until - now));
 
-  // 3) Somebody new.
-  const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first('n');
-  if (total > 0 && !(await settings(env)).signup_open) fail(403, 'El registro está cerrado. Pide a Adrián o a Eric que lo abran.');
-  if (!name || name.length < 2) fail(400, 'Escribe tu nombre y apellido');
-  const today = await env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE created_at > datetime('now', '-1 day')").first('n');
-  if (today >= MAX_SIGNUPS_PER_DAY) fail(429, 'Hoy ya se registró mucha gente. Intenta mañana o avisa a Eric.');
-  const clash = await env.DB.prepare('SELECT id, name, phone_key FROM users WHERE name = ? COLLATE NOCASE').bind(name).first();
-  if (clash) {
-    fail(409, clash.phone_key
-      ? `Ya hay alguien registrado como «${clash.name}» con otro WhatsApp (termina en ${clash.phone_key.slice(-2)}). Si eres tú, entra con ese número; si no, escribe también tu apellido.`
-      : `Ya hay alguien registrado como «${clash.name}». Escribe también tu apellido.`);
+  const okPass = !!(u.pin_hash && pass && sameHex(await hashPass(pass, u.pin_salt), u.pin_hash));
+  const okCode = !okPass && !!(u.temp_hash && u.temp_until > now && pass && sameHex(await hashPass(pass.trim(), u.temp_salt), u.temp_hash));
+  if (!okPass && !okCode) {
+    const fails = (u.failed_count || 0) + 1, lock = fails >= MAX_FAILS;
+    await env.DB.prepare('UPDATE users SET failed_count = ?, locked_until = ? WHERE id = ?').bind(lock ? 0 : fails, lock ? now + LOCK_MIN * 60000 : null, u.id).run();
+    if (lock) fail(429, rest(LOCK_MIN * 60000));
+    if (!u.pin_hash && !(u.temp_hash && u.temp_until > now)) fail(401, 'Todavía no tienes contraseña. Pide a un administrador tu código de entrada.');
+    if (u.temp_hash && u.temp_until <= now && !u.pin_hash) fail(401, 'Ese código ya venció. Pide uno nuevo a un administrador.');
+    const left = MAX_FAILS - fails;
+    fail(401, `La contraseña no es esa.${left <= 3 ? (left === 1 ? ' Te queda 1 intento.' : ` Te quedan ${left} intentos.`) : ''}`);
   }
-  const providerId = await cardFor(env, name, phone, key);
-  let newId;
-  try {
-    const r = await env.DB.prepare(
-      "INSERT INTO users (name, pin_hash, pin_salt, role, email, phone, phone_key, provider_id) VALUES (?, '', '', ?, ?, ?, ?, ?)"
-    ).bind(name, total === 0 ? 'admin' : 'staff', email, phone, key, providerId).run();
-    newId = r.meta.last_row_id;
-  } catch (e) {
-    // Two taps on "Entrar": the first one already made the account.
-    const again = await env.DB.prepare('SELECT id FROM users WHERE phone_key = ?').bind(key).first();
-    if (again) return startSession(env, again.id);
-    throw e;
+  if (okCode) {   // the one-time code: it opens the door to choosing a password, nothing else
+    if (!b.new_password) return json({ need_new: true, name: first(u.name) });
+    const bad = passProblem(b.new_password);
+    if (bad) fail(400, bad);
+    if (b.new_password.trim() === pass.trim()) fail(400, 'Elige una contraseña distinta al código');
+    const salt = randomHex(16);
+    await env.DB.prepare('UPDATE users SET pin_hash = ?, pin_salt = ?, temp_hash = NULL, temp_salt = NULL, temp_until = NULL WHERE id = ?')
+      .bind(await hashPass(b.new_password, salt), salt, u.id).run();
   }
-  return startSession(env, newId);
+  await env.DB.prepare('UPDATE users SET failed_count = 0, locked_until = NULL WHERE id = ?').bind(u.id).run();
+  if (!u.provider_id) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ? AND provider_id IS NULL').bind(await cardFor(env, u.name, u.phone || phone, key), u.id).run();
+  return startSession(env, u.id);
+}
+const first = (n) => String(n || '').trim().split(/\s+/)[0];
+
+async function changePassword(request, env, user) {
+  const b = await body(request);
+  const u = await env.DB.prepare('SELECT pin_hash, pin_salt FROM users WHERE id = ?').bind(user.id).first();
+  if (u.pin_hash && !(typeof b.current === 'string' && sameHex(await hashPass(b.current, u.pin_salt), u.pin_hash))) fail(401, 'La contraseña actual no es esa');
+  const bad = passProblem(b.password);
+  if (bad) fail(400, bad);
+  const salt = randomHex(16);
+  await env.DB.prepare('UPDATE users SET pin_hash = ?, pin_salt = ?, temp_hash = NULL, temp_salt = NULL, temp_until = NULL WHERE id = ?').bind(await hashPass(b.password, salt), salt, user.id).run();
+  await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').bind(user.id, getCookie(request, COOKIE) || '').run();   // other phones ask again
+  return json({ ok: true });
 }
 
 // The person's card in Contactos: the one Adrián or Eric may already have made for them (same phone), or a new one.
@@ -271,7 +288,7 @@ async function bootstrap(env, user) {
       FROM providers p ORDER BY p.kind DESC, p.name COLLATE NOCASE`),
     env.DB.prepare('SELECT id, name, area_id, provider_id, active FROM equipment ORDER BY name COLLATE NOCASE'),
     env.DB.prepare(isAdmin(user)
-      ? 'SELECT id, name, role, active, provider_id, email, phone, last_seen, created_at FROM users ORDER BY active DESC, name COLLATE NOCASE'
+      ? "SELECT id, name, role, active, provider_id, email, phone, last_seen, created_at, (pin_hash != '') AS has_pass, (temp_until > CAST(strftime('%s','now') AS INTEGER) * 1000) AS has_code FROM users ORDER BY active DESC, name COLLATE NOCASE"
       : 'SELECT id, name, role, active, provider_id FROM users WHERE active = 1 ORDER BY name COLLATE NOCASE'),
     // How many are late and how many wait in the Bandeja, so the counts are right on whichever screen the app opens.
     env.DB.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status IN ${OPEN_SQL} AND due_date IS NOT NULL AND due_date < ?`).bind(today),
@@ -295,7 +312,7 @@ function taskSelect({ list = false } = {}) {
   const cols = list
     ? `t.id, t.title, substr(t.description, 1, 240) AS description, t.kind, t.area_id, t.equipment_id, t.priority, t.status,
        t.provider_id, t.due_date, t.cost, t.created_by, t.created_at, t.updated_at, t.completed_at, t.wait_reason, t.pm_id,
-       t.postponed, t.first_due, t.est_min, t.plan_min, t.place`
+       t.postponed, t.first_due, t.est_min, t.plan_min, t.place, t.checks`
     : 't.*';
   return `
   SELECT ${cols}, a.name AS area_name, a.color AS area_color, e.name AS equipment_name,
@@ -436,6 +453,10 @@ async function tasksApi(request, env, url, user, seg, method) {
       const v = str(b.description, 4000);
       if (v !== t.description) { sets.push('description = ?'); params.push(v); }
     }
+    if ('checks' in b) {   // the ticked steps
+      const v = Array.isArray(b.checks) ? [...new Set(b.checks.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < 100))].sort((x, y) => x - y) : [];
+      sets.push('checks = ?'); params.push(v.length ? JSON.stringify(v) : null);
+    }
     // "¿Dónde?" has one answer: an area from the list, or a place written by hand. Whichever comes in takes the other's spot.
     if ('area_id' in b || 'place' in b) {
       let areaId = 'area_id' in b ? int(b.area_id) : t.area_id;
@@ -475,6 +496,12 @@ async function tasksApi(request, env, url, user, seg, method) {
           if (b.status === 'hecha') {
             if (isDate(b.completed_date) && b.completed_date <= mxToday()) { sets.push('completed_at = ?'); params.push(`${b.completed_date} 18:00:00`); }
             else sets.push("completed_at = datetime('now')");
+            // closed with steps left unticked: say so in its history, so it can be seen what was skipped
+            const n = stepCount('description' in b ? b.description : t.description);
+            if (n) {
+              const done = ('checks' in b ? (Array.isArray(b.checks) ? b.checks : []) : JSON.parse(t.checks || '[]')).filter((i) => i < n).length;
+              if (done < n) logs.push(n - done === 1 ? 'Se cerró con 1 paso sin marcar' : `Se cerró con ${n - done} pasos sin marcar`);
+            }
           } else sets.push('completed_at = NULL');
         }
         sets.push('wait_reason = ?'); params.push(wait);
@@ -830,6 +857,26 @@ async function areasApi(request, env, user, seg, method) {
 async function usersApi(request, env, user, seg, method) {
   requireAdmin(user);
   const id = int(seg[1]);
+  if (!id && method === 'POST') {   // register someone: name, WhatsApp, role. Answers with their one-time code.
+    const b = await body(request);
+    const name = str(b.name, 60), phone = str(b.phone, 40), key = phoneKey(phone);
+    if (!name || name.length < 2) fail(400, 'Escribe su nombre y apellido');
+    if (!key) fail(400, 'Escribe su WhatsApp con los 10 dígitos');
+    const dup = await env.DB.prepare('SELECT name FROM users WHERE phone_key = ? OR name = ? COLLATE NOCASE').bind(key, name).first();
+    if (dup) fail(409, `Ya está registrado: ${dup.name}`);
+    const r = await env.DB.prepare("INSERT INTO users (name, pin_hash, pin_salt, role, phone, phone_key, provider_id) VALUES (?, '', '', ?, ?, ?, ?)")
+      .bind(name, b.role === 'admin' ? 'admin' : 'staff', phone, key, await cardFor(env, name, phone, key)).run();
+    const nid = r.meta.last_row_id;
+    return json({ id: nid, code: await setCode(env, nid), days: TEMP_DAYS });
+  }
+  if (id && seg[2] === 'code' && method === 'POST') {   // a new one-time code: the password they had stops working
+    const u = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+    if (!u) fail(404, 'Esa persona ya no está');
+    if (id === user.id) fail(400, 'Para cambiar tu contraseña ve a Mi cuenta');
+    await env.DB.prepare("UPDATE users SET pin_hash = '', pin_salt = '' WHERE id = ?").bind(id).run();
+    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
+    return json({ code: await setCode(env, id), days: TEMP_DAYS });
+  }
   if (id && method === 'PATCH') {
     const b = await body(request);
     const u = await env.DB.prepare('SELECT id, role, active FROM users WHERE id = ?').bind(id).first();
@@ -850,7 +897,6 @@ async function settingsApi(request, env, user, method) {
   if (method !== 'PATCH') fail(404, 'No encontrado');
   const b = await body(request);
   const put = (k, v) => env.DB.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, v).run();
-  if ('signup_open' in b) await put('signup_open', b.signup_open ? '1' : '0');
   if ('coordinator' in b) {
     const pid = int(b.coordinator);
     await providerName(env, pid);

@@ -183,7 +183,7 @@ async function viewPlanForm(id, query = {}) {
     <div id="pf-areabox">${areaSelect('pf-area', st.area_id, { empty: 'Sin área' })}</div>
     ${fSelect('pf-who', '¿Quién lo hace?', contactOptions(st.provider_id, unassignedLabel()))}
     ${fSelect('pf-lead', 'Ponerlo en el calendario', [[0, 'El mismo día'], [3, '3 días antes'], [7, 'Una semana antes'], [14, '2 semanas antes'], [30, 'Un mes antes']].map(([v, l]) => `<option value="${v}" ${(p ? p.lead_days : 7) === v ? 'selected' : ''}>${l}</option>`).join(''))}
-    ${fText('pf-desc', 'Instrucciones', { value: p ? p.description : '', optional: true, placeholder: 'Qué revisar, qué material llevar, a quién llamar' })}
+    ${fText('pf-desc', 'Instrucciones', { value: p ? p.description : '', optional: true, placeholder: '1. Revisar…\n2. Limpiar…\n3. Anotar…', hint: 'Escribe los pasos numerados (1. 2. 3.) y cada uno será una casilla para marcar.' })}
     <p class="err hidden" id="pf-err" role="alert"></p>
   </form>`, { tab: 'preventivo', bar: `<button class="b block lg" form="pf" type="submit" id="pf-save">${ic('check')}${p ? 'Guardar cambios' : 'Programar'}</button>` });
   const mg = bindMonthGrid(APP, (ms) => {
@@ -553,7 +553,16 @@ async function viewContactoForm(id) {
 
 // ---------- Cuenta ----------
 const appLink = () => APP_URL + '/';
-const inviteText = () => `Esto es Esmero, donde llevamos el mantenimiento de Dos Búhos. Para reportar algo que no sirve o darle seguimiento, entra aquí y regístrate con tu nombre y tu WhatsApp (se hace una sola vez):\n${appLink()}`;
+// The message an administrator sends someone with their one-time code.
+const codeText = (name, code, days) => `Hola ${first(name)}. Ya tienes acceso a Esmero, donde llevamos el mantenimiento de Dos Búhos: ${APP_URL}\n\nEntra con tu WhatsApp y este código: *${code}*\nTe va a pedir que elijas tu contraseña. El código sirve ${days} días.`;
+async function codeSheet(x, r) {
+  const v = await sheet({
+    title: `Código para ${first(x.name)}`, sub: `Sirve una vez, durante ${r.days} días. Con él elige su contraseña.`,
+    body: `<div class="pad"><p class="bigcode" aria-label="Código ${r.code.split('').join(' ')}">${r.code}</p></div>`,
+    acts: [{ label: 'Cerrar', cls: 'plain', value: null }, { label: 'Mandar por WhatsApp', value: 'wa' }],
+  });
+  if (v === 'wa') window.open(waHref(x.phone, codeText(x.name, r.code, r.days)), '_blank');
+}
 function viewCuenta() {
   UI.view = 'cuenta';
   const u = S.user;
@@ -566,25 +575,37 @@ function viewCuenta() {
     <div class="list">
       ${item('#/resumen', 'chart', 'Resumen', 'Cómo vamos: abiertos, atrasados, por persona y por área')}
       ${item('#/hechos', 'check', 'Lo que ya se hizo', 'Todo lo terminado, con buscador')}
-      ${item(`https://wa.me/?text=${encodeURIComponent(inviteText())}`, 'wa', 'Invitar al equipo', 'Manda la liga por WhatsApp; cada quien se registra solo', 'target="_blank" rel="noopener"')}
-      ${isAdmin() ? item('#/personas', 'users', 'Personas', 'Quién se registró, administradores, cerrar el registro') + item('#/areas', 'tag', 'Áreas', 'Las etiquetas de colores: nombres, colores y orden') : ''}
+      ${item('#/', 'lock', 'Cambiar mi contraseña', u.has_pass ? 'La que usas para entrar con tu WhatsApp' : 'Todavía no tienes: elige una', 'data-pass')}
+      ${isAdmin() ? item('#/personas', 'users', 'Personas', 'Agregar a alguien, darle un código de entrada, administradores') + item('#/areas', 'tag', 'Áreas', 'Las etiquetas de colores: nombres, colores y orden') : ''}
     </div>
     <div class="tip">${ic('info')}<p><b>Para tenerla como app:</b> abre el menú del navegador y elige «Agregar a pantalla de inicio».</p></div>
     <button class="b plain block" data-out>${ic('logout')}Salir de mi cuenta en este teléfono</button>
   </div>`, { tab: 'cuenta' });
   $('[data-out]').onclick = async () => {
-    if (!(await confirmSheet('¿Salir de tu cuenta?', 'Para volver a entrar escribes otra vez tu WhatsApp.', 'Salir'))) return;
+    if (!(await confirmSheet('¿Salir de tu cuenta?', 'Para volver a entrar escribes tu WhatsApp y tu contraseña.', 'Salir'))) return;
     try { await api('POST', '/logout'); } catch { /* */ }
     S.user = null; C.open = null;
     location.hash = '#/';
     showEnter();
+  };
+  $('[data-pass]').onclick = async (e) => {
+    e.preventDefault();
+    const res = await sheet({
+      title: 'Cambiar mi contraseña', sub: 'Los otros teléfonos donde entraste te la van a pedir.',
+      body: `<form class="pad" onsubmit="return false"><input type="hidden" autocomplete="username" value="${esc(u.phone || '')}">
+        ${u.has_pass ? fInput('me-cur', 'Contraseña actual', { type: 'password', max: 64, attrs: 'autocomplete="current-password"' }) : ''}
+        ${fInput('me-new', 'Nueva contraseña', { type: 'password', max: 64, attrs: 'autocomplete="new-password"', hint: 'Al menos 8 letras o números.' })}</form>`,
+      acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Guardar', value: (w) => ({ current: $('#me-cur', w) ? $('#me-cur', w).value : undefined, password: $('#me-new', w).value }) }],
+    });
+    if (!res) return;
+    try { await api('POST', '/me/password', res); S.user.has_pass = 1; toast('Contraseña cambiada'); viewCuenta(); } catch (ex) { toast(ex.message, { bad: true }); }
   };
   $('[data-edit]').onclick = async () => {
     const res = await sheet({
       title: 'Mis datos',
       body: `<div class="pad">${fInput('me-name', 'Nombre y apellido', { value: u.name, max: 60, attrs: 'autocomplete="name"' })}
         ${fInput('me-phone', 'WhatsApp', { value: u.phone, type: 'tel', max: 24, attrs: 'inputmode="tel" autocomplete="tel"' })}
-        ${fInput('me-email', 'Correo', { value: u.email, type: 'email', max: 120, optional: !isAdmin(), attrs: 'autocapitalize="none" autocomplete="email"' })}</div>`,
+        ${fInput('me-email', 'Correo', { value: u.email, type: 'email', max: 120, optional: true, attrs: 'autocapitalize="none" autocomplete="email"' })}</div>`,
       acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Guardar', value: (w) => ({ name: $('#me-name', w).value.trim(), phone: $('#me-phone', w).value.trim(), email: $('#me-email', w).value.trim() }) }],
     });
     if (!res) return;
@@ -604,20 +625,26 @@ async function viewPersonas() {
   if (!isAdmin()) return viewCuenta();
   try { await loadBoot(); } catch (e) { return errorView(e.message, { tab: 'cuenta' }); }
   const users = S.users;
-  const open = S.settings.signup_open;
   render(header('Personas', { back: true }) + `<div class="wrap detail">
-    <button type="button" class="switchrow" role="switch" aria-checked="${open}" data-signup><span class="grow"><b>Registro abierto</b><span>${open ? 'Cualquiera con la liga se registra con su nombre y su WhatsApp.' : 'Cerrado: solo entra quien ya está en la lista.'}</span></span>
-      <span class="switch ${open ? 'on' : ''}" aria-hidden="true"><span></span></span></button>
+    <p class="small">Solo entra quien está en esta lista. Agrega a alguien con su WhatsApp y mándale su código: con él elige su contraseña.</p>
+    <button class="b block" type="button" data-add>${ic('plus')}Agregar persona</button>
     ${fSelect('pp-coord', 'A quién se le avisa de lo urgente', contactOptions(S.settings.coordinator || '', 'A nadie'), { hint: 'Quien reporta algo sin asignar ve un botón para avisarle por WhatsApp.' })}
     <h2 class="sec">Registrados<span class="n">${users.filter((x) => x.active).length}</span></h2>
     <div class="list">${users.map((x) => `<button type="button" class="lrow ${x.active ? '' : 'off'}" data-u="${x.id}">${avatar(x.name)}<span class="grow"><b>${esc(x.name)}${x.id === S.user.id ? ' (tú)' : ''}</b>
       <span class="ls">${bits([fmtPhone(x.phone) || 'Sin teléfono', x.email])}</span>
-      <span class="ls">${x.active ? (x.last_seen ? 'Entró ' + esc(fmtDay(localYmd(x.last_seen))) : 'Todavía no entra') : 'Sin acceso'}</span></span>
+      <span class="ls">${!x.active ? 'Sin acceso' : x.has_code && !x.has_pass ? 'Tiene código, todavía no elige contraseña' : !x.has_pass ? 'Sin contraseña: dale un código' : x.last_seen ? 'Entró ' + esc(fmtDay(localYmd(x.last_seen))) : 'Todavía no entra'}</span></span>
       ${x.role === 'admin' ? '<span class="pill go">Admin</span>' : ''}${ic('chev')}</button>`).join('')}</div>
-    <a class="b tonal block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(inviteText())}">${ic('wa')}Invitar por WhatsApp</a>
   </div>`, { tab: 'cuenta' });
-  $('[data-signup]').onclick = async () => {
-    try { const r = await api('PATCH', '/settings', { signup_open: !open }); S.settings = r.settings; toast(r.settings.signup_open ? 'Registro abierto' : 'Registro cerrado'); viewPersonas(); } catch (e) { toast(e.message, { bad: true }); }
+  $('[data-add]').onclick = async () => {
+    const res = await sheet({
+      title: 'Agregar persona', sub: 'Entra con su WhatsApp. Te damos un código para mandárselo.',
+      body: `<div class="pad">${fInput('np-name', 'Nombre y apellido', { max: 60, attrs: 'autocapitalize="words" autocomplete="off"' })}
+        ${fInput('np-phone', 'WhatsApp', { type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'inputmode="tel" autocomplete="off"', hint: 'Si es de Estados Unidos, empieza con +1.' })}
+        <label class="checkrow"><input type="checkbox" id="np-admin"><span>Administrador <span class="muted">(agrega personas, elimina cosas, cambia áreas)</span></span></label></div>`,
+      acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Agregar', value: (w) => ({ name: $('#np-name', w).value.trim(), phone: $('#np-phone', w).value.trim(), role: $('#np-admin', w).checked ? 'admin' : 'staff' }) }],
+    });
+    if (!res) return;
+    try { const r = await api('POST', '/users', res); await loadBoot(); viewPersonas(); await codeSheet(res, r); } catch (e) { toast(e.message, { bad: true }); }
   };
   $('#pp-coord').onchange = async (e) => {
     try { const r = await api('PATCH', '/settings', { coordinator: e.target.value || null }); S.settings = r.settings; toast('Guardado'); } catch (ex) { toast(ex.message, { bad: true }); }
@@ -626,6 +653,7 @@ async function viewPersonas() {
     const x = users.find((u) => u.id === Number(b.dataset.u));
     const self = x.id === S.user.id;
     const opts = [];
+    if (!self && x.active) opts.push({ value: 'code', label: x.has_pass ? 'Darle un código nuevo' : 'Darle su código de entrada', sub: x.has_pass ? 'Si olvidó su contraseña. La que tenía deja de servir.' : 'Para que entre por primera vez y elija su contraseña', icon: 'lock' });
     if (x.phone && !self) opts.push({ value: 'wa', label: 'Escribirle por WhatsApp', icon: 'wa' });
     if (!self && x.active) opts.push(x.role === 'admin' ? { value: 'staff', label: 'Quitarle lo de administrador', icon: 'user' } : { value: 'admin', label: 'Hacer administrador', sub: 'Puede eliminar cosas, quitar personas y cambiar las áreas', icon: 'shield' });
     if (!self) opts.push(x.active ? { value: 'off', label: 'Quitarle el acceso', sub: 'Se le cierra la app en todos sus teléfonos', icon: 'x', cls: 'danger' } : { value: 'on', label: 'Devolverle el acceso', icon: 'check' });
@@ -633,6 +661,11 @@ async function viewPersonas() {
     const v = await sheet({ title: x.name, opts });
     if (!v) return;
     if (v === 'wa') return window.open(waHref(x.phone), '_blank');
+    if (v === 'code') {
+      if (x.has_pass && !(await confirmSheet(`¿Código nuevo para ${first(x.name)}?`, 'Su contraseña deja de servir y se le cierra la app en sus teléfonos hasta que entre con el código.', 'Darle código'))) return;
+      try { const r = await api('POST', `/users/${x.id}/code`); await codeSheet(x, r); viewPersonas(); } catch (e) { toast(e.message, { bad: true }); }
+      return;
+    }
     if (v === 'off' && !(await confirmSheet(`¿Quitarle el acceso a ${first(x.name)}?`, 'Lo que reportó e hizo se queda. Se lo puedes devolver después.', 'Quitar acceso', true))) return;
     try {
       await api('PATCH', '/users/' + x.id, v === 'admin' || v === 'staff' ? { role: v } : { active: v === 'on' });
@@ -806,6 +839,7 @@ async function start() {
   await OFF.load();
   try {
     const st = await api('GET', '/status');
+    UI.firstRun = !!st.first;
     if (!st.user) return showEnter();
     S.user = st.user;
     await loadBoot();

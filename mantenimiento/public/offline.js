@@ -73,6 +73,7 @@ const OFF = (() => {
     if ('priority' in data) x.priority = Number(data.priority) || 3;
     if ('due_date' in data && !data.due_date) { x.due_date = null; x.plan_min = null; }
     if (data.status === 'hecha' && !x.completed_at) x.completed_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    if (Array.isArray(data.checks)) x.checks = JSON.stringify(data.checks);
     delete x.note; delete x.replan; delete x.cost_note;
     x.pending = true;   // shown with a mark until it is on the server
     return x;

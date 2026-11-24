@@ -3,7 +3,7 @@ import os, re, tempfile, datetime as dt
 from PIL import Image
 from playwright.sync_api import sync_playwright, expect
 from _env import BASE, HERE, state, launch, route_theme, cookie
-SIDS = state()['sids']
+STATE = state(); SIDS = STATE['sids']
 JPG_PATH = os.path.join(tempfile.gettempdir(), 'mantenimiento-sample.jpg')
 Image.new('RGB', (2400, 1800), (120, 90, 60)).save(JPG_PATH, 'JPEG', quality=92)     # a phone-sized photo
 ok = []; errs = []
@@ -35,13 +35,16 @@ with sync_playwright() as p:
     c = ctx(); pg = c.new_page(); watch(pg)
     pg.goto(BASE + '/#/p/9')                       # deep link while signed out
     expect(pg.locator('.enter h1')).to_have_text('Esmero')
-    pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('nombre')
-    pg.fill('#en-phone', '415 555 0199'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_have_text('Escribe tu nombre y apellido')   # new phone, no name
-    pg.fill('#en-name', 'Rosa Méndez'); pg.fill('#en-phone', '415 12'); pg.click('#en-go')
-    expect(pg.locator('#en-err')).to_contain_text('10 dígitos')
-    pg.fill('#en-phone', '415 555 0199'); pg.click('#en-go')
+    expect(pg.locator('#en-name')).to_have_count(0)                  # nobody signs up alone: no name to write
+    pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('10 dígitos')
+    pg.fill('#en-phone', '415 555 0555'); pg.fill('#en-pass', '123456'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no está registrado')   # the public stays out
+    pg.fill('#en-phone', '415 555 0199'); pg.fill('#en-pass', '000000'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no es esa')
+    pg.fill('#en-pass', STATE['rosa_code']); pg.click('#en-go'); expect(pg.locator('.enter .lead')).to_contain_text('Hola Rosa')   # the one-time code: now her own password
+    pg.fill('#en-new', 'corto'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('8')
+    pg.fill('#en-new', 'jardin-del-vino-9'); pg.click('[data-eye=en-new]'); expect(pg.locator('#en-new')).to_have_attribute('type', 'text'); pg.click('#en-go')
     expect(pg.locator('.top.sub h1')).to_have_text('Pendiente #9')   # lands on the link she opened
-    step('sign-up with name + WhatsApp, lands on the deep link')
+    r = pg.evaluate("(c) => fetch('/api/enter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: '4155550199', password: c }) }).then((r) => r.status)", STATE['rosa_code']); assert r == 401, r   # the code works once
+    step('enter: only registered numbers; the one-time code, then her own password; lands on the deep link')
     # the app opens on today's hours, the way Horizonte does: what has no hour on top, the blocks on the grid
     pg.goto(BASE + '/'); expect(tab(pg)).to_have_text('Día'); expect(pg.locator('.mtop .tdy')).to_have_text('Hoy')
     expect(pg.locator('.wstrip button')).to_have_count(7); expect(pg.locator('.wstrip button[aria-pressed=true]')).to_have_class(re.compile('today'))
@@ -285,7 +288,11 @@ with sync_playwright() as p:
     expect(head(pg)).to_have_text('Preventivo'); expect(pg.locator('body')).to_contain_text('Lavar cisterna y tinacos')
     step('new plan: N times a year by tapping months')
     pg.goto(BASE + '/#/planes'); pg.click('.lrow:has-text("Lavar cisterna")'); expect(pg.locator('.hero h2')).to_have_text('Lavar cisterna y tinacos')
-    pg.click('[data-run]'); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); expect(pg.locator('.hmeta')).to_contain_text('Preventivo')
+    pg.wait_for_timeout(300)
+    if pg.locator('[data-run]').count():                             # when the first visit falls within its lead days the job is made at once
+        pg.click('[data-run]'); expect(pg.locator('.top.sub h1')).to_contain_text('Pendiente #'); expect(pg.locator('.hmeta')).to_contain_text('Preventivo')
+    else:
+        expect(pg.locator('.cell .cl:has-text("Después toca")')).to_be_visible()
     step('"Hacerlo ya" puts the plan\'s next job in Pendientes')
     pg.goto(BASE + '/#/plan/nuevo'); pg.fill('#pf-title', 'Revisar cloro de la alberca'); pg.click('[data-choice="pf-freq"] .ch:has-text("Cada cierto tiempo")')
     expect(pg.locator('#pf-every')).to_be_visible(); expect(pg.locator('#pf-months')).to_be_hidden(); pg.fill('#pf-n', '2'); expect(pg.locator('#pf-sum')).to_contain_text('Cada 2 semanas')
@@ -335,16 +342,26 @@ with sync_playwright() as p:
     t = api_task(pg, oid); assert t['place'] is None and t['area_name'] == 'Caseta', t
     pg.goto(BASE + '/#/nuevo'); assert 'Caseta' in pg.locator('#r-area').inner_text()
     step('an administrator adds a written place to the list of areas from the pendiente')
-    pg.goto(BASE + '/#/personas'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'true')
-    pg.click('[data-signup]'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'false')
-    c2 = ctx(); p2 = c2.new_page(); p2.goto(BASE + '/'); p2.fill('#en-name', 'Persona Nueva'); p2.fill('#en-phone', '4155550555'); p2.click('#en-go')
-    expect(p2.locator('#en-err')).to_contain_text('registro está cerrado')
-    p2.fill('#en-phone', '415 555 0199'); p2.click('#en-go'); expect(tab(p2)).to_have_text('Día')    # Rosa is already registered: she still gets in
-    c2.close()
-    pg.click('[data-signup]'); expect(pg.locator('[data-signup]')).to_have_attribute('aria-checked', 'true')
+    pg.goto(BASE + '/#/personas'); pg.click('[data-add]'); pg.fill('#np-name', 'Persona Nueva'); pg.fill('#np-phone', '415 555 0555'); pg.click('.sheet [data-act="1"]')
+    code = pg.locator('.bigcode').inner_text(); assert re.fullmatch(r'\d{6}', code), code
+    expect(pg.locator('.sheet [data-act="1"]')).to_have_text('Mandar por WhatsApp'); pg.click('.sheet [data-act="0"]')
+    expect(pg.locator('.lrow:has-text("Persona Nueva")')).to_contain_text('Tiene código')
+    c2 = ctx(); p2 = c2.new_page(); p2.goto(BASE + '/'); p2.fill('#en-phone', '4155550555'); p2.fill('#en-pass', code); p2.click('#en-go')
+    p2.fill('#en-new', 'nueva-clave-55'); p2.click('#en-go'); expect(tab(p2)).to_have_text('Día'); c2.close()
+    pg.reload(); expect(pg.locator('.lrow:has-text("Persona Nueva")')).not_to_contain_text('código')
+    pg.click('.lrow:has-text("Persona Nueva")'); pg.click('.sheet .opt:has-text("código nuevo")'); pg.click('.sheet [data-act="1"]'); code2 = pg.locator('.bigcode').inner_text(); assert code2 != code; pg.click('.sheet [data-act="0"]')
+    r = pg.evaluate("() => fetch('/api/enter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: '4155550555', password: 'nueva-clave-55' }) }).then((r) => r.status)"); assert r == 401, r   # a new code: the old password is gone
     pg.click('.lrow:has-text("Rosa Méndez")'); pg.click('.sheet .opt:has-text("Quitarle el acceso")'); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.lrow:has-text("Rosa Méndez")')).to_contain_text('Sin acceso')
-    step('people: close and reopen sign-up; remove someone')
+    step('people: add someone and their code; they enter and choose a password; a new code for a forgotten one; remove someone')
+    # steps: numbered lines of the instructions are boxes to tick; closing with some left says so in the history
+    sid = pg.evaluate("""() => fetch('/api/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Revisar extintores', description: 'Antes de empezar, la carpeta.\\n1. Revisar el manómetro\\n2. Revisar el sello\\n3. Anotar en la bitácora' }) }).then((r) => r.json()).then((d) => d.task.id)""")
+    pg.goto(BASE + f'/#/p/{sid}'); expect(pg.locator('.steps .step')).to_have_count(3); expect(pg.locator('.hero .desc')).to_have_text('Antes de empezar, la carpeta.'); expect(pg.locator('#d-stepn')).to_have_text('0 de 3 pasos')
+    pg.click('.step:has-text("manómetro")'); pg.click('.step:has-text("sello")'); expect(pg.locator('#d-stepn')).to_have_text('2 de 3 pasos'); pg.wait_for_timeout(600)
+    pg.reload(); expect(pg.locator('.step.on')).to_have_count(2)
+    pg.click('[data-finish]'); pg.click('.sheet [data-act="1"]'); pg.wait_for_timeout(700)
+    pg.goto(BASE + f'/#/p/{sid}'); expect(pg.locator('.timeline')).to_contain_text('Se cerró con 1 paso sin marcar'); expect(pg.locator('.step input:disabled')).to_have_count(3)
+    step('steps: numbered instructions become boxes; ticks are kept; closing with one left says so in the history')
     pg.goto(BASE + '/#/resumen'); expect(pg.locator('.chart .wk')).to_have_count(8); pg.click('.lrow[data-who] >> nth=0'); expect(head(pg)).to_contain_text('Todo'); expect(pg.locator('.fchip')).to_have_count(1)
     pg.click('.fchip')
     pg.goto(BASE + '/#/buscar'); pg.fill('#s-q', 'canaleta'); expect(pg.locator('#s-res .card')).to_have_count(1)
@@ -355,9 +372,11 @@ with sync_playwright() as p:
     step('admin can delete')
     # sign out and back in
     pg.goto(BASE + '/#/cuenta'); pg.click('[data-out]'); pg.click('.sheet [data-act="1"]'); expect(pg.locator('.enter h1')).to_be_visible()
-    pg.fill('#en-name', ''); pg.fill('#en-phone', '4155550142'); pg.fill('#en-email', ''); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('administrador')
-    pg.fill('#en-email', 'Adrian@Example.com'); pg.click('#en-go'); expect(tab(pg)).to_have_text('Día')
-    step('sign out; an administrator needs the email too; back in')
+    pg.fill('#en-phone', '415 555 0142')
+    pg.fill('#en-pass', 'otra-cosa-1'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no es esa')
+    pg.fill('#en-pass', STATE['pass']); pg.click('#en-go'); expect(tab(pg)).to_have_text('Día')
+    pg.goto(BASE + '/#/cuenta'); pg.click('[data-pass]'); pg.fill('#me-cur', STATE['pass']); pg.fill('#me-new', 'cerro-azul-28'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_have_text('Contraseña cambiada')
+    step('sign out; back in with the WhatsApp and the password; change it in Mi cuenta')
     c.close()
     # ---------- wide screens: no side menu; lists on the left, the hours on the right, as in Horizonte ----------
     c = b.new_context(viewport={'width': 1440, 'height': 900}, locale='es-MX', timezone_id='America/Mexico_City')
@@ -417,12 +436,12 @@ with sync_playwright() as p:
     dest = (today + dt.timedelta(days=2)).isoformat() if (today + dt.timedelta(days=2)).month == today.month else (today - dt.timedelta(days=2)).isoformat()
     if dest == before['due_date']: dest = (dt.date.fromisoformat(dest) + dt.timedelta(days=1)).isoformat()
     cb = pg.locator('.mcell[data-day="%s"]' % dest).bounding_box(); pull(chip.bounding_box(), cb['x'] + cb['width'] / 2, cb['y'] + cb['height'] - 14)
-    expect(pg.locator('.mcell[data-day="%s"] .card[data-tid="%s"]' % (dest, mid))).to_be_visible(); expect(toast(pg)).to_contain_text('Quedó para')
+    expect(toast(pg)).to_contain_text('Quedó para'); expect(pg.locator('.mcell[data-day="%s"] .card[data-tid="%s"], .mcell[data-day="%s"] .mmore' % (dest, mid, dest)).first).to_be_visible()   # on that day, or behind its "más" when the day is full
     t = api_task(pg, mid); assert t['due_date'] == dest and t['plan_min'] == before['plan_min'], (t['due_date'], t['plan_min'], before['plan_min'])
     if pg.locator('.panel [data-src=""]').count(): pg.click('.panel [data-src=""]')
     pg.click('.panel [data-src=inbox]'); row = pg.locator('.panel .card[data-tid]').first; rid2 = row.get_attribute('data-tid')
     pull(row.bounding_box(), cb['x'] + cb['width'] / 2, cb['y'] + cb['height'] - 14); pg.wait_for_timeout(500); t = api_task(pg, rid2); assert t['due_date'] == dest and t['plan_min'] is None, t
-    pg.locator('.mcell[data-day="%s"] .card[data-tid="%s"] .body' % (dest, mid)).click(); expect(pg.locator('.sheet.tsheet')).to_be_visible(); pg.keyboard.press('Escape')
+    pg.locator('.mcell .card[data-tid] .body').first.click(); expect(pg.locator('.sheet.tsheet')).to_be_visible(); pg.keyboard.press('Escape')
     pg.click('.dtop [data-step="1"]'); expect(pg.locator('.dtitle .lg')).to_have_text('%s %d' % (MES[nxt.month - 1], nxt.year)); expect(pg.locator('.mcell .card.plan').first).to_be_visible()
     pg.click('.dtop [data-step="0"]'); pg.click('.mcell[data-day="%s"] .dn' % dest); expect(pg.locator('.dtop .zoom [aria-current]')).to_have_text('Día'); expect(pg.locator('.hours .hcol').first).to_have_attribute('data-day', dest)
     step('wide: Mes lists each day\'s pendientes; one dropped on another day moves there and keeps its hour; from a list it gets the day; a day opens in Día')

@@ -1150,3 +1150,21 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 @media (min-width: 960px) { #net { bottom: 20px; } }
 .pendmsg { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r); background: var(--wash); color: var(--muted); font-size: 13.5px; line-height: 1.35; }
 .pendmsg svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
+
+/* ---------- the steps of a pendiente: boxes to tick ---------- */
+.stepn { margin: 12px 0 4px; font: 600 12.5px/1.2 var(--font); color: var(--muted); }
+.steps { list-style: none; margin: 4px 0 8px; padding: 0; }
+.steps li { border-bottom: 1px solid var(--line); }
+.steps li:last-child { border-bottom: 0; }
+.step { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 15px; line-height: 1.35; }
+.step input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ink); }
+.step.on span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+/* sign-in and Personas */
+.pwrow { position: relative; }
+.pwrow .input { padding-right: 48px; }
+.pwrow .eye { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.pwrow .eye[aria-pressed="true"] { color: var(--ink); }
+.pwrow .eye svg { width: 20px; height: 20px; }
+.bigcode { margin: 6px 0 4px; text-align: center; font: 700 40px/1 var(--font); letter-spacing: .18em; font-variant-numeric: tabular-nums; }
+.checkrow { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0 0; font-size: 15px; cursor: pointer; }
+.checkrow input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--ink); }
