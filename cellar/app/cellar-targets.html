@@ -849,6 +849,10 @@ table.wt { border-collapse: separate; border-spacing: 0; width: 100%; min-width:
 /* Production | Cellar switch at the top of Wines */
 .wmode { display: inline-flex; gap: 0; margin: 0 0 10px; padding: 3px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); }
 .wmode button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--f-body); padding: 7px 18px; border-radius: 999px; cursor: pointer; }
+/* Guarda vintage chips: one row, scrolls sideways on phones */
+.vseg { display: flex; width: fit-content; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; margin: 0 0 10px; scrollbar-width: none; }
+.vseg button { white-space: nowrap; flex: none; }
+.vseg button small { font: 500 11px var(--f-mono); margin-left: 4px; opacity: .75; }
 .wmode button small { font: 500 12px var(--f-mono); margin-left: 4px; opacity: .8; }
 .wmode button[aria-selected="true"] { background: var(--accent); color: #fff; }
 html.w-cellar .toolbar { display: none; }
@@ -1380,6 +1384,7 @@ body { background-image: none !important; font-family: var(--f-body); }
       <button type="button" role="tab" data-wm="cellar" aria-selected="false">Barricas <small id="wmCellarN"></small></button>
       <button type="button" role="tab" data-wm="bottled" aria-selected="false">Embotellado <small id="wmBottleN"></small></button>
     </div>
+    <div class="seg vseg" id="vintSeg" role="group" aria-label="Añada" hidden></div>
     <div id="cellarView" hidden></div>
     <div id="bottleView" hidden></div>
     <div class="stats" id="stats"></div>
@@ -1958,6 +1963,7 @@ var SheetParse = (function () {
   function store(k, v) { try { localStorage.setItem("tc." + k, JSON.stringify(v)); } catch (e) {} }
   function recall(k, d) { try { const v = localStorage.getItem("tc." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
   S.group = recall("group", "all");
+  S.gVint = recall("gvint", ""); // Guarda: vintage shown ("" = newest present, "all" = every vintage)
   // Multi-select filters: values are comma lists ("red,rose"). Same category = OR; different categories = AND.
   const listOf = v => String(v || "").split(",").filter(Boolean);
   const inGroup = g => { const gs = listOf(S.group).filter(x => x !== "all" && x !== "routine"); return !gs.length || gs.includes(g); };
@@ -2075,16 +2081,25 @@ var SheetParse = (function () {
   const showArch = () => listOf(S.group).includes("archived");
   // Production vs cellar. A lot's own `phase` wins; otherwise anything older than the current vintage is in the cellar.
   const CUR_VINTAGE = 2026;
-  function vintageOf(l) {
+  // Vintage read from the lot, or 0 when nothing says it.
+  function parsedVintage(l) {
     if (l.vintage) return +l.vintage;
     const s = (l.code || "") + " " + (l.name || "");
     let m = s.match(/\b20(2\d)\b/); if (m) return 2000 + +m[1];
     m = (l.code || "").match(/(?:^|[\s\-\/])[A-Z]{2,}(2\d)\b/); if (m) return 2000 + +m[1]; // "SB25", "MG26", "TEMA26" — not lot numbers like "L21"
-    return CUR_VINTAGE;
+    m = (l.name || "").match(/(?:^|[\s+])(2\d)(?=$|[\s+\/])/); if (m) return 2000 + +m[1]; // barrel-map names: "Cabernet Franc 24", "Vermouth 23"
+    return 0;
   }
+  function vintageOf(l) { return parsedVintage(l) || CUR_VINTAGE; }
+  // Guarda's year: lots added from the barrel map with no year in the name stay "Sin añada" (0) instead of passing as this year's.
+  function guardaYearOf(l) { return parsedVintage(l) || (l.src === "barricas" ? 0 : CUR_VINTAGE); }
   function phaseOf(l) { return l.phase === "cellar" || l.phase === "prod" ? l.phase : (vintageOf(l) < CUR_VINTAGE ? "cellar" : "prod"); }
   function productionLots() { return wineLots().filter(l => phaseOf(l) !== "cellar"); }
   function cellarLots() { return wineLots().filter(l => phaseOf(l) === "cellar"); }
+  // Guarda's vintage filter: newest vintage by default so old wines don't crowd the view.
+  function guardaYears() { return [...new Set(cellarLots().map(guardaYearOf))].sort((a, b) => b - a); } // 0 (no vintage) sorts last
+  function guardaVint() { const ys = guardaYears(); if (S.gVint === "all") return "all"; return S.gVint !== "" && ys.includes(+S.gVint) ? +S.gVint : (ys.length ? ys[0] : "all"); }
+  function guardaLots() { const v = guardaVint(); return v === "all" ? cellarLots() : cellarLots().filter(l => guardaYearOf(l) === v); }
   async function setPhase(id, phase) {
     const l = S.lots.find(x => x.id === id); if (!l || !S.db) return;
     l.phase = phase; // optimistic; the snapshot confirms
@@ -2153,6 +2168,10 @@ var SheetParse = (function () {
     $("groups").innerHTML = [["all", "All wines"]].concat(groups).concat(wines && archivedLots().length ? [["archived", "Archivados · " + archivedLots().length]] : []).map(([k, l]) =>
       `<button type="button" data-group="${k}" aria-pressed="${k === "all" ? (!gl.length || gl.includes("all")) : gl.includes(k)}">${esc(l)}</button>`).join("");
     if (wines) {
+      { const gw = S.wmode === "guarda", ys = guardaYears(), v = guardaVint(), all = cellarLots();
+        $("vintSeg").hidden = !gw || ys.length < 2;
+        if (gw) $("vintSeg").innerHTML = ys.map(y => [String(y), y || "Sin añada", all.filter(l => guardaYearOf(l) === y).length]).concat([["all", "Todas", all.length]])
+          .map(([k, l, n]) => `<button type="button" data-vint="${k}" aria-pressed="${String(v) === k}">${l}<small>${n}</small></button>`).join(""); }
       $("sortSel").innerHTML = SORTS.map(([k, l]) => `<option value="${k}"${S.sort.key === k ? " selected" : ""}>${esc(l)}${S.sort.key === k && S.sort.dir === -1 ? " (reversed)" : ""}</option>`).join("");
       $("legend").innerHTML = `<span><em>Italic</em>&nbsp;= in-house reading</span><span>Upright = outside lab</span><span>Faded = older than 3 weeks</span><span>VA = Uva y Vino</span><span>mol = molecular SO₂</span><span>≈ Total SO₂ = last measured total plus logged additions; bar = share of the 100 mg/L ceiling, tick at 50</span><span>* = an addition with no initials was skipped; test total SO₂</span>`;
     } else if (bl) {
@@ -4604,7 +4623,7 @@ Return ONLY JSON with this shape:
         : `<tr class="empty-row"><td colspan="15"><strong>No hay lotes archivados.</strong></td></tr>`;
       renderStats([]); return;
     }
-    const all = S.wmode === "guarda" ? cellarLots() : productionLots(); // Guarda: older vintages aging (phase "cellar"), same table
+    const all = S.wmode === "guarda" ? guardaLots() : productionLots(); // Guarda: older vintages aging (phase "cellar"), filtered to one vintage
     renderStats(all);
     if (!all.length) { body.innerHTML = `<tr class="empty-row"><td colspan="15"><strong>No wines yet.</strong><br>Claude adds the cellar's lots here.</td></tr>`; return; }
     let lots = all.filter(l => inGroup(l.group) && matchQ(l) && quickTest(l));
@@ -5801,6 +5820,7 @@ Return ONLY JSON with this shape:
   })();
   $("q").addEventListener("input", e => { S.q = e.target.value.trim(); render(); });
   $("sortSel").addEventListener("change", e => { S.sort = { key: e.target.value, dir: 1 }; store("sort", S.sort); render(); });
+  $("vintSeg").addEventListener("click", e => { const b = e.target.closest("[data-vint]"); if (!b) return; S.gVint = b.dataset.vint; store("gvint", S.gVint); render(); });
 
   function status(msg) { const el = $("status"); el.textContent = msg; el.hidden = !msg; }
 

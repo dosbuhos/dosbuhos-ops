@@ -1,7 +1,7 @@
 // The app's version: shown in the footer of every page and on the login page.
 // Bump on every deploy: minor (1.x) for features, patch (1.x.y) for fixes.
-export const VERSION = '1.24.0';
-export const VERSION_DATE = '2026-11-23';
+export const VERSION = '1.25.0';
+export const VERSION_DATE = '2026-11-24';
 export const VERSION_LABEL = 'v' + VERSION + ' · ' + VERSION_DATE;
 export const APP_NAME = 'Crianza';
 export const APP_SHORT = 'Crianza';

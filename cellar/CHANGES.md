@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-24 — Guarda: «Añada» filter, newest vintage by default · v1.25.0
+- Guarda: a row of vintage chips (2026 · 2025 · … · Sin añada · Todas) under the tabs, newest by default, remembered on the device; barrel-map wines read their year from the name ("Cabernet Franc 24"). Why: old wines crowded the view (Eric). · commit pending
+
 ## 2026-11-23 — The app is now called Crianza · v1.24.0
 - Name everywhere the app shows it: header, tab title, footer, home-screen name, sign-in page and the assistant's prompt. Address: crianza.dosbuhos.com (a Hub short host that sends to the app); cellar.dos-buhos.workers.dev keeps working · Eric: brand it like the other apps · src/version.js, app/cellar-targets.html, src/chat.js
 
