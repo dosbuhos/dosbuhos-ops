@@ -3,3 +3,4 @@ node_modules/
 .dev.vars
 test/.state.json
 __pycache__/
+test/.photo.jpg
