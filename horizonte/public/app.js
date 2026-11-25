@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 68;
+const BUILD = 69;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -643,7 +643,7 @@ function gridHTML(k, hpx, h0, h1, opts = {}) {
     const cards = timed.map(t => { const top = (toMin(t.at) / 60 - h0) * hpx + 1, ht = Math.max(24, (t.dur || 30) / 60 * hpx - 2), L = lanes.get(t.id);
       const style = `top:${top}px;height:${ht}px;left:calc(${edge}px + (100% - ${2 * edge}px) * ${L.i / L.n});right:auto;width:calc((100% - ${2 * edge}px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
       return cardHTML(t, { style, mobile: opts.mobile, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}${ht >= 80 ? ' tall' : ''}`).replace('data-tid=', `title="${esc(t.title)}" data-tid=`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
-    let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" style="top:${(m / 60 - h0) * hpx}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
+    let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" data-h0="${h0}" data-hpx="${hpx}" style="top:${(m / 60 - h0) * hpx}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
     // a block being created (click or drag on empty space), with its quick-create popover
     let add = ''; const D = opts.mobile ? null : S.ui.draft;
     if (D && D.k === k) { const top = (toMin(D.at) / 60 - h0) * hpx + 1, ht = Math.max(24, D.dur / 60 * hpx - 2), gridH = (h1 - h0) * hpx;
@@ -1475,7 +1475,7 @@ function dayDropParts(k) {
   const items = placedOn(k).filter(t => t.at && (!drag || t.id !== drag.id));
   const blocks = items.map(t => { const top = (toMin(t.at) / 60 - MH0) * MHPX, ht = Math.max(20, (t.dur || 30) / 60 * MHPX - 2);
     return `<div class="dd-b ${t.kind === 'meeting' ? 'mt' : ''}" style="${colorStyle(t)}top:${top}px;height:${ht}px">${esc(t.title)} · ${clock(t.at)}</div>`; }).join('');
-  let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); now = `<div class="nowline" style="top:${(m / 60 - MH0) * MHPX}px"></div>`; }
+  let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); now = `<div class="nowline" data-h0="${MH0}" data-hpx="${MHPX}" style="top:${(m / 60 - MH0) * MHPX}px"></div>`; }
   return { rel, title: `<div class="dd-title"><b>${DOWL[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}</b>${rel ? ` <span class="pill">${rel}</span>` : ''}<small>${loadText(k)} · hold at an edge to change day</small></div>`,
     grid: `<div class="dd-grid" data-drop="slot:${k}" data-hpx="${MHPX}" data-h0="${MH0}" style="height:${(MH1 - MH0) * MHPX}px">${blocks}${now}</div>` };
 }
@@ -1626,6 +1626,14 @@ async function start() {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; render(); } syncNow(); } });
   setInterval(() => { if (todayK() !== lastDay) { lastDay = todayK(); S.ui.anchor = addDays(lastDay, -1); S.ui.hday = lastDay; } if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) render(); }, 60000);
   setInterval(syncNow, 60000);
+  // The now line moves by itself, without a full redraw: every 15 s, and the moment the app comes back to the front (phones pause
+  // timers in the background, and the full redraw above waits while a sheet or a text box is open).
+  const tickNow = () => { const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+    for (const el of $$('.nowline[data-hpx]')) { el.style.top = (m / 60 - +el.dataset.h0) * +el.dataset.hpx + 'px'; const sp = el.querySelector('span'); if (sp) sp.textContent = `Now ${clock(fromMin(m))}`; } };
+  setInterval(tickNow, 15000);
+  const back = () => { if (document.visibilityState !== 'visible') return; tickNow();
+    if (!sheetState && !drag && !press && !S.ui.draft && !document.activeElement?.matches('input,textarea')) render(); };
+  document.addEventListener('visibilitychange', back); window.addEventListener('focus', back); window.addEventListener('pageshow', back);
   // New releases take over by themselves: the worker is re-checked whenever the app comes back to the front, and when a new one
   // takes control the page reloads (unless something is mid-edit; then on the next return). A phone that was left open on an
   // old build no longer stays there.
