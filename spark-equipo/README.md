@@ -4,6 +4,14 @@ Los números del equipo de ventas en el teléfono: ritmo semanal de contactos, s
 
 Todos ven los números del equipo y cada quien abre en los suyos. Efectividad y Ajustes son solo para Eric y los administradores.
 
+## Who sees what
+
+- A rep (`people.rol = 'rep'`) gets only their own accounts, contacts, sales, receivables, questions, events and goal
+  (`soloSuyo` in src/calc.js). Revisión del lunes, Plan de 90 días, Distribuidores and strategy notes are hidden; promotions
+  stay, with progress for their own accounts only.
+- Admins see everyone. An admin with a persona of their own (Carlos) sees everyone but cannot add logins, credit sales,
+  verify questioned orders or decide their own events: those are for Eric and admins without a book (Ily).
+
 ## How it works
 - `src/sheets.js` copies the three "Actividad" tabs of the CRM Google Sheet into D1 every hour from 06:00 to 21:00 San Miguel, so a contact is dated the day it was typed.
 - `src/zoho.js` copies Zoho Inventory sales orders and invoices three times a day. The first runs walk the whole history, 10 pages per run; the "Sincronizar ahora" button in Ajustes runs one more step.

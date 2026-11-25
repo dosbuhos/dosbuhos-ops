@@ -441,3 +441,24 @@ export function paraVer(m, quien) {
   const crecimiento = (m.efectividad || []).map((e) => ({ persona: e.persona, total: e.total, crecimiento_pct: e.crecimiento_pct, nuevos: e.nuevos, perdidos: e.perdidos }));
   return { ...m, crecimiento, efectividad: quien.admin ? m.efectividad : [], yo: { admin: !!quien.admin, dueno: !!quien.dueno, persona: quien.persona || null, nombre: quien.nombre || '' } };
 }
+
+// What a rep (a non-admin with a persona) receives: their own accounts, contacts, sales and requests, and nothing about
+// the others. Managers (admins) see everyone. Company-level material (export accounts, other people's budgets, credits to other people,
+// the Monday review, strategy notes and plan drafts) stays with management; promotions stay, cut to the rep's accounts.
+export function soloSuyo(m, persona) {
+  const mio = (k, f) => { if (Array.isArray(m[k])) m[k] = m[k].filter((x) => x[f] === persona); };
+  for (const k of ['embudo', 'semanas', 'contactos', 'seguimiento', 'foco', 'meses', 'copeo', 'encuestas', 'cierres', 'eventos', 'crecimiento', 'efectividad']) mio(k, 'persona');
+  for (const k of ['ordenes', 'clientes', 'cobertura', 'mes', 'pedidos', 'revision']) mio(k, 'vendedor');
+  mio('preguntas', 'para'); mio('prospectos', 'responsable');
+  // The client book: their accounts plus accounts nobody owns yet (new prospects typed in Spark).
+  if (Array.isArray(m.directorio)) m.directorio = m.directorio.filter((d) => d.vendedor === persona || (!d.vendedor && d.prospecto));
+  const suyas = new Set((m.directorio || []).map((d) => d.clave));
+  if (Array.isArray(m.cuentas)) m.cuentas = m.cuentas.filter((c) => suyas.has(c.clave));
+  if (m.cobranza) { m.cobranza.facturas = (m.cobranza.facturas || []).filter((f) => f.vendedor === persona);
+    const cl = new Set(m.cobranza.facturas.map((f) => norm(f.cliente))); m.cobranza.gestiones = (m.cobranza.gestiones || []).filter((g) => cl.has(norm(g.cliente))); }
+  for (const pr of m.promociones || []) if (Array.isArray(pr.avance)) pr.avance = pr.avance.filter((a) => a.vendedor === persona);
+  m.eric = []; m.asignaciones = []; m.usa_envios = []; m.prosp_carlos = []; m.estrategia = []; m.plan = [];
+  if (m.presupuesto) m.presupuesto = { anio: m.presupuesto.anio, fuente: m.presupuesto.fuente, notas: m.presupuesto.notas, meses: m.presupuesto.meses?.[persona] ? { [persona]: m.presupuesto.meses[persona] } : {} };
+  delete m.lunes;
+  return m;
+}

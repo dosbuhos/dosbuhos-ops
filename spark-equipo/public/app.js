@@ -40,15 +40,17 @@ const S = { vista: 'hoy', persona: '', semana: null, periodo: 'semana', mes: nul
 const SECC = [
   ['inicio', 'Inicio', 'M4 11l8-7 8 7v8.500a1 1 0 0 1-1 1h-4.500v-6h-5v6H5a1 1 0 0 1-1-1z', [['hoy', 'Inicio', 'Inicio']]],
   ['cuentas', 'Cuentas', 'M4 20v-1.500A4.500 4.500 0 0 1 8.500 14h3A4.500 4.500 0 0 1 16 18.500V20M10 10.500a3.250 3.250 0 1 0 0-6.500 3.250 3.250 0 0 0 0 6.500zM17 13.800a4 4 0 0 1 3 3.900V20M15.500 4.300a3.200 3.200 0 0 1 0 6', [['seguimiento', 'Seguimiento', 'Seguimiento de cuentas'], ['clientes', 'Cómo va cada una', 'Clientes: cómo va cada uno'], ['directorio', 'Directorio', 'Directorio de clientes'], ['cobranza', 'Cobranza', 'Cobranza'], ['copeo', 'Copeo y embudo', 'Copeo y embudo'], ['encuestas', 'Encuestas', 'Encuestas a clientes']]],
-  ['prospectos', 'Prospectos', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.500a4.500 4.500 0 1 0 0-9 4.500 4.500 0 0 0 0 9zM12 12h.010', [['zonas', 'Zonas y prospectos', 'Zonas y prospectos'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores']]],
+  ['prospectos', 'Prospectos', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.500a4.500 4.500 0 1 0 0-9 4.500 4.500 0 0 0 0 9zM12 12h.010', [['zonas', 'Zonas y prospectos', 'Zonas y prospectos'], ['distribuidores', 'Distribuidores', 'Prospección de distribuidores', true]]],
   ['ventas', 'Ventas', 'M4 20V10M10 20V4M16 20v-7M21 20H3', [['ventas', 'Ventas del mes', 'Ventas del mes'], ['semanas', 'Semanas y meses', 'Semanas y meses'], ['kpis', 'KPIs', 'KPIs: cómo vas contra tu tablero'], ['revision', 'Por confirmar', 'Pedidos por confirmar: ¿es venta?'], ['efectividad', 'Efectividad', 'Efectividad', true]]],
-  ['plan', 'Plan', 'M9 11.500l2.200 2.200L15.500 9.400M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', [['lunes', 'Revisión del lunes', 'Revisión del lunes: los números del plan y cada persona'], ['plan', 'Plan de 90 días', 'Plan de 90 días: compromisos con fecha'], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['estrategia', 'Promociones y estrategia', 'Estrategia, metas y promociones']]],
+  ['plan', 'Plan', 'M9 11.500l2.200 2.200L15.500 9.400M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', [['lunes', 'Revisión del lunes', 'Revisión del lunes: los números del plan y cada persona', true], ['plan', 'Plan de 90 días', 'Plan de 90 días: compromisos con fecha', true], ['eventos', 'Eventos', 'Eventos: solicitud, autorización y resultado'], ['estrategia', 'Promociones y estrategia', 'Estrategia, metas y promociones']]],
   ['recursos', 'Recursos', 'M5 4.500h9.500a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h9.500', [['materiales', 'Materiales de venta', 'Materiales de venta'], ['premios', 'Premios', 'Premios y puntajes'], ['comunicaciones', 'Comunicaciones', 'Comunicaciones con clientes', false, true]]],
 ];
 const FUERA = [['buzon', 'Buzón', 'Buzón'], ['ajustes', 'Ajustes', 'Ajustes', true]];
 const PANT = new Map([...SECC.flatMap(([, , , L]) => L), ...FUERA].map((x) => [x[0], x]));
 const seccionDe = (v) => SECC.find(([, , , L]) => L.some((x) => x[0] === v));
 const icono = (d) => svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', class: 'ic' }, svg('path', { d }));
+// Managers without a book of their own (Eric, Ily): logins, sales credits and order verdicts. Carlos sees everyone but not these.
+const esDir = () => D.yo.admin && (D.yo.dueno || !D.yo.persona);
 const SIN_FILTRO = ['zonas', 'ajustes', 'materiales', 'premios', 'comunicaciones', 'directorio', 'estrategia', 'distribuidores', 'plan', 'eventos'];   // screens the person filter does not apply to
 
 function ir(vista, persona) {
@@ -422,7 +424,7 @@ const VISTAS = {
         { t: 'Actividad', v: (r) => r.actividad, s: (r) => r.actividad }, { t: 'Medio', v: (r) => r.medio, s: (r) => r.medio },
         { t: 'Tiempo', v: tiempo, s: (r) => r.min, num: true }, { t: 'Resultado', v: (r) => r.resultado, largo: true }]));
     const tablaOrd = (ords, vacio) => (ps.some((p) => p !== 'Daniel') ? [h('h2', {}, 'Qué vendieron'),
-      h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null, r.en_zoho ? `en Zoho: ${r.en_zoho}` : null].filter(Boolean).join(' · '), D.yo.admin ? [' · ', reasignar(r)] : null)), vacio,
+      h('div', { class: 'card' }, lista('ords', ords, 8, (r) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, r.cliente), h('span', {}, peso(r.total))), h('div', { class: 'l2' }, [dia(r.fecha), r.orden, ps.length > 1 ? r.vendedor : null, r.en_zoho ? `en Zoho: ${r.en_zoho}` : null].filter(Boolean).join(' · '), esDir() ? [' · ', reasignar(r)] : null)), vacio,
         [{ t: 'Fecha', v: (r) => dia(r.fecha), s: (r) => r.fecha, cls: 'nw' }, { t: 'Cliente', v: (r) => r.cliente, s: (r) => r.cliente.toLowerCase(), cls: 'b' }, { t: 'Orden', v: (r) => r.orden, cls: 'mut' },
           { t: 'Vendedor', v: (r) => [r.vendedor, r.en_zoho ? h('div', { class: 'note' }, `en Zoho: ${r.en_zoho}`) : null], s: (r) => r.vendedor }, { t: 'Total', v: (r) => peso(r.total), s: (r) => r.total, num: true },
           D.yo.admin && { t: '', v: reasignar, cls: 'nw' }]))] : null);
@@ -532,7 +534,7 @@ const VISTAS = {
       r.estado !== 'pendiente' ? h('div', { class: 'l2' }, pill(TIPO_REV[r.dijo], r.dijo === 'venta' ? 'ok' : 'warn'), ` ${r.anoto}, ${dia(r.anotado)}: ${r.nota}`) : null,
       r.estado === 'verificado' ? h('div', { class: 'l2' }, pill('Verificado: ' + TIPO_REV[r.tipo], r.tipo === 'venta' ? 'ok' : 'bad'), ` ${r.verifico}, ${dia(r.verificado)}${r.nota_conta ? ': ' + r.nota_conta : ''}`) : null,
       h('div', { class: 'acc' }, r.estado !== 'verificado' && puede(r.vendedor) ? h('button', { class: 'btn sec', onclick: () => anotar(r) }, r.estado === 'pendiente' ? 'Decir qué es' : 'Corregir la nota') : null,
-        r.estado === 'anotado' && admin ? h('button', { class: 'btn', onclick: () => verificar(r) }, 'Verificar') : null,
+        r.estado === 'anotado' && esDir() ? h('button', { class: 'btn', onclick: () => verificar(r) }, 'Verificar') : null,
         r.estado === 'verificado' && D.yo.dueno ? h('button', { class: 'linkb', onclick: () => enviar('api/admin/revision', { numero: r.numero, reabrir: true }) }, 'Reabrir') : null));
     const bloque = (t, X, vacio) => [h('h2', {}, `${t} (${X.length})`), h('div', { class: 'card' }, X.length ? h('ul', { class: 'rows' }, X.map(fila)) : h('p', { class: 'note' }, vacio))];
     return h('div', { class: 'revis' },

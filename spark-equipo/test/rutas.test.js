@@ -57,3 +57,15 @@ test('only an admin verifies a questioned order, and only the owner reopens it',
   assert.ok(i > src.indexOf("if (!yo.admin) return json({ error: 'Solo administradores' }, 403);"));
   assert.match(blk, /b\.reabrir\) \{ if \(!yo\.dueno\)/);
 });
+
+test('soloSuyo: a rep keeps only their own rows', async () => {
+  const { soloSuyo } = await import('../src/calc.js');
+  const m = soloSuyo({ contactos: [{ persona: 'Carlos' }, { persona: 'Daniel' }], ordenes: [{ vendedor: 'Daniel' }, { vendedor: 'José Luis' }],
+    directorio: [{ clave: 'a', vendedor: 'Daniel' }, { clave: 'b', vendedor: 'Carlos' }, { clave: 'c', vendedor: '', prospecto: true }], cuentas: [{ clave: 'a' }, { clave: 'b' }],
+    cobranza: { facturas: [{ vendedor: 'Daniel', cliente: 'A' }, { vendedor: 'Carlos', cliente: 'B' }], gestiones: [{ cliente: 'A' }, { cliente: 'B' }] },
+    presupuesto: { anio: 2026, meses: { Carlos: [1], Daniel: [2] } }, eric: [{}], lunes: {}, estrategia: [{}], promociones: [{ avance: [{ vendedor: 'Daniel' }, { vendedor: 'Carlos' }] }] }, 'Daniel');
+  assert.equal(m.contactos.length, 1); assert.equal(m.ordenes.length, 1); assert.deepEqual(m.directorio.map((d) => d.clave), ['a', 'c']);
+  assert.deepEqual(m.cuentas.map((c) => c.clave), ['a']); assert.equal(m.cobranza.facturas.length, 1); assert.equal(m.cobranza.gestiones.length, 1);
+  assert.deepEqual(Object.keys(m.presupuesto.meses), ['Daniel']); assert.equal(m.eric.length, 0); assert.equal(m.lunes, undefined); assert.equal(m.estrategia.length, 0);
+  assert.equal(m.promociones[0].avance.length, 1);
+});

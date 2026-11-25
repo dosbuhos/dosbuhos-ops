@@ -2,7 +2,7 @@
 // Served behind the Hub at /spark/. Reads a daily copy of the CRM sheet and of Zoho; all figures come from src/calc.js.
 import { hubUser } from './hub-auth.js';
 import { withHubSecret } from './hub-secret.js';
-import { build, paraVer, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias, conciliador, PLAN_GENTE, EVENTO_TOPE, BOTELLA_MUESTRA } from './calc.js';
+import { build, paraVer, soloSuyo, hoyEn, GENTE, PERSONAS, CASA, VENDEDORES, norm, esInterno, deEric, vendedorDe, masDias, conciliador, PLAN_GENTE, EVENTO_TOPE, BOTELLA_MUESTRA } from './calc.js';
 import { sugerir } from './ai.js';
 import { syncZoho } from './zoho.js';
 import { syncSheet, sheetEmail } from './sheets.js';
@@ -120,7 +120,6 @@ export default {
     if (p === '/api/version' && request.method === 'GET') return json({ v: version(env) });
     if (p === '/api/data' && request.method === 'GET') {
       const m = paraVer(await modelo(env), yo);
-      if (!yo.admin) m.revision = m.revision.filter((r) => r.vendedor === yo.persona);
       const sug = new Map((await env.DB.prepare('SELECT persona, clave, texto FROM sugerencias').all()).results.map((r) => [r.persona + '|' + r.clave, r.texto]));
       for (const r of m.seguimiento) r.sugerencia = sug.get(r.persona + '|' + norm(r.cuenta)) || '';
       const todo = (sql) => env.DB.prepare(sql).all().then((r) => r.results);
@@ -182,6 +181,7 @@ export default {
       m.preguntas = (await env.DB.prepare('SELECT * FROM preguntas ORDER BY respondida != \'\', id DESC').all()).results;
       m.hechos = (await env.DB.prepare('SELECT clave FROM buzon_hechos WHERE email = ?').bind(yo.email).all()).results.map((r) => r.clave);   // inbox notes this person marked done
       const meta = (await env.DB.prepare("SELECT k, v FROM meta WHERE k LIKE 'sync_%'").all()).results;
+      if (!yo.admin) soloSuyo(m, yo.persona);   // reps see only their own book
       return json({ ...m, v: version(env), sync: Object.fromEntries(meta.map((r) => [r.k.slice(5), JSON.parse(r.v)])) });
     }
     // Original document of a promotion. The team only reaches files of promotions marked visible.
@@ -330,6 +330,10 @@ export default {
     // Everything below is for admins. The 404 comes after the team routes above: placed earlier, it made them unreachable.
     if (!p.startsWith('/api/admin/')) return json({ error: 'No existe' }, 404);
     if (!yo.admin) return json({ error: 'Solo administradores' }, 403);
+    // A manager who also carries accounts (Carlos) sees everyone, but logins, sales credits and order verdicts are for
+    // managers without a book of their own, so nobody rules on their own numbers.
+    const sinCartera = yo.dueno || !yo.persona;
+    if (['/api/admin/people', '/api/admin/asignar', '/api/admin/revision'].includes(p) && request.method === 'POST' && !sinCartera) return json({ error: 'Esto lo hace Dirección' }, 403);
     // Monday review: the numbers Spark cannot compute yet are typed in by an admin during the review.
     if (p === '/api/admin/lunes' && request.method === 'POST') {
       const b = await cuerpo(), row = await env.DB.prepare("SELECT v FROM meta WHERE k = 'lunes_cfg'").first();
@@ -344,6 +348,7 @@ export default {
     if (p === '/api/admin/eventos' && request.method === 'POST') {
       const b = await cuerpo(), e = await env.DB.prepare('SELECT * FROM eventos WHERE id = ?').bind(Number(b.id) || 0).first(), n = (v, d) => Math.max(0, Math.round(Number(v === '' || v == null ? d : v) || 0));
       if (!e) return json({ error: 'No existe ese evento' }, 404);
+      if (e.persona === yo.persona && !yo.dueno) return json({ error: 'Tu propio evento lo decide Dirección' }, 403);
       if (b.borrar) { await env.DB.prepare('DELETE FROM eventos WHERE id = ?').bind(e.id).run(); return json({ ok: true }); }
       if (e.costo + e.botellas * BOTELLA_MUESTRA > EVENTO_TOPE && !yo.dueno) return json({ error: 'Con el vino pasa de $' + EVENTO_TOPE.toLocaleString('en-US') + ': lo decide Dirección' }, 403);
       const si = b.decision === 'aprobado';
