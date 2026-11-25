@@ -1288,3 +1288,34 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 .eqgrp > .list { border-left: 4px solid color-mix(in srgb, var(--tc) 45%, transparent); padding-left: 10px; }
 .eqgrp { border-bottom: 0; }
 .eqgrp > .eqadd { padding-left: 14px; }
+
+/* ---------- Equipos: tiles per type, then cards that lead with the photo ---------- */
+.etiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.etile { display: flex; align-items: flex-start; gap: 10px; padding: 12px; min-height: 84px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--tc) 30%, var(--line));
+  background: color-mix(in srgb, var(--tc) 8%, var(--surface)); color: var(--ink); }
+.eti { flex: none; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--tc); background: color-mix(in srgb, var(--tc) 16%, var(--surface)); }
+.eti svg { width: 21px; height: 21px; }
+.etn { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; color: var(--muted); line-height: 1.3; }
+.etn b { font-size: 15px; color: var(--ink); font-weight: 600; line-height: 1.25; }
+.etn .warn { color: var(--warn); font-weight: 600; }
+.egrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ecard { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); color: var(--ink); min-width: 0; }
+.eph { position: relative; aspect-ratio: 4 / 3; background: color-mix(in srgb, var(--tc) 12%, var(--surface)); display: flex; align-items: center; justify-content: center; }
+.eph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.eico { color: var(--tc); opacity: .85; } .eico svg { width: 34px; height: 34px; stroke-width: 1.5; }
+.edot { position: absolute; top: 8px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--faint); box-shadow: 0 0 0 2px var(--surface); }
+.edot.ok { background: var(--ok); } .edot.warn { background: var(--warn-fill); } .edot.bad { background: var(--bad); }
+.eqty { position: absolute; left: 8px; bottom: 8px; padding: 2px 7px; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; font: 600 12px/1.4 var(--font); }
+.etx { display: flex; flex-direction: column; gap: 3px; padding: 9px 10px 11px; min-width: 0; }
+.etx b { font-size: 14.5px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.etx .ls { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.etx .ls svg { width: 13px; height: 13px; }
+.etx .ls.warn { color: var(--warn); } .etx .ls.st.bad { color: var(--bad); } .etx .ls.st.warn { color: var(--warn); }
+.thero { display: flex; align-items: center; gap: 12px; padding: 12px; margin: 4px 0 12px; border-radius: 12px; background: color-mix(in srgb, var(--tc) 9%, var(--surface)); border-left: 4px solid var(--tc); }
+.thero .grow { display: flex; flex-direction: column; } .thero b { font-size: 17px; color: var(--tc); } .thero span span { font-size: 13.5px; color: var(--muted); }
+.seg.sm button { min-height: 38px; font-size: 14px; }
+@media (min-width: 700px) { .etiles { grid-template-columns: repeat(3, 1fr); } .egrid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1100px) { .etiles, .egrid { grid-template-columns: repeat(4, 1fr); } }
+.ehome { margin: 6px 0 12px; }
+.sec.ksec { color: var(--tc); display: flex; align-items: center; gap: 7px; }
+.sec.ksec svg { width: 18px; height: 18px; }

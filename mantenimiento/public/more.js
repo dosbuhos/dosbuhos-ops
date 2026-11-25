@@ -270,69 +270,120 @@ function svcRecord(e) {
   </div>`;
 }
 
-// Equipos as an accordion of types: every type is there (empty ones too, to add to), each says how many it has and what
-// needs attention; open the ones you work with (remembered). Search and the filter open what matches.
-const EQ = { q: '', state: '' };
+// Equipos (Eric, 25 Nov 2026): the first screen is the types as tiles (icon, colour, how many, what needs attention), with
+// what needs attention on top. A type opens its own page: the equipment as cards, photo first, grouped by area.
+const EQ = Object.assign({ q: '', state: '', by: 'area', home: 'tipo' }, { home: store('mt_eqhome') || 'tipo' });
+const EQ_ST = { ok: 'Funciona', falla: 'Con falla', reparacion: 'En reparación', baja: 'Fuera de servicio', none: 'Por confirmar' };
+const eqCat = (e) => e.category || 'Otros';
+const eqNeeds = (e) => e.state === 'falla' || e.state === 'reparacion' || svcState(e).cls === 'bad';
+function eqCard(e) {
+  const st = eqState(e), sv = svcState(e), c = eqCat(e);
+  return `<a class="ecard c-${groupColor(EQUIP_COLOR, c)}" href="#/e/${e.id}">
+    <span class="eph">${e.cover_id ? `<img loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="eico">${ic(eqIcon(c))}</span>`}
+      <span class="edot ${st.cls}" title="${esc(st.text)}"></span>${e.qty > 1 ? `<span class="eqty">×${e.qty}</span>` : ''}</span>
+    <span class="etx"><b>${esc(e.name)}</b>${e.brand_model ? `<span class="ls">${esc(e.brand_model)}</span>` : ''}
+      <span class="ls estate ${st.cls}">${esc(st.text)}</span>
+      ${sv.cls === 'bad' || sv.cls === 'warn' ? `<span class="ls st ${sv.cls}">${ic(sv.icon)}${esc(sv.short)}</span>` : ''}
+      ${e.holder_name ? `<span class="ls">${ic('user')}${esc(first(e.holder_name))}</span>` : ''}
+      ${e.open_count ? `<span class="ls warn">${ic('tasks')}${e.open_count} abierto${e.open_count > 1 ? 's' : ''}</span>` : ''}</span></a>`;
+}
 async function viewEquipos(query = {}) {
+  if (query.estado && (EQ_STATE[query.estado] || query.estado === 'none')) EQ.state = query.estado;
+  if (query.tipo) return viewEquipoTipo(query.tipo);
+  if (query.area !== undefined) return viewEquipoArea(Number(query.area) || 0);
   UI.view = 'equipos';
   loading({ tab: 'equipos' });
   let r;
   try { r = await api('GET', '/equipment'); } catch (e) { return errorView(e.message, { tab: 'equipos' }); }
   S.today = r.today;
   const list = r.equipment;
-  const catOf = (e) => e.category || 'Otros';
-  const cats = [...EQUIP_CATS, ...[...new Set(list.map(catOf))].filter((c) => !EQUIP_CATS.includes(c)).sort()];
-  const stOf = (e) => e.state || 'none';
-  const ST = { ok: 'Funciona', falla: 'Con falla', reparacion: 'En reparación', baja: 'Fuera de servicio', none: 'Por confirmar' };
-  const opened = new Set(store('mt_eqopen') || []);
-  if (query.estado && (EQ_STATE[query.estado] || query.estado === 'none')) EQ.state = query.estado;   // a link to what is still por confirmar
-  if (query.tipo) opened.add(query.tipo);
-  const row = (e) => {
-    const st = eqState(e), sv = svcState(e);
-    return `<a class="lrow eq" href="#/e/${e.id}">${e.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic('wrench')}</span>`}
-      <span class="grow"><b>${esc(e.name)}${e.qty > 1 ? ` <span class="muted">×${e.qty}</span>` : ''}</b>${e.brand_model || e.serial ? `<span class="ls">${bits([e.brand_model, e.serial ? 'No. ' + e.serial : ''])}</span>` : ''}
-        <span class="ls"><span class="estate ${st.cls}">${esc(st.text)}</span>${e.holder_name ? `<span>Lo tiene ${esc(first(e.holder_name))}</span>` : ''}${e.area_name ? `<span>${esc(e.area_name)}</span>` : ''}</span>
-        ${sv.cls !== 'none' ? `<span class="ls st ${sv.cls}">${ic(sv.icon)}${esc(sv.text)}</span>` : ''}
-        ${e.open_count ? `<span class="ls warn">${ic('tasks')}${plural(e.open_count, 'pendiente abierto', 'pendientes abiertos')}</span>` : ''}</span>${ic('chev')}</a>`;
-  };
+  const cats = [...EQUIP_CATS, ...[...new Set(list.map(eqCat))].filter((c) => !EQUIP_CATS.includes(c)).sort()];
   const draw = () => {
     const s = fold(EQ.q.trim());
+    const hits = list.filter((e) => (!EQ.state || (e.state || 'none') === EQ.state) && (!s || fold([e.name, e.brand_model, e.location, e.area_name, e.serial, e.holder_name, eqCat(e)].join(' ')).includes(s)));
     const narrowing = !!(s || EQ.state);
-    const shown = list.filter((e) => (!EQ.state || stOf(e) === EQ.state) && (!s || fold([e.name, e.brand_model, e.location, e.area_name, e.serial, e.holder_name, catOf(e)].join(' ')).includes(s)));
-    const groups = cats.map((c) => {
-      const items = shown.filter((e) => catOf(e) === c).sort((x, y) => x.name.localeCompare(y.name));
-      if (narrowing && !items.length) return '';
-      const bad = items.filter((e) => e.state === 'falla' || e.state === 'reparacion' || e.state === 'baja').length;
-      const late = items.filter((e) => svcState(e).cls === 'bad').length;
-      const unk = items.filter((e) => !e.state).length;
-      const sub = [bad && `<span class="warn">${plural(bad, 'con falla o en reparación', 'con falla o en reparación')}</span>`, late && `<span class="bad">${plural(late, 'servicio atrasado', 'servicios atrasados')}</span>`, !bad && !late && unk && `<span>${unk} por confirmar</span>`].filter(Boolean).join('');
-      return `<details class="eqgrp c-${groupColor(EQUIP_COLOR, c)}" data-cat="${esc(c)}" ${narrowing || opened.has(c) ? 'open' : ''}><summary><span class="grow"><b>${esc(c)}</b><span class="eqsub">${items.length ? sub || `<span>${EQUIP_HINT[c] || 'Al día'}</span>` : `<span>${esc(EQUIP_HINT[c] || 'Nada todavía')}</span>`}</span></span><span class="n">${items.length}</span>${ic('down')}</summary>
-        ${items.length ? `<div class="list">${items.map(row).join('')}</div>` : ''}
-        ${narrowing ? '' : `<a class="eqadd" href="#/e/nuevo?tipo=${encodeURIComponent(c)}">${ic('plus')}Agregar a ${esc(c)}</a>`}</details>`;
+    const needs = list.filter(eqNeeds);
+    const tiles = cats.map((c) => {
+      const items = list.filter((e) => eqCat(e) === c);
+      const bad = items.filter(eqNeeds).length, unk = items.filter((e) => !e.state).length;
+      return `<a class="etile c-${groupColor(EQUIP_COLOR, c)}" href="#/equipos?tipo=${encodeURIComponent(c)}"><span class="eti">${ic(eqIcon(c))}</span>
+        <span class="etn"><b>${esc(c)}</b><span>${items.length ? `${plural(items.length, 'equipo', 'equipos')}` : esc(EQUIP_HINT[c] || 'Nada todavía')}</span>
+        ${bad ? `<span class="warn">${bad} necesita${bad > 1 ? 'n' : ''} atención</span>` : unk ? `<span class="muted">${unk} por confirmar</span>` : ''}</span></a>`;
     }).join('');
-    const chips = EQ.state ? `<div class="fchips"><button type="button" class="fchip" data-eclr aria-label="Quitar filtro">${esc(ST[EQ.state])}${ic('x')}</button></div>` : '';
+    const areaIds = [...activeAreas().map((a) => a.id), ...(list.some((e) => !e.area_id) ? [0] : [])];
+    const areaTiles = areaIds.map((id) => {
+      const a = id ? areaOf(id) : null, items = list.filter((e) => (e.area_id || 0) === id);
+      const bad = items.filter(eqNeeds).length, types = [...new Set(items.map(eqCat))];
+      return `<a class="etile c-${a ? a.color : 'grey'}" href="#/equipos?area=${id}"><span class="eti">${ic('pin')}</span>
+        <span class="etn"><b>${esc(a ? a.name : 'Sin área')}</b><span>${items.length ? plural(items.length, 'equipo', 'equipos') : 'Nada todavía'}</span>
+        ${bad ? `<span class="warn">${bad} necesita${bad > 1 ? 'n' : ''} atención</span>` : types.length ? `<span class="muted">${esc(types.slice(0, 3).join(', '))}</span>` : ''}</span></a>`;
+    }).join('');
+    const chips = EQ.state ? `<div class="fchips"><button type="button" class="fchip" data-eclr aria-label="Quitar filtro">${esc(EQ_ST[EQ.state])}${ic('x')}</button></div>` : '';
     render(header('Equipos', { right: `<a class="hbtn" href="#/e/nuevo">${ic('plus')}Nuevo</a>` }) + `<div class="wrap">
       <div class="ctop"><div class="searchrow"><div class="search">${ic('search')}<label class="sr" for="eq-q">Buscar equipo</label><input id="eq-q" type="search" value="${esc(EQ.q)}" placeholder="Buscar: tanque, laptop, motosierra…" autocomplete="off"></div>
         <button type="button" class="fbtn" data-ef aria-pressed="${!!EQ.state}" aria-label="Filtrar por estado" title="Filtrar por estado">${ic('filter')}</button></div>${chips}</div>
-      <div id="eq-list">${groups || `<div class="empty"><h2>Nada con ese filtro</h2></div>`}</div>
+      ${narrowing ? (hits.length ? `<div class="egrid">${hits.map(eqCard).join('')}</div>` : '<div class="empty"><h2>Nada con esa búsqueda</h2></div>')
+        : `${needs.length ? `<h2 class="sec warn">Necesitan atención<span class="n">${needs.length}</span></h2><div class="egrid">${needs.map(eqCard).join('')}</div>` : ''}
+          <div class="seg sm ehome" role="radiogroup" aria-label="Ver equipos"><button type="button" role="radio" aria-checked="${EQ.home === 'tipo'}" class="${EQ.home === 'tipo' ? 'on' : ''}" data-home="tipo">Por tipo</button><button type="button" role="radio" aria-checked="${EQ.home === 'area'}" class="${EQ.home === 'area' ? 'on' : ''}" data-home="area">Por área</button></div>
+          <div class="etiles">${EQ.home === 'area' ? areaTiles : tiles}</div>`}
     </div>`, { tab: 'equipos', keepScroll: true });
-    $$('details.eqgrp').forEach((d) => (d.ontoggle = () => {
-      if (narrowing) return;
-      if (d.open) opened.add(d.dataset.cat); else opened.delete(d.dataset.cat);
-      store('mt_eqopen', [...opened]);
-    }));
     const q = $('#eq-q');
     q.oninput = debounce(() => { EQ.q = q.value; const pos = q.selectionStart; draw(); const q2 = $('#eq-q'); q2.focus(); q2.setSelectionRange(pos, pos); }, 150);
     const clr = $('[data-eclr]');
     if (clr) clr.onclick = () => { EQ.state = ''; draw(); };
+    $$('[data-home]').forEach((b) => (b.onclick = () => { EQ.home = b.dataset.home; store('mt_eqhome', EQ.home); draw(); }));
     $('[data-ef]').onclick = async () => {
-      const v = await sheet({ title: '¿Cómo está?', opts: [{ value: '*', label: 'Todos', on: !EQ.state }, ...Object.entries(ST).map(([k, l]) => ({ value: k, label: l, sub: plural(list.filter((e) => stOf(e) === k).length, 'equipo', 'equipos'), on: EQ.state === k }))] });
+      const v = await sheet({ title: '¿Cómo está?', opts: [{ value: '*', label: 'Todos', on: !EQ.state }, ...Object.entries(EQ_ST).map(([k, l]) => ({ value: k, label: l, sub: plural(list.filter((e) => (e.state || 'none') === k).length, 'equipo', 'equipos'), on: EQ.state === k }))] });
       if (!v) return;
       EQ.state = v === '*' ? '' : v; draw();
     };
   };
   draw();
-  if (query.tipo) { const d = $(`details.eqgrp[data-cat="${CSS.escape(query.tipo)}"]`); if (d) d.scrollIntoView({ block: 'start' }); }
+}
+// One area: its equipment as cards, grouped by type
+async function viewEquipoArea(id) {
+  UI.view = 'equipoarea';
+  loading({ tab: 'equipos' });
+  let r;
+  try { r = await api('GET', '/equipment'); } catch (e) { return errorView(e.message, { tab: 'equipos' }); }
+  const a = id ? areaOf(id) : null, name = a ? a.name : 'Sin área';
+  const all = r.equipment.filter((e) => (e.area_id || 0) === id);
+  const cats = [...EQUIP_CATS, ...[...new Set(all.map(eqCat))].filter((c) => !EQUIP_CATS.includes(c))];
+  render(header(name, { back: true, right: `<a class="ib" href="#/e/nuevo" aria-label="Agregar equipo">${ic('plus')}</a>` }) + `<div class="wrap">
+    <div class="thero c-${a ? a.color : 'grey'}"><span class="eti">${ic('pin')}</span><span class="grow"><b>${esc(name)}</b><span>${plural(all.length, 'equipo', 'equipos')}</span></span></div>
+    ${all.length ? cats.map((c) => { const items = all.filter((e) => eqCat(e) === c).sort((x, y) => x.name.localeCompare(y.name)); return items.length ? `<h2 class="sec ksec c-${groupColor(EQUIP_COLOR, c)}">${ic(eqIcon(c))}${esc(c)}<span class="n">${items.length}</span></h2><div class="egrid">${items.map(eqCard).join('')}</div>` : ''; }).join('')
+      : '<div class="empty"><h2>Nada en esta área todavía</h2></div>'}
+  </div>`, { tab: 'equipos' });
+}
+async function viewEquipoTipo(cat) {
+  UI.view = 'equipotipo';
+  loading({ tab: 'equipos' });
+  let r;
+  try { r = await api('GET', '/equipment'); } catch (e) { return errorView(e.message, { tab: 'equipos' }); }
+  S.today = r.today;
+  const all = r.equipment.filter((e) => eqCat(e) === cat);
+  const color = groupColor(EQUIP_COLOR, cat);
+  const draw = () => {
+    const s = fold(EQ.q.trim());
+    const list = all.filter((e) => (!EQ.state || (e.state || 'none') === EQ.state) && (!s || fold([e.name, e.brand_model, e.location, e.area_name, e.serial, e.holder_name].join(' ')).includes(s)));
+    const key = (e) => (EQ.by === 'estado' ? e.state || 'none' : e.area_id || 0);
+    const label = (k) => (EQ.by === 'estado' ? EQ_ST[k] : k ? areaOf(k) ? tag(areaOf(k).name, areaOf(k).color) : 'Sin área' : 'Sin área');
+    const order = EQ.by === 'estado' ? ['reparacion', 'falla', 'baja', 'none', 'ok'] : [...new Set(list.map(key))].sort((a, b) => (areaOf(a) ? areaOf(a).sort : 999) - (areaOf(b) ? areaOf(b).sort : 999));
+    const groups = order.map((k) => { const items = list.filter((e) => key(e) === k).sort((a, b) => a.name.localeCompare(b.name)); return items.length ? `<h2 class="sec">${label(k)}<span class="n">${items.length}</span></h2><div class="egrid">${items.map(eqCard).join('')}</div>` : ''; }).join('');
+    render(header(cat, { back: true, right: `<a class="ib" href="#/e/nuevo?tipo=${encodeURIComponent(cat)}" aria-label="Agregar a ${esc(cat)}">${ic('plus')}</a>` }) + `<div class="wrap">
+      <div class="thero c-${color}"><span class="eti">${ic(eqIcon(cat))}</span><span class="grow"><b>${esc(cat)}</b><span>${all.length ? plural(all.length, 'equipo', 'equipos') : esc(EQUIP_HINT[cat] || '')}</span></span></div>
+      ${all.length ? `<div class="ctop"><div class="searchrow"><div class="search">${ic('search')}<label class="sr" for="eq-q">Buscar en ${esc(cat)}</label><input id="eq-q" type="search" value="${esc(EQ.q)}" placeholder="Buscar en ${esc(cat)}" autocomplete="off"></div></div>
+        <div class="seg sm" role="radiogroup" aria-label="Agrupar"><button type="button" role="radio" aria-checked="${EQ.by === 'area'}" class="${EQ.by === 'area' ? 'on' : ''}" data-by="area">Por área</button><button type="button" role="radio" aria-checked="${EQ.by === 'estado'}" class="${EQ.by === 'estado' ? 'on' : ''}" data-by="estado">Por estado</button></div></div>
+        ${groups || '<div class="empty"><h2>Nada con esa búsqueda</h2></div>'}`
+        : `<div class="empty"><h2>Nada en ${esc(cat)} todavía</h2><p>Agrégalo con una foto, su marca y modelo y cómo está.</p></div>`}
+      <a class="b block tonal" href="#/e/nuevo?tipo=${encodeURIComponent(cat)}">${ic('plus')}Agregar a ${esc(cat)}</a>
+    </div>`, { tab: 'equipos', keepScroll: true });
+    const q = $('#eq-q');
+    if (q) q.oninput = debounce(() => { EQ.q = q.value; const pos = q.selectionStart; draw(); const q2 = $('#eq-q'); q2.focus(); q2.setSelectionRange(pos, pos); }, 150);
+    $$('[data-by]').forEach((b) => (b.onclick = () => { EQ.by = b.dataset.by; draw(); }));
+  };
+  EQ.q = '';
+  draw();
 }
 
 async function viewEquipo(id, keep = false) {
@@ -465,7 +516,6 @@ async function viewEquipoForm(id, query = {}) {
       else { eid = (await api('POST', '/equipment', data)).id; if (files.length) await uploadAll(`/equipment/${eid}/photos`, files); }
       await loadBoot();
       touch();
-      store('mt_eqopen', [...new Set([...(store('mt_eqopen') || []), cat])]);   // its type is open in the list when you go back
       toast(e ? 'Equipo guardado' : 'Equipo dado de alta');
       location.replace('#/e/' + eid);
     } catch (ex) { btn.disabled = false; err.textContent = ex.message; err.classList.remove('hidden'); }

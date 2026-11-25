@@ -29,7 +29,7 @@ function showEnter(step = 'pass', ctx = {}) {
        ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1 class="ebrand"><img src="/icon.svg?v=44" alt="" width="40" height="40">Esmero</h1>
+    <h1 class="ebrand"><img src="/icon.svg?v=46" alt="" width="40" height="40">Esmero</h1>
     <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
@@ -167,30 +167,17 @@ function taskMsg(t, hello = '', link = true) {
   const due = t.due_date ? `\nPara: ${fmtDay(t.due_date, { weekday: true, rel: false })}` : '';
   return `${hello ? hello + '\n\n' : ''}*${t.title}*\n${t.area_name ? 'Área: ' + t.area_name + '\n' : t.place ? 'Lugar: ' + t.place + '\n' : ''}${t.equipment_name ? 'Equipo: ' + t.equipment_name + '\n' : ''}Prioridad: ${PRIO[t.priority]}${due}${t.description ? '\n\n' + t.description : ''}${link ? `\n\nFotos y avances: ${taskLink(t)}` : ''}`;
 }
-// WhatsApp a pendiente to someone. On a phone that shares files its photos go along with the text (pick WhatsApp,
-// then the person); otherwise WhatsApp opens on their chat with the text. People outside cannot open Esmero: no link.
+// WhatsApp a pendiente to someone: their own chat opens with the text ready to send, photos as links that open
+// without signing in (outside people cannot enter Esmero, so they get no app link).
 async function waTask(t, p, hello) {
-  const text = taskMsg(t, hello, p.kind !== 'externo');
+  let photos = '';
+  const win = window.open('', '_blank');   // opened now, while the tap counts, so the browser does not block it
   try {
-    if (navigator.canShare && t.id > 0) {
-      const d = await api('GET', '/tasks/' + t.id);
-      const ids = (d.photos || []).map((x) => x.id).slice(0, 4);
-      if (ids.length) {
-        const files = await Promise.all(ids.map(async (id, i) => {
-          const b = await (await fetch('/api/photos/' + id, { credentials: 'same-origin' })).blob();
-          return new File([b], `pendiente-${t.id}-${i + 1}.jpg`, { type: b.type || 'image/jpeg' });
-        }));
-        if (navigator.canShare({ files, text })) {
-          toast(`Elige WhatsApp y luego a ${first(p.name)}`, { ms: 4000 });
-          await navigator.share({ files, text });
-          return;
-        }
-      }
-    }
-  } catch (e) { if (e && e.name === 'AbortError') return; }
-  window.open(waHref(p.phone, text), '_blank');
+    if (t.id > 0) { const d = await api('GET', '/tasks/' + t.id); if (d.share && d.share.length) photos = `\n\n${d.share.length > 1 ? 'Fotos' : 'Foto'}:\n${d.share.join('\n')}`; }
+  } catch { /* the text goes anyway */ }
+  const href = waHref(p.phone, taskMsg(t, hello, p.kind !== 'externo') + photos);
+  if (win) win.location.href = href; else window.open(href, '_blank');
 }
-
 const DONE_WORDS = ['Se reparó', 'Se cambió la pieza', 'Se limpió o ajustó', 'Lo hizo el externo'];
 async function completeSheet(t, after) {
   const files = [];

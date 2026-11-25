@@ -61,11 +61,16 @@ contact from a pendiente sends its photos too where the phone can share files; o
 Each equipment has a type (`equipment.category`, the list is `EQUIP_CATS` in `core.js`: Agua y bombas, Refrigeración, Cocina,
 Bodega y producción, Energía, Fuentes, Cómputo y sistemas, Vehículos, Maquinaria agrícola, Mobiliario, Otros), a state
 (`state`: ok, falla, reparacion, baja; empty = por confirmar), who has it (`holder_id`, for laptops and vehicles), and for
-furniture a quantity (`qty`) and an inventory number (`serial`). The list is an accordion of every type (empty ones too,
-with *Agregar a…*); the open ones are remembered; search and the state filter open what matches. Anyone can add a type of
-their own from the form (*Otro tipo…*). The menu has a shortcut to *Equipo de bodega*.
+furniture a quantity (`qty`) and an inventory number (`serial`). The first screen is tiles, by type or by area, with
+what needs attention on top; a type or an area opens its page of cards that lead with the photo (grouped by area or by
+state). Search and the state filter show cards across everything. Anyone can add a type of
+their own from the form (*Otro tipo…*).
 - **Who plans.** Administrators plan anyone's work and time. Anyone else plans what is assigned to them and blocks their own
   time, on their own calendar (it opens on theirs; "De todos" shows the others').
+
+## WhatsApp to a contact
+The button opens that person's own chat with the pendiente written out. Its photos go as links (`/api/f/:id/:sig`, signed
+with a key kept in `settings.share_key`) that open that one photo without signing in; outside contacts get no app link.
 
 ## Mascotas
 Tables `pets` and `pet_events` (vaccine, deworming, visit, with the date the next one is due). A week before it is due a

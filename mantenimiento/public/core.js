@@ -36,6 +36,8 @@ const TRADE_COLOR = { Electricidad: 'yellow', 'Luz (CFE)': 'amber', Plomería: '
   Albañilería: 'orange', Tablaroca: 'grey', Impermeabilización: 'teal', 'Pisos y concreto': 'grey', Pintura: 'pink', Herrería: 'indigo', Carpintería: 'amber', Tapicería: 'pink',
   'Internet y sistemas': 'blue', 'Gases (CO₂, argón)': 'cyan', Riego: 'teal', Tractores: 'green', 'Mecánica automotriz': 'red', Veterinario: 'green', Jardinería: 'green', Cerrajería: 'grey', Limpieza: 'teal' };
 const EQUIP_COLOR = { 'Equipo de bodega': 'purple', Refrigeración: 'cyan', 'Agua y bombas': 'blue', Cocina: 'orange', Energía: 'yellow', Fuentes: 'teal', 'Cómputo y sistemas': 'indigo', Vehículos: 'red', 'Maquinaria agrícola': 'green', Mobiliario: 'amber', Otros: 'grey' };
+const EQUIP_ICON = { 'Equipo de bodega': 'barrel', Refrigeración: 'snow', 'Agua y bombas': 'drop', Cocina: 'pot', Energía: 'bolt', Fuentes: 'fountain', 'Cómputo y sistemas': 'laptop', Vehículos: 'truck', 'Maquinaria agrícola': 'leaf', Mobiliario: 'chair', Otros: 'box' };
+const eqIcon = (c) => EQUIP_ICON[c] || 'wrench';
 const groupColor = (map, name) => map[name] || COLORS_ALL[[...String(name)].reduce((n, ch) => n + ch.charCodeAt(0), 0) % COLORS_ALL.length];
 const COLORS_ALL = ['red', 'orange', 'amber', 'green', 'teal', 'cyan', 'blue', 'indigo', 'purple', 'pink'];
 const tagsOf = (p) => { try { const v = JSON.parse((p && p.tags) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -540,7 +542,7 @@ function drawNav(tab) {
     NAV.className = 'nav dtop';
     NAV.innerHTML = `<div class="brandrow">
         ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
-        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=44" alt="" width="26" height="26"><span>Esmero</span></a></div>
+        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=46" alt="" width="26" height="26"><span>Esmero</span></a></div>
       <div class="zoom" role="group" aria-label="Vista">
         <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a><a href="#/mes" data-tab ${tab === 'mes' ? 'aria-current="page"' : ''}>Mes</a></div>
       ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${unit} anterior">${ic('back')}</button>

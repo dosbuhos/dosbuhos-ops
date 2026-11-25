@@ -104,6 +104,17 @@ async function addNote(env, taskId, userId, text, kind = 'nota') {
   await env.DB.prepare('INSERT INTO task_notes (task_id, user_id, kind, body) VALUES (?, ?, ?, ?)')
     .bind(taskId, userId, kind, text).run();
 }
+// The key that signs photo links for WhatsApp: made once, kept in settings (it is not a password; it only proves a link
+// was made by Esmero for that photo).
+async function shareKey(env) {
+  let k = await env.DB.prepare("SELECT value FROM settings WHERE key = 'share_key'").first('value');
+  if (!k) { k = randomHex(32); await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('share_key', ?)").bind(k).run(); k = await env.DB.prepare("SELECT value FROM settings WHERE key = 'share_key'").first('value'); }
+  return k;
+}
+async function photoSig(env, id) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(await shareKey(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('photo:' + id))).slice(0, 20);
+}
 async function settings(env) {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all();
   const s = Object.fromEntries(results.map((r) => [r.key, r.value]));
@@ -122,6 +133,13 @@ async function api(request, env, url) {
     return json({ user, first: !user && (await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first('n')) === 0 });
   }
   if (path === '/api/enter' && method === 'POST') return enter(request, env);
+  // a photo sent by WhatsApp to someone outside: a link that opens that one photo and nothing else
+  const pub = /^\/api\/f\/(\d+)\/([0-9a-f]{20})$/.exec(path);
+  if (pub && method === 'GET') {
+    const pid = int(pub[1]);
+    if (pub[2] !== (await photoSig(env, pid))) fail(404, 'No encontrado');
+    return photosApi(request, env, url, null, ['photos', String(pid)], 'GET');
+  }
   if (path === '/api/logout' && method === 'POST') {
     const token = getCookie(request, COOKIE);
     if (token) await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
@@ -445,7 +463,9 @@ async function tasksApi(request, env, url, user, seg, method) {
       env.DB.prepare(`SELECT ph.id, ph.user_id, ph.created_at, u.name AS user_name FROM photos ph
                       LEFT JOIN users u ON u.id = ph.user_id WHERE ph.task_id = ? ORDER BY ph.id`).bind(id),
     ]);
-    return json({ task, notes: notes.results, photos: photos.results });
+    const base = new URL(request.url).origin;
+    const share = await Promise.all(photos.results.slice(0, 4).map(async (p) => `${base}/api/f/${p.id}/${await photoSig(env, p.id)}`));
+    return json({ task, notes: notes.results, photos: photos.results, share });
   }
 
   if (id && !seg[2] && method === 'PATCH') {
