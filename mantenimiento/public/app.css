@@ -1244,3 +1244,7 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 .boardrow.wide + .callrow { margin-top: 8px; }
 .boardrow.wide + .callrow .b { min-height: 46px; }
 .pad .field + .quick, #bk-names + .quick { margin-top: 10px; }
+/* the app's own mark: an emerald tile with a check, so it is not mistaken for Horizonte's sunset */
+.dbrand .bmark { width: 26px; height: 26px; border-radius: 6px; display: block; }
+.enter h1.ebrand { display: flex; align-items: center; gap: 12px; }
+.enter h1.ebrand img { width: 40px; height: 40px; border-radius: 9px; }
