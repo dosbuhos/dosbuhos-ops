@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15171a">
+<title>Arqueo · Dos Búhos</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<script>/* Relative asset and API paths need the trailing slash (/arqueo/ behind the Hub). */ if (!location.pathname.endsWith('/')) location.replace(location.pathname + '/' + location.search + location.hash);</script>
+<link rel="stylesheet" href="/theme.css?app=arqueo">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#surtir" aria-label="Inicio"><img class="logo" src="logo.svg" alt=""></a>
+  <button class="ico" id="atras" aria-label="Volver" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="ttl"><h1 id="titulo">Arqueo</h1><p class="note" id="sub">Almacén 1</p></div>
+  <button class="ico" id="recargar" aria-label="Actualizar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 6M20 5v6h-6"/></svg></button>
+</header>
+<main id="main"><p class="note pad">Cargando…</p></main>
+<button class="fab" id="fab" aria-label="Registrar movimiento" aria-haspopup="menu" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+<nav class="tabs" id="tabs" aria-label="Secciones"></nav>
+<div class="pop" id="pop" role="menu" hidden></div>
+<dialog id="dlg" aria-labelledby="dlg-t"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -127,13 +127,18 @@ export async function runSync(env) {
 // Read-only Zoho lists for other Dos Búhos Workers (Spark Equipo), so the Zoho secrets live in this Worker only.
 // Reached through the ZohoRead entrypoint in index.js: service bindings only, never a public URL.
 let tok = { value: '', until: 0 };
-const LISTAS = { salesorders: '/salesorders', invoices: '/invoices' };
-export async function zohoList(env, recurso, pagina = 1) {
+const LISTAS = { salesorders: '/salesorders', invoices: '/invoices', items: '/items' };
+// Query parameters an app may pass through; anything else is dropped. Read-only either way.
+const PARAMS = ['per_page', 'warehouse_id', 'status', 'filter_by', 'sort_column', 'sort_order', 'last_modified_time', 'customer_id', 'search_text'];
+// `opciones` is a page number (the original call) or an object { page, warehouse_id, status, ... }.
+export async function zohoList(env, recurso, opciones = 1) {
   if (!LISTAS[recurso]) throw new Error('Recurso no permitido: ' + recurso);
   // Zoho allows only a few new access tokens per ten minutes: keep one for 50 minutes (they last 60).
   if (!tok.value || Date.now() > tok.until) tok = { value: await accessToken(env), until: Date.now() + 50 * 60000 };
-  const get = api(env, tok.value);
-  return get(LISTAS[recurso], { page: String(Math.max(1, Number(pagina) || 1)), per_page: '200' });
+  const o = opciones && typeof opciones === 'object' ? opciones : { page: opciones };
+  const params = { page: String(Math.max(1, Number(o.page) || 1)), per_page: '200' };
+  for (const k of PARAMS) if (o[k] != null && o[k] !== '') params[k] = String(o[k]);
+  return api(env, tok.value)(LISTAS[recurso], params);
 }
 
 // One sales order, trimmed to what a review needs: who it went to, what was in it, and whether it was invoiced and paid.
@@ -144,6 +149,8 @@ export async function zohoOrder(env, id) {
   const dir = (a) => (a ? [a.address, a.city, a.state].filter(Boolean).join(', ').replace(/\s+/g, ' ').trim() : '');
   return { numero: o.salesorder_number, fecha: o.date, cliente: o.customer_name, vendedor: o.salesperson_name, referencia: o.reference_number || '', creado_por: o.created_by_name || '', terminos: String(o.terms || '').slice(0, 300), notas: (o.notes || '').slice(0, 200), estado: o.status,
     envio: dir(o.shipping_address), facturacion: dir(o.billing_address), metodo: o.delivery_method || '', neto: o.sub_total, botellas: o.total_quantity,
-    lineas: (o.line_items || []).map((l) => ({ vino: l.group_name || l.name, cantidad: l.quantity, precio: l.rate })),
+    // item_id, sku and the warehouse let a counting app (Arqueo) tie a line to its own SKU row without guessing by name.
+    lineas: (o.line_items || []).map((l) => ({ vino: l.group_name || l.name, cantidad: l.quantity, precio: l.rate,
+      item_id: String(l.item_id || ''), sku: l.sku || '', almacen: String(l.warehouse_id || ''), surtidas: Number(l.quantity_shipped || 0) })),
     facturas: (o.invoices || []).map((f) => ({ numero: f.invoice_number, estado: f.status, saldo: f.balance, total: f.total })) };
 }

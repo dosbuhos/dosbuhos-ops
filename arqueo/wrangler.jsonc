@@ -1,0 +1,39 @@
+{
+  "name": "arqueo",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // Phone app (static). The Worker answers /api/* only.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/auth/*"] },
+  // Arqueo's own data: the SKU mirror, positions, the movement ledger, counts, the Zoho snapshot and the adjustment list.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "arqueo", "database_id": "236e3277-bd46-43c7-9eea-3fd8bfc8ce87", "migrations_dir": "migrations" }
+  ],
+  // Photos of variances and mermas.
+  "r2_buckets": [{ "binding": "FOTOS", "bucket_name": "arqueo-fotos" }],
+  // The Hub's session secret from the account Secrets Store: checks that requests really come from the Hub (src/hub-secret.js).
+  "secrets_store_secrets": [
+    { "binding": "HUB_SESSION_SECRET", "store_id": "1109ee14b3d349b3815f622f59dc3168", "secret_name": "HUB_SESSION_SECRET" }
+  ],
+  // Zoho through the Muestras Worker (zoho-inventory/, Worker dosbuhos-ops): it holds the Zoho secrets and reads only.
+  // Arqueo never writes to Zoho — the corrections go out as a list administración keys in by hand.
+  "services": [{ "binding": "ZOHO", "service": "dosbuhos-ops", "entrypoint": "ZohoRead" }],
+  // The id of the deployed version, so an open tab can tell that a newer one is live.
+  "version_metadata": { "binding": "VERSION" },
+  // UTC. San Miguel is UTC-6: 09:10 UTC = 3:10 am. Nightly Zoho snapshot and the phantom-OV scan.
+  "triggers": { "crons": ["10 9 * * *"] },
+  "vars": {
+    // San Miguel de Allende, UTC-6 all year: "today" and the rotation windows.
+    "TZ": "America/Mexico_City",
+    // Zoho organization and the warehouse Arqueo governs: Dos Búhos - Almacen 1 (97% of all stock).
+    "ZOHO_ORG_ID": "843697568",
+    "ALMACEN_ID": "4898653000000103012",
+    "ALMACEN_NOMBRE": "Dos Búhos - Almacen 1",
+    // Supervisors: see balances, review variances, generate the adjustment list (besides Hub admins).
+    "ADMIN_EMAILS": "cabosari@dosbuhos.com",
+    // Almacenistas: pick, count and record movements. They never see an expected quantity before submitting a count.
+    "ALMACEN_EMAILS": ""
+  }
+  // Secrets (Worker → Settings → Variables and Secrets):
+  //   None. HUB_SECRET comes from HUB_SESSION_SECRET in the Secrets Store, and Zoho goes through the ZOHO binding.
+}

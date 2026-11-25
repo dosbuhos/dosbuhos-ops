@@ -198,6 +198,7 @@ export default {
 
 // Service-binding entrypoint ({ "service": "dosbuhos-ops", "entrypoint": "ZohoRead" }). Read-only; not reachable from the internet.
 export class ZohoRead extends WorkerEntrypoint {
-  async list(recurso, pagina) { return zohoList(this.env, recurso, pagina); }
+  // `opciones`: a page number, or { page, warehouse_id, status, filter_by, ... } (Arqueo reads items per warehouse).
+  async list(recurso, opciones) { return zohoList(this.env, recurso, opciones); }
   async order(id) { return zohoOrder(this.env, id); }   // one order, read-only, trimmed
 }
