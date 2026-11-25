@@ -37,8 +37,8 @@ People enter with a **username** and a password; only people an administrator cr
 - **Wrong passwords.** After 8 in a row the account rests 15 minutes.
 - **Sessions** last a year and renew every time the app is opened. An empty database lets the first person in as administrator.
 - **Who schedules.** Only administrators give a day or an hour (the server refuses it from anyone else, `PATCH /api/tasks/:id`).
-  The team says when it suits them (`tasks.when_ok`, "¿Cuándo te conviene?") and opens on **Lo mío**: what they reported
-  or have to do, and when it was scheduled.
+  The team says when it suits them (`tasks.when_ok`, "¿Cuándo te conviene?") and opens on the **Bandeja**. Its filter has
+  **Lo mío**: what you reported or have to do, scheduled or not, with when, and what of yours got done in the last 30 days.
 - Columns: `users.username`, `pin_hash` / `pin_salt` (the password, '' = none yet), `temp_hash` / `temp_salt` / `temp_until`.
 
 ## Time blocks

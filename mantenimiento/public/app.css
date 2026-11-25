@@ -152,11 +152,10 @@ body.has-bar { padding-bottom: calc(84px + var(--safe-b)); }
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; }
 .mbar { display: flex; justify-content: space-between; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 6px max(2px, var(--safe-b)); border-top: 1px solid var(--line); background: var(--bg); }
 .mbar::-webkit-scrollbar { display: none; }
-.mbar a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 36px; min-height: var(--bar-h); padding: 0 4px; color: var(--faint); font-size: 14.5px; font-weight: 500; letter-spacing: -.015em; white-space: nowrap; }
+.mbar a { flex: none; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 40px; min-height: var(--bar-h); padding: 0 9px; color: var(--faint); font-size: 15.5px; font-weight: 500; letter-spacing: -.01em; white-space: nowrap; }
 .mbar a[aria-current] { color: var(--ink); font-weight: 700; }
-@media (max-width: 399px) { .mbar { padding: 0 2px max(2px, var(--safe-b)); } .mbar a { padding: 0 3px; font-size: 13.5px; } }   /* the seven views fit a phone without sliding */
-@media (max-width: 359px) { .mbar a { font-size: 12.5px; padding: 0 2px; } }
-.mbar .n { font-size: 10.5px; font-weight: 600; color: var(--faint); align-self: flex-start; margin-top: 9px; font-variant-numeric: tabular-nums; }
+@media (max-width: 379px) { .mbar a { padding: 0 7px; font-size: 15px; } }
+.mbar .n { font-size: 11px; font-weight: 600; color: var(--faint); align-self: flex-start; margin-top: 9px; font-variant-numeric: tabular-nums; }
 .mbar .n.late { color: var(--bad); }
 .fab { position: absolute; right: 14px; bottom: calc(100% + 12px); width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent); box-shadow: 0 8px 22px rgba(20, 22, 28, .28); transition: transform .12s; }
 .fab svg { width: 26px; height: 26px; stroke-width: 2.4; }

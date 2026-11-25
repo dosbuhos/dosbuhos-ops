@@ -58,13 +58,16 @@ const EMPTY = {
   all: ['No hay pendientes', 'Cuando alguien reporte algo, aparece aquí.'],
 };
 // the filter sheet (Todo): whose, which areas, which priorities
-const passF = (t) => (F.who === 'all' || (F.who === 'mine' ? t.provider_id === myCard() : F.who === 'none' ? !t.provider_id : F.who === 'reported' ? t.created_by === S.user.id : t.provider_id === F.who))
+const isMio = (t) => t.created_by === S.user.id || (!!myCard() && t.provider_id === myCard());
+const passF = (t) => (F.who === 'all' || (F.who === 'mio' ? isMio(t) : F.who === 'mine' ? t.provider_id === myCard() : F.who === 'none' ? !t.provider_id : F.who === 'reported' ? t.created_by === S.user.id : t.provider_id === F.who))
   && (!F.areas.length || F.areas.includes(t.area_id)) && (!F.prios.length || F.prios.includes(t.priority));
 const filterCount = () => (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.sort !== 'auto' ? 1 : 0);
 // What a list holds. The filter of "Filtrar y ordenar" narrows whichever list is open; `raw` is the list whole, for the counts.
 function srcTasks(k, raw = false) {
   const src = srcOf(k);
-  const list = (C.open || []).filter((t) => src.has(t) && inWhoList(t));
+  // "Lo mío" on the Bandeja: everything you reported or have to do, scheduled or not, to follow it to the end
+  const wide = !raw && F.who === 'mio' && k === 'inbox';
+  const list = (C.open || []).filter((t) => (wide || src.has(t)) && inWhoList(t));
   return raw ? list : list.filter(passF);
 }
 function srcGroups(k, list) {
@@ -73,6 +76,7 @@ function srcGroups(k, list) {
   const take = (fn) => list.filter((t) => !used.has(t.id) && fn(t)).map((t) => (used.add(t.id), t));
   const byPrio = () => [1, 2, 3, 4].map((p) => ({ head: PRIO[p], cls: p === 1 ? 'bad' : p === 2 ? 'warn' : '', items: list.filter((t) => t.priority === p).sort(byLate) }));
   const so = F.sort;
+  if (F.who === 'mio' && so === 'auto') k = 'mine';
   // an order someone chose in "Filtrar y ordenar" applies to whichever list is open
   if (so === 'prio') return byPrio();
   if (so === 'old' || so === 'new') {   // by the day it was reported: what has been sitting longest, or what just came in
@@ -209,6 +213,7 @@ function listHTML(k) {
   const groups = srcGroups(k, list).filter((g) => g.items.length);
   const o = F.sort === 'old' || F.sort === 'new' ? { age: true, due: k !== 'inbox' }
     : F.sort !== 'auto' ? { prio: F.sort !== 'prio', area: F.sort !== 'area' && srcOf(k).area === undefined }
+    : k === 'inbox' && F.who === 'mio' ? { prio: false }   // yours, scheduled or not: say when
     : k === 'inbox' ? { prio: false, due: false, age: true }
     : k === 'late' ? { due: false }
       : k === 'week' ? { ctx: 'day' }
@@ -226,11 +231,14 @@ function listHTML(k) {
     const e = EMPTY[k] || [srcOf(k).area !== undefined ? `Nada abierto en ${srcOf(k).label}` : `Nada con prioridad ${srcOf(k).label.toLowerCase()}`, ''];
     html = `<div class="empty"><h2>${e[0]}</h2>${e[1] ? `<p>${e[1]}</p>` : ''}${k === 'all' || k === 'inbox' ? `<a class="b" href="#/nuevo">${ic('camera')}Reportar un problema</a>` : ''}</div>`;
   }
+  if (F.who === 'mio' && C.mioDone && C.mioDone.length && !s) {   // and what of yours was already done
+    html += `<h2 class="eyebrow">Ya se hizo, últimos 30 días<span class="n">${C.mioDone.length}</span></h2>${C.mioDone.map((t) => cardHTML(t, { done: false })).join('')}`;
+  }
   if (s) html += `<a class="showmore" href="#/buscar?q=${encodeURIComponent(P.q.trim())}">Buscar también en lo hecho, equipos y contactos</a>`;
   return { n: list.length, html };
 }
 function filterChips() {
-  const WHO = { mine: 'Los que me tocan', none: 'Sin asignar', reported: 'Los que reporté' };
+  const WHO = { mio: 'Lo mío', mine: 'Los que me tocan', none: 'Sin asignar', reported: 'Los que reporté' };
   const chips = [];
   if (F.who !== 'all') chips.push(`<button type="button" class="fchip" data-clear="who" aria-label="Quitar filtro">${esc(WHO[F.who] || 'De ' + first((provOf(F.who) || {}).name))}${ic('x')}</button>`);
   for (const p of F.prios) chips.push(`<button type="button" class="fchip" data-clear="p${p}" aria-label="Quitar filtro ${PRIO[p]}">${PRIO[p]}${ic('x')}</button>`);
@@ -587,7 +595,7 @@ function panelHTML() {
   const late = n('late');
   return `${late ? `<button type="button" class="pbanner" data-src="late"><span>${late === 1 ? '1 atrasado de días anteriores' : late + ' atrasados de días anteriores'}</span>Ver</button>` : ''}
     ${searchRow('', 'Buscar pendientes')}
-    <div class="navgroup">${row('mine')}${row('inbox')}${row('late')}${row('week')}${row('all')}</div>
+    <div class="navgroup">${row('inbox')}${row('late')}${row('week')}${row('all')}</div>
     ${isAdmin() ? `<div class="navhead"><span class="eyebrow">Tiempo</span></div>
     <div class="navgroup"><button type="button" class="navrow" data-go="block"><span class="ni">${ic('clock')}</span><span class="lbl">Bloquear tiempo</span><span class="n"></span></button><button type="button" class="navrow" data-go="copyweek"><span class="ni">${ic('repeat')}</span><span class="lbl">Copiar la semana pasada</span><span class="n"></span></button></div>` : ''}
     <div class="navhead"><span class="eyebrow">Prioridad</span></div>
@@ -613,6 +621,14 @@ function drawPlanner0(keep) {
   const today = todayStr();
   if (!P.day || (P.follow && P.day !== today)) P.day = today;
   needBlocks();
+  if (F.who === 'mio' && Date.now() - (C.mioAt || 0) > 30000) {
+    C.mioAt = Date.now();
+    api('GET', '/tasks?view=done&mine=1&limit=30').then((r) => {
+      const since = addDays(todayStr(), -30);
+      C.mioDone = r.tasks.filter((t) => t.completed_at && localYmd(t.completed_at) >= since);
+      if (UI.plan && !wdrag && !tdrag && !sw) drawPlanner(true);
+    }).catch(() => {});
+  }
   if (typeof P.who === 'number' && !provOf(P.who)) P.who = 'all';
   F.areas = F.areas.filter((id) => areaOf(id));
   if (typeof F.who === 'number' && !provOf(F.who)) F.who = 'all';

@@ -882,7 +882,7 @@ async function route() {
   const n = /^-?\d+$/.test(b || '') ? Number(b) : null;   // negative: a pendiente still on the phone (offline.js)
   try {
     if (!a) return await viewPlanner('dia');
-    if (a === 'mio') return await viewPlanner('mio');
+    if (a === 'mio') { F.who = 'mio'; saveF(); return location.replace('#/bandeja'); }   // old links: the Bandeja, filtered to what is yours
     if (a === 'semana' || a === 'mes' || a === 'bandeja' || a === 'atrasados' || a === 'todo') return await viewPlanner(a);
     if (a === 'prioridad' && n) return await viewPlanner('prio', n);
     if (a === 'area' && n !== null) return await viewPlanner('area', n);
@@ -938,7 +938,7 @@ async function start() {
     if (!st.user) return showEnter();
     S.user = st.user;
     await loadBoot();
-    if (!isAdmin() && (location.hash === '' || location.hash === '#' || location.hash === '#/')) location.replace('#/mio');   // the team opens on what is theirs
+    if (!isAdmin() && (location.hash === '' || location.hash === '#' || location.hash === '#/')) location.replace('#/bandeja');   // the team opens on the Bandeja
     route();
   } catch (e) {
     APP.innerHTML = `<div class="enter"><img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40"><h1>Esmero</h1>

@@ -29,7 +29,7 @@ function showEnter(step = 'pass', ctx = {}) {
        ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1 class="ebrand"><img src="/icon.svg?v=37" alt="" width="40" height="40">Esmero</h1>
+    <h1 class="ebrand"><img src="/icon.svg?v=38" alt="" width="40" height="40">Esmero</h1>
     <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
@@ -114,7 +114,7 @@ function filterSheet() {
       <h3 class="flabel">Ordenar por</h3>
       <div class="choice wrapc" role="radiogroup" aria-label="Ordenar por">${SORTS.map(([v, l]) => `<button type="button" role="radio" aria-checked="${F.sort === v}" class="ch ${F.sort === v ? 'on' : ''}" data-group="${v}"><span class="cl">${l}</span></button>`).join('')}</div>
       <h3 class="flabel">Mostrar solo: ¿de quién?</h3>
-      <div class="choice wrapc">${whoBtn('all', 'Todos', all.length)}${me ? whoBtn('mine', 'Los que me tocan', cntWho(me)) : ''}${whoBtn('none', 'Sin asignar', all.filter((t) => !t.provider_id).length)}${whoBtn('reported', 'Los que reporté', all.filter((t) => t.created_by === S.user.id).length)}
+      <div class="choice wrapc">${whoBtn('all', 'Todos', all.length)}${whoBtn('mio', 'Lo mío', all.filter((t) => t.created_by === S.user.id || (!!me && t.provider_id === me)).length)}${me ? whoBtn('mine', 'Los que me tocan', cntWho(me)) : ''}${whoBtn('none', 'Sin asignar', all.filter((t) => !t.provider_id).length)}${whoBtn('reported', 'Los que reporté', all.filter((t) => t.created_by === S.user.id).length)}
         ${people.map((id) => whoBtn(id, first(provOf(id).name), cntWho(id))).join('')}</div>
       <h3 class="flabel">Prioridad</h3>
       <div class="choice wrapc">${[1, 2, 3, 4].map((p) => `<button type="button" class="ch ${F.prios.includes(p) ? 'on' : ''}" data-prio="${p}" aria-pressed="${F.prios.includes(p)}"><span class="pdot p${p}"></span><span class="cl">${PRIO[p]}</span><span class="cn">${all.filter((t) => t.priority === p).length}</span></button>`).join('')}</div>

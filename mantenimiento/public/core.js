@@ -505,7 +505,6 @@ function inputSheet(title, value, okLabel, { sub = '', placeholder = '', max = 6
 // along the top. There is no side menu; the lists live in the planner's own panel.
 const isDesk = () => matchMedia('(min-width: 960px)').matches;
 const MTABS = [
-  { tab: 'mio', href: '#/mio', label: 'Lo mío' },
   { tab: 'bandeja', href: '#/bandeja', label: 'Bandeja' },
   { tab: 'atrasados', href: '#/atrasados', label: 'Atrasados' },
   { tab: 'dia', href: '#/', label: 'Día' },
@@ -528,7 +527,7 @@ function drawNav(tab) {
     NAV.className = 'nav dtop';
     NAV.innerHTML = `<div class="brandrow">
         ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
-        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=37" alt="" width="26" height="26"><span>Esmero</span></a></div>
+        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=38" alt="" width="26" height="26"><span>Esmero</span></a></div>
       <div class="zoom" role="group" aria-label="Vista">
         <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a><a href="#/mes" data-tab ${tab === 'mes' ? 'aria-current="page"' : ''}>Mes</a></div>
       ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${unit} anterior">${ic('back')}</button>
@@ -547,7 +546,7 @@ function drawNav(tab) {
     <div class="mbar">${MTABS.map((t) => `<a href="${t.href}" data-tab ${t.tab === tab ? 'aria-current="page"' : ''}>${t.label}${t.tab === 'bandeja' && n.inbox ? `<span class="n ${n.urgent ? 'late' : ''}" aria-label="${n.inbox} sin programar${n.urgent ? ', con algo urgente' : ''}">${num(n.inbox)}</span>` : t.tab === 'atrasados' && n.late ? `<span class="n late" aria-label="${plural(n.late, 'atrasado', 'atrasados')}">${num(n.late)}</span>` : ''}</a>`).join('')}</div>`;
   const bar = $('.mbar', NAV);
   const cur = $('[aria-current]', bar);
-  // it fits on most phones; where it does not, it starts at the left edge and slides only as far as needed to show the current view
+  // the ribbon starts at its left edge (Bandeja whole); it slides only as far as needed to show the current view
   if (cur && bar.scrollWidth > bar.clientWidth + 1) {
     const l = cur.offsetLeft, r = l + cur.offsetWidth;
     if (r > bar.clientWidth) bar.scrollLeft = r - bar.clientWidth + 8; else bar.scrollLeft = 0;

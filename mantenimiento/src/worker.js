@@ -354,6 +354,7 @@ async function tasksApi(request, env, url, user, seg, method) {
     if (view === 'open') where.push(`t.status IN ${OPEN_SQL}`);
     else if (view === 'done') where.push("t.status IN ('hecha','cancelada')");
     if (q.get('provider')) { where.push('t.provider_id = ?'); params.push(int(q.get('provider'))); }
+    if (q.get('mine')) { where.push('(t.created_by = ? OR (t.provider_id IS NOT NULL AND t.provider_id = ?))'); params.push(user.id, user.provider_id || -1); }
     if (q.get('equipment')) { where.push('t.equipment_id = ?'); params.push(int(q.get('equipment'))); }
     if (q.get('area')) { where.push('t.area_id = ?'); params.push(int(q.get('area'))); }
     if (q.get('q')) {
