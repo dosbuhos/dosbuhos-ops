@@ -1166,5 +1166,6 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 .pwrow .eye[aria-pressed="true"] { color: var(--ink); }
 .pwrow .eye svg { width: 20px; height: 20px; }
 .bigcode { margin: 6px 0 4px; text-align: center; font: 700 40px/1 var(--font); letter-spacing: .18em; font-variant-numeric: tabular-nums; }
+.bigcode.user { font-size: 28px; letter-spacing: .02em; margin-bottom: 14px; word-break: break-all; }
 .checkrow { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0 0; font-size: 15px; cursor: pointer; }
 .checkrow input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--ink); }

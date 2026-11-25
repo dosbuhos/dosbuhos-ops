@@ -1,11 +1,10 @@
 // Mantenimiento Dos Búhos — Cloudflare Worker (API + static assets)
 // Bindings: DB (D1), ASSETS (static files), optional PHOTOS (R2 bucket; without it photos live in D1).
 //
-// Access (Eric, 24 Nov 2026): the WhatsApp number is the username. Only people an administrator registered can enter
-// (Cuenta → Personas → Agregar persona): the app gives a one-time code, sent to them by WhatsApp, good for 7 days; with
-// it they choose their own password. A session lasts a year and renews every time the app is opened. An administrator
-// can give someone a new code (a forgotten password). The very first person into an empty database becomes its
-// administrator, with their name, number and password.
+// Access (Eric, 25 Nov 2026): people enter with a username and a password. Only an administrator creates people
+// (Cuenta → Personas → Agregar persona: name, username, WhatsApp, and a temporary password typed or generated). The
+// temporary one is good for 7 days and only lets them choose their own password. A session lasts a year and renews every
+// time the app is opened. The very first person into an empty database becomes its administrator.
 
 import { MAX_FAILS, LOCK_MIN, passProblem, hashPass, sameHex } from './auth.js';
 import { MX_OFFSET_H, mxToday, addDaysYmd, fmtDate, parseMonths, monthsOnOrAfter, advancePlan, everyText, perYear, phoneKey, mergePhone } from './plan.js';
@@ -89,7 +88,7 @@ function getCookie(request, name) {
 }
 const sessionCookie = (token, maxAge) => `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
-const USER_COLS = "u.id, u.name, u.role, u.provider_id, u.phone, u.email, (u.pin_hash != '') AS has_pass";
+const USER_COLS = "u.id, u.name, u.username, u.role, u.provider_id, u.phone, u.email, (u.pin_hash != '') AS has_pass";
 async function currentUser(request, env) {
   const token = getCookie(request, COOKIE);
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
@@ -174,36 +173,41 @@ async function startSession(env, userId) {
 const TEMP_DAYS = 7;
 // A one-time code: six digits, easy to read out or type from a WhatsApp message.
 function newCode() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(100000 + (a[0] % 900000)); }
-async function setCode(env, id) {
-  const code = newCode(), salt = randomHex(16);
+// A username: lowercase letters, numbers, dot, dash or underscore; accents dropped. '' when it will not do.
+function userName(v) {
+  const u = String(v || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+  return /^[a-z0-9._-]{3,30}$/.test(u) ? u : '';
+}
+async function setCode(env, id, given) {
+  const code = given || newCode(), salt = randomHex(16);
   await env.DB.prepare('UPDATE users SET temp_hash = ?, temp_salt = ?, temp_until = ?, failed_count = 0, locked_until = NULL WHERE id = ?')
     .bind(await hashPass(code, salt), salt, Date.now() + TEMP_DAYS * 864e5, id).run();
   return code;
 }
 
-// POST /api/enter { phone, password, new_password?, name? }
-// - a registered number with its password: in.
-// - a registered number with its one-time code: answers { need_new: true } until a new_password comes with it, then in.
-// - an empty database: the first person (name, number, password) is its administrator.
+// POST /api/enter { username, password, new_password?, name?, phone? }
+// - a username with its password: in.
+// - a username with its temporary password: answers { need_new: true } until a new_password comes with it, then in.
+// - an empty database: the first person (name, username, WhatsApp, password) is its administrator.
 async function enter(request, env) {
   const b = await body(request);
-  const phone = str(b.phone, 40);
-  const key = phoneKey(phone);
-  if (!key) fail(400, 'Escribe tu WhatsApp con los 10 dígitos');
+  const uname = userName(b.username);
+  if (!uname) fail(400, 'Escribe tu usuario');
   const pass = typeof b.password === 'string' ? b.password : '';
   const now = Date.now();
-  const u = await env.DB.prepare('SELECT * FROM users WHERE phone_key = ?').bind(key).first();
+  const u = await env.DB.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').bind(uname).first();
 
   if (!u) {
     const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first('n');
-    if (total > 0) fail(403, 'Ese número no está registrado en Esmero. Pide a un administrador que te agregue.');
-    const name = str(b.name, 60);
+    if (total > 0) fail(403, 'Ese usuario no existe en Esmero. Revisa cómo te lo dieron o pídelo a un administrador.');
+    const name = str(b.name, 60), phone = str(b.phone, 40), key = phoneKey(phone);
     if (!name || name.length < 2) fail(400, 'Escribe tu nombre y apellido');
+    if (!key) fail(400, 'Escribe tu WhatsApp con los 10 dígitos');
     const bad = passProblem(pass);
     if (bad) fail(400, bad);
     const salt = randomHex(16);
-    const r = await env.DB.prepare("INSERT INTO users (name, pin_hash, pin_salt, role, phone, phone_key, provider_id) VALUES (?, ?, ?, 'admin', ?, ?, ?)")
-      .bind(name, await hashPass(pass, salt), salt, phone, key, await cardFor(env, name, phone, key)).run();
+    const r = await env.DB.prepare("INSERT INTO users (name, username, pin_hash, pin_salt, role, phone, phone_key, provider_id) VALUES (?, ?, ?, ?, 'admin', ?, ?, ?)")
+      .bind(name, uname, await hashPass(pass, salt), salt, phone, key, await cardFor(env, name, phone, key)).run();
     return startSession(env, r.meta.last_row_id);
   }
   if (!u.active) fail(403, 'Tu acceso está desactivado. Habla con un administrador de Esmero.');
@@ -216,8 +220,8 @@ async function enter(request, env) {
     const fails = (u.failed_count || 0) + 1, lock = fails >= MAX_FAILS;
     await env.DB.prepare('UPDATE users SET failed_count = ?, locked_until = ? WHERE id = ?').bind(lock ? 0 : fails, lock ? now + LOCK_MIN * 60000 : null, u.id).run();
     if (lock) fail(429, rest(LOCK_MIN * 60000));
-    if (!u.pin_hash && !(u.temp_hash && u.temp_until > now)) fail(401, 'Todavía no tienes contraseña. Pide a un administrador tu código de entrada.');
-    if (u.temp_hash && u.temp_until <= now && !u.pin_hash) fail(401, 'Ese código ya venció. Pide uno nuevo a un administrador.');
+    if (!u.pin_hash && !(u.temp_hash && u.temp_until > now)) fail(401, 'Todavía no tienes contraseña. Pide a un administrador una temporal.');
+    if (u.temp_hash && u.temp_until <= now && !u.pin_hash) fail(401, 'Tu contraseña temporal ya venció. Pide una nueva a un administrador.');
     const left = MAX_FAILS - fails;
     fail(401, `La contraseña no es esa.${left <= 3 ? (left === 1 ? ' Te queda 1 intento.' : ` Te quedan ${left} intentos.`) : ''}`);
   }
@@ -225,13 +229,13 @@ async function enter(request, env) {
     if (!b.new_password) return json({ need_new: true, name: first(u.name) });
     const bad = passProblem(b.new_password);
     if (bad) fail(400, bad);
-    if (b.new_password.trim() === pass.trim()) fail(400, 'Elige una contraseña distinta al código');
+    if (b.new_password.trim() === pass.trim()) fail(400, 'Elige una contraseña distinta a la temporal');
     const salt = randomHex(16);
     await env.DB.prepare('UPDATE users SET pin_hash = ?, pin_salt = ?, temp_hash = NULL, temp_salt = NULL, temp_until = NULL WHERE id = ?')
       .bind(await hashPass(b.new_password, salt), salt, u.id).run();
   }
   await env.DB.prepare('UPDATE users SET failed_count = 0, locked_until = NULL WHERE id = ?').bind(u.id).run();
-  if (!u.provider_id) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ? AND provider_id IS NULL').bind(await cardFor(env, u.name, u.phone || phone, key), u.id).run();
+  if (!u.provider_id && u.phone_key) await env.DB.prepare('UPDATE users SET provider_id = ? WHERE id = ? AND provider_id IS NULL').bind(await cardFor(env, u.name, u.phone, u.phone_key), u.id).run();
   return startSession(env, u.id);
 }
 const first = (n) => String(n || '').trim().split(/\s+/)[0];
@@ -288,7 +292,7 @@ async function bootstrap(env, user) {
       FROM providers p ORDER BY p.kind DESC, p.name COLLATE NOCASE`),
     env.DB.prepare('SELECT id, name, area_id, provider_id, active FROM equipment ORDER BY name COLLATE NOCASE'),
     env.DB.prepare(isAdmin(user)
-      ? "SELECT id, name, role, active, provider_id, email, phone, last_seen, created_at, (pin_hash != '') AS has_pass, (temp_until > CAST(strftime('%s','now') AS INTEGER) * 1000) AS has_code FROM users ORDER BY active DESC, name COLLATE NOCASE"
+      ? "SELECT id, name, username, role, active, provider_id, email, phone, last_seen, created_at, (pin_hash != '') AS has_pass, (temp_until > CAST(strftime('%s','now') AS INTEGER) * 1000) AS has_code FROM users ORDER BY active DESC, name COLLATE NOCASE"
       : 'SELECT id, name, role, active, provider_id FROM users WHERE active = 1 ORDER BY name COLLATE NOCASE'),
     // How many are late and how many wait in the Bandeja, so the counts are right on whichever screen the app opens.
     env.DB.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status IN ${OPEN_SQL} AND due_date IS NOT NULL AND due_date < ?`).bind(today),
@@ -857,25 +861,31 @@ async function areasApi(request, env, user, seg, method) {
 async function usersApi(request, env, user, seg, method) {
   requireAdmin(user);
   const id = int(seg[1]);
-  if (!id && method === 'POST') {   // register someone: name, WhatsApp, role. Answers with their one-time code.
+  if (!id && method === 'POST') {   // create someone: name, username, WhatsApp, role, temporary password (or one is made)
     const b = await body(request);
-    const name = str(b.name, 60), phone = str(b.phone, 40), key = phoneKey(phone);
+    const name = str(b.name, 60), uname = userName(b.username), phone = str(b.phone, 40), key = phoneKey(phone);
     if (!name || name.length < 2) fail(400, 'Escribe su nombre y apellido');
+    if (!uname) fail(400, 'El usuario lleva de 3 a 30 letras o números, sin espacios (puede tener . - _)');
     if (!key) fail(400, 'Escribe su WhatsApp con los 10 dígitos');
-    const dup = await env.DB.prepare('SELECT name FROM users WHERE phone_key = ? OR name = ? COLLATE NOCASE').bind(key, name).first();
-    if (dup) fail(409, `Ya está registrado: ${dup.name}`);
-    const r = await env.DB.prepare("INSERT INTO users (name, pin_hash, pin_salt, role, phone, phone_key, provider_id) VALUES (?, '', '', ?, ?, ?, ?)")
-      .bind(name, b.role === 'admin' ? 'admin' : 'staff', phone, key, await cardFor(env, name, phone, key)).run();
+    const temp = String(b.temp || '').trim();
+    if (temp && temp.length < 6) fail(400, 'La contraseña temporal lleva al menos 6 caracteres');
+    const dup = await env.DB.prepare('SELECT name, username, phone_key FROM users WHERE username = ? COLLATE NOCASE OR phone_key = ? OR name = ? COLLATE NOCASE').bind(uname, key, name).first();
+    if (dup) fail(409, dup.username && dup.username.toLowerCase() === uname ? `Ese usuario ya es de ${dup.name}` : dup.phone_key === key ? `Ese WhatsApp ya es de ${dup.name}` : `Ya existe: ${dup.name}`);
+    const r = await env.DB.prepare("INSERT INTO users (name, username, pin_hash, pin_salt, role, phone, phone_key, provider_id) VALUES (?, ?, '', '', ?, ?, ?, ?)")
+      .bind(name, uname, b.role === 'admin' ? 'admin' : 'staff', phone, key, await cardFor(env, name, phone, key)).run();
     const nid = r.meta.last_row_id;
-    return json({ id: nid, code: await setCode(env, nid), days: TEMP_DAYS });
+    return json({ id: nid, username: uname, code: await setCode(env, nid, temp), days: TEMP_DAYS });
   }
   if (id && seg[2] === 'code' && method === 'POST') {   // a new one-time code: the password they had stops working
-    const u = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+    const u = await env.DB.prepare('SELECT id, username FROM users WHERE id = ?').bind(id).first();
     if (!u) fail(404, 'Esa persona ya no está');
     if (id === user.id) fail(400, 'Para cambiar tu contraseña ve a Mi cuenta');
+    const b = await body(request).catch(() => ({}));
+    const temp = String((b && b.temp) || '').trim();
+    if (temp && temp.length < 6) fail(400, 'La contraseña temporal lleva al menos 6 caracteres');
     await env.DB.prepare("UPDATE users SET pin_hash = '', pin_salt = '' WHERE id = ?").bind(id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
-    return json({ code: await setCode(env, id), days: TEMP_DAYS });
+    return json({ username: u.username, code: await setCode(env, id, temp), days: TEMP_DAYS });
   }
   if (id && method === 'PATCH') {
     const b = await body(request);

@@ -13,14 +13,14 @@ def session(r):
     s.headers['Cookie'] = 'mt_sid=' + r.cookies.get('mt_sid')   # the cookie is Secure; requests won't send it over plain http
     s.sid = r.cookies.get('mt_sid')
     return s
-def first_admin(name, phone):           # an empty database: the first person in is its administrator
-    r = requests.post(B + '/api/enter', json={'name': name, 'phone': phone, 'password': PASS}); assert r.ok, r.text
+def first_admin(name, user, phone):     # an empty database: the first person in is its administrator
+    r = requests.post(B + '/api/enter', json={'name': name, 'username': user, 'phone': phone, 'password': PASS}); assert r.ok, r.text
     return session(r)
-def person(name, phone, role='staff'):  # registered by Eric; enters with the one-time code and chooses a password
-    code = eric.post(B + '/api/users', json={'name': name, 'phone': phone, 'role': role}); assert code.ok, code.text
+def person(name, user, phone, role='staff'):  # created by Eric; enters with the temporary password and chooses one
+    code = eric.post(B + '/api/users', json={'name': name, 'username': user, 'phone': phone, 'role': role}); assert code.ok, code.text
     code = code.json()['code']
-    r = requests.post(B + '/api/enter', json={'phone': phone, 'password': code}); assert r.ok and r.json().get('need_new'), r.text
-    r = requests.post(B + '/api/enter', json={'phone': phone, 'password': code, 'new_password': PASS}); assert r.ok, r.text
+    r = requests.post(B + '/api/enter', json={'username': user, 'password': code}); assert r.ok and r.json().get('need_new'), r.text
+    r = requests.post(B + '/api/enter', json={'username': user, 'password': code, 'new_password': PASS}); assert r.ok, r.text
     return session(r)
 def post(s, path, data):
     r = s.post(B + '/api' + path, json=data); assert r.ok, (path, r.text); return r.json()
@@ -37,12 +37,13 @@ def photo(s, path, label, color):
     r = s.post(B + '/api' + path, files={'photo': ('foto.jpg', full.getvalue(), 'image/jpeg'), 'thumb': ('mini.jpg', th.getvalue(), 'image/jpeg')})
     assert r.ok, r.text
 
-eric = first_admin('Eric Méndez', '+1 512 555 0100')
-adrian = person('Adrián Robles', '415 555 0142', 'admin')
-jaime = person('Jaime López', '415 555 0177')
-lupita = person('Guadalupe Ramírez', '415 555 0119')
-# someone registered who has not come in yet: the e2e test enters with this code
-pend = eric.post(B + '/api/users', json={'name': 'Rosa Méndez', 'phone': '415 555 0199'}).json()
+eric = first_admin('Eric Méndez', 'emendez', '+1 512 555 0100')
+adrian = person('Adrián Robles', 'arobles', '415 555 0142', 'admin')
+jaime = person('Jaime López', 'jlopez', '415 555 0177')
+lupita = person('Guadalupe Ramírez', 'gramirez', '415 555 0119')
+# someone created who has not come in yet: the e2e test enters with her temporary password, typed by Eric
+pend = eric.post(B + '/api/users', json={'name': 'Rosa Méndez', 'username': 'rmendez', 'phone': '415 555 0199', 'temp': '7654321'}).json()
+assert pend['code'] == '7654321', pend
 A = {a['name']: a['id'] for a in eric.get(B + '/api/bootstrap').json()['areas']}
 P = {}
 for name, kind, spec, phone, comp in [

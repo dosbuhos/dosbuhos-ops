@@ -553,15 +553,16 @@ async function viewContactoForm(id) {
 
 // ---------- Cuenta ----------
 const appLink = () => APP_URL + '/';
-// The message an administrator sends someone with their one-time code.
-const codeText = (name, code, days) => `Hola ${first(name)}. Ya tienes acceso a Esmero, donde llevamos el mantenimiento de Dos Búhos: ${APP_URL}\n\nEntra con tu WhatsApp y este código: *${code}*\nTe va a pedir que elijas tu contraseña. El código sirve ${days} días.`;
+// The message an administrator sends someone with their username and temporary password.
+const codeText = (name, user, code, days) => `Hola ${first(name)}. Ya tienes acceso a Esmero, donde llevamos el mantenimiento de Dos Búhos: ${APP_URL}\n\nTu usuario: *${user}*\nTu contraseña temporal: *${code}*\nAl entrar te pide que elijas la tuya. La temporal sirve ${days} días.`;
 async function codeSheet(x, r) {
   const v = await sheet({
-    title: `Código para ${first(x.name)}`, sub: `Sirve una vez, durante ${r.days} días. Con él elige su contraseña.`,
-    body: `<div class="pad"><p class="bigcode" aria-label="Código ${r.code.split('').join(' ')}">${r.code}</p></div>`,
+    title: `Entrada de ${first(x.name)}`, sub: `La temporal sirve una vez, durante ${r.days} días. Con ella elige su contraseña.`,
+    body: `<div class="pad"><p class="small center">Usuario</p><p class="bigcode user">${esc(r.username)}</p>
+      <p class="small center">Contraseña temporal</p><p class="bigcode" aria-label="Contraseña temporal ${esc(r.code.split('').join(' '))}">${esc(r.code)}</p></div>`,
     acts: [{ label: 'Cerrar', cls: 'plain', value: null }, { label: 'Mandar por WhatsApp', value: 'wa' }],
   });
-  if (v === 'wa') window.open(waHref(x.phone, codeText(x.name, r.code, r.days)), '_blank');
+  if (v === 'wa') window.open(waHref(x.phone, codeText(x.name, r.username, r.code, r.days)), '_blank');
 }
 function viewCuenta() {
   UI.view = 'cuenta';
@@ -569,20 +570,20 @@ function viewCuenta() {
   const item = (href, icon, title, sub, attrs = '') => `<a class="lrow" href="${href}" ${attrs}><span class="lth ico">${ic(icon)}</span><span class="grow"><b>${title}</b><span class="ls">${sub}</span></span>${ic('chev')}</a>`;
   render(header('Mi cuenta', { back: true }) + `<div class="wrap detail">
     <div class="who-card">${avatar(u.name, 'xl')}<h2>${esc(u.name)}</h2>
-      <p class="by">${isAdmin() ? 'Administrador' : 'Equipo'}</p>
+      <p class="by">${u.username ? '@' + esc(u.username) + ' · ' : ''}${isAdmin() ? 'Administrador' : 'Equipo'}</p>
       <p class="phone">${esc(fmtPhone(u.phone))}</p>${u.email ? `<p class="by">${esc(u.email)}</p>` : ''}
       <button class="b tonal sm" data-edit>${ic('edit')}Cambiar mis datos</button></div>
     <div class="list">
       ${item('#/resumen', 'chart', 'Resumen', 'Cómo vamos: abiertos, atrasados, por persona y por área')}
       ${item('#/hechos', 'check', 'Lo que ya se hizo', 'Todo lo terminado, con buscador')}
-      ${item('#/', 'lock', 'Cambiar mi contraseña', u.has_pass ? 'La que usas para entrar con tu WhatsApp' : 'Todavía no tienes: elige una', 'data-pass')}
-      ${isAdmin() ? item('#/personas', 'users', 'Personas', 'Agregar a alguien, darle un código de entrada, administradores') + item('#/areas', 'tag', 'Áreas', 'Las etiquetas de colores: nombres, colores y orden') : ''}
+      ${item('#/', 'lock', 'Cambiar mi contraseña', u.has_pass ? 'La que usas para entrar con tu usuario' : 'Todavía no tienes: elige una', 'data-pass')}
+      ${isAdmin() ? item('#/personas', 'users', 'Personas', 'Agregar a alguien, darle una contraseña temporal, administradores') + item('#/areas', 'tag', 'Áreas', 'Las etiquetas de colores: nombres, colores y orden') : ''}
     </div>
     <div class="tip">${ic('info')}<p><b>Para tenerla como app:</b> abre el menú del navegador y elige «Agregar a pantalla de inicio».</p></div>
     <button class="b plain block" data-out>${ic('logout')}Salir de mi cuenta en este teléfono</button>
   </div>`, { tab: 'cuenta' });
   $('[data-out]').onclick = async () => {
-    if (!(await confirmSheet('¿Salir de tu cuenta?', 'Para volver a entrar escribes tu WhatsApp y tu contraseña.', 'Salir'))) return;
+    if (!(await confirmSheet('¿Salir de tu cuenta?', 'Para volver a entrar escribes tu usuario y tu contraseña.', 'Salir'))) return;
     try { await api('POST', '/logout'); } catch { /* */ }
     S.user = null; C.open = null;
     location.hash = '#/';
@@ -592,7 +593,7 @@ function viewCuenta() {
     e.preventDefault();
     const res = await sheet({
       title: 'Cambiar mi contraseña', sub: 'Los otros teléfonos donde entraste te la van a pedir.',
-      body: `<form class="pad" onsubmit="return false"><input type="hidden" autocomplete="username" value="${esc(u.phone || '')}">
+      body: `<form class="pad" onsubmit="return false"><input type="hidden" autocomplete="username" value="${esc(u.username || '')}">
         ${u.has_pass ? fInput('me-cur', 'Contraseña actual', { type: 'password', max: 64, attrs: 'autocomplete="current-password"' }) : ''}
         ${fInput('me-new', 'Nueva contraseña', { type: 'password', max: 64, attrs: 'autocomplete="new-password"', hint: 'Al menos 8 letras o números.' })}</form>`,
       acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Guardar', value: (w) => ({ current: $('#me-cur', w) ? $('#me-cur', w).value : undefined, password: $('#me-new', w).value }) }],
@@ -612,7 +613,7 @@ function viewCuenta() {
     try {
       const r = await api('PATCH', '/me', res);
       S.user = r.user;
-      store('mt_me', { name: r.user.name, phone: r.user.phone, email: r.user.email });
+      store('mt_me', { name: r.user.name, username: r.user.username });
       await loadBoot();
       toast('Datos guardados');
       viewCuenta();
@@ -626,22 +627,24 @@ async function viewPersonas() {
   try { await loadBoot(); } catch (e) { return errorView(e.message, { tab: 'cuenta' }); }
   const users = S.users;
   render(header('Personas', { back: true }) + `<div class="wrap detail">
-    <p class="small">Solo entra quien está en esta lista. Agrega a alguien con su WhatsApp y mándale su código: con él elige su contraseña.</p>
+    <p class="small">Solo entra quien está en esta lista. Al agregar a alguien le das un usuario y una contraseña temporal; con ella elige la suya.</p>
     <button class="b block" type="button" data-add>${ic('plus')}Agregar persona</button>
     ${fSelect('pp-coord', 'A quién se le avisa de lo urgente', contactOptions(S.settings.coordinator || '', 'A nadie'), { hint: 'Quien reporta algo sin asignar ve un botón para avisarle por WhatsApp.' })}
     <h2 class="sec">Registrados<span class="n">${users.filter((x) => x.active).length}</span></h2>
     <div class="list">${users.map((x) => `<button type="button" class="lrow ${x.active ? '' : 'off'}" data-u="${x.id}">${avatar(x.name)}<span class="grow"><b>${esc(x.name)}${x.id === S.user.id ? ' (tú)' : ''}</b>
-      <span class="ls">${bits([fmtPhone(x.phone) || 'Sin teléfono', x.email])}</span>
-      <span class="ls">${!x.active ? 'Sin acceso' : x.has_code && !x.has_pass ? 'Tiene código, todavía no elige contraseña' : !x.has_pass ? 'Sin contraseña: dale un código' : x.last_seen ? 'Entró ' + esc(fmtDay(localYmd(x.last_seen))) : 'Todavía no entra'}</span></span>
+      <span class="ls">${bits([x.username ? '@' + esc(x.username) : '', fmtPhone(x.phone) || 'Sin WhatsApp'])}</span>
+      <span class="ls">${!x.active ? 'Sin acceso' : x.has_code && !x.has_pass ? 'Tiene temporal, todavía no elige contraseña' : !x.has_pass ? 'Sin contraseña: dale una temporal' : x.last_seen ? 'Entró ' + esc(fmtDay(localYmd(x.last_seen))) : 'Todavía no entra'}</span></span>
       ${x.role === 'admin' ? '<span class="pill go">Admin</span>' : ''}${ic('chev')}</button>`).join('')}</div>
   </div>`, { tab: 'cuenta' });
   $('[data-add]').onclick = async () => {
     const res = await sheet({
-      title: 'Agregar persona', sub: 'Entra con su WhatsApp. Te damos un código para mandárselo.',
+      title: 'Agregar persona', sub: 'Entra con su usuario. Su WhatsApp es para avisarle y mandarle sus pendientes.',
       body: `<div class="pad">${fInput('np-name', 'Nombre y apellido', { max: 60, attrs: 'autocapitalize="words" autocomplete="off"' })}
+        ${fInput('np-user', 'Usuario', { placeholder: 'Ej. abarcenas', max: 30, attrs: 'autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off"', hint: 'Letras o números, sin espacios.' })}
         ${fInput('np-phone', 'WhatsApp', { type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'inputmode="tel" autocomplete="off"', hint: 'Si es de Estados Unidos, empieza con +1.' })}
+        ${fInput('np-temp', 'Contraseña temporal', { max: 64, optional: true, attrs: 'autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off"', hint: 'Al menos 6. Si la dejas vacía, la app inventa una.' })}
         <label class="checkrow"><input type="checkbox" id="np-admin"><span>Administrador <span class="muted">(agrega personas, elimina cosas, cambia áreas)</span></span></label></div>`,
-      acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Agregar', value: (w) => ({ name: $('#np-name', w).value.trim(), phone: $('#np-phone', w).value.trim(), role: $('#np-admin', w).checked ? 'admin' : 'staff' }) }],
+      acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Agregar', value: (w) => ({ name: $('#np-name', w).value.trim(), username: $('#np-user', w).value.trim(), phone: $('#np-phone', w).value.trim(), temp: $('#np-temp', w).value.trim(), role: $('#np-admin', w).checked ? 'admin' : 'staff' }) }],
     });
     if (!res) return;
     try { const r = await api('POST', '/users', res); await loadBoot(); viewPersonas(); await codeSheet(res, r); } catch (e) { toast(e.message, { bad: true }); }
@@ -653,7 +656,7 @@ async function viewPersonas() {
     const x = users.find((u) => u.id === Number(b.dataset.u));
     const self = x.id === S.user.id;
     const opts = [];
-    if (!self && x.active) opts.push({ value: 'code', label: x.has_pass ? 'Darle un código nuevo' : 'Darle su código de entrada', sub: x.has_pass ? 'Si olvidó su contraseña. La que tenía deja de servir.' : 'Para que entre por primera vez y elija su contraseña', icon: 'lock' });
+    if (!self && x.active) opts.push({ value: 'code', label: 'Darle una contraseña temporal', sub: x.has_pass ? 'Si olvidó su contraseña. La que tenía deja de servir.' : 'Para que entre por primera vez y elija la suya', icon: 'lock' });
     if (x.phone && !self) opts.push({ value: 'wa', label: 'Escribirle por WhatsApp', icon: 'wa' });
     if (!self && x.active) opts.push(x.role === 'admin' ? { value: 'staff', label: 'Quitarle lo de administrador', icon: 'user' } : { value: 'admin', label: 'Hacer administrador', sub: 'Puede eliminar cosas, quitar personas y cambiar las áreas', icon: 'shield' });
     if (!self) opts.push(x.active ? { value: 'off', label: 'Quitarle el acceso', sub: 'Se le cierra la app en todos sus teléfonos', icon: 'x', cls: 'danger' } : { value: 'on', label: 'Devolverle el acceso', icon: 'check' });
@@ -662,7 +665,7 @@ async function viewPersonas() {
     if (!v) return;
     if (v === 'wa') return window.open(waHref(x.phone), '_blank');
     if (v === 'code') {
-      if (x.has_pass && !(await confirmSheet(`¿Código nuevo para ${first(x.name)}?`, 'Su contraseña deja de servir y se le cierra la app en sus teléfonos hasta que entre con el código.', 'Darle código'))) return;
+      if (x.has_pass && !(await confirmSheet(`¿Contraseña temporal para ${first(x.name)}?`, 'Su contraseña deja de servir y se le cierra la app en sus teléfonos hasta que entre con la temporal.', 'Darle temporal'))) return;
       try { const r = await api('POST', `/users/${x.id}/code`); await codeSheet(x, r); viewPersonas(); } catch (e) { toast(e.message, { bad: true }); }
       return;
     }

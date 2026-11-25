@@ -13,14 +13,20 @@ function showEnter(step = 'pass', ctx = {}) {
   const eye = (id) => `<button type="button" class="eye" data-eye="${id}" aria-label="Mostrar la contraseña" aria-pressed="false">${ic('eye')}</button>`;
   const pw = (id, label, auto, hint = '') => `<div class="field"><label class="flabel" for="${id}">${label}</label>
     <div class="pwrow"><input class="input" id="${id}" type="password" maxlength="64" autocomplete="${auto}" autocapitalize="none" spellcheck="false" enterkeyhint="go">${eye(id)}</div>${hint ? `<p class="hint">${hint}</p>` : ''}</div>`;
+  const user = (v, hint) => fInput('en-user', 'Tu usuario', { value: v, placeholder: UI.firstRun ? 'Ej. lramirez' : '', max: 30, attrs: 'autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next"', hint });
   const body = step === 'new'
-    ? `<p class="lead">Hola ${esc(ctx.name || '')}. Elige la contraseña que vas a usar desde ahora en lugar del código.</p>
-       <input type="hidden" id="en-phone" value="${esc(ctx.phone)}" autocomplete="username">
+    ? `<p class="lead">Hola ${esc(ctx.name || '')}. Elige la contraseña que vas a usar desde ahora en lugar de la temporal.</p>
+       <input type="hidden" id="en-user" value="${esc(ctx.username)}" autocomplete="username">
        ${pw('en-new', 'Tu contraseña', 'new-password', 'Al menos 8 letras o números. Que sea fácil para ti y difícil de adivinar.')}`
-    : `<p class="lead">El mantenimiento de Dos Búhos. Entra con tu WhatsApp y tu contraseña; la primera vez, con el código que te mandaron.</p>
-       ${UI.firstRun ? fInput('en-name', 'Tu nombre y apellido', { placeholder: 'Ej. Lupita Ramírez', max: 60, attrs: 'autocomplete="name" autocapitalize="words" enterkeyhint="next"', hint: 'Eres la primera persona en Esmero: quedas como administrador.' }) : ''}
-       ${fInput('en-phone', 'Tu WhatsApp', { value: me.phone, type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'autocomplete="username" inputmode="tel" enterkeyhint="next"', hint: 'Si tu número es de Estados Unidos, empieza con +1.' })}
-       ${pw('en-pass', UI.firstRun ? 'Elige tu contraseña' : 'Contraseña o código', UI.firstRun ? 'new-password' : 'current-password')}`;
+    : UI.firstRun
+      ? `<p class="lead">Eres la primera persona en Esmero: quedas como administrador.</p>
+       ${fInput('en-name', 'Tu nombre y apellido', { placeholder: 'Ej. Lupita Ramírez', max: 60, attrs: 'autocomplete="name" autocapitalize="words" enterkeyhint="next"' })}
+       ${user('', 'Con esto vas a entrar. Letras o números, sin espacios.')}
+       ${fInput('en-phone', 'Tu WhatsApp', { type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'autocomplete="tel" inputmode="tel" enterkeyhint="next"', hint: 'Si tu número es de Estados Unidos, empieza con +1.' })}
+       ${pw('en-pass', 'Elige tu contraseña', 'new-password')}`
+      : `<p class="lead">El mantenimiento de Dos Búhos. Entra con tu usuario y tu contraseña; la primera vez, con la temporal que te dieron.</p>
+       ${user(me.username || '')}
+       ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
     <h1>Esmero</h1>
@@ -28,29 +34,32 @@ function showEnter(step = 'pass', ctx = {}) {
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
     </form>
-    ${step === 'new' ? '' : '<p class="small center">¿No tienes código o lo olvidaste? Pídele uno nuevo a Adrián o a un administrador.</p>'}
+    ${step === 'new' || UI.firstRun ? '' : '<p class="small center">¿Olvidaste tu contraseña? Pide una temporal a un administrador.</p>'}
   </div>`;
   window.scrollTo(0, 0);
   $$('[data-eye]').forEach((b) => (b.onclick = () => { const i = $('#' + b.dataset.eye), on = i.type === 'password'; i.type = on ? 'text' : 'password'; b.setAttribute('aria-pressed', on); i.focus(); }));
   const err = $('#en-err');
-  const first0 = $('#en-new') || (me.phone ? $('#en-pass') : $('#en-name') || $('#en-phone'));
+  const first0 = $('#en-new') || $('#en-name') || (me.username ? $('#en-pass') : $('#en-user'));
   if (first0 && matchMedia('(min-width: 600px)').matches) first0.focus();
   $('#en-form').onsubmit = async (e) => {
     e.preventDefault();
     const bad = (msg, id) => { err.textContent = msg; err.classList.remove('hidden'); if (id) $('#' + id).focus(); };
-    const phone = $('#en-phone').value.trim();
-    const data = step === 'new' ? { phone, password: ctx.code, new_password: $('#en-new').value } : { phone, password: $('#en-pass').value, name: $('#en-name') ? $('#en-name').value.trim() : undefined };
-    if (step !== 'new' && UI.firstRun && (!data.name || data.name.length < 2)) return bad('Escribe tu nombre y apellido', 'en-name');
-    if (phone.replace(/\D/g, '').length < 10) return bad('Escribe tu WhatsApp con los 10 dígitos', 'en-phone');
-    if (step === 'new' ? !data.new_password : !data.password) return bad(step === 'new' ? 'Elige tu contraseña' : 'Escribe tu contraseña o el código que te mandaron', step === 'new' ? 'en-new' : 'en-pass');
+    const username = $('#en-user').value.trim().toLowerCase();
+    const first = step !== 'new' && UI.firstRun;
+    const data = step === 'new' ? { username, password: ctx.code, new_password: $('#en-new').value }
+      : { username, password: $('#en-pass').value, name: first ? $('#en-name').value.trim() : undefined, phone: first ? $('#en-phone').value.trim() : undefined };
+    if (first && (!data.name || data.name.length < 2)) return bad('Escribe tu nombre y apellido', 'en-name');
+    if (!/^[a-z0-9._-]{3,30}$/.test(username.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) return bad(first ? 'El usuario lleva de 3 a 30 letras o números, sin espacios' : 'Escribe tu usuario', 'en-user');
+    if (first && data.phone.replace(/\D/g, '').length < 10) return bad('Escribe tu WhatsApp con los 10 dígitos', 'en-phone');
+    if (step === 'new' ? !data.new_password : !data.password) return bad(step === 'new' ? 'Elige tu contraseña' : 'Escribe tu contraseña', step === 'new' ? 'en-new' : 'en-pass');
     const go = $('#en-go'), label = go.textContent;
     go.disabled = true; go.textContent = 'Entrando…';
     try {
       const r = await api('POST', '/enter', data);
-      if (r.need_new) return showEnter('new', { phone, code: data.password, name: r.name });
+      if (r.need_new) return showEnter('new', { username, code: data.password, name: r.name });
       S.user = r.user;
       UI.firstRun = false;
-      store('mt_me', { name: r.user.name, phone: r.user.phone || phone });
+      store('mt_me', { name: r.user.name, username: r.user.username || username });
       await loadBoot();
       if (location.hash === '' || location.hash === '#') location.replace('#/');
       route();

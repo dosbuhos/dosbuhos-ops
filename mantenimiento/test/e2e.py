@@ -36,15 +36,16 @@ with sync_playwright() as p:
     pg.goto(BASE + '/#/p/9')                       # deep link while signed out
     expect(pg.locator('.enter h1')).to_have_text('Esmero')
     expect(pg.locator('#en-name')).to_have_count(0)                  # nobody signs up alone: no name to write
-    pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('10 dígitos')
-    pg.fill('#en-phone', '415 555 0555'); pg.fill('#en-pass', '123456'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no está registrado')   # the public stays out
-    pg.fill('#en-phone', '415 555 0199'); pg.fill('#en-pass', '000000'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no es esa')
+    expect(pg.locator('#en-phone')).to_have_count(0)
+    pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('usuario')
+    pg.fill('#en-user', 'fulano'); pg.fill('#en-pass', '123456'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no existe')   # the public stays out
+    pg.fill('#en-user', 'RMendez'); pg.fill('#en-pass', '000000'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no es esa')
     pg.fill('#en-pass', STATE['rosa_code']); pg.click('#en-go'); expect(pg.locator('.enter .lead')).to_contain_text('Hola Rosa')   # the one-time code: now her own password
     pg.fill('#en-new', 'corto'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('8')
     pg.fill('#en-new', 'jardin-del-vino-9'); pg.click('[data-eye=en-new]'); expect(pg.locator('#en-new')).to_have_attribute('type', 'text'); pg.click('#en-go')
     expect(pg.locator('.top.sub h1')).to_have_text('Pendiente #9')   # lands on the link she opened
-    r = pg.evaluate("(c) => fetch('/api/enter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: '4155550199', password: c }) }).then((r) => r.status)", STATE['rosa_code']); assert r == 401, r   # the code works once
-    step('enter: only registered numbers; the one-time code, then her own password; lands on the deep link')
+    r = pg.evaluate("(c) => fetch('/api/enter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'rmendez', password: c }) }).then((r) => r.status)", STATE['rosa_code']); assert r == 401, r   # the code works once
+    step('enter: only created usernames; the temporary password, then her own; lands on the deep link')
     # the app opens on today's hours, the way Horizonte does: what has no hour on top, the blocks on the grid
     pg.goto(BASE + '/'); expect(tab(pg)).to_have_text('Día'); expect(pg.locator('.mtop .tdy')).to_have_text('Hoy')
     expect(pg.locator('.wstrip button')).to_have_count(7); expect(pg.locator('.wstrip button[aria-pressed=true]')).to_have_class(re.compile('today'))
@@ -342,18 +343,19 @@ with sync_playwright() as p:
     t = api_task(pg, oid); assert t['place'] is None and t['area_name'] == 'Caseta', t
     pg.goto(BASE + '/#/nuevo'); assert 'Caseta' in pg.locator('#r-area').inner_text()
     step('an administrator adds a written place to the list of areas from the pendiente')
-    pg.goto(BASE + '/#/personas'); pg.click('[data-add]'); pg.fill('#np-name', 'Persona Nueva'); pg.fill('#np-phone', '415 555 0555'); pg.click('.sheet [data-act="1"]')
-    code = pg.locator('.bigcode').inner_text(); assert re.fullmatch(r'\d{6}', code), code
+    pg.goto(BASE + '/#/personas'); pg.click('[data-add]'); pg.fill('#np-name', 'Persona Nueva'); pg.fill('#np-user', 'pnueva'); pg.fill('#np-phone', '415 555 0555'); pg.click('.sheet [data-act="1"]')
+    expect(pg.locator('.bigcode.user')).to_have_text('pnueva')
+    code = pg.locator('.bigcode:not(.user)').inner_text(); assert re.fullmatch(r'\d{6}', code), code
     expect(pg.locator('.sheet [data-act="1"]')).to_have_text('Mandar por WhatsApp'); pg.click('.sheet [data-act="0"]')
-    expect(pg.locator('.lrow:has-text("Persona Nueva")')).to_contain_text('Tiene código')
-    c2 = ctx(); p2 = c2.new_page(); p2.goto(BASE + '/'); p2.fill('#en-phone', '4155550555'); p2.fill('#en-pass', code); p2.click('#en-go')
+    expect(pg.locator('.lrow:has-text("Persona Nueva")')).to_contain_text('Tiene temporal')
+    c2 = ctx(); p2 = c2.new_page(); p2.goto(BASE + '/'); p2.fill('#en-user', 'pnueva'); p2.fill('#en-pass', code); p2.click('#en-go')
     p2.fill('#en-new', 'nueva-clave-55'); p2.click('#en-go'); expect(tab(p2)).to_have_text('Día'); c2.close()
-    pg.reload(); expect(pg.locator('.lrow:has-text("Persona Nueva")')).not_to_contain_text('código')
-    pg.click('.lrow:has-text("Persona Nueva")'); pg.click('.sheet .opt:has-text("código nuevo")'); pg.click('.sheet [data-act="1"]'); code2 = pg.locator('.bigcode').inner_text(); assert code2 != code; pg.click('.sheet [data-act="0"]')
-    r = pg.evaluate("() => fetch('/api/enter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: '4155550555', password: 'nueva-clave-55' }) }).then((r) => r.status)"); assert r == 401, r   # a new code: the old password is gone
+    pg.reload(); expect(pg.locator('.lrow:has-text("Persona Nueva")')).not_to_contain_text('temporal')
+    pg.click('.lrow:has-text("Persona Nueva")'); pg.click('.sheet .opt:has-text("contraseña temporal")'); pg.click('.sheet [data-act="1"]'); code2 = pg.locator('.bigcode:not(.user)').inner_text(); assert code2 != code; pg.click('.sheet [data-act="0"]')
+    r = pg.evaluate("() => fetch('/api/enter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'pnueva', password: 'nueva-clave-55' }) }).then((r) => r.status)"); assert r == 401, r   # a new code: the old password is gone
     pg.click('.lrow:has-text("Rosa Méndez")'); pg.click('.sheet .opt:has-text("Quitarle el acceso")'); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.lrow:has-text("Rosa Méndez")')).to_contain_text('Sin acceso')
-    step('people: add someone and their code; they enter and choose a password; a new code for a forgotten one; remove someone')
+    step('people: add someone with a username; they enter with the temporary password and choose one; a new temporary for a forgotten one; remove someone')
     # steps: numbered lines of the instructions are boxes to tick; closing with some left says so in the history
     sid = pg.evaluate("""() => fetch('/api/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Revisar extintores', description: 'Antes de empezar, la carpeta.\\n1. Revisar el manómetro\\n2. Revisar el sello\\n3. Anotar en la bitácora' }) }).then((r) => r.json()).then((d) => d.task.id)""")
     pg.goto(BASE + f'/#/p/{sid}'); expect(pg.locator('.steps .step')).to_have_count(3); expect(pg.locator('.hero .desc')).to_have_text('Antes de empezar, la carpeta.'); expect(pg.locator('#d-stepn')).to_have_text('0 de 3 pasos')
@@ -372,7 +374,7 @@ with sync_playwright() as p:
     step('admin can delete')
     # sign out and back in
     pg.goto(BASE + '/#/cuenta'); pg.click('[data-out]'); pg.click('.sheet [data-act="1"]'); expect(pg.locator('.enter h1')).to_be_visible()
-    pg.fill('#en-phone', '415 555 0142')
+    pg.fill('#en-user', 'arobles')
     pg.fill('#en-pass', 'otra-cosa-1'); pg.click('#en-go'); expect(pg.locator('#en-err')).to_contain_text('no es esa')
     pg.fill('#en-pass', STATE['pass']); pg.click('#en-go'); expect(tab(pg)).to_have_text('Día')
     pg.goto(BASE + '/#/cuenta'); pg.click('[data-pass]'); pg.fill('#me-cur', STATE['pass']); pg.fill('#me-new', 'cerro-azul-28'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_have_text('Contraseña cambiada')
