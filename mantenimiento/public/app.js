@@ -29,7 +29,7 @@ function showEnter(step = 'pass', ctx = {}) {
        ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1 class="ebrand"><img src="/icon.svg?v=42" alt="" width="40" height="40">Esmero</h1>
+    <h1 class="ebrand"><img src="/icon.svg?v=43" alt="" width="40" height="40">Esmero</h1>
     <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
@@ -73,7 +73,7 @@ function showEnter(step = 'pass', ctx = {}) {
 // ---------- the open pendientes ----------
 // What the Todo list shows: who ('all' | 'mine' | 'none' | 'reported' | a contact id), area ids (any of), priorities
 // (any of), and how it is grouped ('prio' | 'date' | 'area' | 'who'). It opens by priority: the point is to triage.
-const F = Object.assign({ who: 'all', areas: [], prios: [], sort: 'auto' }, store('mt_f2') || {});
+const F = Object.assign({ who: 'all', by: null, areas: [], prios: [], sort: 'auto' }, store('mt_f2') || {});   // by: who reported it (a user id)
 if (F.group) { if (F.sort === 'auto' && F.group !== 'prio') F.sort = F.group; delete F.group; }   // the old "agrupar por"
 const saveF = () => store('mt_f2', F);
 
@@ -116,6 +116,16 @@ function filterSheet() {
       <h3 class="flabel">Mostrar solo: ¿de quién?</h3>
       <div class="choice wrapc">${whoBtn('all', 'Todos', all.length)}${whoBtn('mio', 'Lo mío', all.filter((t) => t.created_by === S.user.id || (!!me && t.provider_id === me)).length)}${me ? whoBtn('mine', 'Los que me tocan', cntWho(me)) : ''}${whoBtn('none', 'Sin asignar', all.filter((t) => !t.provider_id).length)}${whoBtn('reported', 'Los que reporté', all.filter((t) => t.created_by === S.user.id).length)}
         ${people.map((id) => whoBtn(id, first(provOf(id).name), cntWho(id))).join('')}</div>
+      ${(() => {   // who asked for it: to sit with Jessica and go through hers, by priority
+        const k = isDesk() ? P.src : P.list;   // counted in the list that is open (the Bandeja, Atrasados…)
+        const base = k && srcOf(k) ? srcTasks(k, true) : all;
+        const ids = [...new Set(base.map((t) => t.created_by).filter(Boolean))];
+        const cnt = (id) => base.filter((t) => t.created_by === id).length;
+        const name = (id) => (base.find((t) => t.created_by === id) || {}).created_by_name || 'Alguien';
+        ids.sort((a, b) => cnt(b) - cnt(a));
+        const byBtn = (v, label, n) => `<button type="button" class="ch ${F.by === v ? 'on' : ''}" data-by="${v === null ? '' : v}" aria-pressed="${F.by === v}"><span class="cl">${esc(label)}</span><span class="cn">${n}</span></button>`;
+        return ids.length > 1 ? `<h3 class="flabel">¿Quién lo pidió?</h3><div class="choice wrapc">${byBtn(null, 'Cualquiera', base.length)}${ids.map((id) => byBtn(id, id === S.user.id ? 'Yo' : first(name(id)), cnt(id))).join('')}</div>` : '';
+      })()}
       <h3 class="flabel">Prioridad</h3>
       <div class="choice wrapc">${[1, 2, 3, 4].map((p) => `<button type="button" class="ch ${F.prios.includes(p) ? 'on' : ''}" data-prio="${p}" aria-pressed="${F.prios.includes(p)}"><span class="pdot p${p}"></span><span class="cl">${PRIO[p]}</span><span class="cn">${all.filter((t) => t.priority === p).length}</span></button>`).join('')}</div>
       <h3 class="flabel">Área</h3>
@@ -132,11 +142,12 @@ function filterSheet() {
         $$('[data-area]', w).forEach((b) => (b.onclick = () => { const id = Number(b.dataset.area); F.areas = F.areas.includes(id) ? F.areas.filter((x) => x !== id) : [...F.areas, id]; apply(); }));
         $$('[data-prio]', w).forEach((b) => (b.onclick = () => { const p = Number(b.dataset.prio); F.prios = F.prios.includes(p) ? F.prios.filter((x) => x !== p) : [...F.prios, p].sort(); apply(); }));
         $$('[data-group]', w).forEach((b) => (b.onclick = () => { F.sort = b.dataset.group; apply(); }));
+        $$('[data-by]', w).forEach((b) => (b.onclick = () => { F.by = b.dataset.by ? Number(b.dataset.by) : null; apply(); }));
       };
       const apply = () => { saveF(); $('#f-body', w).innerHTML = draw(); bind(); drawPlanner(true); };
       bind();
     },
-  }).then((v) => { if (v === 'clear') { F.who = 'all'; F.areas = []; F.prios = []; F.sort = 'auto'; saveF(); if (UI.plan) drawPlanner(true); } });
+  }).then((v) => { if (v === 'clear') { F.who = 'all'; F.by = null; F.areas = []; F.prios = []; F.sort = 'auto'; saveF(); if (UI.plan) drawPlanner(true); } });
 }
 
 // ---------- what you can do to a pendiente ----------

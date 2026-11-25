@@ -240,6 +240,9 @@ with sync_playwright() as p:
     heads = pg.locator('#pl-items .eyebrow').all_inner_texts(); assert heads and heads[-1].startswith('Hoy') and any('semana' in h or 'mes' in h for h in heads), heads   # oldest first, by the day it was reported
     expect(pg.locator('.fchips .fchip')).to_have_count(1); pg.click('[data-go=filter]'); pg.click('.sheet [data-group=by]'); pg.click('.sheet [data-act="1"]')
     assert all(h.startswith('Reportó') or h.startswith('Del plan') for h in pg.locator('#pl-items .eyebrow').all_inner_texts())
+    pg.click('[data-go=filter]'); by = pg.locator('.sheet [data-by]:not([data-by=""])').first; who = by.get_attribute('data-by'); by.click(); pg.click('.sheet [data-group=prio]'); pg.click('.sheet [data-act="1"]')
+    ids = [c.get_attribute('data-tid') for c in pg.locator('#pl-items .card').all()]; assert ids and all(str(api_task(pg, i)['created_by']) == who for i in ids), (who, ids)   # only what that person asked for, by priority
+    expect(pg.locator('.fchips [data-clear=by]')).to_contain_text('Pidió'); pg.click('.fchips [data-clear=by]'); pg.click('.fchips [data-clear=sort]'); pg.click('[data-go=filter]'); pg.click('.sheet [data-group=by]'); pg.click('.sheet [data-act="1"]')
     pg.click('.mbar a:has-text("Atrasados")'); expect(pg.locator('.fchips .fchip')).to_have_count(1)     # the order goes with you to the next list
     pg.click('.fchips [data-clear=sort]'); expect(pg.locator('.fchips')).to_have_count(0)
     pg.click('[data-go=menu]'); pg.click('.sheet .mfold .rowlink:has-text("Viñedo")'); n1 = pg.locator('#pl-items .card').count(); pg.fill('#pl-add', 'Poste 7 inclinado'); pg.keyboard.press('Enter')

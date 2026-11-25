@@ -60,8 +60,8 @@ const EMPTY = {
 // the filter sheet (Todo): whose, which areas, which priorities
 const isMio = (t) => t.created_by === S.user.id || (!!myCard() && t.provider_id === myCard());
 const passF = (t) => (F.who === 'all' || (F.who === 'mio' ? isMio(t) : F.who === 'mine' ? t.provider_id === myCard() : F.who === 'none' ? !t.provider_id : F.who === 'reported' ? t.created_by === S.user.id : t.provider_id === F.who))
-  && (!F.areas.length || F.areas.includes(t.area_id)) && (!F.prios.length || F.prios.includes(t.priority));
-const filterCount = () => (F.who !== 'all' ? 1 : 0) + F.areas.length + F.prios.length + (F.sort !== 'auto' ? 1 : 0);
+  && (!F.by || t.created_by === F.by) && (!F.areas.length || F.areas.includes(t.area_id)) && (!F.prios.length || F.prios.includes(t.priority));
+const filterCount = () => (F.who !== 'all' ? 1 : 0) + (F.by ? 1 : 0) + F.areas.length + F.prios.length + (F.sort !== 'auto' ? 1 : 0);
 // What a list holds. The filter of "Filtrar y ordenar" narrows whichever list is open; `raw` is the list whole, for the counts.
 function srcTasks(k, raw = false) {
   const src = srcOf(k);
@@ -240,6 +240,7 @@ function listHTML(k) {
 function filterChips() {
   const WHO = { mio: 'Lo mío', mine: 'Los que me tocan', none: 'Sin asignar', reported: 'Los que reporté' };
   const chips = [];
+  if (F.by) chips.push(`<button type="button" class="fchip" data-clear="by" aria-label="Quitar filtro">Pidió ${esc(F.by === S.user.id ? 'yo' : first(((C.open || []).find((t) => t.created_by === F.by) || {}).created_by_name || 'alguien'))}${ic('x')}</button>`);
   if (F.who !== 'all') chips.push(`<button type="button" class="fchip" data-clear="who" aria-label="Quitar filtro">${esc(WHO[F.who] || 'De ' + first((provOf(F.who) || {}).name))}${ic('x')}</button>`);
   for (const p of F.prios) chips.push(`<button type="button" class="fchip" data-clear="p${p}" aria-label="Quitar filtro ${PRIO[p]}">${PRIO[p]}${ic('x')}</button>`);
   for (const id of F.areas) chips.push(`<button type="button" class="fchip tagc c-${areaOf(id).color}" data-clear="${id}" aria-label="Quitar filtro ${esc(areaOf(id).name)}">${esc(areaOf(id).name)}${ic('x')}</button>`);
@@ -671,7 +672,7 @@ function bindPlanner() {
   }, 180);
   $$('[data-clear]', APP).forEach((b) => (b.onclick = () => {
     const c = b.dataset.clear;
-    if (c === 'sort') F.sort = 'auto'; else if (c === 'who') F.who = 'all'; else if (c[0] === 'p') F.prios = F.prios.filter((x) => x !== Number(c.slice(1))); else F.areas = F.areas.filter((x) => x !== Number(c));
+    if (c === 'sort') F.sort = 'auto'; else if (c === 'by') F.by = null; else if (c === 'who') F.who = 'all'; else if (c[0] === 'p') F.prios = F.prios.filter((x) => x !== Number(c.slice(1))); else F.areas = F.areas.filter((x) => x !== Number(c));
     saveF(); drawPlanner(true);
   }));
   const qa = $('[data-qadd]', APP);
@@ -755,7 +756,7 @@ document.addEventListener('click', (e) => {
     else if (a === 'fold') { P.unt = !P.unt; saveP(); drawPlanner(true); }
     else if (a === 'filter') filterSheet();
     else if (a === 'block' || a === 'copyweek') { const f = a === 'block' ? () => blockSheet({ day: P.day || todayStr() }) : copyWeekSheet; if (sheet.closeThen && sheet.close) sheet.closeThen(f); else f(); }
-    else if (a === 'nofilter') { F.who = 'all'; F.areas = []; F.prios = []; saveF(); drawPlanner(true); }
+    else if (a === 'nofilter') { F.who = 'all'; F.by = null; F.areas = []; F.prios = []; saveF(); drawPlanner(true); }
     return;
   }
   const st = el.closest('[data-step]');

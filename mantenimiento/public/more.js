@@ -285,6 +285,7 @@ async function viewEquipos(query = {}) {
   const stOf = (e) => e.state || 'none';
   const ST = { ok: 'Funciona', falla: 'Con falla', reparacion: 'En reparación', baja: 'Fuera de servicio', none: 'Por confirmar' };
   const opened = new Set(store('mt_eqopen') || []);
+  if (query.estado && (EQ_STATE[query.estado] || query.estado === 'none')) EQ.state = query.estado;   // a link to what is still por confirmar
   if (query.tipo) opened.add(query.tipo);
   const row = (e) => {
     const st = eqState(e), sv = svcState(e);

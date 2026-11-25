@@ -533,7 +533,7 @@ function drawNav(tab) {
     NAV.className = 'nav dtop';
     NAV.innerHTML = `<div class="brandrow">
         ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
-        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=42" alt="" width="26" height="26"><span>Esmero</span></a></div>
+        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=43" alt="" width="26" height="26"><span>Esmero</span></a></div>
       <div class="zoom" role="group" aria-label="Vista">
         <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a><a href="#/mes" data-tab ${tab === 'mes' ? 'aria-current="page"' : ''}>Mes</a></div>
       ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${unit} anterior">${ic('back')}</button>

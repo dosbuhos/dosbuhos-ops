@@ -5,10 +5,10 @@
    - photos never change once uploaded (each has its own id), so once seen they are served from the phone.
    Writes (reports, changes, notes, photos) are not handled here: the page keeps them in its outbox (offline.js) and
    sends them when there is signal. Bump V with the ?v= in index.html. */
-const V = 'esmero-42';
-const SHELL = ['/', '/app.css?v=42', '/core.js?v=42', '/offline.js?v=42', '/app.js?v=42', '/planner.js?v=42', '/more.js?v=42',
+const V = 'esmero-43';
+const SHELL = ['/', '/app.css?v=43', '/core.js?v=43', '/offline.js?v=43', '/app.js?v=43', '/planner.js?v=43', '/more.js?v=43',
   '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2', '/fonts/geist-700.woff2',
-  '/logo-word.png', '/icon.svg?v=42', '/icon-192.png?v=42', '/icon-180.png?v=42', '/manifest.webmanifest'];
+  '/logo-word.png', '/icon.svg?v=43', '/icon-192.png?v=43', '/icon-180.png?v=43', '/manifest.webmanifest'];
 const API = 'esmero-api';      // the last answer to each GET, kept across versions
 const PHOTOS = 'esmero-photos';
 const WAIT_MS = 6000;         // a weak signal: after this long, show what we have
