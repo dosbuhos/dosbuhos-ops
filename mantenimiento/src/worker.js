@@ -294,7 +294,7 @@ async function bootstrap(env, user) {
     env.DB.prepare(`SELECT p.id, p.name, p.kind, p.company, p.specialty, p.phone, p.notes, p.tags, p.active,
         (SELECT u.id FROM users u WHERE u.provider_id = p.id AND u.active = 1 LIMIT 1) AS user_id
       FROM providers p ORDER BY p.kind DESC, p.name COLLATE NOCASE`),
-    env.DB.prepare('SELECT id, name, area_id, provider_id, active FROM equipment ORDER BY name COLLATE NOCASE'),
+    env.DB.prepare('SELECT id, name, area_id, provider_id, category, active FROM equipment ORDER BY name COLLATE NOCASE'),
     env.DB.prepare(isAdmin(user)
       ? "SELECT id, name, username, role, active, provider_id, email, phone, last_seen, created_at, (pin_hash != '') AS has_pass, (temp_until > CAST(strftime('%s','now') AS INTEGER) * 1000) AS has_code FROM users ORDER BY active DESC, name COLLATE NOCASE"
       : 'SELECT id, name, role, active, provider_id FROM users WHERE active = 1 ORDER BY name COLLATE NOCASE'),
@@ -389,7 +389,7 @@ async function tasksApi(request, env, url, user, seg, method) {
     // No day unless the person reporting picks one: everything new waits in the Bandeja, urgent included, so that
     // days fill up because someone planned them and not because things were reported (Eric, 23 Nov 2026).
     // Only administrators put things on the calendar (Eric, 25 Nov 2026); the others say when suits them (when_ok).
-    const dueDate = isDate(b.due_date) && (isAdmin(user) || kind === 'servicio') ? b.due_date : null;
+    const dueDate = isDate(b.due_date) && (isAdmin(user) || kind === 'servicio' || (!!user.provider_id && int(b.provider_id) === user.provider_id)) ? b.due_date : null;
     // a service already done: its date goes in at midday Mexico time (18:00 UTC)
     const completedAt = status === 'hecha' ? (isDate(b.completed_date) ? `${b.completed_date} 18:00:00` : null) : null;
     let areaId = int(b.area_id);
@@ -530,7 +530,9 @@ async function tasksApi(request, env, url, user, seg, method) {
     }
     const newDay = 'due_date' in b && (isDate(b.due_date) ? b.due_date : null) !== t.due_date;
     const newHour = 'plan_min' in b && (int(b.plan_min) ?? null) !== (t.plan_min ?? null);
-    if ((newDay || newHour) && !isAdmin(user)) fail(403, 'Solo un administrador agenda. Escribe en el reporte cuándo te conviene.');
+    // Administrators schedule anything; anyone else, only what is theirs to do, on their own calendar (Eric, 25 Nov 2026).
+    const mineToDo = !!user.provider_id && t.provider_id === user.provider_id && !('provider_id' in b && int(b.provider_id) !== user.provider_id);
+    if ((newDay || newHour) && !isAdmin(user) && !mineToDo) fail(403, 'Solo un administrador agenda lo de otros. Escribe en el reporte cuándo te conviene.');
     if ('when_ok' in b) {
       const v = str(b.when_ok, 120);
       if (v !== (t.when_ok || null)) { sets.push('when_ok = ?'); params.push(v); logs.push(v ? `Le conviene: ${v}` : 'Quitó cuándo le conviene'); }
@@ -711,11 +713,13 @@ async function blocksApi(request, env, url, user, seg, method) {
     ]);
     return json({ blocks: list.results, names: names.results.map((r) => r.title) });
   }
-  requireAdmin(user);
+  // administrators write anyone's time; anyone else, only their own
+  const own = (pid) => isAdmin(user) || (!!user.provider_id && pid === user.provider_id);
   if (seg[1] === 'copy' && method === 'POST') {   // { from: monday, to: monday, provider_id }: last week's blocks into this one
     const b = await body(request);
     const pid = int(b.provider_id);
     if (!isDate(b.from) || !isDate(b.to) || !pid) fail(400, 'Faltan las semanas');
+    if (!own(pid)) fail(403, 'Solo puedes copiar tu propio tiempo');
     const shift = Math.round((Date.parse(b.to) - Date.parse(b.from)) / 864e5);
     const had = await env.DB.prepare("SELECT COUNT(*) AS n FROM blocks WHERE provider_id = ? AND day BETWEEN ? AND date(?, '+6 days')").bind(pid, b.to, b.to).first('n');
     const r = await env.DB.prepare(`INSERT INTO blocks (provider_id, day, start_min, end_min, title, created_by)
@@ -727,14 +731,17 @@ async function blocksApi(request, env, url, user, seg, method) {
   }
   if (!id && method === 'POST') {
     const f = blockFields(await body(request));
+    if (!own(f.pid)) fail(403, 'Solo puedes bloquear tu propio tiempo');
     const r = await env.DB.prepare('INSERT INTO blocks (provider_id, day, start_min, end_min, title, created_by) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(f.pid, f.day, f.st, f.en, f.title, user.id).run();
     return json({ block: await getBlock(env, r.meta.last_row_id) }, 201);
   }
   const old = id && (await getBlock(env, id));
   if (!old) fail(404, 'Ese bloque ya no está');
+  if (!own(old.provider_id)) fail(403, 'Ese tiempo es de otra persona');
   if (method === 'PATCH') {
     const f = blockFields(await body(request), old);
+    if (!own(f.pid)) fail(403, 'Solo puedes bloquear tu propio tiempo');
     await env.DB.prepare('UPDATE blocks SET provider_id = ?, day = ?, start_min = ?, end_min = ?, title = ? WHERE id = ?').bind(f.pid, f.day, f.st, f.en, f.title, id).run();
     return json({ block: await getBlock(env, id) });
   }

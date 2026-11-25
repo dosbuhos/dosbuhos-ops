@@ -29,7 +29,7 @@ function showEnter(step = 'pass', ctx = {}) {
        ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1 class="ebrand"><img src="/icon.svg?v=39" alt="" width="40" height="40">Esmero</h1>
+    <h1 class="ebrand"><img src="/icon.svg?v=40" alt="" width="40" height="40">Esmero</h1>
     <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
@@ -234,7 +234,7 @@ async function whenSheet(t, after) {
 }
 // Posponer (it has a date) or Poner fecha (it doesn't). A postponed pendiente keeps count and the reason.
 async function dateSheet(t, after) {
-  if (!isAdmin()) return whenSheet(t, after);
+  if (!isAdmin() && !(myCard() && t.provider_id === myCard())) return whenSheet(t, after);
   const today = todayStr();
   const has = !!t.due_date;
   const late = isLate(t);
@@ -509,7 +509,7 @@ async function viewTask(id, keep = false) {
   </div>`, {
     keepScroll: keep,
     bar: open
-      ? `<button class="b tonal" data-set="due">${ic('clock')}${!isAdmin() ? 'Cuándo me conviene' : t.due_date ? 'Posponer' : 'Poner fecha'}</button><button class="b ok grow" data-finish>${ic('check')}Hecho</button>`
+      ? `<button class="b tonal" data-set="due">${ic('clock')}${!isAdmin() && !(myCard() && t.provider_id === myCard()) ? 'Cuándo me conviene' : t.due_date ? 'Posponer' : 'Poner fecha'}</button><button class="b ok grow" data-finish>${ic('check')}Hecho</button>`
       : `<button class="b tonal grow" data-reopen>${ic('undo')}Volver a abrir</button>`,
   });
   const acts = { status: statusSheet, who: assignSheet, due: dateSheet, when: whenSheet, est: estSheet, prio: prioSheet, area: areaSheet, equip: equipSheet, cost: costSheet };

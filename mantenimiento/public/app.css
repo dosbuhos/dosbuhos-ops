@@ -1257,3 +1257,20 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 #pe-next { margin-bottom: 8px; }
 .qchip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .hmeta span { font-size: 13px; color: var(--muted); }
+
+/* ---------- Equipos: an accordion of types ---------- */
+.eqgrp { border-bottom: 1px solid var(--line); }
+.eqgrp > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 8px 2px; cursor: pointer; }
+.eqgrp > summary::-webkit-details-marker { display: none; }
+.eqgrp > summary .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eqgrp > summary b { font-size: 16.5px; font-weight: 600; }
+.eqsub { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13.5px; color: var(--muted); }
+.eqsub .warn { color: var(--warn); font-weight: 600; } .eqsub .bad { color: var(--bad); font-weight: 600; }
+.eqgrp > summary .n { font: 600 15px/1 var(--font); color: var(--faint); font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
+.eqgrp > summary > svg { width: 18px; height: 18px; color: var(--faint); transition: transform .15s; flex: none; }
+.eqgrp[open] > summary > svg { transform: rotate(180deg); }
+.eqgrp > .list { margin-bottom: 4px; }
+.eqadd { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 10px; color: var(--muted); font-weight: 600; font-size: 14.5px; }
+.eqadd svg { width: 18px; height: 18px; }
+.ctop .searchrow { width: 100%; }
+.ctop .searchrow .search { flex: 1; }

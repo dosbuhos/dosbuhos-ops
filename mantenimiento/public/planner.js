@@ -271,6 +271,9 @@ function planTitle(short = false) {
   return `${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}${yr(d)}`;
 }
 
+// Administrators plan anyone's work and time; anyone else, what is theirs to do and their own time (Eric, 25 Nov 2026).
+const canPlan = (t) => isAdmin() || (!!myCard() && !!t && t.provider_id === myCard());
+const canBlock = (pid) => isAdmin() || (!!myCard() && pid === myCard());
 // ---------- time blocks: someone's time that is not a pendiente ("Huerto", "Compras") ----------
 // Everyone sees them, so it is plain when Adrián has room; administrators write them. Two weeks around the day on screen.
 const BK = { list: [], names: [], key: '', busy: '' };
@@ -293,16 +296,16 @@ function blockHTML(b, hh) {
   if (en <= st) return '';
   const who = blockWho(b);
   return `<div class="tblk ${en - st <= 30 ? 'short' : ''}" data-bid="${b.id}" style="top:${((st - DAY_START) / 60) * hh}px;height:${((en - st) / 60) * hh - 2}px" title="${esc(b.title)}, ${blockSpan(b)}">
-    <b>${esc(b.title)}</b><span class="meta">${blockSpan(b)}${who ? ', ' + esc(who) : ''}</span>${isAdmin() ? '<i class="rz" data-rz></i>' : ''}</div>`;
+    <b>${esc(b.title)}</b><span class="meta">${blockSpan(b)}${who ? ', ' + esc(who) : ''}</span>${canBlock(b.provider_id) ? '<i class="rz" data-rz></i>' : ''}</div>`;
 }
 // a block in a list of the day (phone week)
 const blockRow = (b) => `<div class="brow" data-bid="${b.id}"><span class="bt">${fmtClock(b.start_min)}<br>${fmtClock(b.end_min)}</span><span class="grow"><b>${esc(b.title)}</b>${blockWho(b) ? `<span class="small">${esc(blockWho(b))}</span>` : ''}</span></div>`;
-const blockDefaultWho = () => (typeof P.who === 'number' ? P.who : store('mt_bwho') || S.settings.coordinator || myCard());
+const blockDefaultWho = () => (!isAdmin() ? myCard() : typeof P.who === 'number' ? P.who : store('mt_bwho') || S.settings.coordinator || myCard());
 const timeOpts = (sel, from = DAY_START, to = DAY_END) => { let o = ''; for (let m = from; m <= to; m += SNAP) o += `<option value="${m}" ${m === sel ? 'selected' : ''}>${fmtClock(m)}</option>`; return o; };
 async function blockSheet(b0) {
-  if (!isAdmin()) return;
+  if (!canBlock(b0.provider_id || (isAdmin() ? blockDefaultWho() : myCard()))) return;
   const isNew = !b0.id;
-  const ppl = activeProviders().filter((p) => p.kind === 'interno');
+  const ppl = activeProviders().filter((p) => p.kind === 'interno' && canBlock(p.id));
   const who = b0.provider_id || blockDefaultWho();
   const st = b0.start_min ?? 9 * 60, en = b0.end_min ?? st + 60;
   const res = await sheet({
@@ -351,12 +354,12 @@ function deleteBlock(b) {
 function blockTap(id) {
   const b = BK.list.find((x) => x.id === id);
   if (!b) return;
-  if (isAdmin()) blockSheet(b);
+  if (canBlock(b.provider_id)) blockSheet(b);
   else toast(`${b.provider_name ? first(b.provider_name) + ': ' : ''}${b.title}, ${blockSpan(b)}`);
 }
 async function copyWeekSheet() {
-  if (!isAdmin()) return;
-  const ppl = activeProviders().filter((p) => p.kind === 'interno');
+  const ppl = activeProviders().filter((p) => p.kind === 'interno' && canBlock(p.id));
+  if (!ppl.length) return;
   const mon = mondayOf(P.day || todayStr()), prev = addDays(mon, -7);
   const fmt = (d) => `${ymdDate(d).getDate()} ${MESES[ymdDate(d).getMonth()]}`;
   const res = await sheet({
@@ -399,7 +402,7 @@ function gridHTML(day, hh) {
     return { t, s: st, e: Math.min(st + durOf(t), DAY_END) };
   }));
   const nm = nowMin();
-  return `<div class="grid ${day === today ? 'today' : ''} ${day < today ? 'past' : ''} ${isAdmin() ? 'canblk' : ''}" data-day="${day}" style="height:${((DAY_END - DAY_START) / 60) * hh}px;--hh:${hh}px">
+  return `<div class="grid ${day === today ? 'today' : ''} ${day < today ? 'past' : ''} ${isAdmin() || (myCard() && P.who === myCard()) ? 'canblk' : ''}" data-day="${day}" style="height:${((DAY_END - DAY_START) / 60) * hh}px;--hh:${hh}px">
     ${dayBlocks(day).map((b) => blockHTML(b, hh)).join('')}
     ${items.map(({ t, s, e, col, n }) => cardHTML(t, {
       ctx: 'grid', cls: `blk ${e - s <= 30 ? 'short' : e - s >= 90 ? 'tall' : ''} ${n > 1 ? 'split' : ''}`, meta: `${fmtClock(s)} a ${fmtClock(e)}`,
@@ -437,7 +440,7 @@ function phoneDay() {
   return `<header class="mh hours">${mtop(title, phoneBtn())}<div class="wstrip" data-swipe="week">${strip}</div></header>
     <div class="mm" data-swipe="day">${foldRow}${P.unt ? unt.map((t) => cardHTML(t, { ctx: 'day' })).join('') : ''}
       <div class="hgrid"><div class="gutter" aria-hidden="true">${gutterHTML(MG)}</div>${gridHTML(k, MG)}</div>
-      ${!isAdmin() ? '' : store('mt_held') ? (store('mt_btap') ? '' : '<p class="mhint">Toca una hora vacía para bloquear tiempo.</p>') : '<p class="mhint">Mantén presionado un pendiente para llevarlo a otro día o a una hora. Toca una hora vacía para bloquear tiempo.</p>'}</div>`;
+      ${!isAdmin() && P.who !== myCard() ? '' : store('mt_held') ? (store('mt_btap') ? '' : '<p class="mhint">Toca una hora vacía para bloquear tiempo.</p>') : '<p class="mhint">Mantén presionado un pendiente para llevarlo a otro día o a una hora. Toca una hora vacía para bloquear tiempo.</p>'}</div>`;
 }
 function phoneWeek() {
   const today = todayStr(), mon = mondayOf(P.day);
@@ -596,14 +599,14 @@ function panelHTML() {
   return `${late ? `<button type="button" class="pbanner" data-src="late"><span>${late === 1 ? '1 atrasado de días anteriores' : late + ' atrasados de días anteriores'}</span>Ver</button>` : ''}
     ${searchRow('', 'Buscar pendientes')}
     <div class="navgroup">${row('inbox')}${row('late')}${row('week')}${row('all')}</div>
-    ${isAdmin() ? `<div class="navhead"><span class="eyebrow">Tiempo</span></div>
+    ${myCard() || isAdmin() ? `<div class="navhead"><span class="eyebrow">Tiempo</span></div>
     <div class="navgroup"><button type="button" class="navrow" data-go="block"><span class="ni">${ic('clock')}</span><span class="lbl">Bloquear tiempo</span><span class="n"></span></button><button type="button" class="navrow" data-go="copyweek"><span class="ni">${ic('repeat')}</span><span class="lbl">Copiar la semana pasada</span><span class="n"></span></button></div>` : ''}
     <div class="navhead"><span class="eyebrow">Prioridad</span></div>
     <div class="navgroup">${[1, 2, 3, 4].map((p) => row('p' + p)).join('')}</div>
     <div class="navhead"><button type="button" class="eyebrow foldh" data-go="areas" aria-expanded="${!!P.areas}">Áreas${ic(P.areas ? 'down' : 'chev')}</button></div>
     ${P.areas ? `<div class="navgroup">${areaKeys.map(row).join('')}</div>` : ''}
     <div class="navhead"><span class="eyebrow">Tableros</span></div>
-    <div class="navgroup">${link('#/equipos', 'wrench', 'Equipos', S.equipment.filter((e) => e.active).length || '')}${link('#/preventivo', 'repeat', 'Preventivo')}${link('#/mascotas', 'user', 'Mascotas', S.pets.length || '')}</div>
+    <div class="navgroup">${link('#/equipos', 'wrench', 'Equipos', S.equipment.filter((e) => e.active).length || '')}${link('#/equipos?tipo=' + encodeURIComponent('Equipo de bodega'), 'wrench', 'Equipo de bodega', S.equipment.filter((e) => e.active && e.category === 'Equipo de bodega').length || '')}${link('#/preventivo', 'repeat', 'Preventivo')}${link('#/mascotas', 'user', 'Mascotas', S.pets.length || '')}</div>
     <div class="navgroup foot">${link('#/hechos', 'check', 'Lo que ya se hizo')}${link('#/resumen', 'chart', 'Resumen')}</div>
     ${showStarter() ? starterCard() : ''}
     <p class="phint">Abre una lista y arrastra un pendiente a un día y a una hora.</p>`;
@@ -619,6 +622,7 @@ function drawPlanner(keep = false) {
 }
 function drawPlanner0(keep) {
   const today = todayStr();
+  if (!isAdmin() && myCard() && !store('mt_ownCal')) { store('mt_ownCal', 1); P.who = myCard(); saveP(); }
   if (!P.day || (P.follow && P.day !== today)) P.day = today;
   needBlocks();
   if (F.who === 'mio' && Date.now() - (C.mioAt || 0) > 30000) {
@@ -771,7 +775,7 @@ document.addEventListener('click', (e) => {
   const bk = el.closest('[data-bid]');
   if (bk && UI.plan) { e.preventDefault(); if (!planNoClick) blockTap(Number(bk.dataset.bid)); return; }
   // an empty hour, for an administrator: block time there
-  const gr = !el.closest('.card') && el.closest('.grid.canblk');
+  const gr = !el.closest('.card') && el.closest('.grid.canblk');   // (the team: on their own calendar)
   if (gr && UI.plan && !planNoClick) {
     const hh = parseFloat(getComputedStyle(gr).getPropertyValue('--hh')) || HOUR_H;
     const m = Math.min(Math.max(Math.floor((DAY_START + ((e.clientY - gr.getBoundingClientRect().top) / hh) * 60) / 30) * 30, DAY_START), DAY_END - 60);
@@ -829,7 +833,7 @@ function taskSheet(t0) {
     const media = [x.photo_count ? plural(x.photo_count, 'foto', 'fotos') : '', x.note_count ? plural(x.note_count, 'nota', 'notas') : ''].filter(Boolean).join(' y ');
     return `${x.description ? `<p class="tdesc">${esc(x.description)}${x.description.length >= 240 ? '…' : ''}</p>` : ''}
       ${x.note_count ? `<a class="tmedia" href="#/p/${id}"><span class="grow">${plural(x.note_count, 'nota', 'notas')}</span>${ic('chev')}</a>` : ''}
-      ${!isAdmin() ? `<div class="grp"><h3 class="eyebrow">Cuándo</h3><p class="twhen">${x.due_date ? `Agendado: ${esc(cap(fmtDay(x.due_date, { weekday: true })))}${tm ? ' a las ' + fmtClock(x.plan_min) : ''}` : 'Espera en la Bandeja a que lo agenden.'}</p>
+      ${!canPlan(x) ? `<div class="grp"><h3 class="eyebrow">Cuándo</h3><p class="twhen">${x.due_date ? `Agendado: ${esc(cap(fmtDay(x.due_date, { weekday: true })))}${tm ? ' a las ' + fmtClock(x.plan_min) : ''}` : 'Espera en la Bandeja a que lo agenden.'}</p>
         <button type="button" class="boardrow" data-whenok><span class="grow"><b>${x.when_ok ? esc(x.when_ok) : '¿Cuándo te conviene?'}</b><span>${x.when_ok ? 'Lo que sugeriste. Tócalo para cambiarlo.' : 'Sugiere un horario; un administrador lo agenda.'}</span></span>${ic('chev')}</button></div>` : `<div class="grp"><h3 class="eyebrow">Cuándo</h3>${x.when_ok ? `<p class="twhen">Le conviene: ${esc(x.when_ok)}</p>` : ''}
         <div class="when">${whenBtn(today, 'Hoy')}${whenBtn(addDays(today, 1), 'Mañana')}<button type="button" data-when="pick" aria-pressed="${other}">${other ? esc(dayName(x.due_date) + (x.due_date.slice(0, 7) === today.slice(0, 7) ? '' : ' ' + MESES[Number(x.due_date.slice(5, 7)) - 1])) : 'Otro día'}</button><button type="button" data-when="" aria-pressed="${!x.due_date}">Sin día</button></div>
         ${isLate(x) ? `<p class="twhen"><span class="due late">${esc(due.text)}</span>${x.postponed ? `<span>Pospuesto ${x.postponed === 1 ? '1 vez' : x.postponed + ' veces'}</span>` : ''}</p>` : x.due_date ? '' : '<p class="twhen">Sin día, espera en la Bandeja.</p>'}</div>
@@ -950,8 +954,8 @@ function menuSheet() {
   sheet({
     title: 'Tableros', cls: 'msheet',
     body: `<div class="pad">
-      <div class="rows">${row('#/equipos', ic('wrench'), 'Equipos', S.equipment.filter((e) => e.active).length || '')}${row('#/preventivo', ic('repeat'), 'Preventivo')}${row('#/mascotas', ic('user'), 'Mascotas', S.pets.length || '')}</div>
-      ${isAdmin() ? `<h3 class="eyebrow">Tiempo</h3><div class="rows"><button type="button" class="rowlink" data-go="block">${ic('clock')}<span>Bloquear tiempo</span><span class="n"></span>${ic('chev')}</button><button type="button" class="rowlink" data-go="copyweek">${ic('repeat')}<span>Copiar la semana pasada</span><span class="n"></span>${ic('chev')}</button></div>` : ''}
+      <div class="rows">${row('#/equipos', ic('wrench'), 'Equipos', S.equipment.filter((e) => e.active).length || '')}${row('#/equipos?tipo=' + encodeURIComponent('Equipo de bodega'), ic('wrench'), 'Equipo de bodega', S.equipment.filter((e) => e.active && e.category === 'Equipo de bodega').length || '')}${row('#/preventivo', ic('repeat'), 'Preventivo')}${row('#/mascotas', ic('user'), 'Mascotas', S.pets.length || '')}</div>
+      ${myCard() || isAdmin() ? `<h3 class="eyebrow">Tiempo</h3><div class="rows"><button type="button" class="rowlink" data-go="block">${ic('clock')}<span>Bloquear tiempo</span><span class="n"></span>${ic('chev')}</button><button type="button" class="rowlink" data-go="copyweek">${ic('repeat')}<span>Copiar la semana pasada</span><span class="n"></span>${ic('chev')}</button></div>` : ''}
       <h3 class="eyebrow">Prioridad</h3>
       <div class="rows">${[1, 2, 3, 4].map((p) => row('#/prioridad/' + p, `<i class="pdot p${p}"></i>`, PRIO[p], n('p' + p))).join('')}</div>
       <details class="mfold" ${P.areas ? 'open' : ''}><summary><span class="eyebrow">Áreas</span>${ic('down')}</summary>
@@ -984,11 +988,11 @@ async function planSave(t, data, msg) {
   } catch (e) { Object.assign(t, before); drawPlanner(true); toast(e.message, { bad: true }); }
 }
 document.addEventListener('pointerdown', (e) => {
-  if (!UI.plan || e.pointerType !== 'mouse' || e.button !== 0 || document.body.classList.contains('lock') || !isAdmin()) return;
+  if (!UI.plan || e.pointerType !== 'mouse' || e.button !== 0 || document.body.classList.contains('lock')) return;
   const bel = e.target.closest('.dmain .tblk[data-bid]');
   if (bel) {   // a block of time: the same moves as a pendiente on the hours, saved to the block
     const b = BK.list.find((x) => x.id === Number(bel.dataset.bid));
-    if (!b) return;
+    if (!b || !canBlock(b.provider_id)) return;
     const r = bel.getBoundingClientRect();
     wdrag = { bk: b, t: { id: -b.id, due_date: b.day, plan_min: b.start_min, est_min: b.end_min - b.start_min }, el: bel, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false, rz: !!e.target.closest('[data-rz]'), grab: ((e.clientY - r.top) / HOUR_H) * 60, target: null, dur: b.end_min - b.start_min };
     return;
@@ -996,7 +1000,7 @@ document.addEventListener('pointerdown', (e) => {
   const el = e.target.closest('.dmain .card[data-tid]');
   if (!el || e.target.closest('.ck')) return;
   const t = (C.open || []).find((x) => x.id === Number(el.dataset.tid));
-  if (!t) return;
+  if (!t || !canPlan(t)) return;
   const r = el.getBoundingClientRect();
   const blk = el.classList.contains('blk');
   wdrag = { t, el, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false, rz: blk && !!e.target.closest('[data-rz]'), grab: blk ? ((e.clientY - r.top) / HOUR_H) * 60 : 0, target: null, dur: durOf(t) };
@@ -1223,11 +1227,11 @@ function tdEnd(commit) {
   patchTask(t, data, msg, () => { if (UI.plan) planAfter(); else if (UI.refresh) UI.refresh(); else route(); }, undo);
 }
 document.addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'mouse' || !S.user || tdrag || document.body.classList.contains('lock') || !isAdmin()) return;
+  if (e.pointerType === 'mouse' || !S.user || tdrag || document.body.classList.contains('lock')) return;
   const el = e.target.closest('.card[data-tid]');
   if (!el || e.target.closest('.ck, [data-rz]')) return;
   const t = (C.open || []).find((x) => x.id === Number(el.dataset.tid));
-  if (!t || !isOpen(t)) return;
+  if (!t || !isOpen(t) || !canPlan(t)) return;
   hold = { t, x: e.clientX, y: e.clientY, pid: e.pointerId, timer: setTimeout(() => { if (hold) tdStart(hold); }, 350) };
 });
 document.addEventListener('pointermove', (e) => {

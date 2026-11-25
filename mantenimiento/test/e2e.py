@@ -56,6 +56,8 @@ with sync_playwright() as p:
     r = pg.evaluate("() => fetch('/api/tasks/1', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ due_date: '2030-01-01' }) }).then((r) => r.status)"); assert r == 403, r
     step('the team: opens on the Bandeja with Lo mío as a filter, suggests when instead of scheduling; the server refuses a day from them')
     rq.patch(BASE + '/api/users/%d' % STATE['rosa_id'], json={'role': 'admin'}, cookies={'mt_sid': SIDS[0]}).raise_for_status()   # from here on she plans, as Adrián does
+    pg.goto(BASE + '/#/semana'); expect(pg.locator('.foldrow [data-who]')).to_have_value(str(pg.evaluate('myCard()')))   # the team's calendar opens on their own
+    pg.evaluate("localStorage.removeItem('mt_pl')")                                                                        # as an administrator she plans everyone's
     pg.goto(BASE + '/#/'); pg.reload(); expect(tab(pg)).to_have_text('Día'); expect(pg.locator('.mtop .tdy')).to_have_text('Hoy')
     expect(pg.locator('.wstrip button')).to_have_count(7); expect(pg.locator('.wstrip button[aria-pressed=true]')).to_have_class(re.compile('today'))
     expect(pg.locator('.foldrow .lbl')).to_contain_text('sin hora'); assert pg.locator('.mm > .card').count() >= 1
@@ -207,7 +209,7 @@ with sync_playwright() as p:
 
     # ---------- 5c. the menu, Contactos one tap away, coming back where you were ----------
     pg.goto(BASE + '/#/'); expect(tab(pg)).to_have_text('Día')
-    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink:visible').count() == 13   # Mascotas, and 2 for blocking time: an administrator
+    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink:visible').count() == 14   # Equipo de bodega, Mascotas, and 2 for blocking time
     pg.click('.msheet .rowlink:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('#sheet')).to_be_hidden(); expect(pg.locator('.mbar')).to_be_visible()
     pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.wait_for_timeout(300)
     pg.click('[data-go=menu]'); pg.click('.msheet .rowlink:has-text("Alta")'); expect(head(pg)).to_contain_text('Alta'); assert pg.locator('#pl-items .card').count() == pg.locator('#pl-items .card.p2').count() > 0
@@ -215,7 +217,6 @@ with sync_playwright() as p:
     pg.click('[data-go=contacts]'); cs = pg.locator('.sheet.csheet'); expect(cs.locator('h2')).to_have_text('Contactos'); assert cs.locator('.krow').count() >= 8
     assert cs.locator('.krow a.kwa').first.get_attribute('href').startswith('https://wa.me/52') and cs.locator('.krow .av').count() == 0
     expect(cs.locator('.kh', has_text='Gas')).to_have_count(1); expect(cs.locator('.kgrp:has(.kh:has-text("Gas")) .krow')).to_contain_text('Chuy')   # under each of his oficios
-    cs.locator('[data-ctag="Plomería"]').click(); expect(cs.locator('.krow')).to_have_count(1); cs.locator('[data-ctag="Plomería"]').click()
     cs.locator('#ct-q').fill('plom'); pg.wait_for_timeout(300); expect(cs.locator('.krow')).to_have_count(2); expect(cs.locator('.krow').first).to_contain_text('Chuy Hernández')   # under Plomería and Gas
     cs.locator('.krow .kmain').first.click(); expect(pg.locator('.who-card h2')).to_have_text('Chuy Hernández'); expect(pg.locator('#sheet')).to_be_hidden()
     pg.go_back(); expect(tab(pg)).to_have_text('Día')
@@ -315,9 +316,10 @@ with sync_playwright() as p:
     pg.click('[data-choice="pf-freq"] .ch:has-text("Una sola vez")'); expect(pg.locator('#pf-sum')).to_contain_text('Una sola vez')
     step('plan form switches between months, every N, and once')
 
-    pg.goto(BASE + '/#/equipos'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.lrow.eq').first).to_be_visible()
+    pg.goto(BASE + '/#/equipos'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('details.eqgrp summary').first).to_be_visible()
     pg.click('.hbtn'); pg.click('#ef-save'); expect(pg.locator('#ef-err')).to_contain_text('nombre')
     pg.set_input_files('#ef-pick-gal', JPG_PATH); pg.fill('#ef-name', 'Cava de vinos del restaurante')
+    pg.click('#ef-save'); expect(pg.locator('#ef-err')).to_contain_text('tipo'); pg.select_option('#ef-cat', 'Refrigeración')
     area(pg, '#ef-area', 'Restaurante'); pg.fill('#ef-model', 'Vinoteca Whirlpool WX-40')
     pg.select_option('#ef-who', label='Anselmo Rivas (Refrigeración)')
     pg.click('[data-choice="ef-freq"] .ch:has-text("2 veces al año")'); expect(pg.locator('.mo.on')).to_have_count(2)
@@ -337,7 +339,8 @@ with sync_playwright() as p:
     pg.goto(BASE + '/#/contactos'); pg.click('.hbtn'); pg.click('#cf-save'); expect(pg.locator('#cf-err')).to_contain_text('nombre')
     pg.fill('#cf-name', 'Beto Salinas'); pg.click('#cf-tags [data-t="Gas"]'); pg.click('#cf-tags [data-t="Calentadores"]'); pg.fill('#cf-spec', 'Gas y calentadores'); pg.fill('#cf-phone', '4155550111'); pg.click('#cf-save')
     expect(head(pg)).to_have_text('Contactos'); expect(pg.locator('.krow:has-text("Beto Salinas")')).to_have_count(2)   # under Gas and under Calentadores
-    pg.click('[data-ctag="Calentadores"]'); expect(pg.locator('.krow')).to_have_count(1); pg.click('[data-ctag=""]')
+    pg.click('[data-ctf]'); expect(pg.locator('.sheet .opt:has-text("Tractores")')).to_contain_text('Nadie todavía')   # every oficio, the empty ones too
+    pg.click('.sheet .opt:has-text("Calentadores")'); expect(pg.locator('.krow')).to_have_count(1); pg.click('.fchips [data-ctag=""]')
     pg.fill('#ct-q', 'beto'); pg.wait_for_timeout(300); pg.click('.krow .kmain >> nth=0'); expect(pg.locator('.who-card h2')).to_have_text('Beto Salinas'); expect(pg.locator('.phone')).to_have_text('415 555 0111')
     pg.click('.top.sub a[aria-label=Editar]'); pg.fill('#cf-company', 'Gas Express'); pg.click('#cf-save'); expect(pg.locator('.who-card .by')).to_contain_text('Gas Express')
     step('new contact; search by trade')
@@ -410,7 +413,7 @@ with sync_playwright() as p:
     pg.click('.panel .navrow:has-text("Restaurante")'); expect(pg.locator('.listtitle b')).to_have_text('Restaurante'); assert pg.locator('.panel .card').count() >= 1; pg.click('.panel [data-src=""]')
     pg.click('.panel [data-src=p1]'); expect(pg.locator('.listtitle b')).to_have_text('Urgente'); assert pg.locator('.panel .card').count() == pg.locator('.panel .card.p1').count() > 0
     pg.click('.panel [data-src=""]'); pg.fill('#pl-q', 'regadera'); expect(pg.locator('.listtitle b')).to_have_text('Todo'); expect(pg.locator('.panel .card')).to_have_count(1); expect(pg.locator('#pl-q')).to_be_focused()
-    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel [data-src=inbox]')).to_be_visible(); assert pg.locator('.panel .navrow').count() == 15 + n_ar   # the two for blocking time, and Mascotas
+    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel [data-src=inbox]')).to_be_visible(); assert pg.locator('.panel .navrow').count() == 16 + n_ar   # the two for blocking time, Equipo de bodega and Mascotas
     pg.click('.dtop [data-go=contacts]'); expect(pg.locator('.sheet.csheet h2')).to_have_text('Contactos'); pg.keyboard.press('Escape'); expect(pg.locator('#sheet')).to_be_hidden()
     pg.click('.panel a.navrow:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.dtop')).to_be_visible(); expect(pg.locator('.panel')).to_have_count(0)
     pg.click('.dtop .zoom a:has-text("Semana")'); expect(pg.locator('.hours.n7 .grid')).to_have_count(7)
@@ -486,11 +489,14 @@ with sync_playwright() as p:
     expect(pg.locator('.card[data-tid="%s"]' % rid).first).to_be_visible()
     step('phone: hold a pendiente in the Bandeja and drop it on a day and hour; it shows on that day')
     # ---------- Equipos by type, with its state; Mascotas with their shots ----------
-    pg.goto(BASE + '/#/e/nuevo'); pg.fill('#ef-name', 'Sillas de la terraza'); pg.select_option('#ef-cat', 'Mobiliario'); pg.fill('#ef-qty', '20'); pg.fill('#ef-serial0', 'MB-01')
+    pg.goto(BASE + '/#/e/nuevo?tipo=Mobiliario'); expect(pg.locator('#ef-cat')).to_have_value('Mobiliario'); pg.fill('#ef-name', 'Sillas de la terraza'); pg.fill('#ef-qty', '20'); pg.fill('#ef-serial0', 'MB-01')
     pg.click('[data-choice="ef-state"] .ch:has-text("Con falla")'); pg.click('#ef-save'); expect(pg.locator('.hero h2')).to_have_text('Sillas de la terraza')
     expect(pg.locator('[data-estate="falla"]')).to_have_attribute('aria-checked', 'true'); pg.click('[data-estate="ok"]'); expect(toast(pg)).to_contain_text('Funciona')
-    pg.goto(BASE + '/#/equipos'); pg.click('[data-ecat="Mobiliario"]'); expect(pg.locator('.lrow.eq')).to_have_count(1); expect(pg.locator('.lrow.eq')).to_contain_text('×20')
-    expect(pg.locator('.lrow.eq .estate')).to_have_text('Funciona'); pg.click('[data-ecat="Mobiliario"]'); assert pg.locator('.lrow.eq').count() > 1
+    pg.goto(BASE + '/#/equipos'); expect(pg.locator('details.eqgrp')).to_have_count(11)                                   # every type, the empty ones too
+    mob = pg.locator('details.eqgrp[data-cat="Mobiliario"]'); expect(mob).to_have_attribute('open', '')                  # it opened when she added to it
+    expect(mob.locator('.lrow.eq')).to_contain_text('×20'); expect(mob.locator('.estate')).to_have_text('Funciona')
+    veh = pg.locator('details.eqgrp[data-cat="Vehículos"]'); veh.locator('summary').click(); expect(veh.locator('.eqadd')).to_be_visible()
+    pg.click('[data-ef]'); pg.click('.sheet .opt:has-text("Funciona")'); expect(pg.locator('details.eqgrp')).to_have_count(1); pg.click('[data-eclr]')
     step('equipos: a type, how many, its inventory number and its state; the list narrows by type')
     pg.goto(BASE + '/#/m/nuevo'); pg.fill('#mf-name', 'Canela'); pg.fill('#mf-species', 'Perra'); pg.click('#mf-save'); expect(pg.locator('.hero h2')).to_have_text('Canela')
     pg.click('[data-addev]'); pg.click('.sheet [data-pw="Rabia"]'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_contain_text('Le toca otra vez')

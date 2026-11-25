@@ -270,8 +270,10 @@ function svcRecord(e) {
   </div>`;
 }
 
-const EQ = { q: '', cat: '' };
-async function viewEquipos() {
+// Equipos as an accordion of types: every type is there (empty ones too, to add to), each says how many it has and what
+// needs attention; open the ones you work with (remembered). Search and the filter open what matches.
+const EQ = { q: '', state: '' };
+async function viewEquipos(query = {}) {
   UI.view = 'equipos';
   loading({ tab: 'equipos' });
   let r;
@@ -279,35 +281,57 @@ async function viewEquipos() {
   S.today = r.today;
   const list = r.equipment;
   const catOf = (e) => e.category || 'Otros';
-  const cats = [...EQUIP_CATS.filter((c) => list.some((e) => catOf(e) === c)), ...[...new Set(list.map(catOf))].filter((c) => !EQUIP_CATS.includes(c))];
+  const cats = [...EQUIP_CATS, ...[...new Set(list.map(catOf))].filter((c) => !EQUIP_CATS.includes(c)).sort()];
+  const stOf = (e) => e.state || 'none';
+  const ST = { ok: 'Funciona', falla: 'Con falla', reparacion: 'En reparación', baja: 'Fuera de servicio', none: 'Por confirmar' };
+  const opened = new Set(store('mt_eqopen') || []);
+  if (query.tipo) opened.add(query.tipo);
   const row = (e) => {
     const st = eqState(e), sv = svcState(e);
-    return `<a class="lrow eq" href="#/e/${e.id}">${e.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic(catOf(e) === 'Vehículos' || catOf(e) === 'Maquinaria agrícola' ? 'pin' : catOf(e) === 'Cómputo y sistemas' ? 'grid' : 'wrench')}</span>`}
+    return `<a class="lrow eq" href="#/e/${e.id}">${e.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic('wrench')}</span>`}
       <span class="grow"><b>${esc(e.name)}${e.qty > 1 ? ` <span class="muted">×${e.qty}</span>` : ''}</b>${e.brand_model || e.serial ? `<span class="ls">${bits([e.brand_model, e.serial ? 'No. ' + e.serial : ''])}</span>` : ''}
-        <span class="ls"><span class="estate ${st.cls}">${esc(st.text)}</span>${e.holder_name ? `<span>Lo tiene ${esc(first(e.holder_name))}</span>` : ''}</span>
+        <span class="ls"><span class="estate ${st.cls}">${esc(st.text)}</span>${e.holder_name ? `<span>Lo tiene ${esc(first(e.holder_name))}</span>` : ''}${e.area_name ? `<span>${esc(e.area_name)}</span>` : ''}</span>
         ${sv.cls !== 'none' ? `<span class="ls st ${sv.cls}">${ic(sv.icon)}${esc(sv.text)}</span>` : ''}
         ${e.open_count ? `<span class="ls warn">${ic('tasks')}${plural(e.open_count, 'pendiente abierto', 'pendientes abiertos')}</span>` : ''}</span>${ic('chev')}</a>`;
   };
   const draw = () => {
     const s = fold(EQ.q.trim());
-    if (EQ.cat && !cats.includes(EQ.cat)) EQ.cat = '';
-    const shown = list.filter((e) => (!EQ.cat || catOf(e) === EQ.cat) && (!s || fold([e.name, e.brand_model, e.location, e.area_name, e.serial, e.holder_name, catOf(e)].join(' ')).includes(s)));
-    const body = shown.length ? cats.map((c) => {
-      const items = shown.filter((e) => catOf(e) === c);
-      return items.length ? `<section><h2 class="sec">${esc(c)}<span class="n">${items.length}</span></h2><div class="list">${items.map(row).join('')}</div></section>` : '';
-    }).join('') : `<div class="empty"><h2>Nada con «${esc(EQ.q)}»</h2></div>`;
-    const chip = (c, label) => `<button type="button" class="tchip" data-ecat="${esc(c)}" aria-pressed="${EQ.cat === c}">${esc(label)}${c ? `<span>${list.filter((e) => catOf(e) === c).length}</span>` : ''}</button>`;
+    const narrowing = !!(s || EQ.state);
+    const shown = list.filter((e) => (!EQ.state || stOf(e) === EQ.state) && (!s || fold([e.name, e.brand_model, e.location, e.area_name, e.serial, e.holder_name, catOf(e)].join(' ')).includes(s)));
+    const groups = cats.map((c) => {
+      const items = shown.filter((e) => catOf(e) === c).sort((x, y) => x.name.localeCompare(y.name));
+      if (narrowing && !items.length) return '';
+      const bad = items.filter((e) => e.state === 'falla' || e.state === 'reparacion' || e.state === 'baja').length;
+      const late = items.filter((e) => svcState(e).cls === 'bad').length;
+      const unk = items.filter((e) => !e.state).length;
+      const sub = [bad && `<span class="warn">${plural(bad, 'con falla o en reparación', 'con falla o en reparación')}</span>`, late && `<span class="bad">${plural(late, 'servicio atrasado', 'servicios atrasados')}</span>`, !bad && !late && unk && `<span>${unk} por confirmar</span>`].filter(Boolean).join('');
+      return `<details class="eqgrp" data-cat="${esc(c)}" ${narrowing || opened.has(c) ? 'open' : ''}><summary><span class="grow"><b>${esc(c)}</b><span class="eqsub">${items.length ? sub || `<span>${EQUIP_HINT[c] || 'Al día'}</span>` : `<span>${esc(EQUIP_HINT[c] || 'Nada todavía')}</span>`}</span></span><span class="n">${items.length}</span>${ic('down')}</summary>
+        ${items.length ? `<div class="list">${items.map(row).join('')}</div>` : ''}
+        ${narrowing ? '' : `<a class="eqadd" href="#/e/nuevo?tipo=${encodeURIComponent(c)}">${ic('plus')}Agregar a ${esc(c)}</a>`}</details>`;
+    }).join('');
+    const chips = EQ.state ? `<div class="fchips"><button type="button" class="fchip" data-eclr aria-label="Quitar filtro">${esc(ST[EQ.state])}${ic('x')}</button></div>` : '';
     render(header('Equipos', { right: `<a class="hbtn" href="#/e/nuevo">${ic('plus')}Nuevo</a>` }) + `<div class="wrap">
-      ${list.length ? `<div class="ctop"><div class="search">${ic('search')}<label class="sr" for="eq-q">Buscar equipo</label><input id="eq-q" type="search" value="${esc(EQ.q)}" placeholder="Buscar: bomba, laptop, camioneta…" autocomplete="off"></div>
-        <div class="tchips" role="group" aria-label="Tipos">${chip('', 'Todos')}${cats.map((c) => chip(c, c)).join('')}</div></div><div id="eq-list">${body}</div>`
-        : `<div class="empty"><h2>Todavía no hay equipos</h2><p>Da de alta lo que necesita servicio: refrigeradores, chillers, bombas, la planta de luz. Con una foto y el nombre basta.</p>
-        <a class="b" href="#/e/nuevo">${ic('camera')}Agregar el primero</a></div>`}
+      <div class="ctop"><div class="searchrow"><div class="search">${ic('search')}<label class="sr" for="eq-q">Buscar equipo</label><input id="eq-q" type="search" value="${esc(EQ.q)}" placeholder="Buscar: tanque, laptop, motosierra…" autocomplete="off"></div>
+        <button type="button" class="fbtn" data-ef aria-pressed="${!!EQ.state}" aria-label="Filtrar por estado" title="Filtrar por estado">${ic('filter')}</button></div>${chips}</div>
+      <div id="eq-list">${groups || `<div class="empty"><h2>Nada con ese filtro</h2></div>`}</div>
     </div>`, { tab: 'equipos', keepScroll: true });
+    $$('details.eqgrp').forEach((d) => (d.ontoggle = () => {
+      if (narrowing) return;
+      if (d.open) opened.add(d.dataset.cat); else opened.delete(d.dataset.cat);
+      store('mt_eqopen', [...opened]);
+    }));
     const q = $('#eq-q');
-    if (q) q.oninput = debounce(() => { EQ.q = q.value; const pos = q.selectionStart; draw(); const q2 = $('#eq-q'); q2.focus(); q2.setSelectionRange(pos, pos); }, 150);
-    $$('[data-ecat]').forEach((b) => (b.onclick = () => { EQ.cat = EQ.cat === b.dataset.ecat ? '' : b.dataset.ecat; draw(); }));
+    q.oninput = debounce(() => { EQ.q = q.value; const pos = q.selectionStart; draw(); const q2 = $('#eq-q'); q2.focus(); q2.setSelectionRange(pos, pos); }, 150);
+    const clr = $('[data-eclr]');
+    if (clr) clr.onclick = () => { EQ.state = ''; draw(); };
+    $('[data-ef]').onclick = async () => {
+      const v = await sheet({ title: '¿Cómo está?', opts: [{ value: '*', label: 'Todos', on: !EQ.state }, ...Object.entries(ST).map(([k, l]) => ({ value: k, label: l, sub: plural(list.filter((e) => stOf(e) === k).length, 'equipo', 'equipos'), on: EQ.state === k }))] });
+      if (!v) return;
+      EQ.state = v === '*' ? '' : v; draw();
+    };
   };
   draw();
+  if (query.tipo) { const d = $(`details.eqgrp[data-cat="${CSS.escape(query.tipo)}"]`); if (d) d.scrollIntoView({ block: 'start' }); }
 }
 
 async function viewEquipo(id, keep = false) {
@@ -366,7 +390,7 @@ async function viewEquipo(id, keep = false) {
   UI.refresh = reload;
 }
 
-async function viewEquipoForm(id) {
+async function viewEquipoForm(id, query = {}) {
   UI.view = 'equipoform';
   let e = null;
   if (id) {
@@ -378,7 +402,9 @@ async function viewEquipoForm(id) {
   render(header(e ? 'Editar equipo' : 'Nuevo equipo', { back: true }) + `<form class="wrap form" id="ef" novalidate>
     ${e ? '' : `<div class="field"><span class="flabel">Foto</span>${pickerHtml('ef-pick')}<p class="hint">Tómale una al equipo y otra a su placa de datos: así no hay que escribir el modelo ni la serie.</p></div>`}
     ${fInput('ef-name', 'Nombre', { value: e ? e.name : '', placeholder: 'Ej. Motosierra Stihl 1, Laptop de Brenda', max: 120, attrs: 'autocomplete="off"' })}
-    ${fSelect('ef-cat', 'Tipo', EQUIP_CATS.map((c) => `<option value="${esc(c)}" ${(e ? e.category || 'Otros' : '') === c ? 'selected' : ''}>${esc(c)}</option>`).join(''))}
+    ${(() => { const cur = e ? e.category || 'Otros' : query.tipo || ''; const mine = [...new Set(S.equipment.map((x) => x.category).filter((c) => c && !EQUIP_CATS.includes(c)))]; const all = [...EQUIP_CATS, ...mine, ...(cur && !EQUIP_CATS.includes(cur) && !mine.includes(cur) ? [cur] : [])];
+      return fSelect('ef-cat', 'Tipo', `<option value="" ${cur ? '' : 'selected'} disabled>Elige el tipo</option>${all.map((c) => `<option value="${esc(c)}" ${cur === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}<option value="__new">Otro tipo…</option>`)
+        + `<div class="field hidden" id="ef-catnew-f">${fInput('ef-catnew', 'Nombre del tipo nuevo', { max: 60, placeholder: 'Ej. Herramienta de taller', attrs: 'autocomplete="off"' })}</div>`; })()}
     ${areaSelect('ef-area', e ? e.area_id : '', { label: '¿Dónde está?', empty: 'Sin área' })}
     ${fInput('ef-model', 'Marca y modelo', { value: e ? e.brand_model : '', placeholder: 'Ej. Torrey R-36', optional: true, attrs: 'autocomplete="off"' })}
     ${fInput('ef-qty', 'Cantidad', { value: e && e.qty ? e.qty : '', optional: true, type: 'number', attrs: 'inputmode="numeric" min="1" max="100000"', hint: 'Para un juego: 20 sillas, 6 mesas de picnic. Si es una pieza, déjalo vacío.' })}
@@ -411,6 +437,7 @@ async function viewEquipoForm(id) {
   }
   const getArea = bindAreaSelect('ef-area').area;
   const getState = bindChoice(APP, 'ef-state');
+  $('#ef-cat').onchange = () => { $('#ef-catnew-f').classList.toggle('hidden', $('#ef-cat').value !== '__new'); if ($('#ef-cat').value === '__new') $('#ef-catnew').focus(); };
   const del = $('[data-del]');
   if (del) del.onclick = async () => {
     if (!(await confirmSheet('¿Dar de baja este equipo?', 'Sale de la lista y se detienen sus servicios programados. Su historial no se borra.', 'Dar de baja', true))) return;
@@ -421,10 +448,12 @@ async function viewEquipoForm(id) {
     const err = $('#ef-err');
     const name = $('#ef-name').value.trim();
     if (!name) { err.textContent = 'Escribe el nombre del equipo'; err.classList.remove('hidden'); $('#ef-name').focus(); return; }
+    const cat = $('#ef-cat').value === '__new' ? $('#ef-catnew').value.trim() : $('#ef-cat').value;
+    if (!cat) { err.textContent = $('#ef-cat').value === '__new' ? 'Escribe el nombre del tipo nuevo' : 'Elige el tipo'; err.classList.remove('hidden'); return; }
     const data = {
       name, area_id: getArea() || null, brand_model: $('#ef-model').value, provider_id: $('#ef-who').value || null, serial: $('#ef-serial0').value, qty: $('#ef-qty').value || null,
       location: $('#ef-loc').value, warranty_until: $('#ef-war').value, manual_url: $('#ef-manual').value, notes: $('#ef-notes').value,
-      category: $('#ef-cat').value, holder_id: $('#ef-holder').value || null, state: getState() || null,
+      category: cat, holder_id: $('#ef-holder').value || null, state: getState() || null,
     };
     if (!e) { data.plan_months = months; data.last_service = $('#ef-last').value; }
     const btn = $('#ef-save');
@@ -435,6 +464,7 @@ async function viewEquipoForm(id) {
       else { eid = (await api('POST', '/equipment', data)).id; if (files.length) await uploadAll(`/equipment/${eid}/photos`, files); }
       await loadBoot();
       touch();
+      store('mt_eqopen', [...new Set([...(store('mt_eqopen') || []), cat])]);   // its type is open in the list when you go back
       toast(e ? 'Equipo guardado' : 'Equipo dado de alta');
       location.replace('#/e/' + eid);
     } catch (ex) { btn.disabled = false; err.textContent = ex.message; err.classList.remove('hidden'); }
@@ -658,9 +688,9 @@ function contactsHTML(list, { sheet: inSheet = false } = {}) {
   }
   if (!shown.length) body = `<div class="empty"><h2>Nadie con «${esc(CT.q)}»</h2><p>Busca por nombre, oficio o empresa.</p></div>`;
   else if (!ext.length && !s) body = '<p class="small">Agrega al plomero, al electricista, al de refrigeración: a quien se le habla cuando algo no se puede resolver en casa.</p>' + body;
-  const chip = (t, label, n) => `<button type="button" class="tchip" data-ctag="${esc(t)}" aria-pressed="${CT.tag === t}">${esc(label)}${n ? `<span>${n}</span>` : ''}</button>`;
-  return `<div class="ctop ${inSheet ? 'insheet' : ''}"><div class="search">${ic('search')}<label class="sr" for="ct-q">Buscar contactos</label><input id="ct-q" type="search" value="${esc(CT.q)}" placeholder="Buscar: plomero, luz, Carlos…" autocomplete="off" enterkeyhint="search"></div>
-    ${tags.length ? `<div class="tchips" role="group" aria-label="Oficios">${chip('', 'Todos')}${tags.map((t) => chip(t, t, ext.filter((p) => tagsOf(p).includes(t) && hit(p)).length)).join('')}</div>` : ''}</div>
+  return `<div class="ctop ${inSheet ? 'insheet' : ''}"><div class="searchrow"><div class="search">${ic('search')}<label class="sr" for="ct-q">Buscar contactos</label><input id="ct-q" type="search" value="${esc(CT.q)}" placeholder="Buscar: plomero, luz, Carlos…" autocomplete="off" enterkeyhint="search"></div>
+      ${inSheet ? '' : `<button type="button" class="fbtn" data-ctf aria-pressed="${!!CT.tag}" aria-label="Filtrar por oficio" title="Filtrar por oficio">${ic('filter')}</button>`}</div>
+    ${CT.tag ? `<div class="fchips"><button type="button" class="fchip" data-ctag="" aria-label="Quitar filtro">${esc(CT.tag)}${ic('x')}</button></div>` : ''}</div>
     <div id="ct-list">${body}</div>`;
 }
 function bindContacts(root, list, redraw) {
@@ -672,7 +702,15 @@ function bindContacts(root, list, redraw) {
     const q2 = $('#ct-q', root);
     if (q2) { q2.focus(); q2.setSelectionRange(pos, pos); }
   }, 150);
-  $$('[data-ctag]', root).forEach((b) => (b.onclick = () => { CT.tag = CT.tag === b.dataset.ctag ? '' : b.dataset.ctag; redraw(); }));
+  $$('[data-ctag]', root).forEach((b) => (b.onclick = () => { CT.tag = b.dataset.ctag; redraw(); }));
+  const f = $('[data-ctf]', root);
+  if (f) f.onclick = async () => {   // every oficio, the ones nobody has yet too: the list says how many
+    const n = (t) => list.filter((p) => p.kind === 'externo' && tagsOf(p).includes(t)).length;
+    const extra = [...new Set(list.flatMap(tagsOf))].filter((t) => !TRADES.includes(t));
+    const v = await sheet({ title: 'Filtrar por oficio', opts: [{ value: '*', label: 'Todos', on: !CT.tag }, ...[...TRADES, ...extra].map((t) => ({ value: t, label: t, sub: n(t) ? plural(n(t), 'contacto', 'contactos') : 'Nadie todavía', on: CT.tag === t }))] });
+    if (!v) return;
+    CT.tag = v === '*' ? '' : v; redraw();
+  };
 }
 async function viewContactos() {
   UI.view = 'contactos';
@@ -1061,8 +1099,8 @@ async function route() {
     if (a === 'planes') return await viewPlans();
     if (a === 'plan' && b === 'nuevo') return await viewPlanForm(null, query);
     if (a === 'plan' && n) return c === 'editar' ? await viewPlanForm(n) : await viewPlan(n);
-    if (a === 'equipos') return await viewEquipos();
-    if (a === 'e' && b === 'nuevo') return await viewEquipoForm(null);
+    if (a === 'equipos') return await viewEquipos(query);
+    if (a === 'e' && b === 'nuevo') return await viewEquipoForm(null, query);
     if (a === 'e' && n) return c === 'editar' ? await viewEquipoForm(n) : c === 'servicio' ? await viewService(n) : await viewEquipo(n);
     if (a === 'contactos') return await viewContactos();
     if (a === 'mascotas') return await viewMascotas();
