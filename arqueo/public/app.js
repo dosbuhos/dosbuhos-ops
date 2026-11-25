@@ -298,6 +298,9 @@ async function vConc() {
   const dif = filas.filter((f) => f.diferencia !== 0);
   const total = dif.reduce((a, f) => a + Math.abs(f.diferencia), 0);
   main.innerHTML = `
+    ${E.cfg.base_cerrada ? '' : `<div class="card"><div class="head"><h2>Falta la línea base</h2><span class="chip ambar">pendiente</span></div>
+      <p class="note">Todavía no hay un conteo general del almacén, así que el saldo de Arqueo arranca en cero y estas diferencias
+      son contra nada. Cierra la línea base y entonces la lista de ajustes dice la verdad.</p></div>`}
     <div class="kpis">
       <div class="kpi ${total ? 'alerta' : ''}"><b class="tnum">${n(total)}</b><span>botellas de diferencia</span></div>
       <div class="kpi"><b class="tnum">${dif.length}</b><span>vinos que no cuadran</span></div>

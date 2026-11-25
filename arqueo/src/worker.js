@@ -320,6 +320,8 @@ export default {
       }
       if (p === '/api/ajustes/generar' && request.method === 'POST') {
         if (!yo.admin) return mal('Solo supervisores', 403);
+        // Before the baseline every balance is zero, so this would hand administración a list that empties the almacén.
+        if (!(await ajustesApp(env)).base_cerrada) return mal('Primero hay que cerrar la línea base: sin ella la lista diría que todo está en cero', 409);
         const filas = (await conciliacion(env)).filter((f) => f.diferencia !== 0);
         if (!filas.length) return json({ creados: 0 });
         const at = ahora(), hoy = hoyEn(env.TZ);
