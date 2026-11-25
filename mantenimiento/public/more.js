@@ -306,7 +306,7 @@ async function viewEquipos(query = {}) {
       const late = items.filter((e) => svcState(e).cls === 'bad').length;
       const unk = items.filter((e) => !e.state).length;
       const sub = [bad && `<span class="warn">${plural(bad, 'con falla o en reparación', 'con falla o en reparación')}</span>`, late && `<span class="bad">${plural(late, 'servicio atrasado', 'servicios atrasados')}</span>`, !bad && !late && unk && `<span>${unk} por confirmar</span>`].filter(Boolean).join('');
-      return `<details class="eqgrp" data-cat="${esc(c)}" ${narrowing || opened.has(c) ? 'open' : ''}><summary><span class="grow"><b>${esc(c)}</b><span class="eqsub">${items.length ? sub || `<span>${EQUIP_HINT[c] || 'Al día'}</span>` : `<span>${esc(EQUIP_HINT[c] || 'Nada todavía')}</span>`}</span></span><span class="n">${items.length}</span>${ic('down')}</summary>
+      return `<details class="eqgrp c-${groupColor(EQUIP_COLOR, c)}" data-cat="${esc(c)}" ${narrowing || opened.has(c) ? 'open' : ''}><summary><span class="grow"><b>${esc(c)}</b><span class="eqsub">${items.length ? sub || `<span>${EQUIP_HINT[c] || 'Al día'}</span>` : `<span>${esc(EQUIP_HINT[c] || 'Nada todavía')}</span>`}</span></span><span class="n">${items.length}</span>${ic('down')}</summary>
         ${items.length ? `<div class="list">${items.map(row).join('')}</div>` : ''}
         ${narrowing ? '' : `<a class="eqadd" href="#/e/nuevo?tipo=${encodeURIComponent(c)}">${ic('plus')}Agregar a ${esc(c)}</a>`}</details>`;
     }).join('');
@@ -676,16 +676,16 @@ function contactsHTML(list, { sheet: inSheet = false } = {}) {
   const exts = shown.filter((p) => p.kind === 'externo');
   if (CT.tag) {
     const inTag = exts.filter((p) => tagsOf(p).includes(CT.tag)).sort(byName);
-    body = inTag.length ? `<div class="klist">${inTag.map(row).join('')}</div>` : '<p class="small">Nadie con esa búsqueda en este oficio.</p>';
+    body = inTag.length ? `<section class="kgrp c-${groupColor(TRADE_COLOR, CT.tag)}"><h3 class="kh">${esc(CT.tag)}<span class="n">${inTag.length}</span></h3><div class="klist">${inTag.map(row).join('')}</div></section>` : '<p class="small">Nadie con esa búsqueda en este oficio.</p>';
   } else {
     for (const t of tags) {
       const g = exts.filter((p) => tagsOf(p).includes(t)).sort(byName);
-      if (g.length) body += `<section class="kgrp"><h3 class="kh">${esc(t)}<span class="n">${g.length}</span></h3><div class="klist">${g.map(row).join('')}</div></section>`;
+      if (g.length) body += `<section class="kgrp c-${groupColor(TRADE_COLOR, t)}"><h3 class="kh">${esc(t)}<span class="n">${g.length}</span></h3><div class="klist">${g.map(row).join('')}</div></section>`;
     }
     const none = exts.filter((p) => !tagsOf(p).length).sort(byName);
-    if (none.length) body += `<section class="kgrp"><h3 class="kh">Sin oficio<span class="n">${none.length}</span></h3><div class="klist">${none.map(row).join('')}</div></section>`;
+    if (none.length) body += `<section class="kgrp c-grey"><h3 class="kh">Sin oficio<span class="n">${none.length}</span></h3><div class="klist">${none.map(row).join('')}</div></section>`;
     const ints = shown.filter((p) => p.kind === 'interno').sort(byName);
-    if (ints.length) body += `<section class="kgrp"><h3 class="kh">De la casa<span class="n">${ints.length}</span></h3><div class="klist">${ints.map(row).join('')}</div></section>`;
+    if (ints.length) body += `<section class="kgrp c-indigo"><h3 class="kh">De la casa<span class="n">${ints.length}</span></h3><div class="klist">${ints.map(row).join('')}</div></section>`;
   }
   if (!shown.length) body = `<div class="empty"><h2>Nadie con «${esc(CT.q)}»</h2><p>Busca por nombre, oficio o empresa.</p></div>`;
   else if (!ext.length && !s) body = '<p class="small">Agrega al plomero, al electricista, al de refrigeración: a quien se le habla cuando algo no se puede resolver en casa.</p>' + body;

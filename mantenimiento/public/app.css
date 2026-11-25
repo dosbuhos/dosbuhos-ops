@@ -1274,3 +1274,17 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 .eqadd svg { width: 18px; height: 18px; }
 .ctop .searchrow { width: 100%; }
 .ctop .searchrow .search { flex: 1; }
+
+/* ---------- groups you can tell apart: each oficio / type has its colour, a tinted header and a bar down its rows ---------- */
+.kgrp { margin-top: 18px; }
+.kgrp .kh { margin: 0; padding: 9px 12px; border-radius: 10px 10px 0 0; font-size: 14.5px; font-weight: 700; letter-spacing: 0; color: var(--tc);
+  background: color-mix(in srgb, var(--tc) 13%, var(--bg)); border-left: 4px solid var(--tc); }
+.kgrp .kh .n { color: var(--tc); opacity: .7; font-weight: 600; }
+.kgrp .klist { border-top: 0; border-left: 4px solid color-mix(in srgb, var(--tc) 45%, transparent); }
+.kgrp .krow { padding-left: 12px; }
+.eqgrp > summary { border-left: 4px solid var(--tc); padding-left: 12px; margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--tc) 9%, var(--bg)); }
+.eqgrp > summary b { color: var(--tc); }
+.eqgrp[open] > summary { border-radius: 8px 8px 0 0; }
+.eqgrp > .list { border-left: 4px solid color-mix(in srgb, var(--tc) 45%, transparent); padding-left: 10px; }
+.eqgrp { border-bottom: 0; }
+.eqgrp > .eqadd { padding-left: 14px; }
