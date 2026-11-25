@@ -99,7 +99,14 @@ export default {
       if (!user.admin) return denied('la administración del Hub');
       return assets(request, env, 'no-store', '/admin.html');
     }
-    if (p === '/' || p === '/index.html') return assets(request, env, 'no-store', '/index.html');
+    if (p === '/' || p === '/index.html') {
+      // Someone with access to a single app (a sales rep with only Spark) goes straight to it and never sees the Hub home.
+      if (!user.admin) {
+        const g = (await env.DB.prepare("SELECT g.slug FROM grants g JOIN apps a ON a.slug = g.slug WHERE g.email = ? AND a.status != 'soon'").bind(user.email).all()).results;
+        if (g.length === 1) return Response.redirect(url.origin + '/' + g[0].slug + '/', 302);
+      }
+      return assets(request, env, 'no-store', '/index.html');
+    }
     return assets(request, env);
   },
 };

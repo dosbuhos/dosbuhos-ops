@@ -46,6 +46,9 @@ Once dosbuhos.com's DNS is on Cloudflare: uncomment `routes` in `wrangler.jsonc`
 
 Roles: Hub admins are admins in every app. Everyone else gets `admin`, `editor` or `viewer` per app; the app decides what each role may do.
 
+Short addresses (spark.dosbuhos.com, growth.dosbuhos.com, ...) redirect to the app under apps.dosbuhos.com. A non-admin with a
+grant to exactly one app is sent straight to it from the Hub home, so a sales rep with only Spark never sees the Hub.
+
 ## Local dev
 
 ```

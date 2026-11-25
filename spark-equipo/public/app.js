@@ -805,7 +805,7 @@ const VISTAS = {
         h('h2', {}, 'Datos'), h('div', { class: 'card' }, h('ul', { class: 'rows' }, st('hoja', 'Hoja del CRM (diario, 6:00)'), st('zoho', 'Zoho (6:00, 12:00 y 18:00)'), st('ia', 'Siguientes pasos sugeridos (Claude)')),
           r.correo_hoja && !(D.sync.hoja && D.sync.hoja.ok) ? h('p', { class: 'note' }, 'La hoja del CRM debe estar compartida (lector) con ', h('b', {}, r.correo_hoja), '.') : null,
           h('button', { class: 'btn', style: 'margin-top:8px;width:100%', onclick: async (ev) => { ev.target.disabled = true; ev.target.textContent = 'Sincronizando…'; await api('api/admin/sync', {}); await cargar(); } }, 'Sincronizar ahora')),
-        h('h2', {}, 'Quién ve qué'), h('p', { class: 'note' }, 'Todos ven los números del equipo; cada quien abre en los suyos. Efectividad y Ajustes solo los ven los administradores. Liga aquí el correo con el que entra al Hub.'),
+        h('h2', {}, 'Quién ve qué'), h('p', { class: 'note' }, 'Un vendedor ve solo lo suyo. Los administradores ven a todo el equipo; uno con cartera propia (Carlos) no da altas, no reasigna ventas ni verifica pedidos. Liga aquí el correo con el que entra.'),
         h('div', { class: 'card' }, r.people.length ? h('ul', { class: 'rows' }, r.people.map((p) => h('li', {}, h('div', { class: 'l1' }, h('span', {}, p.email), h('button', { class: 'chip', onclick: async () => { await api('api/admin/people', { email: p.email, borrar: true }); pintar(); } }, 'Quitar')), h('div', { class: 'l2' }, p.rol === 'admin' ? 'Administrador' : p.persona)))) : h('p', { class: 'note' }, 'Nadie dado de alta todavía.'), f));
     });
     return box;
