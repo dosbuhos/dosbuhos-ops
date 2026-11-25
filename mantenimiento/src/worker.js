@@ -153,6 +153,8 @@ async function api(request, env, url) {
     case 'settings': return settingsApi(request, env, user, method);
     case 'pm': return pmApi(request, env, url, user, seg, method);
     case 'blocks': return blocksApi(request, env, url, user, seg, method);
+    case 'pets': return petsApi(request, env, user, seg, method);
+    case 'pet-events': return petEventsApi(request, env, user, seg, method);
     case 'feedback': return feedbackApi(request, env, user, seg, method);
     case 'summary': return summaryApi(env);
     case 'search': return searchApi(env, url);
@@ -287,7 +289,7 @@ async function updateMe(request, env, user) {
 async function bootstrap(env, user) {
   try { await runPM(env); } catch (e) { console.error('pm', e); }
   const today = mxToday();
-  const [areas, providers, equipment, users, late, inbox] = await env.DB.batch([
+  const [areas, providers, equipment, users, late, inbox, pets] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, color, sort, active FROM areas ORDER BY sort, name'),
     env.DB.prepare(`SELECT p.id, p.name, p.kind, p.company, p.specialty, p.phone, p.notes, p.tags, p.active,
         (SELECT u.id FROM users u WHERE u.provider_id = p.id AND u.active = 1 LIMIT 1) AS user_id
@@ -299,12 +301,14 @@ async function bootstrap(env, user) {
     // How many are late and how many wait in the Bandeja, so the counts are right on whichever screen the app opens.
     env.DB.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status IN ${OPEN_SQL} AND due_date IS NOT NULL AND due_date < ?`).bind(today),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status IN ${OPEN_SQL} AND due_date IS NULL`),
+    env.DB.prepare('SELECT id, name, species FROM pets WHERE active = 1 ORDER BY name COLLATE NOCASE'),
   ]);
   return json({
     user,
     areas: areas.results,
     providers: providers.results,
     equipment: equipment.results,
+    pets: pets.results,
     users: users.results,
     settings: await settings(env),
     late: late.results[0] ? late.results[0].n : 0,
@@ -318,12 +322,12 @@ function taskSelect({ list = false } = {}) {
   const cols = list
     ? `t.id, t.title, substr(t.description, 1, 240) AS description, t.kind, t.area_id, t.equipment_id, t.priority, t.status,
        t.provider_id, t.due_date, t.cost, t.created_by, t.created_at, t.updated_at, t.completed_at, t.wait_reason, t.pm_id,
-       t.postponed, t.first_due, t.est_min, t.plan_min, t.place, t.checks, t.when_ok`
+       t.postponed, t.first_due, t.est_min, t.plan_min, t.place, t.checks, t.when_ok, t.pet_id`
     : 't.*';
   return `
   SELECT ${cols}, a.name AS area_name, a.color AS area_color, e.name AS equipment_name,
          p.name AS provider_name, p.kind AS provider_kind, p.specialty AS provider_specialty, p.phone AS provider_phone,
-         u.name AS created_by_name,
+         u.name AS created_by_name, pt.name AS pet_name,
          (SELECT MIN(ph.id) FROM photos ph WHERE ph.task_id = t.id) AS thumb_id,
          (SELECT COUNT(*) FROM photos ph WHERE ph.task_id = t.id) AS photo_count,
          (SELECT COUNT(*) FROM task_notes n WHERE n.task_id = t.id AND n.kind = 'nota') AS note_count
@@ -331,7 +335,8 @@ function taskSelect({ list = false } = {}) {
   LEFT JOIN areas a ON a.id = t.area_id
   LEFT JOIN equipment e ON e.id = t.equipment_id
   LEFT JOIN providers p ON p.id = t.provider_id
-  LEFT JOIN users u ON u.id = t.created_by`;
+  LEFT JOIN users u ON u.id = t.created_by
+  LEFT JOIN pets pt ON pt.id = t.pet_id`;
 }
 const getTask = (env, id) => env.DB.prepare(`${taskSelect()} WHERE t.id = ?`).bind(id).first();
 
@@ -357,6 +362,7 @@ async function tasksApi(request, env, url, user, seg, method) {
     if (q.get('mine')) { where.push('(t.created_by = ? OR (t.provider_id IS NOT NULL AND t.provider_id = ?))'); params.push(user.id, user.provider_id || -1); }
     if (q.get('equipment')) { where.push('t.equipment_id = ?'); params.push(int(q.get('equipment'))); }
     if (q.get('area')) { where.push('t.area_id = ?'); params.push(int(q.get('area'))); }
+    if (q.get('pet')) { where.push('t.pet_id = ?'); params.push(int(q.get('pet'))); }
     if (q.get('q')) {
       where.push('(t.title LIKE ? OR t.description LIKE ? OR t.place LIKE ? OR CAST(t.id AS TEXT) = ?)');
       const like = '%' + q.get('q').slice(0, 100) + '%';
@@ -399,10 +405,10 @@ async function tasksApi(request, env, url, user, seg, method) {
     const who = await providerName(env, providerId);
     const r = await env.DB.prepare(
       `INSERT INTO tasks (title, description, kind, area_id, equipment_id, priority, status, provider_id,
-                          due_date, first_due, cost, created_by, completed_at, place, when_ok)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END), ?, ?)`
+                          due_date, first_due, cost, created_by, completed_at, place, when_ok, pet_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END), ?, ?, ?)`
     ).bind(title, str(b.description, 4000), kind, areaId, equipmentId, priority, status, providerId,
-      dueDate, dueDate, num(b.cost), user.id, completedAt, status, place, str(b.when_ok, 120)).run();
+      dueDate, dueDate, num(b.cost), user.id, completedAt, status, place, str(b.when_ok, 120), int(b.pet_id)).run();
     const newId = r.meta.last_row_id;
     let log = kind === 'servicio' ? `Servicio registrado por ${user.name}` : `Reportado por ${user.name}`;
     if (who) log += `, asignado a ${who}`;
@@ -634,14 +640,14 @@ async function savePhoto(request, env, user, owner) {
   let r2Key = null;
   let data = null;
   if (env.PHOTOS) {
-    r2Key = `${owner.task_id ? 't' + owner.task_id : owner.feedback_id ? 'f' + owner.feedback_id : 'e' + owner.equipment_id}/${randomHex(8)}`;
+    r2Key = `${owner.task_id ? 't' + owner.task_id : owner.feedback_id ? 'f' + owner.feedback_id : owner.pet_id ? 'm' + owner.pet_id : 'e' + owner.equipment_id}/${randomHex(8)}`;
     await env.PHOTOS.put(r2Key, buf, { httpMetadata: { contentType: type } });
   } else {
     data = buf;
   }
   const r = await env.DB.prepare(
-    'INSERT INTO photos (task_id, equipment_id, feedback_id, user_id, content_type, r2_key, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(owner.task_id || null, owner.equipment_id || null, owner.feedback_id || null, user.id, type, r2Key, data, thumb).run();
+    'INSERT INTO photos (task_id, equipment_id, feedback_id, pet_id, user_id, content_type, r2_key, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(owner.task_id || null, owner.equipment_id || null, owner.feedback_id || null, owner.pet_id || null, user.id, type, r2Key, data, thumb).run();
   return { id: r.meta.last_row_id };
 }
 const bytes = (v) => (Array.isArray(v) ? new Uint8Array(v) : v);
@@ -770,11 +776,89 @@ async function feedbackApi(request, env, user, seg, method) {
   fail(404, 'No encontrado');
 }
 
+// ---------- mascotas ----------
+const PET_SELECT = `SELECT p.*, v.name AS vet_name, v.phone AS vet_phone,
+    (SELECT MIN(ph.id) FROM photos ph WHERE ph.pet_id = p.id) AS cover_id,
+    (SELECT COUNT(*) FROM tasks t WHERE t.pet_id = p.id AND t.status IN ${OPEN_SQL}) AS open_count,
+    (SELECT MIN(e.next_due) FROM pet_events e WHERE e.pet_id = p.id AND e.next_due IS NOT NULL
+       AND e.id = (SELECT x.id FROM pet_events x WHERE x.pet_id = e.pet_id AND x.kind = e.kind AND x.title = e.title COLLATE NOCASE ORDER BY x.day DESC, x.id DESC LIMIT 1)) AS next_due
+  FROM pets p LEFT JOIN providers v ON v.id = p.provider_id`;
+function petFields(b) {
+  const born = /^\d{4}(-\d\d(-\d\d)?)?$/.test(String(b.born || '')) ? b.born : null;
+  return { name: str(b.name, 80), species: str(b.species, 40), breed: str(b.breed, 80), sex: ['macho', 'hembra'].includes(b.sex) ? b.sex : null, born, provider_id: int(b.provider_id), notes: str(b.notes, 2000) };
+}
+async function petsApi(request, env, user, seg, method) {
+  const id = int(seg[1]);
+  if (!id && method === 'GET') {
+    const { results } = await env.DB.prepare(`${PET_SELECT} WHERE p.active = 1 ORDER BY p.name COLLATE NOCASE`).all();
+    return json({ pets: results, today: mxToday() });
+  }
+  if (!id && method === 'POST') {
+    const f = petFields(await body(request));
+    if (!f.name) fail(400, 'Escribe su nombre');
+    const r = await env.DB.prepare('INSERT INTO pets (name, species, breed, sex, born, provider_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(f.name, f.species, f.breed, f.sex, f.born, f.provider_id, f.notes).run();
+    return json({ id: r.meta.last_row_id }, 201);
+  }
+  const pet = id && (await env.DB.prepare(`${PET_SELECT} WHERE p.id = ?`).bind(id).first());
+  if (!pet) fail(404, 'Esa mascota ya no está');
+  if (method === 'GET' && !seg[2]) {
+    const [ev, ph, tk] = await env.DB.batch([
+      env.DB.prepare('SELECT e.*, u.name AS user_name FROM pet_events e LEFT JOIN users u ON u.id = e.user_id WHERE e.pet_id = ? ORDER BY e.day DESC, e.id DESC').bind(id),
+      env.DB.prepare('SELECT id, user_id, created_at FROM photos WHERE pet_id = ? ORDER BY id').bind(id),
+      env.DB.prepare(`${taskSelect({ list: true })} WHERE t.pet_id = ? ORDER BY CASE WHEN t.status IN ${OPEN_SQL} THEN 0 ELSE 1 END, COALESCE(t.completed_at, t.created_at) DESC LIMIT 60`).bind(id),
+    ]);
+    return json({ pet, events: ev.results, photos: ph.results, tasks: tk.results, today: mxToday() });
+  }
+  if (method === 'PATCH' && !seg[2]) {
+    const f = petFields(await body(request));
+    if (!f.name) fail(400, 'Escribe su nombre');
+    await env.DB.prepare('UPDATE pets SET name=?, species=?, breed=?, sex=?, born=?, provider_id=?, notes=? WHERE id=?')
+      .bind(f.name, f.species, f.breed, f.sex, f.born, f.provider_id, f.notes, id).run();
+    return json({ ok: true });
+  }
+  if (method === 'DELETE' && !seg[2]) {
+    requireAdmin(user);
+    await env.DB.prepare('UPDATE pets SET active = 0 WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
+  if (seg[2] === 'photos' && method === 'POST') return json({ photo: await savePhoto(request, env, user, { pet_id: id }) }, 201);
+  if (seg[2] === 'events' && method === 'POST') {   // a vaccine, deworming or visit; it closes the reminder that asked for it
+    const b = await body(request);
+    const kind = ['vacuna', 'desparasitacion', 'consulta', 'otro'].includes(b.kind) ? b.kind : 'vacuna';
+    const title = str(b.title, 120);
+    if (!title) fail(400, kind === 'vacuna' ? '¿Qué vacuna?' : 'Escribe qué se hizo');
+    if (!isDate(b.day)) fail(400, 'Elige la fecha');
+    const next = isDate(b.next_due) && b.next_due > b.day ? b.next_due : null;
+    const r = await env.DB.prepare('INSERT INTO pet_events (pet_id, kind, title, day, next_due, cost, notes, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, kind, title, b.day, next, num(b.cost), str(b.notes, 2000), user.id).run();
+    const open = await env.DB.prepare(`SELECT e.task_id FROM pet_events e JOIN tasks t ON t.id = e.task_id
+      WHERE e.pet_id = ? AND e.kind = ? AND e.title = ? COLLATE NOCASE AND e.id != ? AND t.status IN ${OPEN_SQL}`).bind(id, kind, title, r.meta.last_row_id).all();
+    for (const o of open.results) {
+      await env.DB.prepare("UPDATE tasks SET status = 'hecha', completed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").bind(o.task_id).run();
+      await addNote(env, o.task_id, user.id, `Hecho: se anotó en la ficha de ${pet.name} (${fmtDate(b.day)})`, 'sistema');
+    }
+    return json({ id: r.meta.last_row_id }, 201);
+  }
+  fail(404, 'No encontrado');
+}
+async function petEventsApi(request, env, user, seg, method) {
+  const id = int(seg[1]);
+  const e = id && (await env.DB.prepare('SELECT * FROM pet_events WHERE id = ?').bind(id).first());
+  if (!e) fail(404, 'Ese registro ya no está');
+  if (method === 'DELETE') {
+    if (e.user_id !== user.id && !isAdmin(user)) fail(403, 'Solo quien lo anotó o un administrador puede borrarlo');
+    await env.DB.prepare('DELETE FROM pet_events WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
+  fail(404, 'No encontrado');
+}
+
 // ---------- equipment ----------
 // last_service = the last service or preventive job done (repairs are in the history, not here).
 const EQUIP_SELECT = `
   SELECT e.*, a.name AS area_name, a.color AS area_color, a.sort AS area_sort,
-    p.name AS provider_name, p.phone AS provider_phone, p.kind AS provider_kind, p.specialty AS provider_specialty,
+    p.name AS provider_name, p.phone AS provider_phone, p.kind AS provider_kind, p.specialty AS provider_specialty, hd.name AS holder_name,
     (SELECT MIN(ph.id) FROM photos ph WHERE ph.equipment_id = e.id) AS cover_id,
     (SELECT MAX(t.completed_at) FROM tasks t WHERE t.equipment_id = e.id AND t.status = 'hecha' AND t.kind IN ('servicio','preventivo')) AS last_service,
     (SELECT COUNT(*) FROM tasks t WHERE t.equipment_id = e.id AND t.status IN ${OPEN_SQL}) AS open_count,
@@ -783,7 +867,8 @@ const EQUIP_SELECT = `
     (SELECT MIN(t.due_date) FROM tasks t WHERE t.equipment_id = e.id AND t.kind = 'preventivo' AND t.status IN ${OPEN_SQL}) AS next_open
   FROM equipment e
   LEFT JOIN areas a ON a.id = e.area_id
-  LEFT JOIN providers p ON p.id = e.provider_id`;
+  LEFT JOIN providers p ON p.id = e.provider_id
+  LEFT JOIN providers hd ON hd.id = e.holder_id`;
 
 // next_service = the sooner of the preventive order already open and the plan's next date
 const withNext = (e) => ({ ...e, next_service: [e.next_open, e.next_plan].filter(Boolean).sort()[0] || null });
@@ -799,8 +884,13 @@ function equipFields(b) {
     notes: str(b.notes, 4000),
     warranty_until: isDate(b.warranty_until) ? b.warranty_until : null,
     manual_url: /^https?:\/\//i.test(String(b.manual_url || '').trim()) ? str(b.manual_url, 500) : null,
+    category: str(b.category, 60),
+    state: EQ_STATES.includes(b.state) ? b.state : null,
+    holder_id: int(b.holder_id),
+    qty: int(b.qty) && int(b.qty) > 0 ? Math.min(int(b.qty), 100000) : null,
   };
 }
+const EQ_STATES = ['ok', 'falla', 'reparacion', 'baja'];   // NULL: por confirmar
 
 async function equipmentApi(request, env, user, seg, method) {
   const id = int(seg[1]);
@@ -814,9 +904,9 @@ async function equipmentApi(request, env, user, seg, method) {
     if (!f.name) fail(400, 'Escribe el nombre del equipo');
     await providerName(env, f.provider_id);
     const r = await env.DB.prepare(
-      `INSERT INTO equipment (name, area_id, location, brand_model, serial, provider_id, notes, warranty_until, manual_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(f.name, f.area_id, f.location, f.brand_model, f.serial, f.provider_id, f.notes, f.warranty_until, f.manual_url).run();
+      `INSERT INTO equipment (name, area_id, location, brand_model, serial, provider_id, notes, warranty_until, manual_url, category, state, holder_id, qty)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(f.name, f.area_id, f.location, f.brand_model, f.serial, f.provider_id, f.notes, f.warranty_until, f.manual_url, f.category, f.state, f.holder_id, f.qty).run();
     const newId = r.meta.last_row_id;
     const today = mxToday();
     // "Last serviced on…" becomes the first entry of its history.
@@ -861,12 +951,21 @@ async function equipmentApi(request, env, user, seg, method) {
     });
   }
   if (id && method === 'PATCH') {
-    const f = equipFields(await body(request));
+    const b = await body(request);
+    if (!('name' in b) && ('state' in b || 'holder_id' in b)) {   // one tap on its page: how it is, who has it
+      const sets = [], ps = [];
+      if ('state' in b) { sets.push('state = ?'); ps.push(EQ_STATES.includes(b.state) ? b.state : null); }
+      if ('holder_id' in b) { sets.push('holder_id = ?'); ps.push(int(b.holder_id)); }
+      const r = await env.DB.prepare(`UPDATE equipment SET ${sets.join(', ')} WHERE id = ?`).bind(...ps, id).run();
+      if (!r.meta.changes) fail(404, 'Ese equipo ya no existe');
+      return json({ ok: true });
+    }
+    const f = equipFields(b);
     if (!f.name) fail(400, 'Escribe el nombre del equipo');
     await providerName(env, f.provider_id);
     const r = await env.DB.prepare(
-      `UPDATE equipment SET name=?, area_id=?, location=?, brand_model=?, serial=?, provider_id=?, notes=?, warranty_until=?, manual_url=? WHERE id=?`
-    ).bind(f.name, f.area_id, f.location, f.brand_model, f.serial, f.provider_id, f.notes, f.warranty_until, f.manual_url, id).run();
+      `UPDATE equipment SET name=?, area_id=?, location=?, brand_model=?, serial=?, provider_id=?, notes=?, warranty_until=?, manual_url=?, category=?, state=?, holder_id=?, qty=? WHERE id=?`
+    ).bind(f.name, f.area_id, f.location, f.brand_model, f.serial, f.provider_id, f.notes, f.warranty_until, f.manual_url, f.category, f.state, f.holder_id, f.qty, id).run();
     if (!r.meta.changes) fail(404, 'Ese equipo ya no existe');
     return json({ ok: true });
   }
@@ -1032,6 +1131,26 @@ async function runPM(env, force = false) {
      WHERE s.active = 1 AND date(s.next_due, '-' || s.lead_days || ' days') <= ? LIMIT 50`).bind(today).all();
   let made = 0;
   for (const s of results) made += await generateFromPM(env, s, today);
+  made += await petReminders(env, today);
+  return made;
+}
+// A vaccine or deworming coming due: a pendiente in the Bandeja a week before, once per record.
+async function petReminders(env, today) {
+  const { results } = await env.DB.prepare(`SELECT e.*, p.name AS pet_name, p.provider_id FROM pet_events e JOIN pets p ON p.id = e.pet_id
+    WHERE p.active = 1 AND e.task_id IS NULL AND e.next_due IS NOT NULL AND date(e.next_due, '-7 days') <= ?
+      AND e.id = (SELECT x.id FROM pet_events x WHERE x.pet_id = e.pet_id AND x.kind = e.kind AND x.title = e.title COLLATE NOCASE ORDER BY x.day DESC, x.id DESC LIMIT 1)
+    LIMIT 20`).bind(today).all();
+  const area = await env.DB.prepare("SELECT id FROM areas WHERE name = 'Mascotas'").first('id');
+  let made = 0;
+  for (const e of results) {
+    const what = e.kind === 'desparasitacion' ? 'Desparasitar' : e.kind === 'vacuna' ? 'Vacuna' : 'Cita';
+    const r = await env.DB.prepare(`INSERT INTO tasks (title, description, kind, area_id, priority, status, provider_id, due_date, first_due, pet_id)
+      VALUES (?, ?, 'preventivo', ?, 3, 'pendiente', ?, ?, ?, ?)`)
+      .bind(`${what}: ${e.pet_name} (${e.title})`, `Le toca el ${fmtDate(e.next_due)}. La última fue el ${fmtDate(e.day)}. Al hacerla, anótala en su ficha de Mascotas con la fecha de la siguiente.`, area, e.provider_id, e.next_due, e.next_due, e.pet_id).run();
+    await env.DB.prepare('UPDATE pet_events SET task_id = ? WHERE id = ?').bind(r.meta.last_row_id, e.id).run();
+    await addNote(env, r.meta.last_row_id, null, 'Lo creó la ficha de la mascota', 'sistema');
+    made++;
+  }
   return made;
 }
 

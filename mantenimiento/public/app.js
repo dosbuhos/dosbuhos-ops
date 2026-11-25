@@ -29,7 +29,7 @@ function showEnter(step = 'pass', ctx = {}) {
        ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1 class="ebrand"><img src="/icon.svg?v=38" alt="" width="40" height="40">Esmero</h1>
+    <h1 class="ebrand"><img src="/icon.svg?v=39" alt="" width="40" height="40">Esmero</h1>
     <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
@@ -495,6 +495,7 @@ async function viewTask(id, keep = false) {
       ${open ? cell('est', 'Tiempo', t.est_min ? fmtDur(t.est_min) : '<span class="muted">Sin estimar</span>') : ''}
       ${cell('prio', 'Prioridad', `<span class="pdot p${t.priority}"></span>${PRIO[t.priority]}`)}
       ${cell('area', 'Dónde', t.area_name || t.place ? areaTag(t) : '<span class="un">Sin área</span>')}
+      ${t.pet_id ? `<div class="cell"><a class="cmain" href="#/m/${t.pet_id}"><span class="cl">Mascota</span><span class="cv">${esc(t.pet_name || 'Ver')}</span>${ic('chev')}</a></div>` : ''}
       ${cell('equip', 'Equipo', t.equipment_id ? esc(t.equipment_name) : '<span class="muted">Ninguno</span>', { under: t.equipment_id ? `<a class="b line sm" href="#/e/${t.equipment_id}">${ic('wrench')}Ver el equipo</a>` : '' })}
       ${cell('cost', 'Costo', t.cost ? money(t.cost) : '<span class="muted">Sin anotar</span>')}
     </div>
@@ -561,14 +562,17 @@ async function viewTask(id, keep = false) {
 async function viewReport(query = {}) {
   UI.view = 'report';
   const eq = query.equipo ? S.equipment.find((e) => e.id === Number(query.equipo)) : null;
+  const pet = query.mascota ? S.pets.find((x) => x.id === Number(query.mascota)) : null;
+  const petArea = S.areas.find((a) => a.name === 'Mascotas');
   const files = [];
-  let area = eq ? eq.area_id : '';
+  let area = eq ? eq.area_id : pet && petArea ? petArea.id : '';
   const day = isAdmin() && /^\d{4}-\d\d-\d\d$/.test(query.fecha || '') && query.fecha >= todayStr() ? query.fecha : '';   // came from the + beside a day
   render(header(eq ? 'Reportar falla' : 'Reportar', { back: true }) + `<form class="wrap form" id="r-form" novalidate>
     <div class="field"><span class="flabel">Foto ${optTxt}</span>${pickerHtml('r-pick')}</div>
     <div class="field"><label class="flabel" for="r-title">¿Qué pasa?</label>
       <input class="input big" id="r-title" type="text" maxlength="200" placeholder="Ej. Gotea la llave del baño de visitas" autocomplete="off" enterkeyhint="done"></div>
     ${eq ? `<div class="field"><span class="flabel">Equipo</span><p class="fixed">${ic('wrench')}${esc(eq.name)}</p></div>` : ''}
+    ${pet ? `<div class="field"><span class="flabel">Mascota</span><p class="fixed">${ic('user')}${esc(pet.name)}</p></div>` : ''}
     ${areaSelect('r-area', area, { other: true })}
     <div class="field"><span class="flabel">¿Qué tan urgente?</span>
       ${choice('r-prio', [{ v: 1, label: 'Urgente', sub: 'Peligro, fuga o detiene el servicio', cls: 'urg' }, { v: 3, label: 'Normal', sub: 'Esta semana' }, { v: 4, label: 'Puede esperar', sub: 'Cuando se pueda' }], 3, { cls: 'stack' })}</div>
@@ -576,7 +580,8 @@ async function viewReport(query = {}) {
     ${day ? `<div class="field"><span class="flabel">Día</span><p class="fixed">${ic('cal')}${esc(cap(fmtDay(day, { weekday: true })))}</p></div>` : ''}
     <details class="more"><summary>Más detalles ${optTxt}${ic('down')}</summary>
       ${fText('r-desc', 'Detalles', { placeholder: 'Lo que ayude a quien lo va a arreglar', rows: 3 })}
-      ${eq ? '' : fSelect('r-equip', 'Equipo', equipmentOptions(area, ''))}
+      ${eq || pet ? '' : fSelect('r-equip', 'Equipo', equipmentOptions(area, ''))}
+      ${pet || eq || !S.pets.length ? '' : fSelect('r-pet', 'Mascota', `<option value="">Ninguna</option>${S.pets.map((x) => `<option value="${x.id}">${esc(x.name)}${x.species ? ' (' + esc(x.species) + ')' : ''}</option>`).join('')}`)}
       ${fSelect('r-who', '¿Quién lo hace?', contactOptions('', unassignedLabel()))}
       ${isAdmin() ? fInput('r-due', 'Día', { type: 'date', value: day, attrs: `min="${todayStr()}"`, hint: 'Si lo dejas en blanco, llega a la Bandeja para darle día.' }) : ''}
     </details>
@@ -596,11 +601,12 @@ async function viewReport(query = {}) {
     clearErrs(APP);
     const title = $('#r-title').value.trim();
     if (!title) return fieldErr($('#r-title'), 'Escribe qué pasa');
-    const equipId = eq ? eq.id : ($('#r-equip').value || null);
+    const equipId = eq ? eq.id : ($('#r-equip') ? $('#r-equip').value || null : null);
+    const petId = pet ? pet.id : ($('#r-pet') ? $('#r-pet').value || null : null);
     const place = where.place();
     if (where.isOther() && !place) return fieldErr(where.other, 'Escribe el lugar');
-    if (!where.area() && !place && !equipId) return fieldErr(where.el, 'Elige dónde está el problema');
-    const data = { title, area_id: where.area() || null, place: place || null, priority: Number(getPrio() || 3), description: $('#r-desc').value, equipment_id: equipId, provider_id: $('#r-who').value || null };
+    if (!where.area() && !place && !equipId && !petId) return fieldErr(where.el, 'Elige dónde está el problema');
+    const data = { title, area_id: where.area() || null, place: place || null, priority: Number(getPrio() || 3), description: $('#r-desc').value, equipment_id: equipId, pet_id: petId, provider_id: $('#r-who').value || null };
     if ($('#r-due') && $('#r-due').value) data.due_date = $('#r-due').value;
     if ($('#r-when') && $('#r-when').value.trim()) data.when_ok = $('#r-when').value.trim();
     const btn = $('#r-send');

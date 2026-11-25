@@ -207,7 +207,7 @@ with sync_playwright() as p:
 
     # ---------- 5c. the menu, Contactos one tap away, coming back where you were ----------
     pg.goto(BASE + '/#/'); expect(tab(pg)).to_have_text('Día')
-    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink:visible').count() == 12   # 2 for blocking time: an administrator
+    pg.click('[data-go=menu]'); expect(pg.locator('.sheet.msheet h2')).to_have_text('Tableros'); assert pg.locator('.msheet .rowlink:visible').count() == 13   # Mascotas, and 2 for blocking time: an administrator
     pg.click('.msheet .rowlink:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('#sheet')).to_be_hidden(); expect(pg.locator('.mbar')).to_be_visible()
     pg.go_back(); expect(tab(pg)).to_have_text('Día'); pg.wait_for_timeout(300)
     pg.click('[data-go=menu]'); pg.click('.msheet .rowlink:has-text("Alta")'); expect(head(pg)).to_contain_text('Alta'); assert pg.locator('#pl-items .card').count() == pg.locator('#pl-items .card.p2').count() > 0
@@ -410,7 +410,7 @@ with sync_playwright() as p:
     pg.click('.panel .navrow:has-text("Restaurante")'); expect(pg.locator('.listtitle b')).to_have_text('Restaurante'); assert pg.locator('.panel .card').count() >= 1; pg.click('.panel [data-src=""]')
     pg.click('.panel [data-src=p1]'); expect(pg.locator('.listtitle b')).to_have_text('Urgente'); assert pg.locator('.panel .card').count() == pg.locator('.panel .card.p1').count() > 0
     pg.click('.panel [data-src=""]'); pg.fill('#pl-q', 'regadera'); expect(pg.locator('.listtitle b')).to_have_text('Todo'); expect(pg.locator('.panel .card')).to_have_count(1); expect(pg.locator('#pl-q')).to_be_focused()
-    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel [data-src=inbox]')).to_be_visible(); assert pg.locator('.panel .navrow').count() == 14 + n_ar   # and the two for blocking time
+    pg.click('.panel [data-src=""]'); expect(pg.locator('.panel [data-src=inbox]')).to_be_visible(); assert pg.locator('.panel .navrow').count() == 15 + n_ar   # the two for blocking time, and Mascotas
     pg.click('.dtop [data-go=contacts]'); expect(pg.locator('.sheet.csheet h2')).to_have_text('Contactos'); pg.keyboard.press('Escape'); expect(pg.locator('#sheet')).to_be_hidden()
     pg.click('.panel a.navrow:has-text("Equipos")'); expect(head(pg)).to_have_text('Equipos'); expect(pg.locator('.dtop')).to_be_visible(); expect(pg.locator('.panel')).to_have_count(0)
     pg.click('.dtop .zoom a:has-text("Semana")'); expect(pg.locator('.hours.n7 .grid')).to_have_count(7)
@@ -485,6 +485,21 @@ with sync_playwright() as p:
     pg.click('.mbar a:has-text("Día")'); pg.click('.wstrip button[data-day="%s"]' % day1) if pg.locator('.wstrip button[data-day="%s"]' % day1).count() else pg.click('.mbar a:has-text("Semana")')
     expect(pg.locator('.card[data-tid="%s"]' % rid).first).to_be_visible()
     step('phone: hold a pendiente in the Bandeja and drop it on a day and hour; it shows on that day')
+    # ---------- Equipos by type, with its state; Mascotas with their shots ----------
+    pg.goto(BASE + '/#/e/nuevo'); pg.fill('#ef-name', 'Sillas de la terraza'); pg.select_option('#ef-cat', 'Mobiliario'); pg.fill('#ef-qty', '20'); pg.fill('#ef-serial0', 'MB-01')
+    pg.click('[data-choice="ef-state"] .ch:has-text("Con falla")'); pg.click('#ef-save'); expect(pg.locator('.hero h2')).to_have_text('Sillas de la terraza')
+    expect(pg.locator('[data-estate="falla"]')).to_have_attribute('aria-checked', 'true'); pg.click('[data-estate="ok"]'); expect(toast(pg)).to_contain_text('Funciona')
+    pg.goto(BASE + '/#/equipos'); pg.click('[data-ecat="Mobiliario"]'); expect(pg.locator('.lrow.eq')).to_have_count(1); expect(pg.locator('.lrow.eq')).to_contain_text('×20')
+    expect(pg.locator('.lrow.eq .estate')).to_have_text('Funciona'); pg.click('[data-ecat="Mobiliario"]'); assert pg.locator('.lrow.eq').count() > 1
+    step('equipos: a type, how many, its inventory number and its state; the list narrows by type')
+    pg.goto(BASE + '/#/m/nuevo'); pg.fill('#mf-name', 'Canela'); pg.fill('#mf-species', 'Perra'); pg.click('#mf-save'); expect(pg.locator('.hero h2')).to_have_text('Canela')
+    pg.click('[data-addev]'); pg.click('.sheet [data-pw="Rabia"]'); pg.click('.sheet [data-act="1"]'); expect(toast(pg)).to_contain_text('Le toca otra vez')
+    expect(pg.locator('.hist')).to_contain_text('Rabia'); expect(pg.locator('.hero p.st')).to_contain_text('Al día')
+    pg.click('.actionbar a:has-text("Reportar")'); expect(pg.locator('.fixed')).to_contain_text('Canela'); pg.fill('#r-title', 'Canela cojea de la pata trasera'); pg.click('#r-send')
+    expect(pg.locator('.sent h1')).to_have_text('Reporte enviado', timeout=15000); oid = re.search(r'#/enviado/(\d+)', pg.url).group(1)
+    pg.goto(BASE + '/#/p/' + oid); expect(pg.locator('.cell a[href^="#/m/"]')).to_contain_text('Canela')
+    pg.goto(BASE + '/#/mascotas'); expect(pg.locator('.lrow.eq')).to_contain_text('1 pendiente abierto')
+    step('mascotas: a record, a vaccine with the next one due, a problem reported from it shows on its page')
     c.close()
     # nothing answers without a session
     c = ctx(); pg = c.new_page(); pg.goto(BASE + '/')

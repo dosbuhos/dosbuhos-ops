@@ -7,7 +7,7 @@ const APP = $('#app');
 const NAV = $('#nav');
 
 // What every screen needs: who I am, areas (the coloured tags), contacts, equipment names, people, settings.
-const S = { user: null, areas: [], providers: [], equipment: [], users: [], settings: {}, today: null };
+const S = { user: null, areas: [], providers: [], equipment: [], pets: [], users: [], settings: {}, today: null };
 const C = { open: null, openAt: 0 };          // cache: open pendientes, so the list paints at once on a weak signal
 const UI = { lastFocus: null, lateN: 0 };
 
@@ -24,7 +24,11 @@ const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', '
 // The oficios a contact is tagged with, in the order Contactos shows them. A contact can have several.
 const TRADES = ['Electricidad', 'Luz (CFE)', 'Plomería', 'Gas', 'Calentadores', 'Refrigeración', 'Equipo de bodega', 'Albañilería', 'Tablaroca',
   'Impermeabilización', 'Pisos y concreto', 'Pintura', 'Herrería', 'Carpintería', 'Tapicería', 'Internet y sistemas', 'Gases (CO₂, argón)',
-  'Tractores', 'Jardinería', 'Cerrajería', 'Limpieza'];
+  'Tractores', 'Veterinario', 'Jardinería', 'Cerrajería', 'Limpieza'];
+// Equipos by type, in the order the list shows them (Eric, 25 Nov 2026), and how each one is.
+const EQUIP_CATS = ['Agua y bombas', 'Refrigeración', 'Cocina', 'Bodega y producción', 'Energía', 'Fuentes', 'Cómputo y sistemas', 'Vehículos', 'Maquinaria agrícola', 'Mobiliario', 'Otros'];
+const EQ_STATE = { ok: ['Funciona', 'ok'], falla: ['Con falla', 'warn'], reparacion: ['En reparación', 'warn'], baja: ['Fuera de servicio', 'bad'] };
+const eqState = (e) => (EQ_STATE[e.state] ? { text: EQ_STATE[e.state][0], cls: EQ_STATE[e.state][1] } : { text: 'Por confirmar', cls: 'muted' });
 const tagsOf = (p) => { try { const v = JSON.parse((p && p.tags) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
 
 // ---------- small tools ----------
@@ -527,7 +531,7 @@ function drawNav(tab) {
     NAV.className = 'nav dtop';
     NAV.innerHTML = `<div class="brandrow">
         ${cal ? `<button type="button" class="ibtn" data-go="panel" aria-pressed="${!!P.panel}" aria-label="${lists}" title="${lists}">${ic('side')}</button>` : ''}
-        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=38" alt="" width="26" height="26"><span>Esmero</span></a></div>
+        <a class="dbrand" href="#/" data-tab aria-label="Esmero: ir a hoy"><img class="bmark" src="/icon.svg?v=39" alt="" width="26" height="26"><span>Esmero</span></a></div>
       <div class="zoom" role="group" aria-label="Vista">
         <a href="#/" data-tab ${tab === 'dia' ? 'aria-current="page"' : ''}>Día</a><a href="#/semana" data-tab ${tab === 'semana' ? 'aria-current="page"' : ''}>Semana</a><a href="#/mes" data-tab ${tab === 'mes' ? 'aria-current="page"' : ''}>Mes</a></div>
       ${cal ? `<div class="steps"><button type="button" class="ibtn" data-step="-1" aria-label="${unit} anterior">${ic('back')}</button>

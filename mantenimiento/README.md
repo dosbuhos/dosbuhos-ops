@@ -57,6 +57,18 @@ Each contact has oficios (`providers.tags`, a JSON array; the list is `TRADES` i
 The list is a search, a row of oficios to narrow it, and people grouped by oficio (under each one they do). WhatsApp to a
 contact from a pendiente sends its photos too where the phone can share files; outside contacts get no app link.
 
+## Equipos by type
+Each equipment has a type (`equipment.category`, the list is `EQUIP_CATS` in `core.js`: Agua y bombas, Refrigeración, Cocina,
+Bodega y producción, Energía, Fuentes, Cómputo y sistemas, Vehículos, Maquinaria agrícola, Mobiliario, Otros), a state
+(`state`: ok, falla, reparacion, baja; empty = por confirmar), who has it (`holder_id`, for laptops and vehicles), and for
+furniture a quantity (`qty`) and an inventory number (`serial`). The list narrows by type like Contactos.
+
+## Mascotas
+Tables `pets` and `pet_events` (vaccine, deworming, visit, with the date the next one is due). A week before it is due a
+pendiente comes up in the Bandeja (area Mascotas, made with the preventive run); anotating the next one closes it.
+Problems are reported from the animal's page (`tasks.pet_id`). `GET/POST /api/pets`, `GET/PATCH/DELETE /api/pets/:id`,
+`POST /api/pets/:id/events`, `POST /api/pets/:id/photos`, `DELETE /api/pet-events/:id`.
+
 ## Sugerencias
 Mi cuenta → *Sugerencias para la app*: text, optional photo, and the screen it came from (table `feedback`,
 `POST /api/feedback`). Administrators see them in Mi cuenta → *Sugerencias recibidas* and mark them Hecha or No va.

@@ -603,7 +603,7 @@ function panelHTML() {
     <div class="navhead"><button type="button" class="eyebrow foldh" data-go="areas" aria-expanded="${!!P.areas}">Áreas${ic(P.areas ? 'down' : 'chev')}</button></div>
     ${P.areas ? `<div class="navgroup">${areaKeys.map(row).join('')}</div>` : ''}
     <div class="navhead"><span class="eyebrow">Tableros</span></div>
-    <div class="navgroup">${link('#/equipos', 'wrench', 'Equipos', S.equipment.filter((e) => e.active).length || '')}${link('#/preventivo', 'repeat', 'Preventivo')}</div>
+    <div class="navgroup">${link('#/equipos', 'wrench', 'Equipos', S.equipment.filter((e) => e.active).length || '')}${link('#/preventivo', 'repeat', 'Preventivo')}${link('#/mascotas', 'user', 'Mascotas', S.pets.length || '')}</div>
     <div class="navgroup foot">${link('#/hechos', 'check', 'Lo que ya se hizo')}${link('#/resumen', 'chart', 'Resumen')}</div>
     ${showStarter() ? starterCard() : ''}
     <p class="phint">Abre una lista y arrastra un pendiente a un día y a una hora.</p>`;
@@ -950,7 +950,7 @@ function menuSheet() {
   sheet({
     title: 'Tableros', cls: 'msheet',
     body: `<div class="pad">
-      <div class="rows">${row('#/equipos', ic('wrench'), 'Equipos', S.equipment.filter((e) => e.active).length || '')}${row('#/preventivo', ic('repeat'), 'Preventivo')}</div>
+      <div class="rows">${row('#/equipos', ic('wrench'), 'Equipos', S.equipment.filter((e) => e.active).length || '')}${row('#/preventivo', ic('repeat'), 'Preventivo')}${row('#/mascotas', ic('user'), 'Mascotas', S.pets.length || '')}</div>
       ${isAdmin() ? `<h3 class="eyebrow">Tiempo</h3><div class="rows"><button type="button" class="rowlink" data-go="block">${ic('clock')}<span>Bloquear tiempo</span><span class="n"></span>${ic('chev')}</button><button type="button" class="rowlink" data-go="copyweek">${ic('repeat')}<span>Copiar la semana pasada</span><span class="n"></span>${ic('chev')}</button></div>` : ''}
       <h3 class="eyebrow">Prioridad</h3>
       <div class="rows">${[1, 2, 3, 4].map((p) => row('#/prioridad/' + p, `<i class="pdot p${p}"></i>`, PRIO[p], n('p' + p))).join('')}</div>

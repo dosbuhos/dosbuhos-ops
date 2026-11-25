@@ -1247,3 +1247,13 @@ body.tdragging { overflow: hidden; user-select: none; -webkit-user-select: none;
 .dbrand .bmark { width: 26px; height: 26px; border-radius: 6px; display: block; }
 .enter h1.ebrand { display: flex; align-items: center; gap: 12px; }
 .enter h1.ebrand img { width: 40px; height: 40px; border-radius: 9px; }
+
+/* ---------- Mascotas and the state of an equipment ---------- */
+.hist .hrow2 { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+.hist .hrow2 .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hero p.st { margin: 6px 0 0; font-weight: 600; font-size: 14px; }
+.hero p.st.ok { color: var(--ok); } .hero p.st.warn { color: var(--warn); } .hero p.st.bad { color: var(--bad); } .hero p.st.muted { color: var(--muted); font-weight: 500; }
+.estate { font-weight: 600; } .estate.ok { color: var(--ok); } .estate.warn { color: var(--warn); } .estate.bad { color: var(--bad); } .estate.muted { color: var(--faint); font-weight: 500; }
+#pe-next { margin-bottom: 8px; }
+.qchip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.hmeta span { font-size: 13px; color: var(--muted); }

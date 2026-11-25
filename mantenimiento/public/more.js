@@ -270,6 +270,7 @@ function svcRecord(e) {
   </div>`;
 }
 
+const EQ = { q: '', cat: '' };
 async function viewEquipos() {
   UI.view = 'equipos';
   loading({ tab: 'equipos' });
@@ -277,30 +278,36 @@ async function viewEquipos() {
   try { r = await api('GET', '/equipment'); } catch (e) { return errorView(e.message, { tab: 'equipos' }); }
   S.today = r.today;
   const list = r.equipment;
-  const draw = (q = '') => {
-    const s = fold(q.trim());
-    const shown = s ? list.filter((e) => fold([e.name, e.brand_model, e.location, e.area_name, e.serial].join(' ')).includes(s)) : list;
-    const keys = [...new Set(shown.map((e) => e.area_id || 0))].sort((a, b) => (a === 0) - (b === 0));
-    return shown.length ? keys.map((k) => {
-      const items = shown.filter((e) => (e.area_id || 0) === k);
-      return `<section><h2 class="sec">${k ? tag(items[0].area_name, items[0].area_color) : 'Sin área'}<span class="n">${items.length}</span></h2><div class="list">${items.map((e) => {
-        const st = svcState(e);
-        return `<a class="lrow eq" href="#/e/${e.id}">${e.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic('wrench')}</span>`}
-          <span class="grow"><b>${esc(e.name)}</b>${e.brand_model ? `<span class="ls">${esc(e.brand_model)}</span>` : ''}
-            <span class="ls st ${st.cls}">${ic(st.icon)}${esc(st.text)}</span>
-            ${e.last_service ? `<span class="ls">Último servicio ${esc(ago(localYmd(e.last_service)))}</span>` : ''}
-            ${e.open_count ? `<span class="ls warn">${ic('tasks')}${plural(e.open_count, 'pendiente abierto', 'pendientes abiertos')}</span>` : ''}</span>${ic('chev')}</a>`;
-      }).join('')}</div></section>`;
-    }).join('') : `<div class="empty"><h2>Nada con «${esc(q)}»</h2></div>`;
+  const catOf = (e) => e.category || 'Otros';
+  const cats = [...EQUIP_CATS.filter((c) => list.some((e) => catOf(e) === c)), ...[...new Set(list.map(catOf))].filter((c) => !EQUIP_CATS.includes(c))];
+  const row = (e) => {
+    const st = eqState(e), sv = svcState(e);
+    return `<a class="lrow eq" href="#/e/${e.id}">${e.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${e.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic(catOf(e) === 'Vehículos' || catOf(e) === 'Maquinaria agrícola' ? 'pin' : catOf(e) === 'Cómputo y sistemas' ? 'grid' : 'wrench')}</span>`}
+      <span class="grow"><b>${esc(e.name)}${e.qty > 1 ? ` <span class="muted">×${e.qty}</span>` : ''}</b>${e.brand_model || e.serial ? `<span class="ls">${bits([e.brand_model, e.serial ? 'No. ' + e.serial : ''])}</span>` : ''}
+        <span class="ls"><span class="estate ${st.cls}">${esc(st.text)}</span>${e.holder_name ? `<span>Lo tiene ${esc(first(e.holder_name))}</span>` : ''}</span>
+        ${sv.cls !== 'none' ? `<span class="ls st ${sv.cls}">${ic(sv.icon)}${esc(sv.text)}</span>` : ''}
+        ${e.open_count ? `<span class="ls warn">${ic('tasks')}${plural(e.open_count, 'pendiente abierto', 'pendientes abiertos')}</span>` : ''}</span>${ic('chev')}</a>`;
   };
-  render(header('Equipos', { right: `<a class="hbtn" href="#/e/nuevo">${ic('plus')}Nuevo</a>` }) + `<div class="wrap">
-    ${list.length > 7 ? `<div class="searchbar">${ic('search')}<label class="sr" for="eq-q">Buscar equipo</label><input id="eq-q" type="search" placeholder="Buscar equipo" autocomplete="off"></div>` : ''}
-    ${list.length ? `<div id="eq-list">${draw()}</div>`
-      : `<div class="empty"><h2>Todavía no hay equipos</h2><p>Da de alta lo que necesita servicio: refrigeradores, chillers, bombas, la planta de luz. Con una foto y el nombre basta.</p>
+  const draw = () => {
+    const s = fold(EQ.q.trim());
+    if (EQ.cat && !cats.includes(EQ.cat)) EQ.cat = '';
+    const shown = list.filter((e) => (!EQ.cat || catOf(e) === EQ.cat) && (!s || fold([e.name, e.brand_model, e.location, e.area_name, e.serial, e.holder_name, catOf(e)].join(' ')).includes(s)));
+    const body = shown.length ? cats.map((c) => {
+      const items = shown.filter((e) => catOf(e) === c);
+      return items.length ? `<section><h2 class="sec">${esc(c)}<span class="n">${items.length}</span></h2><div class="list">${items.map(row).join('')}</div></section>` : '';
+    }).join('') : `<div class="empty"><h2>Nada con «${esc(EQ.q)}»</h2></div>`;
+    const chip = (c, label) => `<button type="button" class="tchip" data-ecat="${esc(c)}" aria-pressed="${EQ.cat === c}">${esc(label)}${c ? `<span>${list.filter((e) => catOf(e) === c).length}</span>` : ''}</button>`;
+    render(header('Equipos', { right: `<a class="hbtn" href="#/e/nuevo">${ic('plus')}Nuevo</a>` }) + `<div class="wrap">
+      ${list.length ? `<div class="ctop"><div class="search">${ic('search')}<label class="sr" for="eq-q">Buscar equipo</label><input id="eq-q" type="search" value="${esc(EQ.q)}" placeholder="Buscar: bomba, laptop, camioneta…" autocomplete="off"></div>
+        <div class="tchips" role="group" aria-label="Tipos">${chip('', 'Todos')}${cats.map((c) => chip(c, c)).join('')}</div></div><div id="eq-list">${body}</div>`
+        : `<div class="empty"><h2>Todavía no hay equipos</h2><p>Da de alta lo que necesita servicio: refrigeradores, chillers, bombas, la planta de luz. Con una foto y el nombre basta.</p>
         <a class="b" href="#/e/nuevo">${ic('camera')}Agregar el primero</a></div>`}
-  </div>`, { tab: 'equipos' });
-  const q = $('#eq-q');
-  if (q) q.oninput = () => { $('#eq-list').innerHTML = draw(q.value); };
+    </div>`, { tab: 'equipos', keepScroll: true });
+    const q = $('#eq-q');
+    if (q) q.oninput = debounce(() => { EQ.q = q.value; const pos = q.selectionStart; draw(); const q2 = $('#eq-q'); q2.focus(); q2.setSelectionRange(pos, pos); }, 150);
+    $$('[data-ecat]').forEach((b) => (b.onclick = () => { EQ.cat = EQ.cat === b.dataset.ecat ? '' : b.dataset.ecat; draw(); }));
+  };
+  draw();
 }
 
 async function viewEquipo(id, keep = false) {
@@ -322,12 +329,15 @@ async function viewEquipo(id, keep = false) {
     d.year_cost ? ['Gastado este año', money(d.year_cost)] : null, e.notes && ['Notas', esc(e.notes)]].filter(Boolean);
   render(header('Equipo', { back: true, right: `<a class="ib" href="#/e/${id}/editar" aria-label="Editar">${ic('edit')}</a>` }) + `<div class="wrap detail">
     ${e.cover_id ? `<button class="cover" data-photo="${e.cover_id}" data-uid="${(d.photos[0] || {}).user_id}" aria-label="Ver foto"><img src="/api/photos/${e.cover_id}" alt="Foto de ${esc(e.name)}"></button>` : ''}
-    <div class="hero"><div class="hmeta">${e.area_name ? tag(e.area_name, e.area_color) : ''}</div><h2>${esc(e.name)}</h2>${e.brand_model ? `<p class="by">${esc(e.brand_model)}</p>` : ''}</div>
+    <div class="hero"><div class="hmeta">${e.area_name ? tag(e.area_name, e.area_color) : ''}<span>${esc(e.category || 'Otros')}</span></div><h2>${esc(e.name)}</h2>${e.brand_model ? `<p class="by">${esc(e.brand_model)}</p>` : ''}</div>
+    <div class="grp"><h3 class="eyebrow">¿Cómo está?</h3><div class="seg" role="radiogroup" aria-label="Estado">${[['ok', 'Funciona'], ['falla', 'Con falla'], ['reparacion', 'En reparación'], ['baja', 'Fuera']].map(([v, l]) => `<button type="button" role="radio" aria-checked="${e.state === v}" class="${e.state === v ? 'on' : ''}" data-estate="${v}">${l}</button>`).join('')}</div>
+      ${e.state ? '' : '<p class="small">Por confirmar: toca cómo está.</p>'}</div>
     ${svcRecord(e)}
     <div class="facts">${fact('Abiertos', open.length, open.length ? 'warn' : '')}${fact('Fallas en 90 días', e.fails_90, e.fails_90 >= 2 ? 'bad' : '')}${fact('Servicios', hist.filter((t) => t.kind !== 'tarea').length)}</div>
     <div class="cells">
       <div class="cell"><a class="cmain" href="#/e/${id}/editar"><span class="cl">Lo atiende</span><span class="cv">${e.provider_id ? `${esc(e.provider_name)}${e.provider_kind === 'externo' ? `<span class="csub">${e.provider_specialty ? esc(e.provider_specialty) + ', externo' : 'Externo'}</span>` : ''}` : '<span class="un">Nadie todavía</span>'}</span>${ic('chev')}</a>
         ${e.provider_phone ? `<div class="cunder"><a class="b line sm" href="${telHref(e.provider_phone)}">${ic('phone')}Llamar</a><a class="b line sm wa" target="_blank" rel="noopener" href="${waHref(e.provider_phone, `Hola ${first(e.provider_name)}, te escribo de Dos Búhos por el equipo: ${e.name}${e.brand_model ? ' (' + e.brand_model + ')' : ''}.`)}">${ic('wa')}WhatsApp</a></div>` : ''}</div>
+      <div class="cell"><button type="button" class="cmain" data-holder><span class="cl">Lo tiene</span><span class="cv">${e.holder_id ? esc(e.holder_name) : '<span class="muted">Nadie en particular</span>'}</span>${ic('chev')}</button></div>
     </div>
     <h2 class="sec">Servicio programado<span class="n">${d.pm.length}</span></h2>
     ${d.pm.length ? `<div class="list">${d.pm.map((p) => `<a class="lrow" href="#/plan/${p.id}"><span class="lth ico">${ic('repeat')}</span><span class="grow"><b>${esc(p.title)}</b><span class="ls">${esc(cap(p.every_text))}</span><span class="ls ${p.next_due < d.today ? 'bad' : ''}">${p.next_due < d.today ? 'Tocaba' : 'Toca'} ${esc(fmtDay(p.next_due, { weekday: true }))}</span></span>${ic('chev')}</a>`).join('')}</div>` : ''}
@@ -343,6 +353,16 @@ async function viewEquipo(id, keep = false) {
   </div>`, { tab: 'equipos', keepScroll: keep, bar: `<a class="b tonal" href="#/nuevo?equipo=${id}">${ic('alert')}Reportar falla</a><a class="b grow" href="#/e/${id}/servicio">${ic('check')}Anotar servicio</a>` });
   bindPhotoGrid(APP, 'e-file', `/equipment/${id}/photos`, reload);
   bindRows(APP, d.tasks, reload);
+  $$('[data-estate]').forEach((b) => (b.onclick = async () => {
+    const v = e.state === b.dataset.estate ? null : b.dataset.estate;
+    try { await api('PATCH', '/equipment/' + id, { state: v }); toast(v ? `Estado: ${EQ_STATE[v][0]}` : 'Estado: por confirmar'); reload(); } catch (ex) { toast(ex.message, { bad: true }); }
+  }));
+  $('[data-holder]').onclick = async () => {
+    const ppl = activeProviders().sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'interno' ? -1 : 1));
+    const v = await sheet({ title: '¿Quién lo tiene?', sub: 'Para laptops, terminales, vehículos: quién lo trae o lo usa.', opts: [{ value: 'none', label: 'Nadie en particular' }, ...ppl.map((p) => ({ value: String(p.id), label: p.name, sub: p.kind === 'interno' ? 'De la casa' : p.specialty || 'Externo', on: p.id === e.holder_id }))] });
+    if (!v) return;
+    try { await api('PATCH', '/equipment/' + id, { holder_id: v === 'none' ? null : Number(v) }); toast('Guardado'); reload(); } catch (ex) { toast(ex.message, { bad: true }); }
+  };
   UI.refresh = reload;
 }
 
@@ -357,16 +377,20 @@ async function viewEquipoForm(id) {
   let months = [];
   render(header(e ? 'Editar equipo' : 'Nuevo equipo', { back: true }) + `<form class="wrap form" id="ef" novalidate>
     ${e ? '' : `<div class="field"><span class="flabel">Foto</span>${pickerHtml('ef-pick')}<p class="hint">Tómale una al equipo y otra a su placa de datos: así no hay que escribir el modelo ni la serie.</p></div>`}
-    ${fInput('ef-name', 'Nombre', { value: e ? e.name : '', placeholder: 'Ej. Refrigerador de la barra', max: 120, attrs: 'autocomplete="off"' })}
+    ${fInput('ef-name', 'Nombre', { value: e ? e.name : '', placeholder: 'Ej. Motosierra Stihl 1, Laptop de Brenda', max: 120, attrs: 'autocomplete="off"' })}
+    ${fSelect('ef-cat', 'Tipo', EQUIP_CATS.map((c) => `<option value="${esc(c)}" ${(e ? e.category || 'Otros' : '') === c ? 'selected' : ''}>${esc(c)}</option>`).join(''))}
     ${areaSelect('ef-area', e ? e.area_id : '', { label: '¿Dónde está?', empty: 'Sin área' })}
     ${fInput('ef-model', 'Marca y modelo', { value: e ? e.brand_model : '', placeholder: 'Ej. Torrey R-36', optional: true, attrs: 'autocomplete="off"' })}
+    ${fInput('ef-qty', 'Cantidad', { value: e && e.qty ? e.qty : '', optional: true, type: 'number', attrs: 'inputmode="numeric" min="1" max="100000"', hint: 'Para un juego: 20 sillas, 6 mesas de picnic. Si es una pieza, déjalo vacío.' })}
+    ${fInput('ef-serial0', 'No. de serie o de inventario', { value: e ? e.serial : '', optional: true, max: 120, attrs: 'autocomplete="off"', hint: 'El número de la etiqueta que le pongan abajo, o el de la placa del equipo.' })}
     ${fSelect('ef-who', '¿Quién lo atiende?', contactOptions(e ? e.provider_id : '', 'Nadie todavía'), { hint: 'A quién se le habla cuando falla o le toca servicio. Si no está en la lista, agrégalo en Contactos.' })}
+    <div class="field"><span class="flabel">¿Cómo está?</span>${choice('ef-state', [{ v: '', label: 'Por confirmar' }, { v: 'ok', label: 'Funciona' }, { v: 'falla', label: 'Con falla' }, { v: 'reparacion', label: 'En reparación' }, { v: 'baja', label: 'Fuera de servicio' }], e ? e.state || '' : '', { cls: 'wrapc' })}</div>
+    ${fSelect('ef-holder', '¿Quién lo tiene?', contactOptions(e ? e.holder_id : '', 'Nadie en particular'), { hint: 'Para laptops, terminales y vehículos: quién lo trae o lo usa.' })}
     ${e ? '' : `<div class="field"><span class="flabel">¿Cada cuándo le toca servicio?</span>
         ${choice('ef-freq', [{ v: '0', label: 'No sé todavía' }, { v: '1', label: '1 vez al año' }, { v: '2', label: '2 veces al año' }, { v: '3', label: '3 veces al año' }, { v: '4', label: '4 veces al año' }, { v: '12', label: 'Cada mes' }], '0', { cls: 'wrapc' })}
         <div id="ef-months" class="hidden"><span class="flabel">¿En qué meses?</span>${monthGrid([])}<p class="plansum" id="ef-sum"></p></div></div>
       ${fInput('ef-last', '¿Cuándo fue su último servicio?', { type: 'date', optional: true, attrs: `max="${todayStr()}"`, hint: 'Aunque sea aproximado. Queda como el primer renglón de su historial.' })}`}
-    <details class="more" ${e && (e.serial || e.location || e.warranty_until || e.manual_url || e.notes) ? 'open' : ''}><summary>Más datos ${optTxt}${ic('down')}</summary>
-      ${fInput('ef-serial', 'No. de serie', { value: e ? e.serial : '', max: 120, attrs: 'autocomplete="off"' })}
+    <details class="more" ${e && (e.location || e.warranty_until || e.manual_url || e.notes) ? 'open' : ''}><summary>Más datos ${optTxt}${ic('down')}</summary>
       ${fInput('ef-loc', 'Ubicación exacta', { value: e ? e.location : '', placeholder: 'Ej. Cocina, junto a la estufa', attrs: 'autocomplete="off"' })}
       ${fInput('ef-war', 'Garantía hasta', { value: e ? e.warranty_until : '', type: 'date' })}
       ${fInput('ef-manual', 'Liga al manual', { value: e ? e.manual_url : '', type: 'url', placeholder: 'https://', max: 500, attrs: 'autocapitalize="none" autocomplete="off"' })}
@@ -386,6 +410,7 @@ async function viewEquipoForm(id) {
     });
   }
   const getArea = bindAreaSelect('ef-area').area;
+  const getState = bindChoice(APP, 'ef-state');
   const del = $('[data-del]');
   if (del) del.onclick = async () => {
     if (!(await confirmSheet('¿Dar de baja este equipo?', 'Sale de la lista y se detienen sus servicios programados. Su historial no se borra.', 'Dar de baja', true))) return;
@@ -397,8 +422,9 @@ async function viewEquipoForm(id) {
     const name = $('#ef-name').value.trim();
     if (!name) { err.textContent = 'Escribe el nombre del equipo'; err.classList.remove('hidden'); $('#ef-name').focus(); return; }
     const data = {
-      name, area_id: getArea() || null, brand_model: $('#ef-model').value, provider_id: $('#ef-who').value || null, serial: $('#ef-serial').value,
+      name, area_id: getArea() || null, brand_model: $('#ef-model').value, provider_id: $('#ef-who').value || null, serial: $('#ef-serial0').value, qty: $('#ef-qty').value || null,
       location: $('#ef-loc').value, warranty_until: $('#ef-war').value, manual_url: $('#ef-manual').value, notes: $('#ef-notes').value,
+      category: $('#ef-cat').value, holder_id: $('#ef-holder').value || null, state: getState() || null,
     };
     if (!e) { data.plan_months = months; data.last_service = $('#ef-last').value; }
     const btn = $('#ef-save');
@@ -411,6 +437,145 @@ async function viewEquipoForm(id) {
       touch();
       toast(e ? 'Equipo guardado' : 'Equipo dado de alta');
       location.replace('#/e/' + eid);
+    } catch (ex) { btn.disabled = false; err.textContent = ex.message; err.classList.remove('hidden'); }
+  };
+}
+
+// ---------- Mascotas: the animals of the estate, their vet and their shots ----------
+const PET_KIND = { vacuna: 'Vacuna', desparasitacion: 'Desparasitación', consulta: 'Consulta', otro: 'Otro' };
+const PET_WORDS = { vacuna: ['Rabia', 'Múltiple (parvovirus, moquillo…)', 'Triple felina', 'Bordetella', 'Leptospirosis'], desparasitacion: ['Desparasitación interna', 'Desparasitación externa (pulgas y garrapatas)'], consulta: ['Revisión general', 'Esterilización', 'Dental'], otro: [] };
+const petDue = (p, today) => {
+  if (!p.next_due) return { cls: 'muted', text: 'Sin próxima vacuna anotada' };
+  const d = daysBetween(today, p.next_due);
+  return d < 0 ? { cls: 'bad', text: `Vencida hace ${plural(-d, 'día', 'días')}` } : d <= 30 ? { cls: 'warn', text: `Le toca ${d === 0 ? 'hoy' : d === 1 ? 'mañana' : 'en ' + d + ' días'}` } : { cls: 'ok', text: `Al día, le toca el ${fmtDay(p.next_due)}` };
+};
+async function viewMascotas() {
+  UI.view = 'mascotas';
+  loading({ tab: 'mascotas' });
+  let r;
+  try { r = await api('GET', '/pets'); } catch (e) { return errorView(e.message, { tab: 'mascotas' }); }
+  const list = r.pets;
+  render(header('Mascotas', { right: `<a class="hbtn" href="#/m/nuevo">${ic('plus')}Nueva</a>` }) + `<div class="wrap">
+    ${list.length ? `<div class="list">${list.map((p) => { const st = petDue(p, r.today); return `<a class="lrow eq" href="#/m/${p.id}">${p.cover_id ? `<img class="lth big" loading="lazy" src="/api/photos/${p.cover_id}?t=1" alt="">` : `<span class="lth big ph0">${ic('user')}</span>`}
+      <span class="grow"><b>${esc(p.name)}</b><span class="ls">${bits([p.species, p.breed])}</span><span class="ls st ${st.cls}">${esc(st.text)}</span>
+      ${p.open_count ? `<span class="ls warn">${ic('tasks')}${plural(p.open_count, 'pendiente abierto', 'pendientes abiertos')}</span>` : ''}</span>${ic('chev')}</a>`; }).join('')}</div>`
+      : `<div class="empty"><h2>Todavía no hay mascotas</h2><p>Da de alta a cada animal con su foto y su veterinario. Luego anota sus vacunas: Esmero avisa cuando le toca la siguiente.</p><a class="b" href="#/m/nuevo">${ic('plus')}Agregar la primera</a></div>`}
+  </div>`, { tab: 'mascotas' });
+}
+async function viewMascota(id, keep = false) {
+  UI.view = 'mascota';
+  if (!keep) loading({ tab: 'mascotas' });
+  let d;
+  try { d = await api('GET', '/pets/' + id); } catch (e) { return errorView(e.message, { tab: 'mascotas' }); }
+  const p = d.pet;
+  const reload = () => viewMascota(id, true);
+  const st = petDue(p, d.today);
+  const open = d.tasks.filter(isOpen);
+  const vet = p.provider_id ? provOf(p.provider_id) : null;
+  const age = p.born ? (() => { const y = Number(String(d.today).slice(0, 4)) - Number(p.born.slice(0, 4)); return y > 0 ? plural(y, 'año', 'años') : 'Menos de un año'; })() : '';
+  render(header('Mascota', { back: true, right: `<a class="ib" href="#/m/${id}/editar" aria-label="Editar">${ic('edit')}</a>` }) + `<div class="wrap detail">
+    ${p.cover_id ? `<button class="cover" data-photo="${p.cover_id}" aria-label="Ver foto"><img src="/api/photos/${p.cover_id}" alt="Foto de ${esc(p.name)}"></button>` : ''}
+    <div class="hero"><h2>${esc(p.name)}</h2><p class="by">${esc([p.species, p.breed, p.sex === 'macho' ? 'Macho' : p.sex === 'hembra' ? 'Hembra' : '', age].filter(Boolean).join(', '))}</p><p class="st ${st.cls}">${esc(st.text)}</p></div>
+    <div class="cells"><div class="cell"><a class="cmain" href="#/m/${id}/editar"><span class="cl">Veterinario</span><span class="cv">${vet ? esc(vet.name) : '<span class="un">Sin veterinario</span>'}</span>${ic('chev')}</a>
+      ${vet && vet.phone ? `<div class="cunder"><a class="b line sm" href="${telHref(vet.phone)}">${ic('phone')}Llamar</a><a class="b line sm wa" target="_blank" rel="noopener" href="${waHref(vet.phone, `Hola ${first(vet.name)}, le escribo de Dos Búhos por ${p.name}.`)}">${ic('wa')}WhatsApp</a></div>` : ''}</div></div>
+    <button type="button" class="b block" data-addev>${ic('plus')}Anotar vacuna, desparasitación o consulta</button>
+    ${open.length ? `<h2 class="sec warn">Abiertos<span class="n">${open.length}</span></h2><div class="list">${open.map((t) => taskRow(t)).join('')}</div>` : ''}
+    <h2 class="sec">Historial<span class="n">${d.events.length}</span></h2>
+    ${d.events.length ? `<ul class="hist">${d.events.map((e) => `<li><div class="hrow2"><span class="hd">${esc(fmtDay(e.day, { rel: false }))}<span>${esc(ago(e.day))}</span></span>
+        <span class="grow"><b>${esc(e.title)}</b><span class="ls"><span class="pill">${PET_KIND[e.kind]}</span>${e.next_due ? `<span>Siguiente: ${esc(fmtDay(e.next_due, { rel: false }))}</span>` : ''}${e.cost ? `<span>${money(e.cost)}</span>` : ''}</span>${e.notes ? `<span class="ls">${esc(e.notes)}</span>` : ''}</span>
+        ${isAdmin() || e.user_id === S.user.id ? `<button type="button" class="linkbtn del" data-delev="${e.id}">Borrar</button>` : ''}</div></li>`).join('')}</ul>`
+      : '<p class="small">Todavía no hay vacunas ni consultas anotadas.</p>'}
+    <h2 class="sec">Fotos<span class="n">${d.photos.length}</span></h2>
+    <div id="m-photos">${photoGrid(d.photos, 'm-file', { label: 'Agregar foto' })}</div>
+    ${p.notes ? `<h2 class="sec">Notas</h2><p class="nt">${esc(p.notes)}</p>` : ''}
+  </div>`, { tab: 'mascotas', keepScroll: keep, bar: `<a class="b tonal grow" href="#/nuevo?mascota=${id}">${ic('alert')}Reportar algo de ${esc(p.name)}</a>` });
+  bindPhotoGrid(APP, 'm-file', `/pets/${id}/photos`, reload);
+  $$('[data-photo]').forEach((el) => (el.onclick = () => openViewer(el.dataset.photo)));
+  bindRows(APP, d.tasks, reload);
+  $('[data-addev]').onclick = () => petEventSheet(p, reload);
+  $$('[data-delev]').forEach((b) => (b.onclick = async () => {
+    if (!(await confirmSheet('¿Borrar este registro?', 'Sale del historial de ' + p.name + '.', 'Borrar', true))) return;
+    try { await api('DELETE', '/pet-events/' + b.dataset.delev); toast('Borrado'); reload(); } catch (e) { toast(e.message, { bad: true }); }
+  }));
+  UI.refresh = reload;
+}
+async function petEventSheet(p, after) {
+  const today = todayStr();
+  let kind = 'vacuna';
+  const nextOpts = [['', 'No'], [addMonthsLocal(today, 3), 'En 3 meses'], [addMonthsLocal(today, 6), 'En 6 meses'], [addMonthsLocal(today, 12), 'En un año']];
+  const res = await sheet({
+    title: 'Anotar en la ficha de ' + p.name,
+    body: `<div class="pad">
+      <div class="seg" role="radiogroup" aria-label="Qué fue">${Object.entries(PET_KIND).map(([k, l]) => `<button type="button" role="radio" aria-checked="${k === kind}" class="${k === kind ? 'on' : ''}" data-pk="${k}">${l}</button>`).join('')}</div>
+      <div class="field"><label class="flabel" for="pe-title">¿Qué se le hizo?</label><input class="input" id="pe-title" maxlength="120" autocomplete="off" placeholder="Ej. Rabia"></div>
+      <div class="quick" id="pe-words"></div>
+      ${fInput('pe-day', 'Fecha', { type: 'date', value: today, attrs: `max="${today}"` })}
+      <div class="field"><span class="flabel">¿Cuándo le toca la siguiente?</span><div class="quick" id="pe-next">${nextOpts.map(([v, l], i) => `<button type="button" class="qchip ${i === 3 ? 'on' : ''}" data-nx="${v}">${l}</button>`).join('')}</div>
+        <input class="input" type="date" id="pe-nextd" value="${nextOpts[3][0]}" min="${today}" aria-label="Fecha de la siguiente"></div>
+      <label class="flabel" for="pe-cost">¿Cuánto costó? ${optTxt}</label>
+      <div class="money-in"><span>$</span><input class="input" id="pe-cost" type="number" inputmode="decimal" min="0" step="1" placeholder="0"></div>
+      ${fText('pe-notes', 'Notas', { optional: true, rows: 2, placeholder: 'Marca de la vacuna, peso, lo que dijo el veterinario' })}
+      <p class="err hidden" id="pe-err" role="alert"></p></div>`,
+    acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: `${ic('check')}Guardar`, value: (w) => {
+      const v = { kind, title: $('#pe-title', w).value.trim(), day: $('#pe-day', w).value, next_due: $('#pe-nextd', w).value || null, cost: $('#pe-cost', w).value, notes: $('#pe-notes', w).value };
+      const bad = !v.title ? 'Escribe qué se le hizo' : !v.day ? 'Elige la fecha' : '';
+      if (bad) { const e = $('#pe-err', w); e.textContent = bad; e.classList.remove('hidden'); return undefined; }
+      return v;
+    } }],
+    onOpen: (w) => {
+      const words = () => { $('#pe-words', w).innerHTML = PET_WORDS[kind].map((x) => `<button type="button" class="qchip" data-pw="${esc(x)}">${esc(x)}</button>`).join(''); $$('[data-pw]', w).forEach((b) => (b.onclick = () => { $('#pe-title', w).value = b.dataset.pw; })); };
+      words();
+      $$('[data-pk]', w).forEach((b) => (b.onclick = () => {
+        kind = b.dataset.pk; $$('[data-pk]', w).forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); }); words();
+        const def = kind === 'vacuna' ? 3 : kind === 'desparasitacion' ? 2 : 0;
+        $$('[data-nx]', w).forEach((x, i) => x.classList.toggle('on', i === def)); $('#pe-nextd', w).value = nextOpts[def][0];
+      }));
+      $$('[data-nx]', w).forEach((b) => (b.onclick = () => { $$('[data-nx]', w).forEach((x) => x.classList.toggle('on', x === b)); $('#pe-nextd', w).value = b.dataset.nx; }));
+    },
+  });
+  if (!res) return;
+  try { await api('POST', `/pets/${p.id}/events`, res); toast(res.next_due ? `Anotado. Le toca otra vez el ${fmtDay(res.next_due, { rel: false })}` : 'Anotado'); touch(); after(); } catch (e) { toast(e.message, { bad: true }); }
+}
+function addMonthsLocal(ymd, n) { const d = ymdDate(ymd); d.setMonth(d.getMonth() + n); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+async function viewMascotaForm(id) {
+  UI.view = 'mascotaform';
+  let p = null;
+  if (id) { loading({ tab: 'mascotas' }); try { p = (await api('GET', '/pets/' + id)).pet; } catch (ex) { return errorView(ex.message, { tab: 'mascotas' }); } }
+  const files = [];
+  render(header(p ? 'Editar mascota' : 'Nueva mascota', { back: true }) + `<form class="wrap form" id="mf" novalidate>
+    ${p ? '' : `<div class="field"><span class="flabel">Foto</span>${pickerHtml('mf-pick')}</div>`}
+    ${fInput('mf-name', 'Nombre', { value: p ? p.name : '', max: 80, attrs: 'autocapitalize="words" autocomplete="off"' })}
+    ${fInput('mf-species', '¿Qué es?', { value: p ? p.species : '', placeholder: 'Perro, gato, caballo…', max: 40, attrs: 'list="mf-sp" autocomplete="off"' })}
+    <datalist id="mf-sp">${['Perro', 'Gato', 'Caballo', 'Burro', 'Gallina', 'Borrego', 'Cabra'].map((x) => `<option value="${x}">`).join('')}</datalist>
+    ${fInput('mf-breed', 'Raza', { value: p ? p.breed : '', optional: true, max: 80, attrs: 'autocomplete="off"' })}
+    <div class="field"><span class="flabel">Sexo ${optTxt}</span>${choice('mf-sex', [{ v: 'macho', label: 'Macho' }, { v: 'hembra', label: 'Hembra' }], p ? p.sex || '' : '', { cls: 'wrapc' })}</div>
+    ${fInput('mf-born', 'Año en que nació', { value: p && p.born ? p.born.slice(0, 4) : '', optional: true, type: 'number', attrs: 'inputmode="numeric" min="1990" max="2100"' })}
+    ${fSelect('mf-vet', 'Veterinario', contactOptions(p ? p.provider_id : '', 'Sin veterinario'), { hint: 'Si no está, agrégalo en Contactos con el oficio Veterinario.' })}
+    ${fText('mf-notes', 'Notas', { value: p ? p.notes : '', optional: true, placeholder: 'Alergias, comida, quién lo cuida' })}
+    <p class="err hidden" id="mf-err" role="alert"></p>
+    ${p && isAdmin() ? `<button type="button" class="b plain danger block" data-del>${ic('trash')}Quitar de Mascotas</button>` : ''}
+  </form>`, { tab: 'mascotas', bar: `<button class="b block lg" form="mf" type="submit" id="mf-save">${ic('check')}Guardar</button>` });
+  if (!p) bindPicker(APP, 'mf-pick', files);
+  const getSex = bindChoice(APP, 'mf-sex', null, { toggle: true });
+  const del = $('[data-del]');
+  if (del) del.onclick = async () => {
+    if (!(await confirmSheet(`¿Quitar a ${p.name}?`, 'Sale de la lista. Su historial no se borra.', 'Quitar', true))) return;
+    try { await api('DELETE', '/pets/' + id); await loadBoot(); toast('Quitada de Mascotas'); location.replace('#/mascotas'); } catch (ex) { toast(ex.message, { bad: true }); }
+  };
+  $('#mf').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const err = $('#mf-err');
+    const name = $('#mf-name').value.trim();
+    if (!name) { err.textContent = 'Escribe su nombre'; err.classList.remove('hidden'); $('#mf-name').focus(); return; }
+    const data = { name, species: $('#mf-species').value, breed: $('#mf-breed').value, sex: getSex() || null, born: $('#mf-born').value || null, provider_id: $('#mf-vet').value || null, notes: $('#mf-notes').value };
+    const btn = $('#mf-save'); btn.disabled = true;
+    try {
+      let pid = id;
+      if (p) await api('PATCH', '/pets/' + id, data);
+      else { pid = (await api('POST', '/pets', data)).id; if (files.length) await uploadAll(`/pets/${pid}/photos`, files); }
+      await loadBoot();
+      toast('Guardado');
+      location.replace('#/m/' + pid);
     } catch (ex) { btn.disabled = false; err.textContent = ex.message; err.classList.remove('hidden'); }
   };
 }
@@ -900,6 +1065,9 @@ async function route() {
     if (a === 'e' && b === 'nuevo') return await viewEquipoForm(null);
     if (a === 'e' && n) return c === 'editar' ? await viewEquipoForm(n) : c === 'servicio' ? await viewService(n) : await viewEquipo(n);
     if (a === 'contactos') return await viewContactos();
+    if (a === 'mascotas') return await viewMascotas();
+    if (a === 'm' && b === 'nuevo') return await viewMascotaForm(null);
+    if (a === 'm' && n) return c === 'editar' ? await viewMascotaForm(n) : await viewMascota(n);
     if (a === 'c' && b === 'nuevo') return await viewContactoForm(null);
     if (a === 'c' && n) return c === 'editar' ? await viewContactoForm(n) : await viewContacto(n);
     if (a === 'cuenta') return viewCuenta();
