@@ -27,6 +27,9 @@ Settings → Reminders turns push on per device (Chrome/Android/desktop; iPhone 
 ## Resizing a block on the phone (v66)
 Every timed block on the phone grid has a small grip at the bottom. Put a finger on it and drag (no long press): the block grows or shrinks in 15-minute steps with a tick of haptics, the time range updates live, and letting go saves it (Undo in the toast). Meetings sync the new end to Google Calendar. Desktop keeps its bottom-edge drag.
 
+## Finished no-time tasks (v68)
+A task with no time that you check off stays in the No set time list (desktop) or the unscheduled fold (phone), struck through under the open ones, so the day shows what got done without a time. The phone fold reads "3 unscheduled · 2 done". Nothing is placed on the grid.
+
 ## Releases
 The server refuses `/api/sync` from builds older than `MIN_CLIENT` in src/worker.js (65: the last builds with reflow), answering 426; current builds send `v: BUILD` and reload on 426. Raise both when an old build must stop writing.
 Every change bumps the version in three places (plus `BUILD` in app.js): `?v=` in index.html, `V` and the `SHELL` URLs in sw.js. The app re-checks the worker whenever it comes to the front and reloads itself when a new one takes control (v64), so a phone left on an old build catches up on its own.

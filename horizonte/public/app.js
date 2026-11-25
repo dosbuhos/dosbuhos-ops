@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 67;
+const BUILD = 68;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -264,6 +264,8 @@ function dayParts(k) {
   const rest = sortList(open.filter(t => !isM(t) && !t.at && t.pri !== 'target'), 'priority');
   return { all, open, done, meetings, targets, timed, rest, doneNonTarget: done.filter(t => t.pri !== 'target' && !isM(t)) };
 }
+// Tasks with no time that were finished stay with the no-time list (struck through, oldest first) instead of vanishing.
+const untimedDone = (P) => P.done.filter(t => t.kind !== 'meeting' && !t.at).sort((a, b) => String(a.doneAt || '').localeCompare(String(b.doneAt || '')));
 function whenText(t) {
   if (!t.when) return '';
   if (kindOf(t.when) === 'day') { const r = relDay(t.when); return (r && r !== 'Yesterday' ? r : dayShort(t.when)) + (t.at ? ' ' + clock(t.at) : ''); }
@@ -626,7 +628,7 @@ ${taskN ? `<span class="tn">${lateN ? `${lateN} not done` : `${taskN} task${task
 const HPX = 56; const H0 = () => Math.max(0, Math.min(toMin(S.prefs.dayStart) / 60 - 2, 7)); const H1 = () => Math.min(24, Math.max(toMin(S.prefs.dayEnd) / 60 + 4, 20));
 function renderHours() {
   const days = [S.ui.hday, addDays(S.ui.hday, 1)], h0 = H0(), h1 = H1();
-  const heads = days.map(k => { const P = dayParts(k), untimed = [...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen);
+  const heads = days.map(k => { const P = dayParts(k), untimed = [...[...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen), ...untimedDone(P)];
     return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:flex-end"><div class="date"><span class="num ${k === todayK() ? 'today' : ''}">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${k === todayK() ? ' · Today' : ''}</span></div><span class="small" style="font-size:12px;color:var(--ink-2);display:flex;gap:10px;align-items:center">${loadText(k)}</span></div>
 <div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>`}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
@@ -730,11 +732,11 @@ function mHours() {
     if (open) body += late.map(x => mcard(x, { late: true, meta: x.at ? clock(x.at) : undefined })).join('');
     if (done.length) body += mDoneToggle('d' + k, done);
   } else {
-    const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen), open = !!S.ui.open.mun;
-    body += `<div class="foldrow"><button class="lbl" data-act="toggle" data-key="mun" aria-expanded="${open}">${untimed.length ? `${untimed.length} unscheduled` : 'Add a task'} ${open ? I.down : I.chev}</button>${done.length ? `<button class="act muted" data-act="toggle" data-key="d${k}">Done · ${done.length}</button>` : ''}</div>`;
+    const untimed = [...P.meetings.filter(x => !x.at), ...P.targets, ...P.rest].filter(isOpen), fin = untimedDone(P), open = !!S.ui.open.mun;
+    const lbl = untimed.length ? `${untimed.length} unscheduled${fin.length ? ` · ${fin.length} done` : ''}` : fin.length ? `No time set · ${fin.length} done` : 'Add a task';
+    body += `<div class="foldrow"><button class="lbl" data-act="toggle" data-key="mun" aria-expanded="${open}">${lbl} ${open ? I.down : I.chev}</button></div>`;
     if (open) { body += `<div class="qadd"><span class="box" aria-hidden="true"></span><input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Add…" aria-label="Add a task to ${relDay(k) || dayShort(k)}" autocomplete="off" enterkeyhint="done"></div>`;
-      body += untimed.map(x => mcard(x)).join(''); }
-    if (done.length && S.ui.open['d' + k]) body += sortList(done).map(x => mcard(x)).join('');
+      body += untimed.map(x => mcard(x)).join('') + fin.map(x => mcard(x)).join(''); }
   }
   const h0 = H0(), h1 = H1(); let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${MG}px">${h % 12 || 12}${h < 12 ? 'am' : 'pm'}</div>`;
   body += `<div class="hgrid"><div class="gutter" aria-hidden="true">${gutter}</div>${gridHTML(k, MG, h0, h1, { mobile: true, edge: 3, skipOpen: past })}</div>`;
