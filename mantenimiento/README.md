@@ -27,15 +27,39 @@ The garden has little signal, so Esmero works offline (`public/sw.js` + `public/
   Tests: `python3 test/offline.py` (the service worker is not registered on 127.0.0.1 unless the page is opened with `?sw`).
 
 ## Access
-The WhatsApp number is the username, and only people an administrator registered can enter (Eric, 24 Nov 2026).
-- **Adding someone.** Cuenta → Personas → *Agregar persona*: name, WhatsApp, administrator or not. The app shows a six-digit
-  one-time code (good for 7 days, kept only as a hash) with a button to send it by WhatsApp. With it the person chooses their
-  own password (PBKDF2-SHA-256, `src/auth.js`); the code then stops working.
-- **Forgotten password.** Personas → the person → *Darle un código nuevo*: their password stops working and their phones are
-  signed out until they enter with the new code. Everyone can change their own password in Mi cuenta.
+People enter with a **username** and a password; only people an administrator created can enter (Eric, 25 Nov 2026).
+- **Adding someone.** Cuenta → Personas → *Agregar persona*: name, username, WhatsApp (required: the app writes to people
+  there), administrator or not, and a temporary password (typed, or six digits made up). It is good for 7 days and kept only
+  as a hash; with it the person chooses their own password (PBKDF2-SHA-256, `src/auth.js`). A button sends username and
+  temporary password by WhatsApp.
+- **Forgotten password.** Personas → the person → *Darle una contraseña temporal*: their password stops working and their
+  phones are signed out. Everyone can change their own password in Mi cuenta.
 - **Wrong passwords.** After 8 in a row the account rests 15 minutes.
 - **Sessions** last a year and renew every time the app is opened. An empty database lets the first person in as administrator.
-- Columns: `users.pin_hash` / `pin_salt` (the password, '' = none yet), `temp_hash` / `temp_salt` / `temp_until` (the code).
+- **Who schedules.** Only administrators give a day or an hour (the server refuses it from anyone else, `PATCH /api/tasks/:id`).
+  The team says when it suits them (`tasks.when_ok`, "¿Cuándo te conviene?") and opens on **Lo mío**: what they reported
+  or have to do, and when it was scheduled.
+- Columns: `users.username`, `pin_hash` / `pin_salt` (the password, '' = none yet), `temp_hash` / `temp_salt` / `temp_until`.
+
+## Time blocks
+Someone's time that is not a pendiente ("Huerto", "Compras"), named however they like, hatched on the hours behind the
+pendientes so everyone sees when Adrián has room. They do not repeat: he plans each week; *Copiar la semana pasada* brings
+the previous week's in. Administrators make them (tap an empty hour, or the menu → Tiempo), move and stretch them with a
+mouse, and edit or delete them from their sheet. Table `blocks`; `GET/POST /api/blocks`, `PATCH/DELETE /api/blocks/:id`,
+`POST /api/blocks/copy`.
+
+## Gestures (phones)
+Swipe a pendiente right: done (with Deshacer). Swipe left: delete, administrators only, with Deshacer; a time block in the
+week list too.
+
+## Contactos
+Each contact has oficios (`providers.tags`, a JSON array; the list is `TRADES` in `core.js`) besides a one-line description.
+The list is a search, a row of oficios to narrow it, and people grouped by oficio (under each one they do). WhatsApp to a
+contact from a pendiente sends its photos too where the phone can share files; outside contacts get no app link.
+
+## Sugerencias
+Mi cuenta → *Sugerencias para la app*: text, optional photo, and the screen it came from (table `feedback`,
+`POST /api/feedback`). Administrators see them in Mi cuenta → *Sugerencias recibidas* and mark them Hecha or No va.
 
 ## Steps
 Lines of a pendiente's instructions written as a list (`1.`, `2)`, `-`, `•`) show as boxes to tick on its page; the ticks are

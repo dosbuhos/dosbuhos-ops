@@ -152,6 +152,8 @@ async function api(request, env, url) {
     case 'users': return usersApi(request, env, user, seg, method);
     case 'settings': return settingsApi(request, env, user, method);
     case 'pm': return pmApi(request, env, url, user, seg, method);
+    case 'blocks': return blocksApi(request, env, url, user, seg, method);
+    case 'feedback': return feedbackApi(request, env, user, seg, method);
     case 'summary': return summaryApi(env);
     case 'search': return searchApi(env, url);
   }
@@ -287,7 +289,7 @@ async function bootstrap(env, user) {
   const today = mxToday();
   const [areas, providers, equipment, users, late, inbox] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, color, sort, active FROM areas ORDER BY sort, name'),
-    env.DB.prepare(`SELECT p.id, p.name, p.kind, p.company, p.specialty, p.phone, p.notes, p.active,
+    env.DB.prepare(`SELECT p.id, p.name, p.kind, p.company, p.specialty, p.phone, p.notes, p.tags, p.active,
         (SELECT u.id FROM users u WHERE u.provider_id = p.id AND u.active = 1 LIMIT 1) AS user_id
       FROM providers p ORDER BY p.kind DESC, p.name COLLATE NOCASE`),
     env.DB.prepare('SELECT id, name, area_id, provider_id, active FROM equipment ORDER BY name COLLATE NOCASE'),
@@ -316,7 +318,7 @@ function taskSelect({ list = false } = {}) {
   const cols = list
     ? `t.id, t.title, substr(t.description, 1, 240) AS description, t.kind, t.area_id, t.equipment_id, t.priority, t.status,
        t.provider_id, t.due_date, t.cost, t.created_by, t.created_at, t.updated_at, t.completed_at, t.wait_reason, t.pm_id,
-       t.postponed, t.first_due, t.est_min, t.plan_min, t.place, t.checks`
+       t.postponed, t.first_due, t.est_min, t.plan_min, t.place, t.checks, t.when_ok`
     : 't.*';
   return `
   SELECT ${cols}, a.name AS area_name, a.color AS area_color, e.name AS equipment_name,
@@ -379,7 +381,8 @@ async function tasksApi(request, env, url, user, seg, method) {
     const status = kind === 'servicio' ? 'hecha' : 'pendiente';
     // No day unless the person reporting picks one: everything new waits in the Bandeja, urgent included, so that
     // days fill up because someone planned them and not because things were reported (Eric, 23 Nov 2026).
-    const dueDate = isDate(b.due_date) ? b.due_date : null;
+    // Only administrators put things on the calendar (Eric, 25 Nov 2026); the others say when suits them (when_ok).
+    const dueDate = isDate(b.due_date) && (isAdmin(user) || kind === 'servicio') ? b.due_date : null;
     // a service already done: its date goes in at midday Mexico time (18:00 UTC)
     const completedAt = status === 'hecha' ? (isDate(b.completed_date) ? `${b.completed_date} 18:00:00` : null) : null;
     let areaId = int(b.area_id);
@@ -395,10 +398,10 @@ async function tasksApi(request, env, url, user, seg, method) {
     const who = await providerName(env, providerId);
     const r = await env.DB.prepare(
       `INSERT INTO tasks (title, description, kind, area_id, equipment_id, priority, status, provider_id,
-                          due_date, first_due, cost, created_by, completed_at, place)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END), ?)`
+                          due_date, first_due, cost, created_by, completed_at, place, when_ok)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CASE WHEN ? = 'hecha' THEN datetime('now') END), ?, ?)`
     ).bind(title, str(b.description, 4000), kind, areaId, equipmentId, priority, status, providerId,
-      dueDate, dueDate, num(b.cost), user.id, completedAt, status, place).run();
+      dueDate, dueDate, num(b.cost), user.id, completedAt, status, place, str(b.when_ok, 120)).run();
     const newId = r.meta.last_row_id;
     let log = kind === 'servicio' ? `Servicio registrado por ${user.name}` : `Reportado por ${user.name}`;
     if (who) log += `, asignado a ${who}`;
@@ -518,6 +521,13 @@ async function tasksApi(request, env, url, user, seg, method) {
       sets.push('provider_id = ?'); params.push(pid);
       logs.push(who ? (t.provider_name ? `Pasó de ${t.provider_name} a ${who}` : `Asignado a ${who}`) : 'Quedó sin asignar');
     }
+    const newDay = 'due_date' in b && (isDate(b.due_date) ? b.due_date : null) !== t.due_date;
+    const newHour = 'plan_min' in b && (int(b.plan_min) ?? null) !== (t.plan_min ?? null);
+    if ((newDay || newHour) && !isAdmin(user)) fail(403, 'Solo un administrador agenda. Escribe en el reporte cuándo te conviene.');
+    if ('when_ok' in b) {
+      const v = str(b.when_ok, 120);
+      if (v !== (t.when_ok || null)) { sets.push('when_ok = ?'); params.push(v); logs.push(v ? `Le conviene: ${v}` : 'Quitó cuándo le conviene'); }
+    }
     if ('due_date' in b) {
       const v = isDate(b.due_date) ? b.due_date : null;
       if (v !== t.due_date) {
@@ -623,14 +633,14 @@ async function savePhoto(request, env, user, owner) {
   let r2Key = null;
   let data = null;
   if (env.PHOTOS) {
-    r2Key = `${owner.task_id ? 't' + owner.task_id : 'e' + owner.equipment_id}/${randomHex(8)}`;
+    r2Key = `${owner.task_id ? 't' + owner.task_id : owner.feedback_id ? 'f' + owner.feedback_id : 'e' + owner.equipment_id}/${randomHex(8)}`;
     await env.PHOTOS.put(r2Key, buf, { httpMetadata: { contentType: type } });
   } else {
     data = buf;
   }
   const r = await env.DB.prepare(
-    'INSERT INTO photos (task_id, equipment_id, user_id, content_type, r2_key, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(owner.task_id || null, owner.equipment_id || null, user.id, type, r2Key, data, thumb).run();
+    'INSERT INTO photos (task_id, equipment_id, feedback_id, user_id, content_type, r2_key, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(owner.task_id || null, owner.equipment_id || null, owner.feedback_id || null, user.id, type, r2Key, data, thumb).run();
   return { id: r.meta.last_row_id };
 }
 const bytes = (v) => (Array.isArray(v) ? new Uint8Array(v) : v);
@@ -662,6 +672,98 @@ async function photosApi(request, env, url, user, seg, method) {
     if (p.user_id !== user.id && !isAdmin(user)) fail(403, 'Solo quien la subió o un administrador puede borrarla');
     if (p.r2_key && env.PHOTOS) await env.PHOTOS.delete(p.r2_key);
     await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
+  fail(404, 'No encontrado');
+}
+
+// ---------- time blocks ----------
+// Someone's time on the calendar that is not a pendiente: "Huerto", "Compras". Everyone sees them (that is the point:
+// when Adrián has room); only administrators write them. They do not repeat; "copy" brings last week's into this one.
+const BLOCK_COLS = 'b.id, b.provider_id, b.day, b.start_min, b.end_min, b.title, p.name AS provider_name';
+const getBlock = (env, id) => env.DB.prepare(`SELECT ${BLOCK_COLS} FROM blocks b LEFT JOIN providers p ON p.id = b.provider_id WHERE b.id = ?`).bind(id).first();
+function blockFields(b, old = {}) {
+  const day = 'day' in b ? (isDate(b.day) ? b.day : fail(400, 'Elige el día')) : old.day;
+  const st = 'start_min' in b ? int(b.start_min) : old.start_min;
+  const en = 'end_min' in b ? int(b.end_min) : old.end_min;
+  if (st === null || en === null || st < 0 || en > 1440 || en - st < 15) fail(400, 'El bloque va de una hora a otra, de al menos 15 minutos');
+  const title = 'title' in b ? str(b.title, 60) : old.title;
+  if (!title) fail(400, 'Ponle nombre al bloque');
+  const pid = 'provider_id' in b ? int(b.provider_id) : old.provider_id;
+  if (!pid) fail(400, 'Elige de quién es el tiempo');
+  return { day, st, en, title, pid };
+}
+async function blocksApi(request, env, url, user, seg, method) {
+  const id = int(seg[1]);
+  if (!id && method === 'GET') {   // ?from=YYYY-MM-DD&to=YYYY-MM-DD; also the names used before, for the suggestions
+    const q = url.searchParams;
+    const from = isDate(q.get('from')) ? q.get('from') : mxToday(), to = isDate(q.get('to')) ? q.get('to') : from;
+    const [list, names] = await env.DB.batch([
+      env.DB.prepare(`SELECT ${BLOCK_COLS} FROM blocks b LEFT JOIN providers p ON p.id = b.provider_id WHERE b.day BETWEEN ? AND ? ORDER BY b.day, b.start_min`).bind(from, to),
+      env.DB.prepare('SELECT title FROM blocks GROUP BY title COLLATE NOCASE ORDER BY MAX(id) DESC LIMIT 30'),
+    ]);
+    return json({ blocks: list.results, names: names.results.map((r) => r.title) });
+  }
+  requireAdmin(user);
+  if (seg[1] === 'copy' && method === 'POST') {   // { from: monday, to: monday, provider_id }: last week's blocks into this one
+    const b = await body(request);
+    const pid = int(b.provider_id);
+    if (!isDate(b.from) || !isDate(b.to) || !pid) fail(400, 'Faltan las semanas');
+    const shift = Math.round((Date.parse(b.to) - Date.parse(b.from)) / 864e5);
+    const had = await env.DB.prepare("SELECT COUNT(*) AS n FROM blocks WHERE provider_id = ? AND day BETWEEN ? AND date(?, '+6 days')").bind(pid, b.to, b.to).first('n');
+    const r = await env.DB.prepare(`INSERT INTO blocks (provider_id, day, start_min, end_min, title, created_by)
+      SELECT provider_id, date(day, ? || ' days'), start_min, end_min, title, ? FROM blocks
+      WHERE provider_id = ? AND day BETWEEN ? AND date(?, '+6 days')
+        AND NOT EXISTS (SELECT 1 FROM blocks x WHERE x.provider_id = blocks.provider_id AND x.day = date(blocks.day, ? || ' days') AND x.start_min = blocks.start_min AND x.title = blocks.title)`)
+      .bind(String(shift >= 0 ? '+' + shift : shift), user.id, pid, b.from, b.from, String(shift >= 0 ? '+' + shift : shift)).run();
+    return json({ copied: r.meta.changes, had });
+  }
+  if (!id && method === 'POST') {
+    const f = blockFields(await body(request));
+    const r = await env.DB.prepare('INSERT INTO blocks (provider_id, day, start_min, end_min, title, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(f.pid, f.day, f.st, f.en, f.title, user.id).run();
+    return json({ block: await getBlock(env, r.meta.last_row_id) }, 201);
+  }
+  const old = id && (await getBlock(env, id));
+  if (!old) fail(404, 'Ese bloque ya no está');
+  if (method === 'PATCH') {
+    const f = blockFields(await body(request), old);
+    await env.DB.prepare('UPDATE blocks SET provider_id = ?, day = ?, start_min = ?, end_min = ?, title = ? WHERE id = ?').bind(f.pid, f.day, f.st, f.en, f.title, id).run();
+    return json({ block: await getBlock(env, id) });
+  }
+  if (method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM blocks WHERE id = ?').bind(id).run();
+    return json({ ok: true, block: old });
+  }
+  fail(404, 'No encontrado');
+}
+
+// ---------- sugerencias para la app ----------
+// Anyone sends one (text, the screen it came from, a photo if they want); administrators see the list and mark it.
+async function feedbackApi(request, env, user, seg, method) {
+  const id = int(seg[1]);
+  if (!id && method === 'POST') {
+    const b = await body(request);
+    const text = str(b.body, 4000);
+    if (!text) fail(400, 'Escribe tu idea o lo que no funciona');
+    const r = await env.DB.prepare('INSERT INTO feedback (user_id, body, screen, version) VALUES (?, ?, ?, ?)').bind(user.id, text, str(b.screen, 200), str(b.version, 40)).run();
+    return json({ id: r.meta.last_row_id }, 201);
+  }
+  if (id && seg[2] === 'photos' && method === 'POST') {
+    const f = await env.DB.prepare('SELECT user_id FROM feedback WHERE id = ?').bind(id).first();
+    if (!f || (f.user_id !== user.id && !isAdmin(user))) fail(404, 'No encontrado');
+    return json({ photo: await savePhoto(request, env, user, { feedback_id: id }) }, 201);
+  }
+  requireAdmin(user);
+  if (!id && method === 'GET') {
+    const { results } = await env.DB.prepare(`SELECT f.*, u.name AS user_name, (SELECT GROUP_CONCAT(ph.id) FROM photos ph WHERE ph.feedback_id = f.id) AS photo_ids
+      FROM feedback f LEFT JOIN users u ON u.id = f.user_id ORDER BY CASE f.status WHEN 'nueva' THEN 0 ELSE 1 END, f.id DESC LIMIT 200`).all();
+    return json({ feedback: results });
+  }
+  if (id && method === 'PATCH') {
+    const b = await body(request);
+    if (!['nueva', 'hecha', 'no'].includes(b.status)) fail(400, 'Estado no válido');
+    await env.DB.prepare('UPDATE feedback SET status = ? WHERE id = ?').bind(b.status, id).run();
     return json({ ok: true });
   }
   fail(404, 'No encontrado');
@@ -799,19 +901,20 @@ async function providersApi(request, env, user, seg, method) {
     specialty: str(b.specialty, 120),
     phone: str(b.phone, 40),
     notes: str(b.notes, 2000),
+    tags: Array.isArray(b.tags) ? JSON.stringify([...new Set(b.tags.map((x) => String(x).trim().slice(0, 40)).filter(Boolean))].slice(0, 8)) : null,
   });
   if (!id && method === 'POST') {
     const f = fields(await body(request));
     if (!f.name) fail(400, 'Escribe el nombre');
-    const r = await env.DB.prepare('INSERT INTO providers (name, kind, company, specialty, phone, notes) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(f.name, f.kind, f.company, f.specialty, f.phone, f.notes).run();
+    const r = await env.DB.prepare('INSERT INTO providers (name, kind, company, specialty, phone, notes, tags) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(f.name, f.kind, f.company, f.specialty, f.phone, f.notes, f.tags).run();
     return json({ id: r.meta.last_row_id }, 201);
   }
   if (id && method === 'PATCH') {
     const f = fields(await body(request));
     if (!f.name) fail(400, 'Escribe el nombre');
-    const r = await env.DB.prepare('UPDATE providers SET name=?, kind=?, company=?, specialty=?, phone=?, notes=? WHERE id=?')
-      .bind(f.name, f.kind, f.company, f.specialty, f.phone, f.notes, id).run();
+    const r = await env.DB.prepare('UPDATE providers SET name=?, kind=?, company=?, specialty=?, phone=?, notes=?, tags=COALESCE(?, tags) WHERE id=?')
+      .bind(f.name, f.kind, f.company, f.specialty, f.phone, f.notes, f.tags, id).run();
     if (!r.meta.changes) fail(404, 'Ese contacto ya no existe');
     return json({ ok: true });
   }

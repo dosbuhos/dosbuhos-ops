@@ -458,6 +458,57 @@ async function viewService(eqId) {
 
 // ---------- Contactos: the house team and every outside provider ----------
 const contactBtns = (p, text = '') => (p.phone ? `<span class="cbtns"><a class="ib line" href="${telHref(p.phone)}" aria-label="Llamar a ${esc(p.name)}">${ic('phone')}</a><a class="ib line wa" target="_blank" rel="noopener" href="${waHref(p.phone, text)}" aria-label="WhatsApp a ${esc(p.name)}">${ic('wa')}</a></span>` : '');
+// The list of contacts, the same on the page and in the quick sheet: a search, a row of oficios to narrow it down, and
+// the people grouped by oficio (someone who does three things is under all three). Each row says what they do; one
+// tap on the row opens them, the WhatsApp button writes to them.
+const CT = { q: '', tag: '' };
+function contactsHTML(list, { sheet: inSheet = false } = {}) {
+  const s = fold(CT.q.trim());
+  const ext = list.filter((p) => p.kind === 'externo');
+  const used = TRADES.filter((t) => ext.some((p) => tagsOf(p).includes(t)));
+  const other = [...new Set(ext.flatMap(tagsOf))].filter((t) => !TRADES.includes(t)).sort();
+  const tags = [...used, ...other];
+  if (CT.tag && !tags.includes(CT.tag)) CT.tag = '';
+  const hit = (p) => !s || fold([p.name, p.specialty, p.company, p.notes, ...tagsOf(p)].join(' ')).includes(s);
+  const shown = list.filter(hit);
+  const row = (p) => `<div class="krow"><a class="kmain" href="#/c/${p.id}"><span class="kn"><b>${esc(p.name)}</b>${p.company && !p.name.includes(p.company) ? `<span class="kco">${esc(p.company)}</span>` : ''}</span>
+      <span class="ks">${esc(p.specialty || (p.kind === 'interno' ? 'De la casa' : tagsOf(p).join(', ') || 'Sin oficio anotado'))}</span>
+      ${p.open_count ? `<span class="ks ${p.late_count ? 'bad' : ''}">${plural(p.open_count, 'abierto', 'abiertos')}${p.late_count ? `, ${plural(p.late_count, 'atrasado', 'atrasados')}` : ''}</span>` : ''}</a>
+    ${p.phone && p.id !== myCard() ? `<a class="kwa" target="_blank" rel="noopener" href="${waHref(p.phone)}" aria-label="WhatsApp a ${esc(p.name)}">${ic('wa')}</a>` : ''}</div>`;
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  let body = '';
+  const exts = shown.filter((p) => p.kind === 'externo');
+  if (CT.tag) {
+    const inTag = exts.filter((p) => tagsOf(p).includes(CT.tag)).sort(byName);
+    body = inTag.length ? `<div class="klist">${inTag.map(row).join('')}</div>` : '<p class="small">Nadie con esa búsqueda en este oficio.</p>';
+  } else {
+    for (const t of tags) {
+      const g = exts.filter((p) => tagsOf(p).includes(t)).sort(byName);
+      if (g.length) body += `<section class="kgrp"><h3 class="kh">${esc(t)}<span class="n">${g.length}</span></h3><div class="klist">${g.map(row).join('')}</div></section>`;
+    }
+    const none = exts.filter((p) => !tagsOf(p).length).sort(byName);
+    if (none.length) body += `<section class="kgrp"><h3 class="kh">Sin oficio<span class="n">${none.length}</span></h3><div class="klist">${none.map(row).join('')}</div></section>`;
+    const ints = shown.filter((p) => p.kind === 'interno').sort(byName);
+    if (ints.length) body += `<section class="kgrp"><h3 class="kh">De la casa<span class="n">${ints.length}</span></h3><div class="klist">${ints.map(row).join('')}</div></section>`;
+  }
+  if (!shown.length) body = `<div class="empty"><h2>Nadie con «${esc(CT.q)}»</h2><p>Busca por nombre, oficio o empresa.</p></div>`;
+  else if (!ext.length && !s) body = '<p class="small">Agrega al plomero, al electricista, al de refrigeración: a quien se le habla cuando algo no se puede resolver en casa.</p>' + body;
+  const chip = (t, label, n) => `<button type="button" class="tchip" data-ctag="${esc(t)}" aria-pressed="${CT.tag === t}">${esc(label)}${n ? `<span>${n}</span>` : ''}</button>`;
+  return `<div class="ctop ${inSheet ? 'insheet' : ''}"><div class="search">${ic('search')}<label class="sr" for="ct-q">Buscar contactos</label><input id="ct-q" type="search" value="${esc(CT.q)}" placeholder="Buscar: plomero, luz, Carlos…" autocomplete="off" enterkeyhint="search"></div>
+    ${tags.length ? `<div class="tchips" role="group" aria-label="Oficios">${chip('', 'Todos')}${tags.map((t) => chip(t, t, ext.filter((p) => tagsOf(p).includes(t) && hit(p)).length)).join('')}</div>` : ''}</div>
+    <div id="ct-list">${body}</div>`;
+}
+function bindContacts(root, list, redraw) {
+  const q = $('#ct-q', root);
+  if (q) q.oninput = debounce(() => {
+    CT.q = q.value;
+    const pos = q.selectionStart;
+    redraw();
+    const q2 = $('#ct-q', root);
+    if (q2) { q2.focus(); q2.setSelectionRange(pos, pos); }
+  }, 150);
+  $$('[data-ctag]', root).forEach((b) => (b.onclick = () => { CT.tag = CT.tag === b.dataset.ctag ? '' : b.dataset.ctag; redraw(); }));
+}
 async function viewContactos() {
   UI.view = 'contactos';
   loading({ tab: 'contactos' });
@@ -465,26 +516,11 @@ async function viewContactos() {
   try { r = await api('GET', '/providers'); } catch (e) { return errorView(e.message, { tab: 'contactos' }); }
   S.today = r.today;
   const list = r.providers;
-  const row = (p) => `<div class="lrow person"><a class="pmain" href="#/c/${p.id}">${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b>
-      <span class="ls">${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(', ') : (p.specialty || 'De la casa'))}</span>
-      ${p.open_count ? `<span class="ls ${p.late_count ? 'bad' : ''}">${p.late_count ? ic('alert') : ''}${plural(p.open_count, 'abierto', 'abiertos')}${p.late_count ? `, ${plural(p.late_count, 'atrasado', 'atrasados')}` : ''}</span>` : ''}</span></a>${contactBtns(p)}</div>`;
-  const draw = (q = '') => {
-    const s = fold(q.trim());
-    const shown = s ? list.filter((p) => fold([p.name, p.specialty, p.company].join(' ')).includes(s)) : list;
-    const exts = shown.filter((p) => p.kind === 'externo').sort((a, b) => (a.specialty || 'zz').localeCompare(b.specialty || 'zz') || a.name.localeCompare(b.name));
-    const ints = shown.filter((p) => p.kind === 'interno');
-    if (!shown.length) return `<div class="empty"><h2>Nadie con «${esc(q)}»</h2></div>`;
-    return `<section><h2 class="sec">Externos<span class="n">${exts.length}</span></h2>
-        ${exts.length ? `<div class="list">${exts.map(row).join('')}</div>` : `<p class="small">${s ? 'Ninguno con esa búsqueda.' : 'Agrega al plomero, al carpintero, al de refrigeración, al herrero: a quien se le habla cuando algo no se puede resolver en casa.'}</p>`}</section>
-      <section><h2 class="sec">De la casa<span class="n">${ints.length}</span></h2>
-        ${ints.length ? `<div class="list">${ints.map(row).join('')}</div>` : '<p class="small">Quien se registra en la app aparece aquí solo.</p>'}</section>`;
+  const draw = () => {
+    render(header('Contactos', { right: `<a class="hbtn" href="#/c/nuevo">${ic('plus')}Nuevo</a>` }) + `<div class="wrap contacts">${contactsHTML(list)}</div>`, { tab: 'contactos', keepScroll: true });
+    bindContacts(APP, list, draw);
   };
-  render(header('Contactos', { right: `<a class="hbtn" href="#/c/nuevo">${ic('plus')}Nuevo</a>` }) + `<div class="wrap">
-    ${list.length > 7 ? `<div class="searchbar">${ic('search')}<label class="sr" for="ct-q">Buscar</label><input id="ct-q" type="search" placeholder="Buscar por nombre u oficio" autocomplete="off"></div>` : ''}
-    <div id="ct-list">${draw()}</div>
-  </div>`, { tab: 'contactos' });
-  const q = $('#ct-q');
-  if (q) q.oninput = () => { $('#ct-list').innerHTML = draw(q.value); };
+  draw();
 }
 
 async function viewContacto(id) {
@@ -502,6 +538,7 @@ async function viewContacto(id) {
   render(header('Contacto', { back: true, right: `<a class="ib" href="#/c/${id}/editar" aria-label="Editar">${ic('edit')}</a>` }) + `<div class="wrap detail">
     <div class="who-card">${avatar(p.name, 'xl')}<h2>${esc(p.name)}</h2>
       <p class="by">${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(', ') : (p.specialty || 'De la casa'))}${p.user_id ? ', usa la app' : ''}</p>
+      ${tagsOf(p).length ? `<p class="ctags">${tagsOf(p).map((t) => `<a class="tchip sm" href="#/contactos" data-gotag="${esc(t)}">${esc(t)}</a>`).join('')}</p>` : ''}
       ${p.phone ? `<p class="phone">${esc(fmtPhone(p.phone))}</p>` : '<p class="small">Sin teléfono. Agrégalo con el lápiz de arriba.</p>'}</div>
     ${p.phone ? `<div class="callrow"><a class="b tonal grow" href="${telHref(p.phone)}">${ic('phone')}Llamar</a><a class="b wa grow" target="_blank" rel="noopener" href="${waHref(p.phone)}">${ic('wa')}WhatsApp</a></div>` : ''}
     ${p.notes ? `<p class="desc">${esc(p.notes)}</p>` : ''}
@@ -520,8 +557,9 @@ async function viewContactoForm(id) {
   render(header(p ? 'Editar contacto' : 'Nuevo contacto', { back: true }) + `<form class="wrap form" id="cf" novalidate>
     ${fInput('cf-name', 'Nombre', { value: p ? p.name : '', placeholder: 'Ej. Oscar Ramírez', max: 120, attrs: 'autocapitalize="words" autocomplete="off"' })}
     <div class="field"><span class="flabel">¿Es de la casa o de fuera?</span>${choice('cf-kind', [{ v: 'externo', label: 'De fuera', sub: 'Plomero, carpintero, técnico' }, { v: 'interno', label: 'De la casa', sub: 'Trabaja en Dos Búhos' }], p ? p.kind : 'externo')}</div>
-    ${fInput('cf-spec', 'Oficio', { value: p ? p.specialty : '', placeholder: 'Ej. Plomería', max: 120, attrs: 'list="cf-trades" autocomplete="off"' })}
-    <datalist id="cf-trades">${TRADES.map((x) => `<option value="${x}">`).join('')}</datalist>
+    <div class="field"><span class="flabel">Oficios</span><p class="hint">Toca todos los que hace. Así aparece al filtrar Contactos.</p>
+      <div class="tchips wrapc" id="cf-tags" role="group" aria-label="Oficios">${[...TRADES, ...tagsOf(p).filter((t) => !TRADES.includes(t))].map((t) => `<button type="button" class="tchip" data-t="${esc(t)}" aria-pressed="${tagsOf(p).includes(t)}">${esc(t)}</button>`).join('')}</div></div>
+    ${fInput('cf-spec', 'Lo que hace, en una línea', { value: p ? p.specialty : '', placeholder: 'Ej. Plomero y gas, muy cumplido', max: 120, optional: true, attrs: 'autocomplete="off"' })}
     ${fInput('cf-phone', 'WhatsApp', { value: p ? p.phone : '', type: 'tel', placeholder: '10 dígitos', max: 24, attrs: 'inputmode="tel" autocomplete="off"', hint: 'Con esto se le llama o se le escribe con un toque.' })}
     ${fInput('cf-company', 'Empresa', { value: p ? p.company : '', optional: true, max: 120, attrs: 'autocomplete="off"' })}
     ${fText('cf-notes', 'Notas', { value: p ? p.notes : '', optional: true, placeholder: 'Horario, cómo cobra, quién lo recomendó' })}
@@ -529,6 +567,7 @@ async function viewContactoForm(id) {
     ${p && isAdmin() ? `<button type="button" class="b plain danger block" data-del>${ic('trash')}Quitar de Contactos</button>` : ''}
   </form>`, { tab: 'contactos', bar: `<button class="b block lg" form="cf" type="submit" id="cf-save">${ic('check')}Guardar</button>` });
   const getKind = bindChoice(APP, 'cf-kind');
+  $$('#cf-tags [data-t]').forEach((b) => (b.onclick = () => b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true')));
   const del = $('[data-del]');
   if (del) del.onclick = async () => {
     if (!(await confirmSheet(`¿Quitar a ${p.name}?`, 'Sale de la lista. Lo que hizo se queda en el historial.', 'Quitar', true))) return;
@@ -539,7 +578,8 @@ async function viewContactoForm(id) {
     const err = $('#cf-err');
     const name = $('#cf-name').value.trim();
     if (!name) { err.textContent = 'Escribe el nombre'; err.classList.remove('hidden'); $('#cf-name').focus(); return; }
-    const data = { name, kind: getKind() || 'externo', specialty: $('#cf-spec').value, phone: $('#cf-phone').value, company: $('#cf-company').value, notes: $('#cf-notes').value };
+    const data = { name, kind: getKind() || 'externo', specialty: $('#cf-spec').value, phone: $('#cf-phone').value, company: $('#cf-company').value, notes: $('#cf-notes').value,
+      tags: $$('#cf-tags [aria-pressed="true"]').map((b) => b.dataset.t) };
     const btn = $('#cf-save');
     btn.disabled = true;
     try {
@@ -576,7 +616,9 @@ function viewCuenta() {
     <div class="list">
       ${item('#/resumen', 'chart', 'Resumen', 'Cómo vamos: abiertos, atrasados, por persona y por área')}
       ${item('#/hechos', 'check', 'Lo que ya se hizo', 'Todo lo terminado, con buscador')}
+      ${item('#/', 'chat', 'Sugerencias para la app', 'Una idea, o algo que no funciona', 'data-fb')}
       ${item('#/', 'lock', 'Cambiar mi contraseña', u.has_pass ? 'La que usas para entrar con tu usuario' : 'Todavía no tienes: elige una', 'data-pass')}
+      ${isAdmin() ? item('#/sugerencias', 'inbox', 'Sugerencias recibidas', 'Lo que manda el equipo') : ''}
       ${isAdmin() ? item('#/personas', 'users', 'Personas', 'Agregar a alguien, darle una contraseña temporal, administradores') + item('#/areas', 'tag', 'Áreas', 'Las etiquetas de colores: nombres, colores y orden') : ''}
     </div>
     <div class="tip">${ic('info')}<p><b>Para tenerla como app:</b> abre el menú del navegador y elige «Agregar a pantalla de inicio».</p></div>
@@ -589,6 +631,7 @@ function viewCuenta() {
     location.hash = '#/';
     showEnter();
   };
+  $('[data-fb]').onclick = (e) => { e.preventDefault(); feedbackSheet(); };
   $('[data-pass]').onclick = async (e) => {
     e.preventDefault();
     const res = await sheet({
@@ -619,6 +662,48 @@ function viewCuenta() {
       viewCuenta();
     } catch (e) { toast(e.message, { bad: true }); }
   };
+}
+
+// ---------- sugerencias para la app ----------
+async function feedbackSheet() {
+  const files = [];
+  const res = await sheet({
+    title: 'Sugerencias para la app', sub: 'Una idea, algo que no funciona o algo que te estorba. Eric la lee.',
+    body: `<div class="pad">${fText('fb-txt', '¿Qué nos quieres decir?', { placeholder: 'Ej. En la Bandeja no encuentro el botón para…', rows: 4 })}
+      <label class="flabel">Foto o captura de pantalla ${optTxt}</label>${pickerHtml('fb-pick')}
+      <p class="err hidden" id="fb-err" role="alert"></p></div>`,
+    acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: `${ic('send')}Enviar`, value: (w) => {
+      const v = $('#fb-txt', w).value.trim();
+      if (!v) { const e = $('#fb-err', w); e.textContent = 'Escribe tu idea o lo que no funciona'; e.classList.remove('hidden'); return undefined; }
+      return v;
+    } }],
+    onOpen: (w) => bindPicker(w, 'fb-pick', files),
+  });
+  if (!res) return;
+  try {
+    const r = await api('POST', '/feedback', { body: res, screen: UI.lastScreen || location.hash, version: (document.querySelector('script[src*="more.js"]') || {}).src?.split('v=')[1] || '' });
+    if (files.length) await uploadAll(`/feedback/${r.id}/photos`, files);
+    toast('Gracias. Ya llegó.');
+  } catch (e) { toast(e.message, { bad: true }); }
+}
+async function viewFeedback() {
+  UI.view = 'sugerencias';
+  if (!isAdmin()) return viewCuenta();
+  let r;
+  try { r = await api('GET', '/feedback'); } catch (e) { return errorView(e.message, { tab: 'cuenta' }); }
+  const ST = { nueva: 'Nueva', hecha: 'Hecha', no: 'No va' };
+  const list = r.feedback;
+  render(header('Sugerencias recibidas', { back: true }) + `<div class="wrap detail">
+    ${list.length ? list.map((f) => `<div class="fbk ${f.status}"><p class="fbh"><b>${esc(f.user_name || 'Alguien')}</b><span class="tt">${esc(fmtDateTime(f.created_at))}</span><span class="pill ${f.status === 'nueva' ? 'go' : ''}">${ST[f.status]}</span></p>
+      <p class="nt">${esc(f.body)}</p>${f.screen ? `<p class="small">Desde ${esc(f.screen)}</p>` : ''}
+      ${f.photo_ids ? `<div class="fbph">${String(f.photo_ids).split(',').map((id) => `<button type="button" class="fbimg" data-photo="${id}"><img loading="lazy" src="/api/photos/${id}?t=1" alt="Foto"></button>`).join('')}</div>` : ''}
+      <div class="seg" role="radiogroup" aria-label="Estado">${Object.keys(ST).map((k) => `<button type="button" role="radio" aria-checked="${f.status === k}" class="${f.status === k ? 'on' : ''}" data-fb="${f.id}" data-st="${k}">${ST[k]}</button>`).join('')}</div></div>`).join('')
+      : '<p class="small">Todavía nadie manda sugerencias. Llegan desde Mi cuenta → Sugerencias para la app.</p>'}
+  </div>`, { tab: 'cuenta' });
+  $$('[data-photo]').forEach((el) => (el.onclick = () => openViewer(el.dataset.photo)));
+  $$('[data-fb]').forEach((b) => (b.onclick = async () => {
+    try { await api('PATCH', '/feedback/' + b.dataset.fb, { status: b.dataset.st }); viewFeedback(); } catch (e) { toast(e.message, { bad: true }); }
+  }));
 }
 
 async function viewPersonas() {
@@ -797,6 +882,7 @@ async function route() {
   const n = /^-?\d+$/.test(b || '') ? Number(b) : null;   // negative: a pendiente still on the phone (offline.js)
   try {
     if (!a) return await viewPlanner('dia');
+    if (a === 'mio') return await viewPlanner('mio');
     if (a === 'semana' || a === 'mes' || a === 'bandeja' || a === 'atrasados' || a === 'todo') return await viewPlanner(a);
     if (a === 'prioridad' && n) return await viewPlanner('prio', n);
     if (a === 'area' && n !== null) return await viewPlanner('area', n);
@@ -820,13 +906,19 @@ async function route() {
     if (a === 'personas') return await viewPersonas();
     if (a === 'areas') return await viewAreas();
     if (a === 'resumen') return await viewResumen();
+    if (a === 'sugerencias') return await viewFeedback();
     location.replace('#/');
   } catch (e) {
     console.error(e);
     if (S.user) errorView('No se pudo abrir esta pantalla. ' + (e && e.message ? e.message : ''));
   }
 }
-window.addEventListener('hashchange', () => { inAppNavs++; route(); });
+window.addEventListener('hashchange', (e) => {
+  inAppNavs++;
+  const was = (e.oldURL || '').split('#')[1] || '/';
+  if (!/^\/(cuenta|sugerencias)/.test(was)) UI.lastScreen = '#' + was;   // what a suggestion is about
+  route();
+});
 // Coming back to the app after a while: bring the screen up to date without losing the place.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !S.user || !UI.refresh || !$('#sheet').classList.contains('hidden')) return;
@@ -846,6 +938,7 @@ async function start() {
     if (!st.user) return showEnter();
     S.user = st.user;
     await loadBoot();
+    if (!isAdmin() && (location.hash === '' || location.hash === '#' || location.hash === '#/')) location.replace('#/mio');   // the team opens on what is theirs
     route();
   } catch (e) {
     APP.innerHTML = `<div class="enter"><img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40"><h1>Esmero</h1>
@@ -853,3 +946,5 @@ async function start() {
   }
 }
 start();
+// an oficio on a contact's page: Contactos, narrowed to it
+document.addEventListener('click', (e) => { const g = e.target.closest && e.target.closest('[data-gotag]'); if (g) { CT.tag = g.dataset.gotag; CT.q = ''; } }, true);

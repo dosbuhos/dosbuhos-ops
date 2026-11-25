@@ -53,7 +53,8 @@ for name, kind, spec, phone, comp in [
     ('Marco Antonio Gil', 'externo', 'Herrería', '415 555 0131', None),
     ('Raúl Mendoza', 'externo', 'Electricidad', '415 555 0150', 'Electro Servicio San Miguel'),
 ]:
-    P[name] = post(adrian, '/providers', {'name': name, 'kind': kind, 'specialty': spec, 'phone': phone, 'company': comp})['id']
+    tags = {'Chuy Hernández': ['Plomería', 'Gas'], 'Anselmo Rivas': ['Refrigeración', 'Equipo de bodega']}.get(name, [spec])
+    P[name] = post(adrian, '/providers', {'name': name, 'kind': kind, 'specialty': spec, 'phone': phone, 'company': comp, 'tags': tags})['id']
 P['Adrián'] = adrian.me['provider_id']; P['Jaime'] = jaime.me['provider_id']
 patch(eric, '/settings', {'coordinator': P['Adrián']})
 
@@ -80,8 +81,16 @@ for eq, title, days, who, cost in [('refri', 'Limpieza de condensador', -160, 'A
     post(adrian, '/tasks', {'kind': 'servicio', 'title': title, 'equipment_id': E[eq], 'provider_id': P[who], 'completed_date': d(days), 'cost': cost})
 
 # pendientes (a report gets no day by itself: the ones that sit on a day here were given one)
-def task(s, **k):
-    return post(s, '/tasks', k)['task']['id']
+def task(s, **k):   # only administrators give a day: a day on someone else's report is Adrián planning it
+    due = k.pop('due_date', None) if s not in (eric, adrian) else None
+    tid = post(s, '/tasks', k)['task']['id']
+    if due: patch(adrian, '/tasks/%d' % tid, {'due_date': due})
+    return tid
+# Adrián's time this week and next: the garden in the mornings, purchases on Thursday
+mon = today - dt.timedelta(days=today.weekday())
+for i in range(5):
+    post(adrian, '/blocks', {'title': 'Huerto', 'day': str(mon + dt.timedelta(days=i)), 'start_min': 8 * 60, 'end_min': 11 * 60, 'provider_id': P['Adrián']})
+post(adrian, '/blocks', {'title': 'Compras', 'day': str(mon + dt.timedelta(days=3)), 'start_min': 15 * 60, 'end_min': 17 * 60, 'provider_id': P['Adrián']})
 t1 = task(lupita, title='Gotea la llave del baño de visitas', area_id=A['Restaurante'], priority=1, due_date=d(0), description='Ya hay charco junto al lavabo. Se cerró la llave de paso.')
 photo(lupita, '/tasks/%d/photos' % t1, 'LAVABO', (90, 120, 150))
 t2 = task(eric, title='Chiller no enfría: se disparó otra vez', equipment_id=E['chiller'], priority=1, provider_id=P['Anselmo Rivas'], due_date=d(-7))
@@ -112,5 +121,5 @@ for title, area, who, note, cost in [('Destapar coladera de la cocina', 'Restaur
     tid = task(lupita, title=title, area_id=A[area], priority=3, provider_id=P[who])
     patch(adrian, '/tasks/%d' % tid, {'status': 'hecha', 'note': note, 'cost': cost})
 print('seeded', {'tasks': t12, 'equipment': E})
-json.dump({'pass': PASS, 'rosa_code': pend['code'], 'sids': [eric.sid, adrian.sid, jaime.sid, lupita.sid],
+json.dump({'pass': PASS, 'rosa_code': pend['code'], 'rosa_id': pend['id'], 'sids': [eric.sid, adrian.sid, jaime.sid, lupita.sid],
            'urgent': t1, 'photo': t2, 'late': t3, 'plain': t4, 'far': t5, 'mine': t6, 'eq': E['chiller'], 'eq2': E['refri'], 'ext': P['Chuy Hernández'], 'plan': 1}, open(STATE, 'w'))

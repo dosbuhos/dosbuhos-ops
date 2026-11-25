@@ -21,7 +21,11 @@ const COLOR_NAME = { red: 'rojo', orange: 'naranja', amber: 'ámbar', yellow: 'a
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const TRADES = ['Plomería', 'Electricidad', 'Carpintería', 'Herrería', 'Refrigeración', 'Albañilería', 'Pintura', 'Jardinería', 'Gas', 'Cerrajería', 'Internet y cámaras', 'Limpieza'];
+// The oficios a contact is tagged with, in the order Contactos shows them. A contact can have several.
+const TRADES = ['Electricidad', 'Luz (CFE)', 'Plomería', 'Gas', 'Calentadores', 'Refrigeración', 'Equipo de bodega', 'Albañilería', 'Tablaroca',
+  'Impermeabilización', 'Pisos y concreto', 'Pintura', 'Herrería', 'Carpintería', 'Tapicería', 'Internet y sistemas', 'Gases (CO₂, argón)',
+  'Tractores', 'Jardinería', 'Cerrajería', 'Limpieza'];
+const tagsOf = (p) => { try { const v = JSON.parse((p && p.tags) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
 
 // ---------- small tools ----------
 const ic = (n, cls = '') => `<svg aria-hidden="true"${cls ? ` class="${cls}"` : ''}><use href="#i-${n}"/></svg>`;
@@ -501,6 +505,7 @@ function inputSheet(title, value, okLabel, { sub = '', placeholder = '', max = 6
 // along the top. There is no side menu; the lists live in the planner's own panel.
 const isDesk = () => matchMedia('(min-width: 960px)').matches;
 const MTABS = [
+  { tab: 'mio', href: '#/mio', label: 'Lo mío' },
   { tab: 'bandeja', href: '#/bandeja', label: 'Bandeja' },
   { tab: 'atrasados', href: '#/atrasados', label: 'Atrasados' },
   { tab: 'dia', href: '#/', label: 'Día' },
@@ -542,7 +547,11 @@ function drawNav(tab) {
     <div class="mbar">${MTABS.map((t) => `<a href="${t.href}" data-tab ${t.tab === tab ? 'aria-current="page"' : ''}>${t.label}${t.tab === 'bandeja' && n.inbox ? `<span class="n ${n.urgent ? 'late' : ''}" aria-label="${n.inbox} sin programar${n.urgent ? ', con algo urgente' : ''}">${num(n.inbox)}</span>` : t.tab === 'atrasados' && n.late ? `<span class="n late" aria-label="${plural(n.late, 'atrasado', 'atrasados')}">${num(n.late)}</span>` : ''}</a>`).join('')}</div>`;
   const bar = $('.mbar', NAV);
   const cur = $('[aria-current]', bar);
-  if (cur) bar.scrollLeft = cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2;   // the ribbon scrolls sideways: keep the current view in sight
+  // it fits on most phones; where it does not, it starts at the left edge and slides only as far as needed to show the current view
+  if (cur && bar.scrollWidth > bar.clientWidth + 1) {
+    const l = cur.offsetLeft, r = l + cur.offsetWidth;
+    if (r > bar.clientWidth) bar.scrollLeft = r - bar.clientWidth + 8; else bar.scrollLeft = 0;
+  }
 }
 // Phones, top of a main screen: menu (tableros, prioridades, cuenta) · title · actions. Inner screens (back: true): arrow, centred title.
 const mtop = (title, right = '') => `<div class="mtop"><button type="button" class="pb mmenu" data-go="menu" aria-label="Menú">${ic('grid')}</button><div class="ttl">${title}</div><div class="acts">${right}</div></div>`;

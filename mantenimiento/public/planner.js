@@ -29,6 +29,8 @@ const dayName = (ymd, short = true) => { const d = ymdDate(ymd); return `${cap(s
 
 // ---------- the lists ----------
 const SRC = {
+  // what I reported or what is mine to do: where it stands and when it is scheduled (Eric, 25 Nov 2026)
+  mine: { label: 'Lo mío', icon: 'user', has: (t) => t.created_by === S.user.id || (!!myCard() && t.provider_id === myCard()) },
   inbox: { label: 'Bandeja', icon: 'inbox', has: (t) => !t.due_date },
   late: { label: 'Atrasados', icon: 'clock', has: (t) => isLate(t) },
   week: { label: 'Esta semana', icon: 'cal', has: (t) => !!t.due_date && t.due_date >= mondayOf(todayStr()) && t.due_date <= addDays(mondayOf(todayStr()), 6) },
@@ -47,8 +49,9 @@ function srcOf(k) {
   return { label: a ? a.name : 'Sin área', area: id, color: a ? a.color : 'grey', has: (t) => (t.area_id || 0) === id };
 }
 const isSub = (k) => { const x = srcOf(k); return !!x && (!!x.prio || x.area !== undefined); };   // a list reached from the menu, not from the ribbon
-const TAB_SRC = { bandeja: 'inbox', atrasados: 'late', todo: 'all' };
+const TAB_SRC = { mio: 'mine', bandeja: 'inbox', atrasados: 'late', todo: 'all' };
 const EMPTY = {
+  mine: ['Nada pendiente tuyo', 'Lo que reportes o te toque hacer aparece aquí, con el día en que quedó agendado.'],
   inbox: ['La Bandeja está vacía', 'Lo que se reporta sin día llega aquí, para darle día y hora.'],
   late: ['Nada atrasado', 'Lo que pasa de su día sin hacerse aparece aquí.'],
   week: ['Nada para esta semana', 'Lleva un pendiente a un día para programarlo.'],
@@ -120,6 +123,14 @@ function srcGroups(k, list) {
     ];
   }
   // otherwise each list in its own order
+  if (k === 'mine') {
+    const me = myCard();
+    return [
+      { head: 'Me toca hacerlo', cls: 'warn', items: take((t) => !!me && t.provider_id === me).sort(byLate) },
+      { head: 'Agendado', items: take((t) => !!t.due_date).sort(byLate) },
+      { head: 'Esperando día (en la Bandeja)', items: take(() => true).sort(bySort) },
+    ];
+  }
   if (k === 'late' || k === 'week') {
     const days = [...new Set(list.map((t) => t.due_date))].sort();
     if (k === 'late') days.reverse();
@@ -252,6 +263,107 @@ function planTitle(short = false) {
   return `${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}${yr(d)}`;
 }
 
+// ---------- time blocks: someone's time that is not a pendiente ("Huerto", "Compras") ----------
+// Everyone sees them, so it is plain when Adrián has room; administrators write them. Two weeks around the day on screen.
+const BK = { list: [], names: [], key: '', busy: '' };
+function needBlocks() {
+  const a = mondayOf(P.day || todayStr()), b = addDays(a, 13), key = a + '_' + b;
+  if (BK.key === key || BK.busy === key) return;
+  BK.busy = key;
+  api('GET', `/blocks?from=${a}&to=${b}`).then((r) => {
+    BK.list = r.blocks || []; BK.names = r.names || []; BK.key = key; BK.busy = '';
+    if (UI.plan && !wdrag && !tdrag && !sw) drawPlanner(true);
+  }).catch(() => { BK.busy = ''; });
+}
+const reloadBlocks = () => { BK.key = ''; needBlocks(); };
+const dayBlocks = (d) => BK.list.filter((b) => b.day === d && (P.who === 'all' || b.provider_id === P.who)).sort((x, y) => x.start_min - y.start_min);
+const blockWho = (b) => (P.who === 'all' && b.provider_name ? first(b.provider_name) : '');
+const blockSpan = (b) => `${fmtClock(b.start_min)} a ${fmtClock(b.end_min)}`;
+// a block on the hours: behind the pendientes, so what is planned over it still shows
+function blockHTML(b, hh) {
+  const st = Math.max(b.start_min, DAY_START), en = Math.min(b.end_min, DAY_END);
+  if (en <= st) return '';
+  const who = blockWho(b);
+  return `<div class="tblk ${en - st <= 30 ? 'short' : ''}" data-bid="${b.id}" style="top:${((st - DAY_START) / 60) * hh}px;height:${((en - st) / 60) * hh - 2}px" title="${esc(b.title)}, ${blockSpan(b)}">
+    <b>${esc(b.title)}</b><span class="meta">${blockSpan(b)}${who ? ', ' + esc(who) : ''}</span>${isAdmin() ? '<i class="rz" data-rz></i>' : ''}</div>`;
+}
+// a block in a list of the day (phone week)
+const blockRow = (b) => `<div class="brow" data-bid="${b.id}"><span class="bt">${fmtClock(b.start_min)}<br>${fmtClock(b.end_min)}</span><span class="grow"><b>${esc(b.title)}</b>${blockWho(b) ? `<span class="small">${esc(blockWho(b))}</span>` : ''}</span></div>`;
+const blockDefaultWho = () => (typeof P.who === 'number' ? P.who : store('mt_bwho') || S.settings.coordinator || myCard());
+const timeOpts = (sel, from = DAY_START, to = DAY_END) => { let o = ''; for (let m = from; m <= to; m += SNAP) o += `<option value="${m}" ${m === sel ? 'selected' : ''}>${fmtClock(m)}</option>`; return o; };
+async function blockSheet(b0) {
+  if (!isAdmin()) return;
+  const isNew = !b0.id;
+  const ppl = activeProviders().filter((p) => p.kind === 'interno');
+  const who = b0.provider_id || blockDefaultWho();
+  const st = b0.start_min ?? 9 * 60, en = b0.end_min ?? st + 60;
+  const res = await sheet({
+    title: isNew ? 'Bloquear tiempo' : 'Bloque de tiempo', sub: 'Todos lo ven en el calendario, para saber cuándo hay espacio.',
+    body: `<div class="pad">
+      <div class="field"><label class="flabel" for="bk-title">Nombre</label><input class="input" id="bk-title" list="bk-names" maxlength="60" value="${esc(b0.title || '')}" placeholder="Ej. Huerto" autocomplete="off" autocapitalize="sentences">
+        <datalist id="bk-names">${BK.names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist></div>
+      ${BK.names.length ? `<div class="quick" role="group" aria-label="Usados antes">${BK.names.slice(0, 6).map((n) => `<button type="button" class="qchip" data-bn="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+      ${fInput('bk-day', 'Día', { type: 'date', value: b0.day || P.day || todayStr() })}
+      <div class="trow2"><div class="field"><label class="flabel" for="bk-st">De</label><select class="input" id="bk-st">${timeOpts(st)}</select></div>
+        <div class="field"><label class="flabel" for="bk-en">A</label><select class="input" id="bk-en">${timeOpts(en)}</select></div></div>
+      <div class="field"><label class="flabel" for="bk-who">De quién es el tiempo</label><select class="input" id="bk-who">${ppl.map((p) => `<option value="${p.id}" ${p.id === who ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+      <p class="err hidden" id="bk-err" role="alert"></p></div>`,
+    acts: [isNew ? { label: 'Cancelar', cls: 'plain', value: null } : { label: `${ic('trash')}Eliminar`, cls: 'plain danger', value: 'del' }, {
+      label: 'Guardar', value: (w) => {
+        const v = { title: $('#bk-title', w).value.trim(), day: $('#bk-day', w).value, start_min: Number($('#bk-st', w).value), end_min: Number($('#bk-en', w).value), provider_id: Number($('#bk-who', w).value) };
+        const bad = !v.title ? 'Ponle nombre al bloque' : !v.day ? 'Elige el día' : v.end_min - v.start_min < 15 ? 'La hora de fin va después de la de inicio' : !v.provider_id ? 'Elige de quién es el tiempo' : '';
+        if (bad) { const e = $('#bk-err', w); e.textContent = bad; e.classList.remove('hidden'); return undefined; }
+        return v;
+      },
+    }],
+    onOpen: (w) => {
+      $$('[data-bn]', w).forEach((b) => (b.onclick = () => { $('#bk-title', w).value = b.dataset.bn; }));
+      const sS = $('#bk-st', w), sE = $('#bk-en', w);
+      sS.onchange = () => { const d = Number(sE.value) - st; if (Number(sE.value) <= Number(sS.value)) sE.value = String(Math.min(Number(sS.value) + Math.max(d, 60), DAY_END)); };
+      if (isNew && matchMedia('(min-width: 600px)').matches) $('#bk-title', w).focus();
+    },
+  });
+  if (!res) return;
+  if (res === 'del') return deleteBlock(b0);
+  store('mt_bwho', res.provider_id);
+  try {
+    await api(isNew ? 'POST' : 'PATCH', isNew ? '/blocks' : '/blocks/' + b0.id, res);
+    toast(isNew ? 'Tiempo bloqueado' : 'Guardado');
+    if (res.day !== P.day && isNew) { P.day = res.day; P.follow = P.day === todayStr(); }
+    reloadBlocks();
+  } catch (e) { toast(e.message, { bad: true }); }
+}
+function deleteBlock(b) {
+  later('Bloque eliminado', () => api('DELETE', '/blocks/' + b.id), {
+    hide: () => { BK.list = BK.list.filter((x) => x.id !== b.id); if (UI.plan) drawPlanner(true); },
+    undo: () => { if (!BK.list.some((x) => x.id === b.id)) BK.list.push(b); if (UI.plan) drawPlanner(true); },
+    done: () => reloadBlocks(),
+  });
+}
+function blockTap(id) {
+  const b = BK.list.find((x) => x.id === id);
+  if (!b) return;
+  if (isAdmin()) blockSheet(b);
+  else toast(`${b.provider_name ? first(b.provider_name) + ': ' : ''}${b.title}, ${blockSpan(b)}`);
+}
+async function copyWeekSheet() {
+  if (!isAdmin()) return;
+  const ppl = activeProviders().filter((p) => p.kind === 'interno');
+  const mon = mondayOf(P.day || todayStr()), prev = addDays(mon, -7);
+  const fmt = (d) => `${ymdDate(d).getDate()} ${MESES[ymdDate(d).getMonth()]}`;
+  const res = await sheet({
+    title: 'Copiar la semana pasada', sub: `Los bloques del ${fmt(prev)} al ${fmt(addDays(prev, 6))} pasan a esta semana (${fmt(mon)} al ${fmt(addDays(mon, 6))}). Después los ajustas.`,
+    body: `<div class="pad"><div class="field"><label class="flabel" for="cw-who">De quién</label><select class="input" id="cw-who">${ppl.map((p) => `<option value="${p.id}" ${p.id === blockDefaultWho() ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div></div>`,
+    acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Copiar', value: (w) => Number($('#cw-who', w).value) }],
+  });
+  if (!res) return;
+  try {
+    const r = await api('POST', '/blocks/copy', { from: prev, to: mon, provider_id: res });
+    toast(r.copied ? `Se copiaron ${plural(r.copied, 'bloque', 'bloques')}` : 'La semana pasada no tenía bloques nuevos que copiar');
+    reloadBlocks();
+  } catch (e) { toast(e.message, { bad: true }); }
+}
+
 // ---------- the hours ----------
 // Blocks that overlap share the column side by side.
 function layoutDay(items) {
@@ -279,7 +391,8 @@ function gridHTML(day, hh) {
     return { t, s: st, e: Math.min(st + durOf(t), DAY_END) };
   }));
   const nm = nowMin();
-  return `<div class="grid ${day === today ? 'today' : ''} ${day < today ? 'past' : ''}" data-day="${day}" style="height:${((DAY_END - DAY_START) / 60) * hh}px;--hh:${hh}px">
+  return `<div class="grid ${day === today ? 'today' : ''} ${day < today ? 'past' : ''} ${isAdmin() ? 'canblk' : ''}" data-day="${day}" style="height:${((DAY_END - DAY_START) / 60) * hh}px;--hh:${hh}px">
+    ${dayBlocks(day).map((b) => blockHTML(b, hh)).join('')}
     ${items.map(({ t, s, e, col, n }) => cardHTML(t, {
       ctx: 'grid', cls: `blk ${e - s <= 30 ? 'short' : e - s >= 90 ? 'tall' : ''} ${n > 1 ? 'split' : ''}`, meta: `${fmtClock(s)} a ${fmtClock(e)}`,
       style: `top:${((s - DAY_START) / 60) * hh}px;height:${((e - s) / 60) * hh - 2}px;left:calc(${(col / n) * 100}% + 3px);width:calc(${100 / n}% - 6px)`,
@@ -316,7 +429,7 @@ function phoneDay() {
   return `<header class="mh hours">${mtop(title, phoneBtn())}<div class="wstrip" data-swipe="week">${strip}</div></header>
     <div class="mm" data-swipe="day">${foldRow}${P.unt ? unt.map((t) => cardHTML(t, { ctx: 'day' })).join('') : ''}
       <div class="hgrid"><div class="gutter" aria-hidden="true">${gutterHTML(MG)}</div>${gridHTML(k, MG)}</div>
-      ${store('mt_held') ? '' : '<p class="mhint">Mantén presionado un pendiente para llevarlo a otro día o a una hora.</p>'}</div>`;
+      ${!isAdmin() ? '' : store('mt_held') ? (store('mt_btap') ? '' : '<p class="mhint">Toca una hora vacía para bloquear tiempo.</p>') : '<p class="mhint">Mantén presionado un pendiente para llevarlo a otro día o a una hora. Toca una hora vacía para bloquear tiempo.</p>'}</div>`;
 }
 function phoneWeek() {
   const today = todayStr(), mon = mondayOf(P.day);
@@ -328,7 +441,8 @@ function phoneWeek() {
     body += `<section class="mday ${k < today ? 'past' : ''}"><div class="dayhead"><b>${dayName(k)}</b>${k === today ? '<span class="tpill">Hoy</span>' : ''}
         <span class="small">${list.length ? `${plural(list.length, 'pendiente', 'pendientes')}${load ? ', ' + fmtDur(load) : ''}` : 'Nada'}</span>
         <a class="pb" href="#/nuevo?fecha=${k}" aria-label="Reportar algo para el ${DIAS[d.getDay()]} ${d.getDate()}">${ic('plus')}</a></div>
-      ${list.map((t) => cardHTML(t, { ctx: 'day' })).join('')}</section>`;
+      ${[...list.map((t) => ({ m: timed(t) ? t.plan_min : 1e9, h: cardHTML(t, { ctx: 'day' }) })), ...dayBlocks(k).map((b) => ({ m: b.start_min - 0.5, h: blockRow(b) }))]
+        .sort((x, y) => x.m - y.m).map((x) => x.h).join('')}</section>`;
   }
   const a = ymdDate(mon), b = ymdDate(addDays(mon, 6));
   const label = a.getMonth() === b.getMonth() ? `${a.getDate()} al ${b.getDate()} ${MESES[b.getMonth()]}` : `${a.getDate()} ${MESES[a.getMonth()]} al ${b.getDate()} ${MESES[b.getMonth()]}`;
@@ -473,7 +587,9 @@ function panelHTML() {
   const late = n('late');
   return `${late ? `<button type="button" class="pbanner" data-src="late"><span>${late === 1 ? '1 atrasado de días anteriores' : late + ' atrasados de días anteriores'}</span>Ver</button>` : ''}
     ${searchRow('', 'Buscar pendientes')}
-    <div class="navgroup">${row('inbox')}${row('late')}${row('week')}${row('all')}</div>
+    <div class="navgroup">${row('mine')}${row('inbox')}${row('late')}${row('week')}${row('all')}</div>
+    ${isAdmin() ? `<div class="navhead"><span class="eyebrow">Tiempo</span></div>
+    <div class="navgroup"><button type="button" class="navrow" data-go="block"><span class="ni">${ic('clock')}</span><span class="lbl">Bloquear tiempo</span><span class="n"></span></button><button type="button" class="navrow" data-go="copyweek"><span class="ni">${ic('repeat')}</span><span class="lbl">Copiar la semana pasada</span><span class="n"></span></button></div>` : ''}
     <div class="navhead"><span class="eyebrow">Prioridad</span></div>
     <div class="navgroup">${[1, 2, 3, 4].map((p) => row('p' + p)).join('')}</div>
     <div class="navhead"><button type="button" class="eyebrow foldh" data-go="areas" aria-expanded="${!!P.areas}">Áreas${ic(P.areas ? 'down' : 'chev')}</button></div>
@@ -496,6 +612,7 @@ function drawPlanner(keep = false) {
 function drawPlanner0(keep) {
   const today = todayStr();
   if (!P.day || (P.follow && P.day !== today)) P.day = today;
+  needBlocks();
   if (typeof P.who === 'number' && !provOf(P.who)) P.who = 'all';
   F.areas = F.areas.filter((id) => areaOf(id));
   if (typeof F.who === 'number' && !provOf(F.who)) F.who = 'all';
@@ -617,6 +734,7 @@ document.addEventListener('click', (e) => {
     else if (a === 'areas') { P.areas = !P.areas; saveP(); drawPlanner(true); }
     else if (a === 'fold') { P.unt = !P.unt; saveP(); drawPlanner(true); }
     else if (a === 'filter') filterSheet();
+    else if (a === 'block' || a === 'copyweek') { const f = a === 'block' ? () => blockSheet({ day: P.day || todayStr() }) : copyWeekSheet; if (sheet.closeThen && sheet.close) sheet.closeThen(f); else f(); }
     else if (a === 'nofilter') { F.who = 'all'; F.areas = []; F.prios = []; saveF(); drawPlanner(true); }
     return;
   }
@@ -633,6 +751,18 @@ document.addEventListener('click', (e) => {
   if (dy && UI.plan) { P.day = dy.dataset.day; P.follow = P.day === todayStr(); drawPlanner(true); return; }
   const sr = el.closest('[data-src]');
   if (sr && UI.plan) { P.src = sr.dataset.src || null; P.q = ''; saveP(); drawPlanner(true); if ($('.panel')) $('.panel').scrollTop = 0; return; }
+  // a block of time: administrators edit it; anyone else sees whose and when
+  const bk = el.closest('[data-bid]');
+  if (bk && UI.plan) { e.preventDefault(); if (!planNoClick) blockTap(Number(bk.dataset.bid)); return; }
+  // an empty hour, for an administrator: block time there
+  const gr = !el.closest('.card') && el.closest('.grid.canblk');
+  if (gr && UI.plan && !planNoClick) {
+    const hh = parseFloat(getComputedStyle(gr).getPropertyValue('--hh')) || HOUR_H;
+    const m = Math.min(Math.max(Math.floor((DAY_START + ((e.clientY - gr.getBoundingClientRect().top) / hh) * 60) / 30) * 30, DAY_START), DAY_END - 60);
+    store('mt_btap', 1);
+    blockSheet({ day: gr.dataset.day, start_min: m, end_min: m + 60 });
+    return;
+  }
   // a pendiente: its sheet opens over the screen you are on (a closed one, or one not in the list, opens its page)
   const body = el.closest('.card[data-tid] .body');
   if (body && !e.metaKey && !e.ctrlKey && !e.shiftKey && openTask(Number(body.parentElement.dataset.tid))) e.preventDefault();
@@ -646,7 +776,7 @@ document.addEventListener('change', (e) => {
 // phones: slide the day sideways to change it, the strip of days to change the week
 let swipe = null;
 document.addEventListener('touchstart', (e) => {
-  const el = e.target.closest && e.target.closest('[data-swipe]');
+  const el = e.target.closest && !e.target.closest(SWIPE_SEL) && e.target.closest('[data-swipe]');
   swipe = el && e.touches.length === 1 && UI.plan && !tdrag ? { kind: el.dataset.swipe, x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now() } : null;
 }, { passive: true });
 document.addEventListener('touchend', (e) => {
@@ -683,17 +813,18 @@ function taskSheet(t0) {
     const media = [x.photo_count ? plural(x.photo_count, 'foto', 'fotos') : '', x.note_count ? plural(x.note_count, 'nota', 'notas') : ''].filter(Boolean).join(' y ');
     return `${x.description ? `<p class="tdesc">${esc(x.description)}${x.description.length >= 240 ? '…' : ''}</p>` : ''}
       ${x.note_count ? `<a class="tmedia" href="#/p/${id}"><span class="grow">${plural(x.note_count, 'nota', 'notas')}</span>${ic('chev')}</a>` : ''}
-      <div class="grp"><h3 class="eyebrow">Cuándo</h3>
+      ${!isAdmin() ? `<div class="grp"><h3 class="eyebrow">Cuándo</h3><p class="twhen">${x.due_date ? `Agendado: ${esc(cap(fmtDay(x.due_date, { weekday: true })))}${tm ? ' a las ' + fmtClock(x.plan_min) : ''}` : 'Espera en la Bandeja a que lo agenden.'}</p>
+        <button type="button" class="boardrow" data-whenok><span class="grow"><b>${x.when_ok ? esc(x.when_ok) : '¿Cuándo te conviene?'}</b><span>${x.when_ok ? 'Lo que sugeriste. Tócalo para cambiarlo.' : 'Sugiere un horario; un administrador lo agenda.'}</span></span>${ic('chev')}</button></div>` : `<div class="grp"><h3 class="eyebrow">Cuándo</h3>${x.when_ok ? `<p class="twhen">Le conviene: ${esc(x.when_ok)}</p>` : ''}
         <div class="when">${whenBtn(today, 'Hoy')}${whenBtn(addDays(today, 1), 'Mañana')}<button type="button" data-when="pick" aria-pressed="${other}">${other ? esc(dayName(x.due_date) + (x.due_date.slice(0, 7) === today.slice(0, 7) ? '' : ' ' + MESES[Number(x.due_date.slice(5, 7)) - 1])) : 'Otro día'}</button><button type="button" data-when="" aria-pressed="${!x.due_date}">Sin día</button></div>
         ${isLate(x) ? `<p class="twhen"><span class="due late">${esc(due.text)}</span>${x.postponed ? `<span>Pospuesto ${x.postponed === 1 ? '1 vez' : x.postponed + ' veces'}</span>` : ''}</p>` : x.due_date ? '' : '<p class="twhen">Sin día, espera en la Bandeja.</p>'}</div>
       <div class="grp"><div class="ghead"><h3 class="eyebrow">Hora y duración</h3>${tm ? '<button type="button" class="linkbtn" data-notime>Quitar la hora</button>' : ''}</div>
         <div class="trow"><label class="sr" for="ts-time">Hora</label><input class="input" type="time" id="ts-time" step="900" value="${tm ? pad2(Math.floor(x.plan_min / 60)) + ':' + pad2(x.plan_min % 60) : ''}">
-          <div class="stepper" role="group" aria-label="Duración"><button type="button" data-dur="-1" aria-label="Menos tiempo" ${x.est_min ? '' : 'disabled'}>${ic('minus')}</button><div aria-live="polite">${x.est_min ? fmtDur(x.est_min) : 'Sin estimar'}</div><button type="button" data-dur="1" aria-label="Más tiempo" ${x.est_min >= DURS[DURS.length - 1] ? 'disabled' : ''}>${ic('plus')}</button></div></div></div>
+          <div class="stepper" role="group" aria-label="Duración"><button type="button" data-dur="-1" aria-label="Menos tiempo" ${x.est_min ? '' : 'disabled'}>${ic('minus')}</button><div aria-live="polite">${x.est_min ? fmtDur(x.est_min) : 'Sin estimar'}</div><button type="button" data-dur="1" aria-label="Más tiempo" ${x.est_min >= DURS[DURS.length - 1] ? 'disabled' : ''}>${ic('plus')}</button></div></div></div>`}
       <div class="grp"><h3 class="eyebrow">Prioridad</h3>
         <div class="seg" role="radiogroup" aria-label="Prioridad">${[1, 2, 3, 4].map((n) => `<button type="button" role="radio" aria-checked="${x.priority === n}" class="${x.priority === n ? 'on' : ''}" data-prio="${n}">${PRIO[n]}</button>`).join('')}</div></div>
       <div class="grp"><h3 class="eyebrow">Lo hace</h3>
-        <div class="whorow"><button type="button" class="boardrow" data-pickwho>${p ? `${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b>${p.kind === 'externo' ? `<span>${esc(p.specialty || 'Externo')}</span>` : ''}</span>` : `<span class="av un" aria-hidden="true">${ic('user')}</span><span class="grow"><b class="un">Sin asignar</b><span>Elige a alguien de la casa o a un contacto</span></span>`}${ic('chev')}</button>
-          ${p && p.phone && p.id !== myCard() ? contactBtns(p, taskMsg(x, `Hola ${first(p.name)}, te pasaron este pendiente de mantenimiento en Dos Búhos:`)) : ''}</div></div>`;
+        <button type="button" class="boardrow wide" data-pickwho>${p ? `<span class="grow"><b>${esc(p.name)}</b>${p.kind === 'externo' && (p.specialty || p.company) ? `<span>${esc(p.specialty || p.company)}</span>` : ''}</span>` : '<span class="grow"><b class="un">Sin asignar</b><span>Elige a alguien de la casa o a un contacto</span></span>'}${ic('chev')}</button>
+        ${p && p.phone && p.id !== myCard() ? `<div class="callrow"><a class="b line grow" href="${telHref(p.phone)}">${ic('phone')}Llamar</a><button type="button" class="b line wa grow" data-watask>${ic('wa')}WhatsApp</button></div>` : ''}</div>`;
   };
   const by = t0.created_by_name ? `${t0.kind === 'preventivo' ? 'Plan de' : 'Lo reportó'} ${esc(first(t0.created_by_name))} ${esc(ago(localYmd(t0.created_at)))}` : t0.kind === 'preventivo' ? 'Del plan preventivo' : '';
   const stt = t0.status === 'en_proceso' ? '<span class="st go">En curso</span>' : t0.status === 'en_espera' ? `<span class="st wait">${esc(statusText(t0))}</span>` : '';
@@ -741,8 +872,10 @@ function taskSheet(t0) {
           if (d === (cur().due_date || '')) return;
           save(d ? { due_date: d, replan: 1 } : { due_date: null });
         }));
+        const wk = $('[data-whenok]', box);
+        if (wk) wk.onclick = () => close('when');
         const tm = $('#ts-time', box);
-        tm.onchange = () => {
+        if (tm) tm.onchange = () => {
           const x = cur();
           const m = /^(\d\d):(\d\d)/.exec(tm.value);
           if (!m) { if (timed(x)) save({ plan_min: null }); return; }
@@ -761,15 +894,17 @@ function taskSheet(t0) {
         }));
         $$('[data-prio]', box).forEach((b) => (b.onclick = () => { const n = Number(b.dataset.prio); if (n !== cur().priority) save({ priority: n }); }));
         $('[data-pickwho]', box).onclick = () => close('who');
+        const wt = $('[data-watask]', box);
+        if (wt) wt.onclick = () => { const x = cur(), pp = provOf(x.provider_id); if (pp) waTask(x, pp, `Hola ${first(pp.name)}, te pasaron este pendiente de mantenimiento en Dos Búhos:`); };
       };
       bind();
     },
   }).then(async (v) => {
     if (v === 'page') { location.hash = '#/p/' + id; return; }
     if (v === 'done') return completeSheet(cur(), () => (UI.plan ? planAfter() : UI.refresh && UI.refresh()));
-    if (v !== 'who' && v !== 'date') return;
+    if (v !== 'who' && v !== 'date' && v !== 'when') return;
     // a list to pick from takes the sheet's place; when it is answered the pendiente comes back with the change
-    if (v === 'who') await assignSheet(cur(), null); else await dateSheet(cur(), null);
+    if (v === 'who') await assignSheet(cur(), null); else if (v === 'when') await whenSheet(cur(), null); else await dateSheet(cur(), null);
     try { await fetchOpen(); } catch { /* shows what it has */ }
     behind();
     const x = (C.open || []).find((y) => y.id === id);
@@ -779,29 +914,15 @@ function taskSheet(t0) {
 
 // ---------- Contactos, one tap away ----------
 function contactsSheet() {
-  const load = (id) => (C.open || []).filter((x) => x.provider_id === id).length;
-  const list = activeProviders();
-  const row = (p) => `<div class="lrow person" data-s="${esc(fold([p.name, p.specialty, p.company].join(' ')))}"><a class="pmain" href="#/c/${p.id}">${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b>
-      <span class="ls"><span>${esc(p.kind === 'externo' ? [p.specialty || 'Externo', p.company].filter(Boolean).join(', ') : (p.specialty || 'De la casa'))}</span>${load(p.id) ? `<span>${plural(load(p.id), 'abierto', 'abiertos')}</span>` : ''}</span></span></a>${contactBtns(p)}</div>`;
-  const exts = list.filter((p) => p.kind === 'externo').sort((a, b) => (a.specialty || 'zz').localeCompare(b.specialty || 'zz') || a.name.localeCompare(b.name));
-  const ints = list.filter((p) => p.kind === 'interno').sort((a, b) => a.name.localeCompare(b.name));
-  const sec = (title, items) => (items.length ? `<section data-sec><h3 class="ogroup">${title}</h3><div class="list">${items.map(row).join('')}</div></section>` : '');
+  const list = activeProviders().map((p) => ({ ...p, open_count: (C.open || []).filter((x) => x.provider_id === p.id).length }));
   sheet({
     title: 'Contactos', cls: 'csheet',
     right: `<a class="tb" href="#/c/nuevo">${ic('plus')}Nuevo</a>`,
-    body: `<div class="pad">${list.length > 5 ? `<div class="search">${ic('search')}<label class="sr" for="cs-q">Buscar</label><input id="cs-q" type="search" placeholder="Buscar por nombre u oficio" autocomplete="off"></div>` : ''}
-      ${list.length ? sec('Externos', exts) + sec('De la casa', ints) : '<p class="onone">Todavía no hay contactos. Agrega al plomero, al carpintero, al de refrigeración: a quien se le habla cuando algo no se puede resolver en casa.</p>'}
-      <p class="onone hidden" id="cs-none">Nadie con ese nombre u oficio.</p>
-      <a class="showmore" href="#/contactos">Ver todos los contactos</a></div>`,
+    body: `<div class="pad" id="cs-box">${contactsHTML(list, { sheet: true })}<a class="showmore" href="#/contactos">Abrir Contactos</a></div>`,
     onOpen: (w) => {
-      const q = $('#cs-q', w);
-      if (q) q.oninput = () => {
-        const s = fold(q.value.trim());
-        let any = false;
-        $$('[data-s]', w).forEach((r) => { const on = !s || r.dataset.s.includes(s); r.classList.toggle('hidden', !on); any = any || on; });
-        $$('[data-sec]', w).forEach((x) => x.classList.toggle('hidden', !$$('[data-s]:not(.hidden)', x).length));
-        $('#cs-none', w).classList.toggle('hidden', any);
-      };
+      const box = $('#cs-box', w);
+      const redraw = () => { box.innerHTML = contactsHTML(list, { sheet: true }) + '<a class="showmore" href="#/contactos">Abrir Contactos</a>'; bindContacts(box, list, redraw); };
+      bindContacts(box, list, redraw);
     },
   });
 }
@@ -814,6 +935,7 @@ function menuSheet() {
     title: 'Tableros', cls: 'msheet',
     body: `<div class="pad">
       <div class="rows">${row('#/equipos', ic('wrench'), 'Equipos', S.equipment.filter((e) => e.active).length || '')}${row('#/preventivo', ic('repeat'), 'Preventivo')}</div>
+      ${isAdmin() ? `<h3 class="eyebrow">Tiempo</h3><div class="rows"><button type="button" class="rowlink" data-go="block">${ic('clock')}<span>Bloquear tiempo</span><span class="n"></span>${ic('chev')}</button><button type="button" class="rowlink" data-go="copyweek">${ic('repeat')}<span>Copiar la semana pasada</span><span class="n"></span>${ic('chev')}</button></div>` : ''}
       <h3 class="eyebrow">Prioridad</h3>
       <div class="rows">${[1, 2, 3, 4].map((p) => row('#/prioridad/' + p, `<i class="pdot p${p}"></i>`, PRIO[p], n('p' + p))).join('')}</div>
       <details class="mfold" ${P.areas ? 'open' : ''}><summary><span class="eyebrow">Áreas</span>${ic('down')}</summary>
@@ -827,7 +949,7 @@ function menuSheet() {
 let wdrag = null;
 let planNoClick = false;
 function dragClean() {
-  $$('.card.ghost, .prev').forEach((x) => x.remove());
+  $$('.card.ghost, .tblk.ghost, .prev').forEach((x) => x.remove());
   $$('.ucol.over, .panel.over, .hcol.over, .mcell.over').forEach((x) => x.classList.remove('over'));
   document.body.classList.remove('wdragging');
 }
@@ -846,7 +968,15 @@ async function planSave(t, data, msg) {
   } catch (e) { Object.assign(t, before); drawPlanner(true); toast(e.message, { bad: true }); }
 }
 document.addEventListener('pointerdown', (e) => {
-  if (!UI.plan || e.pointerType !== 'mouse' || e.button !== 0 || document.body.classList.contains('lock')) return;
+  if (!UI.plan || e.pointerType !== 'mouse' || e.button !== 0 || document.body.classList.contains('lock') || !isAdmin()) return;
+  const bel = e.target.closest('.dmain .tblk[data-bid]');
+  if (bel) {   // a block of time: the same moves as a pendiente on the hours, saved to the block
+    const b = BK.list.find((x) => x.id === Number(bel.dataset.bid));
+    if (!b) return;
+    const r = bel.getBoundingClientRect();
+    wdrag = { bk: b, t: { id: -b.id, due_date: b.day, plan_min: b.start_min, est_min: b.end_min - b.start_min }, el: bel, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false, rz: !!e.target.closest('[data-rz]'), grab: ((e.clientY - r.top) / HOUR_H) * 60, target: null, dur: b.end_min - b.start_min };
+    return;
+  }
   const el = e.target.closest('.dmain .card[data-tid]');
   if (!el || e.target.closest('.ck')) return;
   const t = (C.open || []).find((x) => x.id === Number(el.dataset.tid));
@@ -905,6 +1035,7 @@ document.addEventListener('pointerup', () => {
   if (!d.on) return;                                        // a plain click: the pendiente opens
   planNoClick = true; setTimeout(() => { planNoClick = false; }, 0);
   dragClean(); d.el.classList.remove('lift');
+  if (d.bk) return blockMoved(d);
   const t = d.t;
   if (d.rz) { if (d.dur !== durOf(t) || !t.est_min) planSave(t, { est_min: d.dur }); else drawPlanner(true); return; }
   const tg = d.target;
@@ -919,6 +1050,19 @@ document.addEventListener('pointerup', () => {
 });
 document.addEventListener('pointercancel', () => { if (wdrag) { if (wdrag.on) { dragClean(); drawPlanner(true); } wdrag = null; } });
 document.addEventListener('dragstart', (e) => { if (e.target.closest && e.target.closest('.card')) e.preventDefault(); });
+
+async function blockMoved(d) {
+  const b = d.bk, tg = d.target;
+  let data = null;
+  if (d.rz) { if (d.dur !== b.end_min - b.start_min) data = { end_min: b.start_min + d.dur }; }
+  else if (tg && tg.day && tg.min !== null && tg.min !== undefined && !tg.keep && (tg.day !== b.day || tg.min !== b.start_min)) data = { day: tg.day, start_min: tg.min, end_min: tg.min + d.dur };
+  if (!data) { drawPlanner(true); return; }
+  const before = { ...b };
+  Object.assign(b, data); drawPlanner(true);
+  try { const r = await api('PATCH', '/blocks/' + b.id, data); Object.assign(b, r.block); }
+  catch (e) { Object.assign(b, before); toast(e.message, { bad: true }); }
+  drawPlanner(true);
+}
 
 // ---------- touch: hold a pendiente, then drop it on a day (the way Horizonte does on a phone) ----------
 // Hold 350 ms on a pendiente anywhere. A panel with one day slides in: drop on an hour, on "sin hora" or on
@@ -938,11 +1082,15 @@ function ddDay(day) {
     const st = Math.min(Math.max(t.plan_min, DAY_START), DAY_END - 15);
     return `<div class="dd-b c-${esc(t.area_color || 'grey')}" style="top:${((st - DAY_START) / 60) * MHPX}px;height:${(Math.min(durOf(t), DAY_END - st) / 60) * MHPX - 2}px">${esc(t.title)}</div>`;
   }).join('');
+  const kb = BK.list.filter((b) => b.day === day && (typeof P.who !== 'number' || b.provider_id === P.who)).map((b) => {
+    const st = Math.max(b.start_min, DAY_START), en = Math.min(b.end_min, DAY_END);
+    return en > st ? `<div class="dd-k" style="top:${((st - DAY_START) / 60) * MHPX}px;height:${((en - st) / 60) * MHPX - 2}px">${esc(b.title)}</div>` : '';
+  }).join('');
   const nm = nowMin();
   const rel = day === today ? 'Hoy' : day === addDays(today, 1) ? 'Mañana' : '';
   return {
     title: `<div class="dd-title"><b>${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_L[d.getMonth()]}</b><small>${rel ? `<i>${rel}</i>` : ''}${mine.length ? plural(mine.length, 'pendiente', 'pendientes') + (total ? ', ' + fmtDur(total) : '') : 'Día libre'}</small></div>`,
-    grid: `<div class="dd-grid">${blocks}${day === today && nm >= DAY_START && nm <= DAY_END ? `<div class="wnow" style="top:${((nm - DAY_START) / 60) * MHPX}px"></div>` : ''}</div>`,
+    grid: `<div class="dd-grid">${kb}${blocks}${day === today && nm >= DAY_START && nm <= DAY_END ? `<div class="wnow" style="top:${((nm - DAY_START) / 60) * MHPX}px"></div>` : ''}</div>`,
   };
 }
 // Puts `html` in `win` in place of what it shows. With a direction the day turns like a page under the pendiente
@@ -1059,7 +1207,7 @@ function tdEnd(commit) {
   patchTask(t, data, msg, () => { if (UI.plan) planAfter(); else if (UI.refresh) UI.refresh(); else route(); }, undo);
 }
 document.addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'mouse' || !S.user || tdrag || document.body.classList.contains('lock')) return;
+  if (e.pointerType === 'mouse' || !S.user || tdrag || document.body.classList.contains('lock') || !isAdmin()) return;
   const el = e.target.closest('.card[data-tid]');
   if (!el || e.target.closest('.ck, [data-rz]')) return;
   const t = (C.open || []).find((x) => x.id === Number(el.dataset.tid));
@@ -1075,4 +1223,90 @@ document.addEventListener('pointercancel', () => { if (hold) { clearTimeout(hold
 document.addEventListener('touchmove', (e) => { if (tdrag) e.preventDefault(); }, { passive: false });
 document.addEventListener('contextmenu', (e) => { if (hold || tdrag) e.preventDefault(); });
 // the click that ends a drag must not open the pendiente
-document.addEventListener('click', (e) => { if (planNoClick && e.target.closest && e.target.closest('.card[data-tid]')) { e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener('click', (e) => { if (planNoClick && e.target.closest && e.target.closest('.card[data-tid], [data-bid]')) { e.preventDefault(); e.stopPropagation(); } }, true);
+
+// ---------- phones: swipe a pendiente right for done, left to delete (as in Horizonte) ----------
+// Only administrators delete; a block of time only goes left. A swipe that is not allowed stops short and says why.
+const SWIPE_SEL = '.card.in-list[data-tid], .card.in-day[data-tid], .brow[data-bid]';
+let sw = null;
+function swWhat(s) {
+  if (s.el.dataset.bid) { const b = BK.list.find((x) => x.id === Number(s.el.dataset.bid)); return b ? { b } : null; }
+  const t = (C.open || []).find((x) => x.id === Number(s.el.dataset.tid));
+  return t && isOpen(t) ? { t } : null;
+}
+const swAllowed = (w, dir) => (dir > 0 ? !!w.t : isAdmin());
+document.addEventListener('pointerdown', (e) => {
+  sw = null;
+  if (e.pointerType === 'mouse' || !S.user || document.body.classList.contains('lock')) return;
+  const el = e.target.closest(SWIPE_SEL);
+  if (!el || e.target.closest('.ck, .cbtns, button')) return;
+  sw = { el, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false, dx: 0 };
+});
+document.addEventListener('pointermove', (e) => {
+  const s = sw;
+  if (!s || e.pointerId !== s.pid || tdrag) return;
+  const dx = e.clientX - s.x, dy = e.clientY - s.y;
+  if (!s.on) {
+    if (Math.abs(dy) > 12 && Math.abs(dy) >= Math.abs(dx)) { sw = null; return; }   // scrolling the list
+    if (Math.abs(dx) < 14 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    s.what = swWhat(s);
+    if (!s.what) { sw = null; return; }
+    s.on = true;
+    if (hold) { clearTimeout(hold.timer); hold = null; }
+    s.el.classList.add('swiping');
+    const h = document.createElement('div');
+    h.className = 'swipe-hint';
+    h.style.cssText = `top:${s.el.offsetTop}px;left:${s.el.offsetLeft}px;width:${s.el.offsetWidth}px;height:${s.el.offsetHeight}px`;
+    s.el.parentNode.insertBefore(h, s.el);
+    s.hint = h;
+  }
+  const ok = swAllowed(s.what, dx);
+  s.dx = ok ? dx : Math.sign(dx) * Math.min(Math.abs(dx), 34);
+  s.el.style.transform = `translateX(${s.dx}px)`;
+  const right = dx > 0;
+  s.hint.className = `swipe-hint ${right ? 'r' : 'l'} ${ok ? '' : 'no'} ${Math.abs(s.dx) > 80 ? 'go' : ''}`;
+  s.hint.innerHTML = right ? (ok ? `${ic('check')}Hecho` : '') : ok ? `Eliminar${ic('trash')}` : 'Solo un administrador elimina';
+});
+function swReset(s) {
+  const c = s.el;
+  c.style.transition = 'transform 150ms ease-out'; c.style.transform = '';
+  setTimeout(() => { if (s.hint) s.hint.remove(); c.classList.remove('swiping'); c.style.transition = ''; }, 160);
+}
+function swOut(s, fn) {
+  const c = s.el;
+  c.style.transition = 'transform 160ms ease-in'; c.style.transform = `translateX(${s.dx > 0 ? 110 : -110}%)`;
+  setTimeout(() => { if (s.hint) s.hint.remove(); fn(); }, 150);
+}
+const swAfter = () => (UI.plan ? planAfter() : UI.refresh ? UI.refresh() : route());
+document.addEventListener('pointerup', () => {
+  const s = sw;
+  sw = null;
+  if (!s || !s.on) return;
+  planNoClick = true; setTimeout(() => { planNoClick = false; }, 400);
+  const w = s.what;
+  if (s.dx > 80 && w.t) {
+    if (navigator.vibrate) navigator.vibrate(15);
+    return swOut(s, () => {
+      const t = w.t, data = { status: 'hecha' };
+      if (!t.provider_id && myCard()) data.provider_id = myCard();
+      if (C.open) C.open = C.open.filter((x) => x.id !== t.id);
+      if (UI.plan) drawPlanner(true);
+      patchTask(t, data, 'Hecho. Bien.', swAfter, { status: t.status, wait_reason: t.wait_reason || null, ...(data.provider_id ? { provider_id: null } : {}) });
+    });
+  }
+  if (s.dx < -80 && isAdmin()) {
+    if (navigator.vibrate) navigator.vibrate(15);
+    return swOut(s, () => {
+      if (w.b) return deleteBlock(w.b);
+      const t = w.t;
+      later('Pendiente eliminado', () => api('DELETE', '/tasks/' + t.id), {
+        hide: () => { if (C.open) C.open = C.open.filter((x) => x.id !== t.id); if (UI.plan) drawPlanner(true); else s.el.remove(); },
+        undo: () => { if (C.open && !C.open.some((x) => x.id === t.id)) C.open.push(t); if (UI.plan) drawPlanner(true); else swAfter(); },
+        done: () => { touch(); swAfter(); },
+      });
+    });
+  }
+  swReset(s);
+});
+document.addEventListener('pointercancel', () => { const s = sw; sw = null; if (s && s.on) swReset(s); });
+document.addEventListener('touchmove', (e) => { if (sw && sw.on) e.preventDefault(); }, { passive: false });

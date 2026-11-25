@@ -152,9 +152,32 @@ async function patchTask(t, data, msg, after, undoData = null) {
   } catch (e) { toast(e.message, { bad: true }); return false; }
 }
 const taskLink = (t) => `${APP_URL}/#/p/${t.id}`;
-function taskMsg(t, hello = '') {
+function taskMsg(t, hello = '', link = true) {
   const due = t.due_date ? `\nPara: ${fmtDay(t.due_date, { weekday: true, rel: false })}` : '';
-  return `${hello ? hello + '\n\n' : ''}*${t.title}*\n${t.area_name ? 'Área: ' + t.area_name + '\n' : t.place ? 'Lugar: ' + t.place + '\n' : ''}${t.equipment_name ? 'Equipo: ' + t.equipment_name + '\n' : ''}Prioridad: ${PRIO[t.priority]}${due}${t.description ? '\n\n' + t.description : ''}\n\nFotos y avances: ${taskLink(t)}`;
+  return `${hello ? hello + '\n\n' : ''}*${t.title}*\n${t.area_name ? 'Área: ' + t.area_name + '\n' : t.place ? 'Lugar: ' + t.place + '\n' : ''}${t.equipment_name ? 'Equipo: ' + t.equipment_name + '\n' : ''}Prioridad: ${PRIO[t.priority]}${due}${t.description ? '\n\n' + t.description : ''}${link ? `\n\nFotos y avances: ${taskLink(t)}` : ''}`;
+}
+// WhatsApp a pendiente to someone. On a phone that shares files its photos go along with the text (pick WhatsApp,
+// then the person); otherwise WhatsApp opens on their chat with the text. People outside cannot open Esmero: no link.
+async function waTask(t, p, hello) {
+  const text = taskMsg(t, hello, p.kind !== 'externo');
+  try {
+    if (navigator.canShare && t.id > 0) {
+      const d = await api('GET', '/tasks/' + t.id);
+      const ids = (d.photos || []).map((x) => x.id).slice(0, 4);
+      if (ids.length) {
+        const files = await Promise.all(ids.map(async (id, i) => {
+          const b = await (await fetch('/api/photos/' + id, { credentials: 'same-origin' })).blob();
+          return new File([b], `pendiente-${t.id}-${i + 1}.jpg`, { type: b.type || 'image/jpeg' });
+        }));
+        if (navigator.canShare({ files, text })) {
+          toast(`Elige WhatsApp y luego a ${first(p.name)}`, { ms: 4000 });
+          await navigator.share({ files, text });
+          return;
+        }
+      }
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  window.open(waHref(p.phone, text), '_blank');
 }
 
 const DONE_WORDS = ['Se reparó', 'Se cambió la pieza', 'Se limpió o ajustó', 'Lo hizo el externo'];
@@ -196,8 +219,22 @@ async function completeSheet(t, after) {
 }
 
 const WHY_LATE = ['Falta material', 'Espero al externo', 'No hubo tiempo', 'Depende de otra cosa'];
+// Only administrators put things on the calendar; anyone else says when it suits them (Eric, 25 Nov 2026).
+const WHEN_WORDS = ['Lo antes posible', 'Mañana temprano', 'Esta semana', 'Antes del fin de semana', 'Cuando se pueda'];
+async function whenSheet(t, after) {
+  const res = await sheet({
+    title: '¿Cuándo te conviene?', sub: 'Adrián o un administrador lo agenda. Esto le ayuda a elegir el día.',
+    body: `<div class="pad"><div class="quick" role="group" aria-label="Sugerencias">${WHEN_WORDS.map((r) => `<button type="button" class="qchip" data-w="${esc(r)}">${esc(r)}</button>`).join('')}</div>
+      ${fInput('wh-txt', 'En tus palabras', { value: t.when_ok || '', max: 120, placeholder: 'Ej. el martes antes de las 11' })}</div>`,
+    acts: [{ label: 'Cancelar', cls: 'plain', value: null }, { label: 'Guardar', value: (w) => ({ v: $('#wh-txt', w).value.trim() }) }],
+    onOpen: (w) => $$('[data-w]', w).forEach((b) => (b.onclick = () => { $('#wh-txt', w).value = b.dataset.w; })),
+  });
+  if (!res || res.v === (t.when_ok || '')) return;
+  return patchTask(t, { when_ok: res.v || null }, 'Guardado', after);
+}
 // Posponer (it has a date) or Poner fecha (it doesn't). A postponed pendiente keeps count and the reason.
 async function dateSheet(t, after) {
+  if (!isAdmin()) return whenSheet(t, after);
   const today = todayStr();
   const has = !!t.due_date;
   const late = isLate(t);
@@ -281,7 +318,7 @@ async function assignSheet(t, after) {
     await api('PATCH', '/tasks/' + t.id, { provider_id: pid });
     touch();
     if (p && p.phone && p.id !== me) {
-      toast(`Asignado a ${first(p.name)}`, { ms: 9000, action: { label: 'Avisar por WhatsApp', fn: () => window.open(waHref(p.phone, taskMsg({ ...t, provider_id: pid }, `Hola ${first(p.name)}, te pasaron este pendiente de mantenimiento en Dos Búhos:`)), '_blank') } });
+      toast(`Asignado a ${first(p.name)}`, { ms: 9000, action: { label: 'Avisar por WhatsApp', fn: () => waTask({ ...t, provider_id: pid }, p, `Hola ${first(p.name)}, te pasaron este pendiente de mantenimiento en Dos Búhos:`) } });
     } else toast(p ? `Asignado a ${first(p.name)}` : 'Quedó sin asignar');
     if (after) after();
   } catch (e) { toast(e.message, { bad: true }); }
@@ -436,7 +473,7 @@ async function viewTask(id, keep = false) {
   const reload = () => viewTask(id, true);
   const cell = (key, label, value, { cls = '', under = '' } = {}) => `<div class="cell ${cls}"><button type="button" class="cmain" data-set="${key}"><span class="cl">${label}</span><span class="cv">${value}</span>${ic('chev')}</button>${under ? `<div class="cunder">${under}</div>` : ''}</div>`;
   const contact = t.provider_phone && t.provider_id !== me ? `<a class="b line sm" href="${telHref(t.provider_phone)}">${ic('phone')}Llamar</a>
-      <a class="b line sm wa" target="_blank" rel="noopener" href="${waHref(t.provider_phone, taskMsg(t, `Hola ${first(t.provider_name)}, sobre este pendiente de mantenimiento en Dos Búhos:`))}">${ic('wa')}WhatsApp</a>` : '';
+      <button type="button" class="b line sm wa" data-watask>${ic('wa')}WhatsApp</button>` : '';
   const stCls = t.status === 'hecha' ? 'ok' : t.status === 'en_proceso' ? 'go' : t.status === 'en_espera' ? 'wait' : t.status === 'cancelada' ? 'off' : '';
   const notes = d.notes;
   render(header(`Pendiente #${t.id}`, { back: true, right: `<button class="ib" data-menu aria-label="Más opciones">${ic('more')}</button>` }) + `<div class="wrap detail">
@@ -454,6 +491,7 @@ async function viewTask(id, keep = false) {
       ${cell('status', 'Estado', `<span class="pill big ${stCls}">${esc(statusText(t))}</span>${t.status === 'hecha' && t.completed_at ? `<span class="csub">${esc(fmtDay(localYmd(t.completed_at)))}</span>` : ''}`)}
       ${cell('who', 'Lo hace', t.provider_id ? `${esc(t.provider_name)}${t.provider_kind === 'externo' ? `<span class="csub">${t.provider_specialty ? esc(t.provider_specialty) + ', externo' : 'Externo'}</span>` : ''}` : '<span class="un">Sin asignar</span>', { under: contact })}
       ${open ? cell('due', 'Fecha', due.cls === 'none' ? '<span class="un">Sin fecha</span>' : `<span class="due ${due.cls}">${ic(due.icon)}${esc(due.text)}</span><span class="csub">${esc(fmtDay(t.due_date, { weekday: true, rel: false }))}${t.plan_min !== null && t.plan_min !== undefined ? ` a las ${fmtClock(t.plan_min)}` : ''}${t.postponed ? `, pospuesto ${t.postponed === 1 ? '1 vez' : t.postponed + ' veces'}` : ''}</span>`, { cls: late ? 'late' : '' }) : ''}
+      ${open && t.when_ok ? cell('when', 'Le conviene', esc(t.when_ok)) : ''}
       ${open ? cell('est', 'Tiempo', t.est_min ? fmtDur(t.est_min) : '<span class="muted">Sin estimar</span>') : ''}
       ${cell('prio', 'Prioridad', `<span class="pdot p${t.priority}"></span>${PRIO[t.priority]}`)}
       ${cell('area', 'Dónde', t.area_name || t.place ? areaTag(t) : '<span class="un">Sin área</span>')}
@@ -470,13 +508,15 @@ async function viewTask(id, keep = false) {
   </div>`, {
     keepScroll: keep,
     bar: open
-      ? `<button class="b tonal" data-set="due">${ic('clock')}${t.due_date ? 'Posponer' : 'Poner fecha'}</button><button class="b ok grow" data-finish>${ic('check')}Hecho</button>`
+      ? `<button class="b tonal" data-set="due">${ic('clock')}${!isAdmin() ? 'Cuándo me conviene' : t.due_date ? 'Posponer' : 'Poner fecha'}</button><button class="b ok grow" data-finish>${ic('check')}Hecho</button>`
       : `<button class="b tonal grow" data-reopen>${ic('undo')}Volver a abrir</button>`,
   });
-  const acts = { status: statusSheet, who: assignSheet, due: dateSheet, est: estSheet, prio: prioSheet, area: areaSheet, equip: equipSheet, cost: costSheet };
+  const acts = { status: statusSheet, who: assignSheet, due: dateSheet, when: whenSheet, est: estSheet, prio: prioSheet, area: areaSheet, equip: equipSheet, cost: costSheet };
   $$('[data-set]', APP).forEach((b) => (b.onclick = () => acts[b.dataset.set](t, reload)));
   const fin = $('[data-finish]');
   if (fin) fin.onclick = () => completeSheet(t, reload);
+  const wt = $('[data-watask]');
+  if (wt) wt.onclick = () => waTask(t, provOf(t.provider_id) || { name: t.provider_name, phone: t.provider_phone, kind: t.provider_kind }, `Hola ${first(t.provider_name)}, sobre este pendiente de mantenimiento en Dos Búhos:`);
   const ro = $('[data-reopen]');
   if (ro) ro.onclick = () => patchTask(t, { status: 'pendiente' }, 'Abierto otra vez', reload, { status: t.status });
   bindSteps(APP, t);
@@ -523,7 +563,7 @@ async function viewReport(query = {}) {
   const eq = query.equipo ? S.equipment.find((e) => e.id === Number(query.equipo)) : null;
   const files = [];
   let area = eq ? eq.area_id : '';
-  const day = /^\d{4}-\d\d-\d\d$/.test(query.fecha || '') && query.fecha >= todayStr() ? query.fecha : '';   // came from the + beside a day
+  const day = isAdmin() && /^\d{4}-\d\d-\d\d$/.test(query.fecha || '') && query.fecha >= todayStr() ? query.fecha : '';   // came from the + beside a day
   render(header(eq ? 'Reportar falla' : 'Reportar', { back: true }) + `<form class="wrap form" id="r-form" novalidate>
     <div class="field"><span class="flabel">Foto ${optTxt}</span>${pickerHtml('r-pick')}</div>
     <div class="field"><label class="flabel" for="r-title">¿Qué pasa?</label>
@@ -532,12 +572,13 @@ async function viewReport(query = {}) {
     ${areaSelect('r-area', area, { other: true })}
     <div class="field"><span class="flabel">¿Qué tan urgente?</span>
       ${choice('r-prio', [{ v: 1, label: 'Urgente', sub: 'Peligro, fuga o detiene el servicio', cls: 'urg' }, { v: 3, label: 'Normal', sub: 'Esta semana' }, { v: 4, label: 'Puede esperar', sub: 'Cuando se pueda' }], 3, { cls: 'stack' })}</div>
+    ${isAdmin() ? '' : fInput('r-when', '¿Cuándo te conviene?', { optional: true, max: 120, placeholder: 'Ej. mañana en la mañana', hint: 'Adrián o un administrador lo agenda.' })}
     ${day ? `<div class="field"><span class="flabel">Día</span><p class="fixed">${ic('cal')}${esc(cap(fmtDay(day, { weekday: true })))}</p></div>` : ''}
     <details class="more"><summary>Más detalles ${optTxt}${ic('down')}</summary>
       ${fText('r-desc', 'Detalles', { placeholder: 'Lo que ayude a quien lo va a arreglar', rows: 3 })}
       ${eq ? '' : fSelect('r-equip', 'Equipo', equipmentOptions(area, ''))}
       ${fSelect('r-who', '¿Quién lo hace?', contactOptions('', unassignedLabel()))}
-      ${fInput('r-due', 'Día', { type: 'date', value: day, attrs: `min="${todayStr()}"`, hint: 'Si lo dejas en blanco, llega a la Bandeja para darle día.' })}
+      ${isAdmin() ? fInput('r-due', 'Día', { type: 'date', value: day, attrs: `min="${todayStr()}"`, hint: 'Si lo dejas en blanco, llega a la Bandeja para darle día.' }) : ''}
     </details>
     <p class="err hidden" id="r-err" role="alert"></p>
   </form>`, { tab: 'nuevo', bar: `<button class="b block lg" id="r-send" form="r-form" type="submit">${ic('send')}Enviar reporte</button>` });
@@ -560,7 +601,8 @@ async function viewReport(query = {}) {
     if (where.isOther() && !place) return fieldErr(where.other, 'Escribe el lugar');
     if (!where.area() && !place && !equipId) return fieldErr(where.el, 'Elige dónde está el problema');
     const data = { title, area_id: where.area() || null, place: place || null, priority: Number(getPrio() || 3), description: $('#r-desc').value, equipment_id: equipId, provider_id: $('#r-who').value || null };
-    if ($('#r-due').value) data.due_date = $('#r-due').value;
+    if ($('#r-due') && $('#r-due').value) data.due_date = $('#r-due').value;
+    if ($('#r-when') && $('#r-when').value.trim()) data.when_ok = $('#r-when').value.trim();
     const btn = $('#r-send');
     btn.disabled = true; btn.innerHTML = 'Enviando…';
     err.classList.add('hidden');
@@ -585,6 +627,8 @@ async function viewReported(id) {
   if (!t) { try { t = (await api('GET', '/tasks/' + id)).task; } catch { location.replace('#/'); return; } }
   const co = S.settings.coordinator ? provOf(S.settings.coordinator) : null;
   const tell = co && co.phone && co.id !== myCard() && !t.provider_id;
+  const pv = t.provider_id ? provOf(t.provider_id) : null;
+  const send = pv && pv.phone && pv.id !== myCard() && t.id > 0;   // assigned while reporting: send it to them, photos and all
   render(`<div class="wrap sent">
     <div class="okmark">${ic('check')}</div>
     <h1>Reporte enviado</h1>
@@ -592,10 +636,13 @@ async function viewReported(id) {
     ${t.id < 0 ? '<p class="pendmsg">Sin señal: quedó guardado en el teléfono y se enviará solo cuando haya internet.</p>' : ''}
     <p class="small">${t.id < 0 ? '' : `Es el pendiente #${t.id}. `}${t.due_date ? `Quedó ${esc(dueInfo(t).text.toLowerCase())}.` : 'Está en la Bandeja, sin día todavía.'} ${t.provider_id ? `Lo tiene ${esc(first(t.provider_name))}.` : 'Falta asignarlo.'}</p>
     ${tell ? `<a class="b block lg wa" target="_blank" rel="noopener" href="${waHref(co.phone, taskMsg(t, `Hola ${first(co.name)}, reporté esto en Esmero:`))}">${ic('wa')}Avisar a ${esc(first(co.name))} por WhatsApp</a>` : ''}
-    <a class="b block lg ${tell ? 'tonal' : ''}" href="#/p/${t.id}">Ver el reporte</a>
+    ${send ? `<button type="button" class="b block lg wa" data-watask>${ic('wa')}Mandárselo a ${esc(first(pv.name))} por WhatsApp</button>` : ''}
+    <a class="b block lg ${tell || send ? 'tonal' : ''}" href="#/p/${t.id}">Ver el reporte</a>
     <a class="b block lg tonal" href="#/nuevo">${ic('plus')}Reportar otro</a>
-    <a class="b block lg plain" href="${t.due_date ? '#/' : '#/bandeja'}">${t.due_date ? 'Ir al día de hoy' : 'Ir a la Bandeja'}</a>
+    <a class="b block lg plain" href="${!isAdmin() ? '#/mio' : t.due_date ? '#/' : '#/bandeja'}">${!isAdmin() ? 'Ir a Lo mío' : t.due_date ? 'Ir al día de hoy' : 'Ir a la Bandeja'}</a>
   </div>`, { tab: 'nuevo' });
+  const wt = $('[data-watask]');
+  if (wt) wt.onclick = () => waTask(t, pv, `Hola ${first(pv.name)}, te paso este pendiente de mantenimiento en Dos Búhos:`);
 }
 
 // ---------- done ----------
