@@ -719,3 +719,10 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .m .mcal.mob .mcell .load { height: 3px; }
 .m .mcal.mob .mdow { padding: 0 0 4px; }
 .m .mroll { font-size: 12px; color: var(--ink-2); padding: 2px 2px 0; }
+/* Hour grid: a block is exactly as tall as its time (the 40px floor is for list rows), so 30-minute blocks no longer run into the next one */
+.m .mm .grid .card.card { min-height: 0; }
+/* desktop Overdue panel: one group per day it was planned for */
+.d .lgroup { display: flex; flex-direction: column; gap: 6px; }
+.d .lgroup + .lgroup { margin-top: 12px; }
+.d .lhead { display: flex; align-items: baseline; gap: 8px; padding: 2px 2px 0; position: sticky; top: 0; z-index: 1; background: var(--panel, var(--bg)); }
+.d .lhead b { font-size: 13px; color: var(--warn); } .d .lhead span { font-size: 12px; color: var(--ink-3); }

@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 69;
+const BUILD = 71;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -249,7 +249,8 @@ function sortList(list, mode = 'manual') {
 }
 const boardsSorted = () => [...S.boards.values()].filter(b => !b.del && !b.archived).sort((a, b) => (a.name === 'Backlog') - (b.name === 'Backlog') || (a.o ?? 0) - (b.o ?? 0) || a.name.localeCompare(b.name));
 const inboxTasks = () => live().filter(t => isOpen(t) && !t.board && !t.when);
-const overdueTasks = () => live().filter(t => isOpen(t) && t.when && isPast(t.when));
+// Overdue = open tasks whose day or period has passed. A meeting that passed is not overdue, it just happened.
+const overdueTasks = () => live().filter(t => isOpen(t) && t.when && isPast(t.when) && t.kind !== 'meeting');
 const placedOn = (k) => live().filter(t => t.when === k);
 const boardTasks = (id) => live().filter(t => t.board === id);
 function dayLoad(k) { return placedOn(k).reduce((s, t) => s + (t.dur || 30), 0); }
@@ -539,7 +540,8 @@ function renderPanelList(board) {
   let list = src === 'overdue' ? overdueTasks() : src === 'week' ? placedOn(isoWeek(todayK())).filter(isOpen) : src === 'month' ? placedOn(periodOf('month', todayK())).filter(isOpen) : inboxTasks();
   list = byTag(sortList(list, sort));
   if (!list.length) return `<div class="empty">${S.ui.tagFilter ? 'Nothing here with this tag.' : src === 'inbox' ? 'Inbox is empty. Type above to add a task.' : src === 'overdue' ? 'Nothing overdue.' : `Nothing placed on this ${src} yet. Type above or drag a task here.`}</div>`;
-  return stack(list, src === 'overdue');
+  if (src === 'overdue') return lateGroups(list).map(G => `<div class="lgroup"><div class="lhead"><b>${esc(G.lbl)}</b><span>${esc(G.sub)}</span></div>${stack(G.items, false, 'od' + G.k)}</div>`).join('');
+  return stack(list, false);
 }
 function doneToggle(key, done) {
   const open = S.ui.open[key];
@@ -566,7 +568,7 @@ function dayCol(k) {
   let head;
   if (past) {
     const tg = P.targets.length ? `<div class="small">${P.targets.filter(x => !isOpen(x)).length} of ${P.targets.length} targets done</div>` : '';
-    const open = P.open.length;
+    const open = P.open.filter(x => x.kind !== 'meeting').length; // a meeting that passed is not left open
     head = `<div class="head"><div class="date"><span class="num">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${rel ? ' · ' + rel : ''}</span></div>${open ? `<span class="pill warn">${open} open</span>` : ''}</div>${tg}`;
     const body = [...P.open].sort(order).map(x => cardHTML(x)).join('');
     const doneList = P.done;
@@ -677,19 +679,24 @@ function scrollHoursToNow() { requestAnimationFrame(() => { const tl = $('.tl');
 function odBanner(n) { return n && S.ui.odHide !== todayK() ? `<div class="banner split"><button data-act="review"><span>${n} overdue from earlier days</span>Review</button><button class="x" data-act="odhide" aria-label="Hide until tomorrow">${I.close}</button></div>` : ''; }
 // Phone Late tab: everything that slipped, grouped under the day (or week, month…) it was planned for, newest first.
 // Tap a task to reschedule it in its sheet, or hold to drag it onto a day or hour.
-function mLate() {
-  const list = lateTasks(), groups = new Map();
+// Late tasks grouped by the day (or week, month…) they were planned for, newest first. Phone Late tab and desktop Overdue panel.
+function lateGroups(list) {
+  const groups = new Map(), T = todayK();
   for (const t of list) { if (!groups.has(t.when)) groups.set(t.when, []); groups.get(t.when).push(t); }
-  const keys = [...groups.keys()].sort((a, b) => periodRange(b)[1].localeCompare(periodRange(a)[1]) || b.localeCompare(a));
-  const T = todayK(); let body = '';
-  for (const k of keys) {
-    const g = groups.get(k).sort(order), kind = kindOf(k);
-    let lbl, sub = `${g.length} task${g.length > 1 ? 's' : ''}`;
+  return [...groups.keys()].sort((a, b) => periodRange(b)[1].localeCompare(periodRange(a)[1]) || b.localeCompare(a)).map(k => {
+    const items = groups.get(k).sort(order), kind = kindOf(k);
+    let lbl, sub = `${items.length} task${items.length > 1 ? 's' : ''}`;
     if (kind === 'day') { const d = parseD(k), ago = Math.round((parseD(T) - d) / 864e5); lbl = relDay(k) || `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; if (!relDay(k) && ago < 30) sub = `${ago} days ago · ${sub}`; }
     else lbl = periodLabel(k, true);
+    return { k, kind, lbl, sub, items };
+  });
+}
+function mLate() {
+  const list = lateTasks(); let body = '';
+  for (const G of lateGroups(list)) {
     // Each row is a plain card: tap to open and reschedule, hold to drag it onto a day or an hour, swipe left to delete.
-    body += `<div class="dayhead late" data-drop="${kind === 'day' ? 'day' : 'period'}:${k}"><b>${esc(lbl)}</b><span class="small">${esc(sub)}</span></div>`;
-    body += g.map(t => mcard(t, { late: true })).join('');
+    body += `<div class="dayhead late" data-drop="${G.kind === 'day' ? 'day' : 'period'}:${G.k}"><b>${esc(G.lbl)}</b><span class="small">${esc(G.sub)}</span></div>`;
+    body += G.items.map(t => mcard(t, { late: true })).join('');
   }
   if (!list.length) body = `<div class="empty">Nothing late. Tasks whose day has passed show up here, grouped by the day they were planned for.</div>`;
   return `<header class="mh">${mtop(`<span class="date">Late${list.length ? ' · ' + list.length : ''}</span>`)}</header><main class="mm" data-list="late">${body}</main>`;
@@ -717,8 +724,8 @@ const mcard = (t, o = {}) => cardHTML(t, { mobile: true, ...o });
 const mtop = (title, right = '') => `<div class="mtop"><button class="plain" aria-label="Menu" data-act="menu">${I.grid}</button><div class="ttl">${title}</div><div class="acts">${right}</div></div>`;
 function weekStrip(k) {
   const t = todayK(), mon = weekStart(isoWeek(k)); let h = '';
-  for (let i = 0; i < 7; i++) { const kk = addDays(mon, i), P = dayParts(kk), late = kk < t && P.open.length;
-    h += `<button data-act="mday" data-k="${kk}" aria-pressed="${kk === k}" class="${kk === t ? 'today' : ''}" aria-label="${DOWL[parseD(kk).getDay()]} ${Number(kk.slice(8))}${kk === t ? ', today' : ''}${late ? `, ${P.open.length} not done` : ''}"><span class="dw">${DOW[parseD(kk).getDay()][0]}</span><span class="dn">${Number(kk.slice(8))}</span><i class="${late ? 'late' : P.all.length ? 'has' : ''}"></i></button>`; }
+  for (let i = 0; i < 7; i++) { const kk = addDays(mon, i), P = dayParts(kk), lateN = kk < t ? P.open.filter(x => x.kind !== 'meeting').length : 0, late = !!lateN; // past meetings are not "not done"
+    h += `<button data-act="mday" data-k="${kk}" aria-pressed="${kk === k}" class="${kk === t ? 'today' : ''}" aria-label="${DOWL[parseD(kk).getDay()]} ${Number(kk.slice(8))}${kk === t ? ', today' : ''}${late ? `, ${lateN} not done` : ''}"><span class="dw">${DOW[parseD(kk).getDay()][0]}</span><span class="dn">${Number(kk.slice(8))}</span><i class="${late ? 'late' : P.all.length ? 'has' : ''}"></i></button>`; }
   return `<div class="wstrip" data-swipe="week">${h}</div>`;
 }
 function mHours() {
