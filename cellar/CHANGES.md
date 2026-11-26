@@ -20,6 +20,9 @@ Size S/M/L · ⚑ = needs Eric's decision first.
 14. Molecular SO₂ shown from pH + free SO₂ on the card and Lista · M
 15. Slow-connection states: loading, empty and error messages that say what to do · M
 
+## 2026-11-26 — Clearer sync banner · v1.26.2
+- The banner now reads "Work orders synced from the Excellovint sheet · last read … · checks again every 10 min" instead of "Live from Excellovint", so it's clear only work orders come from the sheet; wines, barrels and labs live in Crianza's own database (Eric). · commit pending
+
 ## 2026-11-24 — Crianza wordmark in Cinzel caps · v1.26.1
 - Header and sign-in page set "CRIANZA" in Cinzel caps, wide-spaced, burgundy (Eric picked option E). · commit pending
 

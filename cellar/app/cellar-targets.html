@@ -4331,9 +4331,9 @@ Return ONLY JSON with this shape:
     const el = $("src");
     let cls = "", msg = "", btn = "";
     const cacheNote = sh.cacheAt ? `Showing the saved copy from ${esc(stamp(Date.parse(sh.cacheAt)))}.` : "";
-    if (sh.mode === "loading") { cls = "loading"; msg = "Reading Excellovint…"; }
+    if (sh.mode === "loading") { cls = "loading"; msg = "Reading work orders from the Excellovint sheet…"; }
     else if (sh.mode === "live") {
-      cls = "live"; msg = `Live from Excellovint · read ${esc(stamp(sh.at))} · rechecks every 10 min while open`;
+      cls = "live"; msg = `Work orders synced from the Excellovint sheet · last read ${esc(stamp(sh.at))} · checks again every 10 min`; // wines, barrels, labs live in Crianza's own database
       if (sh.missing.length) msg += ` · Tabs not found: ${esc(sh.missing.join(", "))}`;
       btn = `<button type="button" class="btn sm" data-sheet="refresh">Refresh</button>`;
     } else if (sh.mode === "ask") {
