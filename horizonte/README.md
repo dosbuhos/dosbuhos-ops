@@ -33,6 +33,9 @@ A task with no time that you check off stays in the No set time list (desktop) o
 ## Overdue (v71)
 Overdue means open tasks whose day or period has passed; meetings that passed are never counted (counts, week-strip dots, Late tab, desktop Overdue, past-day pills). The desktop Overdue panel groups like the phone Late tab: one head per day it was planned for, newest first ("Mon, Nov 23 · 3 days ago · 6 tasks").
 
+## Desktop No set time fold (v73)
+In desktop Hours, "No set time" folds for every day at once (folded by default, remembered per device), like the phone's unscheduled row: the row reads "No set time · 3 + 1 done ▸", a + adds to that day without opening it, and drops still land on the day.
+
 ## Releases
 The server refuses `/api/sync` from builds older than `MIN_CLIENT` in src/worker.js (65: the last builds with reflow), answering 426; current builds send `v: BUILD` and reload on 426. Raise both when an old build must stop writing.
 Every change bumps the version in three places (plus `BUILD` in app.js): `?v=` in index.html, `V` and the `SHELL` URLs in sw.js. The app re-checks the worker whenever it comes to the front and reloads itself when a new one takes control (v64), so a phone left on an old build catches up on its own.

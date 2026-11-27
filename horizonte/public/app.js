@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 72;
+const BUILD = 73;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -630,9 +630,14 @@ ${taskN ? `<span class="tn">${lateN ? `${lateN} not done` : `${taskN} task${task
 const HPX = 56; const H0 = () => Math.max(0, Math.min(toMin(S.prefs.dayStart) / 60 - 2, 7)); const H1 = () => Math.min(24, Math.max(toMin(S.prefs.dayEnd) / 60 + 4, 20));
 function renderHours() {
   const days = [S.ui.hday, addDays(S.ui.hday, 1)], h0 = H0(), h1 = H1();
+  // "No set time" folds like the phone's unscheduled row, for every day at once, so a long list does not push the hours down.
+  // The fold row still counts what is inside and takes drops; adding from it opens it.
+  const ntOpen = !!S.ui.open.dnt; // folded until you open it, like the phone
+  const ntFold = (list, k) => { const open = list.filter(isOpen).length, fin = list.length - open;
+    return `<div class="ntfold"><button class="lbl" data-act="toggle" data-key="dnt" aria-expanded="${ntOpen}">No set time${list.length ? ` · ${open}${fin ? ` <span class="muted">+ ${fin} done</span>` : ''}` : ''} ${ntOpen ? I.down : I.chev}</button>${ntOpen ? '' : `<button class="plus" data-act="addto" data-k="${k}" aria-label="Add to ${dayShort(k)}">${I.plus(14, 2.2)}</button>`}</div>`; };
   const heads = days.map(k => { const P = dayParts(k), untimed = [...[...P.meetings.filter(t => !t.at), ...P.targets.filter(t => !t.at), ...P.rest].filter(isOpen), ...untimedDone(P)];
     return `<div class="hcol dropcol" data-drop="day:${k}"><div class="head" style="display:flex;justify-content:space-between;align-items:flex-end"><div class="date"><span class="num ${k === todayK() ? 'today' : ''}">${Number(k.slice(8))}</span><span class="dow">${DOW[parseD(k).getDay()]}${k === todayK() ? ' · Today' : ''}</span></div><span class="small" style="font-size:12px;color:var(--ink-2);display:flex;gap:10px;align-items:center">${loadText(k)}</span></div>
-<div class="small" style="font-size:12px;color:var(--ink-2)">No set time</div>${untimed.map(t => cardHTML(t)).join('') || ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>`}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
+${ntFold(untimed, k)}${ntOpen || S.ui.adding === k ? untimed.map(t => cardHTML(t)).join('') : ''}${S.ui.adding === k ? `<input class="inline-add" id="ia-${k}" data-addto="${k}" placeholder="Task name, Enter" autocomplete="off">` : ntOpen ? `<button class="btn addbtn" data-act="addto" data-k="${k}">Add</button>` : ''}<div class="dropzone">Drop on ${dayShort(k)}, no time</div></div>`; }).join('');
   let gutter = ''; for (let h = h0; h < h1; h++) gutter += `<div style="height:${HPX}px">${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}</div>`;
   const grids = days.map(k => gridHTML(k, HPX, h0, h1)).join('');
   return `<div class="hours"><div class="hrow sticky"><div class="gutter"></div>${heads}</div><div class="hrow"><div class="gutter" aria-hidden="true">${gutter}</div>${grids}</div>
