@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 71;
+const BUILD = 72;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -906,7 +906,8 @@ function sheetField(el) { // title and notes save on change
 }
 function captureSheet(dest = {}) {
   const label = dest.board ? S.boards.get(dest.board)?.name : dest.when ? periodLabel(dest.when, true) + (dest.at ? ' · ' + clock(dest.at) : '') : 'Inbox';
-  openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div class="sheettitle">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one task per line · add @meeting 5pm for a meeting</div></div>
+  openSheet(`<div class="grab"></div><div style="display:flex;flex-direction:column;gap:2px"><div class="sheettitle">Capture</div><div style="font-size:13px;color:var(--ink-2)">Adding to ${esc(label)} · one per line</div></div>
+<div class="seg kindseg"><button data-act="capkind" data-v="task" aria-pressed="true">Task</button><button data-act="capkind" data-v="meeting" aria-pressed="false">${I.people(15)}Meeting</button></div>
 <textarea class="dump" id="dump" autofocus placeholder="What's on your mind?" enterkeyhint="enter"></textarea>
 <button class="bigbtn dark" data-act="savecapture">Add</button>`, { capture: dest });
 }
@@ -1221,7 +1222,9 @@ document.addEventListener('click', async (e) => {
     case 'qcsave': { const id = saveDraft(); if (id) toast(`Added ${S.ui.draft?.kind === 'meeting' ? 'meeting' : 'task'} at ${clock(S.tasks.get(id).at)}`, true); S.ui.draft = null; render(); return; }
     case 'qcmore': { const id = saveDraft(); S.ui.draft = null; render(); if (id) taskSheet(id); return; }
     case 'capture': captureSheet(el.dataset.board ? { board: el.dataset.board } : el.dataset.k ? { when: el.dataset.k, at: el.dataset.at || '' } : isDesk() ? {} : S.ui.mtab === 'hours' ? { when: S.ui.mday } : S.ui.mtab === 'board' && S.ui.board ? { board: S.ui.board } : {}); return;
-    case 'savecapture': { const n = addLines($('#dump').value, captureDest(st?.capture)); closeSheet(); render(); $('.mm')?.scrollTo({ top: 0, behavior: 'smooth' }); if (n) toast(`Added ${n} task${n > 1 ? 's' : ''}`, true); return; }
+    // Capture's Task / Meeting switch: flipped in place so what you typed stays; everything added takes that kind.
+    case 'capkind': { st.ckind = el.dataset.v; $$('.sheet [data-act=capkind]').forEach(b => b.setAttribute('aria-pressed', String(b === el))); $('#dump')?.focus(); return; }
+    case 'savecapture': { const n = addLines($('#dump').value, { ...captureDest(st?.capture), ...(st?.ckind === 'meeting' ? { kind: 'meeting' } : {}) }); closeSheet(); render(); $('.mm')?.scrollTo({ top: 0, behavior: 'smooth' }); if (n) toast(`Added ${n} task${n > 1 ? 's' : ''}`, true); return; }
     case 'review': reviewSheet(); return;
     case 'rv': { const id = el.closest('[data-tid]').dataset.tid; pushTask(id, el.dataset.k); render(); reviewSheet(); return; }
     case 'rvdrop': { const id = el.closest('[data-tid]').dataset.tid; put('task', id, { status: 'dropped' }); render(); reviewSheet(); return; }
