@@ -318,6 +318,9 @@ const R = {
   interno: 119,                             // nuestro equipo en tiempo doble, promedio por persona por hora (8 personas ≈ $950/h)
   meseros: { formal: 12, casual: 15, compartida: 15, parrillada: 20, coctel: 25 }, meserosMin: 2,
   puntos: { lider: 1.5, mesero: 1, bar: 1, chef: 1.5, cocinero: 1, lavaloza: 0.7 },
+  // Shares are fixed by the full crew (3 piso: capitán + 2 meseros; 5 cocina: chef + 3 cocineros + lavaloza), so pay per person
+  // doesn't swing with who shows up. Shares of empty spots go to the monthly fondo del equipo, never to the house.
+  equipo: { piso: 3, cocina: 5, puntos: 8.7 },
   barDesde: 40, barCada: 120, liderDesde: 50, lider2Desde: 150,
   cocineros: [[30, 3], [100, 4], [200, 5], [300, 6], [9999, 7]], cocinaConfirmadoHasta: 100,   // según Lalo hasta 100
   lavaloza: [[100, 1], [200, 2], [9999, 3]], estacionamiento: [[80, 1], [9999, 2]],
@@ -428,12 +431,14 @@ function calcST(F, S) {
   const PT = R.puntos, iChef = Math.min(1, iCoc), iCocR = iCoc - iChef;
   const roles = [["Jefe o Capitán", "piso", iLid, PT.lider], ["Mesero", "piso", iMes, PT.mesero], ["Bar", "piso", iBar, PT.bar],
                  ["Chef", "cocina", iChef, PT.chef], ["Cocinero", "cocina", iCocR, PT.cocinero], ["Lavaloza", "cocina", iLav, PT.lavaloza]].filter(r => r[2] > 0);
-  const pts = roles.reduce((a, r) => a + r[2] * r[3], 0);
+  const EQ = R.equipo, nEq = EQ.piso + EQ.cocina;
   const split = roles.map(([nm, side, k, pt]) => ({ nm, side, k, pt,
-    mitad: fee / 2 / (side === "piso" ? inP : inC), parejo: nIn ? fee / nIn : 0, puntos: pts ? fee * pt / pts : 0 }));
-  if (!inP || !inC) split.forEach(r => r.mitad = nIn ? fee / nIn : 0);   // one side empty: the other keeps all of it
+    mitad: fee / 2 / (side === "piso" ? EQ.piso : EQ.cocina), parejo: fee / nEq, puntos: fee * pt / EQ.puntos }));
+  const fondo = { mitad: fee, parejo: fee, puntos: fee };
+  split.forEach(r => { for (const o in fondo) fondo[o] -= r[o] * r.k; });
+  for (const o in fondo) fondo[o] = Math.max(0, fondo[o]);
   return { on, fmt, H, hrsEv, setup, adj, meseros, bar, lider, coc, lav, est, piso, cocina, slots,
-    inP, inC, nIn, iLid, iMes, iBar, iCoc, iLav, exP, exC, exE, wIn, wExP, wExC, wExE, wEx, cost, opCharge, opGap, fee, split, pax };
+    inP, inC, nIn, iLid, iMes, iBar, iCoc, iLav, exP, exC, exE, wIn, wExP, wExC, wExE, wEx, cost, opCharge, opGap, fee, split, fondo, pax };
 }
 const FMTN = { formal: "cena servida · emplatada", casual: "cena servida · casual", compartida: "mesa compartida", parrillada: "parrillada", coctel: "cóctel" };
 function renderST(ST, S) {
@@ -465,7 +470,9 @@ function renderST(ST, S) {
   const sp = ST.split, th = (t, r = "") => `<div class="hd${r}">${t}</div>`;
   $("st_fee").innerHTML = ln("Fee de servicio 15 %, todo para nuestro equipo", m(ST.fee)) + ln(`${ST.nIn} personas de Dos Búhos · los externos no entran al reparto`, "", "sub");
   $("st_split").innerHTML = (ST.fee && sp.length ? `<div class="stg fee3" style="margin-top:8px">${th("Por persona")}${th("50/50", " num")}${th("Parejo", " num")}${th("Puntos", " num")}` +
-      sp.map(r => `<div class="nm">${r.nm}<small>${r.k} · ${r.side} · ${r.pt} pt</small></div><div class="num">${m(r.mitad)}</div><div class="num">${m(r.parejo)}</div><div class="num">${m(r.puntos)}</div>`).join("") + `</div><div style="font-size:11.5px;color:var(--muted);margin:6px 2px 0">El equipo elige cómo repartir; si no se ponen de acuerdo, 50/50 piso y cocina.</div>` : "");
+      sp.map(r => `<div class="nm">${r.nm}<small>${r.k} · ${r.side} · ${r.pt} pt</small></div><div class="num">${m(r.mitad)}</div><div class="num">${m(r.parejo)}</div><div class="num">${m(r.puntos)}</div>`).join("") +
+      `<div class="nm">Fondo del equipo<small>lugares de los nuestros sin cubrir · se reparte al mes</small></div><div class="num${ST.fondo.mitad ? "" : " zero"}">${m(ST.fondo.mitad)}</div><div class="num${ST.fondo.parejo ? "" : " zero"}">${m(ST.fondo.parejo)}</div><div class="num${ST.fondo.puntos ? "" : " zero"}">${m(ST.fondo.puntos)}</div>` +
+      `</div><div style="font-size:11.5px;color:var(--muted);margin:6px 2px 0">La parte de cada quien es la misma trabaje el equipo completo o no (3 de piso, 5 de cocina). Si faltan de los nuestros, sus partes van al fondo del equipo, no a la casa ni a quien sí vino. El equipo elige la regla; si no hay acuerdo, 50/50.</div>` : "");
   $("st_alert").innerHTML = !ST.fee ? `<div class="warn">Sin alimentos y bebidas no hay fee de servicio.</div>` : ST.opGap < -0.15 * ST.wIn ? `<div class="alert">Hay más internos de los que cubre la operación (faltante ${m(-ST.opGap)}). Revisa cuántos de los nuestros hacen falta.</div>` : `<div class="ok">La operación cubre el tiempo extra de nuestro equipo; los externos (${m(ST.wEx)}) salen del margen.</div>`;
   const gv = id => String($(id).value || "").trim();
   $("st_req").textContent = [
@@ -477,7 +484,7 @@ function renderST(ST, S) {
     `Estacionamiento ${ST.est}${ST.adj ? ` · Ajuste ${ST.adj > 0 ? "+" : ""}${ST.adj}` : ""}`,
     ``, `PAGA`,
     `Nuestro equipo: tiempo extra por nómina (doble, o lo que marque la ley), ${ST.H} h.`,
-    ST.fee ? `Más el fee de servicio completo, ${m(ST.fee)}, solo para nuestro equipo (${ST.nIn} personas). El equipo elige el reparto: 50/50, parejo o por puntos.` : `Más el fee de servicio (se publica con el consumo del evento).`,
+    ST.fee ? `Más el fee de servicio completo, ${m(ST.fee)}, solo para nuestro equipo (${ST.nIn} personas). Tu parte es la misma trabaje o no el equipo completo; lo de los lugares sin cubrir va al fondo del equipo.` : `Más el fee de servicio (se publica con el consumo del evento).`,
     `Externos: ${m(R.tarifa)} por hora, los paga la casa. Sin fee, sin transporte. Solo Jess o Michael contratan.`,
     ``, `PARA ANOTARTE`,
     `Piso con Jess · Cocina con Lalo. Si hay más interesados que lugares: rotación. Lugares sin cubrir cinco días antes se cubren con externos.`,
