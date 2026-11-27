@@ -237,7 +237,7 @@
           <div class="f"><label>Ajuste (±)</label><input id="st_adj" type="number" inputmode="numeric" value="0"><div class="hint">Sobre la fórmula</div></div>
         </div>
         <div class="row2">
-          <div class="f"><label>Piso internos</label><input id="st_inp" type="number" inputmode="numeric" min="0" value="3"></div>
+          <div class="f"><label>Piso internos</label><input id="st_inp" type="number" inputmode="numeric" min="0" value="7"></div>
           <div class="f"><label>Cocina internos</label><input id="st_inc" type="number" inputmode="numeric" min="0" value="5"></div>
         </div>
         <div class="sw"><span>Colchón de cocina +1</span><label class="tog"><input type="checkbox" id="st_cc"><i></i></label></div>
@@ -318,9 +318,9 @@ const R = {
   interno: 119,                             // nuestro equipo en tiempo doble, promedio por persona por hora (8 personas ≈ $950/h)
   meseros: { formal: 12, casual: 15, compartida: 15, parrillada: 20, coctel: 25 }, meserosMin: 2,
   puntos: { lider: 1.5, mesero: 1, bar: 1, chef: 1.5, cocinero: 1, lavaloza: 0.7 },
-  // Shares are fixed by the full crew (3 piso: capitán + 2 meseros; 5 cocina: chef + 3 cocineros + lavaloza), so pay per person
-  // doesn't swing with who shows up. Shares of empty spots go to the monthly fondo del equipo, never to the house.
-  equipo: { piso: 3, cocina: 5, puntos: 8.7 },
+  // Our roster available for events. Shares are fixed by the spots our people can fill (min(plantilla, roster) per side),
+  // so pay per person doesn't swing with who shows up. Shares of spots we leave empty go to the monthly fondo del equipo.
+  equipo: { piso: 7, chef: 1, cocineros: 3, lavaloza: 1 },   // piso: Jess, Fer y meseros; cocina: Lalo, 3 cocineros, Ana
   barDesde: 40, barCada: 120, liderDesde: 50, lider2Desde: 150,
   cocineros: [[30, 3], [100, 4], [200, 5], [300, 6], [9999, 7]], cocinaConfirmadoHasta: 100,   // según Lalo hasta 100
   lavaloza: [[100, 1], [200, 2], [9999, 3]], estacionamiento: [[80, 1], [9999, 2]],
@@ -431,14 +431,17 @@ function calcST(F, S) {
   const PT = R.puntos, iChef = Math.min(1, iCoc), iCocR = iCoc - iChef;
   const roles = [["Jefe o Capitán", "piso", iLid, PT.lider], ["Mesero", "piso", iMes, PT.mesero], ["Bar", "piso", iBar, PT.bar],
                  ["Chef", "cocina", iChef, PT.chef], ["Cocinero", "cocina", iCocR, PT.cocinero], ["Lavaloza", "cocina", iLav, PT.lavaloza]].filter(r => r[2] > 0);
-  const EQ = R.equipo, nEq = EQ.piso + EQ.cocina;
+  const E = R.equipo, Lp = Math.max(inP, Math.min(piso, E.piso));   // spots our people can fill
+  const lLid = Math.min(lider, Lp), lChef = Math.min(coc, E.chef), lCoc = Math.min(Math.max(0, coc - lChef), E.cocineros), lLav = Math.min(lav, E.lavaloza);
+  const Lc = Math.max(inC, lChef + lCoc + lLav);
+  const ptsL = lLid * PT.lider + (Lp - lLid) * PT.mesero + lChef * PT.chef + lCoc * PT.cocinero + lLav * PT.lavaloza;
   const split = roles.map(([nm, side, k, pt]) => ({ nm, side, k, pt,
-    mitad: fee / 2 / (side === "piso" ? EQ.piso : EQ.cocina), parejo: fee / nEq, puntos: fee * pt / EQ.puntos }));
+    mitad: fee / 2 / (side === "piso" ? Lp : Lc), parejo: fee / (Lp + Lc), puntos: ptsL ? fee * pt / ptsL : 0 }));
   const fondo = { mitad: fee, parejo: fee, puntos: fee };
   split.forEach(r => { for (const o in fondo) fondo[o] -= r[o] * r.k; });
   for (const o in fondo) fondo[o] = Math.max(0, fondo[o]);
   return { on, fmt, H, hrsEv, setup, adj, meseros, bar, lider, coc, lav, est, piso, cocina, slots,
-    inP, inC, nIn, iLid, iMes, iBar, iCoc, iLav, exP, exC, exE, wIn, wExP, wExC, wExE, wEx, cost, opCharge, opGap, fee, split, fondo, pax };
+    inP, inC, nIn, iLid, iMes, iBar, iCoc, iLav, exP, exC, exE, wIn, wExP, wExC, wExE, wEx, cost, opCharge, opGap, fee, split, fondo, Lp, Lc, pax };
 }
 const FMTN = { formal: "cena servida · emplatada", casual: "cena servida · casual", compartida: "mesa compartida", parrillada: "parrillada", coctel: "cóctel" };
 function renderST(ST, S) {
@@ -463,7 +466,7 @@ function renderST(ST, S) {
   $("st_cost").innerHTML = ln("Lo que paga el cliente por nuestro equipo", "", "sec2") +
     ln(`Operación fuera de horario · ${ST.hrsEv} h × ${m(P.operacion)}<span class="d">en la línea del espacio; el cliente la ve como "Espacio y operación del evento privado"</span>`, m(ST.opCharge)) +
     ln(`Tiempo doble de nuestro equipo · ${ST.nIn} × ${ST.H} h × ${m(R.interno)}`, `(${m(ST.wIn)})`, "sub") +
-    ln(`Diferencia<span class="d">tarifa fija por hora: en eventos cortos queda un poco abajo, en largos un poco arriba</span>`, m(ST.opGap), (ST.opGap < -0.15 * ST.wIn) ? "red" : "sub") +
+    ln(`Diferencia<span class="d">tarifa fija por hora; cada interno en lugar de un externo le ahorra a la casa la diferencia contra $150/h</span>`, m(ST.opGap), "sub") +
     ln("Lo que paga la casa (del margen)", "", "sec2") +
     ln(`Externos · ${ST.exP + ST.exC + ST.exE} × ${ST.H} h × ${m(R.tarifa)}<span class="d">${ST.exP} piso · ${ST.exC} cocina${ST.exE ? ` · ${ST.exE} apoyo` : ""}; tarifa de mercado, sin bono</span>`, m(ST.wEx), ST.wEx ? "tot" : "sub");
   $("st_sum").textContent = `${ST.slots} personas · externos ${m(ST.wEx)} de la casa`;
@@ -472,8 +475,8 @@ function renderST(ST, S) {
   $("st_split").innerHTML = (ST.fee && sp.length ? `<div class="stg fee3" style="margin-top:8px">${th("Por persona")}${th("50/50", " num")}${th("Parejo", " num")}${th("Puntos", " num")}` +
       sp.map(r => `<div class="nm">${r.nm}<small>${r.k} · ${r.side} · ${r.pt} pt</small></div><div class="num">${m(r.mitad)}</div><div class="num">${m(r.parejo)}</div><div class="num">${m(r.puntos)}</div>`).join("") +
       `<div class="nm">Fondo del equipo<small>lugares de los nuestros sin cubrir · se reparte al mes</small></div><div class="num${ST.fondo.mitad ? "" : " zero"}">${m(ST.fondo.mitad)}</div><div class="num${ST.fondo.parejo ? "" : " zero"}">${m(ST.fondo.parejo)}</div><div class="num${ST.fondo.puntos ? "" : " zero"}">${m(ST.fondo.puntos)}</div>` +
-      `</div><div style="font-size:11.5px;color:var(--muted);margin:6px 2px 0">La parte de cada quien es la misma trabaje el equipo completo o no (3 de piso, 5 de cocina). Si faltan de los nuestros, sus partes van al fondo del equipo, no a la casa ni a quien sí vino. El equipo elige la regla; si no hay acuerdo, 50/50.</div>` : "");
-  $("st_alert").innerHTML = !ST.fee ? `<div class="warn">Sin alimentos y bebidas no hay fee de servicio.</div>` : ST.opGap < -0.15 * ST.wIn ? `<div class="alert">Hay más internos de los que cubre la operación (faltante ${m(-ST.opGap)}). Revisa cuántos de los nuestros hacen falta.</div>` : `<div class="ok">La operación cubre el tiempo extra de nuestro equipo; los externos (${m(ST.wEx)}) salen del margen.</div>`;
+      `</div><div style="font-size:11.5px;color:var(--muted);margin:6px 2px 0">La parte de cada quien se calcula con los lugares que podemos cubrir los nuestros (${ST.Lp} de piso, ${ST.Lc} de cocina), venga quien venga. Si faltan de los nuestros, sus partes van al fondo del equipo, no a la casa ni a quien sí vino. El equipo elige la regla; si no hay acuerdo, 50/50.</div>` : "");
+  $("st_alert").innerHTML = !ST.fee ? `<div class="warn">Sin alimentos y bebidas no hay fee de servicio.</div>` : `<div class="ok">Los externos (${m(ST.wEx)}) salen del margen; el 15 % es completo para nuestro equipo.</div>`;
   const gv = id => String($(id).value || "").trim();
   $("st_req").textContent = [
     `REQUISICIÓN DE PERSONAL · ${(gv("cv_evento") || gv("cv_cliente") || "EVENTO").toUpperCase()}`,
