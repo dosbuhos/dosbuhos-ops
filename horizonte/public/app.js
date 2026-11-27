@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 74;
+const BUILD = 75;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -375,6 +375,12 @@ function meetingHTML(t, opts = {}) {
 // Subtasks: t.subs = [{ id, t, done }], one checklist inside a task. The block shows "2/6"; tall blocks on the hour grid list them.
 const subsOf = (t) => Array.isArray(t.subs) ? t.subs : [];
 const subCount = (t) => { const l = subsOf(t); return l.length ? `${l.filter(x => x.done).length}/${l.length}` : ''; };
+// The subtask lines a grid block has room for (16 px each under the title); when they do not all fit, the last line says how many more.
+function subList(t, ht = 0) {
+  const l = subsOf(t), cap = Math.floor((ht - 30) / 16); if (cap < 1) return '';
+  const shown = l.length > cap ? l.slice(0, cap - 1) : l, more = l.length - shown.length;
+  return `<div class="subl" aria-hidden="true">${shown.map(x => `<i class="${x.done ? 'd' : ''}">${x.done ? '✓' : '○'} ${esc(x.t)}</i>`).join('')}${more ? `<i class="more">+${more} more</i>` : ''}</div>`;
+}
 function setSubs(id, fn) { const t = S.tasks.get(id); if (!t) return; put('task', id, { subs: fn(subsOf(t).map(x => ({ ...x }))) }); render(); taskSheet(id); }
 function cardHTML(t, opts = {}) {
   if (t.kind === 'meeting') return meetingHTML(t, opts);
@@ -388,7 +394,7 @@ function cardHTML(t, opts = {}) {
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}${taskTags(t).length > 2 ? `<span class="more">+${taskTags(t).length - 2}</span>` : ''}</span>` : ''}</div>
-${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${subCount(t) ? `<span class="subc" title="Subtasks done">${subCount(t)}</span>` : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.style && subsOf(t).length ? `<div class="subl" aria-hidden="true">${subsOf(t).map(x => `<i class="${x.done ? 'd' : ''}">${x.done ? '✓' : '○'} ${esc(x.t)}</i>`).join('')}</div>` : ''}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
+${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${subCount(t) ? `<span class="subc" title="Subtasks done">${subCount(t)}</span>` : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.style && subsOf(t).length ? subList(t, opts.ht) : ''}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -653,7 +659,7 @@ function gridHTML(k, hpx, h0, h1, opts = {}) {
     const lanes = layoutLanes(timed), edge = opts.edge ?? 6;
     const cards = timed.map(t => { const top = (toMin(t.at) / 60 - h0) * hpx + 1, ht = Math.max(24, (t.dur || 30) / 60 * hpx - 2), L = lanes.get(t.id);
       const style = `top:${top}px;height:${ht}px;left:calc(${edge}px + (100% - ${2 * edge}px) * ${L.i / L.n});right:auto;width:calc((100% - ${2 * edge}px) / ${L.n} - ${L.n > 1 ? 4 : 0}px)`;
-      return cardHTML(t, { style, mobile: opts.mobile, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}${ht >= 80 ? ' tall' : ''}`).replace('data-tid=', `title="${esc(t.title)}" data-tid=`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
+      return cardHTML(t, { style, ht, mobile: opts.mobile, meta: `${clock(t.at)} – ${clock(fromMin(toMin(t.at) + (t.dur || 30)))}` }).replace('class="card', `class="card${ht < 34 ? ' short' : ''}${ht >= 80 ? ' tall' : ''}`).replace('data-tid=', `title="${esc(t.title)}" data-tid=`).replace(/<\/div>$/, '<div class="resize" data-resize="1"></div></div>'); }).join('');
     let now = ''; if (k === todayK()) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= h0 * 60 && m <= h1 * 60) now = `<div class="nowline" data-h0="${h0}" data-hpx="${hpx}" style="top:${(m / 60 - h0) * hpx}px"><span>Now ${clock(fromMin(m))}</span></div>`; }
     // a block being created (click or drag on empty space), with its quick-create popover
     let add = ''; const D = opts.mobile ? null : S.ui.draft;

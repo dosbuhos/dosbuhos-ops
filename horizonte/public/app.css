@@ -80,14 +80,14 @@ svg { flex: none; }
 .card.done .t { text-decoration: line-through; }
 .card.sched { opacity: 0.7; }
 .card.dragging { opacity: 0.35; }
-.card .ck { display: flex; flex: none; padding: 0; margin: 0; position: relative; width: 18px; height: 18px; margin-top: 1px; cursor: pointer; }
-.card input[type=checkbox] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.card .box { width: 18px; height: 18px; border: 1.5px solid var(--line-3); border-radius: 6px; background: var(--card); display: flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s, transform .15s; }
-.card .box svg { width: 12px; height: 12px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 12; stroke-dashoffset: 12; transition: stroke-dashoffset .18s ease-out .05s; }
-.card .ck:hover .box { border-color: var(--ink-2); }
-.card input:checked + .box { background: var(--ink); border-color: var(--ink); }
-.card input:checked + .box svg { stroke-dashoffset: 0; }
-.card input:focus-visible + .box { outline: 2px solid var(--blue); outline-offset: 2px; }
+.card .ck, .subrow .ck { display: flex; flex: none; padding: 0; margin: 0; position: relative; width: 18px; height: 18px; margin-top: 1px; cursor: pointer; }
+.card input[type=checkbox], .subrow input[type=checkbox] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.card .box, .subrow .box { width: 18px; height: 18px; border: 1.5px solid var(--line-3); border-radius: 6px; background: var(--card); display: flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s, transform .15s; }
+.card .box svg, .subrow .box svg { width: 12px; height: 12px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 12; stroke-dashoffset: 12; transition: stroke-dashoffset .18s ease-out .05s; }
+.card .ck:hover .box, .subrow .ck:hover .box { border-color: var(--ink-2); }
+.card input:checked + .box, .subrow input:checked + .box { background: var(--ink); border-color: var(--ink); }
+.card input:checked + .box svg, .subrow input:checked + .box svg { stroke-dashoffset: 0; }
+.card input:focus-visible + .box, .subrow input:focus-visible + .box { outline: 2px solid var(--blue); outline-offset: 2px; }
 .card.target .box { border-color: var(--sun); }
 .card.target input:checked + .box { background: var(--sun); border-color: var(--sun); }
 .card .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
@@ -750,3 +750,5 @@ body.resizing { cursor: col-resize; user-select: none; } body.resizing .tl, body
 .grid .card.tall .subl i { display: block; font-style: normal; font-size: 11px; line-height: 16px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grid .card.tall .subl i.d { color: var(--ink-3); text-decoration: line-through; }
 .grid .card .subc { align-self: flex-start; margin-top: 2px; }
+.sheet .subrow .ck { margin: 0 2px 0 0; }
+.grid .card.tall .subl i.more { color: var(--ink-3); }
