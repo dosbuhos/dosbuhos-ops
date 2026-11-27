@@ -29,7 +29,7 @@ function showEnter(step = 'pass', ctx = {}) {
        ${pw('en-pass', 'Contraseña', 'current-password')}`;
   APP.innerHTML = `<div class="enter">
     <img class="logo" src="/logo-word.png" alt="Dos Búhos" width="183" height="40">
-    <h1 class="ebrand"><img src="/icon.svg?v=46" alt="" width="40" height="40">Esmero</h1>
+    <h1 class="ebrand"><img src="/icon.svg?v=47" alt="" width="40" height="40">Esmero</h1>
     <form id="en-form" novalidate>${body}
       <p class="err hidden" id="en-err" role="alert"></p>
       <button class="b block lg" type="submit" id="en-go">${step === 'new' ? 'Guardar y entrar' : 'Entrar'}</button>
@@ -441,9 +441,12 @@ async function statusSheet(t, after) {
   patchTask(t, data, label, after, { status: t.status, wait_reason: t.wait_reason });
 }
 async function editSheet(t, after) {
+  const files = [];
   const res = await sheet({
     title: 'Editar',
-    body: `<div class="pad">${fInput('ed-title', '¿Qué pasa?', { value: t.title, max: 200 })}${fText('ed-desc', 'Detalles', { value: t.description, optional: true, rows: 4 })}<p class="err hidden" id="ed-err" role="alert"></p></div>`,
+    body: `<div class="pad">${fInput('ed-title', '¿Qué pasa?', { value: t.title, max: 200 })}${fText('ed-desc', 'Detalles', { value: t.description, optional: true, rows: 4 })}
+      ${t.id > 0 ? `<div class="field"><span class="flabel">Agregar fotos ${optTxt}</span>${pickerHtml('ed-pick', { label: 'Tomar foto' })}</div>` : ''}<p class="err hidden" id="ed-err" role="alert"></p></div>`,
+    onOpen: (w) => { if (t.id > 0) bindPicker(w, 'ed-pick', files); },
     acts: [{ label: 'Cancelar', cls: 'plain', value: null }, {
       label: 'Guardar',
       value: (w) => {
@@ -453,7 +456,14 @@ async function editSheet(t, after) {
       },
     }],
   });
-  if (res) patchTask(t, res, 'Guardado', after);
+  if (!res) return;
+  // only send the text when it changed, so adding a photo alone doesn't log an edit
+  const changed = res.title !== t.title || res.description !== (t.description || '').trim();
+  if (!files.length) { if (changed) patchTask(t, res, 'Guardado', after); return; }
+  if (changed) await patchTask(t, res, 'Guardado', () => {});
+  const ok = await uploadAll(`/tasks/${t.id}/photos`, files);
+  if (ok) toast(ok === 1 ? 'Foto guardada' : `${ok} fotos guardadas`);
+  after();
 }
 
 // ---------- one pendiente ----------
@@ -503,7 +513,7 @@ async function viewTask(id, keep = false) {
       : `<li class="note" data-note="${nt.id}">${avatar(nt.user_name || '?')}<div class="nb"><p class="nh"><b>${esc(nt.user_name || 'Alguien')}</b> <span class="tt">${esc(fmtDateTime(nt.created_at))}</span>
           ${!nt.pending && (isAdmin() || nt.user_id === S.user.id) ? `<button class="linkbtn del" data-delnote="${nt.id}">Borrar</button>` : ''}</p><p class="nt">${esc(nt.body)}</p></div></li>`).join('')}</ul>
     <div class="composer"><label class="sr" for="d-note">Escribe una nota</label><textarea class="input" id="d-note" rows="1" placeholder="Escribe una nota" maxlength="4000"></textarea>
-      <button class="ib send" id="d-send" aria-label="Guardar nota" disabled>${ic('send')}</button></div>
+      ${t.id > 0 ? `<label class="ib cam" for="d-file" role="button" tabindex="0" aria-label="Agregar foto">${ic('camera')}</label>` : ''}<button class="ib send" id="d-send" aria-label="Guardar nota" disabled>${ic('send')}</button></div>
   </div>`, {
     keepScroll: keep,
     bar: open
@@ -520,6 +530,8 @@ async function viewTask(id, keep = false) {
   if (ro) ro.onclick = () => patchTask(t, { status: 'pendiente' }, 'Abierto otra vez', reload, { status: t.status });
   bindSteps(APP, t);
   bindPhotoGrid(APP, 'd-file', `/tasks/${id}/photos`, reload);
+  const cam = $('.composer .cam', APP);
+  if (cam) cam.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#d-file').click(); } };
   const note = $('#d-note');
   const send = $('#d-send');
   note.oninput = () => {
@@ -538,7 +550,7 @@ async function viewTask(id, keep = false) {
     later('Nota borrada', () => api('DELETE', '/notes/' + b.dataset.delnote), { hide: () => li.classList.add('hidden'), undo: () => li.classList.remove('hidden') });
   }));
   $('[data-menu]').onclick = async () => {
-    const opts = [{ value: 'edit', label: 'Editar título y detalles', icon: 'edit' }, { value: 'share', label: 'Compartir por WhatsApp', icon: 'wa' }];
+    const opts = [{ value: 'edit', label: 'Editar', sub: 'Título, detalles y fotos', icon: 'edit' }, { value: 'share', label: 'Compartir por WhatsApp', icon: 'wa' }];
     if (open) opts.push({ value: 'na', label: 'No aplica', sub: 'Repetido, no era falla o ya no se necesita', icon: 'x' });
     if (isAdmin()) opts.push({ value: 'delete', label: 'Eliminar', sub: 'Se borran sus fotos y notas', icon: 'trash', cls: 'danger' });
     const v = await sheet({ title: `Pendiente #${t.id}`, opts });

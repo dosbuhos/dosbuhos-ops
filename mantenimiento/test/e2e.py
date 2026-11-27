@@ -136,8 +136,11 @@ with sync_playwright() as p:
     pg.fill('#d-note', 'Ya pedí la canaleta nueva a la ferretería.'); pg.click('#d-send')
     expect(pg.locator('.timeline .note .nt')).to_have_text('Ya pedí la canaleta nueva a la ferretería.')
     step('priority, area, status, cost and a note, each in one or two taps')
-    pg.click('[data-menu]'); pg.click('.sheet .opt:has-text("Editar")'); pg.fill('#ed-title', 'Se cayó la canaleta de la entrada principal'); pg.click('.sheet [data-act="1"]')
+    pg.click('[data-menu]'); pg.click('.sheet .opt:has-text("Editar")'); pg.fill('#ed-title', 'Se cayó la canaleta de la entrada principal')
+    pg.set_input_files('#ed-pick-gal', JPG_PATH); expect(pg.locator('.sheet [data-local] .ph')).to_have_count(1); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.hero h2')).to_have_text('Se cayó la canaleta de la entrada principal')
+    expect(pg.locator('#d-photos .ph[data-photo]')).to_have_count(2, timeout=15000)   # the edit sheet adds photos too
+    expect(pg.locator('.composer label.cam[for="d-file"]')).to_be_visible()           # and so does the camera by the note box
     cj = ctx(SIDS[2]); pj = cj.new_page(); pj.goto(BASE + f'/#/p/{tid}'); pj.click('[data-menu]')
     assert pj.locator('.sheet .opt:has-text("Eliminar")').count() == 0     # Jaime is not an admin
     code = lambda method, path, body=None: pj.evaluate("([m, p, b]) => fetch('/api' + p, { method: m, headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }).then((r) => r.status)", [method, path, body])
@@ -145,15 +148,15 @@ with sync_playwright() as p:
     assert code('POST', '/areas', {'name': 'X'}) == 403 and code('PATCH', '/settings', {'signup_open': False}) == 403
     assert code('DELETE', '/equipment/1') == 403 and code('DELETE', '/providers/1') == 403
     cj.close()
-    step('edit the title; no delete for non-admins, in the screen or through the API')
+    step('edit the title and add a photo; no delete for non-admins, in the screen or through the API')
 
     # ---------- 4. done, with photo, then reopen ----------
     pg.click('[data-finish]'); expect(pg.locator('.sheet h2')).to_have_text('Marcar hecho')
     pg.click('.sheet .qchip:has-text("Se cambió la pieza")'); pg.set_input_files('#dn-pick-gal', JPG_PATH); pg.click('.sheet [data-act="1"]')
     expect(pg.locator('.cell:has-text("Estado") .pill')).to_have_text('Hecho', timeout=15000)
-    expect(pg.locator('#d-photos .ph[data-photo]')).to_have_count(2)
+    expect(pg.locator('#d-photos .ph[data-photo]')).to_have_count(3)
     assert pg.locator('#d-photos .pstrip .ph.big').first.bounding_box()['width'] > 250 and pg.locator('#d-photos').bounding_box()['y'] < pg.locator('.hero h2').bounding_box()['y']   # the photo is large and comes first
-    expect(pg.locator('#d-photos .pcount')).to_have_text('1 / 2'); pg.evaluate("document.querySelector('#d-photos .pstrip').scrollLeft = 9999"); expect(pg.locator('#d-photos .pcount')).to_have_text('2 / 2')
+    expect(pg.locator('#d-photos .pcount')).to_have_text('1 / 3'); pg.evaluate("document.querySelector('#d-photos .pstrip').scrollLeft = 9999"); expect(pg.locator('#d-photos .pcount')).to_have_text('3 / 3')
     expect(pg.locator('.timeline .note .nt').last).to_have_text('Se cambió la pieza')
     pg.click('[data-reopen]'); expect(pg.locator('.cell:has-text("Estado") .pill')).to_have_text('Por hacer')
     step('mark done with a note and a photo; reopen')
@@ -278,7 +281,8 @@ with sync_playwright() as p:
     step('"Otro lugar": a written place instead of an area; it shows on the card and the pendiente, can be rewritten, and gives way to an area')
     # the month: a calendar with a bar per pendiente, then the days that have something; a day opens in Día
     today = dt.date.today(); ym = today.strftime('%Y-%m'); MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-    pg.goto(BASE + '/#/'); pg.wait_for_timeout(500); h0 = pg.evaluate('history.length'); pg.click('.mbar a:has-text("Mes")'); expect(tab(pg)).to_have_text('Mes'); assert pg.evaluate('history.length') == h0
+    pg.goto(BASE + '/#/'); pg.wait_for_timeout(500); pg.evaluate('P.day = todayStr(); P.follow = true')   # an earlier step left the calendar on a day next week, which near a month's end is next month
+    h0 = pg.evaluate('history.length'); pg.click('.mbar a:has-text("Mes")'); expect(tab(pg)).to_have_text('Mes'); assert pg.evaluate('history.length') == h0
     expect(head(pg)).to_have_text('%s %d' % (MES[today.month - 1], today.year)); expect(pg.locator('.mcell.today .dn')).to_have_text(str(today.day))
     import calendar; assert pg.locator('.mcell:not(.out)').count() == calendar.monthrange(today.year, today.month)[1]
     assert pg.locator('.mcell.today .bars i').count() >= 1; expect(pg.locator('.mday').first.locator('.tpill')).to_have_text('Hoy')
