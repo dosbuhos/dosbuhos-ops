@@ -36,6 +36,9 @@ Overdue means open tasks whose day or period has passed; meetings that passed ar
 ## Desktop No set time fold (v73)
 In desktop Hours, "No set time" folds for every day at once (folded by default, remembered per device), like the phone's unscheduled row: the row reads "No set time · 3 + 1 done ▸", a + adds to that day without opening it, and drops still land on the day.
 
+## Subtasks (v74)
+A task can hold a checklist (`subs: [{ id, t, done }]`, one synced field). In the task sheet the Subtasks section sits under the Task/Meeting switch: type and Enter to add (focus stays for the next), tick, edit in place (empty removes), ✕ to remove. Cards show "2/6"; tall blocks on the hour grid list the items. The assistant tools read and write them as `subtasks`. Checking every subtask does not close the task.
+
 ## Releases
 The server refuses `/api/sync` from builds older than `MIN_CLIENT` in src/worker.js (65: the last builds with reflow), answering 426; current builds send `v: BUILD` and reload on 426. Raise both when an old build must stop writing.
 Every change bumps the version in three places (plus `BUILD` in app.js): `?v=` in index.html, `V` and the `SHELL` URLs in sw.js. The app re-checks the worker whenever it comes to the front and reloads itself when a new one takes control (v64), so a phone left on an old build catches up on its own.

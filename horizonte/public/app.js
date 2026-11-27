@@ -128,7 +128,7 @@ function tick() { const n = Date.now(); if (n > lastMs) { lastMs = n; ctr = 0; }
 
 // The build number this page runs. The server refuses sync from builds older than its minimum (MIN_CLIENT in worker.js),
 // so a tab left open on an old version cannot keep writing; this page reloads when told to.
-const BUILD = 73;
+const BUILD = 74;
 // IndexedDB: 'rec' holds records (key "kind:id"), 'meta' holds the outbox and the sync cursor.
 let idb;
 function openDB() {
@@ -372,6 +372,10 @@ function meetingHTML(t, opts = {}) {
 <span class="lk">${I.people(opts.mobile ? 17 : 15)}</span>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || 'Untitled meeting'}</span></div><span class="meta">${esc(meta)}</span></div>`;
 }
+// Subtasks: t.subs = [{ id, t, done }], one checklist inside a task. The block shows "2/6"; tall blocks on the hour grid list them.
+const subsOf = (t) => Array.isArray(t.subs) ? t.subs : [];
+const subCount = (t) => { const l = subsOf(t); return l.length ? `${l.filter(x => x.done).length}/${l.length}` : ''; };
+function setSubs(id, fn) { const t = S.tasks.get(id); if (!t) return; put('task', id, { subs: fn(subsOf(t).map(x => ({ ...x }))) }); render(); taskSheet(id); }
 function cardHTML(t, opts = {}) {
   if (t.kind === 'meeting') return meetingHTML(t, opts);
   const pri = t.pri || 'normal', done = t.status === 'done';
@@ -384,7 +388,7 @@ function cardHTML(t, opts = {}) {
   return `<div class="${cls}" data-tid="${t.id}" style="${hl ? `--mt:${colorHex(t.color)};` : ''}${opts.style || ''}">
 <label class="ck"><input type="checkbox" ${done ? 'checked' : ''} aria-label="Done: ${esc(t.title)}" data-act="done"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label>
 <div class="body" data-act="open"><span class="t">${esc(t.title) || '<span class="muted">Untitled</span>'}</span>${stuck}${!opts.style && taskTags(t).length ? `<span class="tags">${taskTags(t).map(x => tagChip(x)).join('')}${taskTags(t).length > 2 ? `<span class="more">+${taskTags(t).length - 2}</span>` : ''}</span>` : ''}</div>
-${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
+${t.emoji && !done ? `<span class="emo">${esc(t.emoji)}</span>` : ''}${pri === 'target' && !done ? I.star(opts.mobile ? 15 : 13) : ''}${subCount(t) ? `<span class="subc" title="Subtasks done">${subCount(t)}</span>` : ''}${meta ? `<span class="meta">${esc(meta)}</span>` : ''}${live_}${opts.style && subsOf(t).length ? `<div class="subl" aria-hidden="true">${subsOf(t).map(x => `<i class="${x.done ? 'd' : ''}">${x.done ? '✓' : '○'} ${esc(x.t)}</i>`).join('')}</div>` : ''}${opts.late && !done && !opts.mobile ? `<button class="rollbtn" data-act="rollto" aria-label="Move to today">Today ${I.right}</button>` : ''}</div>`;
 }
 function loadText(k) { return `${fmtDur(dayLoad(k))} of ${fmtDur(workMin())}`; }
 function meterHTML(k) {
@@ -880,6 +884,9 @@ function taskSheet(id, view = 'main') {
   openSheet(`<div class="grab"></div>
 <div style="display:flex;flex-direction:column;gap:2px"><textarea class="ttl" rows="1" data-field="title" aria-label="Task name">${esc(t.title)}</textarea><div style="font-size:13px;color:var(--ink-2)">${esc(where)}</div></div>
 <div class="seg kindseg"><button data-act="kind" data-v="task" aria-pressed="${t.kind !== 'meeting'}">Task</button><button data-act="kind" data-v="meeting" aria-pressed="${t.kind === 'meeting'}">${I.people(15)}Meeting</button></div>
+${t.kind === 'meeting' && !subsOf(t).length ? '' : `<div class="grp subs"><div class="eyebrow grphead">Subtasks${subCount(t) ? `<span class="small">${subCount(t)} done</span>` : ''}</div>
+${subsOf(t).map((x, i) => `<div class="subrow${x.done ? ' done' : ''}"><label class="ck"><input type="checkbox" ${x.done ? 'checked' : ''} data-act="subtoggle" data-i="${i}" aria-label="Done: ${esc(x.t)}"><span class="box" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.5l2.3 2.3L9.6 3.8"/></svg></span></label><input class="subt" data-sub="${i}" value="${esc(x.t)}" aria-label="Subtask" autocomplete="off"><button class="subx" data-act="subdel" data-i="${i}" aria-label="Remove subtask">✕</button></div>`).join('')}
+<input id="subadd" class="subadd" placeholder="Add a subtask" autocomplete="off" enterkeyhint="done" aria-label="Add a subtask"></div>`}
 <div class="grp"><div class="eyebrow grphead">When${t.when ? `<button class="link" data-act="unschedule" title="Keep it on its board, with no date">Remove date</button>` : ''}</div><div class="when">${chips.map(([l, k]) => `<button data-act="when" data-k="${k}" aria-pressed="${t.when === k}">${l}</button>`).join('')}
 <button aria-pressed="${!!t.when && !chips.some(c => c[1] === t.when)}">Pick date<input class="overlay-input" type="date" data-act="pickdate" value="${kindOf(t.when) === 'day' ? t.when : ''}" aria-label="Pick a date"></button></div></div>
 <div class="grp"><div class="eyebrow">${t.kind === 'meeting' ? 'Time' : 'Time, optional'}</div><div class="row">
@@ -1240,6 +1247,8 @@ document.addEventListener('click', async (e) => {
     case 'pri': put('task', st.id, { pri: el.dataset.p }); render(); taskSheet(st.id); return;
     case 'color': put('task', st.id, { color: el.dataset.c }); render(); taskSheet(st.id); return;
     case 'emoji': put('task', st.id, { emoji: el.dataset.e }); render(); taskSheet(st.id); return;
+    case 'subtoggle': { const i = +el.dataset.i; setSubs(st.id, l => { if (l[i]) l[i].done = !l[i].done; return l; }); return; }
+    case 'subdel': { const i = +el.dataset.i; setSubs(st.id, l => l.filter((_, j) => j !== i)); return; }
     case 'kind': { const t = S.tasks.get(st.id); if (!t) return;
       if (el.dataset.v === 'meeting') { const f = { kind: 'meeting' };
         if (!t.at) { const n = new Date(); f.at = `${pad(Math.min(23, n.getHours() + 1))}:00`; }
@@ -1312,6 +1321,7 @@ document.addEventListener('change', (e) => {
   else if (el.dataset.act === 'rvpick' && el.value) { pushTask(el.closest('[data-tid]').dataset.tid, el.value); render(); reviewSheet(); }
   else if (el.dataset.pref) { S.prefs[el.dataset.pref] = el.value; put('pref', 'main', { [el.dataset.pref]: el.value }, { quiet: true }); render(); }
   else if (el.dataset.field) sheetField(el);
+  else if (el.dataset.sub != null && st?.id) { const i = +el.dataset.sub, v = el.value.trim(); setSubs(st.id, l => v ? l.map((x, j) => j === i ? { ...x, t: v } : x) : l.filter((_, j) => j !== i)); }
 });
 document.addEventListener('focusout', (e) => { if (e.target.dataset?.field) sheetField(e.target); });
 // Drag the divider between the lists panel and the timeline to resize the panel (persisted in ui.pw). Double-click resets.
@@ -1338,6 +1348,9 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault(); const v = el.value.trim(); if (!v) return;
     const n = addLines(v, { ...captureDest(), src: 'typed' }); el.value = ''; render(); $('#qa')?.focus(); if (n > 1) toast(`Added ${n} tasks`, true); return;
   }
+  if (el.id === 'subadd' && e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); if (!v || !sheetState?.id) return;
+    setSubs(sheetState.id, l => [...l, { id: rid('s'), t: v, done: false }]); $('#subadd')?.focus(); return; }
+  if (el.classList?.contains('subt') && e.key === 'Enter') { e.preventDefault(); el.blur(); return; }
   if (el.dataset?.addto) {
     if (e.key === 'Escape') { S.ui.adding = null; render(); return; }
     if (e.key === 'Enter') { e.preventDefault(); const v = el.value.trim(); const k = el.dataset.addto; if (v) addLines(v, { when: k }); el.value = ''; render(); $(`#ia-${CSS.escape(k)}`)?.focus(); return; }
