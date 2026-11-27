@@ -71,7 +71,7 @@
   .dock button.sec{background:none;color:#f6f2e7;border:1px solid rgba(246,242,231,.45)}
   .btns{display:flex;gap:8px}
   /* internal */
-  .stg{display:grid;grid-template-columns:1fr 54px 54px 68px;background:var(--paper);border:1px solid var(--line)}
+  .stg{display:grid;grid-template-columns:1fr 50px 66px 68px;background:var(--paper);border:1px solid var(--line)}
   .stg > div{padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px;display:flex;align-items:center;min-height:40px}
   .stg .nm{flex-direction:column;align-items:flex-start;justify-content:center;gap:1px}
   .stg .nm small{font-size:11.5px;color:var(--muted);font-weight:300;line-height:1.3}
@@ -81,6 +81,9 @@
   .stg .tt{background:#f1ebdd;font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;font-weight:600;color:var(--wine)}
   .stg .ext{color:var(--wine2)}
   .stg .zero{color:var(--muted)}
+  .stg.fee3{grid-template-columns:1fr 72px 72px 72px}
+  .ln.sec2 b{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .ln.sec2{border-bottom:0;padding-top:10px}
   .warn{background:#fbf3e3;border:1px solid #ead9b3;color:#7a5a1e;padding:12px 14px;font-size:13.5px;margin-top:12px;white-space:pre-line}
   pre.req{background:#fff;border:1px solid var(--line);padding:14px;font:inherit;font-size:13.5px;white-space:pre-wrap;line-height:1.5;color:var(--ink);margin-top:10px}
   .btnrow{display:flex;gap:8px;margin-top:8px}
@@ -225,10 +228,10 @@
 
 
     <details class="acc" id="st_acc" open>
-      <summary><span class="h">Personal del evento<small>Costo para la casa · no se cobra al cliente</small></span><span class="sum" id="st_sum"></span></summary>
-      <div class="note" style="padding-top:0">El cliente paga el 15 % de servicio y nada más por el equipo. Aquí se ve cuánta gente pide el evento, qué cuesta y si el fee alcanza para los externos y el bono.</div>
+      <summary><span class="h">Personal del evento<small>Plantilla, quién paga qué y reparto del fee</small></span><span class="sum" id="st_sum"></span></summary>
+      <div class="note" style="padding-top:0">Vista interna. En un evento privado el cliente paga la operación fuera de horario (el tiempo extra de nuestro equipo) dentro de la línea del espacio, y el 15 % de servicio. Los externos los paga la casa. El 15 % es completo para nuestra gente.</div>
       <div class="card intl">
-        <div class="f"><label>Formato de servicio</label><select id="st_fmt"><option value="auto">Automático según el menú</option><option value="formal">Cena servida · formal (1 mesero por 10)</option><option value="casual">Cena servida · casual (1 por 12)</option><option value="compartida">Mesa compartida (1 por 15)</option><option value="parrillada">Parrillada · buffet (1 por 20)</option><option value="coctel">Cóctel · barra y bocados (1 por 25)</option></select></div>
+        <div class="f"><label>Formato de servicio</label><select id="st_fmt"><option value="auto">Automático según el menú</option><option value="formal">Cena servida · emplatada (1 mesero por 12)</option><option value="casual">Cena servida · casual (1 por 15)</option><option value="compartida">Mesa compartida (1 por 15)</option><option value="parrillada">Parrillada · buffet (1 por 20)</option><option value="coctel">Cóctel · barra y bocados (1 por 25)</option></select></div>
         <div class="row2">
           <div class="f"><label>Montaje y cierre (h)</label><input id="st_setup" type="number" inputmode="numeric" min="0" value="2"></div>
           <div class="f"><label>Ajuste (±)</label><input id="st_adj" type="number" inputmode="numeric" value="0"><div class="hint">Sobre la fórmula</div></div>
@@ -237,17 +240,18 @@
           <div class="f"><label>Piso internos</label><input id="st_inp" type="number" inputmode="numeric" min="0" value="3"></div>
           <div class="f"><label>Cocina internos</label><input id="st_inc" type="number" inputmode="numeric" min="0" value="5"></div>
         </div>
-        <div class="sw"><span>Colchón de cocina +1</span><label class="tog"><input type="checkbox" id="st_cc" checked><i></i></label></div>
+        <div class="sw"><span>Colchón de cocina +1</span><label class="tog"><input type="checkbox" id="st_cc"><i></i></label></div>
         <div class="sw"><span>Colchón de piso +1</span><label class="tog"><input type="checkbox" id="st_cp"><i></i></label></div>
       </div>
       <div class="stg" id="st_grid" style="margin-top:10px"></div>
       <div id="st_warn"></div>
       <div class="lines intl" style="margin-top:12px" id="st_cost"></div>
       <div class="lines intl" style="margin-top:12px" id="st_fee"></div>
+      <div id="st_split"></div>
       <div id="st_alert"></div>
       <pre class="req" id="st_req"></pre>
       <div class="btnrow"><button class="sec" onclick="copyReq(this)">Copiar requisición</button><button onclick="waReq()">WhatsApp</button></div>
-      <div class="note" style="white-space:pre-line">Horas extra por nómina; bono por evento. La tarifa plana cubre el doble tiempo de toda la plantilla (máximo $144/h); si alguien ya lleva 9 h extra en la semana o trabaja en su día de descanso, aplica lo legal si es mayor.</div>
+      <div class="note" style="white-space:pre-line">Nuestro equipo: horas extra por nómina, se anotan por voluntad propia. Si alguien ya lleva 9 h extra en la semana o trabaja en su día de descanso, aplica lo legal (triple). Externos: $150/h, los paga la casa.</div>
     </details>
 
     <h2>Notas<small>Van en la propuesta</small></h2>
@@ -305,11 +309,15 @@ const P = {
   espacios: { bodega:{lj:136,vd:179,clj:95000,cvd:125000,std:7,est:50000,xlj:13500,xvd:18000},
               garden:{lj:75, vd:119,clj:60000,cvd:95000, std:8,est:80000,xlj:7500, xvd:12000} },
   minPax: 30, minHrs: 3, cortesiaMax: 20,
+  operacion: 1300,                              // evento privado fuera de horario: tiempo extra de nuestro equipo, por hora de evento
 };
-// Personal del evento: la plantilla sale de invitados + formato; se cobra al cliente aparte del espacio, a tarifa plana por hora.
+// Staffing: headcount comes from guests + format. The house pays externos at market rate (from margin, never from the fee);
+// our own crew's overtime is charged to the client as "operación" inside the space line. The 15% fee goes 100% to our people.
 const R = {
-  tarifa: 150,                              // por persona por hora, internos y externos
-  meseros: { formal: 10, casual: 12, compartida: 15, parrillada: 20, coctel: 25 }, meserosMin: 2,
+  tarifa: 150,                              // externo, por persona por hora (lo paga la casa)
+  interno: 119,                             // nuestro equipo en tiempo doble, promedio por persona por hora (8 personas ≈ $950/h)
+  meseros: { formal: 12, casual: 15, compartida: 15, parrillada: 20, coctel: 25 }, meserosMin: 2,
+  puntos: { lider: 1.5, mesero: 1, bar: 1, chef: 1.5, cocinero: 1, lavaloza: 0.7 },
   barDesde: 40, barCada: 120, liderDesde: 50, lider2Desde: 150,
   cocineros: [[30, 3], [100, 4], [200, 5], [300, 6], [9999, 7]], cocinaConfirmadoHasta: 100,   // según Lalo hasta 100
   lavaloza: [[100, 1], [200, 2], [9999, 3]], estacionamiento: [[80, 1], [9999, 2]],
@@ -374,13 +382,17 @@ function calcSP(fbpax) {
     else { space = g; basis = `$${rate} x ${bp} invitados x ${bh} h`; }
   }
   const est = (s && s !== "rest" && $("sp_estate").checked) ? r.est : 0;
-  const pct = Math.min(n("sp_desc"), 100), desc = (space + extra + est) * pct / 100, sub = space + extra + est - desc, iva = sub * P.iva, total = sub + iva;
+  const op = (pax && s && s !== "rest") ? P.operacion * Math.max(h, P.minHrs) : 0;   // our crew's overtime, never discounted
+  const pct = Math.min(n("sp_desc"), 100), desc = (space + extra + est) * pct / 100, sub = space + extra + est + op - desc, iva = sub * P.iva, total = sub + iva;
   const L = [["Renta del espacio", s === "rest" ? "Sin costo" : m(space)]];
+  if (op) L.push([`Operación fuera de horario · ${Math.max(h, P.minHrs)} h × ${m(P.operacion)}`, m(op)]);
   if (extra) L.push(["Horas adicionales", m(extra)]);
   if (est) L.push(["Hacienda completa en exclusiva", m(est)]);
   if (desc) L.push(["Cortesía de la casa", m(-desc)]);
   L.push(["Subtotal", m(sub), "sub"], ["IVA 16%", m(iva), "sub"]);
-  return { L, total, sub, basis, s, h, pax, est, desc, pct };
+  // client view: rent + operation fold into one line, no itemized overtime
+  const LC = [[op ? "Espacio y operación del evento privado" : "Renta del espacio", s === "rest" ? "Sin costo" : m(space + op)]].concat(L.slice(op ? 2 : 1));
+  return { L, LC, total, sub, op, basis, s, h, pax, est, desc, pct };
 }
 
 // ===================== PERSONAL =====================
@@ -392,7 +404,7 @@ function calcST(F, S) {
   const hrsEv = Math.max(S.h || 0, priv ? P.minHrs : 0), setup = n("st_setup"), H = hrsEv + setup, adj = Math.trunc(Number($("st_adj").value) || 0);
   const on = pax > 0 && priv;
   let meseros = on ? Math.max(R.meserosMin, Math.ceil(pax / R.meseros[fmt])) + ($("st_cp").checked ? 1 : 0) : 0;
-  const bar = on && pax >= R.barDesde ? Math.ceil(pax / R.barCada) : 0;
+  const bar = on && F.h && pax >= R.barDesde ? Math.ceil(pax / R.barCada) : 0;   // bartender only with open bar
   // Regla: ningún evento sin Jefe o Capitán de Dos Búhos (Jess o Fer). Siempre 1; 2 desde lider2Desde.
   // Abajo de liderDesde el capitán ocupa uno de los lugares de mesero, para no subir la plantilla.
   const lider = on ? (pax >= R.lider2Desde ? 2 : 1) : 0;
@@ -408,24 +420,30 @@ function calcST(F, S) {
   let ip = inP; const iLid = Math.min(lider, ip); ip -= iLid; const iMes = Math.min(meseros, ip); ip -= iMes; const iBar = Math.min(bar, ip);
   let ic = inC; const iCoc = Math.min(coc, ic); ic -= iCoc; const iLav = Math.min(lav, ic);
   const exP = piso - inP, exC = cocina - inC, exE = est + Math.max(0, adj);
-  const wIn = (inP + inC) * H * R.tarifa, wExP = exP * H * R.tarifa, wExC = exC * H * R.tarifa, wExE = exE * H * R.tarifa;
-  const cost = wIn + wExP + wExC + wExE;                          // sueldos de la noche, internos y externos
-  const fee = F.serv || 0, half = fee / 2, poolP = half - wExP, poolC = half - wExC;   // el fee paga primero a los externos de cada lado
-  const shortP = Math.max(0, -poolP), shortC = Math.max(0, -poolC);
-  const bonoP = inP ? Math.max(0, poolP) / inP : 0, bonoC = inC ? Math.max(0, poolC) / inC : 0;
-  const houseCost = wIn + wExE + shortP + shortC;                 // lo que sale de la casa: internos, apoyo y lo que el fee no cubre
+  const wIn = (inP + inC) * H * R.interno, wExP = exP * H * R.tarifa, wExC = exC * H * R.tarifa, wExE = exE * H * R.tarifa;
+  const wEx = wExP + wExC + wExE, cost = wIn + wEx;               // night's wages: our overtime + externos
+  const opCharge = S.op || 0, opGap = opCharge - wIn;             // what the client pays for our overtime vs what it costs
+  const fee = F.serv || 0, nIn = inP + inC;                       // the 15% goes whole to our people; externos are out of the pool
+  // three ways the team can split it (per person)
+  const PT = R.puntos, iChef = Math.min(1, iCoc), iCocR = iCoc - iChef;
+  const roles = [["Jefe o Capitán", "piso", iLid, PT.lider], ["Mesero", "piso", iMes, PT.mesero], ["Bar", "piso", iBar, PT.bar],
+                 ["Chef", "cocina", iChef, PT.chef], ["Cocinero", "cocina", iCocR, PT.cocinero], ["Lavaloza", "cocina", iLav, PT.lavaloza]].filter(r => r[2] > 0);
+  const pts = roles.reduce((a, r) => a + r[2] * r[3], 0);
+  const split = roles.map(([nm, side, k, pt]) => ({ nm, side, k, pt,
+    mitad: fee / 2 / (side === "piso" ? inP : inC), parejo: nIn ? fee / nIn : 0, puntos: pts ? fee * pt / pts : 0 }));
+  if (!inP || !inC) split.forEach(r => r.mitad = nIn ? fee / nIn : 0);   // one side empty: the other keeps all of it
   return { on, fmt, H, hrsEv, setup, adj, meseros, bar, lider, coc, lav, est, piso, cocina, slots,
-    inP, inC, iLid, iMes, iBar, iCoc, iLav, exP, exC, exE, wIn, wExP, wExC, wExE, cost, fee, half, poolP, poolC, shortP, shortC, bonoP, bonoC, houseCost, pax };
+    inP, inC, nIn, iLid, iMes, iBar, iCoc, iLav, exP, exC, exE, wIn, wExP, wExC, wExE, wEx, cost, opCharge, opGap, fee, split, pax };
 }
-const FMTN = { formal: "cena servida · formal", casual: "cena servida · casual", compartida: "mesa compartida", parrillada: "parrillada", coctel: "cóctel" };
+const FMTN = { formal: "cena servida · emplatada", casual: "cena servida · casual", compartida: "mesa compartida", parrillada: "parrillada", coctel: "cóctel" };
 function renderST(ST, S) {
   const g = $("st_grid"); g.innerHTML = "";
   const z = v => v ? "" : " zero";
   const row = (nm, sub, tot, i, e, cls = "") => g.insertAdjacentHTML("beforeend", `<div class="nm ${cls}">${nm}${sub ? `<small>${sub}</small>` : ""}</div><div class="num ${cls}${z(tot)}">${tot}</div><div class="num ${cls}${z(i)}">${i}</div><div class="num ${cls}${e ? " ext" : " zero"}">${e}</div>`);
-  if (!ST.on) { g.innerHTML = `<div class="nm" style="grid-column:1/-1;min-height:48px"><span>${S.s === "rest" ? "Restaurante en horario regular: el equipo está en turno, sin horas extra." : "Captura invitados y un espacio de uso privado."}</span></div>`; $("st_warn").innerHTML = ""; $("st_cost").innerHTML = ""; $("st_fee").innerHTML = ""; $("st_alert").innerHTML = ""; $("st_req").textContent = ""; $("st_sum").textContent = ""; return; }
-  g.insertAdjacentHTML("beforeend", `<div class="hd">Puesto</div><div class="hd num">Total</div><div class="hd num">Casa</div><div class="hd num">Externos</div><div class="sec">Piso · ${FMTN[ST.fmt]}</div>`);
+  if (!ST.on) { g.innerHTML = `<div class="nm" style="grid-column:1/-1;min-height:48px"><span>${S.s === "rest" ? "Restaurante en horario regular: el equipo está en turno, sin horas extra." : "Captura invitados y un espacio de uso privado."}</span></div>`; $("st_warn").innerHTML = ""; $("st_cost").innerHTML = ""; $("st_fee").innerHTML = ""; $("st_split").innerHTML = ""; $("st_alert").innerHTML = ""; $("st_req").textContent = ""; $("st_sum").textContent = ""; return; }
+  g.insertAdjacentHTML("beforeend", `<div class="hd">Puesto</div><div class="hd num">Total</div><div class="hd num">Internos</div><div class="hd num">Externos</div><div class="sec">Piso · ${FMTN[ST.fmt]}</div>`);
   row("Meseros", `1 por ${R.meseros[ST.fmt]}${$("st_cp").checked ? " · +1 colchón" : ""}`, ST.meseros, ST.iMes, ST.meseros - ST.iMes);
-  row("Bar", ST.bar ? "vino y cerveza" : "los meseros sirven", ST.bar, ST.iBar, ST.bar - ST.iBar);
+  row("Bar", ST.bar ? "barra libre" : "sin barra libre: los meseros sirven", ST.bar, ST.iBar, ST.bar - ST.iBar);
   row("Jefe o Capitán", `Jess o Fer · siempre 1, 2 desde ${R.lider2Desde}`, ST.lider, ST.iLid, ST.lider - ST.iLid);
   g.insertAdjacentHTML("beforeend", `<div class="sec">Cocina</div>`);
   row("Cocineros", `${ST.pax <= R.cocinaConfirmadoHasta ? "según Lalo" : "estimado"}${$("st_cc").checked ? " · +1 colchón" : ""}`, ST.coc, ST.iCoc, ST.coc - ST.iCoc);
@@ -437,11 +455,18 @@ function renderST(ST, S) {
   $("st_warn").innerHTML = ST.pax > R.cocinaConfirmadoHasta ? `<div class="warn">Lalo confirmó la cocina hasta 100 invitados; arriba de eso es un estimado, confírmalo con él antes de publicar la requisición.</div>` : "";
   if (ST.iLid < ST.lider) $("st_warn").innerHTML += `<div class="warn">Ningún evento sin Jefe o Capitán de Dos Búhos: sube "internos de piso" para que Jess o Fer cubran ${ST.lider > 1 ? "los 2 puestos" : "el puesto"} de capitán.</div>`;
   const ln = (b, i, k = "") => `<div class="ln ${k}"><b>${b}</b><i>${i}</i></div>`;
-  const short = ST.shortP + ST.shortC;
-  $("st_cost").innerHTML = ln(`Internos · ${ST.inP + ST.inC} × ${ST.H} h × ${m(R.tarifa)}`, m(ST.wIn), "sub") + ln(`Externos · ${ST.exP + ST.exC} × ${ST.H} h × ${m(R.tarifa)}`, m(ST.wExP + ST.wExC), "sub") + (ST.wExE ? ln(`Apoyo · ${ST.exE} × ${ST.H} h × ${m(R.tarifa)}`, m(ST.wExE), "sub") : "") + ln(`Sueldos de la noche · ${ST.slots} personas`, m(ST.cost)) + ln(`− lo que paga el fee de servicio (externos)`, `(${m(ST.wExP + ST.wExC - short)})`, "sub") + ln(`Costo de personal para la casa<span class="d">${short ? "incluye " + m(short) + " de externos que el fee no cubre" : "internos y apoyo; los externos los paga el fee"}</span>`, m(ST.houseCost), short ? "red" : "tot");
-  $("st_sum").textContent = `${ST.slots} personas · ${m(ST.houseCost)} para la casa`;
-  $("st_fee").innerHTML = ln("Servicio 15 % de alimentos y bebidas", m(ST.fee)) + ln("Piso 50 %", m(ST.half), "sub") + ln(`− externos de piso · ${ST.exP} × ${ST.H} h × ${m(R.tarifa)}`, ST.exP ? `(${m(ST.exP * ST.H * R.tarifa)})` : "—", "sub") + ln(`Bono piso · ${ST.inP} internos`, ST.inP ? `${m(ST.bonoP)} c/u` : "—", ST.poolP < 0 ? "red" : "") + ln("Cocina 50 %", m(ST.half), "sub") + ln(`− externos de cocina · ${ST.exC} × ${ST.H} h × ${m(R.tarifa)}`, ST.exC ? `(${m(ST.exC * ST.H * R.tarifa)})` : "—", "sub") + ln(`Bono cocina · ${ST.inC} internos`, ST.inC ? `${m(ST.bonoC)} c/u` : "—", ST.poolC < 0 ? "red" : "");
-  $("st_alert").innerHTML = !ST.fee ? `<div class="warn">Sin alimentos y bebidas no hay fee de servicio ni bono.</div>` : short > 0 ? `<div class="alert">El fee de ${ST.shortP ? "piso" : "cocina"} no alcanza para sus externos: faltan ${m(short)}, los cubre la casa y ese lado se queda sin bono. Sube el consumo (barra por hora, menú) o revisa la plantilla.</div>` : `<div class="ok">El fee cubre a los externos y deja bono: ${m(ST.bonoP)} por persona de piso · ${m(ST.bonoC)} de cocina.</div>`;
+  $("st_cost").innerHTML = ln("Lo que paga el cliente por nuestro equipo", "", "sec2") +
+    ln(`Operación fuera de horario · ${ST.hrsEv} h × ${m(P.operacion)}<span class="d">en la línea del espacio; el cliente la ve como "Espacio y operación del evento privado"</span>`, m(ST.opCharge)) +
+    ln(`Tiempo doble de nuestro equipo · ${ST.nIn} × ${ST.H} h × ${m(R.interno)}`, `(${m(ST.wIn)})`, "sub") +
+    ln(`Diferencia<span class="d">tarifa fija por hora: en eventos cortos queda un poco abajo, en largos un poco arriba</span>`, m(ST.opGap), (ST.opGap < -0.15 * ST.wIn) ? "red" : "sub") +
+    ln("Lo que paga la casa (del margen)", "", "sec2") +
+    ln(`Externos · ${ST.exP + ST.exC + ST.exE} × ${ST.H} h × ${m(R.tarifa)}<span class="d">${ST.exP} piso · ${ST.exC} cocina${ST.exE ? ` · ${ST.exE} apoyo` : ""}; tarifa de mercado, sin bono</span>`, m(ST.wEx), ST.wEx ? "tot" : "sub");
+  $("st_sum").textContent = `${ST.slots} personas · externos ${m(ST.wEx)} de la casa`;
+  const sp = ST.split, th = (t, r = "") => `<div class="hd${r}">${t}</div>`;
+  $("st_fee").innerHTML = ln("Fee de servicio 15 %, todo para nuestro equipo", m(ST.fee)) + ln(`${ST.nIn} personas de Dos Búhos · los externos no entran al reparto`, "", "sub");
+  $("st_split").innerHTML = (ST.fee && sp.length ? `<div class="stg fee3" style="margin-top:8px">${th("Por persona")}${th("50/50", " num")}${th("Parejo", " num")}${th("Puntos", " num")}` +
+      sp.map(r => `<div class="nm">${r.nm}<small>${r.k} · ${r.side} · ${r.pt} pt</small></div><div class="num">${m(r.mitad)}</div><div class="num">${m(r.parejo)}</div><div class="num">${m(r.puntos)}</div>`).join("") + `</div><div style="font-size:11.5px;color:var(--muted);margin:6px 2px 0">El equipo elige cómo repartir; si no se ponen de acuerdo, 50/50 piso y cocina.</div>` : "");
+  $("st_alert").innerHTML = !ST.fee ? `<div class="warn">Sin alimentos y bebidas no hay fee de servicio.</div>` : ST.opGap < -0.15 * ST.wIn ? `<div class="alert">Hay más internos de los que cubre la operación (faltante ${m(-ST.opGap)}). Revisa cuántos de los nuestros hacen falta.</div>` : `<div class="ok">La operación cubre el tiempo extra de nuestro equipo; los externos (${m(ST.wEx)}) salen del margen.</div>`;
   const gv = id => String($(id).value || "").trim();
   $("st_req").textContent = [
     `REQUISICIÓN DE PERSONAL · ${(gv("cv_evento") || gv("cv_cliente") || "EVENTO").toUpperCase()}`,
@@ -451,12 +476,12 @@ function renderST(ST, S) {
     `Cocina ${ST.cocina}: ${ST.coc} cocineros · ${ST.lav} lavaloza`,
     `Estacionamiento ${ST.est}${ST.adj ? ` · Ajuste ${ST.adj > 0 ? "+" : ""}${ST.adj}` : ""}`,
     ``, `PAGA`,
-    `${m(R.tarifa)} por hora × ${ST.H} h = ${m(R.tarifa * ST.H)} (o lo que marque la ley si es mayor), por nómina.`,
-    ST.fee ? `Más bono del fee de servicio, estimado: ${m(ST.bonoP)} piso · ${m(ST.bonoC)} cocina.` : `Más bono del fee de servicio (se publica con el consumo del evento).`,
-    `Externos: misma tarifa, sin bono, sin transporte. Solo Jess o Michael contratan.`,
+    `Nuestro equipo: tiempo extra por nómina (doble, o lo que marque la ley), ${ST.H} h.`,
+    ST.fee ? `Más el fee de servicio completo, ${m(ST.fee)}, solo para nuestro equipo (${ST.nIn} personas). El equipo elige el reparto: 50/50, parejo o por puntos.` : `Más el fee de servicio (se publica con el consumo del evento).`,
+    `Externos: ${m(R.tarifa)} por hora, los paga la casa. Sin fee, sin transporte. Solo Jess o Michael contratan.`,
     ``, `PARA ANOTARTE`,
     `Piso con Jess · Cocina con Lalo. Si hay más interesados que lugares: rotación. Lugares sin cubrir cinco días antes se cubren con externos.`,
-    ``, `Costo autorizado: ${ST.slots} puestos × ${ST.H} h × ${m(R.tarifa)} = ${m(ST.cost)} · Autoriza: Michael`,
+    ``, `Externos autorizados: ${ST.exP + ST.exC + ST.exE} × ${ST.H} h × ${m(R.tarifa)} = ${m(ST.wEx)} · Autoriza: Michael`,
   ].join("\n");
 }
 function copyReq(b) { navigator.clipboard?.writeText($("st_req").textContent).then(() => { const t = b.textContent; b.textContent = "Copiado"; setTimeout(() => b.textContent = t, 1200); }); }
@@ -480,7 +505,7 @@ function recalc() {
   $("o_min_note").textContent = (F.prv && F.gap > 0) ? `Para eventos privados fuera de nuestro horario regular manejamos un consumo mínimo de ${m(F.MIN)} en alimentos y bebidas para un evento de ${F.shh} horas, antes de servicio e IVA: así abrimos la bodega solo para ustedes, con todo nuestro equipo. Para grupos pequeños, lo que falte lo convertimos en algo que disfruten: un mejor menú, canapés o vino de nuestra bodega para llevar a casa.` : "";
   // interno
   const priv = S.s === "bodega" || S.s === "garden";
-  $("in_net").textContent = priv ? m(S.sub) : "—";
+  $("in_net").textContent = priv ? m(S.sub - S.op) : "—";
   renderST(ST, S);
   const al = [];
   if (F.prv && F.gap > 0) al.push(`BAJO EL CONSUMO MÍNIMO · faltan ${m(F.gap)} de ${m(F.MIN)}. Ver opciones abajo antes de enviar.`);
@@ -517,7 +542,7 @@ function spaceText(S) {
   const SN = { bodega: "La Bodega de Arte", garden: "El Winegarden" };
   if (S.s === "rest") return "Una mesa en nuestro restaurante, en horario regular, hasta 3 horas.";
   if (!S.s) return "";
-  return (S.est ? `La hacienda completa en exclusiva, con ${SN[S.s].toLowerCase()} como espacio principal` : `${SN[S.s]} en exclusiva para su grupo`) + `, abierta fuera de nuestro horario regular · ${S.h || 3} horas.\n\nEstacionamiento y sanitarios atendidos; mobiliario, mantelería, cristalería y vajilla, y coordinación en sitio.` + (S.desc ? "\n\nCon cortesía de la casa en la renta del espacio." : "");
+  return (S.est ? `La hacienda completa en exclusiva, con ${SN[S.s].toLowerCase()} como espacio principal` : `${SN[S.s]} en exclusiva para su grupo`) + `, abierta fuera de nuestro horario regular · ${S.h || 3} horas.\n\nEquipo de servicio de Dos Búhos durante todo el evento, con montaje y cierre. Estacionamiento y sanitarios atendidos; mobiliario, mantelería, cristalería y vajilla, y coordinación en sitio.` + (S.desc ? "\n\nCon cortesía de la casa en la renta del espacio." : "");
 }
 function showProp() {
   const { F, S, ST, grand, pax } = recalc();
@@ -528,7 +553,7 @@ function showProp() {
   $("r_space").textContent = spaceText(S);
   $("r_total").textContent = m(grand); $("r_pp").textContent = pax ? `${m(grand / pax)} por invitado · MXN` : ""; $("r_fb_note").textContent = grand ? "Alimentos, bebidas, espacio, servicio e IVA incluidos" : "";
   $("r_min").textContent = $("o_min_note").textContent;
-  const det = F.L.concat([["Total alimentos y bebidas", m(F.total), "tot"]]).concat(S.s ? S.L.concat([["Total espacio", m(S.total), "tot"]]) : []);
+  const det = F.L.concat([["Total alimentos y bebidas", m(F.total), "tot"]]).concat(S.s ? S.LC.concat([["Total espacio", m(S.total), "tot"]]) : []);
   $("r_det").innerHTML = det.filter(x => x[2] !== "red").map(([a, b, k]) => `<div class="ln ${k || ""}"><b>${a}</b><i>${b}</i></div>`).join("");
   $("r_notas").textContent = [g("fb_notas"), g("sp_notas")].filter(Boolean).join("\n\n");
   document.body.classList.add("prop"); window.scrollTo(0, 0);
@@ -542,7 +567,7 @@ function proposalData() {
   return { cliente: g("cv_cliente"), evento: g("cv_evento"), fecha: fechaTexto(), hora: horaTexto(), por: g("cv_por"), pax,
     hoy: new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }),
     space: S.s ? { key: S.s, name: SN[S.s], hrs: S.h || 3, est: !!S.est, text: spaceText(S) } : null,
-    it: itinerary(F), fb: { lines: keep(F.L), total: m(F.total) }, sp: S.s ? { lines: S.L, total: m(S.total) } : null,
+    it: itinerary(F), fb: { lines: keep(F.L), total: m(F.total) }, sp: S.s ? { lines: S.LC, total: m(S.total) } : null,
     grand: m(grand), pp: pax ? m(grand / pax) : "", minNote: $("o_min_note").textContent,
     notas: [g("fb_notas"), g("sp_notas")].filter(Boolean).join("\n\n"), detail: document.body.classList.contains("det") };
 }
@@ -555,7 +580,7 @@ function shareWA() {
   const { F, S, ST, grand, pax } = recalc();
   const g = id => String($(id).value || "").trim();
   const t = [`*Dos Búhos · Cotización*`, [g("cv_cliente"), g("cv_evento")].filter(Boolean).join(" · "), [fechaTexto(), horaTexto(), pax ? pax + " invitados" : ""].filter(Boolean).join(" · "), "",
-    ...F.L.filter(x => x[2] !== "sub" && x[2] !== "red").map(([a, b]) => `• ${a}: ${b}`), S.s ? `• ${S.L[0][0]}: ${S.L[0][1]}` : "", "",
+    ...F.L.filter(x => x[2] !== "sub" && x[2] !== "red").map(([a, b]) => `• ${a}: ${b}`), S.s ? `• ${S.LC[0][0]}: ${S.LC[0][1]}` : "", "",
     `*Total del evento: ${m(grand)}*` + (pax ? ` · ${m(grand / pax)} por invitado` : ""), "Servicio e IVA incluidos. Propuesta vigente 15 días.", "eventos@dosbuhos.com · +52 415 139 0978"].filter(x => x !== null).join("\n");
   window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
 }

@@ -34,7 +34,7 @@ export function proposalHTML(d, base, note) {
   const hasTour = (d.it || []).some(r => /recorrido/i.test(r[1]));
   const lines = (L) => (L || []).map(([a, b, k]) => `<div class="ln ${k || ''}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
   const incl = d.space?.key && d.space.key !== 'rest'
-    ? ['Mobiliario, mantelería y vajilla', 'Cristalería de la casa', 'Coordinación en sitio', 'Estacionamiento atendido', 'Sanitarios atendidos', `${d.space.hrs || 3} horas de evento`]
+    ? ['Equipo de servicio de Dos Búhos, con montaje y cierre', 'Mobiliario, mantelería y vajilla', 'Cristalería de la casa', 'Coordinación en sitio', 'Estacionamiento atendido', 'Sanitarios atendidos', `${d.space.hrs || 3} horas de evento`]
     : d.space?.key === 'rest' ? ['Mesa reservada en horario regular', 'Hasta 3 horas', 'Servicio de nuestro equipo'] : [];
   const pageHead = (k) => `<div class="ph"><img src="${LOGO_DARK}" alt="Dos Búhos"><span>${esc(k)}</span></div>`;
   const pageFoot = (n) => `<div class="pf"><span>Bodega Dos Búhos · Viñedo orgánico certificado · San Miguel de Allende, Guanajuato</span><span>${n} / 3</span></div>`;
